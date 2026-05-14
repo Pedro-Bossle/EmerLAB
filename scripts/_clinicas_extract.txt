@@ -1,0 +1,14 @@
+﻿node : file:///C:/Users/loopy/Documents/GitHub/Emerdog_SFSC_SUPERTOOL/scripts/extract-pdf-text.mjs:13
+No C:\Users\loopy\AppData\Local\Temp\ps-script-a1f64036-3388-48d5-98f4-d2bd6d7eaeb7.ps1:77 caractere:72
++ ... SUPERTOOL"; node scripts/extract-pdf-text.mjs "src/assets/contratos/M ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (file:///C:/User...pdf-text.mjs:13:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+const data = await pdfParse(buf)
+                   ^
+
+TypeError: pdfParse is not a function
+    at file:///C:/Users/loopy/Documents/GitHub/Emerdog_SFSC_SUPERTOOL/scripts/extract-pdf-text.mjs:13:20
+
+Node.js v22.22.0

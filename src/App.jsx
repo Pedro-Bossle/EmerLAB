@@ -15,6 +15,8 @@ import Credenciamento_main from './pages/Credenciamento/Credenciamento_main/Cred
 import GerenciamentoAcessos from './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos';
 import ComprasValorVenda from './pages/Compras/ValorVenda/ComprasValorVenda';
 import ComprasOrcamento from './pages/Compras/Orcamento/ComprasOrcamento';
+import ContratosEmerdog from './pages/Contratos/ContratosEmerdog';
+import ClicksignEmerdog from './pages/Contratos/ClicksignEmerdog';
 import NotFound from './pages/NotFound/NotFound';
 function App() {
   return (
@@ -139,6 +141,24 @@ function App() {
             element={
               <PrivateRoute permission="compras.view">
                 <ComprasOrcamento />
+              </PrivateRoute>
+            }
+          />
+        </Route>
+        <Route element={<Layout2 />}>
+          <Route
+            path="/contratos/gerar"
+            element={
+              <PrivateRoute permission="credenciamento.view">
+                <ContratosEmerdog />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/contratos/clicksign"
+            element={
+              <PrivateRoute permission="credenciamento.view">
+                <ClicksignEmerdog />
               </PrivateRoute>
             }
           />

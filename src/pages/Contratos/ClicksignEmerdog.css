@@ -1,0 +1,1867 @@
+.clicksign_emerdog {
+    max-width: none;
+    width: 100%;
+}
+
+/** Largura total na área de conteúdo (sobrepõe o max-width dos contratos). */
+.contratos_emerdog.clicksign_emerdog_full {
+    max-width: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.clicksign_tabs_scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+}
+
+.clicksign_tabs_scroll .contratos_tab {
+    flex-shrink: 0;
+}
+
+.clicksign_stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: stretch;
+    margin-bottom: 1rem;
+}
+
+.clicksign_stat_card {
+    flex: 1;
+    min-width: 140px;
+    border: 1px solid #d7e8f2;
+    border-radius: 10px;
+    padding: 0.65rem 0.85rem;
+    background: #fafcfe;
+}
+
+.clicksign_stat_label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #5e7188;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.clicksign_stat_value {
+    display: block;
+    font-size: 1.35rem;
+    line-height: 1.2;
+    color: #1e3148;
+    margin: 0.2rem 0;
+}
+
+.clicksign_stat_hint {
+    font-size: 0.72rem;
+    color: #6b7f95;
+    line-height: 1.35;
+}
+
+.clicksign_mes_aviso {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+}
+
+.clicksign_pre_compact {
+    max-height: 120px;
+    margin-bottom: 0.75rem;
+}
+
+.clicksign_field_inline {
+    min-width: 160px;
+    margin-bottom: 0;
+}
+
+.clicksign_field_inline label {
+    font-size: 0.78rem;
+}
+
+.clicksign_field_grow {
+    flex: 1 1 200px;
+    min-width: 160px;
+    margin-bottom: 0;
+}
+
+.clicksign_btn_icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.clicksign_btn_icon.is-muted {
+    opacity: 0.8;
+}
+
+.clicksign_btn_icon_label {
+    font-size: 0.82rem;
+}
+
+.clicksign_icon_eye {
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+
+.clicksign_modal_head_row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.clicksign_modal_title_text {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+}
+
+.clicksign_detail_table_wrap {
+    overflow-x: auto;
+    margin: 0 0 1rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+.clicksign_detail_table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.clicksign_detail_table th,
+.clicksign_detail_table td {
+    border: 1px solid #d7e8f2;
+    padding: 0.45rem 0.55rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.clicksign_detail_table th {
+    background: #f0f6fa;
+    font-weight: 600;
+    color: #1e3148;
+}
+
+.clicksign_montar .clicksign_steps {
+    margin: 0 0 1.25rem;
+    padding-left: 1.25rem;
+    line-height: 1.55;
+}
+
+.clicksign_montar .clicksign_steps > li {
+    margin-bottom: 1.25rem;
+}
+
+.clicksign_montar .clicksign_steps .contratos_field {
+    max-width: 520px;
+    margin-top: 0.5rem;
+}
+
+.clicksign_subtitle {
+    font-size: 0.95rem;
+    margin: 0 0 0.5rem;
+    color: #1e3148;
+}
+
+.clicksign_montar_grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 640px) {
+    .clicksign_montar_grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.clicksign_mini_list {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: #30495f;
+}
+
+.clicksign_ativar_block {
+    border-top: 1px solid #e8f1f7;
+    padding-top: 1rem;
+    margin-top: 0.5rem;
+}
+
+.clicksign_modal_body {
+    max-height: min(70vh, 560px);
+    overflow: auto;
+}
+
+.clicksign_detail_attrs {
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.clicksign_detail_attrs p {
+    margin: 0.35rem 0;
+}
+
+.clicksign_details {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+}
+
+.clicksign_details summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #2f87c6;
+}
+
+.clicksign_toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 14px;
+    margin-bottom: 0.75rem;
+}
+
+.clicksign_toolbar .contratos_field {
+    margin-bottom: 0;
+}
+
+.clicksign_toolbar .contratos_field label {
+    margin-bottom: 0.2rem;
+}
+
+.clicksign_toolbar > .contratos_btn {
+    height: 38px;
+    box-sizing: border-box;
+    align-self: flex-end;
+}
+
+.clicksign_toolbar .clicksign_btn_icon {
+    height: 38px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    align-self: flex-end;
+}
+
+.clicksign_meta {
+    font-size: 0.82rem;
+    color: #5e7188;
+}
+
+.clicksign_table_wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0.5rem 0 1rem;
+}
+
+.clicksign_table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    box-sizing: border-box;
+}
+
+.clicksign_table th,
+.clicksign_table td {
+    border: 1px solid #d7e8f2;
+    padding: 0.5rem 0.6rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.clicksign_table th {
+    background: #f8fbfd;
+    font-weight: 600;
+    color: #1e3148;
+}
+
+.clicksign_table_envelopes {
+    table-layout: fixed;
+}
+
+.clicksign_table_envelopes col {
+    min-width: 0;
+}
+
+.clicksign_table_envelopes th,
+.clicksign_table_envelopes td {
+    vertical-align: middle;
+}
+
+.clicksign_table_envelopes thead th {
+    text-align: center;
+}
+
+.clicksign_table_envelopes tbody td.clicksign_col_nome,
+.clicksign_table_envelopes tbody td.clicksign_col_id {
+    text-align: left;
+}
+
+.clicksign_table_envelopes tbody td.clicksign_col_acoes {
+    text-align: center;
+}
+
+.clicksign_table_envelopes tbody td.clicksign_col_estado,
+.clicksign_table_envelopes tbody td.clicksign_col_data {
+    text-align: center;
+}
+
+.clicksign_col_nome {
+    width: 34%;
+    min-width: 100px;
+}
+
+.clicksign_col_estado {
+    width: 9%;
+    min-width: 76px;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.clicksign_col_estado .clicksign_badge {
+    vertical-align: middle;
+}
+
+.clicksign_col_data {
+    width: 12%;
+    min-width: 118px;
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+.clicksign_col_id {
+    width: 23%;
+    min-width: 160px;
+    word-break: break-word;
+}
+
+.clicksign_col_acoes {
+    width: 148px;
+    min-width: 148px;
+    max-width: 168px;
+    box-sizing: border-box;
+}
+
+.clicksign_table_envelopes td.clicksign_col_acoes .clicksign_td_actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.clicksign_table_envelopes .table_delete_btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid #d18c8c;
+    background: #ffe5e5;
+    color: #6b1f1f;
+    font-size: 15px;
+    line-height: 1;
+    box-sizing: border-box;
+}
+
+.clicksign_table_envelopes .table_delete_btn:hover:not(:disabled) {
+    background: #ffd4d4;
+    box-shadow: 0 2px 8px rgba(164, 67, 67, 0.18);
+}
+
+.clicksign_table_envelopes .table_delete_btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.clicksign_td_empty {
+    text-align: center;
+    color: #5e7188;
+    padding: 1.25rem !important;
+}
+
+.clicksign_btn_sm {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.82rem;
+}
+
+.clicksign_mono {
+    font-family: ui-monospace, monospace;
+    font-size: 0.78rem;
+    word-break: break-all;
+}
+
+.clicksign_badge {
+    display: inline-block;
+    padding: 0.15rem 0.45rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: lowercase;
+}
+
+.clicksign_badge--draft {
+    background: #eef2f6;
+    color: #4a5568;
+}
+.clicksign_badge--running {
+    background: #e3f4e8;
+    color: #1e6b3a;
+}
+.clicksign_badge--closed {
+    background: #e7f4fc;
+    color: #1e4d7a;
+}
+.clicksign_badge--canceled,
+.clicksign_badge--cancelled {
+    background: #fdeaea;
+    color: #8b2c2c;
+}
+
+.clicksign_pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.clicksign_novo .contratos_field {
+    max-width: 420px;
+}
+
+.clicksign_explorer_row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+}
+
+.clicksign_flex1 {
+    flex: 1;
+    min-width: 200px;
+}
+
+.clicksign_textarea_tall {
+    min-height: 180px;
+    font-family: ui-monospace, monospace;
+    font-size: 0.82rem;
+}
+
+.clicksign_pre {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: #f8fbfd;
+    border: 1px solid #d7e8f2;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    overflow: auto;
+    max-height: 360px;
+}
+
+.clicksign_links {
+    margin: 0;
+    padding-left: 1.25rem;
+    line-height: 1.8;
+}
+
+.clicksign_links a {
+    color: #2f87c6;
+    font-weight: 500;
+}
+
+.clicksign_modal_wide {
+    max-width: min(96vw, 880px);
+}
+
+.clicksign_modal_foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.clicksign_modal_foot .contratos_btn {
+    margin: 0;
+}
+
+@media (max-width: 640px) {
+    .clicksign_table thead {
+        display: none;
+    }
+    .clicksign_table tr {
+        display: block;
+        border: 1px solid #d7e8f2;
+        border-radius: 10px;
+        margin-bottom: 0.65rem;
+        overflow: hidden;
+    }
+    .clicksign_table td {
+        display: block;
+        border: none;
+        border-bottom: 1px solid #e8f1f7;
+    }
+    .clicksign_table td:last-child {
+        border-bottom: none;
+    }
+    .clicksign_table td::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #5e7188;
+        margin-bottom: 0.2rem;
+    }
+}
+
+/* Modo escuro — alinhado a ContratosEmerdog */
+body.dark-mode .clicksign_table th,
+body.dark-mode .clicksign_table td {
+    border-color: #2a4258;
+    color: #e7f4fc;
+}
+
+body.dark-mode .clicksign_table th {
+    background: #152433;
+    color: #e7f4fc;
+}
+
+body.dark-mode .clicksign_table tr {
+    border-color: #2a4258;
+}
+
+body.dark-mode .clicksign_table td {
+    border-color: #243547;
+}
+
+body.dark-mode .clicksign_table_envelopes .table_delete_btn {
+    background: #3a2226;
+    border-color: #8f4c58;
+    color: #ffc8c8;
+}
+
+body.dark-mode .clicksign_table_envelopes .table_delete_btn:hover:not(:disabled) {
+    background: #4d2e34;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .clicksign_td_empty {
+    color: #9fb4c8;
+}
+
+body.dark-mode .clicksign_meta {
+    color: #9fb4c8;
+}
+
+body.dark-mode .clicksign_pre {
+    background: #152433;
+    border-color: #2a4258;
+    color: #dce8f2;
+}
+
+body.dark-mode .clicksign_links a {
+    color: #7eb8e8;
+}
+
+body.dark-mode .clicksign_stat_card {
+    background: #152433;
+    border-color: #2a4258;
+}
+
+body.dark-mode .clicksign_stat_label {
+    color: #9fb4c8;
+}
+
+body.dark-mode .clicksign_stat_value {
+    color: #e7f4fc;
+}
+
+body.dark-mode .clicksign_stat_hint {
+    color: #9fb4c8;
+}
+
+body.dark-mode .clicksign_subtitle {
+    color: #e7f4fc;
+}
+
+body.dark-mode .clicksign_mini_list {
+    color: #c5d6e6;
+}
+
+body.dark-mode .clicksign_ativar_block {
+    border-color: #2a4258;
+}
+
+body.dark-mode .clicksign_details summary {
+    color: #7eb8e8;
+}
+
+/* Confirmação de exclusão (padrão Credenciamento / Supertabela) */
+.clicksign_confirm_exclusao {
+    position: fixed;
+    right: 18px;
+    top: 96px;
+    z-index: 1350;
+    min-width: 320px;
+    max-width: 460px;
+    border: 1px solid #e5c2c2;
+    border-radius: 10px;
+    background: #fff7f7;
+    box-shadow: 0 8px 24px rgba(30, 49, 72, 0.22);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.clicksign_confirm_exclusao_text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: #4b2b2b;
+    font-size: 0.9rem;
+}
+
+.clicksign_confirm_exclusao_text strong {
+    font-size: 0.95rem;
+}
+
+.clicksign_confirm_exclusao_actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.clicksign_confirm_exclusao_btn {
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 7px;
+    border: 1px solid #b9cad8;
+    background: #fff;
+    color: #35556d;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.clicksign_confirm_exclusao_btn.danger {
+    border-color: #d18c8c;
+    background: #ffe7e7;
+    color: #8f2c2c;
+}
+
+body.dark-mode .clicksign_confirm_exclusao {
+    background: #2a1a1a;
+    border-color: #5c3838;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+body.dark-mode .clicksign_confirm_exclusao_text {
+    color: #f0d8d8;
+}
+
+body.dark-mode .clicksign_confirm_exclusao_btn {
+    background: #1a2836;
+    border-color: #3a5068;
+    color: #dce8f2;
+}
+
+body.dark-mode .clicksign_confirm_exclusao_btn.danger {
+    background: #3d2222;
+    border-color: #8f4c4c;
+    color: #ffd4d4;
+}
+
+/* —— Fluxo Montar envelope (cores alinhadas a Contratos / Emerdog) —— */
+.cs_flow {
+    --cs-text: #1e3148;
+    --cs-muted: #5e7188;
+    --cs-border: #d7e8f2;
+    --cs-border-strong: #b8d3e5;
+    --cs-surface: #fafcfe;
+    --cs-surface-head: #f8fbfd;
+    --cs-primary: #2f87c6;
+    --cs-primary-soft: #f0f7fc;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+}
+
+.cs_hint_inline {
+    margin: 0 0 1rem;
+}
+
+.cs_env_strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.6rem 0.85rem;
+    background: var(--cs-surface);
+    border: 1px solid var(--cs-border);
+    border-radius: 10px;
+}
+
+.cs_env_badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--cs-primary);
+}
+
+.cs_env_badge_edicao {
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-weight: 600;
+    color: #92400e;
+    background: #fffbeb;
+    padding: 0.15rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid #fcd34d;
+}
+
+.cs_env_id {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.78rem;
+    word-break: break-all;
+    color: var(--cs-text);
+}
+
+.cs_card {
+    background: #fff;
+    border: 1px solid var(--cs-border);
+    border-radius: 14px;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 18px rgba(30, 49, 72, 0.06);
+    overflow: hidden;
+}
+
+.cs_card.is-locked {
+    opacity: 0.95;
+}
+
+.cs_card_head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--cs-border);
+    background: var(--cs-surface-head);
+}
+
+.cs_card_dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--cs-primary);
+    flex-shrink: 0;
+}
+
+.cs_dot_red {
+    background: #c0392b;
+}
+
+.cs_card_title {
+    margin: 0;
+    flex: 1;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--cs-text);
+}
+
+.cs_card_tag {
+    font-size: 0.72rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: #eef2f6;
+    color: var(--cs-muted);
+    font-weight: 600;
+}
+
+.cs_card_body {
+    padding: 1rem;
+    position: relative;
+}
+
+.cs_lock_msg {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.88);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--cs-muted);
+    z-index: 2;
+    border-radius: 0 0 12px 12px;
+}
+
+.cs_field_grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1rem;
+}
+
+@media (max-width: 640px) {
+    .cs_field_grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.cs_input,
+.cs_textarea {
+    border-radius: 8px !important;
+    border-color: var(--cs-border-strong) !important;
+}
+
+.cs_actions_row {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.cs_details {
+    margin-top: 0.75rem;
+    font-size: 0.84rem;
+    color: var(--cs-muted);
+}
+
+.cs_details summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--cs-primary);
+}
+
+.cs_dropzone {
+    border: 2px dashed var(--cs-border-strong);
+    border-radius: 14px;
+    padding: 1.75rem 1rem;
+    text-align: center;
+    background: var(--cs-surface);
+    transition:
+        border-color 0.15s,
+        background 0.15s;
+}
+
+.cs_dropzone.is-active {
+    border-color: var(--cs-primary);
+    background: var(--cs-primary-soft);
+}
+
+.cs_dropzone.is-disabled {
+    pointer-events: none;
+    filter: grayscale(0.06);
+    opacity: 0.65;
+}
+
+.cs_dropzone_icon {
+    color: var(--cs-primary);
+    margin-bottom: 0.35rem;
+}
+
+.cs_dropzone_title {
+    margin: 0;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--cs-text);
+}
+
+.cs_dropzone_sub {
+    margin: 0.35rem 0 1rem;
+    font-size: 0.8rem;
+    color: var(--cs-muted);
+}
+
+.cs_file_label {
+    position: relative;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cs_file_input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.cs_channel_row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+}
+
+.cs_channel_btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 0.5rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid var(--cs-border-strong);
+    background: #fff;
+    font-weight: 600;
+    font-size: 0.86rem;
+    color: var(--cs-muted);
+    cursor: pointer;
+    transition:
+        border-color 0.15s,
+        background 0.15s,
+        color 0.15s;
+}
+
+.cs_channel_btn.is-active {
+    border-color: #1e3148;
+    background: #1e3148;
+    color: #fff;
+    box-shadow: none;
+}
+
+.cs_channel_btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.cs_fineprint {
+    font-size: 0.78rem;
+    color: var(--cs-muted);
+    line-height: 1.45;
+    margin: 0 0 0.75rem;
+}
+
+.cs_summary_grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 640px) {
+    .cs_summary_grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.cs_summary_card {
+    border: 1px solid var(--cs-border);
+    border-radius: 12px;
+    padding: 0.75rem 0.85rem;
+    background: #fff;
+}
+
+.cs_summary_title {
+    margin: 0 0 0.5rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--cs-text);
+}
+
+.cs_summary_list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.cs_summary_item {
+    padding: 0.45rem 0;
+    border-bottom: 1px solid #e8f1f7;
+    font-size: 0.82rem;
+}
+
+.cs_summary_item:last-child {
+    border-bottom: none;
+}
+
+.cs_summary_name {
+    display: block;
+    font-weight: 600;
+    color: var(--cs-text);
+}
+
+.cs_summary_meta {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--cs-muted);
+    margin-top: 0.15rem;
+}
+
+.cs_summary_item_with_actions {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.cs_summary_item_main {
+    flex: 1;
+    min-width: 0;
+}
+
+.cs_summary_remove {
+    flex-shrink: 0;
+    width: 1.65rem;
+    height: 1.65rem;
+    padding: 0;
+    border: 1px solid var(--cs-border-strong, #c5d6e6);
+    border-radius: 6px;
+    background: #fff;
+    color: #b42318;
+    font-size: 1.15rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.cs_summary_remove:hover:not(:disabled) {
+    background: #fff4f2;
+    border-color: #b42318;
+}
+
+.cs_summary_remove:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.cs_summary_empty {
+    color: var(--cs-muted);
+    font-size: 0.82rem;
+}
+
+.cs_select_full {
+    width: 100%;
+    max-width: 100%;
+}
+
+.cs_field_hint {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+.cs_agenda {
+    margin-bottom: 1rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid var(--cs-border);
+    background: var(--cs-surface-head);
+}
+
+.cs_agenda_title {
+    margin: 0 0 0.25rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--cs-text);
+}
+
+.cs_agenda_hint {
+    margin: 0 0 0.6rem;
+    font-size: 0.78rem;
+    color: var(--cs-muted);
+    line-height: 1.35;
+}
+
+.cs_agenda_list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.cs_agenda_item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.35rem;
+    border-radius: 6px;
+    background: var(--cs-surface);
+    border: 1px solid var(--cs-border);
+}
+
+.cs_agenda_star {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--cs-muted);
+}
+
+.cs_agenda_star.is-on {
+    color: #c9a227;
+}
+
+.cs_agenda_star:hover {
+    background: var(--cs-primary-soft);
+    color: var(--cs-primary);
+}
+
+.cs_agenda_main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.cs_agenda_name {
+    font-weight: 500;
+    font-size: 0.88rem;
+    color: var(--cs-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cs_agenda_meta {
+    font-size: 0.76rem;
+    color: var(--cs-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Toggle canal + formulário de signatário */
+.cs_signer_block {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* Nome | Qualificação / E-mail [+ tel WPP] | Adicionar */
+.cs_signer_form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.cs_signer_row1 {
+    display: grid;
+    grid-template-columns: minmax(0, min(100%, 22rem)) minmax(140px, min(38%, 240px));
+    gap: 0.65rem;
+    align-items: end;
+}
+
+.cs_signer_qual_field {
+    min-width: 0;
+}
+
+.cs_signer_qual_select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.cs_signer_row2 {
+    display: grid;
+    grid-template-columns: minmax(0, min(100%, 22rem)) auto;
+    gap: 0.65rem;
+    align-items: end;
+}
+
+.cs_signer_row2.is-wpp {
+    grid-template-columns: minmax(0, min(100%, 17rem)) minmax(0, min(100%, 15rem)) auto;
+}
+
+.cs_signer_btn_cell {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+}
+
+.cs_signer_btn_cell .contratos_btn {
+    white-space: nowrap;
+}
+
+.cs_signer_doc_hint {
+    margin: 0.15rem 0 0;
+    font-size: 0.76rem;
+    line-height: 1.35;
+}
+
+@media (max-width: 720px) {
+    .cs_signer_row1 {
+        grid-template-columns: 1fr;
+    }
+
+    .cs_signer_row2,
+    .cs_signer_row2.is-wpp {
+        grid-template-columns: 1fr;
+    }
+
+    .cs_signer_btn_cell {
+        justify-content: stretch;
+    }
+
+    .cs_signer_btn_cell .contratos_btn {
+        width: 100%;
+    }
+}
+
+.cs_card_footer {
+    padding: 0.85rem 1rem;
+}
+
+body.dark-mode .cs_flow {
+    --cs-text: #e7f4fc;
+    --cs-muted: #9fb4c8;
+    --cs-border: #2a4258;
+    --cs-border-strong: #3d5266;
+    --cs-surface: #152433;
+    --cs-surface-head: #152433;
+    --cs-primary: #7eb8e8;
+    --cs-primary-soft: #1a2838;
+}
+
+body.dark-mode .cs_env_strip {
+    background: var(--cs-surface);
+    border-color: var(--cs-border);
+}
+
+body.dark-mode .cs_env_badge_edicao {
+    color: #fde68a;
+    background: #422006;
+    border-color: #a16207;
+}
+
+body.dark-mode .cs_card {
+    background: #1a2838;
+    border-color: #2a4258;
+    box-shadow: none;
+}
+
+body.dark-mode .cs_card_head {
+    background: var(--cs-surface-head);
+    border-color: #2a4258;
+}
+
+body.dark-mode .cs_lock_msg {
+    background: rgba(21, 36, 51, 0.9);
+    color: #c5d6e6;
+}
+
+body.dark-mode .cs_dropzone {
+    background: var(--cs-surface);
+    border-color: var(--cs-border-strong);
+}
+
+body.dark-mode .cs_dropzone.is-active {
+    background: var(--cs-primary-soft);
+    border-color: var(--cs-primary);
+}
+
+body.dark-mode .cs_channel_btn {
+    background: #1a2838;
+    border-color: #2a4258;
+    color: #9fb4c8;
+}
+
+body.dark-mode .cs_channel_btn.is-active {
+    background: #2f87c6;
+    border-color: #2f87c6;
+    color: #fff;
+}
+
+body.dark-mode .cs_summary_card {
+    background: #152433;
+    border-color: #2a4258;
+}
+
+body.dark-mode .cs_summary_item {
+    border-color: #243547;
+}
+
+body.dark-mode .cs_summary_remove {
+    background: #1a2838;
+    border-color: #3d5266;
+    color: #f0998b;
+}
+
+body.dark-mode .cs_summary_remove:hover:not(:disabled) {
+    background: #2a1f1f;
+    border-color: #f0998b;
+}
+
+body.dark-mode .cs_agenda {
+    background: #152433;
+    border-color: #2a4258;
+}
+
+body.dark-mode .cs_agenda_item {
+    background: #1a2838;
+    border-color: #2a4258;
+}
+
+body.dark-mode .cs_input,
+body.dark-mode .cs_textarea {
+    background: #152433 !important;
+    color: #e7f4fc !important;
+    border-color: #3d5266 !important;
+}
+
+body.dark-mode .cs_details summary {
+    color: #7eb8e8;
+}
+
+/* Modais de signatários — paleta alinhada ao fluxo (.cs_flow) */
+.contratos_modal.cs_sign_modal {
+    --cs-text: #1e3148;
+    --cs-muted: #5e7188;
+    --cs-border: #d7e8f2;
+    --cs-border-strong: #b8d3e5;
+    --cs-primary: #2f87c6;
+    --cs-primary-soft: #f0f7fc;
+}
+
+.cs_sig_req_mark {
+    color: var(--cs-primary);
+    font-weight: 700;
+}
+
+.cs_sig_agenda_count {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--cs-muted);
+}
+
+.cs_sig_pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 0.25rem;
+}
+
+.cs_sig_pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--cs-border-strong);
+    background: #fff;
+    color: var(--cs-primary);
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition:
+        border-color 0.15s,
+        background 0.15s;
+}
+
+.cs_sig_pill:hover:not(:disabled) {
+    border-color: var(--cs-primary);
+    background: var(--cs-primary-soft);
+}
+
+.cs_sig_pill:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.cs_sig_pill_icon {
+    flex-shrink: 0;
+    display: flex;
+}
+
+.cs_sig_pill_icon svg {
+    stroke: var(--cs-primary);
+}
+
+.cs_sign_modal {
+    max-width: min(94vw, 480px);
+}
+
+.cs_sign_modal--wide {
+    max-width: min(94vw, 720px);
+}
+
+.cs_sign_modal_title {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.cs_sign_modal_body {
+    padding-top: 0.25rem;
+}
+
+.cs_sign_field_group {
+    margin-bottom: 1.25rem;
+}
+
+.cs_sign_field_group:last-of-type {
+    margin-bottom: 0.25rem;
+}
+
+.cs_sign_section_label {
+    margin: 0 0 0.5rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6b5a54;
+}
+
+.cs_sign_auth_head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.cs_sign_link {
+    color: #c45c1a;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.cs_sign_link:hover {
+    text-decoration: underline;
+}
+
+.cs_sign_link_btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+    font: inherit;
+}
+
+.cs_sign_auth_row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.cs_sign_tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.28rem 0.65rem;
+    border-radius: 8px;
+    background: #fff5f0;
+    border: 1px solid #e8c4b8;
+    color: #8b3a2a;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.cs_sign_row2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+}
+
+@media (max-width: 520px) {
+    .cs_sign_row2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.cs_sign_check {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.55rem;
+    font-size: 0.88rem;
+    color: var(--cs-text, #1e3148);
+    cursor: pointer;
+}
+
+.cs_sign_info {
+    display: inline-flex;
+    width: 1rem;
+    height: 1rem;
+    font-size: 0.65rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid #ccc;
+    color: #666;
+}
+
+.cs_sign_fine {
+    margin: 0.35rem 0 0;
+    font-size: 0.78rem;
+}
+
+.cs_sign_modal_foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.cs_sign_btn_outline {
+    border: 1px solid var(--cs-primary, #2f87c6) !important;
+    background: #fff !important;
+    color: var(--cs-primary, #2f87c6) !important;
+}
+
+.cs_sign_btn_outline:hover:not(:disabled) {
+    background: var(--cs-primary-soft, #f0f7fc) !important;
+}
+
+.cs_sign_btn_fwd {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.cs_sign_search {
+    position: relative;
+    margin-bottom: 0.65rem;
+}
+
+.cs_sign_search_input {
+    padding-left: 2.4rem !important;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.cs_sign_search_ico {
+    position: absolute;
+    left: 0.7rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9a8f88;
+    pointer-events: none;
+    display: flex;
+}
+
+.cs_sign_tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--cs-border, #d7e8f2);
+    margin-bottom: 0.65rem;
+}
+
+.cs_sign_tab {
+    border: none;
+    background: none;
+    padding: 0.45rem 0.85rem;
+    font-weight: 600;
+    color: var(--cs-muted, #5e7188);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    font-family: inherit;
+}
+
+.cs_sign_tab.is-active {
+    color: var(--cs-primary, #2f87c6);
+    border-bottom-color: var(--cs-primary, #2f87c6);
+}
+
+.cs_sign_table_wrap {
+    overflow: auto;
+    max-height: min(50vh, 320px);
+    border: 1px solid #e5e0dc;
+    border-radius: 10px;
+}
+
+.cs_sign_table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.cs_sign_table th,
+.cs_sign_table td {
+    padding: 0.55rem 0.65rem;
+    text-align: left;
+    border-bottom: 1px solid var(--cs-border, #d7e8f2);
+}
+
+.cs_sign_table thead th {
+    background: var(--cs-primary-soft, #f0f7fc);
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--cs-muted, #5e7188);
+}
+
+.cs_sign_th_sel {
+    width: 2rem;
+}
+
+.cs_sign_th_icon {
+    width: 2.5rem;
+    text-align: center;
+}
+
+.cs_sign_table tbody tr.is-selected {
+    background: var(--cs-primary-soft, #f0f7fc);
+}
+
+.cs_sign_badge_auth {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    background: #fdecef;
+    color: #9b3d6b;
+    white-space: nowrap;
+}
+
+.cs_sign_radio {
+    width: 1rem;
+    height: 1rem;
+}
+
+.cs_sign_subcap {
+    margin: 0.15rem 0 0;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--cs-muted, #5e7188);
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--cs-border, #d7e8f2);
+}
+
+.cs_sign_qual_card {
+    margin: 0.5rem 0 1rem;
+}
+
+.cs_sign_qual_name {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--cs-text, #1e3148);
+}
+
+.cs_sign_qual_email {
+    margin: 0.2rem 0 0;
+    font-size: 0.88rem;
+    color: var(--cs-muted, #5e7188);
+    word-break: break-word;
+}
+
+.cs_sign_qual_select_proj {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--cs-border-strong, #b8d3e5);
+    background: #fff;
+    color: var(--cs-text, #1e3148);
+}
+
+.cs_sign_qual_select_proj:focus {
+    outline: none;
+    border-color: var(--cs-primary, #2f87c6);
+    box-shadow: 0 0 0 2px rgba(47, 135, 198, 0.2);
+}
+
+.cs_sign_select_tall {
+    width: 100%;
+    font-family: inherit;
+    border-radius: 8px;
+}
+
+.cs_sign_w400 {
+    max-width: 400px;
+}
+
+.cs_sign_w400 .contratos_input,
+.cs_sign_w400 .contratos_select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.cs_summary_sig_actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.cs_summary_edit {
+    flex-shrink: 0;
+    width: 1.65rem;
+    height: 1.65rem;
+    padding: 0;
+    border: 1px solid var(--cs-primary, #2f87c6);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--cs-primary, #2f87c6);
+    font-size: 0.95rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.cs_summary_edit:hover:not(:disabled) {
+    background: var(--cs-primary-soft, #f0f7fc);
+}
+
+.cs_summary_edit:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.cs_sign_table_edit {
+    border: none;
+    background: transparent;
+    color: var(--cs-primary, #2f87c6);
+    font-size: 1.05rem;
+    cursor: pointer;
+    padding: 0.15rem 0.35rem;
+    border-radius: 6px;
+    line-height: 1;
+}
+
+.cs_sign_table_edit:hover {
+    background: rgba(47, 135, 198, 0.1);
+}
+
+.cs_sign_table_remove {
+    border: none;
+    background: transparent;
+    color: #c0392b;
+    font-size: 1.15rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0.15rem 0.35rem;
+    border-radius: 6px;
+    line-height: 1;
+}
+
+.cs_sign_table_remove:hover {
+    background: rgba(192, 57, 43, 0.1);
+}
+
+body.dark-mode .contratos_modal.cs_sign_modal {
+    --cs-text: #e7f4fc;
+    --cs-muted: #9fb4c8;
+    --cs-border: #2a4258;
+    --cs-border-strong: #3d5266;
+    --cs-primary: #7eb8e8;
+    --cs-primary-soft: #1a2838;
+}
+
+body.dark-mode .cs_summary_edit {
+    background: #152433;
+    border-color: var(--cs-primary, #7eb8e8);
+    color: var(--cs-primary, #7eb8e8);
+}
+
+body.dark-mode .cs_summary_edit:hover:not(:disabled) {
+    background: #243547;
+}
+
+body.dark-mode .cs_sign_table_edit {
+    color: var(--cs-primary, #7eb8e8);
+}
+
+body.dark-mode .cs_sign_table_edit:hover {
+    background: rgba(126, 184, 232, 0.12);
+}
+
+body.dark-mode .cs_sign_table_remove {
+    color: #f0998b;
+}
+
+body.dark-mode .cs_sign_table_remove:hover {
+    background: rgba(240, 153, 139, 0.12);
+}
+
+body.dark-mode .cs_sig_pill {
+    background: var(--cs-surface, #152433);
+    border-color: var(--cs-border-strong, #3d5266);
+    color: var(--cs-primary, #7eb8e8);
+}
+
+body.dark-mode .cs_sig_pill:hover:not(:disabled) {
+    background: var(--cs-primary-soft, #1a2838);
+    border-color: var(--cs-primary, #7eb8e8);
+}
+
+body.dark-mode .cs_sign_section_label {
+    color: #b8a99e;
+}
+
+body.dark-mode .cs_sign_tag {
+    background: #2d1f1c;
+    border-color: #5c3d35;
+    color: #ffc8a8;
+}
+
+body.dark-mode .cs_sign_table thead th {
+    background: #1a2838;
+    color: #c5c0bc;
+}
+
+body.dark-mode .cs_sign_table_wrap {
+    border-color: #3d5266;
+}
+
+body.dark-mode .cs_sign_table th,
+body.dark-mode .cs_sign_table td {
+    border-color: #2a4258;
+}
+
+body.dark-mode .cs_sign_table tbody tr.is-selected {
+    background: #243547;
+}
+
+body.dark-mode .cs_sign_subcap {
+    color: #8a8f96;
+    border-color: #3d5266;
+}
+
+body.dark-mode .cs_sign_qual_name {
+    color: #e7f4fc;
+}
+
+body.dark-mode .cs_sign_qual_email {
+    color: #9fb4c8;
+}
+
+body.dark-mode .cs_sign_qual_select_proj {
+    background: #152433;
+    color: #e7f4fc;
+    border-color: #3d5266;
+}
+
+body.dark-mode .cs_sign_qual_select_proj:focus {
+    border-color: var(--cs-primary, #7eb8e8);
+    box-shadow: 0 0 0 2px rgba(126, 184, 232, 0.25);
+}
+
+body.dark-mode .cs_sign_btn_outline {
+    border-color: var(--cs-primary, #7eb8e8) !important;
+    color: var(--cs-primary, #7eb8e8) !important;
+    background: #152433 !important;
+}
+
+body.dark-mode .cs_sign_btn_outline:hover:not(:disabled) {
+    background: var(--cs-primary-soft, #1a2838) !important;
+}

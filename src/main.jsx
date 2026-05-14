@@ -11,6 +11,8 @@ import './pages/Credenciamento/Credenciamento_doc/Credenciamento_doc.css'
 import './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos.css'
 import './pages/Compras/ValorVenda/ComprasValorVenda.css'
 import './pages/Compras/Orcamento/ComprasOrcamento.css'
+import './pages/Contratos/ContratosEmerdog.css'
+import './pages/Contratos/ClicksignEmerdog.css'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(

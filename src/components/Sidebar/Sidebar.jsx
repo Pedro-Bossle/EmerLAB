@@ -71,6 +71,15 @@ const menuItems = [
             { label: 'Orçamento', href: '/compras/orcamento', permission: PERMISSION_KEYS.COMPRAS_VIEW },
         ],
     },
+    {
+        id: 'contratos',
+        label: 'Contratos',
+        permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+        children: [
+            { label: 'Gerar PDF', href: '/contratos/gerar', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
+            { label: 'Clicksign', href: '/contratos/clicksign', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
+        ],
+    },
     /*{
         id: 'formulario',
         label: 'Formulário',
@@ -88,17 +97,6 @@ const menuItems = [
         children: [
             { label: 'Editor', href: '/editor' },
             { label: 'Publico', href: '/planos/publico' },
-            { label: 'Documentação', href: '#' },
-
-        ],
-    },
-    {
-        id: 'contratos',
-        label: 'Contratos',
-        children: [
-            { label: 'Criar', href: '/contratos/Criar' },
-            { label: 'Histórico', href: '/contratos/historico' },
-            { label: 'Assinar', href: '/contratos/assinar' },
             { label: 'Documentação', href: '#' },
 
         ],
@@ -123,7 +121,7 @@ const menuItems = [
             { label: 'Documentação', href: '#' },
 
         ],
-    },
+    },*/
     {
         id: 'sair',
         label: 'Sair',
@@ -131,7 +129,7 @@ const menuItems = [
             { label: 'Redefinir senha', action: 'reset-password' },
             { label: 'Encerrar sessão', href: '/logout' },
         ],
-    },*/
+        },
 ]
 
 const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
