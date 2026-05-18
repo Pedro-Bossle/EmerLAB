@@ -74,10 +74,10 @@ const menuItems = [
     {
         id: 'contratos',
         label: 'Contratos',
-        permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+        permission: PERMISSION_KEYS.CONTRATOS_VIEW,
         children: [
-            { label: 'Gerar PDF', href: '/contratos/gerar', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
-            { label: 'Clicksign', href: '/contratos/clicksign', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
+            { label: 'Gerar PDF', href: '/contratos/gerar', permission: PERMISSION_KEYS.CONTRATOS_VIEW },
+            { label: 'Clicksign', href: '/contratos/clicksign', permission: PERMISSION_KEYS.CONTRATOS_VIEW },
         ],
     },
     /*{

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
+import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
 import './Supertabelanegociacoes.css'
 
@@ -839,6 +840,7 @@ const Supertabelanegociacoes = () => {
     }
 
     const excluirLinhaProcedimentoNegociacao = async (linha, opcoes = {}) => {
+        if (bloquearSeSomenteLeitura(mostrarErroToast)) return
         const executarExclusao = async () => {
             const { error } = await supabase
                 .from('negociacoes_vet')
@@ -1171,6 +1173,7 @@ const Supertabelanegociacoes = () => {
     }
 
     const excluirNegociacao = async (negociacaoItem, opcoes = {}) => {
+        if (bloquearSeSomenteLeitura(mostrarErroToast)) return
         const executarExclusao = async () => {
             const { error: errNeg } = await supabase
                 .from('negociacoes_vet')

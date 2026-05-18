@@ -20,6 +20,23 @@
     margin: 0 0 1.25rem;
 }
 
+.contratos_readonly_banner {
+    margin: 0 0 1rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid #c5d9e8;
+    background: #f0f7fc;
+    color: #1e4d7a;
+    font-size: 0.88rem;
+    text-align: center;
+}
+
+body.dark-mode .contratos_readonly_banner {
+    background: #1a2d42;
+    border-color: #2a4258;
+    color: #9ec5e8;
+}
+
 .contratos_tabs {
     display: flex;
     flex-wrap: wrap;
@@ -247,6 +264,72 @@
     color: #7a2323;
 }
 
+.contratos_toast--success {
+    border: 1px solid #6ab86a;
+    background: linear-gradient(180deg, #f4fbf4 0%, #e6f5e6 100%);
+}
+
+.contratos_toast--success .contratos_toast_text strong {
+    color: #1e5c2e;
+}
+
+.contratos_toast--success .contratos_toast_body {
+    color: #2d5a38;
+}
+
+.contratos_toast--success .contratos_toast_close {
+    border-color: #9ccc9c;
+    color: #1e5c2e;
+}
+
+.contratos_toast--confirm {
+    border: 1px solid #c9a227;
+    background: linear-gradient(180deg, #fffdf5 0%, #fff6e0 100%);
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.contratos_toast--confirm .contratos_toast_text strong {
+    color: #5c4a12;
+}
+
+.contratos_toast--confirm .contratos_toast_body {
+    color: #6b5a20;
+}
+
+.contratos_toast_actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.5rem;
+}
+
+.contratos_toast_btn {
+    border: 1px solid #b8d3e5;
+    background: #fff;
+    color: #1e3148;
+    border-radius: 6px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.contratos_toast_btn:hover {
+    background: #f0f7fc;
+}
+
+.contratos_toast_btn--danger {
+    border-color: #d1a2a2;
+    background: #fff5f5;
+    color: #7a2323;
+}
+
+.contratos_toast_btn--danger:hover {
+    background: #ffecec;
+}
+
 body.dark-mode .contratos_toast--info {
     border-color: #4a8ec4;
     background: linear-gradient(180deg, #1a2838 0%, #152433 100%);
@@ -276,6 +359,44 @@ body.dark-mode .contratos_toast--error .contratos_toast_body {
 body.dark-mode .contratos_toast_close {
     background: rgba(255, 255, 255, 0.08);
     color: #e7f4fc;
+}
+
+body.dark-mode .contratos_toast--success {
+    border-color: #4a9a4a;
+    background: linear-gradient(180deg, #1a2e1f 0%, #152819 100%);
+}
+
+body.dark-mode .contratos_toast--success .contratos_toast_text strong {
+    color: #b8e6b8;
+}
+
+body.dark-mode .contratos_toast--success .contratos_toast_body {
+    color: #9fd49f;
+}
+
+body.dark-mode .contratos_toast--confirm {
+    border-color: #a68b2a;
+    background: linear-gradient(180deg, #2a2418 0%, #241f14 100%);
+}
+
+body.dark-mode .contratos_toast--confirm .contratos_toast_text strong {
+    color: #fde68a;
+}
+
+body.dark-mode .contratos_toast--confirm .contratos_toast_body {
+    color: #e8d9a8;
+}
+
+body.dark-mode .contratos_toast_btn {
+    background: #1a2838;
+    border-color: #3d5266;
+    color: #e7f4fc;
+}
+
+body.dark-mode .contratos_toast_btn--danger {
+    background: #2a1f1f;
+    border-color: #a05050;
+    color: #ffc9c9;
 }
 
 .contratos_cnpj_row {

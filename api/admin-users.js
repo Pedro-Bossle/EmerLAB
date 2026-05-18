@@ -6,13 +6,23 @@ import {
     PERMISSION_KEYS,
     hasPermission,
     normalizarProfileAcesso,
+    resumirAlteracoesPermissoes,
 } from '../src/lib/accessControl.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
 dotenvConfig()
 
 const getJsonBody = async (req) => {
-    if (req.body && typeof req.body === 'object') return req.body
+    if (req.body !== undefined && req.body !== null) {
+        if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body
+        if (typeof req.body === 'string' && req.body.trim()) {
+            try {
+                return JSON.parse(req.body)
+            } catch {
+                return {}
+            }
+        }
+    }
     const chunks = []
     for await (const chunk of req) chunks.push(chunk)
     if (!chunks.length) return {}
@@ -21,6 +31,23 @@ const getJsonBody = async (req) => {
     } catch {
         return {}
     }
+}
+
+/** Aceita listAudit, list_audit, list-audit, etc. */
+const resolveAdminAction = (raw) => {
+    const s = String(raw ?? '').trim()
+    if (!s) return ''
+    const compact = s.toLowerCase().replace(/[-_\s]/g, '')
+    const aliases = {
+        list: 'list',
+        invite: 'invite',
+        reset: 'reset',
+        updateprofile: 'updateProfile',
+        listaudit: 'listAudit',
+    }
+    if (aliases[compact]) return aliases[compact]
+    const canon = ['list', 'invite', 'reset', 'updateProfile', 'listAudit']
+    return canon.includes(s) ? s : ''
 }
 
 const getHeader = (req, name) => {
@@ -110,6 +137,25 @@ const encontrarUsuarioPorEmail = async (supabase, email) => {
     return null
 }
 
+const registrarAuditoria = async (supabase, entrada) => {
+    const payload = {
+        actor_user_id: entrada.actorUserId || null,
+        actor_name: entrada.actorName || null,
+        target_user_id: entrada.targetUserId || null,
+        action: entrada.action,
+        summary: entrada.summary || null,
+        details: entrada.details && typeof entrada.details === 'object' ? entrada.details : {},
+    }
+    const { error } = await supabase.from('access_audit_log').insert(payload)
+    if (!error) return
+    const msg = String(error.message || '')
+    if (msg.includes('access_audit_log') || msg.includes('does not exist') || msg.includes('schema cache')) {
+        console.warn('[admin-users] Tabela access_audit_log indisponível — execute a migration em supabase/migrations.')
+        return
+    }
+    console.warn('[admin-users] Falha ao registrar auditoria:', msg)
+}
+
 const validarAdmin = async (supabase, req) => {
     const authHeader = getHeader(req, 'authorization')
     const token = String(authHeader || '').replace(/^Bearer\s+/i, '').trim()
@@ -142,7 +188,17 @@ export default async function handler(req, res) {
         if (admin.error) return responderErro(res, 403, admin.error)
 
         const body = await getJsonBody(req)
-        const action = String(body.action || '').trim()
+        const action = resolveAdminAction(body.action)
+        if (!action) {
+            const recebida = String(body.action ?? '').trim()
+            return responderErro(
+                res,
+                400,
+                recebida
+                    ? `Ação inválida: «${recebida}». Use list, listAudit, invite, updateProfile ou reset.`
+                    : 'Ação inválida. Informe action no corpo da requisição.',
+            )
+        }
 
         if (action === 'list') {
             const { data, error } = await listarProfiles(supabase)
@@ -193,11 +249,45 @@ export default async function handler(req, res) {
 
             if (profileError) return responderErro(res, 500, profileError.message)
 
+            const profileNorm = normalizarProfileAcesso(profileData)
+            await registrarAuditoria(supabase, {
+                actorUserId: admin.user.id,
+                actorName: admin.profile.name,
+                targetUserId: profileNorm.id,
+                action: conviteEnviado ? 'invite' : 'invite_existing_reset',
+                summary: conviteEnviado ? `Convite enviado para ${email}` : `Convite/reset para usuário existente ${email}`,
+                details: { permissions: profileNorm.permissions },
+            })
+
             return res.status(200).json({
                 ok: true,
                 conviteEnviado,
-                profile: normalizarProfileAcesso(profileData),
+                profile: profileNorm,
             })
+        }
+
+        if (action === 'listAudit') {
+            const targetUserId = String(body.userId || '').trim()
+            const limit = Math.min(Math.max(Number(body.limit) || 80, 1), 200)
+
+            let query = supabase
+                .from('access_audit_log')
+                .select('id, created_at, actor_user_id, actor_name, target_user_id, action, summary, details')
+                .order('created_at', { ascending: false })
+                .limit(limit)
+
+            if (targetUserId) query = query.eq('target_user_id', targetUserId)
+
+            const { data, error } = await query
+            if (error) {
+                const msg = String(error.message || '')
+                if (msg.includes('access_audit_log') || msg.includes('does not exist')) {
+                    return res.status(200).json({ ok: true, logs: [], aviso: 'Tabela de auditoria não configurada.' })
+                }
+                return responderErro(res, 500, error.message)
+            }
+
+            return res.status(200).json({ ok: true, logs: data || [] })
         }
 
         if (action === 'updateProfile') {
@@ -214,19 +304,51 @@ export default async function handler(req, res) {
             }
 
             const { data: atual } = await buscarProfile(supabase, userId)
+            const perfilAntes = normalizarProfileAcesso(atual || { id: userId })
+            const emailNovo = String(body.email || '').trim().toLowerCase()
+            const emailAtual = String(atual?.email || perfilAntes.email || '').trim().toLowerCase()
+            const emailFinal =
+                emailNovo && emailNovo.includes('@') ? emailNovo : emailAtual || null
+
+            if (emailFinal && emailFinal !== emailAtual) {
+                const { error: emailError } = await supabase.auth.admin.updateUserById(userId, {
+                    email: emailFinal,
+                })
+                if (emailError) return responderErro(res, 500, emailError.message)
+            }
+
             const { data: profileData, error } = await upsertProfile(supabase, {
                 id: userId,
                 name,
-                email: atual?.email || body.email || null,
+                email: emailFinal,
                 permissions,
                 credenciamento_read_only: !permissions[PERMISSION_KEYS.CREDENCIAMENTO_EDIT],
             })
 
             if (error) return responderErro(res, 500, error.message)
 
+            const profileNorm = normalizarProfileAcesso(profileData)
+            const mudancasPerm = resumirAlteracoesPermissoes(perfilAntes.permissions, profileNorm.permissions)
+            const partesResumo = []
+            if (perfilAntes.name !== profileNorm.name) partesResumo.push(`Nome: «${perfilAntes.name}» → «${profileNorm.name}»`)
+            if (emailAtual && emailFinal && emailAtual !== emailFinal) partesResumo.push(`Email: ${emailAtual} → ${emailFinal}`)
+            if (mudancasPerm.length) partesResumo.push(mudancasPerm.join('; '))
+
+            await registrarAuditoria(supabase, {
+                actorUserId: admin.user.id,
+                actorName: admin.profile.name,
+                targetUserId: userId,
+                action: 'update_profile',
+                summary: partesResumo.length ? partesResumo.join(' | ') : 'Perfil atualizado',
+                details: {
+                    permissionsBefore: perfilAntes.permissions,
+                    permissionsAfter: profileNorm.permissions,
+                },
+            })
+
             return res.status(200).json({
                 ok: true,
-                profile: normalizarProfileAcesso(profileData),
+                profile: profileNorm,
             })
         }
 
@@ -239,10 +361,20 @@ export default async function handler(req, res) {
             })
             if (error) return responderErro(res, 500, error.message)
 
+            const alvo = await encontrarUsuarioPorEmail(supabase, email)
+            await registrarAuditoria(supabase, {
+                actorUserId: admin.user.id,
+                actorName: admin.profile.name,
+                targetUserId: alvo?.id || null,
+                action: 'reset_password',
+                summary: `Email de redefinição de senha enviado para ${email}`,
+                details: { email },
+            })
+
             return res.status(200).json({ ok: true })
         }
 
-        return responderErro(res, 400, 'Ação inválida.')
+        return responderErro(res, 500, `Ação «${action}» não implementada.`)
     } catch (error) {
         return responderErro(res, 500, error?.message || 'Falha na API de usuários.')
     }

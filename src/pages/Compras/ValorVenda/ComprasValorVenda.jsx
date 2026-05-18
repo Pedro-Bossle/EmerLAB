@@ -9,6 +9,7 @@ import {
 } from '../../../lib/accessControl'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
+import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import './ComprasValorVenda.css'
 
 const normalizarTexto = (texto) =>
@@ -362,6 +363,7 @@ const ComprasValorVenda = () => {
     }
 
     const excluirLinha = async (row, opcoes = {}) => {
+        if (bloquearSeSomenteLeitura(mostrarAviso)) return
         const executar = async () => {
             setLoading(true)
             try {

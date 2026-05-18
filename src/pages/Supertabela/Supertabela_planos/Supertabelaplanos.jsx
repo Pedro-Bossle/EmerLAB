@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
+import { PERMISSION_KEYS, hasStoredPermission, podeUsarExclusaoPorLista } from '../../../lib/accessControl'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
+import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
 import './Supertabelaplanos.css'
 
@@ -65,7 +66,17 @@ const obterPlanoIdsPermitidos = (planoBaseId, mapaPlanos) => {
 
 const Supertabelaplanos = () => {
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
-    const [podeExclusaoPorLista] = useState(() => hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST))
+    const [podeExclusaoPorLista] = useState(() => {
+        if (getReadOnlyFlag()) return false
+        return podeUsarExclusaoPorLista({
+            permissions: {
+                [PERMISSION_KEYS.SUPERTABELA_EDIT]: hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT),
+                [PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST]: hasStoredPermission(
+                    PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST,
+                ),
+            },
+        })
+    })
     const [cidades, setCidades] = useState([])
     const [regioes, setRegioes] = useState([])
     const [planos, setPlanos] = useState([])
@@ -1202,6 +1213,7 @@ const Supertabelaplanos = () => {
     }
 
     const excluirPlanoConfigRow = async (linha, opcoes = {}) => {
+        if (bloquearSeSomenteLeitura(mostrarErroToast)) return
         const executarExclusao = async () => {
             if (!linha.planosConfigId) return
             const { error } = await supabase.from('planos_config').delete().eq('id', linha.planosConfigId)
@@ -1224,6 +1236,7 @@ const Supertabelaplanos = () => {
     }
 
     const excluirProcedimentoCidadePlanos = async (linha, opcoes = {}) => {
+        if (bloquearSeSomenteLeitura(mostrarErroToast)) return
         const executarExclusao = async () => {
             if (!regiaoSelecionadaId) {
                 mostrarErroToast('A cidade selecionada não possui região vinculada.')
@@ -1303,6 +1316,7 @@ const Supertabelaplanos = () => {
     }
 
     const excluirCidadeNoGerenciador = async (cidade, opcoes = {}) => {
+        if (bloquearSeSomenteLeitura(mostrarErroToast)) return
         const executarExclusao = async () => {
             const { error: errRepasses } = await supabase.from('repasses').delete().eq('cidade_id', cidade.id)
             if (errRepasses) {

@@ -149,7 +149,7 @@ function App() {
           <Route
             path="/contratos/gerar"
             element={
-              <PrivateRoute permission="credenciamento.view">
+              <PrivateRoute permission="contratos.view">
                 <ContratosEmerdog />
               </PrivateRoute>
             }
@@ -157,7 +157,7 @@ function App() {
           <Route
             path="/contratos/clicksign"
             element={
-              <PrivateRoute permission="credenciamento.view">
+              <PrivateRoute permission="contratos.view">
                 <ClicksignEmerdog />
               </PrivateRoute>
             }

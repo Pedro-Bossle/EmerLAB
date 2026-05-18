@@ -4,6 +4,8 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import cnpjLookupHandler from './api/cnpj-lookup.js'
 import clicksignProxyHandler from './api/clicksign-proxy.js'
+import clicksignDownloadHandler from './api/clicksign-download.js'
+import adminUsersHandler from './api/admin-users.js'
 
 /** Mesma ordem de prioridade aproximada do Vite para ficheiros .env (envDir = raiz do projeto). */
 function carregarEnvParaProcesso(envDir, mode) {
@@ -68,6 +70,67 @@ function cnpjLookupDevPlugin() {
     }
 }
 
+/** Em dev, atende /api/admin-users no Vite (código sempre atual; evita API antiga na porta 3000). */
+function adminUsersDevPlugin() {
+    return {
+        name: 'admin-users-dev',
+        enforce: 'pre',
+        configureServer(server) {
+            carregarEnvParaProcesso(server.config.envDir, server.config.mode)
+            server.middlewares.use(async (req, res, next) => {
+                const url = req.url || ''
+                if (!url.startsWith('/api/admin-users')) {
+                    next()
+                    return
+                }
+                const method = req.method || 'POST'
+                let body = {}
+                if (method !== 'GET' && method !== 'HEAD') {
+                    const chunks = []
+                    try {
+                        for await (const ch of req) chunks.push(ch)
+                        const raw = Buffer.concat(chunks).toString('utf8')
+                        if (raw.trim()) body = JSON.parse(raw)
+                    } catch {
+                        body = {}
+                    }
+                }
+                const reqLike = {
+                    method,
+                    url,
+                    headers: req.headers || {},
+                    body,
+                }
+                const resLike = {
+                    statusCode: 200,
+                    setHeader(name, value) {
+                        res.setHeader(name, value)
+                    },
+                    status(code) {
+                        this.statusCode = code
+                        res.statusCode = code
+                        return this
+                    },
+                    json(payload) {
+                        if (!res.getHeader('Content-Type')) {
+                            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                        }
+                        res.statusCode = this.statusCode
+                        res.end(JSON.stringify(payload))
+                    },
+                }
+                try {
+                    await adminUsersHandler(reqLike, resLike)
+                } catch (e) {
+                    res.statusCode = 502
+                    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                    res.end(JSON.stringify({ error: e?.message || 'Falha na API admin-users.' }))
+                }
+            })
+        },
+    }
+}
+
 function clicksignDevPlugin() {
     return {
         name: 'clicksign-proxy-dev',
@@ -83,6 +146,40 @@ function clicksignDevPlugin() {
 
             server.middlewares.use(async (req, res, next) => {
                 const url = req.url || ''
+                if (url.startsWith('/api/clicksign-download')) {
+                    const method = req.method || 'GET'
+                    const reqLike = { method, url, headers: req.headers || {} }
+                    const resLike = {
+                        statusCode: 200,
+                        setHeader(name, value) {
+                            res.setHeader(name, value)
+                        },
+                        status(code) {
+                            this.statusCode = code
+                            res.statusCode = code
+                            return this
+                        },
+                        end(body) {
+                            res.statusCode = this.statusCode
+                            res.end(body)
+                        },
+                        json(payload) {
+                            if (!res.getHeader('Content-Type')) {
+                                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                            }
+                            res.statusCode = this.statusCode
+                            res.end(JSON.stringify(payload))
+                        },
+                    }
+                    try {
+                        await clicksignDownloadHandler(reqLike, resLike)
+                    } catch (e) {
+                        res.statusCode = 502
+                        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                        res.end(JSON.stringify({ error: e?.message || 'Falha no download Clicksign.' }))
+                    }
+                    return
+                }
                 if (!url.startsWith('/api/clicksign')) {
                     next()
                     return
@@ -113,6 +210,10 @@ function clicksignDevPlugin() {
                         this.statusCode = code
                         res.statusCode = code
                         return this
+                    },
+                    end(body) {
+                        res.statusCode = this.statusCode
+                        res.end(body)
                     },
                     json(payload) {
                         if (!res.getHeader('Content-Type')) {
@@ -148,12 +249,14 @@ export default defineConfig(({ command, mode }) => {
     return {
         // Dev local sempre na raiz. Em build, usa base do Vercel ou do GitHub Pages.
         base: command === 'serve' ? '/' : process.env.VERCEL ? '/' : '/Emerdog_SFSC_SUPERTOOL/',
-        plugins: [command === 'serve' ? cnpjLookupDevPlugin() : null, command === 'serve' ? clicksignDevPlugin() : null, react()].filter(
-            Boolean,
-        ),
+        plugins: [
+            command === 'serve' ? cnpjLookupDevPlugin() : null,
+            command === 'serve' ? adminUsersDevPlugin() : null,
+            command === 'serve' ? clicksignDevPlugin() : null,
+            react(),
+        ].filter(Boolean),
         server: {
             proxy: {
-                '/api/admin-users': 'http://localhost:3000',
                 '/api/rc-pdf': 'http://localhost:3000',
             },
         },

@@ -77,11 +77,143 @@
     color: #9a2424;
 }
 
-.gerenciamento_acessos_grid {
+.gerenciamento_acessos_header_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.gerenciamento_acessos_header button.is-ghost {
+    background: transparent;
+}
+
+.gerenciamento_acessos_layout {
     display: grid;
-    grid-template-columns: minmax(280px, 0.9fr) minmax(260px, 0.8fr) minmax(340px, 1.2fr);
+    grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
     gap: 16px;
     align-items: start;
+}
+
+.gerenciamento_acessos_lista_card {
+    max-height: calc(100vh - 200px);
+    display: flex;
+    flex-direction: column;
+}
+
+.gerenciamento_acessos_painel {
+    min-height: 420px;
+}
+
+.gerenciamento_acessos_painel_head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.gerenciamento_acessos_painel_head h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.gerenciamento_acessos_tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.gerenciamento_acessos_tabs button {
+    border: 1px solid #c7dceb;
+    background: #f7fbfe;
+    color: #31566f;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.gerenciamento_acessos_tabs button.is-active {
+    background: #0f74b9;
+    border-color: #0f74b9;
+    color: #fff;
+}
+
+.gerenciamento_acessos_hint {
+    margin: 0 0 10px;
+    font-size: 0.82rem;
+    color: #5b7488;
+    line-height: 1.4;
+}
+
+.gerenciamento_acessos_form_compact {
+    max-width: 420px;
+}
+
+.gerenciamento_acessos_log {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: min(56vh, 520px);
+    overflow-y: auto;
+}
+
+.gerenciamento_acessos_log_item {
+    border: 1px solid #e0ebf3;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #f9fcfe;
+}
+
+.gerenciamento_acessos_log_item time {
+    display: block;
+    font-size: 0.75rem;
+    color: #5b7488;
+    margin-bottom: 4px;
+}
+
+.gerenciamento_acessos_log_item strong {
+    display: block;
+    color: #123e59;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+
+.gerenciamento_acessos_log_item span {
+    font-size: 0.78rem;
+    color: #5d7384;
+}
+
+.gerenciamento_acessos_modal_backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(15, 35, 55, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.gerenciamento_acessos_modal {
+    width: min(96vw, 520px);
+    max-height: min(92vh, 720px);
+    overflow-y: auto;
+}
+
+.gerenciamento_acessos_modal_head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.gerenciamento_acessos_modal_head h2 {
+    margin: 0;
 }
 
 .gerenciamento_acessos_card {
@@ -225,10 +357,111 @@
     padding: 10px 0;
 }
 
-@media (max-width: 1180px) {
-    .gerenciamento_acessos_grid {
+@media (max-width: 900px) {
+    .gerenciamento_acessos_layout {
         grid-template-columns: 1fr;
     }
+
+    .gerenciamento_acessos_lista_card {
+        max-height: none;
+    }
+}
+
+body.dark-mode .gerenciamento_acessos {
+    color: #e7f4fc;
+}
+
+body.dark-mode .gerenciamento_acessos_header h1,
+body.dark-mode .gerenciamento_acessos_card h2,
+body.dark-mode .gerenciamento_acessos_painel_head h2 {
+    color: #e7f4fc;
+}
+
+body.dark-mode .gerenciamento_acessos_header p,
+body.dark-mode .gerenciamento_acessos_vazio,
+body.dark-mode .gerenciamento_acessos_hint {
+    color: #9fb4c8;
+}
+
+body.dark-mode .gerenciamento_acessos_card {
+    background: #1a2838;
+    border-color: #2a4258;
+    box-shadow: none;
+}
+
+body.dark-mode .gerenciamento_acessos_form label {
+    color: #c5d6e6;
+}
+
+body.dark-mode .gerenciamento_acessos_form input,
+body.dark-mode .gerenciamento_acessos_lista_header input {
+    background: #152433;
+    border-color: #3d5266;
+    color: #e7f4fc;
+}
+
+body.dark-mode .gerenciamento_acessos_usuario {
+    background: #152433;
+    border-color: #2a4258;
+    color: #e7f4fc;
+}
+
+body.dark-mode .gerenciamento_acessos_usuario.is-active {
+    background: #1e3a52;
+    border-color: #7eb8e8;
+}
+
+body.dark-mode .gerenciamento_acessos_usuario span {
+    color: #9fb4c8;
+}
+
+body.dark-mode .gerenciamento_acessos_permissao_grupo {
+    background: #152433;
+    border-color: #2a4258;
+}
+
+body.dark-mode .gerenciamento_acessos_permissao_grupo h4 {
+    color: #a8d4f5;
+}
+
+body.dark-mode .gerenciamento_acessos_permissao_item small {
+    color: #9fb4c8;
+}
+
+body.dark-mode .gerenciamento_acessos_tabs button {
+    background: #152433;
+    border-color: #3d5266;
+    color: #c5d6e6;
+}
+
+body.dark-mode .gerenciamento_acessos_tabs button.is-active {
+    background: #2f87c6;
+    border-color: #2f87c6;
+    color: #fff;
+}
+
+body.dark-mode .gerenciamento_acessos_log_item {
+    background: #152433;
+    border-color: #2a4258;
+}
+
+body.dark-mode .gerenciamento_acessos_log_item strong {
+    color: #e7f4fc;
+}
+
+body.dark-mode .gerenciamento_acessos_header button,
+body.dark-mode .gerenciamento_acessos_form button,
+body.dark-mode .gerenciamento_acessos_acoes button {
+    background: #243547;
+    border-color: #3d5266;
+    color: #e7f4fc;
+}
+
+body.dark-mode .gerenciamento_acessos_form button.is-primary,
+body.dark-mode .gerenciamento_acessos_acoes .is-primary {
+    background: #2f87c6;
+    border-color: #2f87c6;
+    color: #fff;
 }
 
 @media (max-width: 640px) {

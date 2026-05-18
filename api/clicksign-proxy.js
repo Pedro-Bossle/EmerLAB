@@ -35,6 +35,27 @@ async function readBody(req) {
     return Buffer.concat(chunks).toString('utf-8')
 }
 
+function setResponseStatus(res, code) {
+    if (typeof res.status === 'function') {
+        res.status(code)
+        return
+    }
+    res.statusCode = code
+}
+
+/** Compatível com Node `res` e com o adaptador do Vite (`status` + `json` + `end`). */
+function sendRawResponse(res, status, contentType, body) {
+    setResponseStatus(res, status)
+    res.setHeader('Content-Type', contentType)
+    if (typeof res.end === 'function') {
+        res.end(body)
+        return
+    }
+    if (typeof res.json === 'function') {
+        res.json({ error: 'Resposta não JSON da Clicksign.', raw: String(body || '').slice(0, 500) })
+    }
+}
+
 export default async function handler(req, res) {
     const token = (process.env.CLICKSIGN_ACCESS_TOKEN || process.env.CLICKSIGN_TOKEN || '').trim()
     if (!token) {
@@ -85,9 +106,7 @@ export default async function handler(req, res) {
         const text = await upstream.text()
         const ct = upstream.headers.get('content-type') || ''
         if (!ct.includes('json') && text.length > 0) {
-            res.statusCode = upstream.status
-            res.setHeader('Content-Type', ct || 'text/plain; charset=utf-8')
-            res.end(text)
+            sendRawResponse(res, upstream.status, ct || 'text/plain; charset=utf-8', text)
             return
         }
         let data = {}

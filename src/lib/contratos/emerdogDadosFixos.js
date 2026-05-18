@@ -3,7 +3,7 @@ export const EMERDOG_CONTRATANTE = {
     razaoSocial: 'Emerdog Plano de Saúde para Animais Ltda.',
     cnpj: '08.909.664/0001-80',
     endereco:
-        'Avenida Itália n° 482, Conj. 501, Bairro São Pelegrino no Município de Caxias do Sul – RS',
+        'Avenida Itália nº 482, Conj. 501, Bairro São Pelegrino no Município de Caxias do Sul – RS',
     crmv: 'RS-25732-PJ',
 }
 

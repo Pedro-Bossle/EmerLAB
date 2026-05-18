@@ -10,6 +10,8 @@ export function getLinhas(tipo, dados) {
     return []
 }
 
+import { textoLinha } from './linhasUtil.js'
+
 export function linhasParaTextoPreview(linhas) {
-    return linhas.map((l) => l.text).join('\n\n')
+    return linhas.map((l) => textoLinha(l)).join('\n\n')
 }

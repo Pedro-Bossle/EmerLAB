@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
+import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
 import './Supertabelacidades.css'
 
@@ -423,6 +424,7 @@ const Supertabelacidades = () => {
     }
 
     const excluirProcedimento = async (linha, opcoes = {}) => {
+        if (bloquearSeSomenteLeitura(mostrarErroToast)) return
         const executarExclusao = async () => {
             const { error } = await supabase
                 .from('repasses')
@@ -716,6 +718,7 @@ const Supertabelacidades = () => {
     }
 
     const excluirCidadeNoGerenciador = async (cidade, opcoes = {}) => {
+        if (bloquearSeSomenteLeitura(mostrarErroToast)) return
         const executarExclusao = async () => {
             const { error: errRepasses } = await supabase.from('repasses').delete().eq('cidade_id', cidade.id)
             if (errRepasses) {

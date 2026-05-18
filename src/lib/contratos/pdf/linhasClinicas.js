@@ -1,31 +1,37 @@
-import { EMERDOG_CONTRATANTE } from '../emerdogDadosFixos.js'
+import { EMERDOG_CONTRATANTE, EMERDOG_RAZAO_VOLANTES } from '../emerdogDadosFixos.js'
 import { maskCNPJ } from '../mascarasDocumento.js'
-
-const L = (text, opts = {}) => ({ text, style: opts.style || 'normal', size: opts.size ?? 11, gap: opts.gap ?? 2, indent: opts.indent ?? 0 })
+import { L, LCampo } from './linhasUtil.js'
 
 /** @param {Record<string,string>} d */
 export function getLinhasClinicas(d) {
     const E = EMERDOG_CONTRATANTE
-    const qualifContratada =
-        `Razão Social: ${d.razaoSocial}; CNPJ: ${maskCNPJ(d.cnpj)}; CRMV: ${d.crmv}; E-mail: ${d.email}; ` +
-        `Contato para agendamento de consultas/exames: ${d.contatoAgendamento}; com endereço em ${d.enderecoCompleto}.`
+    const R = EMERDOG_RAZAO_VOLANTES
 
     return [
-        L('Minuta contratual de Prestação de Serviços Médicos Veterinários', { style: 'bold', size: 13, gap: 2 }),
-        L(`CNPJ ${E.cnpj}`, { gap: 0 }),
-        L(`CRMV ${E.crmv}`, { gap: 5 }),
-
         L(
-            `Pelo presente instrumento e na melhor forma de direito, de um lado, a empresa ${E.razaoSocial}, pessoa jurídica de direito privado, regularmente inscrita no CNPJ sob o nº ${E.cnpj}, com sede na ${E.endereco}, inscrita e homologada junto ao Conselho Regional de Medicina Veterinária portadora do CRMV ${E.crmv}, mantenedora do plano de Assistência e terceirização de Serviços Médicos Veterinários, a seguir denominada simplesmente Contratante, de outro lado, nomeada Contratada: ${qualifContratada}`,
-            { gap: 3 },
+            `Pelo presente instrumento e na melhor forma de direito, de um lado, a empresa ${R}, pessoa jurídica de direito privado, regularmente inscrita no CNPJ sob o nº ${E.cnpj}, com sede na ${E.endereco}, inscrita e homologada junto ao Conselho Regional de Medicina Veterinária portadora do CRMV ${E.crmv}, mantenedora do plano de Assistência e terceirização de Serviços Médicos Veterinários, a seguir denominada simplesmente Contratante, de outro lado, nomeada Contratada:`,
+            { align: 'justify', gap: 4 },
         ),
-        L('Informações sobre repasse monetário presente no Capítulo V deste presente contrato.', { gap: 5 }),
+        LCampo('Razão Social', d.razaoSocial),
+        LCampo('CNPJ', maskCNPJ(d.cnpj)),
+        LCampo('CRMV', d.crmv),
+        LCampo('E-mail', d.email),
+        LCampo('Contato para agendamento de consultas/exames', d.contatoAgendamento),
+        LCampo('Endereço', d.enderecoCompleto, { gap: 3 }),
+        L('Informações sobre repasse monetário presente no Capítulo V deste presente contrato.', { align: 'justify', gap: 5 }),
 
         L('Capítulo I – DO OBJETO', { style: 'bold', size: 12, gap: 3 }),
-        L(
-            '1.1- A Contratada se compromete a prestar serviços aos animais encaminhados por Intermediação da Contratante, serviço este enquadrado como Procedimentos Médicos Veterinários, na forma e nas condições estipuladas neste contrato.',
-            { gap: 4 },
-        ),
+        L(null, {
+            gap: 4,
+            segments: [
+                { t: '1.1- A ', bold: false },
+                { t: 'Contratada', bold: true },
+                {
+                    t: ' se compromete a prestar serviços aos animais encaminhados por Intermediação da Contratante, serviço este enquadrado como Procedimentos Médicos Veterinários, na forma e nas condições estipuladas neste contrato.',
+                    bold: false,
+                },
+            ],
+        }),
 
         L('Capítulo II – DOS SERVIÇOS', { style: 'bold', size: 12, gap: 3 }),
         L(

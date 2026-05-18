@@ -1,28 +1,27 @@
-import { EMERDOG_PARCERIA_CABECALHO, EMERDOG_PARCERIA_CONTRATANTE } from '../emerdogDadosFixos.js'
+import { EMERDOG_PARCERIA_CONTRATANTE } from '../emerdogDadosFixos.js'
 import { maskCNPJ } from '../mascarasDocumento.js'
-
-const L = (text, opts = {}) => ({ text, style: opts.style || 'normal', size: opts.size ?? 11, gap: opts.gap ?? 2, indent: opts.indent ?? 0 })
+import { L, LCampo } from './linhasUtil.js'
 
 /** @param {Record<string,string>} d */
 export function getLinhasParceria(d) {
     const E = EMERDOG_PARCERIA_CONTRATANTE
-    const qualifParceira =
-        `Razão Social: ${d.razaoSocial}; CNPJ: ${maskCNPJ(d.cnpj)}; Endereço: ${d.enderecoCompleto}; ` +
-        `Responsável legal: ${d.responsavelLegal}; E-mail responsável legal: ${d.emailResponsavel}; ` +
-        `Contato responsável legal: ${d.contatoResponsavel}.`
 
     return [
-        L(`${EMERDOG_PARCERIA_CABECALHO} – CNPJ ${E.cnpj} – CRMV ${E.crmv}`, { gap: 1 }),
-        L('Contrato de Parceria Comercial – Descontos Exclusivos', { style: 'bold', size: 12, gap: 2 }),
-        L('CONTRATO DE PARCERIA COMERCIAL', { style: 'bold', size: 13, gap: 5 }),
+        L('Contrato de Parceria Comercial – Descontos Exclusivos', { style: 'bold', size: 12, gap: 2, align: 'center' }),
+        L('CONTRATO DE PARCERIA COMERCIAL', { style: 'bold', size: 13, gap: 6, align: 'center' }),
 
         L('Pelo presente instrumento particular, de um lado:', { gap: 2 }),
         L(
             `${E.razaoSocial}, pessoa jurídica de direito privado, inscrita no CNPJ sob nº ${E.cnpj}, estabelecida na ${E.endereco}, registrada e homologada junto ao Conselho Regional de Medicina Veterinária sob nº CRMV ${E.crmv}, doravante denominada EMERDOG;`,
-            { gap: 3 },
+            { align: 'justify', gap: 3 },
         ),
         L('E, de outro lado, a pessoa jurídica abaixo identificada, doravante denominada PARCEIRA:', { gap: 2 }),
-        L(qualifParceira, { gap: 4 }),
+        LCampo('Razão Social', d.razaoSocial),
+        LCampo('CNPJ', maskCNPJ(d.cnpj)),
+        LCampo('Endereço', d.enderecoCompleto),
+        LCampo('Responsável legal', d.responsavelLegal),
+        LCampo('E-mail responsável legal', d.emailResponsavel),
+        LCampo('Contato responsável legal', d.contatoResponsavel, { gap: 4 }),
 
         L(
             'As partes acima qualificadas, em conjunto denominadas "PARTES", resolvem celebrar o presente CONTRATO DE PARCERIA COMERCIAL, que será regido pelas cláusulas e condições seguintes:',

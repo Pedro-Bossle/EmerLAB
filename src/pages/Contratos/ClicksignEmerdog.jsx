@@ -2,21 +2,42 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
     PAPEIS_SIGNATARIO_CLICKSIGN,
     clicksignRequest,
-    extrairIndicadoresMeta,
+    dataEncerramentoEnvelope,
+    enriquecerDocumentosComArquivos,
     extrairListaDocumentos,
     extrairListaEnvelopes,
     extrairListaSignatarios,
-    garantirRequisitosAutenticacaoEmailCobertos,
-    garantirRequisitosQualificacaoCobertos,
+    montarLinhasSignatariosDetalhe,
+    paresAutenticacaoExistentes,
+    paresQualificacaoExistentes,
+    rotuloDataEncerramentoEnvelope,
+    rotuloEstadoDocumento,
+    signatarioPossuiQualificacao,
+    urlAbrirEnvelopeClicksign,
+    abrirVisualizacaoDocumento,
+    erroApiTexto,
+    extrairRolesQualificacaoPorSignatario,
+    contagemRequisitosPorTipo,
+    garantirRequisitosCompletosAntesAtivar,
+    matrizRequisitosPareceCompleta,
+    obterRequisitosEnvelope,
+    payloadRequisitoAutenticacao,
+    requisitoDuplicadoOuConflito,
     mergeSignersWithQualificationLabels,
     intervaloCriacaoMesAtualUtc,
+    intervaloCriacaoUltimos30DiasUtc,
     montarPathListagemEnvelopes,
     nomeSignatarioValido,
     normalizarPapelQualificacao,
     normalizarTelefoneBr,
     pathFromClicksignLink,
+    rotuloEstadoEnvelope,
+    rotuloPapelQualificacao,
     payloadAtivarEnvelope,
+    cancelarEnvelopeClicksign,
+    envelopeStatusNormalizado,
     payloadDocumentoPdf,
+    nomeEnvelopeDoArquivoPdf,
     payloadEnvelopeRascunho,
     payloadRequisitoQualificacao,
     payloadSignatario,
@@ -28,30 +49,99 @@ import {
     removerContatoAgendaPorId,
     upsertContatoAgenda,
 } from '../../lib/clicksign/agendaSignatarios.js'
+import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl.js'
 import './ContratosEmerdog.css'
 import './ClicksignEmerdog.css'
+import { TOAST_AUTO_DISMISS_MS, abrirUrlDownload, formatarDataPtBr } from './contratosUi.js'
 
-const TOAST_MS = 20000
 const PDF_MAX_BYTES = 12 * 1024 * 1024
 const STORAGE_FLUXO_EID = 'emerdog_cs_fluxo_eid'
 
-function erroApiTexto(data) {
-    if (!data) return '—'
-    if (data.error) return String(data.error)
-    if (Array.isArray(data.errors) && data.errors[0]) {
-        const e = data.errors[0]
-        return String(e.detail || e.title || JSON.stringify(e))
-    }
-    return JSON.stringify(data).slice(0, 500)
+function IconeMenuVertical() {
+    return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <circle cx="12" cy="5" r="1.8" />
+            <circle cx="12" cy="12" r="1.8" />
+            <circle cx="12" cy="19" r="1.8" />
+        </svg>
+    )
 }
 
-/** Datas ISO → DD/MM/AAAA HH:mm:ss (hora local). */
-function formatarDataPtBr(iso) {
-    if (!iso) return '—'
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return String(iso)
-    const pad = (n) => String(n).padStart(2, '0')
-    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+const SECOES_PAINEL = {
+    running: {
+        titulo: 'Em processo',
+        status: 'running',
+        emptyEnvelope: 'Envelopes em processo serão exibidos aqui',
+        emptyDoc: 'Documentos em processo serão exibidos aqui',
+        icon: 'clock',
+    },
+    closed: {
+        titulo: 'Finalizados',
+        status: 'closed',
+        emptyEnvelope: 'Envelopes finalizados serão exibidos aqui',
+        emptyDoc: 'Documentos finalizados serão exibidos aqui',
+        icon: 'check',
+    },
+    canceled: {
+        titulo: 'Cancelados',
+        status: 'canceled',
+        emptyEnvelope: 'Envelopes cancelados serão exibidos aqui',
+        emptyDoc: 'Documentos cancelados serão exibidos aqui',
+        icon: 'x',
+    },
+    draft: {
+        titulo: 'Rascunhos',
+        status: 'draft',
+        emptyEnvelope: 'Rascunhos serão exibidos aqui',
+        emptyDoc: 'Documentos em rascunho serão exibidos aqui',
+        icon: 'draft',
+    },
+    all: {
+        titulo: 'Todos os envelopes',
+        status: '',
+        emptyEnvelope: 'Nenhum envelope encontrado.',
+        emptyDoc: 'Documentos serão exibidos aqui',
+        icon: 'doc',
+    },
+}
+
+function IconeSecaoPainel({ tipo }) {
+    if (tipo === 'clock') {
+        return (
+            <span className="cs_dash_sec_icon cs_dash_sec_icon--clock" aria-hidden>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 6v6l4 2" />
+                </svg>
+            </span>
+        )
+    }
+    if (tipo === 'check') {
+        return (
+            <span className="cs_dash_sec_icon cs_dash_sec_icon--check" aria-hidden>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M20 6L9 17l-5-5" />
+                </svg>
+            </span>
+        )
+    }
+    if (tipo === 'x') {
+        return (
+            <span className="cs_dash_sec_icon cs_dash_sec_icon--x" aria-hidden>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            </span>
+        )
+    }
+    return (
+        <span className="cs_dash_sec_icon cs_dash_sec_icon--doc" aria-hidden>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+            </svg>
+        </span>
+    )
 }
 
 function IconeOlho({ visivel }) {
@@ -81,6 +171,10 @@ export default function ClicksignEmerdog() {
     const [meta, setMeta] = useState({})
     const [listPath, setListPath] = useState(() => montarPathListagemEnvelopes({ pageNumber: 1, pageSize: 20 }))
     const [statusFilter, setStatusFilter] = useState('')
+    const [vistaPainel, setVistaPainel] = useState('hub')
+    const [subTabLista, setSubTabLista] = useState('envelopes')
+    const [contagens, setContagens] = useState({ running: null, recusas: 0, closed30: null, canceled30: null })
+    const [contagensLoading, setContagensLoading] = useState(false)
 
     const [mesLoading, setMesLoading] = useState(false)
     const [mesMeta, setMesMeta] = useState({})
@@ -91,6 +185,8 @@ export default function ClicksignEmerdog() {
     const debounceNomeRef = useRef(null)
     const [mostrarIds, setMostrarIds] = useState(true)
     const [deletingId, setDeletingId] = useState('')
+    const [ordenarColuna, setOrdenarColuna] = useState('created')
+    const [ordenarDir, setOrdenarDir] = useState('desc')
 
     const [fluxoEnvelopeId, setFluxoEnvelopeId] = useState('')
     const [fluxoNome, setFluxoNome] = useState('')
@@ -123,7 +219,8 @@ export default function ClicksignEmerdog() {
     const [signPending, setSignPending] = useState(null)
     const [signModalAgendaTab, setSignModalAgendaTab] = useState('todos')
     const [signModalAgendaBusca, setSignModalAgendaBusca] = useState('')
-    const [signModalAgendaId, setSignModalAgendaId] = useState(null)
+    const [signModalAgendaSel, setSignModalAgendaSel] = useState([])
+    const [agendaQualPorId, setAgendaQualPorId] = useState({})
     const [signAgendaEditId, setSignAgendaEditId] = useState(null)
     const [signQualPapel, setSignQualPapel] = useState('sign')
 
@@ -131,18 +228,46 @@ export default function ClicksignEmerdog() {
     const [detailId, setDetailId] = useState('')
     const [detailJson, setDetailJson] = useState(null)
     const [detailLoading, setDetailLoading] = useState(false)
+    const [detailCancelando, setDetailCancelando] = useState(false)
     const [detailDocs, setDetailDocs] = useState([])
     const [detailSigs, setDetailSigs] = useState([])
     const [detailReqs, setDetailReqs] = useState([])
+    const [envelopeMenuId, setEnvelopeMenuId] = useState('')
+    const [docMenuId, setDocMenuId] = useState('')
 
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
 
     const fluxoEidRef = useRef('')
     const montarEdicaoEnvelopeIdRef = useRef('')
+    const fluxoImportPdfRef = useRef(null)
+    const dashUploadInputRef = useRef(null)
     const signReplaceSignerIdRef = useRef('')
+    const [dashDropAtivo, setDashDropAtivo] = useState(false)
     useEffect(() => {
         fluxoEidRef.current = fluxoEnvelopeId.trim()
     }, [fluxoEnvelopeId])
+
+    useEffect(() => {
+        if (!envelopeMenuId && !docMenuId) return undefined
+        const fecharMenus = () => {
+            setEnvelopeMenuId('')
+            setDocMenuId('')
+        }
+        const fecharSeFora = (e) => {
+            const alvo = e.target
+            if (alvo instanceof Element && alvo.closest('.clicksign_row_menu_wrap')) return
+            fecharMenus()
+        }
+        const fecharSeTeclaEsc = (e) => {
+            if (e.key === 'Escape') fecharMenus()
+        }
+        document.addEventListener('mousedown', fecharSeFora)
+        document.addEventListener('keydown', fecharSeTeclaEsc)
+        return () => {
+            document.removeEventListener('mousedown', fecharSeFora)
+            document.removeEventListener('keydown', fecharSeTeclaEsc)
+        }
+    }, [envelopeMenuId, docMenuId])
 
     const resetMontarFluxo = useCallback(() => {
         setFluxoEnvelopeId('')
@@ -162,7 +287,8 @@ export default function ClicksignEmerdog() {
         signReplaceSignerIdRef.current = ''
         setSignModal(null)
         setSignPending(null)
-        setSignModalAgendaId(null)
+        setSignModalAgendaSel([])
+        setAgendaQualPorId({})
         setSignModalAgendaBusca('')
         setSignModalAgendaTab('todos')
         setSignQualPapel('sign')
@@ -181,24 +307,54 @@ export default function ClicksignEmerdog() {
         }
     }, [])
 
-    const pushToast = useCallback((variant, title, body) => {
+    const pushToast = useCallback((variant, title, body, options) => {
+        const opts = options && typeof options === 'object' ? options : {}
         if (body === undefined) {
-            setToast({ variant, title, body: null })
+            setToast({
+                variant,
+                title,
+                body: null,
+                onConfirm: opts.onConfirm || null,
+                confirmLabel: opts.confirmLabel || 'Confirmar',
+                cancelLabel: opts.cancelLabel || 'Cancelar',
+            })
             return
         }
-        setToast({ variant, title, body: String(body || '').trim() || '—' })
+        setToast({
+            variant,
+            title,
+            body: String(body || '').trim() || '—',
+            onConfirm: opts.onConfirm || null,
+            confirmLabel: opts.confirmLabel || 'Confirmar',
+            cancelLabel: opts.cancelLabel || 'Cancelar',
+        })
     }, [])
 
     useEffect(() => {
         if (!toast) return undefined
-        const t = setTimeout(() => setToast(null), TOAST_MS)
+        if (toast.variant === 'confirm') return undefined
+        const t = setTimeout(() => setToast(null), TOAST_AUTO_DISMISS_MS)
         return () => clearTimeout(t)
     }, [toast])
+
+    const [podeEditarContratos] = useState(() => hasStoredPermission(PERMISSION_KEYS.CONTRATOS_EDIT))
+
+    const csRequest = useCallback(
+        async (method, path, body) => {
+            const m = String(method || 'GET').toUpperCase()
+            if (m !== 'GET' && m !== 'HEAD' && !podeEditarContratos) {
+                pushToast('error', 'Contratos', 'Somente visualização: sem permissão para alterar envelopes na Clicksign.')
+                return { ok: false, status: 403, data: { error: 'readonly' } }
+            }
+            return clicksignRequest(method, path, body)
+        },
+        [podeEditarContratos, pushToast],
+    )
 
     const carregarLista = useCallback(
         async (path) => {
             setLoading(true)
-            const { ok, status, data } = await clicksignRequest('GET', path)
+            const { ok, status, data } = await csRequest('GET', path)
             setLoading(false)
             if (!ok) {
                 pushToast('error', `Erro ${status}`, erroApiTexto(data))
@@ -213,7 +369,7 @@ export default function ClicksignEmerdog() {
             setMeta(ex.meta || {})
             setListPath(path)
         },
-        [pushToast],
+        [pushToast, csRequest],
     )
 
     const carregarUsoMes = useCallback(async () => {
@@ -224,7 +380,7 @@ export default function ClicksignEmerdog() {
             pageSize: 50,
             filterCreated: intervalo,
         })
-        const { ok, data } = await clicksignRequest('GET', path)
+        const { ok, data } = await csRequest('GET', path)
         setMesLoading(false)
         if (!ok) {
             setMesMeta({})
@@ -236,6 +392,59 @@ export default function ClicksignEmerdog() {
         const n = typeof rc === 'number' ? rc : Array.isArray(data?.data) ? data.data.length : null
         setMesCount(n)
     }, [])
+
+    const contarEnvelopesPath = useCallback(async (path) => {
+        const { ok, data } = await csRequest('GET', path)
+        if (!ok) return null
+        const rc = data?.meta?.record_count
+        if (typeof rc === 'number') return rc
+        return Array.isArray(data?.data) ? data.data.length : null
+    }, [])
+
+    const carregarContagensDashboard = useCallback(async () => {
+        setContagensLoading(true)
+        const intervalo30 = intervaloCriacaoUltimos30DiasUtc()
+        try {
+            const [running, closed30, canceled30] = await Promise.all([
+                contarEnvelopesPath(
+                    montarPathListagemEnvelopes({ pageNumber: 1, pageSize: 1, filterStatus: 'running' }),
+                ),
+                contarEnvelopesPath(
+                    montarPathListagemEnvelopes({
+                        pageNumber: 1,
+                        pageSize: 1,
+                        filterStatus: 'closed',
+                        filterCreated: intervalo30,
+                    }),
+                ),
+                contarEnvelopesPath(
+                    montarPathListagemEnvelopes({
+                        pageNumber: 1,
+                        pageSize: 1,
+                        filterStatus: 'canceled',
+                        filterCreated: intervalo30,
+                    }),
+                ),
+            ])
+            setContagens({ running, recusas: 0, closed30, canceled30 })
+        } finally {
+            setContagensLoading(false)
+        }
+    }, [contarEnvelopesPath])
+
+    const voltarHubPainel = () => {
+        setVistaPainel('hub')
+        setStatusFilter('')
+        setSubTabLista('envelopes')
+    }
+
+    const abrirSecaoPainel = (chave) => {
+        const sec = SECOES_PAINEL[chave]
+        if (!sec) return
+        setVistaPainel(chave)
+        setStatusFilter(sec.status || '')
+        setSubTabLista('envelopes')
+    }
 
     useEffect(() => {
         if (debounceNomeRef.current) clearTimeout(debounceNomeRef.current)
@@ -250,6 +459,7 @@ export default function ClicksignEmerdog() {
 
     useEffect(() => {
         if (tab !== 'envelopes') return
+        if (vistaPainel === 'hub') return
         const path = montarPathListagemEnvelopes({
             pageNumber: 1,
             pageSize: 20,
@@ -257,7 +467,13 @@ export default function ClicksignEmerdog() {
             filterName: filtroNomeDebounced,
         })
         void carregarLista(path)
-    }, [tab, statusFilter, filtroNomeDebounced, carregarLista])
+    }, [tab, vistaPainel, statusFilter, filtroNomeDebounced, carregarLista])
+
+    useEffect(() => {
+        if (tab === 'envelopes' && vistaPainel === 'hub') {
+            void carregarContagensDashboard()
+        }
+    }, [tab, vistaPainel, carregarContagensDashboard])
 
     useEffect(() => {
         if (tab === 'envelopes') {
@@ -271,7 +487,7 @@ export default function ClicksignEmerdog() {
             const eid = fluxoEidRef.current.trim()
             if (!eid) return
             void (async () => {
-                const { ok, data } = await clicksignRequest('GET', `/envelopes/${encodeURIComponent(eid)}`)
+                const { ok, data } = await csRequest('GET', `/envelopes/${encodeURIComponent(eid)}`)
                 if (!ok) return
                 const st = data?.data?.attributes?.status
                 if (String(st || '').toLowerCase() === 'draft') {
@@ -306,7 +522,7 @@ export default function ClicksignEmerdog() {
         const nomeToast = nomeLimpo || '—'
         const executarExclusao = async () => {
             setDeletingId(id)
-            const { ok, status, data } = await clicksignRequest('DELETE', `/envelopes/${encodeURIComponent(id)}`)
+            const { ok, status, data } = await csRequest('DELETE', `/envelopes/${encodeURIComponent(id)}`)
             setDeletingId('')
             if (!ok) {
                 pushToast('error', `Eliminar envelope ${status}`, erroApiTexto(data))
@@ -328,7 +544,58 @@ export default function ClicksignEmerdog() {
         abrirConfirmacaoExclusao(msg, executarExclusao)
     }
 
+    const cancelarEnvelope = (id, nome) => {
+        const nomeLimpo = String(nome || '').trim()
+        const idStr = String(id || '').trim()
+        if (!idStr) return
+        const msg =
+            nomeLimpo !== ''
+                ? `Cancelar «${nomeLimpo}»? O envelope deixa de aceitar assinaturas e permanece na lista como cancelado (não é eliminado).`
+                : `Cancelar este envelope? O processo de assinatura será interrompido e o estado passará a cancelado.`
+        pushToast('confirm', 'Cancelar envelope', msg, {
+            confirmLabel: 'Cancelar envelope',
+            cancelLabel: 'Voltar',
+            onConfirm: async () => {
+                setDetailCancelando(true)
+                const resultado = await cancelarEnvelopeClicksign(idStr, csRequest)
+                setDetailCancelando(false)
+                if (!resultado.ok) {
+                    const extra =
+                        resultado.failedFilename != null
+                            ? ` Documento: ${resultado.failedFilename}.`
+                            : ''
+                    pushToast(
+                        'error',
+                        `Cancelar ${resultado.status}`,
+                        (erroApiTexto(resultado.data) || 'Não foi possível cancelar o envelope.') + extra,
+                    )
+                    return
+                }
+                const n = resultado.canceledCount ?? 0
+                const corpo =
+                    resultado.alreadyCanceled === true
+                        ? 'Os documentos deste envelope já estavam cancelados ou finalizados.'
+                        : n === 1
+                          ? '1 documento foi cancelado; o envelope deixa de aceitar assinaturas.'
+                          : `${n} documentos foram cancelados; o envelope deixa de aceitar assinaturas.`
+                pushToast('success', 'Envelope cancelado', corpo)
+                if (detailOpen && detailId === idStr) {
+                    await abrirDetalhe(idStr)
+                }
+                await carregarLista(listPath)
+                await carregarUsoMes()
+            },
+        })
+    }
+
+    const fecharDetalheModal = useCallback(() => {
+        setDetailOpen(false)
+        setDocMenuId('')
+    }, [])
+
     const abrirDetalhe = async (id) => {
+        setEnvelopeMenuId('')
+        setDocMenuId('')
         setDetailId(id)
         setDetailOpen(true)
         setDetailLoading(true)
@@ -336,10 +603,10 @@ export default function ClicksignEmerdog() {
         setDetailDocs([])
         setDetailSigs([])
         setDetailReqs([])
-        const enc = clicksignRequest('GET', `/envelopes/${encodeURIComponent(id)}`)
-        const docs = clicksignRequest('GET', `/envelopes/${encodeURIComponent(id)}/documents`)
-        const sigs = clicksignRequest('GET', `/envelopes/${encodeURIComponent(id)}/signers`)
-        const reqs = clicksignRequest('GET', `/envelopes/${encodeURIComponent(id)}/requirements`)
+        const enc = csRequest('GET', `/envelopes/${encodeURIComponent(id)}`)
+        const docs = csRequest('GET', `/envelopes/${encodeURIComponent(id)}/documents`)
+        const sigs = csRequest('GET', `/envelopes/${encodeURIComponent(id)}/signers`)
+        const reqs = obterRequisitosEnvelope(csRequest, id)
         const [r0, r1, r2, r3] = await Promise.all([enc, docs, sigs, reqs])
         setDetailLoading(false)
         if (!r0.ok) {
@@ -348,8 +615,24 @@ export default function ClicksignEmerdog() {
             return
         }
         setDetailJson(r0.data)
-        if (r1.ok) setDetailDocs(extrairListaDocumentos(r1.data))
-        if (r2.ok) setDetailSigs(extrairListaSignatarios(r2.data))
+        const reqNorm = r3.ok ? r3.data : null
+        if (r1.ok) {
+            let docRows = extrairListaDocumentos(r1.data)
+            docRows = await enriquecerDocumentosComArquivos(csRequest, id, docRows)
+            setDetailDocs(docRows)
+        } else {
+            setDetailDocs([])
+        }
+        if (r2.ok) {
+            const arrSig = Array.isArray(r2.data?.data) ? r2.data.data : r2.data?.data ? [r2.data.data] : []
+            const byId = {}
+            for (const item of arrSig) {
+                if (item?.id) byId[item.id] = item
+            }
+            setDetailSigs(montarLinhasSignatariosDetalhe(r2.data, reqNorm, byId))
+        } else {
+            setDetailSigs([])
+        }
         if (r3.ok) {
             const arr = Array.isArray(r3.data?.data) ? r3.data.data : r3.data?.data ? [r3.data.data] : []
             setDetailReqs(
@@ -406,7 +689,7 @@ export default function ClicksignEmerdog() {
             setFluxoEnvelopeId(edicaoId)
             persistirEnvelopeSessao(edicaoId)
             void (async () => {
-                const enc = await clicksignRequest('GET', `/envelopes/${encodeURIComponent(edicaoId)}`)
+                const enc = await csRequest('GET', `/envelopes/${encodeURIComponent(edicaoId)}`)
                 if (enc.ok) {
                     const a = enc.data?.data?.attributes || {}
                     if (a.name != null && String(a.name).trim()) setFluxoNome(String(a.name).trim())
@@ -418,9 +701,9 @@ export default function ClicksignEmerdog() {
                     }
                 }
                 const [d1, d2, d3] = await Promise.all([
-                    clicksignRequest('GET', `/envelopes/${encodeURIComponent(edicaoId)}/documents`),
-                    clicksignRequest('GET', `/envelopes/${encodeURIComponent(edicaoId)}/signers`),
-                    clicksignRequest('GET', `/envelopes/${encodeURIComponent(edicaoId)}/requirements`),
+                    csRequest('GET', `/envelopes/${encodeURIComponent(edicaoId)}/documents`),
+                    csRequest('GET', `/envelopes/${encodeURIComponent(edicaoId)}/signers`),
+                    obterRequisitosEnvelope(csRequest, edicaoId),
                 ])
                 if (d1.ok) setFluxoDocs(extrairListaDocumentos(d1.data))
                 else setFluxoDocs([])
@@ -432,7 +715,7 @@ export default function ClicksignEmerdog() {
                 'Envelope carregado',
                 'Documentos e signatários sincronizados. Pode remover documentos, anexar novos e adicionar signatários.',
             )
-        } else {
+        } else if (!fluxoImportPdfRef.current) {
             resetMontarFluxo()
         }
     }, [tab, resetMontarFluxo, pushToast])
@@ -443,7 +726,7 @@ export default function ClicksignEmerdog() {
         if (fluxoAssunto.trim()) extras.default_subject = fluxoAssunto.trim()
         if (fluxoMensagem.trim()) extras.default_message = fluxoMensagem.trim()
         const body = payloadEnvelopeRascunho(fluxoNome, extras)
-        const { ok, status, data } = await clicksignRequest('POST', '/envelopes', body)
+        const { ok, status, data } = await csRequest('POST', '/envelopes', body)
         setFluxoBusy(false)
         if (!ok) {
             pushToast('error', `Criar envelope ${status}`, erroApiTexto(data))
@@ -462,75 +745,6 @@ export default function ClicksignEmerdog() {
         await carregarUsoMes()
     }
 
-    const anexarPdfFluxo = async (fileList) => {
-        const file = fileList?.[0]
-        if (!file || file.type !== 'application/pdf') {
-            pushToast('error', 'Ficheiro', 'Selecione um PDF.')
-            return
-        }
-        if (file.size > PDF_MAX_BYTES) {
-            pushToast('error', 'Ficheiro', `O PDF ultrapassa ${PDF_MAX_BYTES / (1024 * 1024)} MB.`)
-            return
-        }
-        let eid = fluxoEnvelopeId.trim()
-        if (!eid) {
-            try {
-                eid = String(sessionStorage.getItem(STORAGE_FLUXO_EID) || '').trim()
-            } catch {
-                eid = ''
-            }
-        }
-        if (!eid) {
-            pushToast('error', 'Envelope', 'Crie primeiro o envelope (passo 1). O ID será preenchido automaticamente.')
-            return
-        }
-        if (!fluxoEnvelopeId && eid) setFluxoEnvelopeId(eid)
-        setFluxoBusy(true)
-        let dataUrlPdf = ''
-        try {
-            const dataUrl = await new Promise((resolve, reject) => {
-                const fr = new FileReader()
-                fr.onload = () => resolve(fr.result)
-                fr.onerror = () => reject(new Error('Leitura do PDF falhou.'))
-                fr.readAsDataURL(file)
-            })
-            dataUrlPdf = String(dataUrl || '')
-        } catch (e) {
-            setFluxoBusy(false)
-            pushToast('error', 'PDF', e?.message || 'Falha ao ler o ficheiro.')
-            return
-        }
-        const encCheck = await clicksignRequest('GET', `/envelopes/${encodeURIComponent(eid)}`)
-        const st = encCheck.ok ? encCheck.data?.data?.attributes?.status : null
-        if (st && String(st).toLowerCase() !== 'draft') {
-            setFluxoBusy(false)
-            pushToast(
-                'error',
-                'Envelope',
-                'Só é possível anexar PDF com o envelope em rascunho (draft). Crie um novo em «Montar envelope» ou use um rascunho ainda não ativado.',
-            )
-            return
-        }
-        const body = payloadDocumentoPdf(eid, file.name, dataUrlPdf)
-        let { ok, status, data } = await clicksignRequest('POST', `/envelopes/${encodeURIComponent(eid)}/documents`, body)
-        if (!ok && (status === 500 || status === 422)) {
-            const bodyAlt = payloadDocumentoPdf(eid, file.name, dataUrlPdf, { includeEnvelopeRelationship: true })
-            const r2 = await clicksignRequest('POST', `/envelopes/${encodeURIComponent(eid)}/documents`, bodyAlt)
-            ok = r2.ok
-            status = r2.status
-            data = r2.data
-        }
-        setFluxoBusy(false)
-        if (!ok) {
-            pushToast('error', `Documento ${status}`, erroApiTexto(data))
-            return
-        }
-        const nomeDoc = String(file.name || 'documento.pdf').trim() || 'documento.pdf'
-        pushToast('info', 'Documento Anexado', nomeDoc)
-        await refreshFluxoListas(eid)
-        await carregarLista(listPath)
-    }
-
     const removerDocumentoFluxo = async (docId, nomeFicheiro) => {
         const did = String(docId || '').trim()
         if (!did) return
@@ -546,7 +760,7 @@ export default function ClicksignEmerdog() {
             pushToast('error', 'Envelope', 'Sem envelope ativo.')
             return
         }
-        const encCheck = await clicksignRequest('GET', `/envelopes/${encodeURIComponent(eid)}`)
+        const encCheck = await csRequest('GET', `/envelopes/${encodeURIComponent(eid)}`)
         const st = encCheck.ok ? encCheck.data?.data?.attributes?.status : null
         if (st && String(st).toLowerCase() !== 'draft') {
             pushToast('error', 'Envelope', 'Só é possível remover documentos com o envelope em rascunho (draft).')
@@ -554,7 +768,7 @@ export default function ClicksignEmerdog() {
         }
         setFluxoDocRemovendoId(did)
         try {
-            const { ok, status, data } = await clicksignRequest(
+            const { ok, status, data } = await csRequest(
                 'DELETE',
                 `/envelopes/${encodeURIComponent(eid)}/documents/${encodeURIComponent(did)}`,
             )
@@ -586,7 +800,7 @@ export default function ClicksignEmerdog() {
             pushToast('error', 'Envelope', 'Sem envelope ativo.')
             return
         }
-        const encCheck = await clicksignRequest('GET', `/envelopes/${encodeURIComponent(eid)}`)
+        const encCheck = await csRequest('GET', `/envelopes/${encodeURIComponent(eid)}`)
         const st = encCheck.ok ? encCheck.data?.data?.attributes?.status : null
         if (st && String(st).toLowerCase() !== 'draft') {
             pushToast('error', 'Envelope', 'Só é possível remover signatários com o envelope em rascunho (draft).')
@@ -594,7 +808,7 @@ export default function ClicksignEmerdog() {
         }
         setFluxoSigRemovendoId(sid)
         try {
-            const { ok, status, data } = await clicksignRequest(
+            const { ok, status, data } = await csRequest(
                 'DELETE',
                 `/envelopes/${encodeURIComponent(eid)}/signers/${encodeURIComponent(sid)}`,
             )
@@ -613,23 +827,175 @@ export default function ClicksignEmerdog() {
 
     const refreshFluxoListas = useCallback(async (eid) => {
         const id = String(eid || fluxoEnvelopeId || '').trim()
-        if (!id) return
+        if (!id) return { docs: [], sigs: [] }
         const [d1, d2, d3] = await Promise.all([
-            clicksignRequest('GET', `/envelopes/${encodeURIComponent(id)}/documents`),
-            clicksignRequest('GET', `/envelopes/${encodeURIComponent(id)}/signers`),
-            clicksignRequest('GET', `/envelopes/${encodeURIComponent(id)}/requirements`),
+            csRequest('GET', `/envelopes/${encodeURIComponent(id)}/documents`),
+            csRequest('GET', `/envelopes/${encodeURIComponent(id)}/signers`),
+            obterRequisitosEnvelope(csRequest, id),
         ])
-        if (d1.ok) setFluxoDocs(extrairListaDocumentos(d1.data))
-        else setFluxoDocs([])
-        if (d2.ok) setFluxoSigs(mergeSignersWithQualificationLabels(d2.data, d3.ok ? d3.data : null))
-        else setFluxoSigs([])
+        const docs = d1.ok ? extrairListaDocumentos(d1.data) : []
+        const sigs = d2.ok ? mergeSignersWithQualificationLabels(d2.data, d3.ok ? d3.data : null) : []
+        setFluxoDocs(docs)
+        setFluxoSigs(sigs)
+        return { docs, sigs }
     }, [fluxoEnvelopeId])
+
+    const anexarPdfAoEnvelopeId = useCallback(
+        async (eid, file) => {
+            const id = String(eid || '').trim()
+            if (!id) {
+                pushToast('error', 'Envelope', 'Sem envelope ativo.')
+                return false
+            }
+            setFluxoBusy(true)
+            let dataUrlPdf = ''
+            try {
+                const dataUrl = await new Promise((resolve, reject) => {
+                    const fr = new FileReader()
+                    fr.onload = () => resolve(fr.result)
+                    fr.onerror = () => reject(new Error('Leitura do PDF falhou.'))
+                    fr.readAsDataURL(file)
+                })
+                dataUrlPdf = String(dataUrl || '')
+            } catch (e) {
+                setFluxoBusy(false)
+                pushToast('error', 'PDF', e?.message || 'Falha ao ler o ficheiro.')
+                return false
+            }
+            const encCheck = await csRequest('GET', `/envelopes/${encodeURIComponent(id)}`)
+            const st = encCheck.ok ? encCheck.data?.data?.attributes?.status : null
+            if (st && String(st).toLowerCase() !== 'draft') {
+                setFluxoBusy(false)
+                pushToast(
+                    'error',
+                    'Envelope',
+                    'Só é possível anexar PDF com o envelope em rascunho (draft). Crie um novo em «Montar envelope» ou use um rascunho ainda não ativado.',
+                )
+                return false
+            }
+            const body = payloadDocumentoPdf(id, file.name, dataUrlPdf)
+            let { ok, status, data } = await csRequest('POST', `/envelopes/${encodeURIComponent(id)}/documents`, body)
+            if (!ok && (status === 500 || status === 422)) {
+                const bodyAlt = payloadDocumentoPdf(id, file.name, dataUrlPdf, { includeEnvelopeRelationship: true })
+                const r2 = await csRequest('POST', `/envelopes/${encodeURIComponent(id)}/documents`, bodyAlt)
+                ok = r2.ok
+                status = r2.status
+                data = r2.data
+            }
+            setFluxoBusy(false)
+            if (!ok) {
+                pushToast('error', `Documento ${status}`, erroApiTexto(data))
+                return false
+            }
+            const nomeDoc = String(file.name || 'documento.pdf').trim() || 'documento.pdf'
+            pushToast('info', 'Documento anexado', nomeDoc)
+            await refreshFluxoListas(id)
+            await carregarLista(listPath)
+            return true
+        },
+        [pushToast, carregarLista, listPath, refreshFluxoListas],
+    )
+
+    const executarMontarComPdf = useCallback(
+        async (file, nomeEnvelope) => {
+            const nome = String(nomeEnvelope || nomeEnvelopeDoArquivoPdf(file.name)).trim() || 'Documento'
+            resetMontarFluxo()
+            setFluxoNome(nome)
+            setFluxoBusy(true)
+            const body = payloadEnvelopeRascunho(nome, {})
+            const { ok, status, data } = await csRequest('POST', '/envelopes', body)
+            if (!ok) {
+                setFluxoBusy(false)
+                pushToast('error', `Criar envelope ${status}`, erroApiTexto(data))
+                return
+            }
+            const id = data?.data?.id ?? ''
+            if (!id) {
+                setFluxoBusy(false)
+                pushToast('error', 'Envelope', 'Resposta sem ID do envelope.')
+                return
+            }
+            setFluxoEnvelopeId(id)
+            setFluxoNome(nome)
+            setFluxoEdicaoLista(false)
+            persistirEnvelopeSessao(id)
+            const anexou = await anexarPdfAoEnvelopeId(id, file)
+            if (anexou) {
+                pushToast('info', 'Envelope criado', `«${nome}» — PDF anexado. Adicione signatários e envie quando estiver pronto.`)
+            }
+            await carregarLista(listPath)
+            await carregarUsoMes()
+        },
+        [resetMontarFluxo, pushToast, anexarPdfAoEnvelopeId, carregarLista, listPath, carregarUsoMes],
+    )
+
+    const validarPdfFicheiro = useCallback(
+        (file) => {
+            if (!file || file.type !== 'application/pdf') {
+                pushToast('error', 'Ficheiro', 'Selecione um PDF.')
+                return false
+            }
+            if (file.size > PDF_MAX_BYTES) {
+                pushToast('error', 'Ficheiro', `O PDF ultrapassa ${PDF_MAX_BYTES / (1024 * 1024)} MB.`)
+                return false
+            }
+            return true
+        },
+        [pushToast],
+    )
+
+    const enfileirarPdfPainel = useCallback(
+        (fileList) => {
+            const file = fileList?.[0]
+            if (!validarPdfFicheiro(file)) return
+            const nome = nomeEnvelopeDoArquivoPdf(file.name)
+            montarEdicaoEnvelopeIdRef.current = ''
+            if (tab === 'montar') {
+                void executarMontarComPdf(file, nome)
+                return
+            }
+            fluxoImportPdfRef.current = { file, nome }
+            setTab('montar')
+        },
+        [tab, validarPdfFicheiro, executarMontarComPdf],
+    )
+
+    const anexarPdfFluxo = async (fileList) => {
+        const file = fileList?.[0]
+        if (!validarPdfFicheiro(file)) return
+        let eid = fluxoEnvelopeId.trim()
+        if (!eid) {
+            try {
+                eid = String(sessionStorage.getItem(STORAGE_FLUXO_EID) || '').trim()
+            } catch {
+                eid = ''
+            }
+        }
+        if (!eid) {
+            const nome = nomeEnvelopeDoArquivoPdf(file.name)
+            await executarMontarComPdf(file, nome)
+            return
+        }
+        if (!fluxoEnvelopeId && eid) setFluxoEnvelopeId(eid)
+        await anexarPdfAoEnvelopeId(eid, file)
+    }
+
+    useEffect(() => {
+        if (tab !== 'montar') return
+        const importPdf = fluxoImportPdfRef.current
+        if (importPdf?.file) {
+            fluxoImportPdfRef.current = null
+            montarEdicaoEnvelopeIdRef.current = ''
+            void executarMontarComPdf(importPdf.file, importPdf.nome)
+        }
+    }, [tab, executarMontarComPdf])
 
     const fecharSignModal = useCallback(() => {
         signReplaceSignerIdRef.current = ''
         setSignModal(null)
         setSignPending(null)
-        setSignModalAgendaId(null)
+        setSignModalAgendaSel([])
+        setAgendaQualPorId({})
         setSignModalAgendaBusca('')
         setSignModalAgendaTab('todos')
         setSignAgendaEditId(null)
@@ -669,7 +1035,7 @@ export default function ClicksignEmerdog() {
             }
             const replaceId = String(signReplaceSignerIdRef.current || '').trim()
             if (replaceId) {
-                const dr = await clicksignRequest('DELETE', `/envelopes/${encodeURIComponent(eid)}/signers/${encodeURIComponent(replaceId)}`)
+                const dr = await csRequest('DELETE', `/envelopes/${encodeURIComponent(eid)}/signers/${encodeURIComponent(replaceId)}`)
                 if (!dr.ok) {
                     pushToast('error', `Remover signatário anterior ${dr.status}`, erroApiTexto(dr.data))
                     return false
@@ -683,7 +1049,7 @@ export default function ClicksignEmerdog() {
                 phone,
                 channel: ch,
             })
-            const { ok, status, data } = await clicksignRequest('POST', `/envelopes/${encodeURIComponent(eid)}/signers`, body)
+            const { ok, status, data } = await csRequest('POST', `/envelopes/${encodeURIComponent(eid)}/signers`, body)
             if (!ok) {
                 setFluxoBusy(false)
                 pushToast('error', `Signatário ${status}`, erroApiTexto(data))
@@ -692,30 +1058,90 @@ export default function ClicksignEmerdog() {
             const signerId = String(data?.data?.id || '').trim()
             const papelUsar = normalizarPapelQualificacao(papel)
             let docsParaReq = fluxoDocs
-            const docsRes = await clicksignRequest('GET', `/envelopes/${encodeURIComponent(eid)}/documents`)
+            const docsRes = await csRequest('GET', `/envelopes/${encodeURIComponent(eid)}/documents`)
             if (docsRes.ok) {
                 docsParaReq = extrairListaDocumentos(docsRes.data)
                 setFluxoDocs(docsParaReq)
             }
-            let qualOk = true
+            let requisitosOk = true
+            const authMetodo = ch === 'whatsapp' ? 'whatsapp' : 'email'
+            const reqsPrevRes = await obterRequisitosEnvelope(csRequest, eid)
+            const reqNorm = reqsPrevRes.ok ? reqsPrevRes.data : null
+            const rolesPrev = extrairRolesQualificacaoPorSignatario(reqNorm)
+            const coveredQual = paresQualificacaoExistentes(reqNorm)
+            const coveredAuth = paresAutenticacaoExistentes(reqNorm)
+
+            if (signerId && signatarioPossuiQualificacao(rolesPrev, signerId)) {
+                setFluxoBusy(false)
+                pushToast(
+                    'error',
+                    'Qualificação',
+                    'Este signatário já possui uma qualificação neste envelope. Remova-o e adicione novamente se precisar alterar o papel.',
+                )
+                return false
+            }
+
             if (signerId && docsParaReq.length > 0) {
                 for (const doc of docsParaReq) {
                     const docId = String(doc.id || '').trim()
                     if (!docId) continue
-                    const reqBody = payloadRequisitoQualificacao(eid, {
-                        documentId: docId,
-                        signerId,
-                        role: papelUsar,
-                    })
-                    const rq = await clicksignRequest('POST', `/envelopes/${encodeURIComponent(eid)}/requirements`, reqBody)
-                    if (!rq.ok) {
-                        qualOk = false
+                    const par = `${docId}|${signerId}`
+                    const papelExistente = rolesPrev[signerId]
+                    if (papelExistente && papelExistente !== papelUsar) {
+                        requisitosOk = false
                         pushToast(
                             'error',
-                            `Requisito de qualificação ${rq.status}`,
-                            erroApiTexto(rq.data) || 'O signatário foi criado; crie o requisito de qualificação na Clicksign ou tente novamente.',
+                            'Qualificação',
+                            `Este signatário já está como «${rotuloPapelQualificacao(papelExistente)}». Só é permitida uma qualificação por assinante.`,
                         )
                         break
+                    }
+                    if (!coveredQual.has(par)) {
+                        const reqBody = payloadRequisitoQualificacao(eid, {
+                            documentId: docId,
+                            signerId,
+                            role: papelUsar,
+                        })
+                        const rq = await csRequest(
+                            'POST',
+                            `/envelopes/${encodeURIComponent(eid)}/requirements`,
+                            reqBody,
+                        )
+                        if (!rq.ok && !requisitoDuplicadoOuConflito(rq)) {
+                            requisitosOk = false
+                            pushToast(
+                                'error',
+                                `Requisito de qualificação ${rq.status}`,
+                                erroApiTexto(rq.data) ||
+                                    'O signatário foi criado; crie o requisito de qualificação na Clicksign ou tente novamente.',
+                            )
+                            break
+                        }
+                        coveredQual.add(par)
+                        rolesPrev[signerId] = papelUsar
+                    }
+                    if (!coveredAuth.has(par)) {
+                        const authBody = payloadRequisitoAutenticacao(eid, {
+                            documentId: docId,
+                            signerId,
+                            auth: authMetodo,
+                        })
+                        const ra = await csRequest(
+                            'POST',
+                            `/envelopes/${encodeURIComponent(eid)}/requirements`,
+                            authBody,
+                        )
+                        if (!ra.ok && !requisitoDuplicadoOuConflito(ra)) {
+                            requisitosOk = false
+                            pushToast(
+                                'error',
+                                `Requisito de autenticação ${ra.status}`,
+                                erroApiTexto(ra.data) ||
+                                    'O signatário foi criado; configure autenticação (e-mail/WhatsApp) na Clicksign ou tente novamente.',
+                            )
+                            break
+                        }
+                        coveredAuth.add(par)
                     }
                 }
             }
@@ -724,10 +1150,10 @@ export default function ClicksignEmerdog() {
                 pushToast(
                     'info',
                     'Signatário adicionado',
-                    'Anexe um PDF no passo 2 para criar automaticamente o requisito de qualificação com o papel escolhido.',
+                    'Anexe um PDF no passo 2 para criar automaticamente os requisitos de qualificação e autenticação.',
                 )
-            } else if (qualOk) {
-                pushToast('info', 'Signatário adicionado', 'Requisito de qualificação criado para cada documento em rascunho.')
+            } else if (requisitosOk) {
+                pushToast('info', 'Signatário adicionado', 'Qualificação e autenticação criadas para cada documento em rascunho.')
             }
             if (gravarNaAgenda) {
                 setAgendaSigs(
@@ -767,7 +1193,31 @@ export default function ClicksignEmerdog() {
         if (!fluxoEnvelopeId && eid) setFluxoEnvelopeId(eid)
         setFluxoBusy(true)
         try {
-            const sync = await garantirRequisitosQualificacaoCobertos(clicksignRequest, eid)
+            const { docs: docsAtivos, sigs: sigsAtivos } = (await refreshFluxoListas(eid)) || {
+                docs: [],
+                sigs: [],
+            }
+            const needReq = Math.max(0, docsAtivos.length) * Math.max(0, sigsAtivos.length)
+            if (needReq > 0) {
+                const reqsAtual = await obterRequisitosEnvelope(csRequest, eid)
+                if (reqsAtual.ok) {
+                    const { qual, auth } = contagemRequisitosPorTipo(reqsAtual.data)
+                    const completo = matrizRequisitosPareceCompleta(
+                        reqsAtual.data,
+                        docsAtivos.length,
+                        sigsAtivos.length,
+                    )
+                    if ((qual > needReq || auth > needReq) && completo) {
+                        pushToast(
+                            'info',
+                            'Requisitos',
+                            `Há ${qual} qualificação(ões) e ${auth} autenticação(ões) (para este envio bastam cerca de ${needReq} de cada). Não serão criados requisitos novos; a seguir tentamos ativar o envelope na Clicksign.`,
+                        )
+                    }
+                }
+            }
+
+            const sync = await garantirRequisitosCompletosAntesAtivar(csRequest, eid)
             if (sync.erroListagem) {
                 pushToast('error', 'Envelope', 'Não foi possível listar documentos ou signatários para sincronizar requisitos.')
                 await refreshFluxoListas(eid)
@@ -775,25 +1225,26 @@ export default function ClicksignEmerdog() {
             }
             if (sync.falhas.length > 0) {
                 const f0 = sync.falhas[0]
-                pushToast('error', `Qualificação ${f0.status}`, erroApiTexto(f0.data) || 'Falha ao criar requisito de qualificação.')
+                const rotulo = sync.etapa === 'autenticacao' ? 'Autenticação' : 'Qualificação'
+                pushToast(
+                    'error',
+                    `${rotulo} ${f0.status}`,
+                    erroApiTexto(f0.data) || `Falha ao criar requisito de ${rotulo.toLowerCase()}.`,
+                )
                 await refreshFluxoListas(eid)
                 return
             }
-            if (sync.criados > 0) {
-                pushToast('info', 'Requisitos', `${sync.criados} requisito(s) de qualificação criado(s) automaticamente.`)
+            const criadosTotal = (sync.criadosQual || 0) + (sync.criadosAuth || 0)
+            if (criadosTotal > 0) {
+                pushToast(
+                    'info',
+                    'Requisitos',
+                    `${criadosTotal} requisito(s) criado(s) automaticamente (qualificação e autenticação).`,
+                )
             }
 
             const body = payloadAtivarEnvelope(eid)
-            let { ok, status, data } = await clicksignRequest('PATCH', `/envelopes/${encodeURIComponent(eid)}`, body)
-
-            if (!ok && status === 422) {
-                await garantirRequisitosAutenticacaoEmailCobertos(clicksignRequest, eid)
-                await refreshFluxoListas(eid)
-                const retry = await clicksignRequest('PATCH', `/envelopes/${encodeURIComponent(eid)}`, body)
-                ok = retry.ok
-                status = retry.status
-                data = retry.data
-            }
+            const { ok, status, data } = await csRequest('PATCH', `/envelopes/${encodeURIComponent(eid)}`, body)
 
             if (!ok) {
                 await refreshFluxoListas(eid)
@@ -811,10 +1262,11 @@ export default function ClicksignEmerdog() {
                 pushToast('error', `Ativar ${status}`, msg)
                 return
             }
-            pushToast('info', 'Envelope ativado', 'Status running. As notificações dependem dos requisitos e da configuração da conta.')
-            await refreshFluxoListas(eid)
+            resetMontarFluxo()
+            setTab('envelopes')
             await carregarLista(listPath)
             await carregarUsoMes()
+            pushToast('success', 'Envelope enviado', 'O envelope foi ativado com sucesso. Os signatários serão notificados conforme a configuração da conta.')
         } finally {
             setFluxoBusy(false)
         }
@@ -824,6 +1276,46 @@ export default function ClicksignEmerdog() {
         const local = pathFromClicksignLink(linkUrl)
         if (local) carregarLista(local)
     }
+
+    const alternarOrdenacaoLista = (coluna) => {
+        if (ordenarColuna === coluna) {
+            setOrdenarDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+        } else {
+            setOrdenarColuna(coluna)
+            setOrdenarDir(coluna === 'name' ? 'asc' : 'desc')
+        }
+    }
+
+    const indicadorOrdenacao = (coluna) => {
+        if (ordenarColuna !== coluna) return ''
+        return ordenarDir === 'asc' ? ' ▲' : ' ▼'
+    }
+
+    const rowsOrdenadas = useMemo(() => {
+        const list = [...rows]
+        const fator = ordenarDir === 'asc' ? 1 : -1
+        list.sort((a, b) => {
+            if (ordenarColuna === 'name') {
+                return fator * String(a.name ?? '').localeCompare(String(b.name ?? ''), 'pt-BR', { sensitivity: 'base' })
+            }
+            if (ordenarColuna === 'status') {
+                return (
+                    fator *
+                    String(a.status ?? '').localeCompare(String(b.status ?? ''), 'pt-BR', { sensitivity: 'base' })
+                )
+            }
+            if (ordenarColuna === 'created' || ordenarColuna === 'updated') {
+                const ta = new Date(a[ordenarColuna] || 0).getTime()
+                const tb = new Date(b[ordenarColuna] || 0).getTime()
+                if (Number.isNaN(ta) && Number.isNaN(tb)) return 0
+                if (Number.isNaN(ta)) return 1
+                if (Number.isNaN(tb)) return -1
+                return fator * (ta - tb)
+            }
+            return 0
+        })
+        return list
+    }, [rows, ordenarColuna, ordenarDir])
 
     const agendaOrdenada = useMemo(() => {
         return [...agendaSigs].sort((a, b) => {
@@ -850,17 +1342,25 @@ export default function ClicksignEmerdog() {
         return list
     }, [agendaOrdenada, signModalAgendaTab, signModalAgendaBusca])
 
-    const indicadoresPlano = extrairIndicadoresMeta(meta)
-    const indicadoresMes = extrairIndicadoresMeta(mesMeta)
     const mesNome = new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' })
+    const secaoLista = vistaPainel !== 'hub' ? SECOES_PAINEL[vistaPainel] : null
+    const fmtContagem = (n) => (contagensLoading ? '…' : n != null ? String(n) : '—')
 
     return (
-        <div className="contratos_emerdog clicksign_emerdog clicksign_emerdog_full">
+        <div
+            className={`contratos_emerdog clicksign_emerdog clicksign_emerdog_full${!podeEditarContratos ? ' clicksign_readonly' : ''}`}
+        >
             <h1>Clicksign — Assinatura Eletrônica</h1>
+
+            {!podeEditarContratos && (
+                <p className="contratos_readonly_banner" role="status">
+                    Somente visualização em Contratos/Clicksign: listagens e detalhes liberados; criar, enviar ou excluir bloqueados.
+                </p>
+            )}
 
             <div className="contratos_tabs clicksign_tabs_scroll" role="tablist">
                 <button type="button" className={`contratos_tab ${tab === 'envelopes' ? 'is-active' : ''}`} onClick={() => setTab('envelopes')}>
-                    Envelopes
+                    Painel
                 </button>
                 <button type="button" className={`contratos_tab ${tab === 'montar' ? 'is-active' : ''}`} onClick={() => setTab('montar')}>
                     Montar envelope
@@ -869,32 +1369,164 @@ export default function ClicksignEmerdog() {
 
             <div className="contratos_card">
                 {tab === 'envelopes' && (
-                    <div>
-                        <div className="clicksign_stats">
-                            <div className="clicksign_stat_card">
-                                <span className="clicksign_stat_label">Lista atual</span>
-                                <strong className="clicksign_stat_value">{meta?.record_count != null ? meta.record_count : rows.length}</strong>
-                                <span className="clicksign_stat_hint">registos</span>
-                            </div>
-                            <div className="clicksign_stat_card">
-                                <span className="clicksign_stat_label">Criados no mês ({mesNome})</span>
-                                <strong className="clicksign_stat_value">{mesLoading ? '…' : mesCount != null ? mesCount : '—'}</strong>
-                                <span className="clicksign_stat_hint">no mês corrente</span>
-                            </div>
-                        </div>
-                        {Object.keys(indicadoresMes).length > 0 && (
-                            <pre className="clicksign_pre clicksign_pre_compact">{JSON.stringify(indicadoresMes, null, 2)}</pre>
+                                        <div className="cs_dash_root">
+                        {vistaPainel === 'hub' && (
+                            <>
+                                <header className="cs_dash_doc_head">
+                                    <div className="cs_dash_doc_title_row">
+                                        <IconeSecaoPainel tipo="doc" />
+                                        <h2 className="cs_dash_doc_title">Documentos</h2>
+                                    </div>
+                                    <nav className="cs_dash_doc_links" aria-label="Atalhos do painel">
+                                        <button type="button" className="cs_dash_link" onClick={() => abrirSecaoPainel('all')}>
+                                            Ver todos os envelopes
+                                        </button>
+                                        <span className="cs_dash_link_sep" aria-hidden>
+                                            ·
+                                        </span>
+                                        <span className="cs_dash_link_muted" title={`Envelopes criados em ${mesNome}`}>
+                                            Criados no mês: {mesLoading ? '…' : mesCount != null ? mesCount : '—'}
+                                        </span>
+                                    </nav>
+                                </header>
+                                <div className="cs_dash_grid">
+                                    <div
+                                        className={`cs_dash_upload_card ${dashDropAtivo ? 'is-drag' : ''}`}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => dashUploadInputRef.current?.click()}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault()
+                                                dashUploadInputRef.current?.click()
+                                            }
+                                        }}
+                                        onDragEnter={(e) => {
+                                            e.preventDefault()
+                                            setDashDropAtivo(true)
+                                        }}
+                                        onDragOver={(e) => {
+                                            e.preventDefault()
+                                            setDashDropAtivo(true)
+                                        }}
+                                        onDragLeave={(e) => {
+                                            e.preventDefault()
+                                            if (!e.currentTarget.contains(e.relatedTarget)) setDashDropAtivo(false)
+                                        }}
+                                        onDrop={(e) => {
+                                            e.preventDefault()
+                                            setDashDropAtivo(false)
+                                            const f = e.dataTransfer?.files
+                                            if (f?.length) enfileirarPdfPainel(f)
+                                        }}
+                                    >
+                                        <input
+                                            ref={dashUploadInputRef}
+                                            type="file"
+                                            accept="application/pdf,.pdf"
+                                            className="cs_dash_upload_input"
+                                            aria-hidden
+                                            tabIndex={-1}
+                                            onChange={(e) => {
+                                                const files = e.target.files
+                                                if (files?.length) enfileirarPdfPainel(files)
+                                                e.target.value = ''
+                                            }}
+                                        />
+                                        <span className="cs_dash_upload_icon" aria-hidden>
+                                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                <path d="M12 18v-8M9 13l3-3 3 3" />
+                                            </svg>
+                                        </span>
+                                        <strong>Adicionar documentos</strong>
+                                        <span className="cs_dash_upload_hint">Clique aqui ou arraste o PDF</span>
+                                    </div>
+                                    <section className="cs_dash_card" aria-labelledby="cs-dash-agora">
+                                        <h3 id="cs-dash-agora" className="cs_dash_card_title">
+                                            Neste momento
+                                        </h3>
+                                        <div className="cs_dash_metric_row">
+                                            <button
+                                                type="button"
+                                                className="cs_dash_metric_box cs_dash_metric_box--process"
+                                                onClick={() => abrirSecaoPainel('running')}
+                                            >
+                                                <span className="cs_dash_metric_num">{fmtContagem(contagens.running)}</span>
+                                                <span className="cs_dash_metric_label">Em processo</span>
+                                            </button>
+                                            <div className="cs_dash_metric_box cs_dash_metric_box--refused" title="Recusas não disponíveis na API v3 neste painel">
+                                                <span className="cs_dash_metric_num">{fmtContagem(contagens.recusas)}</span>
+                                                <span className="cs_dash_metric_label">Recusas</span>
+                                            </div>
+                                        </div>
+                                    </section>
+                                    <section className="cs_dash_card" aria-labelledby="cs-dash-30d">
+                                        <h3 id="cs-dash-30d" className="cs_dash_card_title">
+                                            Últimos 30 dias
+                                        </h3>
+                                        <div className="cs_dash_metric_row">
+                                            <button
+                                                type="button"
+                                                className="cs_dash_metric_box cs_dash_metric_box--done"
+                                                onClick={() => abrirSecaoPainel('closed')}
+                                            >
+                                                <span className="cs_dash_metric_num">{fmtContagem(contagens.closed30)}</span>
+                                                <span className="cs_dash_metric_label">Finalizados</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="cs_dash_metric_box cs_dash_metric_box--cancel"
+                                                onClick={() => abrirSecaoPainel('canceled')}
+                                            >
+                                                <span className="cs_dash_metric_num">{fmtContagem(contagens.canceled30)}</span>
+                                                <span className="cs_dash_metric_label">Cancelados</span>
+                                            </button>
+                                        </div>
+                                    </section>
+                                </div>
+                            </>
                         )}
-                        {Object.keys(indicadoresPlano).length > 0 && (
-                            <p className="contratos_hint">
-                                Indicadores extra na lista: <code>{JSON.stringify(indicadoresPlano)}</code>
-                            </p>
-                        )}
-
-                        <div className="clicksign_toolbar">
-                            <button type="button" className="contratos_btn contratos_btn_secondary" disabled={loading} onClick={() => carregarLista(listPath)}>
-                                Atualizar lista
-                            </button>
+                        {vistaPainel !== 'hub' && secaoLista && (
+                            <>
+                                <button type="button" className="cs_dash_back" onClick={voltarHubPainel}>
+                                    ← Voltar ao painel
+                                </button>
+                                <header className="cs_dash_section_head">
+                                    <IconeSecaoPainel tipo={secaoLista.icon} />
+                                    <h2 className="cs_dash_section_title">{secaoLista.titulo}</h2>
+                                </header>
+                                <div className="cs_dash_subtabs" role="tablist">
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={subTabLista === 'documentos'}
+                                        className={`cs_dash_subtab ${subTabLista === 'documentos' ? 'is-active' : ''}`}
+                                        onClick={() => setSubTabLista('documentos')}
+                                    >
+                                        Ver documentos
+                                    </button>
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={subTabLista === 'envelopes'}
+                                        className={`cs_dash_subtab ${subTabLista === 'envelopes' ? 'is-active' : ''}`}
+                                        onClick={() => setSubTabLista('envelopes')}
+                                    >
+                                        Ver envelopes
+                                    </button>
+                                </div>
+                                <div className="cs_list_panel">
+                                    {subTabLista === 'documentos' && (
+                                        <div className="cs_list_empty">
+                                            <IconeSecaoPainel tipo="doc" />
+                                            <p>{secaoLista.emptyDoc}</p>
+                                            <p className="contratos_hint">Use &quot;Ver envelopes&quot; para gerir envelopes neste painel Emerdog.</p>
+                                        </div>
+                                    )}
+                                    {subTabLista === 'envelopes' && (
+                                        <>
+                        <div className="clicksign_toolbar cs_list_toolbar">
                             <div className="contratos_field clicksign_field_inline clicksign_field_grow">
                                 <label htmlFor="cs-filtro-nome">Nome do envelope</label>
                                 <input
@@ -949,23 +1581,43 @@ export default function ClicksignEmerdog() {
                                 </colgroup>
                                 <thead>
                                     <tr>
-                                        <th className="clicksign_col_nome">Nome</th>
-                                        <th className="clicksign_col_estado">Estado</th>
-                                        <th className="clicksign_col_data">Criado</th>
-                                        <th className="clicksign_col_data">Atualizado</th>
+                                        <th className="clicksign_col_nome clicksign_th_sortable">
+                                            <button type="button" className="clicksign_th_sort_btn" onClick={() => alternarOrdenacaoLista('name')}>
+                                                Nome{indicadorOrdenacao('name')}
+                                            </button>
+                                        </th>
+                                        <th className="clicksign_col_estado clicksign_th_sortable">
+                                            <button type="button" className="clicksign_th_sort_btn" onClick={() => alternarOrdenacaoLista('status')}>
+                                                Estado{indicadorOrdenacao('status')}
+                                            </button>
+                                        </th>
+                                        <th className="clicksign_col_data clicksign_th_sortable">
+                                            <button type="button" className="clicksign_th_sort_btn" onClick={() => alternarOrdenacaoLista('created')}>
+                                                Criado{indicadorOrdenacao('created')}
+                                            </button>
+                                        </th>
+                                        <th className="clicksign_col_data clicksign_th_sortable">
+                                            <button type="button" className="clicksign_th_sort_btn" onClick={() => alternarOrdenacaoLista('updated')}>
+                                                Atualizado{indicadorOrdenacao('updated')}
+                                            </button>
+                                        </th>
                                         <th className="clicksign_col_id">ID</th>
                                         <th className="clicksign_col_acoes">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {rows.length === 0 && (
+                                    {rowsOrdenadas.length === 0 && (
                                         <tr>
                                             <td colSpan={6} className="clicksign_td_empty">
-                                                {loading ? 'A carregar…' : 'Nenhum envelope encontrado.'}
+                                                {loading
+                                                    ? 'A carregar…'
+                                                    : secaoLista?.emptyEnvelope || 'Nenhum envelope encontrado.'}
                                             </td>
                                         </tr>
                                     )}
-                                    {rows.map((r) => (
+                                    {rowsOrdenadas.map((r) => {
+                                        const stLinha = envelopeStatusNormalizado(r.status)
+                                        return (
                                         <tr key={r.id}>
                                             <td className="clicksign_col_nome" data-label="Nome">
                                                 {r.name}
@@ -974,7 +1626,7 @@ export default function ClicksignEmerdog() {
                                                 <span
                                                     className={`clicksign_badge clicksign_badge--${String(r.status).toLowerCase().replace(/[^a-z]/g, '') || 'unknown'}`}
                                                 >
-                                                    {r.status}
+                                                    {rotuloEstadoEnvelope(r.status)}
                                                 </span>
                                             </td>
                                             <td className="clicksign_col_data" data-label="Criado">
@@ -987,27 +1639,92 @@ export default function ClicksignEmerdog() {
                                                 {mostrarIds ? r.id : '********-****-****-****-************'}
                                             </td>
                                             <td className="clicksign_col_acoes" data-label="Ações">
-                                                <div className="clicksign_td_actions">
+                                                <div
+                                                    className="clicksign_td_actions clicksign_row_menu_wrap"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
                                                     <button
                                                         type="button"
-                                                        className="contratos_btn contratos_btn_primary clicksign_btn_sm"
-                                                        onClick={() => abrirDetalhe(r.id)}
+                                                        className="clicksign_menu_trigger"
+                                                        aria-label="Ações do envelope"
+                                                        aria-expanded={envelopeMenuId === r.id}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            setEnvelopeMenuId((cur) => (cur === r.id ? '' : r.id))
+                                                        }}
                                                     >
-                                                        Detalhe
+                                                        <IconeMenuVertical />
                                                     </button>
-                                                    <button
-                                                        type="button"
-                                                        className="table_delete_btn"
-                                                        disabled={loading || deletingId === r.id}
-                                                        title="Excluir envelope (Shift = excluir rápido)"
-                                                        onClick={(e) => void excluirEnvelope(r.id, r.name, { ignorarConfirmacao: e.shiftKey })}
-                                                    >
-                                                        🗑️
-                                                    </button>
+                                                    {envelopeMenuId === r.id && (
+                                                        <div className="clicksign_dropdown clicksign_dropdown--up" role="menu">
+                                                            <button
+                                                                type="button"
+                                                                role="menuitem"
+                                                                onClick={() => {
+                                                                    setEnvelopeMenuId('')
+                                                                    abrirDetalhe(r.id)
+                                                                }}
+                                                            >
+                                                                Exibir detalhes
+                                                            </button>
+                                                            {stLinha === 'running' && (
+                                                                <button
+                                                                    type="button"
+                                                                    role="menuitem"
+                                                                    onClick={() => {
+                                                                        setEnvelopeMenuId('')
+                                                                        cancelarEnvelope(r.id, r.name)
+                                                                    }}
+                                                                >
+                                                                    Cancelar
+                                                                </button>
+                                                            )}
+                                                            <a
+                                                                role="menuitem"
+                                                                className="clicksign_dropdown_link"
+                                                                href={urlAbrirEnvelopeClicksign(r.id)}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                onClick={() => setEnvelopeMenuId('')}
+                                                            >
+                                                                Abrir o Clicksign
+                                                            </a>
+                                                            {stLinha === 'draft' && (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        role="menuitem"
+                                                                        onClick={() => {
+                                                                            setEnvelopeMenuId('')
+                                                                            montarEdicaoEnvelopeIdRef.current = r.id
+                                                                            setTab('montar')
+                                                                        }}
+                                                                    >
+                                                                        Editar
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        role="menuitem"
+                                                                        className="clicksign_dropdown_danger"
+                                                                        disabled={loading || deletingId === r.id}
+                                                                        onClick={(e) => {
+                                                                            setEnvelopeMenuId('')
+                                                                            void excluirEnvelope(r.id, r.name, {
+                                                                                ignorarConfirmacao: e.shiftKey,
+                                                                            })
+                                                                        }}
+                                                                    >
+                                                                        Excluir rascunho
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                        )
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -1019,6 +1736,11 @@ export default function ClicksignEmerdog() {
                                 Seguinte
                             </button>
                         </div>
+                                        </>
+                                    )}
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
 
@@ -1098,42 +1820,25 @@ export default function ClicksignEmerdog() {
                                         + Criar envelope
                                     </button>
                                 </div>
-                                <details className="cs_details">
-                                    <summary>Avançado — colar outro ID</summary>
-                                    <div className="contratos_field">
-                                        <label htmlFor="cs-fl-id">Envelope ID (UUID)</label>
-                                        <input
-                                            id="cs-fl-id"
-                                            className="contratos_input cs_input clicksign_mono"
-                                            value={fluxoEnvelopeId}
-                                            onChange={(e) => setFluxoEnvelopeId(e.target.value)}
-                                            onBlur={(e) => {
-                                                const v = e.target.value.trim()
-                                                if (v) persistirEnvelopeSessao(v)
-                                            }}
-                                            placeholder="Cole aqui se continuar um rascunho existente"
-                                        />
-                                    </div>
-                                </details>
                             </div>
                         </section>
 
-                        <section className={`cs_card cs_card_docs ${!fluxoEnvelopeId.trim() ? 'is-locked' : ''}`}>
+                        <section className="cs_card cs_card_docs">
                             <header className="cs_card_head">
                                 <span className="cs_card_dot cs_dot_red" aria-hidden />
                                 <h2 className="cs_card_title">2. Documentos</h2>
                             </header>
                             <div className="cs_card_body">
-                                {!fluxoEnvelopeId.trim() && <div className="cs_lock_msg">Crie o envelope no passo 1 para desbloquear o envio.</div>}
+                                {!fluxoEnvelopeId.trim() && <p className="contratos_hint cs_dropzone_hint_top">Arraste ou escolha um PDF para criar o envelope (nome = nome do ficheiro).</p>}
                                 <div
-                                    className={`cs_dropzone ${fluxoDropAtivo ? 'is-active' : ''} ${!fluxoEnvelopeId.trim() ? 'is-disabled' : ''}`}
+                                    className={`cs_dropzone ${fluxoDropAtivo ? 'is-active' : ''} ${!fluxoEnvelopeId.trim() ? 'cs_dropzone--auto_env' : ''}`}
                                     onDragEnter={(e) => {
                                         e.preventDefault()
-                                        if (fluxoEnvelopeId.trim()) setFluxoDropAtivo(true)
+                                        setFluxoDropAtivo(true)
                                     }}
                                     onDragOver={(e) => {
                                         e.preventDefault()
-                                        if (fluxoEnvelopeId.trim()) setFluxoDropAtivo(true)
+                                        setFluxoDropAtivo(true)
                                     }}
                                     onDragLeave={() => setFluxoDropAtivo(false)}
                                     onDrop={(e) => {
@@ -1156,7 +1861,7 @@ export default function ClicksignEmerdog() {
                                             className="cs_file_input"
                                             type="file"
                                             accept="application/pdf,.pdf"
-                                            disabled={fluxoBusy || !fluxoEnvelopeId.trim()}
+                                            disabled={fluxoBusy}
                                             onChange={(e) => {
                                                 const files = e.target.files
                                                 if (files?.length) void anexarPdfFluxo(files)
@@ -1214,7 +1919,8 @@ export default function ClicksignEmerdog() {
                                                 onClick={() => {
                                                     setSignModalAgendaBusca('')
                                                     setSignModalAgendaTab('todos')
-                                                    setSignModalAgendaId(null)
+                                                    setSignModalAgendaSel([])
+                                                    setAgendaQualPorId({})
                                                     setSignModal('agenda')
                                                 }}
                                             >
@@ -1339,7 +2045,7 @@ export default function ClicksignEmerdog() {
             {signModal && (
                 <div className="contratos_modal_backdrop" role="presentation" onClick={() => !fluxoBusy && fecharSignModal()}>
                     <div
-                        className={`contratos_modal cs_sign_modal ${signModal === 'agenda' || signModal === 'agenda_edit' ? 'cs_sign_modal--wide' : ''}`}
+                        className={`contratos_modal cs_sign_modal ${signModal === 'novo' ? 'cs_sign_modal--novo' : ''} ${signModal === 'agenda' || signModal === 'agenda_edit' || signModal === 'agenda_multi_qual' ? 'cs_sign_modal--wide' : ''}`}
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="cs-sign-modal-title"
@@ -1355,20 +2061,28 @@ export default function ClicksignEmerdog() {
                                 <div className="contratos_modal_body cs_sign_modal_body">
                                     <div className="cs_sign_field_group">
                                         <h3 className="cs_sign_section_label">Envio</h3>
-                                        <div className="contratos_field cs_sign_w400">
+                                        <div className="contratos_field cs_sign_field_full">
                                             <label htmlFor="cs-sig-ch">Canal</label>
                                             <select
                                                 id="cs-sig-ch"
                                                 className="contratos_select cs_input"
                                                 value={signDraft.channel}
-                                                onChange={(e) => setSignDraft((d) => ({ ...d, channel: e.target.value }))}
+                                                onChange={(e) => {
+                                                    const ch = e.target.value === 'whatsapp' ? 'whatsapp' : 'email'
+                                                    setSignDraft((d) => ({
+                                                        ...d,
+                                                        channel: ch,
+                                                        email: ch === 'whatsapp' ? '' : d.email,
+                                                        phone: ch === 'email' ? '' : d.phone,
+                                                    }))
+                                                }}
                                             >
                                                 <option value="email">E-mail</option>
                                                 <option value="whatsapp">WhatsApp</option>
                                             </select>
                                         </div>
                                         {signDraft.channel === 'email' ? (
-                                            <div className="contratos_field cs_sign_w400">
+                                            <div className="contratos_field cs_sign_field_full">
                                                 <label htmlFor="cs-sig-em">E-mail</label>
                                                 <input
                                                     id="cs-sig-em"
@@ -1381,9 +2095,8 @@ export default function ClicksignEmerdog() {
                                                 />
                                             </div>
                                         ) : (
-                                            <>
-                                                <div className="contratos_field cs_sign_w400">
-                                                    <label htmlFor="cs-sig-ph">Telefone</label>
+                                                <div className="contratos_field cs_sign_field_full">
+                                                    <label htmlFor="cs-sig-ph">Telefone (WhatsApp)</label>
                                                     <input
                                                         id="cs-sig-ph"
                                                         className="contratos_input cs_input"
@@ -1394,30 +2107,11 @@ export default function ClicksignEmerdog() {
                                                         onChange={(e) => setSignDraft((d) => ({ ...d, phone: e.target.value }))}
                                                     />
                                                 </div>
-                                                <div className="contratos_field cs_sign_w400">
-                                                    <label htmlFor="cs-sig-em2">E-mail (opcional)</label>
-                                                    <input
-                                                        id="cs-sig-em2"
-                                                        className="contratos_input cs_input"
-                                                        type="email"
-                                                        value={signDraft.email}
-                                                        onChange={(e) => setSignDraft((d) => ({ ...d, email: e.target.value }))}
-                                                    />
-                                                </div>
-                                            </>
                                         )}
-                                        <label className="cs_sign_check">
-                                            <input
-                                                type="checkbox"
-                                                checked={signDraft.saveAgenda}
-                                                onChange={(e) => setSignDraft((d) => ({ ...d, saveAgenda: e.target.checked }))}
-                                            />
-                                            Salvar na agenda
-                                        </label>
                                     </div>
 
                                     <div className="cs_sign_field_group">
-                                        <div className="contratos_field cs_sign_w400">
+                                        <div className="contratos_field cs_sign_field_full">
                                             <label htmlFor="cs-sig-nome">Nome completo</label>
                                             <input
                                                 id="cs-sig-nome"
@@ -1427,6 +2121,15 @@ export default function ClicksignEmerdog() {
                                                 placeholder="Nome e apelido ou razão social"
                                             />
                                         </div>
+                                        <label className="cs_sign_save_agenda">
+                                            <input
+                                                type="checkbox"
+                                                className="cs_sign_check_input"
+                                                checked={signDraft.saveAgenda}
+                                                onChange={(e) => setSignDraft((d) => ({ ...d, saveAgenda: e.target.checked }))}
+                                            />
+                                            <span>Salvar na agenda</span>
+                                        </label>
                                     </div>
                                 </div>
                                 <div className="contratos_modal_foot cs_sign_modal_foot">
@@ -1455,8 +2158,8 @@ export default function ClicksignEmerdog() {
                                             }
                                             setSignPending({
                                                 name: signDraft.nome.trim(),
-                                                email: signDraft.email.trim(),
-                                                phone: signDraft.phone,
+                                                email: signDraft.channel === 'email' ? signDraft.email.trim() : '',
+                                                phone: signDraft.channel === 'whatsapp' ? signDraft.phone : '',
                                                 channel: signDraft.channel,
                                                 gravarNaAgenda: signDraft.saveAgenda,
                                                 source: 'novo',
@@ -1536,14 +2239,19 @@ export default function ClicksignEmerdog() {
                                                     </tr>
                                                 )}
                                                 {agendaModalFiltrada.map((c) => (
-                                                    <tr key={c.localId} className={signModalAgendaId === c.localId ? 'is-selected' : ''}>
+                                                    <tr key={c.localId} className={signModalAgendaSel.includes(c.localId) ? 'is-selected' : ''}>
                                                         <td>
                                                             <input
-                                                                type="radio"
-                                                                name="cs-ag-sel"
-                                                                className="cs_sign_radio"
-                                                                checked={signModalAgendaId === c.localId}
-                                                                onChange={() => setSignModalAgendaId(c.localId)}
+                                                                type="checkbox"
+                                                                className="cs_sign_check_input"
+                                                                checked={signModalAgendaSel.includes(c.localId)}
+                                                                onChange={() => {
+                                                                    setSignModalAgendaSel((prev) =>
+                                                                        prev.includes(c.localId)
+                                                                            ? prev.filter((id) => id !== c.localId)
+                                                                            : [...prev, c.localId],
+                                                                    )
+                                                                }}
                                                                 aria-label={`Selecionar ${c.name}`}
                                                             />
                                                         </td>
@@ -1581,10 +2289,28 @@ export default function ClicksignEmerdog() {
                                                                 onClick={(e) => {
                                                                     e.stopPropagation()
                                                                     const nm = String(c.name || '').trim() || 'este contacto'
-                                                                    if (!window.confirm(`Remover «${nm}» da agenda neste dispositivo?`)) return
-                                                                    if (signModalAgendaId === c.localId) setSignModalAgendaId(null)
-                                                                    setAgendaSigs(removerContatoAgendaPorId(c.localId))
-                                                                    pushToast('info', 'Agenda', 'Contacto removido.')
+                                                                    const localId = c.localId
+                                                                    pushToast(
+                                                                        'confirm',
+                                                                        'Remover da agenda',
+                                                                        `Remover «${nm}» deste dispositivo?`,
+                                                                        {
+                                                                            confirmLabel: 'Remover',
+                                                                            cancelLabel: 'Cancelar',
+                                                                            onConfirm: () => {
+                                                                                if (signModalAgendaSel.includes(localId)) {
+                                                                                    setSignModalAgendaSel((prev) => prev.filter((id) => id !== localId))
+                                                                                    setAgendaQualPorId((m) => {
+                                                                                        const next = { ...m }
+                                                                                        delete next[localId]
+                                                                                        return next
+                                                                                    })
+                                                                                }
+                                                                                setAgendaSigs(removerContatoAgendaPorId(localId))
+                                                                                pushToast('success', 'Agenda', 'Contacto removido.')
+                                                                            },
+                                                                        },
+                                                                    )
                                                                 }}
                                                             >
                                                                 −
@@ -1614,27 +2340,46 @@ export default function ClicksignEmerdog() {
                                     <button
                                         type="button"
                                         className="contratos_btn contratos_btn_primary cs_sign_btn_fwd"
-                                        disabled={fluxoBusy || !signModalAgendaId}
+                                        disabled={fluxoBusy || signModalAgendaSel.length === 0}
                                         onClick={() => {
-                                            const c = agendaOrdenada.find((x) => x.localId === signModalAgendaId)
-                                            if (!c) {
-                                                pushToast('error', 'Agenda', 'Selecione um contacto.')
+                                            const selecionados = signModalAgendaSel
+                                                .map((id) => agendaOrdenada.find((x) => x.localId === id))
+                                                .filter(Boolean)
+                                            if (selecionados.length === 0) {
+                                                pushToast('error', 'Agenda', 'Selecione pelo menos um contacto.')
                                                 return
                                             }
-                                            setSignPending({
-                                                name: String(c.name || '').trim(),
-                                                email: String(c.email || '').trim(),
-                                                phone: String(c.phone || '').trim(),
-                                                channel: c.channel === 'whatsapp' ? 'whatsapp' : 'email',
-                                                gravarNaAgenda: true,
-                                                source: 'agenda',
-                                            })
-                                            const p = String(c.papel || 'sign').trim()
-                                            setSignQualPapel(normalizarPapelQualificacao(p))
-                                            setSignModal('qual')
+                                            for (const c of selecionados) {
+                                                const canalAg = c.channel === 'whatsapp' ? 'whatsapp' : 'email'
+                                                if (canalAg === 'email' && !String(c.email || '').trim()) {
+                                                    pushToast(
+                                                        'error',
+                                                        'Agenda',
+                                                        `«${c.name}» não tem e-mail. Edite o contacto ou retire da seleção.`,
+                                                    )
+                                                    return
+                                                }
+                                                if (canalAg === 'whatsapp') {
+                                                    const tel = normalizarTelefoneBr(c.phone)
+                                                    if (tel.length < 10 || tel.length > 11) {
+                                                        pushToast(
+                                                            'error',
+                                                            'WhatsApp',
+                                                            `«${c.name}» não tem telefone válido (DDD + número).`,
+                                                        )
+                                                        return
+                                                    }
+                                                }
+                                            }
+                                            const map = {}
+                                            for (const c of selecionados) {
+                                                map[c.localId] = normalizarPapelQualificacao(c.papel || 'sign')
+                                            }
+                                            setAgendaQualPorId(map)
+                                            setSignModal('agenda_multi_qual')
                                         }}
                                     >
-                                        Avançar <span aria-hidden>→</span>
+                                        Avançar ({signModalAgendaSel.length}) <span aria-hidden>→</span>
                                     </button>
                                 </div>
                             </>
@@ -1690,7 +2435,9 @@ export default function ClicksignEmerdog() {
                                                     <input
                                                         id="cs-sig-ed-em2"
                                                         className="contratos_input cs_input"
-                                                        type="email"
+                                                        type="text"
+                                                        inputMode="email"
+                                                        placeholder="Opcional"
                                                         value={signDraft.email}
                                                         onChange={(e) => setSignDraft((d) => ({ ...d, email: e.target.value }))}
                                                     />
@@ -1767,6 +2514,114 @@ export default function ClicksignEmerdog() {
                                         }}
                                     >
                                         Guardar
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
+                        {signModal === 'agenda_multi_qual' && (
+                            <>
+                                <div className="contratos_modal_head">
+                                    <h2 id="cs-sign-modal-title" className="cs_sign_modal_title">
+                                        Qualificação por signatário
+                                    </h2>
+                                </div>
+                                <div className="contratos_modal_body cs_sign_modal_body">
+                                    <p className="contratos_hint">
+                                        Defina como cada contacto selecionado irá assinar. Em seguida serão adicionados ao envelope.
+                                    </p>
+                                    <div className="cs_sign_table_wrap">
+                                        <table className="cs_sign_table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Nome</th>
+                                                    <th>Contato</th>
+                                                    <th>Assinar como</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {signModalAgendaSel.map((localId) => {
+                                                    const c = agendaOrdenada.find((x) => x.localId === localId)
+                                                    if (!c) return null
+                                                    return (
+                                                        <tr key={localId}>
+                                                            <td>{c.name}</td>
+                                                            <td>
+                                                                {c.channel === 'whatsapp' ? c.phone || '—' : c.email || '—'}
+                                                            </td>
+                                                            <td>
+                                                                <select
+                                                                    className="contratos_select cs_input cs_sign_qual_select_inline"
+                                                                    value={agendaQualPorId[localId] || 'sign'}
+                                                                    onChange={(e) =>
+                                                                        setAgendaQualPorId((m) => ({
+                                                                            ...m,
+                                                                            [localId]: e.target.value,
+                                                                        }))
+                                                                    }
+                                                                    aria-label={`Qualificação de ${c.name}`}
+                                                                >
+                                                                    {PAPEIS_SIGNATARIO_CLICKSIGN.map((p) => (
+                                                                        <option key={p.value} value={p.value}>
+                                                                            {p.label}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                    )
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div className="contratos_modal_foot cs_sign_modal_foot">
+                                    <button
+                                        type="button"
+                                        className="contratos_btn cs_sign_btn_outline"
+                                        disabled={fluxoBusy}
+                                        onClick={() => setSignModal('agenda')}
+                                    >
+                                        Voltar
+                                    </button>
+                                    <button type="button" className="contratos_btn contratos_btn_secondary" disabled={fluxoBusy} onClick={() => fecharSignModal()}>
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="contratos_btn contratos_btn_primary"
+                                        disabled={fluxoBusy || signModalAgendaSel.length === 0}
+                                        onClick={async () => {
+                                            let okCount = 0
+                                            for (const localId of signModalAgendaSel) {
+                                                const c = agendaOrdenada.find((x) => x.localId === localId)
+                                                if (!c) continue
+                                                const canalAg = c.channel === 'whatsapp' ? 'whatsapp' : 'email'
+                                                const papel = normalizarPapelQualificacao(agendaQualPorId[localId] || c.papel || 'sign')
+                                                const ok = await adicionarSignatarioComParametros({
+                                                    nome: String(c.name || '').trim(),
+                                                    email: String(c.email || '').trim(),
+                                                    phone: String(c.phone || '').trim(),
+                                                    channel: canalAg,
+                                                    papel,
+                                                    gravarNaAgenda: true,
+                                                })
+                                                if (ok) okCount += 1
+                                                else break
+                                            }
+                                            if (okCount > 0) {
+                                                pushToast(
+                                                    'success',
+                                                    'Signatários',
+                                                    okCount === 1
+                                                        ? '1 signatário adicionado ao envelope.'
+                                                        : `${okCount} signatários adicionados ao envelope.`,
+                                                )
+                                            }
+                                            if (okCount === signModalAgendaSel.length) fecharSignModal()
+                                        }}
+                                    >
+                                        Adicionar ao envelope
                                     </button>
                                 </div>
                             </>
@@ -1857,7 +2712,7 @@ export default function ClicksignEmerdog() {
             )}
 
             {detailOpen && (
-                <div className="contratos_modal_backdrop" role="presentation" onClick={() => setDetailOpen(false)}>
+                <div className="contratos_modal_backdrop" role="presentation" onClick={() => fecharDetalheModal()}>
                     <div className="contratos_modal clicksign_modal_wide" role="dialog" aria-modal="true" aria-labelledby="cs-det-title" onClick={(e) => e.stopPropagation()}>
                         <div className="contratos_modal_head clicksign_modal_head_row" id="cs-det-title">
                             <span className="clicksign_modal_title_text">
@@ -1885,32 +2740,68 @@ export default function ClicksignEmerdog() {
                                                     .toLowerCase()
                                                     .replace(/[^a-z]/g, '') || 'unknown'}`}
                                             >
-                                                {detailJson?.data?.attributes?.status ?? '—'}
+                                                {rotuloEstadoEnvelope(detailJson?.data?.attributes?.status)}
                                             </span>
                                         </p>
                                         <p>
                                             <strong>Nome:</strong> {detailJson?.data?.attributes?.name ?? '—'}
                                         </p>
                                         <p>
-                                            <strong>Criado:</strong> {formatarDataPtBr(detailJson?.data?.attributes?.created ?? detailJson?.data?.attributes?.created_at)}
-                                        </p>
-                                        <p>
-                                            <strong>Atualizado:</strong>{' '}
+                                            <strong>Criado em:</strong>{' '}
                                             {formatarDataPtBr(
-                                                detailJson?.data?.attributes?.modified ??
-                                                    detailJson?.data?.attributes?.updated_at ??
-                                                    detailJson?.data?.attributes?.modified_at,
+                                                detailJson?.data?.attributes?.created ??
+                                                    detailJson?.data?.attributes?.created_at,
                                             )}
                                         </p>
+                                        {rotuloDataEncerramentoEnvelope(detailJson?.data?.attributes?.status) ? (
+                                            <p>
+                                                <strong>
+                                                    {rotuloDataEncerramentoEnvelope(detailJson?.data?.attributes?.status)}:
+                                                </strong>{' '}
+                                                {formatarDataPtBr(
+                                                    dataEncerramentoEnvelope(detailJson?.data?.attributes),
+                                                )}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                    <h3 className="clicksign_subtitle">Signatários</h3>
+                                    <div className="clicksign_detail_table_wrap">
+                                        <table className="clicksign_detail_table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Nome</th>
+                                                    <th>Contacto</th>
+                                                    <th>Qualificação</th>
+                                                    <th>Assinatura</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {detailSigs.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan={4} className="clicksign_td_empty">
+                                                            Nenhum signatário.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                                {detailSigs.map((s) => (
+                                                    <tr key={s.id}>
+                                                        <td>{s.name}</td>
+                                                        <td>{s.contactLabel}</td>
+                                                        <td>{s.qualificationLabel}</td>
+                                                        <td>{s.signatureLabel}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
                                     <h3 className="clicksign_subtitle">Documentos</h3>
                                     <div className="clicksign_detail_table_wrap">
                                         <table className="clicksign_detail_table">
                                             <thead>
                                                 <tr>
-                                                    <th>Ficheiro</th>
+                                                    <th>Nome</th>
                                                     <th>Estado</th>
-                                                    <th>ID</th>
+                                                    <th className="clicksign_col_doc_menu" aria-label="Ações" />
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1923,82 +2814,106 @@ export default function ClicksignEmerdog() {
                                                 )}
                                                 {detailDocs.map((d) => (
                                                     <tr key={d.id}>
-                                                        <td>
-                                                            <code>{d.filename}</code>
+                                                        <td>{d.filename}</td>
+                                                        <td>{rotuloEstadoDocumento(d.status)}</td>
+                                                        <td className="clicksign_col_doc_menu">
+                                                            <div
+                                                                className="clicksign_row_menu_wrap"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <button
+                                                                    type="button"
+                                                                    className="clicksign_menu_trigger"
+                                                                    aria-label={`Ações — ${d.filename}`}
+                                                                    aria-expanded={docMenuId === d.id}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        setDocMenuId((cur) => (cur === d.id ? '' : d.id))
+                                                                    }}
+                                                                >
+                                                                    <IconeMenuVertical />
+                                                                </button>
+                                                                {docMenuId === d.id && (
+                                                                    <div
+                                                                        className="clicksign_dropdown clicksign_dropdown--left clicksign_dropdown--up"
+                                                                        role="menu"
+                                                                    >
+                                                                        <button
+                                                                            type="button"
+                                                                            role="menuitem"
+                                                                            onClick={() => {
+                                                                                setDocMenuId('')
+                                                                                abrirVisualizacaoDocumento(detailId, d)
+                                                                            }}
+                                                                        >
+                                                                            Visualizar documento
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            role="menuitem"
+                                                                            onClick={() => {
+                                                                                setDocMenuId('')
+                                                                                if (!abrirUrlDownload(d.fileOriginal)) {
+                                                                                    pushToast(
+                                                                                        'error',
+                                                                                        'Download',
+                                                                                        'URL do original indisponível.',
+                                                                                    )
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            Baixar documento original
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            role="menuitem"
+                                                                            onClick={() => {
+                                                                                setDocMenuId('')
+                                                                                if (!abrirUrlDownload(d.fileSigned)) {
+                                                                                    pushToast(
+                                                                                        'error',
+                                                                                        'Download',
+                                                                                        'Documento assinado indisponível.',
+                                                                                    )
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            Baixar documento assinado
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            role="menuitem"
+                                                                            onClick={() => {
+                                                                                setDocMenuId('')
+                                                                                const okO = abrirUrlDownload(d.fileOriginal)
+                                                                                const okS = abrirUrlDownload(d.fileSigned)
+                                                                                if (!okO && !okS) {
+                                                                                    pushToast(
+                                                                                        'error',
+                                                                                        'Download',
+                                                                                        'Nenhum ficheiro disponível.',
+                                                                                    )
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            Baixar original e assinado
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </td>
-                                                        <td>{d.status}</td>
-                                                        <td className="clicksign_mono">{mostrarIds ? d.id : '**'}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
                                         </table>
                                     </div>
-                                    <h3 className="clicksign_subtitle">Signatários</h3>
-                                    <div className="clicksign_detail_table_wrap">
-                                        <table className="clicksign_detail_table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Nome</th>
-                                                    <th>E-mail</th>
-                                                    <th>Telefone</th>
-                                                    <th>Estado</th>
-                                                    <th>ID</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {detailSigs.length === 0 && (
-                                                    <tr>
-                                                        <td colSpan={5} className="clicksign_td_empty">
-                                                            Nenhum signatário.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                                {detailSigs.map((s) => (
-                                                    <tr key={s.id}>
-                                                        <td>{s.name}</td>
-                                                        <td>{s.email}</td>
-                                                        <td>{s.phone && s.phone !== '—' ? s.phone : '—'}</td>
-                                                        <td>{s.status}</td>
-                                                        <td className="clicksign_mono">{mostrarIds ? s.id : '**'}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <h3 className="clicksign_subtitle">Requisitos</h3>
-                                    <ul className="clicksign_mini_list">
-                                        {detailReqs.length === 0 && <li>—</li>}
-                                        {detailReqs.map((r) => (
-                                            <li key={r.id}>
-                                                <code>{r.tipo}</code> — {r.resumo}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                    <details className="clicksign_details">
-                                        <summary>JSON completo (envelope)</summary>
-                                        <pre className="clicksign_pre contratos_preview_pre">{JSON.stringify(detailJson, null, 2)}</pre>
-                                    </details>
                                 </>
                             )}
                         </div>
                         <div className="contratos_modal_foot clicksign_modal_foot">
-                            <button type="button" className="contratos_btn contratos_btn_secondary" onClick={() => setDetailOpen(false)}>
+                            <button type="button" className="contratos_btn contratos_btn_secondary" onClick={() => fecharDetalheModal()}>
                                 Fechar
                             </button>
-                            {!detailLoading && detailJson && String(detailJson?.data?.attributes?.status ?? '').toLowerCase() === 'draft' && (
-                                <button type="button" className="contratos_btn contratos_btn_primary" onClick={() => abrirMontarEdicaoDesdeDetalhe()}>
-                                    Editar
-                                </button>
-                            )}
-                            <a
-                                className="contratos_btn contratos_btn_secondary"
-                                style={{ textDecoration: 'none', display: 'inline-block' }}
-                                href="https://sandbox.clicksign.com"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                Abrir Clicksign
-                            </a>
                         </div>
                     </div>
                 </div>
@@ -2030,14 +2945,37 @@ export default function ClicksignEmerdog() {
             )}
 
             {toast && (
-                <div className={`contratos_toast contratos_toast--${toast.variant}`} role="alert">
+                <div
+                    className={`contratos_toast contratos_toast--${toast.variant}`}
+                    role={toast.variant === 'confirm' ? 'alertdialog' : 'alert'}
+                >
                     <div className="contratos_toast_text">
                         <strong>{toast.title}</strong>
                         {toast.body != null && <span className="contratos_toast_body">{toast.body}</span>}
+                        {toast.variant === 'confirm' && toast.onConfirm && (
+                            <div className="contratos_toast_actions">
+                                <button
+                                    type="button"
+                                    className="contratos_toast_btn contratos_toast_btn--danger"
+                                    onClick={() => {
+                                        const fn = toast.onConfirm
+                                        setToast(null)
+                                        if (typeof fn === 'function') fn()
+                                    }}
+                                >
+                                    {toast.confirmLabel || 'Confirmar'}
+                                </button>
+                                <button type="button" className="contratos_toast_btn" onClick={() => setToast(null)}>
+                                    {toast.cancelLabel || 'Cancelar'}
+                                </button>
+                            </div>
+                        )}
                     </div>
-                    <button type="button" className="contratos_toast_close" onClick={() => setToast(null)} aria-label="Fechar">
-                        ×
-                    </button>
+                    {toast.variant !== 'confirm' && (
+                        <button type="button" className="contratos_toast_close" onClick={() => setToast(null)} aria-label="Fechar">
+                            ×
+                        </button>
+                    )}
                 </div>
             )}
         </div>

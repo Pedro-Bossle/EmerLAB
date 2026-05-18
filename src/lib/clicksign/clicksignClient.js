@@ -35,6 +35,14 @@ export async function clicksignRequest(method, path, body = null) {
     return parseJson(res)
 }
 
+/** Nome do envelope a partir do ficheiro PDF (sem extensão .pdf). */
+export function nomeEnvelopeDoArquivoPdf(fileName) {
+    let n = String(fileName || 'documento.pdf').trim()
+    if (/\.pdf$/i.test(n)) n = n.slice(0, -4)
+    n = n.trim()
+    return n || 'Documento'
+}
+
 /** Payload mínimo JSON:API para envelope em rascunho. */
 export function payloadEnvelopeRascunho(nome, extras = {}) {
     const attrs = {
@@ -62,6 +70,84 @@ export function payloadAtivarEnvelope(envelopeId) {
             },
         },
     }
+}
+
+/**
+ * Cancela um documento em progresso (PATCH documento).
+ * @see https://developers.clicksign.com/reference/editar-documento
+ */
+export function payloadCancelarDocumento(documentId) {
+    const id = String(documentId || '').trim()
+    return {
+        data: {
+            id,
+            type: 'documents',
+            attributes: {
+                status: 'canceled',
+            },
+        },
+    }
+}
+
+/**
+ * Cancela envelope em processo: na API 3.0 o PATCH do envelope só aceita status draft|running.
+ * O cancelamento invalida cada documento com status running → canceled.
+ */
+export async function cancelarEnvelopeClicksign(envelopeId, clickReq = clicksignRequest) {
+    const eid = String(envelopeId || '').trim()
+    if (!eid) {
+        return { ok: false, status: 0, data: { error: 'ID do envelope inválido.' }, canceledCount: 0 }
+    }
+
+    const list = await clickReq('GET', `/envelopes/${encodeURIComponent(eid)}/documents`)
+    if (!list.ok) {
+        return { ...list, canceledCount: 0 }
+    }
+
+    const docs = extrairListaDocumentos(list.data)
+    if (docs.length === 0) {
+        return { ok: false, status: 404, data: { error: 'Envelope sem documentos.' }, canceledCount: 0 }
+    }
+
+    const paraCancelar = docs.filter((d) => envelopeStatusNormalizado(d.status) === 'running')
+    if (paraCancelar.length === 0) {
+        const todosTerminais = docs.every((d) => {
+            const st = envelopeStatusNormalizado(d.status)
+            return st === 'canceled' || st === 'cancelled' || st === 'closed'
+        })
+        if (todosTerminais) {
+            return { ok: true, status: 200, data: {}, canceledCount: 0, alreadyCanceled: true }
+        }
+        return {
+            ok: false,
+            status: 422,
+            data: { error: 'Nenhum documento em progresso para cancelar (status running).' },
+            canceledCount: 0,
+        }
+    }
+
+    let canceledCount = 0
+    for (const doc of paraCancelar) {
+        const docId = String(doc.id || '').trim()
+        if (!docId) continue
+        const patch = await clickReq(
+            'PATCH',
+            `/envelopes/${encodeURIComponent(eid)}/documents/${encodeURIComponent(docId)}`,
+            payloadCancelarDocumento(docId),
+        )
+        if (!patch.ok) {
+            return { ...patch, canceledCount, failedDocumentId: docId, failedFilename: doc.filename }
+        }
+        canceledCount += 1
+    }
+
+    return { ok: true, status: 200, data: {}, canceledCount }
+}
+
+export function envelopeStatusNormalizado(status) {
+    return String(status ?? '')
+        .trim()
+        .toLowerCase()
 }
 
 /** Nome de ficheiro seguro para JSON (ASCII) — evita falhas em proxies / API. */
@@ -170,6 +256,125 @@ function roleDoAtributosRequisito(a) {
     ).trim()
 }
 
+function isRequisitoQualificacaoItem(item) {
+    const a = item?.attributes || {}
+    const action = String(a.action || '').toLowerCase()
+    return action === 'agree' || Boolean(roleDoAtributosRequisito(a))
+}
+
+function isRequisitoAutenticacaoItem(item) {
+    const a = item?.attributes || {}
+    const action = String(a.action || '').toLowerCase()
+    const auth = String(a.auth || a.authentication || a.evidence_provider || '').trim()
+    return action === 'provide_evidence' || action === 'authenticate' || auth.length > 0
+}
+
+/** GET …/requirements com paginação e `include` (signatário + documento) quando suportado. */
+export function pathListagemRequisitosEnvelope(envelopeId, opts = {}) {
+    const eid = String(envelopeId || '').trim()
+    const base = `/envelopes/${encodeURIComponent(eid)}/requirements`
+    const qs = new URLSearchParams()
+    qs.set('page[number]', String(opts.pageNumber ?? 1))
+    qs.set('page[size]', String(opts.pageSize ?? 50))
+    if (opts.include !== false) {
+        qs.set('include', 'signer,document')
+    }
+    return `${base}?${qs.toString()}`
+}
+
+/**
+ * A listagem da Clicksign muitas vezes não traz `relationships` nos itens; usa `included` ou `links.related`.
+ */
+export function normalizarRespostaRequisitos(json) {
+    if (!json || typeof json !== 'object') return json
+
+    let dataArr = Array.isArray(json.data) ? [...json.data] : json.data ? [json.data] : []
+
+    const included = Array.isArray(json.included) ? json.included : []
+    if (included.length > 0) {
+        const index = new Map()
+        for (const res of included) {
+            if (res?.type && res?.id) index.set(`${res.type}:${res.id}`, res)
+        }
+        const hydrateRef = (ref) => {
+            if (!ref || typeof ref !== 'object' || !ref.type || !ref.id) return ref
+            const full = index.get(`${ref.type}:${ref.id}`)
+            return full ? { type: ref.type, id: ref.id } : ref
+        }
+        dataArr = dataArr.map((item) => {
+            if (!item?.relationships) return item
+            const rel = { ...item.relationships }
+            for (const key of Object.keys(rel)) {
+                const block = rel[key]
+                if (!block?.data) continue
+                if (Array.isArray(block.data)) {
+                    rel[key] = { ...block, data: block.data.map(hydrateRef) }
+                } else {
+                    rel[key] = { ...block, data: hydrateRef(block.data) }
+                }
+            }
+            return { ...item, relationships: rel }
+        })
+    }
+
+    dataArr = dataArr.map((item) => {
+        if (!item) return item
+        const relIn = item.relationships || {}
+        const rel = { ...relIn }
+        let changed = false
+        for (const [key, typeName, pattern] of [
+            ['signer', 'signers', /signers\/([a-f0-9-]{36})/i],
+            ['document', 'documents', /documents\/([a-f0-9-]{36})/i],
+        ]) {
+            const block = rel[key]
+            if (!block) continue
+            if (block.data?.id) continue
+            const related = block.links?.related
+            if (typeof related !== 'string') continue
+            const m = pattern.exec(related)
+            if (!m) continue
+            rel[key] = { ...block, data: { type: typeName, id: m[1] } }
+            changed = true
+        }
+        return changed ? { ...item, relationships: rel } : item
+    })
+
+    return { ...json, data: Array.isArray(json.data) ? dataArr : dataArr[0] ?? json.data }
+}
+
+export async function obterRequisitosEnvelope(clickReq, envelopeId) {
+    const eid = String(envelopeId || '').trim()
+    let res = await clickReq('GET', pathListagemRequisitosEnvelope(eid))
+    if (!res.ok && (res.status === 400 || res.status === 404)) {
+        res = await clickReq('GET', pathListagemRequisitosEnvelope(eid, { include: false }))
+    }
+    if (!res.ok) return res
+    return { ...res, data: normalizarRespostaRequisitos(res.data) }
+}
+
+export function contagemRequisitosPorTipo(requirementsJson) {
+    const arr = Array.isArray(requirementsJson?.data)
+        ? requirementsJson.data
+        : requirementsJson?.data
+          ? [requirementsJson.data]
+          : []
+    let qual = 0
+    let auth = 0
+    for (const item of arr) {
+        if (isRequisitoQualificacaoItem(item)) qual += 1
+        else if (isRequisitoAutenticacaoItem(item)) auth += 1
+    }
+    return { qual, auth }
+}
+
+/** Um requisito de qualificação + um de autenticação por par documento×signatário. */
+export function matrizRequisitosPareceCompleta(requirementsJson, docCount, signerCount) {
+    const need = Math.max(0, docCount) * Math.max(0, signerCount)
+    if (need === 0) return false
+    const { qual, auth } = contagemRequisitosPorTipo(requirementsJson)
+    return qual >= need && auth >= need
+}
+
 /**
  * A partir de GET `/envelopes/:id/requirements`: mapa signerId → valor `role` do requisito de qualificação.
  * Aceita vínculos `relationships.signer` em vários formatos JSON:API e `attributes.role` (ou variantes).
@@ -227,8 +432,7 @@ export function paresQualificacaoExistentes(requirementsJson) {
           ? [requirementsJson.data]
           : []
     for (const item of arr) {
-        const role = roleDoAtributosRequisito(item?.attributes || {})
-        if (!role) continue
+        if (!isRequisitoQualificacaoItem(item)) continue
         const sid = signerIdDoRequisito(item)
         const did = documentIdDoRequisito(item)
         if (sid && did) set.add(`${did}|${sid}`)
@@ -236,13 +440,48 @@ export function paresQualificacaoExistentes(requirementsJson) {
     return set
 }
 
-function requisitoDuplicadoOuConflito(rq) {
+export function requisitoDuplicadoOuConflito(rq) {
     if (rq.ok) return false
+    if (rq.status !== 422) return false
     const s = JSON.stringify(rq.data || {}).toLowerCase()
     return (
-        rq.status === 422 &&
-        (s.includes('duplic') || s.includes('already') || s.includes('taken') || s.includes('exist') || s.includes('já existe'))
+        s.includes('duplic') ||
+        s.includes('already') ||
+        s.includes('taken') ||
+        s.includes('exist') ||
+        s.includes('já existe') ||
+        s.includes('já foi') ||
+        s.includes('unique') ||
+        s.includes('único') ||
+        s.includes('registrad') ||
+        s.includes('conflit') ||
+        s.includes('permitid') ||
+        s.includes('não pode') ||
+        s.includes('nao pode') ||
+        s.includes('inválid') ||
+        s.includes('invalid') ||
+        s.includes('já possui')
     )
+}
+
+export function erroApiTexto(data) {
+    if (!data) return '—'
+    if (data.error) return String(data.error)
+    if (Array.isArray(data.errors) && data.errors.length > 0) {
+        return data.errors
+            .map((e) => String(e?.detail || e?.title || '').trim())
+            .filter(Boolean)
+            .join(' ')
+    }
+    return JSON.stringify(data).slice(0, 500)
+}
+
+export function inferirAuthDoSignatario(sig) {
+    const em = String(sig?.email || '').trim().toLowerCase()
+    const ph = String(sig?.phone || '').replace(/\D/g, '')
+    if (em && em !== '—') return 'email'
+    if (ph.length >= 10) return 'whatsapp'
+    return 'email'
 }
 
 /**
@@ -258,20 +497,27 @@ export async function garantirRequisitosQualificacaoCobertos(clickReq, envelopeI
     const [d1, d2, d3] = await Promise.all([
         clickReq('GET', `/envelopes/${encodeURIComponent(eid)}/documents`),
         clickReq('GET', `/envelopes/${encodeURIComponent(eid)}/signers`),
-        clickReq('GET', `/envelopes/${encodeURIComponent(eid)}/requirements`),
+        obterRequisitosEnvelope(clickReq, eid),
     ])
     if (!d1.ok || !d2.ok) return { criados: 0, falhas, erroListagem: true }
 
     const docs = extrairListaDocumentos(d1.data)
     const sigs = extrairListaSignatarios(d2.data)
-    const covered = paresQualificacaoExistentes(d3.ok ? d3.data : null)
-    const rolesBySigner = extrairRolesQualificacaoPorSignatario(d3.ok ? d3.data : null)
+    const reqJson = d3.ok ? d3.data : null
 
     const docElegivel = (d) => {
         const st = String(d.status || '').toLowerCase()
         if (st === 'canceled' || st === 'cancelled' || st === 'failed' || st === 'error') return false
         return true
     }
+
+    const docsAtivos = docs.filter(docElegivel)
+    if (reqJson && matrizRequisitosPareceCompleta(reqJson, docsAtivos.length, sigs.length)) {
+        return { criados: 0, falhas: [], erroListagem: false }
+    }
+
+    const covered = paresQualificacaoExistentes(reqJson)
+    const rolesBySigner = extrairRolesQualificacaoPorSignatario(reqJson)
 
     let criados = 0
     for (const doc of docs) {
@@ -298,8 +544,8 @@ export async function garantirRequisitosQualificacaoCobertos(clickReq, envelopeI
     return { criados, falhas, erroListagem: false }
 }
 
-/** Pares documento×signatário com algum requisito que não seja só qualificação padrão (`agree` + `role`). */
-export function paresAutenticacaoOuOutrosExistentes(requirementsJson) {
+/** Pares documento×signatário que já têm requisito de autenticação. */
+export function paresAutenticacaoExistentes(requirementsJson) {
     /** @type {Set<string>} */
     const set = new Set()
     const arr = Array.isArray(requirementsJson?.data)
@@ -309,10 +555,11 @@ export function paresAutenticacaoOuOutrosExistentes(requirementsJson) {
           : []
     for (const item of arr) {
         const a = item?.attributes || {}
-        const role = roleDoAtributosRequisito(a)
-        const actionNorm = String(a.action || 'agree').toLowerCase()
-        const apenasQualificacaoPadrao = !!role && actionNorm === 'agree'
-        if (apenasQualificacaoPadrao) continue
+        const action = String(a.action || '').toLowerCase()
+        const auth = String(a.auth || a.authentication || a.evidence_provider || '').trim()
+        const isAuth =
+            action === 'provide_evidence' || action === 'authenticate' || auth.length > 0
+        if (!isAuth) continue
         const sid = signerIdDoRequisito(item)
         const did = documentIdDoRequisito(item)
         if (sid && did) set.add(`${did}|${sid}`)
@@ -320,42 +567,46 @@ export function paresAutenticacaoOuOutrosExistentes(requirementsJson) {
     return set
 }
 
-function payloadAuthEmailVariante(variante, documentId, signerId) {
+/** POST …/requirements — autenticação (e-mail ou WhatsApp), conforme guia API 3.0. */
+export function payloadRequisitoAutenticacao(_envelopeId, { documentId, signerId, auth = 'email' }) {
     const docId = String(documentId || '').trim()
     const sigId = String(signerId || '').trim()
-    const base = {
-        type: 'requirements',
-        relationships: {
-            document: { data: { type: 'documents', id: docId } },
-            signer: { data: { type: 'signers', id: sigId } },
+    const metodo = auth === 'whatsapp' ? 'whatsapp' : 'email'
+    return {
+        data: {
+            type: 'requirements',
+            attributes: {
+                action: 'provide_evidence',
+                auth: metodo,
+            },
+            relationships: {
+                document: { data: { type: 'documents', id: docId } },
+                signer: { data: { type: 'signers', id: sigId } },
+            },
         },
     }
-    if (variante === 0) {
-        return { data: { ...base, attributes: { action: 'authenticate', auth: 'email' } } }
-    }
-    if (variante === 1) {
-        return { data: { ...base, attributes: { action: 'provide_evidence', evidence_provider: 'email' } } }
-    }
-    return { data: { ...base, attributes: { action: 'authenticate', schema: { type: 'email' } } } }
 }
 
 /**
- * Tenta criar requisitos de autenticação por e-mail em pares ainda sem outro requisito além da qualificação.
+ * Cria requisitos de autenticação em falta (um por par documento×signatário).
+ * @param {(m: string, p: string, b?: object) => Promise<{ ok: boolean, status: number, data: object }>} clickReq
  */
-export async function garantirRequisitosAutenticacaoEmailCobertos(clickReq, envelopeId) {
+export async function garantirRequisitosAutenticacaoCobertos(clickReq, envelopeId) {
     const eid = String(envelopeId || '').trim()
-    if (!eid) return { criados: 0, tentou: false }
+    /** @type {Array<{ status: number, data: object }>} */
+    const falhas = []
+    if (!eid) return { criados: 0, falhas, erroListagem: true }
 
     const [d1, d2, d3] = await Promise.all([
         clickReq('GET', `/envelopes/${encodeURIComponent(eid)}/documents`),
         clickReq('GET', `/envelopes/${encodeURIComponent(eid)}/signers`),
-        clickReq('GET', `/envelopes/${encodeURIComponent(eid)}/requirements`),
+        obterRequisitosEnvelope(clickReq, eid),
     ])
-    if (!d1.ok || !d2.ok || !d3.ok) return { criados: 0, tentou: false }
+    if (!d1.ok || !d2.ok) return { criados: 0, falhas, erroListagem: true }
 
     const docs = extrairListaDocumentos(d1.data)
     const sigs = extrairListaSignatarios(d2.data)
-    const covered = paresAutenticacaoOuOutrosExistentes(d3.data)
+    const reqJson = d3.ok ? d3.data : null
 
     const docElegivel = (d) => {
         const st = String(d.status || '').toLowerCase()
@@ -363,8 +614,14 @@ export async function garantirRequisitosAutenticacaoEmailCobertos(clickReq, enve
         return true
     }
 
-    let criados = 0
+    const docsAtivos = docs.filter(docElegivel)
+    if (reqJson && matrizRequisitosPareceCompleta(reqJson, docsAtivos.length, sigs.length)) {
+        return { criados: 0, falhas: [], erroListagem: false }
+    }
 
+    const covered = paresAutenticacaoExistentes(reqJson)
+
+    let criados = 0
     for (const doc of docs) {
         if (!docElegivel(doc)) continue
         const docId = String(doc.id || '').trim()
@@ -374,24 +631,50 @@ export async function garantirRequisitosAutenticacaoEmailCobertos(clickReq, enve
             if (!signerId) continue
             const key = `${docId}|${signerId}`
             if (covered.has(key)) continue
-
-            let okPost = false
-            for (let v = 0; v <= 2; v += 1) {
-                const body = payloadAuthEmailVariante(v, docId, signerId)
-                const rq = await clickReq('POST', `/envelopes/${encodeURIComponent(eid)}/requirements`, body)
-                if (rq.ok || requisitoDuplicadoOuConflito(rq)) {
-                    if (rq.ok) criados += 1
-                    covered.add(key)
-                    okPost = true
-                    break
-                }
-            }
-            if (!okPost) {
+            const auth = inferirAuthDoSignatario(sig)
+            const body = payloadRequisitoAutenticacao(eid, { documentId: docId, signerId, auth })
+            const rq = await clickReq('POST', `/envelopes/${encodeURIComponent(eid)}/requirements`, body)
+            if (rq.ok || requisitoDuplicadoOuConflito(rq)) {
+                covered.add(key)
+                if (rq.ok) criados += 1
                 continue
             }
+            falhas.push({ status: rq.status, data: rq.data })
+            return { criados, falhas, erroListagem: false }
         }
     }
-    return { criados, tentou: criados > 0 }
+    return { criados, falhas, erroListagem: false }
+}
+
+/** Qualificação + autenticação antes de ativar o envelope. */
+export async function garantirRequisitosCompletosAntesAtivar(clickReq, envelopeId) {
+    const qual = await garantirRequisitosQualificacaoCobertos(clickReq, envelopeId)
+    if (qual.erroListagem || qual.falhas.length > 0) {
+        return {
+            criadosQual: qual.criados,
+            criadosAuth: 0,
+            falhas: qual.falhas,
+            erroListagem: qual.erroListagem,
+            etapa: 'qualificacao',
+        }
+    }
+    const auth = await garantirRequisitosAutenticacaoCobertos(clickReq, envelopeId)
+    if (auth.erroListagem || auth.falhas.length > 0) {
+        return {
+            criadosQual: qual.criados,
+            criadosAuth: auth.criados,
+            falhas: auth.falhas,
+            erroListagem: auth.erroListagem,
+            etapa: 'autenticacao',
+        }
+    }
+    return {
+        criadosQual: qual.criados,
+        criadosAuth: auth.criados,
+        falhas: [],
+        erroListagem: false,
+        etapa: null,
+    }
 }
 
 /** POST /envelopes/:id/requirements — qualificação (quem assina em que papel, em que documento). */
@@ -475,6 +758,16 @@ export function intervaloCriacaoMesAtualUtc() {
     return `${start.toISOString()},${end.toISOString()}`
 }
 
+/** Intervalo ISO dos últimos 30 dias (UTC) — query filter[created]. */
+export function intervaloCriacaoUltimos30DiasUtc() {
+    const end = new Date()
+    const start = new Date(end.getTime())
+    start.setUTCDate(start.getUTCDate() - 30)
+    start.setUTCHours(0, 0, 0, 0)
+    end.setUTCHours(23, 59, 59, 999)
+    return `${start.toISOString()},${end.toISOString()}`
+}
+
 /** Monta query string de listagem de envelopes. */
 export function montarPathListagemEnvelopes({ pageNumber = 1, pageSize = 20, filterStatus = '', filterCreated = '', filterName = '' } = {}) {
     const q = new URLSearchParams()
@@ -519,13 +812,220 @@ export function extrairListaDocumentos(json) {
     const arr = Array.isArray(json?.data) ? json.data : json?.data ? [json.data] : []
     for (const item of arr) {
         const a = item?.attributes || {}
+        const files = urlsArquivosDocumento(item)
         rows.push({
             id: item?.id ?? '',
             filename: a.filename ?? a.name ?? '—',
             status: a.status ?? '—',
+            fileOriginal: files.original,
+            fileSigned: files.signed,
         })
     }
     return rows
+}
+
+function hrefDeLinkArquivo(link) {
+    if (!link) return ''
+    if (typeof link === 'string') return link.trim()
+    return String(link.href || link.url || link.download || '').trim()
+}
+
+export function urlsArquivosDocumento(item) {
+    const a = item?.attributes || {}
+    const l = item?.links || {}
+    const f = l.files || a.files || {}
+    const original =
+        hrefDeLinkArquivo(f.original) ||
+        hrefDeLinkArquivo(f.url) ||
+        hrefDeLinkArquivo(a.download_url) ||
+        hrefDeLinkArquivo(a.original_file_url) ||
+        hrefDeLinkArquivo(l.download)
+    const signed =
+        hrefDeLinkArquivo(f.signed) ||
+        hrefDeLinkArquivo(f.signed_url) ||
+        hrefDeLinkArquivo(f.signed_file) ||
+        hrefDeLinkArquivo(a.signed_file_url) ||
+        hrefDeLinkArquivo(a.signed_url)
+    return { original, signed }
+}
+
+/** URL preferida para abrir/visualizar PDF no browser (assinado se existir, senão original). */
+export function urlVisualizarDocumento(doc) {
+    if (!doc || typeof doc !== 'object') return ''
+    const signed = String(doc.fileSigned || '').trim()
+    const original = String(doc.fileOriginal || '').trim()
+    const st = envelopeStatusNormalizado(doc.status)
+    if (signed && (st === 'closed' || st === 'running')) return signed
+    return original || signed
+}
+
+/** URL local (proxy com token) para visualizar PDF no browser. */
+export function urlVisualizarDocumentoProxy(envelopeId, documentId, variant = 'auto') {
+    const eid = String(envelopeId || '').trim()
+    const did = String(documentId || '').trim()
+    if (!eid || !did) return ''
+    const q = new URLSearchParams({ envelopeId: eid, documentId: did, variant })
+    return `/api/clicksign-download?${q.toString()}`
+}
+
+export function abrirVisualizacaoDocumento(envelopeId, doc, opts = {}) {
+    const eid = String(envelopeId || opts.envelopeId || '').trim()
+    const did = String(doc?.id || '').trim()
+    if (!eid || !did) return { ok: false, reason: 'missing_id' }
+    const direct = urlVisualizarDocumento(doc)
+    if (direct && /^https?:\/\//i.test(direct) && !direct.includes('/api/v3')) {
+        window.open(direct, '_blank', 'noopener,noreferrer')
+        return { ok: true, mode: 'direct' }
+    }
+    const proxied = urlVisualizarDocumentoProxy(eid, did, opts.variant || 'auto')
+    window.open(proxied, '_blank', 'noopener,noreferrer')
+    return { ok: true, mode: 'proxy' }
+}
+
+export function rotuloEstadoDocumento(status) {
+    const st = String(status ?? '')
+        .trim()
+        .toLowerCase()
+    const map = {
+        draft: 'Rascunho',
+        running: 'Em processo',
+        closed: 'Finalizado',
+        canceled: 'Cancelado',
+        cancelled: 'Cancelado',
+    }
+    return map[st] || (st ? st : '—')
+}
+
+/** URL para abrir o envelope no site Clicksign (origem inferida do link da API). */
+export function urlAbrirEnvelopeClicksign(envelopeId, selfLink) {
+    const id = String(envelopeId || '').trim()
+    const link = String(selfLink || '').trim()
+    if (link) {
+        try {
+            const u = new URL(link)
+            return `${u.origin}/envelopes/${id}`
+        } catch {
+            /* ignore */
+        }
+    }
+    return `https://sandbox.clicksign.com/envelopes/${id}`
+}
+
+export function dataEncerramentoEnvelope(attrs) {
+    const a = attrs || {}
+    const st = envelopeStatusNormalizado(a.status ?? a.state)
+    if (st === 'closed') {
+        return a.closed_at ?? a.finished_at ?? a.completed_at ?? a.modified ?? a.updated_at ?? ''
+    }
+    if (st === 'canceled' || st === 'cancelled') {
+        return a.canceled_at ?? a.cancelled_at ?? a.modified ?? a.updated_at ?? ''
+    }
+    return ''
+}
+
+export function rotuloDataEncerramentoEnvelope(status) {
+    const st = envelopeStatusNormalizado(status)
+    if (st === 'closed') return 'Finalizado em'
+    if (st === 'canceled' || st === 'cancelled') return 'Cancelado em'
+    return ''
+}
+
+/** Signatário já tem papel de qualificação neste envelope (qualquer documento). */
+export function signatarioPossuiQualificacao(rolesBySigner, signerId) {
+    const sid = String(signerId || '').trim()
+    if (!sid) return false
+    return Boolean(String(rolesBySigner[sid] || '').trim())
+}
+
+export function rotuloMeioContatoSignatario(sig, authInferido) {
+    const em = String(sig?.email || '').trim()
+    const ph = String(sig?.phone || '').replace(/\D/g, '')
+    if (authInferido === 'whatsapp' || (ph.length >= 10 && (!em || em === '—'))) {
+        return ph.length >= 10 ? `WhatsApp · ${sig.phone}` : 'WhatsApp'
+    }
+    if (em && em !== '—') return `E-mail · ${em}`
+    return '—'
+}
+
+export function rotuloAssinaturaSignatario(attrs) {
+    const a = attrs || {}
+    const st = String(a.status ?? '').toLowerCase()
+    const signed = a.signed_at ?? a.signed ?? a.signature_finished_at ?? a.completed_at
+    if (signed) return formatarDataIsoPtBr(signed)
+    if (st === 'signed' || st === 'completed' || st === 'closed') return 'Assinado'
+    if (st === 'refused' || st === 'rejected') return 'Recusado'
+    return 'Pendente'
+}
+
+function formatarDataIsoPtBr(iso) {
+    if (!iso) return '—'
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return String(iso)
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/** Preenche URLs de download quando a listagem não traz `links.files`. */
+export async function enriquecerDocumentosComArquivos(clickReq, envelopeId, docs) {
+    const eid = String(envelopeId || '').trim()
+    const lista = Array.isArray(docs) ? docs : []
+    if (!eid || lista.length === 0) return lista
+
+    const out = []
+    for (const d of lista) {
+        if (d.fileOriginal || d.fileSigned) {
+            out.push(d)
+            continue
+        }
+        const docId = String(d.id || '').trim()
+        if (!docId) {
+            out.push(d)
+            continue
+        }
+        const one = await clickReq('GET', `/envelopes/${encodeURIComponent(eid)}/documents/${encodeURIComponent(docId)}`)
+        if (one.ok) {
+            const extra = extrairListaDocumentos({ data: one.data?.data })
+            out.push(extra[0] ? { ...d, ...extra[0] } : d)
+        } else {
+            out.push(d)
+        }
+    }
+    return out
+}
+
+/**
+ * Signatários com qualificação (requirements) e rótulo de assinatura.
+ * @param {object|null} signersJson
+ * @param {object|null} requirementsJson — normalizado
+ * @param {Record<string, object>} [signerItemsById] — item JSON:API bruto por id
+ */
+export function montarLinhasSignatariosDetalhe(signersJson, requirementsJson, signerItemsById = {}) {
+    const rows = extrairListaSignatarios(signersJson)
+    const roles = requirementsJson ? extrairRolesQualificacaoPorSignatario(requirementsJson) : {}
+    const authBySigner = {}
+    const arrReq = Array.isArray(requirementsJson?.data)
+        ? requirementsJson.data
+        : requirementsJson?.data
+          ? [requirementsJson.data]
+          : []
+    for (const item of arrReq) {
+        if (!isRequisitoAutenticacaoItem(item)) continue
+        const sid = signerIdDoRequisito(item)
+        if (!sid) continue
+        const a = item?.attributes || {}
+        authBySigner[sid] = String(a.auth || 'email').toLowerCase() === 'whatsapp' ? 'whatsapp' : 'email'
+    }
+    return rows.map((s) => {
+        const raw = signerItemsById[s.id]
+        const attrs = raw?.attributes || {}
+        const auth = authBySigner[s.id] || inferirAuthDoSignatario(s)
+        return {
+            ...s,
+            qualificationLabel: roles[s.id] ? rotuloPapelQualificacao(roles[s.id]) : '—',
+            contactLabel: rotuloMeioContatoSignatario(s, auth),
+            signatureLabel: rotuloAssinaturaSignatario(attrs),
+        }
+    })
 }
 
 /** Lista simples de signatários (GET …/signers). */
@@ -540,6 +1040,7 @@ export function extrairListaSignatarios(json) {
             email: a.email ?? '—',
             phone: a.phone_number ?? a.phone ?? '—',
             status: a.status ?? '—',
+            rawAttributes: a,
         })
     }
     return rows
@@ -577,4 +1078,20 @@ export function pathFromClicksignLink(fullUrl) {
     } catch {
         return null
     }
+}
+
+/** Estados de envelope (API) → rótulos em português na interface. */
+const ROTULOS_ESTADO_ENVELOPE = {
+    draft: 'Rascunho',
+    running: 'Em processo',
+    closed: 'Finalizado',
+    canceled: 'Cancelado',
+    cancelled: 'Cancelado',
+}
+
+export function rotuloEstadoEnvelope(status) {
+    const bruto = String(status ?? '').trim()
+    if (!bruto || bruto === '—') return '—'
+    const k = bruto.toLowerCase()
+    return ROTULOS_ESTADO_ENVELOPE[k] || bruto
 }

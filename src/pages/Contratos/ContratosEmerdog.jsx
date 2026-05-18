@@ -4,9 +4,9 @@ import { apenasDigitos, errosValidacao } from '../../lib/contratos/validarDocume
 import { maskCNPJ, maskCPF } from '../../lib/contratos/mascarasDocumento.js'
 import { linhasParaTextoPreview, getLinhas } from '../../lib/contratos/pdf/linhasIndex.js'
 import { gerarPdfBlob, downloadPdf, nomeArquivoContrato } from '../../lib/contratos/pdf/gerarContratoPdf.js'
+import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl.js'
 import './ContratosEmerdog.css'
-
-const TOAST_DURATION_MS = 20000
+import { TOAST_AUTO_DISMISS_MS } from './contratosUi.js'
 
 const clinicaInicial = {
     cnpj: '',
@@ -41,6 +41,7 @@ const parceriaInicial = {
 }
 
 const ContratosEmerdog = () => {
+    const [podeEditar] = useState(() => hasStoredPermission(PERMISSION_KEYS.CONTRATOS_EDIT))
     const [tipo, setTipo] = useState('clinicas')
     const tipoRef = useRef(tipo)
     tipoRef.current = tipo
@@ -60,7 +61,7 @@ const ContratosEmerdog = () => {
 
     useEffect(() => {
         if (!toast) return undefined
-        const id = setTimeout(() => setToast(null), TOAST_DURATION_MS)
+        const id = setTimeout(() => setToast(null), TOAST_AUTO_DISMISS_MS)
         return () => clearTimeout(id)
     }, [toast])
 
@@ -141,6 +142,10 @@ const ContratosEmerdog = () => {
     }
 
     const abrirPrevia = () => {
+        if (!podeEditar) {
+            pushToast('error', 'Somente leitura', 'Sem permissão para gerar prévia ou PDF.')
+            return
+        }
         const dados = getPayload()
         const erros = errosValidacao(tipo, dados)
         if (erros.length) {
@@ -151,7 +156,11 @@ const ContratosEmerdog = () => {
         setPreviewAberto(true)
     }
 
-    const gerarPdfFinal = () => {
+    const gerarPdfFinal = async () => {
+        if (!podeEditar) {
+            pushToast('error', 'Somente leitura', 'Sem permissão para gerar PDF.')
+            return
+        }
         const dados = getPayload()
         const erros = errosValidacao(tipo, dados)
         if (erros.length) {
@@ -160,7 +169,7 @@ const ContratosEmerdog = () => {
             return
         }
         try {
-            const blob = gerarPdfBlob(tipo, dados)
+            const blob = await gerarPdfBlob(tipo, dados)
             const nome = nomeArquivoContrato(tipo, dados)
             downloadPdf(blob, nome)
         } catch (e) {
@@ -189,6 +198,12 @@ const ContratosEmerdog = () => {
         <div className="contratos_emerdog">
             <h1>Contratos — Emerdog Plano de Saúde Animal</h1>
             <p className="contratos_emerdog_sub">Gere minutas em PDF com base nos modelos contratuais. Campos com * são obrigatórios.</p>
+
+            {!podeEditar && (
+                <p className="contratos_readonly_banner" role="status">
+                    Perfil somente leitura em Contratos: pode consultar o formulário; geração de PDF bloqueada.
+                </p>
+            )}
 
             <div className="contratos_tabs" role="tablist" aria-label="Tipo de contrato">
                 <button
@@ -528,13 +543,13 @@ const ContratosEmerdog = () => {
                 )}
 
                 <div className="contratos_actions">
-                    <button type="button" className="contratos_btn contratos_btn_secondary" onClick={limpar}>
+                    <button type="button" className="contratos_btn contratos_btn_secondary" onClick={limpar} disabled={!podeEditar}>
                         Limpar formulário
                     </button>
-                    <button type="button" className="contratos_btn contratos_btn_primary" onClick={abrirPrevia}>
+                    <button type="button" className="contratos_btn contratos_btn_primary" onClick={abrirPrevia} disabled={!podeEditar}>
                         Gerar prévia
                     </button>
-                    <button type="button" className="contratos_btn contratos_btn_primary" onClick={gerarPdfFinal}>
+                    <button type="button" className="contratos_btn contratos_btn_primary" onClick={gerarPdfFinal} disabled={!podeEditar}>
                         Gerar PDF final
                     </button>
                 </div>

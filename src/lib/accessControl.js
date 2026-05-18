@@ -9,6 +9,8 @@ export const PERMISSION_KEYS = {
   CREDENCIAMENTO_EDIT: 'credenciamento.edit',
   COMPRAS_VIEW: 'compras.view',
   COMPRAS_EDIT: 'compras.edit',
+  CONTRATOS_VIEW: 'contratos.view',
+  CONTRATOS_EDIT: 'contratos.edit',
 }
 
 export const PERMISSOES = [
@@ -33,12 +35,12 @@ export const PERMISSOES = [
       {
         chave: PERMISSION_KEYS.SUPERTABELA_EDIT,
         rotulo: 'Editar Super-Tabela',
-        descricao: 'Pode criar, editar e excluir dados da Super-Tabela.',
+        descricao: 'Necessário para criar, editar ou excluir linhas na Super-Tabela.',
       },
       {
         chave: PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST,
         rotulo: 'Usar Exclusao por lista',
-        descricao: 'Pode usar a ferramenta momentanea de exclusao em massa por lista.',
+        descricao: 'Exige também «Editar Super-Tabela». Sem edição, não há exclusão.',
       },
     ],
   },
@@ -72,6 +74,21 @@ export const PERMISSOES = [
       },
     ],
   },
+  {
+    grupo: 'Contratos',
+    itens: [
+      {
+        chave: PERMISSION_KEYS.CONTRATOS_VIEW,
+        rotulo: 'Ver Contratos',
+        descricao: 'Acessa Gerar PDF e o painel Clicksign (consulta).',
+      },
+      {
+        chave: PERMISSION_KEYS.CONTRATOS_EDIT,
+        rotulo: 'Editar Contratos',
+        descricao: 'Gera PDFs, monta envelopes, envia e altera dados na Clicksign.',
+      },
+    ],
+  },
 ]
 
 export const DEFAULT_PROFILE_PERMISSIONS = {
@@ -82,6 +99,8 @@ export const DEFAULT_PROFILE_PERMISSIONS = {
   [PERMISSION_KEYS.CREDENCIAMENTO_EDIT]: true,
   [PERMISSION_KEYS.COMPRAS_VIEW]: true,
   [PERMISSION_KEYS.COMPRAS_EDIT]: true,
+  [PERMISSION_KEYS.CONTRATOS_VIEW]: true,
+  [PERMISSION_KEYS.CONTRATOS_EDIT]: true,
   [PERMISSION_KEYS.ACCESS_MANAGE]: false,
 }
 
@@ -93,6 +112,8 @@ export const DEFAULT_INVITED_PERMISSIONS = {
   [PERMISSION_KEYS.CREDENCIAMENTO_EDIT]: false,
   [PERMISSION_KEYS.COMPRAS_VIEW]: true,
   [PERMISSION_KEYS.COMPRAS_EDIT]: false,
+  [PERMISSION_KEYS.CONTRATOS_VIEW]: true,
+  [PERMISSION_KEYS.CONTRATOS_EDIT]: false,
   [PERMISSION_KEYS.ACCESS_MANAGE]: false,
 }
 
@@ -135,8 +156,35 @@ export const usuarioSomenteLeituraGlobal = (profileOrPermissions) =>
     PERMISSION_KEYS.SUPERTABELA_EDIT,
     PERMISSION_KEYS.CREDENCIAMENTO_EDIT,
     PERMISSION_KEYS.COMPRAS_EDIT,
+    PERMISSION_KEYS.CONTRATOS_EDIT,
     PERMISSION_KEYS.ACCESS_MANAGE,
   ])
+
+/** Exclusão na Super-Tabela exige permissão de edição (somente «Ver» bloqueia). */
+export const podeExcluirNaSuperTabela = (profileOrPermissions) =>
+  hasPermission(profileOrPermissions, PERMISSION_KEYS.SUPERTABELA_EDIT)
+
+export const podeUsarExclusaoPorLista = (profileOrPermissions) =>
+  podeExcluirNaSuperTabela(profileOrPermissions) &&
+  hasPermission(profileOrPermissions, PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST)
+
+const ROTULOS_PERMISSAO = Object.fromEntries(
+  PERMISSOES.flatMap((g) => g.itens.map((i) => [i.chave, i.rotulo])),
+)
+
+/** Resumo legível das permissões alteradas (para log). */
+export const resumirAlteracoesPermissoes = (antes = {}, depois = {}) => {
+  const chaves = new Set([...Object.keys(antes), ...Object.keys(depois)])
+  const linhas = []
+  for (const chave of chaves) {
+    const a = !!antes[chave]
+    const b = !!depois[chave]
+    if (a === b) continue
+    const rotulo = ROTULOS_PERMISSAO[chave] || chave
+    linhas.push(`${rotulo}: ${a ? 'sim' : 'não'} → ${b ? 'sim' : 'não'}`)
+  }
+  return linhas
+}
 
 export const setStoredAccessProfile = (profile) => {
   if (typeof window === 'undefined') return

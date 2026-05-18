@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
     DEFAULT_INVITED_PERMISSIONS,
     PERMISSOES,
@@ -12,6 +12,13 @@ import './GerenciamentoAcessos.css'
 
 const permissoesPadraoNovoUsuario = () => ({ ...DEFAULT_INVITED_PERMISSIONS })
 
+function formatarDataLog(iso) {
+    if (!iso) return '—'
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return String(iso)
+    return d.toLocaleString('pt-BR')
+}
+
 const GerenciamentoAcessos = () => {
     const [usuarios, setUsuarios] = useState([])
     const [usuarioSelecionadoId, setUsuarioSelecionadoId] = useState('')
@@ -20,6 +27,11 @@ const GerenciamentoAcessos = () => {
     const [mensagem, setMensagem] = useState('')
     const [erro, setErro] = useState('')
     const [busca, setBusca] = useState('')
+    const [abaDetalhe, setAbaDetalhe] = useState('permissoes')
+    const [mostrarConvite, setMostrarConvite] = useState(false)
+    const [logs, setLogs] = useState([])
+    const [logsAviso, setLogsAviso] = useState('')
+    const [logsLoading, setLogsLoading] = useState(false)
     const [convite, setConvite] = useState({
         name: '',
         email: '',
@@ -29,7 +41,7 @@ const GerenciamentoAcessos = () => {
 
     const usuarioSelecionado = useMemo(
         () => usuarios.find((usuario) => String(usuario.id) === String(usuarioSelecionadoId)) || null,
-        [usuarios, usuarioSelecionadoId]
+        [usuarios, usuarioSelecionadoId],
     )
 
     const usuariosFiltrados = useMemo(() => {
@@ -93,6 +105,26 @@ const GerenciamentoAcessos = () => {
         }
     }
 
+    const carregarLogs = useCallback(async (userId) => {
+        if (!userId) {
+            setLogs([])
+            setLogsAviso('')
+            return
+        }
+        setLogsLoading(true)
+        try {
+            const json = await chamarAdminUsers({ action: 'listAudit', userId, limit: 100 })
+            setLogs(json.logs || [])
+            setLogsAviso(json.aviso || '')
+        } catch (error) {
+            setLogs([])
+            setLogsAviso('')
+            mostrarErro(error.message)
+        } finally {
+            setLogsLoading(false)
+        }
+    }, [])
+
     useEffect(() => {
         carregarUsuarios()
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,6 +142,12 @@ const GerenciamentoAcessos = () => {
             permissions: { ...usuarioSelecionado.permissions },
         })
     }, [usuarioSelecionado])
+
+    useEffect(() => {
+        if (abaDetalhe === 'historico' && edicao?.id) {
+            carregarLogs(edicao.id)
+        }
+    }, [abaDetalhe, edicao?.id, carregarLogs])
 
     const alterarPermissaoConvite = (chave) => {
         setConvite((atual) => ({
@@ -154,7 +192,9 @@ const GerenciamentoAcessos = () => {
             })
             setUsuarioSelecionadoId(profile.id)
             setConvite({ name: '', email: '', permissions: permissoesPadraoNovoUsuario() })
-            mostrarMensagem(json.conviteEnviado ? 'Convite enviado e usuário criado.' : 'Usuário já existia; reset enviado e perfil atualizado.')
+            setMostrarConvite(false)
+            setAbaDetalhe('permissoes')
+            mostrarMensagem(json.conviteEnviado ? 'Convite enviado.' : 'Usuário existente: reset de acesso enviado e perfil atualizado.')
         } catch (error) {
             mostrarErro(error.message)
         } finally {
@@ -176,7 +216,8 @@ const GerenciamentoAcessos = () => {
             const profile = normalizarProfileAcesso(json.profile)
             setUsuarios((atuais) => atuais.map((item) => (String(item.id) === String(profile.id) ? profile : item)))
             if (String(profile.id) === String(usuarioAtualId)) setStoredAccessProfile(profile)
-            mostrarMensagem('Perfil e permissões salvos.')
+            if (abaDetalhe === 'historico') await carregarLogs(profile.id)
+            mostrarMensagem('Perfil, email e permissões salvos.')
         } catch (error) {
             mostrarErro(error.message)
         } finally {
@@ -184,15 +225,16 @@ const GerenciamentoAcessos = () => {
         }
     }
 
-    const reenviarAcesso = async () => {
+    const redefinirSenha = async () => {
         if (!edicao?.email) {
-            mostrarErro('Este perfil não possui email salvo.')
+            mostrarErro('Informe e salve um email válido antes de redefinir a senha.')
             return
         }
         setLoading(true)
         try {
             await chamarAdminUsers({ action: 'reset', email: edicao.email })
-            mostrarMensagem('Email de redefinição enviado.')
+            if (abaDetalhe === 'historico') await carregarLogs(edicao.id)
+            mostrarMensagem('Link de redefinição de senha enviado por email.')
         } catch (error) {
             mostrarErro(error.message)
         } finally {
@@ -235,58 +277,31 @@ const GerenciamentoAcessos = () => {
                 <div>
                     <p className='gerenciamento_acessos_kicker'>Administrativo</p>
                     <h1>Gerenciamento de Acessos</h1>
-                    <p>Convide usuários, ajuste nomes de perfil e controle permissões por ferramenta.</p>
+                    <p>Convites, permissões, email, senha e histórico por usuário.</p>
                 </div>
-                <button type='button' onClick={carregarUsuarios} disabled={loading}>
-                    Atualizar
-                </button>
+                <div className='gerenciamento_acessos_header_acoes'>
+                    <button type='button' className='is-ghost' onClick={() => setMostrarConvite(true)} disabled={loading}>
+                        Convidar usuário
+                    </button>
+                    <button type='button' onClick={carregarUsuarios} disabled={loading}>
+                        Atualizar
+                    </button>
+                </div>
             </header>
 
             {(mensagem || erro) && (
-                <div className={`gerenciamento_acessos_alerta ${erro ? 'is-error' : 'is-success'}`}>
-                    {erro || mensagem}
-                </div>
+                <div className={`gerenciamento_acessos_alerta ${erro ? 'is-error' : 'is-success'}`}>{erro || mensagem}</div>
             )}
 
-            <section className='gerenciamento_acessos_grid'>
-                <aside className='gerenciamento_acessos_card'>
-                    <h2>Novo usuário</h2>
-                    <form className='gerenciamento_acessos_form' onSubmit={convidarUsuario}>
-                        <label>
-                            Nome
-                            <input
-                                type='text'
-                                value={convite.name}
-                                onChange={(event) => setConvite((atual) => ({ ...atual, name: event.target.value }))}
-                                placeholder='Nome do usuário'
-                                disabled={loading}
-                            />
-                        </label>
-                        <label>
-                            Email
-                            <input
-                                type='email'
-                                value={convite.email}
-                                onChange={(event) => setConvite((atual) => ({ ...atual, email: event.target.value }))}
-                                placeholder='usuario@emerdog.com.br'
-                                disabled={loading}
-                            />
-                        </label>
-                        {renderPermissoes(convite.permissions, alterarPermissaoConvite, 'convite')}
-                        <button type='submit' disabled={loading}>
-                            Convidar usuário
-                        </button>
-                    </form>
-                </aside>
-
-                <section className='gerenciamento_acessos_card gerenciamento_acessos_lista_card'>
+            <section className='gerenciamento_acessos_layout'>
+                <aside className='gerenciamento_acessos_card gerenciamento_acessos_lista_card'>
                     <div className='gerenciamento_acessos_lista_header'>
                         <h2>Usuários</h2>
                         <input
                             type='search'
                             value={busca}
                             onChange={(event) => setBusca(event.target.value)}
-                            placeholder='Buscar por nome ou email'
+                            placeholder='Buscar nome ou email'
                         />
                     </div>
                     <div className='gerenciamento_acessos_lista'>
@@ -295,7 +310,10 @@ const GerenciamentoAcessos = () => {
                                 key={usuario.id}
                                 type='button'
                                 className={`gerenciamento_acessos_usuario ${String(usuario.id) === String(usuarioSelecionadoId) ? 'is-active' : ''}`}
-                                onClick={() => setUsuarioSelecionadoId(usuario.id)}
+                                onClick={() => {
+                                    setUsuarioSelecionadoId(usuario.id)
+                                    setMostrarConvite(false)
+                                }}
                             >
                                 <strong>{usuario.name || 'Sem nome'}</strong>
                                 <span>{usuario.email || usuario.id}</span>
@@ -305,42 +323,171 @@ const GerenciamentoAcessos = () => {
                             <p className='gerenciamento_acessos_vazio'>Nenhum usuário encontrado.</p>
                         )}
                     </div>
-                </section>
+                </aside>
 
-                <section className='gerenciamento_acessos_card gerenciamento_acessos_detalhe'>
-                    <h2>Permissões do usuário</h2>
+                <section className='gerenciamento_acessos_card gerenciamento_acessos_painel'>
                     {!edicao ? (
-                        <p className='gerenciamento_acessos_vazio'>Selecione um usuário para editar.</p>
+                        <p className='gerenciamento_acessos_vazio'>Selecione um usuário na lista.</p>
                     ) : (
                         <>
-                            <div className='gerenciamento_acessos_form'>
-                                <label>
-                                    Nome em Profiles
-                                    <input
-                                        type='text'
-                                        value={edicao.name}
-                                        onChange={(event) => setEdicao((atual) => ({ ...atual, name: event.target.value }))}
-                                        disabled={loading}
-                                    />
-                                </label>
-                                <label>
-                                    Email
-                                    <input type='email' value={edicao.email || ''} disabled />
-                                </label>
+                            <div className='gerenciamento_acessos_painel_head'>
+                                <h2>{edicao.name || 'Usuário'}</h2>
+                                <nav className='gerenciamento_acessos_tabs' aria-label='Seções do usuário'>
+                                    <button
+                                        type='button'
+                                        className={abaDetalhe === 'permissoes' ? 'is-active' : ''}
+                                        onClick={() => setAbaDetalhe('permissoes')}
+                                    >
+                                        Permissões
+                                    </button>
+                                    <button
+                                        type='button'
+                                        className={abaDetalhe === 'conta' ? 'is-active' : ''}
+                                        onClick={() => setAbaDetalhe('conta')}
+                                    >
+                                        Conta
+                                    </button>
+                                    <button
+                                        type='button'
+                                        className={abaDetalhe === 'historico' ? 'is-active' : ''}
+                                        onClick={() => setAbaDetalhe('historico')}
+                                    >
+                                        Histórico
+                                    </button>
+                                </nav>
                             </div>
-                            {renderPermissoes(edicao.permissions, alterarPermissaoEdicao, 'edicao', edicao.id)}
-                            <div className='gerenciamento_acessos_acoes'>
-                                <button type='button' onClick={reenviarAcesso} disabled={loading || !edicao.email}>
-                                    Reenviar acesso
-                                </button>
-                                <button type='button' className='is-primary' onClick={salvarUsuario} disabled={loading}>
-                                    Salvar alterações
-                                </button>
-                            </div>
+
+                            {abaDetalhe === 'permissoes' && (
+                                <>
+                                    {renderPermissoes(edicao.permissions, alterarPermissaoEdicao, 'edicao', edicao.id)}
+                                    <div className='gerenciamento_acessos_acoes'>
+                                        <button type='button' className='is-primary' onClick={salvarUsuario} disabled={loading}>
+                                            Salvar permissões
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+
+                            {abaDetalhe === 'conta' && (
+                                <>
+                                    <div className='gerenciamento_acessos_form gerenciamento_acessos_form_compact'>
+                                        <label>
+                                            Nome no perfil
+                                            <input
+                                                type='text'
+                                                value={edicao.name}
+                                                onChange={(event) =>
+                                                    setEdicao((atual) => ({ ...atual, name: event.target.value }))
+                                                }
+                                                disabled={loading}
+                                            />
+                                        </label>
+                                        <label>
+                                            Email (login)
+                                            <input
+                                                type='email'
+                                                value={edicao.email || ''}
+                                                onChange={(event) =>
+                                                    setEdicao((atual) => ({ ...atual, email: event.target.value }))
+                                                }
+                                                placeholder='usuario@emerdog.com.br'
+                                                disabled={loading}
+                                            />
+                                        </label>
+                                    </div>
+                                    <p className='gerenciamento_acessos_hint'>
+                                        Somente «Ver» nas ferramentas bloqueia criar, editar e excluir linhas nas tabelas.
+                                    </p>
+                                    <div className='gerenciamento_acessos_acoes'>
+                                        <button type='button' onClick={redefinirSenha} disabled={loading || !edicao.email}>
+                                            Redefinir senha
+                                        </button>
+                                        <button type='button' className='is-primary' onClick={salvarUsuario} disabled={loading}>
+                                            Salvar conta
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+
+                            {abaDetalhe === 'historico' && (
+                                <div className='gerenciamento_acessos_log'>
+                                    {logsLoading && <p className='gerenciamento_acessos_vazio'>A carregar histórico…</p>}
+                                    {!logsLoading && logsAviso && (
+                                        <p className='gerenciamento_acessos_vazio'>{logsAviso}</p>
+                                    )}
+                                    {!logsLoading && !logsAviso && logs.length === 0 && (
+                                        <p className='gerenciamento_acessos_vazio'>Nenhum registro para este usuário.</p>
+                                    )}
+                                    {!logsLoading &&
+                                        logs.map((item) => (
+                                            <article key={item.id} className='gerenciamento_acessos_log_item'>
+                                                <time dateTime={item.created_at}>{formatarDataLog(item.created_at)}</time>
+                                                <strong>{item.summary || item.action}</strong>
+                                                <span>
+                                                    {item.actor_name || 'Sistema'}
+                                                    {item.action ? ` · ${item.action}` : ''}
+                                                </span>
+                                            </article>
+                                        ))}
+                                </div>
+                            )}
                         </>
                     )}
                 </section>
             </section>
+
+            {mostrarConvite && (
+                <div
+                    className='gerenciamento_acessos_modal_backdrop'
+                    role='presentation'
+                    onClick={() => !loading && setMostrarConvite(false)}
+                >
+                    <div
+                        className='gerenciamento_acessos_card gerenciamento_acessos_modal'
+                        role='dialog'
+                        aria-labelledby='ga-convite-title'
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className='gerenciamento_acessos_modal_head'>
+                            <h2 id='ga-convite-title'>Convidar usuário</h2>
+                            <button type='button' className='is-ghost' onClick={() => setMostrarConvite(false)} disabled={loading}>
+                                Fechar
+                            </button>
+                        </div>
+                        <form className='gerenciamento_acessos_form' onSubmit={convidarUsuario}>
+                            <label>
+                                Nome
+                                <input
+                                    type='text'
+                                    value={convite.name}
+                                    onChange={(event) => setConvite((atual) => ({ ...atual, name: event.target.value }))}
+                                    required
+                                    disabled={loading}
+                                />
+                            </label>
+                            <label>
+                                Email
+                                <input
+                                    type='email'
+                                    value={convite.email}
+                                    onChange={(event) => setConvite((atual) => ({ ...atual, email: event.target.value }))}
+                                    required
+                                    disabled={loading}
+                                />
+                            </label>
+                            {renderPermissoes(convite.permissions, alterarPermissaoConvite, 'convite')}
+                            <div className='gerenciamento_acessos_acoes'>
+                                <button type='button' onClick={() => setMostrarConvite(false)} disabled={loading}>
+                                    Cancelar
+                                </button>
+                                <button type='submit' className='is-primary' disabled={loading}>
+                                    Enviar convite
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </main>
     )
 }

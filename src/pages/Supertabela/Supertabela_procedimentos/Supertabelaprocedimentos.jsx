@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
+import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaprocedimentos.css'
 
@@ -494,6 +495,7 @@ const Supertabelaprocedimentos = () => {
     }
 
     const excluirProcedimento = async (linha, opcoes = {}) => {
+        if (bloquearSeSomenteLeitura(mostrarErroToast)) return
         const executarExclusao = async () => {
             const { error: errRepasses } = await supabase.from('repasses').delete().eq('procedimento_id', linha.codigo)
             if (errRepasses) {
