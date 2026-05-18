@@ -44,9 +44,10 @@ const resolveAdminAction = (raw) => {
         reset: 'reset',
         updateprofile: 'updateProfile',
         listaudit: 'listAudit',
+        deleteuser: 'deleteUser',
     }
     if (aliases[compact]) return aliases[compact]
-    const canon = ['list', 'invite', 'reset', 'updateProfile', 'listAudit']
+    const canon = ['list', 'invite', 'reset', 'updateProfile', 'listAudit', 'deleteUser']
     return canon.includes(s) ? s : ''
 }
 
@@ -195,7 +196,7 @@ export default async function handler(req, res) {
                 res,
                 400,
                 recebida
-                    ? `Ação inválida: «${recebida}». Use list, listAudit, invite, updateProfile ou reset.`
+                    ? `Ação inválida: «${recebida}». Use list, listAudit, invite, updateProfile, reset ou deleteUser.`
                     : 'Ação inválida. Informe action no corpo da requisição.',
             )
         }
@@ -372,6 +373,40 @@ export default async function handler(req, res) {
             })
 
             return res.status(200).json({ ok: true })
+        }
+
+        if (action === 'deleteUser') {
+            const userId = String(body.userId || '').trim()
+            if (!userId) return responderErro(res, 400, 'Usuário não informado.')
+            if (userId === admin.user.id) {
+                return responderErro(res, 400, 'Você não pode excluir sua própria conta.')
+            }
+
+            const { data: alvo, error: errAlvo } = await buscarProfile(supabase, userId)
+            if (errAlvo) return responderErro(res, 500, errAlvo.message)
+            if (!alvo?.id) return responderErro(res, 404, 'Usuário não encontrado.')
+
+            const nome = String(alvo.name || '').trim() || 'Sem nome'
+            const email = String(alvo.email || '').trim()
+
+            await registrarAuditoria(supabase, {
+                actorUserId: admin.user.id,
+                actorName: admin.profile.name,
+                targetUserId: userId,
+                action: 'delete_user',
+                summary: `Usuário excluído: ${nome}${email ? ` (${email})` : ''}`,
+                details: { name: nome, email },
+            })
+
+            const { error: authError } = await supabase.auth.admin.deleteUser(userId)
+            if (authError) return responderErro(res, 500, authError.message)
+
+            const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId)
+            if (profileError) {
+                console.warn('[admin-users] Auth removido; falha ao apagar profile:', profileError.message)
+            }
+
+            return res.status(200).json({ ok: true, deletedUserId: userId })
         }
 
         return responderErro(res, 500, `Ação «${action}» não implementada.`)

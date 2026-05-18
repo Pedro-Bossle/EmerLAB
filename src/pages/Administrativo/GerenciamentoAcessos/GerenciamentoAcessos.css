@@ -58,6 +58,22 @@
     color: #ffffff;
 }
 
+.gerenciamento_acessos_acoes .is-danger {
+    background: #fff5f5;
+    border-color: #e8a0a0;
+    color: #9a2424;
+}
+
+.gerenciamento_acessos_acoes .is-danger:hover:not(:disabled) {
+    background: #fdecec;
+    border-color: #c45c5c;
+}
+
+.gerenciamento_acessos_acoes_conta {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
 .gerenciamento_acessos_alerta {
     margin-bottom: 14px;
     padding: 10px 12px;
@@ -462,6 +478,17 @@ body.dark-mode .gerenciamento_acessos_acoes .is-primary {
     background: #2f87c6;
     border-color: #2f87c6;
     color: #fff;
+}
+
+body.dark-mode .gerenciamento_acessos_acoes .is-danger {
+    background: #3d2222;
+    border-color: #8f4c58;
+    color: #ffc8c8;
+}
+
+body.dark-mode .gerenciamento_acessos_acoes .is-danger:hover:not(:disabled) {
+    background: #4d2e34;
+    border-color: #b86b6b;
 }
 
 @media (max-width: 640px) {

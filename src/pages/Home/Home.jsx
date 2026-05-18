@@ -59,6 +59,16 @@ const Home = () => {
           <p className='card_texto'>Calcule orçamento de compra de procedimentos para clientes de forma rápida e fácil;</p>
           <a className='card_link' href="/Compras/Orcamento">Conheça essa Ferramenta</a>
         </div>
+
+        <div className='home_card'>
+          <h2 className='card_nome'>Contratos</h2>
+          <p className='card_texto'>
+            Montar envelopes, acompanhar assinaturas e gerir documentos na Clicksign, integrado ao S.F.S.C.;
+          </p>
+          <a className='card_link' href='/contratos/clicksign'>
+            Abrir Clicksign
+          </a>
+        </div>
         {/*<div className='home_card'>
           <h2 className='card_nome'>Formulário</h2>
           <p className='card_texto'>Cadastre os perfis de veterinários de maneira rápida e fácil com apenas um link individual;</p>
@@ -69,12 +79,6 @@ const Home = () => {
           <h2 className='card_nome'>Planos</h2>
           <p className='card_texto'>Gerencie os planos, visualize as tabelas OnLine e edite-as sem necessidade de abrir o Canva;</p>
           <a className='card_link' href="https://www.emerdog.com.br/planos">Conheça essa Ferramenta</a>
-        </div>
-
-        <div className='home_card'>
-          <h2 className='card_nome'>Contratos</h2>
-          <p className='card_texto'>Crie contratos de forma rápida e fácil, visualize os existentes e veja o status de cada um sem abrir o Clicksign (API);</p>
-          <a className='card_link' href="https://emerdogplano-my.sharepoint.com/:w:/g/personal/arthur_emerdog_com_br/IQAKum4BlA8IQqC6UX8mVB_ZAarTFfI9niv0eZ_EtNT6dHU?e=0U4bIW">Conheça essa Ferramenta</a>
         </div>
 
         <div className='home_card'>

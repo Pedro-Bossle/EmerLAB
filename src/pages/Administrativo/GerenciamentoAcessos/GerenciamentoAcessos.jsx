@@ -225,6 +225,40 @@ const GerenciamentoAcessos = () => {
         }
     }
 
+    const excluirUsuario = async () => {
+        if (!edicao?.id) return
+        if (String(edicao.id) === String(usuarioAtualId)) {
+            mostrarErro('Você não pode excluir sua própria conta.')
+            return
+        }
+        const rotulo = edicao.name || edicao.email || edicao.id
+        const confirmar = window.confirm(
+            `Excluir permanentemente «${rotulo}»?\n\nRemove o login (Auth) e o perfil. Esta ação não pode ser desfeita.`,
+        )
+        if (!confirmar) return
+
+        setLoading(true)
+        try {
+            await chamarAdminUsers({ action: 'deleteUser', userId: edicao.id })
+            const idRemovido = edicao.id
+            setUsuarios((atuais) => {
+                const restantes = atuais.filter((item) => String(item.id) !== String(idRemovido))
+                setUsuarioSelecionadoId((sel) => {
+                    if (String(sel) !== String(idRemovido)) return sel
+                    return restantes[0]?.id || ''
+                })
+                return restantes
+            })
+            setEdicao(null)
+            setLogs([])
+            mostrarMensagem('Usuário excluído.')
+        } catch (error) {
+            mostrarErro(error.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     const redefinirSenha = async () => {
         if (!edicao?.email) {
             mostrarErro('Informe e salve um email válido antes de redefinir a senha.')
@@ -398,12 +432,25 @@ const GerenciamentoAcessos = () => {
                                     <p className='gerenciamento_acessos_hint'>
                                         Somente «Ver» nas ferramentas bloqueia criar, editar e excluir linhas nas tabelas.
                                     </p>
-                                    <div className='gerenciamento_acessos_acoes'>
+                                    <div className='gerenciamento_acessos_acoes gerenciamento_acessos_acoes_conta'>
                                         <button type='button' onClick={redefinirSenha} disabled={loading || !edicao.email}>
                                             Redefinir senha
                                         </button>
                                         <button type='button' className='is-primary' onClick={salvarUsuario} disabled={loading}>
                                             Salvar conta
+                                        </button>
+                                        <button
+                                            type='button'
+                                            className='is-danger'
+                                            onClick={excluirUsuario}
+                                            disabled={loading || String(edicao.id) === String(usuarioAtualId)}
+                                            title={
+                                                String(edicao.id) === String(usuarioAtualId)
+                                                    ? 'Não é possível excluir a si mesmo'
+                                                    : 'Remove login e perfil'
+                                            }
+                                        >
+                                            Excluir usuário
                                         </button>
                                     </div>
                                 </>
