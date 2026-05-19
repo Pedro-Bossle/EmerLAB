@@ -7,6 +7,15 @@
       "memory": 1024,
       "maxDuration": 60,
       "includeFiles": "src/assets/rc/**"
+    },
+    "api/clicksign/[...path].js": {
+      "maxDuration": 30
+    },
+    "api/clicksign-download.js": {
+      "maxDuration": 30
+    },
+    "api/admin-users.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
