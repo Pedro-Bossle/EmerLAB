@@ -11,6 +11,9 @@
     "api/clicksign/[...path].js": {
       "maxDuration": 30
     },
+    "api/clicksign-catchall.js": {
+      "maxDuration": 30
+    },
     "api/clicksign-download.js": {
       "maxDuration": 30
     },
@@ -20,8 +23,8 @@
   },
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
+      "source": "/api/clicksign/:path*",
+      "destination": "/api/clicksign-catchall?path=:path*"
     },
     {
       "source": "/(.*)",
