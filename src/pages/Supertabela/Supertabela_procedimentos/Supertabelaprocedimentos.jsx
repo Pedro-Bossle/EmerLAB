@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
+import { upsertPlanosCidadeCompat } from '../../../lib/planosCidadeCompat'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaprocedimentos.css'
 
@@ -475,9 +476,8 @@ const Supertabelaprocedimentos = () => {
         })
 
         if (payloadInsercao.length > 0) {
-            const { error: errInserir } = await supabase.from('planos_cidade').upsert(payloadInsercao, {
-                onConflict: 'regiao_id,plano_id,procedimento_cod',
-                ignoreDuplicates: true,
+            const { error: errInserir } = await upsertPlanosCidadeCompat(supabase, payloadInsercao, {
+                regiaoId: payloadInsercao[0]?.regiao_id,
             })
             if (errInserir) {
                 if (planoBaseAnteriorId) {

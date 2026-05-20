@@ -4,6 +4,8 @@ import { PERMISSION_KEYS, hasStoredPermission, podeUsarExclusaoPorLista } from '
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
+import { upsertPlanosCidadeCompat } from '../../../lib/planosCidadeCompat'
+import { inserirPlanoConfigSeNaoExiste } from '../../../lib/planosConfigCompat'
 import './Supertabelaplanos.css'
 
 const COLUNAS_PLANO = [
@@ -248,7 +250,17 @@ const Supertabelaplanos = () => {
     }, [])
 
     const buscarPlanosCidadePorCidade = useCallback(async () => {
-        if (!cidadeId || !regiaoSelecionadaId) return { data: [], error: null }
+        if (!cidadeId) return { data: [], error: null }
+
+        const porCidade = await buscarTodosPaginado(() =>
+            supabase
+                .from('planos_cidade')
+                .select('id, plano_id, procedimento_cod, diferenca')
+                .eq('cidade_id', cidadeId)
+        )
+        if (!porCidade.error) {
+            if ((porCidade.data || []).length > 0 || !regiaoSelecionadaId) return porCidade
+        } else if (!regiaoSelecionadaId) return porCidade
 
         return buscarTodosPaginado(() =>
             supabase
@@ -313,6 +325,7 @@ const Supertabelaplanos = () => {
                 obterPlanoIdsPermitidos(meta.planoBaseId, mapaPlanos).forEach((planoId) => {
                     if (planosExistentes.has(Number(planoId))) return
                     payloadComplemento.push({
+                        cidade_id: Number(cidadeId),
                         regiao_id: Number(regiaoSelecionadaId),
                         plano_id: Number(planoId),
                         procedimento_cod: cod,
@@ -322,13 +335,12 @@ const Supertabelaplanos = () => {
             })
 
             if (!somenteLeitura && payloadComplemento.length > 0) {
-                const { data: inseridos, error: errComplemento } = await supabase
-                    .from('planos_cidade')
-                    .upsert(payloadComplemento, {
-                        onConflict: 'regiao_id,plano_id,procedimento_cod',
-                        ignoreDuplicates: true,
-                    })
-                    .select('id, plano_id, procedimento_cod, diferenca')
+                const { data: inseridos, error: errComplemento } = await upsertPlanosCidadeCompat(
+                    supabase,
+                    payloadComplemento,
+                    { cidadeId, regiaoId: regiaoSelecionadaId },
+                    'id, plano_id, procedimento_cod, diferenca'
+                )
                 if (errComplemento) {
                     setErroDetalhe(`Erro ao completar planos do procedimento: ${errComplemento.message}`)
                     setLinhasDiferencas([])
@@ -472,6 +484,7 @@ const Supertabelaplanos = () => {
             if (!meta?.id) return
             if (!planosPermitidos.has(Number(meta.id))) return
             candidatos.push({
+                cidade_id: Number(cidadeId),
                 regiao_id: Number(regiaoSelecionadaId),
                 plano_id: Number(meta.id),
                 procedimento_cod: codigoNormalizado,
@@ -484,11 +497,19 @@ const Supertabelaplanos = () => {
             return { status: 'erro', mensagem: 'Sem planos mapeados.' }
         }
 
-        const consultaExistentes = await supabase
+        let consultaExistentes = await supabase
             .from('planos_cidade')
             .select('plano_id')
-            .eq('regiao_id', regiaoSelecionadaId)
+            .eq('cidade_id', cidadeId)
             .eq('procedimento_cod', codigoNormalizado)
+
+        if (consultaExistentes.error && regiaoSelecionadaId) {
+            consultaExistentes = await supabase
+                .from('planos_cidade')
+                .select('plano_id')
+                .eq('regiao_id', regiaoSelecionadaId)
+                .eq('procedimento_cod', codigoNormalizado)
+        }
 
         if (consultaExistentes.error) {
             reportarErro(`Erro ao verificar registros: ${consultaExistentes.error.message}`)
@@ -502,9 +523,9 @@ const Supertabelaplanos = () => {
             return { status: 'ja_existia' }
         }
 
-        const { error } = await supabase.from('planos_cidade').upsert(novos, {
-            onConflict: 'regiao_id,plano_id,procedimento_cod',
-            ignoreDuplicates: true,
+        const { error } = await upsertPlanosCidadeCompat(supabase, novos, {
+            cidadeId,
+            regiaoId: regiaoSelecionadaId,
         })
 
         if (error) {
@@ -533,25 +554,18 @@ const Supertabelaplanos = () => {
             return { status: 'erro', mensagem: 'Plano não selecionado.' }
         }
 
-        const { error } = await supabase.from('planos_config').upsert(
-            {
-                plano_id: Number(planoDetalheId),
-                procedimento: codigoNormalizado,
-                limite: '',
-                carencia: '',
-            },
-            {
-                onConflict: 'plano_id,procedimento',
-                ignoreDuplicates: true,
-            }
-        )
+        const resultadoCfg = await inserirPlanoConfigSeNaoExiste(supabase, {
+            planoId: planoDetalheId,
+            procedimento: codigoNormalizado,
+        })
 
-        if (error) {
-            const msg = String(error.message || '')
-            if (msg.toLowerCase().includes('duplicate') || msg.includes('23505')) {
-                reportarErro('Este procedimento já possui registro para o plano selecionado.')
-                return { status: 'ja_existia' }
-            }
+        if (resultadoCfg.status === 'ja_existia') {
+            reportarErro('Este procedimento já possui registro para o plano selecionado.')
+            return { status: 'ja_existia' }
+        }
+
+        if (resultadoCfg.status === 'erro') {
+            const error = resultadoCfg.error
             reportarErro(`Erro ao inserir: ${error.message}`)
             return { status: 'erro', mensagem: error.message }
         }
