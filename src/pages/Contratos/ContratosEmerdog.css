@@ -185,7 +185,7 @@ body.dark-mode .contratos_readonly_banner {
     border: 1px solid #e6b8b5;
 }
 
-/* Toast fixo — canto superior direito, 20s (controlado em JS), alinhado ao padrão Supertabela Cidades */
+/* Toast fixo — canto superior direito, até 15s (TOAST_AUTO_DISMISS_MS em JS) */
 .contratos_toast {
     position: fixed;
     top: 18px;

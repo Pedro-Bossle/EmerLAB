@@ -1,5 +1,5 @@
-/** Tempo até o toast fechar sozinho (toasts de confirmação não usam auto-dismiss). */
-export const TOAST_AUTO_DISMISS_MS = 10_000
+/** Reexporta duração padrão (máx. 15s) — ver src/lib/toastUi.js */
+export { TOAST_AUTO_DISMISS_MS } from '../../lib/toastUi.js'
 
 /** Datas ISO → DD/MM/AAAA HH:mm:ss (hora local). */
 export function formatarDataPtBr(iso) {

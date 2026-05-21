@@ -1,0 +1,700 @@
+/* Lista: layout largo igual credenciamento principal (usa Credenciamento_main.css) */
+.credenciamento_cadastro_lista .credenciamento_cadastro_sub {
+    margin: 0 2em 0.75em;
+    font-size: 0.9rem;
+    color: #40617a;
+}
+
+/* Uma única linha de filtros: sobrescreve :last-child da Credenciamento_main (rótulo ao lado) */
+.credenciamento_cadastro_lista .credenciamento_main_filters_selectors .credenciamento_cadastro_filters_row {
+    display: grid !important;
+    grid-template-columns: minmax(170px, 1.5fr) minmax(170px, 1.5fr) minmax(170px, 1fr) !important;
+    align-items: end !important;
+    flex-wrap: unset !important;
+    justify-content: unset !important;
+}
+
+.credenciamento_cadastro_lista
+    .credenciamento_main_filters_selectors
+    .credenciamento_cadastro_filters_row:last-child
+    .credenciamento_main_filter_item {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100%;
+    gap: 4px;
+}
+
+.credenciamento_cadastro_lista
+    .credenciamento_main_filters_selectors
+    .credenciamento_cadastro_filters_row:last-child
+    .credenciamento_main_filter_item
+    p {
+    min-width: 0 !important;
+    text-align: left !important;
+    white-space: nowrap;
+}
+
+.credenciamento_cadastro_lista .credenciamento_cadastro_filters_row .credenciamento_main_input,
+.credenciamento_cadastro_lista .credenciamento_cadastro_filters_row .credenciamento_main_select {
+    width: 100%;
+    min-width: 0;
+}
+
+.credenciamento_cadastro_table {
+    min-width: 0 !important;
+    width: 100%;
+}
+
+.pcad_page {
+    padding: 1rem 1.25rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Página do formulário (ficha prestador): largura total e espaço para rodapé fixo */
+.credenciamento_main.pcad_form_page {
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    padding: 1rem 2em 6.5rem;
+    box-sizing: border-box;
+}
+
+/* Altura dos inputs/selects do cadastro (todos os campos .credenciamento_main_input / _select) */
+.credenciamento_main.pcad_form_page .credenciamento_main_input,
+.credenciamento_main.pcad_form_page .credenciamento_main_select {
+    height: 34px;
+    font-size: 0.88rem;
+}
+
+.pcad_intro {
+    color: var(--text-muted, #555);
+    margin-bottom: 1rem;
+}
+
+
+.pcad_muted {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.pcad_erro {
+    color: #b00020;
+}
+
+.pcad_form_top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.pcad_link_back {
+    font-size: 0.9rem;
+    color: #0b5cab;
+}
+
+.pcad_section {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.pcad_section h2 {
+    font-size: 1.1rem;
+    margin: 0 0 0.75rem;
+}
+
+.pcad_grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem 1rem;
+}
+
+.pcad_field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+}
+
+.pcad_field_wide {
+    grid-column: 1 / -1;
+}
+
+.pcad_tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.pcad_tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.pcad_tag.is-on {
+    border-color: #0b5cab;
+    background: rgba(11, 92, 171, 0.08);
+}
+
+/* Veterinários — linha: Nome | Especialidade | CRMV | Incluir */
+.pcad_row_vet_novo {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.1fr) minmax(88px, 0.5fr) minmax(96px, auto);
+    align-items: end;
+    margin-bottom: 0.65rem;
+}
+
+.pcad_row_vet_novo .pcad_field {
+    min-width: 0;
+}
+
+.pcad_row_vet_novo .credenciamento_main_input,
+.pcad_row_vet_novo .credenciamento_main_select {
+    width: 100%;
+    min-width: 0;
+}
+
+.pcad_vet_nome_wrap {
+    position: relative;
+    width: 100%;
+}
+
+.pcad_vet_incluir_btn .credenciamento_main_action_btn {
+    width: 100%;
+    height: 34px;
+    white-space: nowrap;
+}
+
+.pcad_vet_vinculados {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border: 1px solid #e8eef3;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow: auto;
+    background: #fafbfc;
+}
+
+.pcad_vet_vinculados li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #eef2f6;
+    font-size: 0.88rem;
+}
+
+.pcad_vet_vinculados_vazio {
+    padding: 0.65rem 0.75rem;
+    margin: 0;
+}
+
+.pcad_servicos_opcoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+}
+
+.pcad_servicos_toggle.is-on {
+    border-color: #0b5cab;
+    background: rgba(11, 92, 171, 0.08);
+}
+
+.pcad_servicos_tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+}
+
+.pcad_servicos_tab {
+    padding: 0.4rem 0.65rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.pcad_servicos_tab.is-active {
+    background: #0b5cab;
+    color: #fff;
+    border-color: #0b5cab;
+}
+
+.pcad_servicos_toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* Altura fixa: troca de categoria não empurra o restante do formulário */
+.pcad_servicos_panel {
+    position: relative;
+    height: 320px;
+    flex-shrink: 0;
+}
+
+.pcad_servicos_lista {
+    height: 100%;
+    overflow: auto;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    padding: 0.5rem;
+    box-sizing: border-box;
+    transition: opacity 0.15s ease;
+}
+
+.pcad_servicos_lista.is-loading {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.pcad_servicos_loading {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 0.65rem;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.35) 40%, transparent);
+}
+
+.pcad_servicos_erro {
+    margin: 0 0 0.5rem;
+}
+
+.pcad_servicos_vazio {
+    margin: 0;
+}
+
+.pcad_servicos_item {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    font-size: 0.88rem;
+    cursor: pointer;
+}
+
+.pcad_servicos_massa {
+    margin-bottom: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    background: #fafafa;
+}
+
+.pcad_servicos_massa_label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.pcad_servicos_massa_text {
+    font-weight: 400;
+    resize: vertical;
+    min-height: 4.5rem;
+}
+
+.pcad_servicos_massa_actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.pcad_servicos_massa_feedback {
+    margin: 0;
+    flex: 1 1 12rem;
+    font-size: 0.82rem;
+}
+
+.pcad_servicos_labs {
+    margin-bottom: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left;
+}
+
+.pcad_servicos_lab_busca {
+    width: 100%;
+    max-width: none;
+    margin-bottom: 0.5rem;
+    align-self: stretch;
+    text-align: left;
+}
+
+.pcad_servicos_labs .pcad_vet_nome_wrap,
+.pcad_servicos_labs .pcad_vet_nome_wrap .credenciamento_main_input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.pcad_servicos_labs_lista {
+    margin-top: 0.35rem;
+    width: 100%;
+}
+
+.pcad_form_layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.pcad_form_layout > .pcad_card {
+    margin: 0;
+}
+
+.pcad_card {
+    background: var(--bg, #fff);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
+    padding: 1rem 1.15rem 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.pcad_card h2 {
+    font-size: 1.05rem;
+    margin: 0 0 0.75rem;
+    color: #1a3a5c;
+    text-align: left;
+}
+
+.pcad_card_full {
+    grid-column: 1 / -1;
+}
+
+/* Espaçamento entre linhas de campos do formulário */
+.pcad_row {
+    display: grid;
+    gap: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.pcad_row:last-child {
+    margin-bottom: 0;
+}
+
+/*
+ * Larguras por coluna (grid-template-columns) — altere os valores minmax/fr abaixo.
+ * Perfil — linha 1
+ */
+.pcad_row4 {
+    /* 1º CPF/CNPJ | 2º Nome | 3º CRMV | 4º Situação */
+    grid-template-columns: minmax(120px, 1fr) minmax(200px, 2.2fr) minmax(90px, 0.6fr) minmax(90px, 0.6fr);
+}
+
+/* Perfil — linha 2 */
+.pcad_row4_contact {
+    /* 1º Telefone | 2º Celular | 3º E-mail | 4º Modalidade */
+    grid-template-columns: minmax(50px, 0.2fr) minmax(50px, 0.2fr) minmax(70px, 0.4fr) minmax(40px, 0.2fr);
+}
+
+/* Perfil — linha 3: mesma grade sempre (Especialidade não cresce quando Outras some) */
+.pcad_row.pcad_row_esp {
+    /* 1º Especialidade (largura fixa) | 2º botão | 3º Outras (vazio se inativo) */
+    grid-template-columns: minmax(160px, 240px) auto minmax(0, 2fr);
+    align-items: end;
+}
+
+.pcad_multi_esp_btn_cell {
+    align-self: end;
+}
+
+.pcad_multi_esp_btn_cell .pcad_multi_esp_toggle {
+    height: 34px;
+    white-space: nowrap;
+}
+
+.pcad_multi_esp_outras_col {
+    min-width: 0;
+}
+
+.pcad_multi_esp_outras_col .credenciamento_main_input,
+.pcad_multi_esp_outras_col .credenciamento_main_select {
+    width: 100%;
+    min-width: 0;
+}
+
+.pcad_multi_esp_outras_col .pcad_multi_esp_input_wrap {
+    width: 100%;
+}
+
+.pcad_multi_esp_tags_inline {
+    margin-bottom: 4px;
+}
+
+/* Endereço — linha 1 */
+.pcad_row_end1 {
+    /* 1º CEP (busca automática ao completar 8 dígitos) | 2º Endereço | 3º Número | 4º Complemento */
+    grid-template-columns: minmax(130px, 0.95fr) minmax(0, 2.4fr) minmax(70px, 0.55fr) minmax(0, 1fr);
+}
+
+/* Endereço — linha 2 */
+.pcad_row_end2 {
+    /* 1º Bairro | 2º Cidade | 3º UF | 4º País */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* Financeiro */
+.pcad_row_fin {
+    /* 1º Chave PIX | 2º Tipo (repasse) */
+    grid-template-columns: minmax(0, 2.5fr) minmax(100px, 0.4fr);
+}
+
+/* Cidades que atende — linha de inclusão: 1º UF | 2º Cidade | 3º Adicionar */
+.pcad_row_cidades {
+    grid-template-columns: minmax(72px, 0.22fr) minmax(0, 1fr) minmax(108px, auto);
+    align-items: end;
+    margin-bottom: 0.75rem;
+}
+
+.pcad_row_cidades .pcad_field {
+    min-width: 0;
+}
+
+.pcad_row_cidades .credenciamento_main_select,
+.pcad_row_cidades .credenciamento_main_input {
+    width: 100%;
+    min-width: 0;
+}
+
+.pcad_cidades_add_btn {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    justify-content: flex-end;
+}
+
+.pcad_cidades_add_btn .credenciamento_main_action_btn {
+    width: 100%;
+    height: 34px;
+    white-space: nowrap;
+}
+
+.pcad_span2 {
+    grid-column: span 2;
+}
+
+.pcad_field_label {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.pcad_multi_esp_cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.pcad_multi_esp {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+}
+
+.pcad_multi_esp_toggle.is-on {
+    border-color: #0b5cab;
+    background: rgba(11, 92, 171, 0.08);
+}
+
+.pcad_multi_esp_panel {
+    width: 100%;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    background: #fafbfc;
+}
+
+.pcad_multi_esp_tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+}
+
+.pcad_multi_esp_tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    background: #e8f1fa;
+    border-radius: 4px;
+    font-size: 0.82rem;
+}
+
+.pcad_multi_esp_tag button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    color: #555;
+}
+
+.pcad_multi_esp_input_wrap {
+    position: relative;
+}
+
+.pcad_sugestoes {
+    position: absolute;
+    z-index: 30;
+    left: 0;
+    right: 0;
+    top: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: 200px;
+    overflow: auto;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.pcad_sugestoes li button {
+    width: 100%;
+    text-align: left;
+    padding: 0.45rem 0.65rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.88rem;
+}
+
+.pcad_sugestoes li button:hover {
+    background: #f0f6fc;
+}
+
+.pcad_link_btn {
+    border: none;
+    background: none;
+    color: #0b5cab;
+    cursor: pointer;
+    font-size: 0.82rem;
+    text-decoration: underline;
+}
+
+.pcad_link_btn.danger {
+    color: #b00020;
+}
+
+/* Rodapé fixo: botões Voltar e Salvar */
+.pcad_form_footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 90;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 2em;
+}
+
+/* Voltar e Salvar — mesmo tamanho (ajuste min-width / height aqui) */
+.pcad_form_footer .pcad_footer_btn {
+    min-width: 128px;
+    width: 128px;
+    height: 38px;
+    padding: 0 12px !important;
+    font-size: 0.92rem;
+    font-weight: 600;
+    justify-content: center;
+}
+
+.pcad_cidades_virtual {
+    height: 220px;
+    overflow: auto;
+    border: 1px solid #e8eef3;
+    border-radius: 8px;
+    background: #fafbfc;
+    box-sizing: border-box;
+}
+
+.pcad_cidades_virtual--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.pcad_cidades_virtual--empty .pcad_muted {
+    margin: 0;
+}
+
+.pcad_cidades_virtual_item {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 0.85rem;
+    border-bottom: 1px solid #eef2f6;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+.pcad_cidades_virtual_item.is-alt {
+    background: #f8fafc;
+}
+
+.pcad_cidades_virtual_uf {
+    color: #5a7085;
+    font-weight: 500;
+}
+
+@media (max-width: 900px) {
+    .pcad_row4,
+    .pcad_row4_contact,
+    .pcad_row.pcad_row_esp {
+        grid-template-columns: 1fr;
+    }
+    .pcad_multi_esp_btn_cell .pcad_multi_esp_toggle {
+        width: 100%;
+    }
+    .pcad_row_end1,
+    .pcad_row_end2,
+    .pcad_row_fin,
+    .pcad_row_cidades,
+    .pcad_row_vet_novo {
+        grid-template-columns: 1fr;
+    }
+    .pcad_span2 {
+        grid-column: span 1;
+    }
+    .pcad_form_footer {
+        padding: 12px 1rem;
+    }
+}

@@ -8,6 +8,7 @@ import './pages/Supertabela/Supertabela_procedimentos/Supertabelaprocedimentos.c
 import './pages/Supertabela/Supertabela_negociacoes/Supertabelanegociacoes.css'
 import './pages/Credenciamento/Credenciamento_main/Credenciamento_main.css'
 import './pages/Credenciamento/Credenciamento_doc/Credenciamento_doc.css'
+import './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastro.css'
 import './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos.css'
 import './pages/Compras/ValorVenda/ComprasValorVenda.css'
 import './pages/Compras/Orcamento/ComprasOrcamento.css'

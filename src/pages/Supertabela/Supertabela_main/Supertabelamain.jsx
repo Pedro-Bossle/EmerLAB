@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import './Supertabelamain.css'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
+import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 
 const Supertabelamain = () => {
     const ALTURA_LINHA_TABELA = 42
@@ -861,7 +862,7 @@ const Supertabelamain = () => {
 
         const timer = setTimeout(() => {
             setErroDetalhe('')
-        }, 15000)
+        }, TOAST_AUTO_DISMISS_MS)
 
         return () => clearTimeout(timer)
     }, [erroDetalhe])

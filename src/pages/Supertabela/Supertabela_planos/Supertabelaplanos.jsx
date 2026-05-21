@@ -6,6 +6,7 @@ import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
 import { upsertPlanosCidadeCompat } from '../../../lib/planosCidadeCompat'
 import { inserirPlanoConfigSeNaoExiste } from '../../../lib/planosConfigCompat'
+import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 import './Supertabelaplanos.css'
 
 const COLUNAS_PLANO = [
@@ -1529,7 +1530,7 @@ const Supertabelaplanos = () => {
 
     useEffect(() => {
         if (!erroDetalhe) return
-        const timer = setTimeout(() => setErroDetalhe(''), 15000)
+        const timer = setTimeout(() => setErroDetalhe(''), TOAST_AUTO_DISMISS_MS)
         return () => clearTimeout(timer)
     }, [erroDetalhe])
 

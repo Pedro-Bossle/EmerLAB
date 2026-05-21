@@ -57,7 +57,8 @@ const menuItems = [
         label: 'Credenciamento',
         permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
         children: [
-            { label: 'Principal', href: '/credenciamento/principal', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
+            { label: 'Processos', href: '/credenciamento/principal', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
+            { label: 'Cadastros', href: '/credenciamento/cadastro', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
             { label: 'Documentação', href: '/credenciamentodoc', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
 
         ],

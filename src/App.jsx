@@ -12,6 +12,8 @@ import Supertabelaprocedimentos from './pages/Supertabela/Supertabela_procedimen
 import Supertabelanegociacoes from './pages/Supertabela/Supertabela_negociacoes/Supertabelanegociacoes';
 import Credenciamento_doc from './pages/Credenciamento/Credenciamento_doc/Credenciamento_doc';
 import Credenciamento_main from './pages/Credenciamento/Credenciamento_main/Credenciamento_main';
+import CredenciamentoCadastroLista from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroLista';
+import CredenciamentoCadastroForm from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroForm';
 import GerenciamentoAcessos from './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos';
 import ComprasValorVenda from './pages/Compras/ValorVenda/ComprasValorVenda';
 import ComprasOrcamento from './pages/Compras/Orcamento/ComprasOrcamento';
@@ -101,6 +103,22 @@ function App() {
             element={
               <PrivateRoute permission="credenciamento.view">
                 <Credenciamento_main />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/credenciamento/cadastro"
+            element={
+              <PrivateRoute permission="credenciamento.view">
+                <CredenciamentoCadastroLista />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/credenciamento/cadastro/:id"
+            element={
+              <PrivateRoute permission="credenciamento.view">
+                <CredenciamentoCadastroForm />
               </PrivateRoute>
             }
           />

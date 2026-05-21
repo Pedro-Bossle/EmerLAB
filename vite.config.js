@@ -3,6 +3,7 @@ import dotenv from 'dotenv'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import cnpjLookupHandler from './api/cnpj-lookup.js'
+import cepLookupHandler from './api/cep-lookup.js'
 import clicksignProxyHandler from './api/clicksign-proxy.js'
 import clicksignDownloadHandler from './api/clicksign-download.js'
 import adminUsersHandler from './api/admin-users.js'
@@ -21,6 +22,49 @@ function carregarEnvParaProcesso(envDir, mode) {
     const base = (merged.CLICKSIGN_API_BASE || '').trim()
     if (tok) process.env.CLICKSIGN_ACCESS_TOKEN = tok
     if (base) process.env.CLICKSIGN_API_BASE = base
+}
+
+/** Em dev, atende /api/cep-lookup no Vite. */
+function cepLookupDevPlugin() {
+    return {
+        name: 'cep-lookup-dev',
+        enforce: 'pre',
+        configureServer(server) {
+            server.middlewares.use(async (req, res, next) => {
+                const url = req.url || ''
+                if (!url.startsWith('/api/cep-lookup')) {
+                    next()
+                    return
+                }
+                const reqLike = { method: req.method || 'GET', url, headers: req.headers || {} }
+                const resLike = {
+                    statusCode: 200,
+                    setHeader(name, value) {
+                        res.setHeader(name, value)
+                    },
+                    status(code) {
+                        this.statusCode = code
+                        res.statusCode = code
+                        return this
+                    },
+                    json(payload) {
+                        if (!res.getHeader('Content-Type')) {
+                            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                        }
+                        res.statusCode = this.statusCode
+                        res.end(JSON.stringify(payload))
+                    },
+                }
+                try {
+                    await cepLookupHandler(reqLike, resLike)
+                } catch (e) {
+                    res.statusCode = 502
+                    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                    res.end(JSON.stringify({ error: e?.message || 'Falha na consulta CEP.' }))
+                }
+            })
+        },
+    }
 }
 
 /** Em dev/preview, atende /api/cnpj-lookup no próprio Vite (sem precisar de dev:api na porta 3000). */
@@ -251,6 +295,7 @@ export default defineConfig(({ command, mode }) => {
         base: command === 'serve' ? '/' : process.env.VERCEL ? '/' : '/Emerdog_SFSC_SUPERTOOL/',
         plugins: [
             command === 'serve' ? cnpjLookupDevPlugin() : null,
+            command === 'serve' ? cepLookupDevPlugin() : null,
             command === 'serve' ? adminUsersDevPlugin() : null,
             command === 'serve' ? clicksignDevPlugin() : null,
             react(),

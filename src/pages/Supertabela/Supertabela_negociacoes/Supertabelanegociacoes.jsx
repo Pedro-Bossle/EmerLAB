@@ -4,6 +4,7 @@ import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
+import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 import './Supertabelanegociacoes.css'
 
 const ALTURA_LINHA_TABELA = 42
@@ -1225,7 +1226,7 @@ const Supertabelanegociacoes = () => {
 
     useEffect(() => {
         if (!erroDetalhe) return
-        const timer = setTimeout(() => setErroDetalhe(''), 15000)
+        const timer = setTimeout(() => setErroDetalhe(''), TOAST_AUTO_DISMISS_MS)
         return () => clearTimeout(timer)
     }, [erroDetalhe])
 

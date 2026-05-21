@@ -3,6 +3,7 @@ import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { upsertPlanosCidadeCompat } from '../../../lib/planosCidadeCompat'
+import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaprocedimentos.css'
 
@@ -605,7 +606,7 @@ const Supertabelaprocedimentos = () => {
 
     useEffect(() => {
         if (!erroDetalhe) return
-        const timer = setTimeout(() => setErroDetalhe(''), 15000)
+        const timer = setTimeout(() => setErroDetalhe(''), TOAST_AUTO_DISMISS_MS)
         return () => clearTimeout(timer)
     }, [erroDetalhe])
 
