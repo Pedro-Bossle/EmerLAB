@@ -896,6 +896,24 @@ export function rotuloEstadoDocumento(status) {
     return map[st] || (st ? st : '—')
 }
 
+/** Origem do app Clicksign (sandbox vs produção) — opcional VITE_CLICKSIGN_API_BASE no build. */
+export function clicksignAppOrigin() {
+    const apiBase = String(
+        typeof import.meta !== 'undefined' ? import.meta.env.VITE_CLICKSIGN_API_BASE || '' : '',
+    )
+        .trim()
+        .replace(/\/$/, '')
+    if (apiBase) {
+        try {
+            const u = new URL(apiBase.includes('://') ? apiBase : `https://${apiBase}`)
+            return u.origin
+        } catch {
+            /* ignore */
+        }
+    }
+    return 'https://sandbox.clicksign.com'
+}
+
 /** URL para abrir o envelope no site Clicksign (origem inferida do link da API). */
 export function urlAbrirEnvelopeClicksign(envelopeId, selfLink) {
     const id = String(envelopeId || '').trim()
@@ -908,7 +926,7 @@ export function urlAbrirEnvelopeClicksign(envelopeId, selfLink) {
             /* ignore */
         }
     }
-    return `https://sandbox.clicksign.com/envelopes/${id}`
+    return `${clicksignAppOrigin()}/envelopes/${id}`
 }
 
 export function dataEncerramentoEnvelope(attrs) {
