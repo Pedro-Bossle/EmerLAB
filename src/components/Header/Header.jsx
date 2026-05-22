@@ -44,7 +44,9 @@ const Header = () => {
                 <Link className='header_nav_link' to="/supertabelamain">Super-Tabela</Link>
                 <Link className='header_nav_link' to="/credenciamento/principal">Credenciamento</Link>
                 <Link className='header_nav_link' to="/Compras/Orcamento">Orçamentos</Link>
-                <a className='header_nav_link' href="#">Contratos</a>
+                <Link className='header_nav_link' to="/contratos/clicksign">
+                    Contratos
+                </Link>
                 {/*<a className='header_nav_link' href="#">Formulário</a>
                 <a className='header_nav_link' href="#">Planos</a>
                 <a className='header_nav_link' href="#">Pagamentos</a>

@@ -3,6 +3,10 @@
  * API Clicksign 3.0 — JSON:API (`application/vnd.api+json`).
  */
 
+import { formatarTelefoneBrExibicao, normalizarTelefoneBr } from '../telefoneBrasil.js'
+
+export { formatarTelefoneBrExibicao, normalizarTelefoneBr }
+
 async function parseJson(res) {
     const text = await res.text()
     let data = {}
@@ -344,12 +348,54 @@ export function normalizarRespostaRequisitos(json) {
 
 export async function obterRequisitosEnvelope(clickReq, envelopeId) {
     const eid = String(envelopeId || '').trim()
-    let res = await clickReq('GET', pathListagemRequisitosEnvelope(eid))
+    const fetchPage = async (pageNumber, include) =>
+        clickReq('GET', pathListagemRequisitosEnvelope(eid, { pageNumber, pageSize: 50, include }))
+
+    let res = await fetchPage(1, true)
     if (!res.ok && (res.status === 400 || res.status === 404)) {
-        res = await clickReq('GET', pathListagemRequisitosEnvelope(eid, { include: false }))
+        res = await fetchPage(1, false)
     }
     if (!res.ok) return res
-    return { ...res, data: normalizarRespostaRequisitos(res.data) }
+
+    const allData = []
+    const includedMap = new Map()
+    const mergeIncluded = (json) => {
+        for (const inc of Array.isArray(json?.included) ? json.included : []) {
+            if (inc?.type && inc?.id) includedMap.set(`${inc.type}:${inc.id}`, inc)
+        }
+    }
+    const absorbPage = (json) => {
+        mergeIncluded(json)
+        const norm = normalizarRespostaRequisitos({ ...json, included: [...includedMap.values()] })
+        const chunk = Array.isArray(norm.data) ? norm.data : norm.data ? [norm.data] : []
+        allData.push(...chunk)
+        return norm
+    }
+
+    let lastNorm = absorbPage(res.data)
+    for (let page = 2; page <= 30; page += 1) {
+        const nextUrl = lastNorm?.links?.next
+        const recordCount = Number(lastNorm?.meta?.record_count)
+        const hasMore =
+            (typeof nextUrl === 'string' && nextUrl.length > 0) ||
+            (Number.isFinite(recordCount) && recordCount > 0 && allData.length < recordCount)
+        if (!hasMore) break
+        const resPage = await fetchPage(page, true)
+        if (!resPage.ok) break
+        const chunkLen = Array.isArray(resPage.data?.data) ? resPage.data.data.length : resPage.data?.data ? 1 : 0
+        if (chunkLen === 0) break
+        lastNorm = absorbPage(resPage.data)
+    }
+
+    return {
+        ...res,
+        data: normalizarRespostaRequisitos({
+            data: allData,
+            included: [...includedMap.values()],
+            links: lastNorm?.links,
+            meta: lastNorm?.meta,
+        }),
+    }
 }
 
 export function contagemRequisitosPorTipo(requirementsJson) {
@@ -701,13 +747,6 @@ export function payloadRequisitoQualificacao(_envelopeId, { documentId, signerId
     }
 }
 
-/** Normaliza telefone BR para 10 ou 11 dígitos (só números), conforme API. */
-export function normalizarTelefoneBr(valor) {
-    let d = String(valor || '').replace(/\D/g, '')
-    if (d.startsWith('55') && d.length >= 12) d = d.slice(2)
-    return d
-}
-
 /**
  * Signatário: canal e-mail ou WhatsApp.
  * Payload mínimo para POST `/envelopes/:envelope_id/signers`.
@@ -718,16 +757,14 @@ export function normalizarTelefoneBr(valor) {
  */
 export function payloadSignatario(_envelopeId, { name, email, phone, channel = 'email' }) {
     const nome = String(name || '').trim()
+    const em = String(email || '').trim().toLowerCase()
     const attrs = {
         name: nome,
+        email: em,
     }
     if (channel === 'whatsapp') {
         const tel = normalizarTelefoneBr(phone)
         attrs.phone_number = tel
-        const em = String(email || '').trim().toLowerCase()
-        if (em) attrs.email = em
-    } else {
-        attrs.email = String(email || '').trim().toLowerCase()
     }
     return {
         data: {
@@ -957,22 +994,134 @@ export function signatarioPossuiQualificacao(rolesBySigner, signerId) {
 
 export function rotuloMeioContatoSignatario(sig, authInferido) {
     const em = String(sig?.email || '').trim()
-    const ph = String(sig?.phone || '').replace(/\D/g, '')
+    const ph = normalizarTelefoneBr(sig?.phone)
     if (authInferido === 'whatsapp' || (ph.length >= 10 && (!em || em === '—'))) {
-        return ph.length >= 10 ? `WhatsApp · ${sig.phone}` : 'WhatsApp'
+        return ph.length >= 10 ? `WhatsApp · ${formatarTelefoneBrExibicao(sig.phone)}` : 'WhatsApp'
     }
     if (em && em !== '—') return `E-mail · ${em}`
     return '—'
 }
 
-export function rotuloAssinaturaSignatario(attrs) {
+const STATUS_ASSINATURA_CONCLUIDA = new Set([
+    'completed',
+    'complete',
+    'signed',
+    'fulfilled',
+    'done',
+    'finished',
+    'agreed',
+    'closed',
+])
+
+const STATUS_ASSINATURA_RECUSADA = new Set(['refused', 'rejected', 'canceled', 'cancelled'])
+
+function atributosSignerExpandidos(attrs) {
+    const a = attrs && typeof attrs === 'object' ? attrs : {}
+    return [a, a.signature, a.signing, a.participation].filter((x) => x && typeof x === 'object')
+}
+
+function dataConclusaoAtributos(a) {
+    if (!a || typeof a !== 'object') return null
+    return (
+        a.finished_at ??
+        a.completed_at ??
+        a.signed_at ??
+        a.fulfilled_at ??
+        a.signature_finished_at ??
+        a.agreed_at ??
+        null
+    )
+}
+
+function requisitoAssinaturaConcluido(attrs) {
     const a = attrs || {}
-    const st = String(a.status ?? '').toLowerCase()
-    const signed = a.signed_at ?? a.signed ?? a.signature_finished_at ?? a.completed_at
-    if (signed) return formatarDataIsoPtBr(signed)
-    if (st === 'signed' || st === 'completed' || st === 'closed') return 'Assinado'
-    if (st === 'refused' || st === 'rejected') return 'Recusado'
+    const st = String(a.status ?? a.state ?? a.phase ?? '').toLowerCase()
+    if (STATUS_ASSINATURA_RECUSADA.has(st)) return false
+    if (STATUS_ASSINATURA_CONCLUIDA.has(st)) return true
+    if (dataConclusaoAtributos(a)) return true
+    return false
+}
+
+function requisitoAssinaturaRecusado(attrs) {
+    const st = String(attrs?.status ?? attrs?.state ?? '').toLowerCase()
+    return STATUS_ASSINATURA_RECUSADA.has(st)
+}
+
+function isRequisitoAssinaturaEnvelope(item) {
+    if (isRequisitoQualificacaoItem(item)) return true
+    const action = String(item?.attributes?.action || '').toLowerCase()
+    return action === 'sign' || action === 'signature'
+}
+
+/**
+ * Progresso de assinatura por signatário a partir dos requisitos «agree» (um por documento).
+ */
+export function extrairResumoAssinaturaPorSignatario(requirementsJson) {
+    /** @type {Record<string, { total: number, done: number, refused: boolean, lastIso: string|null }>} */
+    const map = {}
+    const arr = Array.isArray(requirementsJson?.data)
+        ? requirementsJson.data
+        : requirementsJson?.data
+          ? [requirementsJson.data]
+          : []
+    for (const item of arr) {
+        if (!isRequisitoAssinaturaEnvelope(item)) continue
+        const sid = signerIdDoRequisito(item)
+        if (!sid) continue
+        const a = item?.attributes || {}
+        if (!map[sid]) map[sid] = { total: 0, done: 0, refused: false, lastIso: null }
+        map[sid].total += 1
+        if (requisitoAssinaturaRecusado(a)) map[sid].refused = true
+        if (requisitoAssinaturaConcluido(a)) {
+            map[sid].done += 1
+            const iso = dataConclusaoAtributos(a)
+            if (iso && (!map[sid].lastIso || String(iso) > String(map[sid].lastIso))) {
+                map[sid].lastIso = iso
+            }
+        }
+    }
+    return map
+}
+
+function mesclarSignersIncluded(signerItemsById, requirementsJson) {
+    const byId = { ...signerItemsById }
+    const included = Array.isArray(requirementsJson?.included) ? requirementsJson.included : []
+    for (const res of included) {
+        if (res?.type !== 'signers' || !res?.id) continue
+        const prev = byId[res.id]
+        byId[res.id] = prev
+            ? { ...prev, attributes: { ...(prev.attributes || {}), ...(res.attributes || {}) } }
+            : res
+    }
+    return byId
+}
+
+export function rotuloAssinaturaSignatario(attrs) {
+    for (const bloco of atributosSignerExpandidos(attrs)) {
+        const st = String(bloco.status ?? bloco.state ?? '').toLowerCase()
+        const signed = dataConclusaoAtributos(bloco)
+        if (signed) return formatarDataIsoPtBr(signed)
+        if (STATUS_ASSINATURA_CONCLUIDA.has(st)) return 'Assinado'
+        if (STATUS_ASSINATURA_RECUSADA.has(st)) return 'Recusado'
+    }
     return 'Pendente'
+}
+
+export function rotuloAssinaturaSignatarioDetalhe(signerId, signerAttrs, resumoPorSigner) {
+    const sid = String(signerId || '').trim()
+    const r = resumoPorSigner?.[sid]
+    if (r?.refused) return 'Recusado'
+    if (r && r.total > 0) {
+        if (r.done >= r.total) {
+            return r.lastIso ? formatarDataIsoPtBr(r.lastIso) : 'Assinado'
+        }
+        if (r.done > 0) {
+            const docWord = r.total === 1 ? 'documento' : 'documentos'
+            return `Assinado (${r.done}/${r.total} ${docWord})`
+        }
+        return 'Pendente'
+    }
+    return rotuloAssinaturaSignatario(signerAttrs)
 }
 
 function formatarDataIsoPtBr(iso) {
@@ -1020,6 +1169,8 @@ export async function enriquecerDocumentosComArquivos(clickReq, envelopeId, docs
 export function montarLinhasSignatariosDetalhe(signersJson, requirementsJson, signerItemsById = {}) {
     const rows = extrairListaSignatarios(signersJson)
     const roles = requirementsJson ? extrairRolesQualificacaoPorSignatario(requirementsJson) : {}
+    const resumoAssinatura = requirementsJson ? extrairResumoAssinaturaPorSignatario(requirementsJson) : {}
+    const byId = requirementsJson ? mesclarSignersIncluded(signerItemsById, requirementsJson) : signerItemsById
     const authBySigner = {}
     const arrReq = Array.isArray(requirementsJson?.data)
         ? requirementsJson.data
@@ -1034,14 +1185,14 @@ export function montarLinhasSignatariosDetalhe(signersJson, requirementsJson, si
         authBySigner[sid] = String(a.auth || 'email').toLowerCase() === 'whatsapp' ? 'whatsapp' : 'email'
     }
     return rows.map((s) => {
-        const raw = signerItemsById[s.id]
+        const raw = byId[s.id]
         const attrs = raw?.attributes || {}
         const auth = authBySigner[s.id] || inferirAuthDoSignatario(s)
         return {
             ...s,
             qualificationLabel: roles[s.id] ? rotuloPapelQualificacao(roles[s.id]) : '—',
             contactLabel: rotuloMeioContatoSignatario(s, auth),
-            signatureLabel: rotuloAssinaturaSignatario(attrs),
+            signatureLabel: rotuloAssinaturaSignatarioDetalhe(s.id, attrs, resumoAssinatura),
         }
     })
 }
@@ -1056,7 +1207,7 @@ export function extrairListaSignatarios(json) {
             id: item?.id ?? '',
             name: a.name ?? a.full_name ?? '—',
             email: a.email ?? '—',
-            phone: a.phone_number ?? a.phone ?? '—',
+            phone: formatarTelefoneBrExibicao(a.phone_number ?? a.phone ?? ''),
             status: a.status ?? '—',
             rawAttributes: a,
         })

@@ -1,5 +1,7 @@
 /** Agenda local de signatários (localStorage). */
 
+import { maskTelefoneBr } from '../telefoneBrasil.js'
+
 const STORAGE_KEY = 'emerdog_cs_agenda_signatarios'
 
 function safeParse(json) {
@@ -13,7 +15,10 @@ function safeParse(json) {
 
 export function carregarAgendaSignatarios() {
     try {
-        return safeParse(localStorage.getItem(STORAGE_KEY))
+        return safeParse(localStorage.getItem(STORAGE_KEY)).map((c) => ({
+            ...c,
+            phone: c.phone ? maskTelefoneBr(c.phone) : '',
+        }))
     } catch {
         return []
     }
@@ -47,11 +52,11 @@ export function alternarFavoritoAgenda(localId) {
 export function upsertContatoAgenda(contato) {
     const nome = String(contato.name || '').trim()
     const email = String(contato.email || '').trim().toLowerCase()
-    const phone = String(contato.phone || '').trim()
+    const phone = maskTelefoneBr(contato.phone || '')
     const channel = contato.channel === 'whatsapp' ? 'whatsapp' : 'email'
     const papel = String(contato.papel || 'sign').trim() || 'sign'
     if (!nome) return carregarAgendaSignatarios()
-    if (channel === 'email' && !email) return carregarAgendaSignatarios()
+    if (!email) return carregarAgendaSignatarios()
     if (channel === 'whatsapp') {
         const d = String(phone || '').replace(/\D/g, '')
         if (d.length < 10) return carregarAgendaSignatarios()
@@ -102,11 +107,11 @@ export function atualizarContatoAgendaPorId(localId, { name, email, phone, chann
     if (i === -1) return lista
     const nome = String(name || '').trim()
     const em = String(email || '').trim().toLowerCase()
-    const ph = String(phone || '').trim()
+    const ph = maskTelefoneBr(phone || '')
     const ch = channel === 'whatsapp' ? 'whatsapp' : 'email'
     const pap = String(papel || 'sign').trim() || 'sign'
     if (!nome) return carregarAgendaSignatarios()
-    if (ch === 'email' && !em) return carregarAgendaSignatarios()
+    if (!em) return carregarAgendaSignatarios()
     if (ch === 'whatsapp') {
         const d = ph.replace(/\D/g, '')
         if (d.length < 10) return carregarAgendaSignatarios()

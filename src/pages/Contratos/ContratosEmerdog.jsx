@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { buscarDadosCNPJ } from '../../lib/contratos/cnpjBizClient.js'
 import { apenasDigitos, errosValidacao } from '../../lib/contratos/validarDocumentos.js'
 import { maskCNPJ, maskCPF } from '../../lib/contratos/mascarasDocumento.js'
+import { formatarContatoSeTelefone, maskTelefoneBr } from '../../lib/telefoneBrasil.js'
 import { linhasParaTextoPreview, getLinhas } from '../../lib/contratos/pdf/linhasIndex.js'
 import { gerarPdfBlob, downloadPdf, nomeArquivoContrato } from '../../lib/contratos/pdf/gerarContratoPdf.js'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl.js'
@@ -66,9 +67,22 @@ const ContratosEmerdog = () => {
     }, [toast])
 
     const getPayload = useCallback(() => {
-        if (tipo === 'clinicas') return { ...clinica }
-        if (tipo === 'parceria') return { ...parceria }
-        return { ...volante }
+        if (tipo === 'clinicas') {
+            return {
+                ...clinica,
+                contatoAgendamento: formatarContatoSeTelefone(clinica.contatoAgendamento),
+            }
+        }
+        if (tipo === 'parceria') {
+            return {
+                ...parceria,
+                contatoResponsavel: formatarContatoSeTelefone(parceria.contatoResponsavel),
+            }
+        }
+        return {
+            ...volante,
+            contatoAgendamento: formatarContatoSeTelefone(volante.contatoAgendamento),
+        }
     }, [tipo, clinica, parceria, volante])
 
     useEffect(() => {
@@ -295,8 +309,15 @@ const ContratosEmerdog = () => {
                             <input
                                 id="ce-contato"
                                 className="contratos_input"
+                                inputMode="tel"
+                                placeholder="(11) 99999-9999"
                                 value={clinica.contatoAgendamento}
-                                onChange={(e) => setClinica((p) => ({ ...p, contatoAgendamento: e.target.value }))}
+                                onChange={(e) =>
+                                    setClinica((p) => ({
+                                        ...p,
+                                        contatoAgendamento: maskTelefoneBr(e.target.value),
+                                    }))
+                                }
                             />
                         </div>
                         <div className="contratos_field" style={{ gridColumn: '1 / -1' }}>
@@ -447,8 +468,15 @@ const ContratosEmerdog = () => {
                                 <input
                                     id="ve-contato"
                                     className="contratos_input"
+                                    inputMode="tel"
+                                    placeholder="(11) 99999-9999"
                                     value={volante.contatoAgendamento}
-                                    onChange={(e) => setVolante((p) => ({ ...p, contatoAgendamento: e.target.value }))}
+                                    onChange={(e) =>
+                                        setVolante((p) => ({
+                                            ...p,
+                                            contatoAgendamento: maskTelefoneBr(e.target.value),
+                                        }))
+                                    }
                                 />
                             </div>
                             <div className="contratos_field" style={{ gridColumn: '1 / -1' }}>
@@ -535,8 +563,15 @@ const ContratosEmerdog = () => {
                             <input
                                 id="pe-tel"
                                 className="contratos_input"
+                                inputMode="tel"
+                                placeholder="(11) 99999-9999"
                                 value={parceria.contatoResponsavel}
-                                onChange={(e) => setParceria((p) => ({ ...p, contatoResponsavel: e.target.value }))}
+                                onChange={(e) =>
+                                    setParceria((p) => ({
+                                        ...p,
+                                        contatoResponsavel: maskTelefoneBr(e.target.value),
+                                    }))
+                                }
                             />
                         </div>
                     </div>

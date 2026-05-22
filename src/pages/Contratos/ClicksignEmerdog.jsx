@@ -30,6 +30,7 @@ import {
     nomeSignatarioValido,
     normalizarPapelQualificacao,
     normalizarTelefoneBr,
+    formatarTelefoneBrExibicao,
     pathFromClicksignLink,
     rotuloEstadoEnvelope,
     rotuloPapelQualificacao,
@@ -49,6 +50,7 @@ import {
     removerContatoAgendaPorId,
     upsertContatoAgenda,
 } from '../../lib/clicksign/agendaSignatarios.js'
+import { maskTelefoneBr } from '../../lib/telefoneBrasil.js'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl.js'
 import './ContratosEmerdog.css'
 import './ClicksignEmerdog.css'
@@ -56,6 +58,11 @@ import { TOAST_AUTO_DISMISS_MS, abrirUrlDownload, formatarDataPtBr } from './con
 
 const PDF_MAX_BYTES = 12 * 1024 * 1024
 const STORAGE_FLUXO_EID = 'emerdog_cs_fluxo_eid'
+
+/** Canal de notificação do signatário (evita comparar strings inconsistentes). */
+function canalSignatario(channel) {
+    return String(channel || '').toLowerCase() === 'whatsapp' ? 'whatsapp' : 'email'
+}
 
 function IconeMenuVertical() {
     return (
@@ -175,6 +182,8 @@ export default function ClicksignEmerdog() {
     const [subTabLista, setSubTabLista] = useState('envelopes')
     const [contagens, setContagens] = useState({ running: null, recusas: 0, closed30: null, canceled30: null })
     const [contagensLoading, setContagensLoading] = useState(false)
+    const [continuarItens, setContinuarItens] = useState([])
+    const [continuarLoading, setContinuarLoading] = useState(false)
 
     const [mesLoading, setMesLoading] = useState(false)
     const [mesMeta, setMesMeta] = useState({})
@@ -401,6 +410,74 @@ export default function ClicksignEmerdog() {
         return Array.isArray(data?.data) ? data.data.length : null
     }, [])
 
+    const carregarContinuarDeOndeParou = useCallback(async () => {
+        setContinuarLoading(true)
+        try {
+            const path = montarPathListagemEnvelopes({ pageNumber: 1, pageSize: 8, filterStatus: 'draft' })
+            const { ok, data } = await csRequest('GET', path)
+            let rows = ok ? extrairListaEnvelopes(data).rows : []
+            let eidSess = ''
+            try {
+                eidSess = String(sessionStorage.getItem(STORAGE_FLUXO_EID) || '').trim()
+            } catch {
+                eidSess = ''
+            }
+            if (eidSess && !rows.some((r) => String(r.id) === eidSess)) {
+                const enc = await csRequest('GET', `/envelopes/${encodeURIComponent(eidSess)}`)
+                if (enc.ok) {
+                    const a = enc.data?.data?.attributes || {}
+                    const st = String(a.status ?? a.state ?? '')
+                        .trim()
+                        .toLowerCase()
+                    if (st === 'draft') {
+                        rows = [
+                            {
+                                id: eidSess,
+                                name: a.name ?? a.title ?? '—',
+                                status: 'draft',
+                                created: a.created ?? a.created_at ?? '',
+                                updated: a.modified ?? a.updated_at ?? '',
+                            },
+                            ...rows,
+                        ]
+                    }
+                }
+            }
+            const slice = rows.slice(0, 8)
+            const itens = await Promise.all(
+                slice.map(async (r) => {
+                    const id = String(r.id || '').trim()
+                    const docRes = await csRequest(
+                        'GET',
+                        `/envelopes/${encodeURIComponent(id)}/documents?page[size]=1`,
+                    )
+                    let docCount = 0
+                    if (docRes.ok) {
+                        const rc = docRes.data?.meta?.record_count
+                        docCount =
+                            typeof rc === 'number' ? rc : extrairListaDocumentos(docRes.data).length
+                    }
+                    return {
+                        id,
+                        name: r.name,
+                        status: r.status,
+                        docCount,
+                    }
+                }),
+            )
+            setContinuarItens(itens.filter((x) => x.id))
+        } finally {
+            setContinuarLoading(false)
+        }
+    }, [csRequest])
+
+    const abrirContinuarMontar = useCallback((envelopeId) => {
+        const id = String(envelopeId || '').trim()
+        if (!id) return
+        montarEdicaoEnvelopeIdRef.current = id
+        setTab('montar')
+    }, [])
+
     const carregarContagensDashboard = useCallback(async () => {
         setContagensLoading(true)
         const intervalo30 = intervaloCriacaoUltimos30DiasUtc()
@@ -472,8 +549,9 @@ export default function ClicksignEmerdog() {
     useEffect(() => {
         if (tab === 'envelopes' && vistaPainel === 'hub') {
             void carregarContagensDashboard()
+            void carregarContinuarDeOndeParou()
         }
-    }, [tab, vistaPainel, carregarContagensDashboard])
+    }, [tab, vistaPainel, carregarContagensDashboard, carregarContinuarDeOndeParou])
 
     useEffect(() => {
         if (tab === 'envelopes') {
@@ -1021,9 +1099,14 @@ export default function ClicksignEmerdog() {
                 pushToast('error', 'Signatário', 'Use o nome completo (pelo menos duas palavras), como na Clicksign.')
                 return false
             }
-            const ch = channel === 'whatsapp' ? 'whatsapp' : 'email'
-            if (ch === 'email' && !String(email || '').trim()) {
-                pushToast('error', 'Signatário', 'Preencha o e-mail ou mude o canal para WhatsApp.')
+            const ch = canalSignatario(channel)
+            const emTrim = String(email || '').trim()
+            if (!emTrim) {
+                pushToast(
+                    'error',
+                    'Signatário',
+                    'A Clicksign exige e-mail no cadastro do signatário (a autenticação pode ser por WhatsApp).',
+                )
                 return false
             }
             if (ch === 'whatsapp') {
@@ -1160,7 +1243,7 @@ export default function ClicksignEmerdog() {
                     upsertContatoAgenda({
                         name: nomeTrim,
                         email: String(email || '').trim(),
-                        phone: String(phone || '').trim(),
+                        phone: maskTelefoneBr(phone || ''),
                         channel: ch,
                         papel: papelUsar,
                     }),
@@ -1389,6 +1472,35 @@ export default function ClicksignEmerdog() {
                                         </span>
                                     </nav>
                                 </header>
+                                <section className="cs_dash_continue" aria-labelledby="cs-dash-continue-title">
+                                    <h3 id="cs-dash-continue-title" className="cs_dash_continue_title">
+                                        Continue de onde parou
+                                    </h3>
+                                    {continuarLoading && <p className="cs_dash_continue_empty">A carregar rascunhos…</p>}
+                                    {!continuarLoading && continuarItens.length === 0 && (
+                                        <p className="cs_dash_continue_empty">Nenhum envelope em rascunho para continuar.</p>
+                                    )}
+                                    {!continuarLoading && continuarItens.length > 0 && (
+                                        <ul className="cs_dash_continue_list">
+                                            {continuarItens.map((item) => (
+                                                <li key={item.id}>
+                                                    <button
+                                                        type="button"
+                                                        className="cs_dash_continue_row"
+                                                        onClick={() => abrirContinuarMontar(item.id)}
+                                                    >
+                                                        <span className="cs_dash_continue_nome">{item.name}</span>
+                                                        <span className="cs_dash_continue_meta" aria-hidden>
+                                                            {' '}
+                                                            — {rotuloEstadoEnvelope(item.status)} — {item.docCount}{' '}
+                                                            {item.docCount === 1 ? 'documento' : 'documentos'}
+                                                        </span>
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </section>
                                 <div className="cs_dash_grid">
                                     <div
                                         className={`cs_dash_upload_card ${dashDropAtivo ? 'is-drag' : ''}`}
@@ -1979,7 +2091,8 @@ export default function ClicksignEmerdog() {
                                                     {s.qualificationLabel ? `${s.name} — ${s.qualificationLabel}` : s.name}
                                                 </span>
                                                 <span className="cs_summary_meta">
-                                                    {s.email !== '—' ? s.email : ''} {s.phone && s.phone !== '—' ? `· ${s.phone}` : ''} · {s.status}
+                                                    {s.email !== '—' ? s.email : ''}{' '}
+                                                    {s.phone && s.phone !== '—' ? `· ${formatarTelefoneBrExibicao(s.phone)}` : ''} · {s.status}
                                                 </span>
                                             </div>
                                             <div className="cs_summary_sig_actions">
@@ -1999,7 +2112,7 @@ export default function ClicksignEmerdog() {
                                                         setSignDraft({
                                                             channel: canal,
                                                             email: em && em !== '—' ? em : '',
-                                                            phone: ph,
+                                                            phone: maskTelefoneBr(ph),
                                                             nome: String(s.name || '').trim(),
                                                             saveAgenda: false,
                                                         })
@@ -2068,11 +2181,10 @@ export default function ClicksignEmerdog() {
                                                 className="contratos_select cs_input"
                                                 value={signDraft.channel}
                                                 onChange={(e) => {
-                                                    const ch = e.target.value === 'whatsapp' ? 'whatsapp' : 'email'
+                                                    const ch = canalSignatario(e.target.value)
                                                     setSignDraft((d) => ({
                                                         ...d,
                                                         channel: ch,
-                                                        email: ch === 'whatsapp' ? '' : d.email,
                                                         phone: ch === 'email' ? '' : d.phone,
                                                     }))
                                                 }}
@@ -2081,13 +2193,14 @@ export default function ClicksignEmerdog() {
                                                 <option value="whatsapp">WhatsApp</option>
                                             </select>
                                         </div>
-                                        {signDraft.channel === 'email' ? (
+                                        {canalSignatario(signDraft.channel) === 'email' ? (
                                             <div className="contratos_field cs_sign_field_full">
                                                 <label htmlFor="cs-sig-em">E-mail</label>
                                                 <input
                                                     id="cs-sig-em"
                                                     className="contratos_input cs_input"
-                                                    type="email"
+                                                    type="text"
+                                                    inputMode="email"
                                                     autoComplete="email"
                                                     placeholder="Digite o e-mail"
                                                     value={signDraft.email}
@@ -2095,18 +2208,39 @@ export default function ClicksignEmerdog() {
                                                 />
                                             </div>
                                         ) : (
+                                            <>
                                                 <div className="contratos_field cs_sign_field_full">
                                                     <label htmlFor="cs-sig-ph">Telefone (WhatsApp)</label>
                                                     <input
                                                         id="cs-sig-ph"
                                                         className="contratos_input cs_input"
+                                                        type="text"
                                                         inputMode="numeric"
                                                         autoComplete="tel"
                                                         placeholder="11999998888"
                                                         value={signDraft.phone}
-                                                        onChange={(e) => setSignDraft((d) => ({ ...d, phone: e.target.value }))}
+                                                        onChange={(e) =>
+                                                            setSignDraft((d) => ({ ...d, phone: maskTelefoneBr(e.target.value) }))
+                                                        }
                                                     />
                                                 </div>
+                                                <div className="contratos_field cs_sign_field_full">
+                                                    <label htmlFor="cs-sig-em-wpp">E-mail</label>
+                                                    <input
+                                                        id="cs-sig-em-wpp"
+                                                        className="contratos_input cs_input"
+                                                        type="text"
+                                                        inputMode="email"
+                                                        autoComplete="email"
+                                                        placeholder="Obrigatório na Clicksign"
+                                                        value={signDraft.email}
+                                                        onChange={(e) => setSignDraft((d) => ({ ...d, email: e.target.value }))}
+                                                    />
+                                                </div>
+                                                <p className="contratos_hint cs_sign_wpp_hint">
+                                                    A autenticação será por WhatsApp; a API exige e-mail no cadastro do signatário.
+                                                </p>
+                                            </>
                                         )}
                                     </div>
 
@@ -2145,11 +2279,12 @@ export default function ClicksignEmerdog() {
                                                 pushToast('error', 'Signatário', 'Indique o nome completo (pelo menos duas palavras).')
                                                 return
                                             }
-                                            if (signDraft.channel === 'email' && !signDraft.email.trim()) {
-                                                pushToast('error', 'Signatário', 'Preencha o e-mail.')
+                                            const chAv = canalSignatario(signDraft.channel)
+                                            if (!signDraft.email.trim()) {
+                                                pushToast('error', 'Signatário', 'Preencha o e-mail (obrigatório na Clicksign).')
                                                 return
                                             }
-                                            if (signDraft.channel === 'whatsapp') {
+                                            if (chAv === 'whatsapp') {
                                                 const tel = normalizarTelefoneBr(signDraft.phone)
                                                 if (tel.length < 10 || tel.length > 11) {
                                                     pushToast('error', 'WhatsApp', 'Telefone com DDD: 10 ou 11 dígitos.')
@@ -2158,9 +2293,9 @@ export default function ClicksignEmerdog() {
                                             }
                                             setSignPending({
                                                 name: signDraft.nome.trim(),
-                                                email: signDraft.channel === 'email' ? signDraft.email.trim() : '',
-                                                phone: signDraft.channel === 'whatsapp' ? signDraft.phone : '',
-                                                channel: signDraft.channel,
+                                                email: signDraft.email.trim(),
+                                                phone: chAv === 'whatsapp' ? signDraft.phone : '',
+                                                channel: chAv,
                                                 gravarNaAgenda: signDraft.saveAgenda,
                                                 source: 'novo',
                                             })
@@ -2256,7 +2391,11 @@ export default function ClicksignEmerdog() {
                                                             />
                                                         </td>
                                                         <td>{c.name}</td>
-                                                        <td>{c.channel === 'whatsapp' ? c.phone || '—' : c.email || '—'}</td>
+                                                        <td>
+                                                            {c.channel === 'whatsapp'
+                                                                ? formatarTelefoneBrExibicao(c.phone) || '—'
+                                                                : c.email || '—'}
+                                                        </td>
                                                         <td>
                                                             <button
                                                                 type="button"
@@ -2267,9 +2406,9 @@ export default function ClicksignEmerdog() {
                                                                     e.stopPropagation()
                                                                     setSignAgendaEditId(c.localId)
                                                                     setSignDraft({
-                                                                        channel: c.channel === 'whatsapp' ? 'whatsapp' : 'email',
+                                                                        channel: canalSignatario(c.channel),
                                                                         email: String(c.email || '').trim(),
-                                                                        phone: String(c.phone || '').trim(),
+                                                                        phone: maskTelefoneBr(c.phone || ''),
                                                                         nome: String(c.name || '').trim(),
                                                                         saveAgenda: true,
                                                                     })
@@ -2350,12 +2489,12 @@ export default function ClicksignEmerdog() {
                                                 return
                                             }
                                             for (const c of selecionados) {
-                                                const canalAg = c.channel === 'whatsapp' ? 'whatsapp' : 'email'
-                                                if (canalAg === 'email' && !String(c.email || '').trim()) {
+                                                const canalAg = canalSignatario(c.channel)
+                                                if (!String(c.email || '').trim()) {
                                                     pushToast(
                                                         'error',
                                                         'Agenda',
-                                                        `«${c.name}» não tem e-mail. Edite o contacto ou retire da seleção.`,
+                                                        `«${c.name}» não tem e-mail (obrigatório na Clicksign). Edite o contacto ou retire da seleção.`,
                                                     )
                                                     return
                                                 }
@@ -2401,19 +2540,27 @@ export default function ClicksignEmerdog() {
                                                 id="cs-sig-ed-ch"
                                                 className="contratos_select cs_input"
                                                 value={signDraft.channel}
-                                                onChange={(e) => setSignDraft((d) => ({ ...d, channel: e.target.value }))}
+                                                onChange={(e) => {
+                                                    const ch = canalSignatario(e.target.value)
+                                                    setSignDraft((d) => ({
+                                                        ...d,
+                                                        channel: ch,
+                                                        phone: ch === 'email' ? '' : d.phone,
+                                                    }))
+                                                }}
                                             >
                                                 <option value="email">E-mail</option>
                                                 <option value="whatsapp">WhatsApp</option>
                                             </select>
                                         </div>
-                                        {signDraft.channel === 'email' ? (
+                                        {canalSignatario(signDraft.channel) === 'email' ? (
                                             <div className="contratos_field cs_sign_w400">
                                                 <label htmlFor="cs-sig-ed-em">E-mail</label>
                                                 <input
                                                     id="cs-sig-ed-em"
                                                     className="contratos_input cs_input"
-                                                    type="email"
+                                                    type="text"
+                                                    inputMode="email"
                                                     value={signDraft.email}
                                                     onChange={(e) => setSignDraft((d) => ({ ...d, email: e.target.value }))}
                                                 />
@@ -2427,17 +2574,19 @@ export default function ClicksignEmerdog() {
                                                         className="contratos_input cs_input"
                                                         inputMode="numeric"
                                                         value={signDraft.phone}
-                                                        onChange={(e) => setSignDraft((d) => ({ ...d, phone: e.target.value }))}
+                                                        onChange={(e) =>
+                                                            setSignDraft((d) => ({ ...d, phone: maskTelefoneBr(e.target.value) }))
+                                                        }
                                                     />
                                                 </div>
                                                 <div className="contratos_field cs_sign_w400">
-                                                    <label htmlFor="cs-sig-ed-em2">E-mail (opcional)</label>
+                                                    <label htmlFor="cs-sig-ed-em2">E-mail</label>
                                                     <input
                                                         id="cs-sig-ed-em2"
                                                         className="contratos_input cs_input"
                                                         type="text"
                                                         inputMode="email"
-                                                        placeholder="Opcional"
+                                                        placeholder="Obrigatório na Clicksign"
                                                         value={signDraft.email}
                                                         onChange={(e) => setSignDraft((d) => ({ ...d, email: e.target.value }))}
                                                     />
@@ -2488,11 +2637,12 @@ export default function ClicksignEmerdog() {
                                                 pushToast('error', 'Agenda', 'Indique o nome completo (pelo menos duas palavras).')
                                                 return
                                             }
-                                            if (signDraft.channel === 'email' && !signDraft.email.trim()) {
-                                                pushToast('error', 'Agenda', 'Preencha o e-mail.')
+                                            const chEd = canalSignatario(signDraft.channel)
+                                            if (!signDraft.email.trim()) {
+                                                pushToast('error', 'Agenda', 'Preencha o e-mail (obrigatório na Clicksign).')
                                                 return
                                             }
-                                            if (signDraft.channel === 'whatsapp') {
+                                            if (chEd === 'whatsapp') {
                                                 const tel = normalizarTelefoneBr(signDraft.phone)
                                                 if (tel.length < 10 || tel.length > 11) {
                                                     pushToast('error', 'Agenda', 'Telefone com DDD: 10 ou 11 dígitos.')
@@ -2504,7 +2654,7 @@ export default function ClicksignEmerdog() {
                                                     name: signDraft.nome.trim(),
                                                     email: signDraft.email.trim(),
                                                     phone: signDraft.phone,
-                                                    channel: signDraft.channel,
+                                                    channel: chEd,
                                                     papel: normalizarPapelQualificacao(signQualPapel),
                                                 }),
                                             )
@@ -2547,7 +2697,9 @@ export default function ClicksignEmerdog() {
                                                         <tr key={localId}>
                                                             <td>{c.name}</td>
                                                             <td>
-                                                                {c.channel === 'whatsapp' ? c.phone || '—' : c.email || '—'}
+                                                                {c.channel === 'whatsapp'
+                                                                    ? formatarTelefoneBrExibicao(c.phone) || '—'
+                                                                    : c.email || '—'}
                                                             </td>
                                                             <td>
                                                                 <select
@@ -2596,12 +2748,12 @@ export default function ClicksignEmerdog() {
                                             for (const localId of signModalAgendaSel) {
                                                 const c = agendaOrdenada.find((x) => x.localId === localId)
                                                 if (!c) continue
-                                                const canalAg = c.channel === 'whatsapp' ? 'whatsapp' : 'email'
+                                                const canalAg = canalSignatario(c.channel)
                                                 const papel = normalizarPapelQualificacao(agendaQualPorId[localId] || c.papel || 'sign')
                                                 const ok = await adicionarSignatarioComParametros({
                                                     nome: String(c.name || '').trim(),
                                                     email: String(c.email || '').trim(),
-                                                    phone: String(c.phone || '').trim(),
+                                                    phone: maskTelefoneBr(c.phone || ''),
                                                     channel: canalAg,
                                                     papel,
                                                     gravarNaAgenda: true,
@@ -2638,9 +2790,9 @@ export default function ClicksignEmerdog() {
                                     <div className="cs_sign_qual_card">
                                         <p className="cs_sign_qual_name">{signPending.name}</p>
                                         <p className="cs_sign_qual_email">
-                                            {signPending.channel === 'whatsapp' ? (
+                                            {canalSignatario(signPending.channel) === 'whatsapp' ? (
                                                 <>
-                                                    <span>{signPending.phone || '—'}</span>
+                                                    <span>{formatarTelefoneBrExibicao(signPending.phone) || '—'}</span>
                                                     {signPending.email ? (
                                                         <>
                                                             <br />
@@ -2678,6 +2830,10 @@ export default function ClicksignEmerdog() {
                                         disabled={fluxoBusy}
                                         onClick={() => {
                                             setSignModal(signPending.source === 'novo' ? 'novo' : 'agenda')
+                                            setSignDraft((d) => ({
+                                                ...d,
+                                                channel: canalSignatario(signPending.channel),
+                                            }))
                                             setSignPending(null)
                                         }}
                                     >
