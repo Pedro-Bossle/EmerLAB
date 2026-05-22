@@ -1020,8 +1020,22 @@ function atributosSignerExpandidos(attrs) {
     return [a, a.signature, a.signing, a.participation].filter((x) => x && typeof x === 'object')
 }
 
+/** API 3.0: requisito `agree` concluído costuma vir só com `modified` > `created` (sem status/signed_at). */
+function dataAssinaturaRequisitoAgree(a) {
+    if (!a || typeof a !== 'object') return null
+    const created = a.created
+    const modified = a.modified
+    if (!created || !modified) return null
+    const t0 = new Date(created).getTime()
+    const t1 = new Date(modified).getTime()
+    if (Number.isNaN(t0) || Number.isNaN(t1) || t1 - t0 < 2000) return null
+    return modified
+}
+
 function dataConclusaoAtributos(a) {
     if (!a || typeof a !== 'object') return null
+    const porAgree = dataAssinaturaRequisitoAgree(a)
+    if (porAgree) return porAgree
     return (
         a.finished_at ??
         a.completed_at ??
@@ -1038,6 +1052,8 @@ function requisitoAssinaturaConcluido(attrs) {
     const st = String(a.status ?? a.state ?? a.phase ?? '').toLowerCase()
     if (STATUS_ASSINATURA_RECUSADA.has(st)) return false
     if (STATUS_ASSINATURA_CONCLUIDA.has(st)) return true
+    if (a.fulfilled === true || a.completed === true || a.met === true) return true
+    if (dataAssinaturaRequisitoAgree(a)) return true
     if (dataConclusaoAtributos(a)) return true
     return false
 }
@@ -1074,7 +1090,7 @@ export function extrairResumoAssinaturaPorSignatario(requirementsJson) {
         if (requisitoAssinaturaRecusado(a)) map[sid].refused = true
         if (requisitoAssinaturaConcluido(a)) {
             map[sid].done += 1
-            const iso = dataConclusaoAtributos(a)
+            const iso = dataAssinaturaRequisitoAgree(a) || dataConclusaoAtributos(a)
             if (iso && (!map[sid].lastIso || String(iso) > String(map[sid].lastIso))) {
                 map[sid].lastIso = iso
             }
@@ -1097,12 +1113,16 @@ function mesclarSignersIncluded(signerItemsById, requirementsJson) {
 }
 
 export function rotuloAssinaturaSignatario(attrs) {
+    const porDatas = dataAssinaturaRequisitoAgree(attrs)
+    if (porDatas) return formatarDataIsoPtBr(porDatas)
     for (const bloco of atributosSignerExpandidos(attrs)) {
         const st = String(bloco.status ?? bloco.state ?? '').toLowerCase()
         const signed = dataConclusaoAtributos(bloco)
-        if (signed) return formatarDataIsoPtBr(signed)
+        if (signed && typeof signed === 'string') return formatarDataIsoPtBr(signed)
         if (STATUS_ASSINATURA_CONCLUIDA.has(st)) return 'Assinado'
         if (STATUS_ASSINATURA_RECUSADA.has(st)) return 'Recusado'
+        const signerMod = dataAssinaturaRequisitoAgree(bloco)
+        if (signerMod) return formatarDataIsoPtBr(signerMod)
     }
     return 'Pendente'
 }
