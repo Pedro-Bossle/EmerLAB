@@ -93,6 +93,101 @@
     font-size: 0.85rem;
 }
 
+.cs_dash_notify {
+    margin-bottom: 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--cs-border-soft, #d7e8f2);
+    border-radius: 10px;
+    background: var(--cs-surface-alt, #f8fafc);
+}
+
+.cs_dash_notify_head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    margin-bottom: 0.6rem;
+}
+
+.cs_dash_notify_title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--cs-text, #1e3148);
+}
+
+.cs_dash_notify_clear {
+    font-size: 0.82rem;
+    padding: 0.35rem 0.65rem;
+}
+
+.cs_dash_notify_empty {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--cs-muted, #5a7085);
+}
+
+.cs_dash_notify_list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.cs_dash_notify_row {
+    width: 100%;
+    text-align: left;
+    border: 1px solid var(--cs-border-soft, #d7e8f2);
+    border-radius: 8px;
+    background: #fff;
+    padding: 0.55rem 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.cs_dash_notify_row:hover {
+    background: #eef6fc;
+    border-color: #9ec5e8;
+}
+
+.cs_dash_notify_texto {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--cs-text, #1e3148);
+}
+
+.cs_dash_notify_quando {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: var(--cs-muted, #5a7085);
+}
+
+body.dark-mode .cs_dash_notify {
+    background: #132335;
+    border-color: var(--border-soft, #3a5775);
+}
+
+body.dark-mode .cs_dash_notify_row {
+    background: #0f1e2e;
+    border-color: var(--border-soft, #3a5775);
+}
+
+body.dark-mode .cs_dash_notify_row:hover {
+    background: #1a334d;
+}
+
+body.dark-mode .cs_dash_notify_texto {
+    color: var(--text-main, #eaf2fa);
+}
+
 .cs_dash_continue {
     margin-bottom: 1rem;
     padding: 0.85rem 1rem;

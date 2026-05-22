@@ -50,6 +50,11 @@ import {
     removerContatoAgendaPorId,
     upsertContatoAgenda,
 } from '../../lib/clicksign/agendaSignatarios.js'
+import {
+    carregarNotificacoes,
+    limparNotificacoes,
+    sincronizarNotificacoesClicksign,
+} from '../../lib/clicksign/clicksignNotificacoes.js'
 import { maskTelefoneBr } from '../../lib/telefoneBrasil.js'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl.js'
 import './ContratosEmerdog.css'
@@ -184,6 +189,8 @@ export default function ClicksignEmerdog() {
     const [contagensLoading, setContagensLoading] = useState(false)
     const [continuarItens, setContinuarItens] = useState([])
     const [continuarLoading, setContinuarLoading] = useState(false)
+    const [notificacoes, setNotificacoes] = useState(() => carregarNotificacoes())
+    const [notifSyncing, setNotifSyncing] = useState(false)
 
     const [mesLoading, setMesLoading] = useState(false)
     const [mesMeta, setMesMeta] = useState({})
@@ -478,6 +485,20 @@ export default function ClicksignEmerdog() {
         setTab('montar')
     }, [])
 
+    const atualizarNotificacoesPainel = useCallback(async () => {
+        setNotifSyncing(true)
+        try {
+            const { lista } = await sincronizarNotificacoesClicksign(csRequest)
+            setNotificacoes(lista)
+        } finally {
+            setNotifSyncing(false)
+        }
+    }, [csRequest])
+
+    const limparListaNotificacoes = useCallback(() => {
+        setNotificacoes(limparNotificacoes())
+    }, [])
+
     const carregarContagensDashboard = useCallback(async () => {
         setContagensLoading(true)
         const intervalo30 = intervaloCriacaoUltimos30DiasUtc()
@@ -550,8 +571,14 @@ export default function ClicksignEmerdog() {
         if (tab === 'envelopes' && vistaPainel === 'hub') {
             void carregarContagensDashboard()
             void carregarContinuarDeOndeParou()
+            void atualizarNotificacoesPainel()
+            const timer = window.setInterval(() => {
+                void atualizarNotificacoesPainel()
+            }, 90000)
+            return () => window.clearInterval(timer)
         }
-    }, [tab, vistaPainel, carregarContagensDashboard, carregarContinuarDeOndeParou])
+        return undefined
+    }, [tab, vistaPainel, carregarContagensDashboard, carregarContinuarDeOndeParou, atualizarNotificacoesPainel])
 
     useEffect(() => {
         if (tab === 'envelopes') {
@@ -1350,6 +1377,7 @@ export default function ClicksignEmerdog() {
             await carregarLista(listPath)
             await carregarUsoMes()
             pushToast('success', 'Envelope enviado', 'O envelope foi ativado com sucesso. Os signatários serão notificados conforme a configuração da conta.')
+            void atualizarNotificacoesPainel()
         } finally {
             setFluxoBusy(false)
         }
@@ -1472,35 +1500,6 @@ export default function ClicksignEmerdog() {
                                         </span>
                                     </nav>
                                 </header>
-                                <section className="cs_dash_continue" aria-labelledby="cs-dash-continue-title">
-                                    <h3 id="cs-dash-continue-title" className="cs_dash_continue_title">
-                                        Continue de onde parou
-                                    </h3>
-                                    {continuarLoading && <p className="cs_dash_continue_empty">A carregar rascunhos…</p>}
-                                    {!continuarLoading && continuarItens.length === 0 && (
-                                        <p className="cs_dash_continue_empty">Nenhum envelope em rascunho para continuar.</p>
-                                    )}
-                                    {!continuarLoading && continuarItens.length > 0 && (
-                                        <ul className="cs_dash_continue_list">
-                                            {continuarItens.map((item) => (
-                                                <li key={item.id}>
-                                                    <button
-                                                        type="button"
-                                                        className="cs_dash_continue_row"
-                                                        onClick={() => abrirContinuarMontar(item.id)}
-                                                    >
-                                                        <span className="cs_dash_continue_nome">{item.name}</span>
-                                                        <span className="cs_dash_continue_meta" aria-hidden>
-                                                            {' '}
-                                                            — {rotuloEstadoEnvelope(item.status)} — {item.docCount}{' '}
-                                                            {item.docCount === 1 ? 'documento' : 'documentos'}
-                                                        </span>
-                                                    </button>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                </section>
                                 <div className="cs_dash_grid">
                                     <div
                                         className={`cs_dash_upload_card ${dashDropAtivo ? 'is-drag' : ''}`}
@@ -1597,6 +1596,77 @@ export default function ClicksignEmerdog() {
                                         </div>
                                     </section>
                                 </div>
+                                <section className="cs_dash_notify" aria-labelledby="cs-dash-notify-title">
+                                    <div className="cs_dash_notify_head">
+                                        <h3 id="cs-dash-notify-title" className="cs_dash_notify_title">
+                                            Notificações
+                                        </h3>
+                                        <button
+                                            type="button"
+                                            className="contratos_btn contratos_btn_secondary cs_dash_notify_clear"
+                                            disabled={notificacoes.length === 0}
+                                            onClick={limparListaNotificacoes}
+                                        >
+                                            Limpar lista
+                                        </button>
+                                    </div>
+                                    {notifSyncing && notificacoes.length === 0 && (
+                                        <p className="cs_dash_notify_empty">A verificar assinaturas…</p>
+                                    )}
+                                    {!notifSyncing && notificacoes.length === 0 && (
+                                        <p className="cs_dash_notify_empty">
+                                            Nenhuma notificação recente. Avisamos quando alguém assinar ou um documento for
+                                            concluído.
+                                        </p>
+                                    )}
+                                    {notificacoes.length > 0 && (
+                                        <ul className="cs_dash_notify_list">
+                                            {notificacoes.map((n) => (
+                                                <li key={n.id}>
+                                                    <button
+                                                        type="button"
+                                                        className="cs_dash_notify_row"
+                                                        onClick={() => abrirDetalhe(n.envelopeId)}
+                                                    >
+                                                        <span className="cs_dash_notify_texto">{n.texto}</span>
+                                                        <span className="cs_dash_notify_quando">
+                                                            {formatarDataPtBr(n.at)}
+                                                        </span>
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </section>
+                                <section className="cs_dash_continue" aria-labelledby="cs-dash-continue-title">
+                                    <h3 id="cs-dash-continue-title" className="cs_dash_continue_title">
+                                        Continue de onde parou
+                                    </h3>
+                                    {continuarLoading && <p className="cs_dash_continue_empty">A carregar rascunhos…</p>}
+                                    {!continuarLoading && continuarItens.length === 0 && (
+                                        <p className="cs_dash_continue_empty">Nenhum envelope em rascunho para continuar.</p>
+                                    )}
+                                    {!continuarLoading && continuarItens.length > 0 && (
+                                        <ul className="cs_dash_continue_list">
+                                            {continuarItens.map((item) => (
+                                                <li key={item.id}>
+                                                    <button
+                                                        type="button"
+                                                        className="cs_dash_continue_row"
+                                                        onClick={() => abrirContinuarMontar(item.id)}
+                                                    >
+                                                        <span className="cs_dash_continue_nome">{item.name}</span>
+                                                        <span className="cs_dash_continue_meta" aria-hidden>
+                                                            {' '}
+                                                            — {rotuloEstadoEnvelope(item.status)} — {item.docCount}{' '}
+                                                            {item.docCount === 1 ? 'documento' : 'documentos'}
+                                                        </span>
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </section>
                             </>
                         )}
                         {vistaPainel !== 'hub' && secaoLista && (
