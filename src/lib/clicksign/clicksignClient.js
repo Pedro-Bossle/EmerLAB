@@ -838,6 +838,7 @@ export function extrairListaEnvelopes(json) {
             status: a.status ?? a.state ?? '—',
             created: a.created ?? a.created_at ?? '',
             updated: a.modified ?? a.updated_at ?? a.modified_at ?? a.created ?? '',
+            selfLink: item?.links?.self ?? '',
         })
     }
     return { rows, meta: json?.meta || {}, links: json?.links || {} }
@@ -933,37 +934,68 @@ export function rotuloEstadoDocumento(status) {
     return map[st] || (st ? st : '—')
 }
 
-/** Origem do app Clicksign (sandbox vs produção) — opcional VITE_CLICKSIGN_API_BASE no build. */
-export function clicksignAppOrigin() {
-    const apiBase = String(
-        typeof import.meta !== 'undefined' ? import.meta.env.VITE_CLICKSIGN_API_BASE || '' : '',
-    )
+const CLICKSIGN_APP_PRODUCAO = 'https://app.clicksign.com'
+const CLICKSIGN_APP_SANDBOX = 'https://sandbox.clicksign.com'
+
+function origemAppDeBaseApi(apiBase) {
+    const base = String(apiBase || '')
         .trim()
         .replace(/\/$/, '')
-    if (apiBase) {
+    if (!base) return ''
+    try {
+        const u = new URL(base.includes('://') ? base : `https://${base}`)
+        if (/sandbox\.clicksign\.com/i.test(u.hostname)) return CLICKSIGN_APP_SANDBOX
+        if (/app\.clicksign\.com/i.test(u.hostname) || /clicksign\.com/i.test(u.hostname)) {
+            return CLICKSIGN_APP_PRODUCAO
+        }
+        return u.origin
+    } catch {
+        return ''
+    }
+}
+
+/**
+ * Origem do site Clicksign para «Abrir no Clicksign» (não confundir com a base da API no servidor).
+ * Prioridade: VITE_CLICKSIGN_APP_ORIGIN → VITE_CLICKSIGN_API_BASE → produção (app).
+ */
+export function clicksignAppOrigin() {
+    const env =
+        typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {}
+    const appExplicit = String(env.VITE_CLICKSIGN_APP_ORIGIN || '')
+        .trim()
+        .replace(/\/$/, '')
+    if (appExplicit) {
         try {
-            const u = new URL(apiBase.includes('://') ? apiBase : `https://${apiBase}`)
+            const u = new URL(appExplicit.includes('://') ? appExplicit : `https://${appExplicit}`)
             return u.origin
         } catch {
             /* ignore */
         }
     }
-    return 'https://sandbox.clicksign.com'
+    const deApi = origemAppDeBaseApi(env.VITE_CLICKSIGN_API_BASE || '')
+    if (deApi) return deApi
+    return CLICKSIGN_APP_PRODUCAO
 }
 
 /** URL para abrir o envelope no site Clicksign (origem inferida do link da API). */
 export function urlAbrirEnvelopeClicksign(envelopeId, selfLink) {
     const id = String(envelopeId || '').trim()
+    const preferOrigin = clicksignAppOrigin()
     const link = String(selfLink || '').trim()
     if (link) {
         try {
             const u = new URL(link)
+            const apiEhSandbox = /sandbox\.clicksign\.com/i.test(u.hostname)
+            const appEhProducao = /app\.clicksign\.com/i.test(preferOrigin)
+            if (apiEhSandbox && appEhProducao) {
+                return `${preferOrigin}/envelopes/${id}`
+            }
             return `${u.origin}/envelopes/${id}`
         } catch {
             /* ignore */
         }
     }
-    return `${clicksignAppOrigin()}/envelopes/${id}`
+    return `${preferOrigin}/envelopes/${id}`
 }
 
 export function dataEncerramentoEnvelope(attrs) {

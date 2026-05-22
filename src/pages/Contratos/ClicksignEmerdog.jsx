@@ -1794,7 +1794,7 @@ export default function ClicksignEmerdog() {
                                                             <a
                                                                 role="menuitem"
                                                                 className="clicksign_dropdown_link"
-                                                                href={urlAbrirEnvelopeClicksign(r.id)}
+                                                                href={urlAbrirEnvelopeClicksign(r.id, r.selfLink)}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 onClick={() => setEnvelopeMenuId('')}
