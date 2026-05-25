@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission } from '../../../lib/accessControl'
 import { supabase } from '../../../lib/supabase'
@@ -6,23 +6,47 @@ import { acharSituacaoCredenciadoId, normalizarTextoBusca } from '../../../lib/p
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 
+const LISTA_UI_STORAGE_KEY = 'emerdog_credenciamento_cadastro_lista_ui'
+
+function lerEstadoListaUi() {
+    try {
+        const raw = sessionStorage.getItem(LISTA_UI_STORAGE_KEY)
+        if (!raw) return null
+        return JSON.parse(raw)
+    } catch {
+        return null
+    }
+}
+
 const CredenciamentoCadastroLista = () => {
     const navigate = useNavigate()
     const [loading, setLoading] = useState(true)
     const [erro, setErro] = useState('')
     const [headerCompacto, setHeaderCompacto] = useState(false)
-    const [termoBusca1, setTermoBusca1] = useState('')
-    const [termoBusca2, setTermoBusca2] = useState('')
-    const [filtroSituacao, setFiltroSituacao] = useState('')
-    const [itensPorPagina, setItensPorPagina] = useState(20)
-    const [paginaAtual, setPaginaAtual] = useState(1)
-    const [paginaAlvoInput, setPaginaAlvoInput] = useState('1')
+    const [termoBusca1, setTermoBusca1] = useState(() => lerEstadoListaUi()?.termoBusca1 ?? '')
+    const [termoBusca2, setTermoBusca2] = useState(() => lerEstadoListaUi()?.termoBusca2 ?? '')
+    const [filtroSituacao, setFiltroSituacao] = useState(() => lerEstadoListaUi()?.filtroSituacao ?? '')
+    const [itensPorPagina, setItensPorPagina] = useState(
+        () => Number(lerEstadoListaUi()?.itensPorPagina) || 20
+    )
+    const [paginaAtual, setPaginaAtual] = useState(() => Number(lerEstadoListaUi()?.paginaAtual) || 1)
+    const [paginaAlvoInput, setPaginaAlvoInput] = useState(() =>
+        String(Number(lerEstadoListaUi()?.paginaAtual) || 1)
+    )
+    const [ordenarColuna, setOrdenarColuna] = useState(() => lerEstadoListaUi()?.ordenarColuna ?? 'nome')
+    const [ordenarDir, setOrdenarDir] = useState(() => lerEstadoListaUi()?.ordenarDir ?? 'asc')
+    const [ocultarVetsVinculadosClinica, setOcultarVetsVinculadosClinica] = useState(
+        () => lerEstadoListaUi()?.ocultarVetsVinculadosClinica !== false
+    )
+    const aplicouDefaultSituacaoRef = useRef(!!lerEstadoListaUi())
+    const pularResetPaginaRef = useRef(true)
 
     const [prestadores, setPrestadores] = useState([])
     const [cidades, setCidades] = useState([])
     const [situacoes, setSituacoes] = useState([])
     const [especialidades, setEspecialidades] = useState([])
     const [prestadorCidades, setPrestadorCidades] = useState([])
+    const [prestadorEstabelecimentos, setPrestadorEstabelecimentos] = useState([])
 
     const somenteLeitura = useMemo(() => {
         const profile = getStoredAccessProfile()
@@ -39,6 +63,7 @@ const CredenciamentoCadastroLista = () => {
                 { data: situacoesData, error: errS },
                 { data: especialidadesData, error: errE },
                 { data: pcData, error: errPc },
+                { data: peData, error: errPe },
             ] = await Promise.all([
                 supabase
                     .from('prestadores')
@@ -50,8 +75,9 @@ const CredenciamentoCadastroLista = () => {
                 supabase.from('situacoes').select('id, descricao, ordem, ativo').eq('ativo', true).order('ordem'),
                 supabase.from('especialidades').select('id, nome, tipo').order('nome'),
                 supabase.from('prestador_cidades').select('prestador_id, cidade_id, principal'),
+                supabase.from('prestador_estabelecimentos').select('veterinario_id, estabelecimento_id'),
             ])
-            const erros = [errP, errC, errS, errE, errPc].map((e) => e?.message).filter(Boolean)
+            const erros = [errP, errC, errS, errE, errPc, errPe].map((e) => e?.message).filter(Boolean)
             if (erros.length) {
                 setErro(erros.join(' | '))
                 return
@@ -59,10 +85,9 @@ const CredenciamentoCadastroLista = () => {
             setPrestadores(prestadoresData || [])
             setCidades(cidadesData || [])
             setSituacoes(situacoesData || [])
-            const credId = acharSituacaoCredenciadoId(situacoesData || [])
-            if (credId) setFiltroSituacao(credId)
             setEspecialidades(especialidadesData || [])
             setPrestadorCidades(pcData || [])
+            setPrestadorEstabelecimentos(peData || [])
         } catch (e) {
             setErro(e?.message || String(e))
         } finally {
@@ -75,6 +100,38 @@ const CredenciamentoCadastroLista = () => {
     }, [carregar])
 
     useEffect(() => {
+        if (aplicouDefaultSituacaoRef.current || !situacoes.length) return
+        const credId = acharSituacaoCredenciadoId(situacoes)
+        if (credId) setFiltroSituacao(String(credId))
+        aplicouDefaultSituacaoRef.current = true
+    }, [situacoes])
+
+    useEffect(() => {
+        sessionStorage.setItem(
+            LISTA_UI_STORAGE_KEY,
+            JSON.stringify({
+                termoBusca1,
+                termoBusca2,
+                filtroSituacao,
+                itensPorPagina,
+                paginaAtual,
+                ordenarColuna,
+                ordenarDir,
+                ocultarVetsVinculadosClinica,
+            })
+        )
+    }, [
+        termoBusca1,
+        termoBusca2,
+        filtroSituacao,
+        itensPorPagina,
+        paginaAtual,
+        ordenarColuna,
+        ordenarDir,
+        ocultarVetsVinculadosClinica,
+    ])
+
+    useEffect(() => {
         const onScroll = () => setHeaderCompacto(window.scrollY > 22)
         onScroll()
         window.addEventListener('scroll', onScroll, { passive: true })
@@ -82,8 +139,21 @@ const CredenciamentoCadastroLista = () => {
     }, [])
 
     useEffect(() => {
+        if (pularResetPaginaRef.current) {
+            pularResetPaginaRef.current = false
+            return
+        }
         setPaginaAtual(1)
-    }, [termoBusca1, termoBusca2, filtroSituacao, itensPorPagina])
+    }, [termoBusca1, termoBusca2, filtroSituacao, itensPorPagina, ocultarVetsVinculadosClinica])
+
+    const idsVetsVinculadosClinica = useMemo(() => {
+        const ids = new Set()
+        ;(prestadorEstabelecimentos || []).forEach((rel) => {
+            const vid = Number(rel.veterinario_id)
+            if (vid) ids.add(vid)
+        })
+        return ids
+    }, [prestadorEstabelecimentos])
 
     const cidadePorId = useMemo(() => new Map(cidades.map((c) => [Number(c.id), c])), [cidades])
     const situacaoPorId = useMemo(() => new Map(situacoes.map((s) => [Number(s.id), s])), [situacoes])
@@ -117,15 +187,51 @@ const CredenciamentoCadastroLista = () => {
         const b1 = normalizarTextoBusca(termoBusca1)
         const b2 = normalizarTextoBusca(termoBusca2)
         return linhas.filter((l) => {
+            if (ocultarVetsVinculadosClinica && idsVetsVinculadosClinica.has(Number(l.id))) return false
             if (filtroSituacao && Number(l.situacaoId) !== Number(filtroSituacao)) return false
             const blob = normalizarTextoBusca(`${l.nome} ${l.cidadeNome} ${l.tipoLabel} ${l.situacao}`)
             if (b1 && !blob.includes(b1)) return false
             if (b2 && !blob.includes(b2)) return false
             return true
         })
-    }, [linhas, termoBusca1, termoBusca2, filtroSituacao])
+    }, [linhas, termoBusca1, termoBusca2, filtroSituacao, ocultarVetsVinculadosClinica, idsVetsVinculadosClinica])
 
-    const totalPaginas = Math.max(1, Math.ceil(linhasFiltradas.length / Number(itensPorPagina || 20)))
+    const alternarOrdenacao = (coluna) => {
+        if (ordenarColuna === coluna) {
+            setOrdenarDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+        } else {
+            setOrdenarColuna(coluna)
+            setOrdenarDir('asc')
+        }
+    }
+
+    const indicadorOrdenacao = (coluna) => {
+        if (ordenarColuna !== coluna) return ''
+        return ordenarDir === 'asc' ? ' ▲' : ' ▼'
+    }
+
+    const linhasFiltradasOrdenadas = useMemo(() => {
+        const lista = [...linhasFiltradas]
+        const fator = ordenarDir === 'asc' ? 1 : -1
+        const chave =
+            ordenarColuna === 'cidade'
+                ? 'cidadeNome'
+                : ordenarColuna === 'especialidade'
+                  ? 'tipoLabel'
+                  : ordenarColuna === 'situacao'
+                    ? 'situacao'
+                    : 'nome'
+        lista.sort(
+            (a, b) =>
+                fator *
+                String(a[chave] ?? '').localeCompare(String(b[chave] ?? ''), 'pt-BR', {
+                    sensitivity: 'base',
+                })
+        )
+        return lista
+    }, [linhasFiltradas, ordenarColuna, ordenarDir])
+
+    const totalPaginas = Math.max(1, Math.ceil(linhasFiltradasOrdenadas.length / Number(itensPorPagina || 20)))
     const paginaAjustada = Math.min(Math.max(1, paginaAtual), totalPaginas)
 
     useEffect(() => {
@@ -140,8 +246,8 @@ const CredenciamentoCadastroLista = () => {
 
     const linhasPaginadas = useMemo(() => {
         const inicio = (paginaAjustada - 1) * Number(itensPorPagina || 20)
-        return linhasFiltradas.slice(inicio, inicio + Number(itensPorPagina || 20))
-    }, [linhasFiltradas, paginaAjustada, itensPorPagina])
+        return linhasFiltradasOrdenadas.slice(inicio, inicio + Number(itensPorPagina || 20))
+    }, [linhasFiltradasOrdenadas, paginaAjustada, itensPorPagina])
 
     return (
         <div className="credenciamento_main credenciamento_cadastro_lista">
@@ -192,6 +298,24 @@ const CredenciamentoCadastroLista = () => {
                                         ))}
                                     </select>
                                 </div>
+                                <div className="credenciamento_main_filter_item credenciamento_cadastro_filter_switch">
+                                    <p>Ocultar vets em clínicas</p>
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={ocultarVetsVinculadosClinica}
+                                        className={`credenciamento_switch ${ocultarVetsVinculadosClinica ? 'is-on' : 'is-off'}`}
+                                        onClick={() => setOcultarVetsVinculadosClinica((v) => !v)}
+                                        title="Filtro temporário: esconde prestadores que são veterinários vinculados a um estabelecimento"
+                                    >
+                                        <span className="credenciamento_switch_track">
+                                            <span className="credenciamento_switch_knob" />
+                                        </span>
+                                        <span className="credenciamento_switch_label">
+                                            {ocultarVetsVinculadosClinica ? 'Sim' : 'Não'}
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div className="credenciamento_main_filters_actions">
@@ -226,10 +350,42 @@ const CredenciamentoCadastroLista = () => {
                         <table className="table_main credenciamento_cadastro_table">
                             <thead>
                                 <tr>
-                                    <th className="table_header">Nome</th>
-                                    <th className="table_header">Cidade</th>
-                                    <th className="table_header">Especialidade</th>
-                                    <th className="table_header">Situação</th>
+                                    <th className="table_header credenciamento_cadastro_th_sortable">
+                                        <button
+                                            type="button"
+                                            className="credenciamento_cadastro_th_sort_btn"
+                                            onClick={() => alternarOrdenacao('nome')}
+                                        >
+                                            Nome{indicadorOrdenacao('nome')}
+                                        </button>
+                                    </th>
+                                    <th className="table_header credenciamento_cadastro_th_sortable">
+                                        <button
+                                            type="button"
+                                            className="credenciamento_cadastro_th_sort_btn"
+                                            onClick={() => alternarOrdenacao('cidade')}
+                                        >
+                                            Cidade{indicadorOrdenacao('cidade')}
+                                        </button>
+                                    </th>
+                                    <th className="table_header credenciamento_cadastro_th_sortable">
+                                        <button
+                                            type="button"
+                                            className="credenciamento_cadastro_th_sort_btn"
+                                            onClick={() => alternarOrdenacao('especialidade')}
+                                        >
+                                            Especialidade{indicadorOrdenacao('especialidade')}
+                                        </button>
+                                    </th>
+                                    <th className="table_header credenciamento_cadastro_th_sortable">
+                                        <button
+                                            type="button"
+                                            className="credenciamento_cadastro_th_sort_btn"
+                                            onClick={() => alternarOrdenacao('situacao')}
+                                        >
+                                            Situação{indicadorOrdenacao('situacao')}
+                                        </button>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -253,15 +409,15 @@ const CredenciamentoCadastroLista = () => {
                             </tbody>
                         </table>
 
-                        {linhasFiltradas.length > 0 && (
+                        {linhasFiltradasOrdenadas.length > 0 && (
                             <div className="credenciamento_main_paginacao">
                                 <div className="credenciamento_main_paginacao_info">
                                     Exibindo{' '}
                                     <strong>
                                         {(paginaAjustada - 1) * itensPorPagina + 1}-
-                                        {Math.min(paginaAjustada * itensPorPagina, linhasFiltradas.length)}
+                                        {Math.min(paginaAjustada * itensPorPagina, linhasFiltradasOrdenadas.length)}
                                     </strong>{' '}
-                                    de <strong>{linhasFiltradas.length}</strong>
+                                    de <strong>{linhasFiltradasOrdenadas.length}</strong>
                                 </div>
                                 <div className="credenciamento_main_paginacao_controles">
                                     <label className="credenciamento_main_paginacao_label">

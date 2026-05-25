@@ -52,8 +52,9 @@ export default function CidadesAtendeVirtualList({ itens, onRemover, somenteLeit
                             role="listitem"
                         >
                             <span className="pcad_cidades_virtual_nome">
-                                <strong>{c.nome}</strong>
-                                {c.uf ? <span className="pcad_cidades_virtual_uf"> · {c.uf}</span> : null}
+                                <span className="pcad_cidades_virtual_cidade">{c.nome}</span>
+                                <span className="pcad_cidades_virtual_sep"> - </span>
+                                <span className="pcad_cidades_virtual_uf">{c.uf || '—'}</span>
                             </span>
                             {!somenteLeitura && (
                                 <button type="button" className="pcad_link_btn danger" onClick={() => onRemover(c.cidadeId)}>

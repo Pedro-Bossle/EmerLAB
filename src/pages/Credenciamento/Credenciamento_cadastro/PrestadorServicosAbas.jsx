@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
-import { ESPECIALIDADE_LABORATORIO_ID, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers.js'
+import { idsEspecialidadeLaboratorio, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers.js'
 import { resolverProcedimentosMassaGlobal } from '../../../lib/resolverProcedimentosMassa.js'
+import { carregarPortesDb, mapaLetraPorPorteId } from '../../../lib/prestadorProcedimentos.js'
 
 const CATEGORIA_SERVICO_MIN = 3
 const CATEGORIA_SERVICO_MAX = 25
@@ -39,7 +40,8 @@ export default function PrestadorServicosAbas({
     const labWrapRef = useRef(null)
 
     useEffect(() => {
-        setSelecionados(new Set(selecionadosInicial || []))
+        const next = new Set((selecionadosInicial || []).map((c) => String(c).trim()).filter(Boolean))
+        setSelecionados(next)
     }, [selecionadosInicial])
 
     useEffect(() => {
@@ -68,10 +70,12 @@ export default function PrestadorServicosAbas({
 
     useEffect(() => {
         const run = async () => {
+            const { data: esps } = await supabase.from('especialidades').select('id, nome')
+            const labIds = idsEspecialidadeLaboratorio(esps || [])
             const { data, error } = await supabase
                 .from('prestadores')
                 .select('id, nome')
-                .eq('especialidade_id', ESPECIALIDADE_LABORATORIO_ID)
+                .in('especialidade_id', labIds)
                 .eq('ativo', true)
                 .order('nome', { ascending: true })
             if (error) return
@@ -86,8 +90,8 @@ export default function PrestadorServicosAbas({
             .from('repasses')
             .select('procedimento_id, porte_id, valor')
             .eq('cidade_id', cidadeId)
-        const portes = await supabase.from('portes').select('id, letra')
-        const letraPorId = new Map((portes.data || []).map((p) => [Number(p.id), String(p.letra || '').toUpperCase()]))
+        const portesLista = await carregarPortesDb()
+        const letraPorId = mapaLetraPorPorteId(portesLista)
         const mapa = new Map()
         ;(data || []).forEach((r) => {
             const codProc = String(r.procedimento_id || '').trim()

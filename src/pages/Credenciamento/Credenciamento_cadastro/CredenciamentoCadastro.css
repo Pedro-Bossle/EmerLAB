@@ -8,7 +8,7 @@
 /* Uma única linha de filtros: sobrescreve :last-child da Credenciamento_main (rótulo ao lado) */
 .credenciamento_cadastro_lista .credenciamento_main_filters_selectors .credenciamento_cadastro_filters_row {
     display: grid !important;
-    grid-template-columns: minmax(170px, 1.5fr) minmax(170px, 1.5fr) minmax(170px, 1fr) !important;
+    grid-template-columns: minmax(170px, 1.5fr) minmax(170px, 1.5fr) minmax(170px, 1fr) minmax(200px, auto) !important;
     align-items: end !important;
     flex-wrap: unset !important;
     justify-content: unset !important;
@@ -40,9 +40,70 @@
     min-width: 0;
 }
 
+.credenciamento_cadastro_filter_switch .credenciamento_switch {
+    margin-top: 2px;
+}
+
+.pcad_card_head_switch {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    margin-bottom: 0.85rem;
+}
+
+.pcad_card_head_switch h2 {
+    margin: 0;
+}
+
+.pcad_card_head_switch_ctl {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.pcad_card_head_switch_lbl {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #40617a;
+}
+
+.pcad_secao_off_hint {
+    margin: 0.25rem 0 0;
+}
+
 .credenciamento_cadastro_table {
     min-width: 0 !important;
     width: 100%;
+}
+
+.credenciamento_cadastro_th_sortable {
+    padding: 0;
+    vertical-align: middle;
+}
+
+.credenciamento_cadastro_th_sort_btn {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+    width: 100%;
+    min-height: 100%;
+    padding: 0.5rem 0.6rem;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-weight: 600;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.credenciamento_cadastro_th_sort_btn:hover {
+    color: #2f87c6;
 }
 
 .pcad_page {
@@ -512,6 +573,13 @@
     gap: 0.35rem;
 }
 
+/* Endereço — clínicas vinculadas (mesma lógica visual que múltiplas especialidades) */
+.pcad_row_atende_clinica {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: end;
+    margin-top: 0.25rem;
+}
+
 .pcad_multi_esp {
     display: flex;
     flex-direction: column;
@@ -556,6 +624,22 @@
     font-size: 1rem;
     line-height: 1;
     color: #555;
+}
+
+.pcad_multi_esp_tag_removivel {
+    cursor: pointer;
+    user-select: none;
+}
+
+.pcad_multi_esp_tag_removivel:hover {
+    background: #d4e6f7;
+}
+
+.pcad_multi_esp_tag_x {
+    font-size: 1rem;
+    line-height: 1;
+    color: #555;
+    pointer-events: none;
 }
 
 .pcad_multi_esp_input_wrap {
@@ -685,15 +769,26 @@
     background: #f8fafc;
 }
 
-.pcad_cidades_virtual_uf {
-    color: #5a7085;
+.pcad_cidades_virtual_cidade {
+    color: #1e3a5f;
     font-weight: 500;
+}
+
+.pcad_cidades_virtual_sep {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.pcad_cidades_virtual_uf {
+    color: #94a3b8;
+    font-weight: 400;
 }
 
 @media (max-width: 900px) {
     .pcad_row4,
     .pcad_row4_contact,
-    .pcad_row.pcad_row_esp {
+    .pcad_row.pcad_row_esp,
+    .pcad_row_atende_clinica {
         grid-template-columns: 1fr;
     }
     .pcad_multi_esp_btn_cell .pcad_multi_esp_toggle {
@@ -766,6 +861,11 @@ body.dark-mode .pcad_cidades_virtual_item.is-alt {
     background: #16293f;
 }
 
+body.dark-mode .pcad_cidades_virtual_cidade {
+    color: var(--text-main);
+}
+
+body.dark-mode .pcad_cidades_virtual_sep,
 body.dark-mode .pcad_cidades_virtual_uf {
     color: var(--cinza-medio);
 }

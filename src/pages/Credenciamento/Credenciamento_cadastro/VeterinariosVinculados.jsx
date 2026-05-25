@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import {
     acharSituacaoCredenciadoId,
+    formatarCrmvEntrada,
+    normalizarCrmvParaSalvar,
     normalizarTextoBusca,
     prestadorEhEstabelecimento,
 } from '../../../lib/prestadorCadastroHelpers'
@@ -122,7 +124,7 @@ export default function VeterinariosVinculados({
                     {
                         key: Date.now(),
                         nome,
-                        crmv: crmvNovo.trim(),
+                        crmv: normalizarCrmvParaSalvar(crmvNovo) || '',
                         especialidade_id: Number(espEfetiva),
                     },
                 ])
@@ -139,7 +141,7 @@ export default function VeterinariosVinculados({
 
             const payload = {
                 nome,
-                crmv: crmvNovo.trim() || null,
+                crmv: normalizarCrmvParaSalvar(crmvNovo),
                 especialidade_id: Number(espEfetiva),
                 tipo,
                 cidade_id: Number(cidadeIdClinica),
@@ -223,7 +225,7 @@ export default function VeterinariosVinculados({
                         className="credenciamento_main_input"
                         value={crmvNovo}
                         disabled={somenteLeitura || incluindo}
-                        onChange={(e) => setCrmvNovo(e.target.value)}
+                        onChange={(e) => setCrmvNovo(formatarCrmvEntrada(e.target.value))}
                     />
                 </label>
                 <div className="pcad_field pcad_vet_incluir_btn">

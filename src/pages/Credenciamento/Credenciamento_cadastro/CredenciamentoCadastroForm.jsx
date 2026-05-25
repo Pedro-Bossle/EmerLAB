@@ -7,11 +7,22 @@ import {
     TIPOS_REPASSE,
     acharSituacaoCredenciadoId,
     formatarCpfCnpjEntrada,
+    normalizarCpfCnpjParaSalvar,
+    tipoDocumentoCpfCnpj,
+    formatarCrmvEntrada,
+    formatarEmailEntrada,
     formatarTelefoneEntrada,
+    normalizarCrmvParaSalvar,
+    normalizarEmailParaSalvar,
     montarEnderecoUmaLinha,
-    prestadorEhEstabelecimento,
+    tipoEspecialidadePrestador,
 } from '../../../lib/prestadorCadastroHelpers'
-import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
+import ClinicasAtendeInput from './ClinicasAtendeInput.jsx'
+import {
+    carregarCodigosPrestadorProcedimentos,
+    sincronizarPrestadorProcedimentos,
+} from '../../../lib/prestadorProcedimentos.js'
+import { UFS_BRASIL, buscarMunicipiosPorUf, resolverUfPorNomeMunicipio } from '../../../lib/ibgeLocalidades.js'
 import PrestadorServicosAbas from './PrestadorServicosAbas.jsx'
 import MultiEspecialidadesInput from './MultiEspecialidadesInput.jsx'
 import CidadesAtendeVirtualList from './CidadesAtendeVirtualList.jsx'
@@ -21,6 +32,42 @@ import './CredenciamentoCadastro.css'
 
 const COLS_PRESTADOR =
     'id, nome, tipo, telefone, celular, email, cpf_cnpj, crmv, cidade_id, endereco, modalidade, especialidade_id, situacao_id, cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_pais, endereco_uf, endereco_cidade, endereco_bairro, chave_pix, tipo_repasse, ativo'
+
+const ORDEM_CIDADES_STORAGE_PREFIX = 'emerdog_prestador_cidades_ordem_'
+
+function lerOrdemCidadesAtende(prestadorId) {
+    try {
+        const raw = sessionStorage.getItem(`${ORDEM_CIDADES_STORAGE_PREFIX}${prestadorId}`)
+        if (!raw) return null
+        const arr = JSON.parse(raw)
+        return Array.isArray(arr) ? arr.map(Number).filter(Boolean) : null
+    } catch {
+        return null
+    }
+}
+
+function salvarOrdemCidadesAtende(prestadorId, cidades) {
+    if (!prestadorId || !cidades?.length) return
+    sessionStorage.setItem(
+        `${ORDEM_CIDADES_STORAGE_PREFIX}${prestadorId}`,
+        JSON.stringify(cidades.map((c) => c.cidadeId)),
+    )
+}
+
+function ordenarCidadesAtendePorChave(itens, ordemIds) {
+    if (!ordemIds?.length) return itens
+    const mapa = new Map(itens.map((i) => [Number(i.cidadeId), i]))
+    const out = []
+    ordemIds.forEach((id) => {
+        const item = mapa.get(Number(id))
+        if (item) {
+            out.push(item)
+            mapa.delete(Number(id))
+        }
+    })
+    mapa.forEach((item) => out.push(item))
+    return out
+}
 
 const estadoVazio = () => ({
     nome: '',
@@ -69,7 +116,11 @@ const CredenciamentoCadastroForm = () => {
     const [vetsPendentes, setVetsPendentes] = useState([])
     const [procSelecionados, setProcSelecionados] = useState([])
     const [laboratoriosSolicitacaoIds, setLaboratoriosSolicitacaoIds] = useState([])
+    const [atendeEmClinica, setAtendeEmClinica] = useState(false)
+    const [estabelecimentosSelecionados, setEstabelecimentosSelecionados] = useState([])
     const [cepLoading, setCepLoading] = useState(false)
+    const [secaoMultiplasCidades, setSecaoMultiplasCidades] = useState(false)
+    const [secaoVetsVinculados, setSecaoVetsVinculados] = useState(false)
     const ultimoCepBuscadoRef = useRef('')
 
     const somenteLeitura = useMemo(() => {
@@ -77,16 +128,43 @@ const CredenciamentoCadastroForm = () => {
         return profile ? !hasPermission(profile, PERMISSION_KEYS.CREDENCIAMENTO_EDIT) : false
     }, [])
 
-    const ehEstabelecimento = prestadorEhEstabelecimento(form.especialidade_id)
-    const mostrarCidades = !ehEstabelecimento
-    const mostrarVets = ehEstabelecimento
+    const mostrarAtendeClinica = secaoMultiplasCidades
+
+    const estabelecimentosSelecionadosDados = useMemo(
+        () =>
+            estabelecimentosSelecionados
+                .map((id) => prestadoresTodos.find((p) => Number(p.id) === Number(id)))
+                .filter(Boolean),
+        [estabelecimentosSelecionados, prestadoresTodos],
+    )
+
+    const telefoneAutoClinica = useMemo(
+        () =>
+            estabelecimentosSelecionadosDados
+                .map((p) => p.telefone)
+                .filter(Boolean)
+                .join(' | '),
+        [estabelecimentosSelecionadosDados],
+    )
+
+    const modalidadeAutoClinica = useMemo(
+        () =>
+            estabelecimentosSelecionadosDados
+                .map((p) => p.nome)
+                .filter(Boolean)
+                .join(' | '),
+        [estabelecimentosSelecionadosDados],
+    )
 
     const carregarBase = useCallback(async () => {
         const [c, s, e, p] = await Promise.all([
             supabase.from('cidades_credenciamento').select('id, nome').order('nome'),
             supabase.from('situacoes').select('id, descricao').eq('ativo', true).order('ordem'),
             supabase.from('especialidades').select('id, nome, tipo').order('nome'),
-            supabase.from('prestadores').select('id, nome, especialidade_id, crmv').eq('ativo', true),
+            supabase
+                .from('prestadores')
+                .select('id, nome, especialidade_id, crmv, cidade_id, telefone, tipo')
+                .eq('ativo', true),
         ])
         setCidades(c.data || [])
         setSituacoes(s.data || [])
@@ -106,13 +184,13 @@ const CredenciamentoCadastroForm = () => {
             }
             setForm({
                 nome: data.nome || '',
-                cpf_cnpj: data.cpf_cnpj || '',
+                cpf_cnpj: data.cpf_cnpj ? formatarCpfCnpjEntrada(data.cpf_cnpj) : '',
                 situacao_id: data.situacao_id != null ? String(data.situacao_id) : '',
                 telefone: data.telefone || '',
                 celular: data.celular || '',
-                email: data.email || '',
+                email: data.email ? formatarEmailEntrada(data.email) : '',
                 especialidade_id: data.especialidade_id != null ? String(data.especialidade_id) : '',
-                crmv: data.crmv || '',
+                crmv: data.crmv ? formatarCrmvEntrada(data.crmv) : '',
                 cep: data.cep || '',
                 endereco_logradouro: data.endereco_logradouro || data.endereco || '',
                 endereco_numero: data.endereco_numero || '',
@@ -130,18 +208,33 @@ const CredenciamentoCadastroForm = () => {
 
             const { data: pcs } = await supabase.from('prestador_cidades').select('cidade_id, principal').eq('prestador_id', prestadorId)
             const listaPc = pcs || []
-            const idsC = [...new Set(listaPc.map((r) => Number(r.cidade_id)))]
+            const idsC = []
+            const vistosCidade = new Set()
+            listaPc.forEach((r) => {
+                const cid = Number(r.cidade_id)
+                if (!cid || vistosCidade.has(cid)) return
+                vistosCidade.add(cid)
+                idsC.push(cid)
+            })
             let mapaCid = new Map()
             if (idsC.length) {
                 const { data: rowsC } = await supabase.from('cidades_credenciamento').select('id, nome').in('id', idsC)
                 mapaCid = new Map((rowsC || []).map((c) => [Number(c.id), c.nome]))
             }
-            const atende = idsC.map((cid) => ({
+            const atendeBase = idsC.map((cid) => ({
                 cidadeId: cid,
                 nome: mapaCid.get(cid) || `Cidade #${cid}`,
                 uf: '',
             }))
-            setCidadesAtende(atende)
+            const atende = await Promise.all(
+                atendeBase.map(async (item) => {
+                    if (item.uf) return item
+                    const uf = await resolverUfPorNomeMunicipio(item.nome)
+                    return { ...item, uf: uf || '' }
+                }),
+            )
+            const ordemSalva = lerOrdemCidadesAtende(prestadorId)
+            setCidadesAtende(ordenarCidadesAtendePorChave(atende, ordemSalva))
 
             const { data: peData } = await supabase
                 .from('prestador_especialidades')
@@ -154,11 +247,31 @@ const CredenciamentoCadastroForm = () => {
                 .from('prestador_estabelecimentos')
                 .select('veterinario_id')
                 .eq('estabelecimento_id', prestadorId)
-            setVetsVinculados((vets || []).map((v) => Number(v.veterinario_id)))
+            const idsVetsVinc = (vets || []).map((v) => Number(v.veterinario_id))
+            setVetsVinculados(idsVetsVinc)
             setVetsPendentes([])
 
-            const { data: procs } = await supabase.from('prestador_procedimentos').select('procedimento_cod').eq('prestador_id', prestadorId)
-            setProcSelecionados((procs || []).map((r) => String(r.procedimento_cod)))
+            const { data: peClinicas } = await supabase
+                .from('prestador_estabelecimentos')
+                .select('estabelecimento_id, principal')
+                .eq('veterinario_id', prestadorId)
+            const idsClin = [...new Set((peClinicas || []).map((r) => Number(r.estabelecimento_id)).filter(Boolean))]
+            setEstabelecimentosSelecionados(idsClin)
+            setAtendeEmClinica(idsClin.length > 0)
+            setSecaoMultiplasCidades(listaPc.length > 0 || idsClin.length > 0)
+            setSecaoVetsVinculados(idsVetsVinc.length > 0)
+
+            try {
+                const codigosProc = await carregarCodigosPrestadorProcedimentos(prestadorId)
+                setProcSelecionados(codigosProc)
+            } catch (errProc) {
+                setErro((prev) =>
+                    prev
+                        ? `${prev}\nProcedimentos: ${errProc?.message || String(errProc)}`
+                        : `Procedimentos: ${errProc?.message || String(errProc)}`,
+                )
+                setProcSelecionados([])
+            }
 
             const { data: labsSol } = await supabase
                 .from('prestador_laboratorios_solicitacao')
@@ -175,7 +288,7 @@ const CredenciamentoCadastroForm = () => {
     }, [carregarBase])
 
     useEffect(() => {
-        if (!mostrarCidades || !ufAtende) return
+        if (!secaoMultiplasCidades || !ufAtende) return
         let cancel = false
         setCarregandoMunicipios(true)
         buscarMunicipiosPorUf(ufAtende)
@@ -194,11 +307,24 @@ const CredenciamentoCadastroForm = () => {
         return () => {
             cancel = true
         }
-    }, [ufAtende, mostrarCidades])
+    }, [ufAtende, secaoMultiplasCidades])
 
     useEffect(() => {
         if (!isNovo) void carregarPrestador()
     }, [isNovo, carregarPrestador])
+
+    useEffect(() => {
+        if (!secaoMultiplasCidades) {
+            setAtendeEmClinica(false)
+            setEstabelecimentosSelecionados([])
+        }
+    }, [secaoMultiplasCidades])
+
+    useEffect(() => {
+        if (!secaoVetsVinculados) {
+            setVetsPendentes([])
+        }
+    }, [secaoVetsVinculados])
 
     useEffect(() => {
         if (!isNovo || form.situacao_id || !situacoes.length) return
@@ -306,6 +432,14 @@ const CredenciamentoCadastroForm = () => {
         }
         const esp = especialidades.find((e) => Number(e.id) === Number(form.especialidade_id))
         const tipoSalvar = String(esp?.tipo || form.tipo || '').trim() || 'ESPECIALIDADE'
+        if (secaoMultiplasCidades && atendeEmClinica && estabelecimentosSelecionados.length === 0) {
+            setErro('Selecione pelo menos uma clínica/local para o vínculo.')
+            return
+        }
+        if (secaoMultiplasCidades && atendeEmClinica && !modalidadeAutoClinica.trim()) {
+            setErro('Selecione a clínica/local para preencher a modalidade.')
+            return
+        }
 
         setSalvando(true)
         setErro('')
@@ -319,15 +453,17 @@ const CredenciamentoCadastroForm = () => {
 
             const enderecoLegado = montarEnderecoUmaLinha(form)
 
+            const usaClinica = secaoMultiplasCidades && atendeEmClinica
+
             const payload = {
                 nome: form.nome.trim(),
-                cpf_cnpj: String(form.cpf_cnpj || '').replace(/\D/g, '') || null,
+                cpf_cnpj: normalizarCpfCnpjParaSalvar(form.cpf_cnpj),
                 situacao_id: form.situacao_id ? Number(form.situacao_id) : null,
-                telefone: form.telefone.trim() || null,
+                telefone: (usaClinica ? telefoneAutoClinica : form.telefone).trim() || null,
                 celular: form.celular.trim() || null,
-                email: form.email.trim() || null,
+                email: normalizarEmailParaSalvar(form.email),
                 especialidade_id: Number(form.especialidade_id),
-                crmv: form.crmv.trim() || null,
+                crmv: normalizarCrmvParaSalvar(form.crmv),
                 tipo: tipoSalvar,
                 cep: form.cep.trim() || null,
                 endereco_logradouro: form.endereco_logradouro.trim() || null,
@@ -340,7 +476,7 @@ const CredenciamentoCadastroForm = () => {
                 endereco: enderecoLegado || null,
                 chave_pix: form.chave_pix.trim() || null,
                 tipo_repasse: form.tipo_repasse || null,
-                modalidade: form.modalidade.trim() || null,
+                modalidade: (usaClinica ? modalidadeAutoClinica : form.modalidade).trim() || null,
                 cidade_id: cidadePrincipalId,
                 ativo: true,
                 data_atualizacao: new Date().toISOString(),
@@ -358,23 +494,26 @@ const CredenciamentoCadastroForm = () => {
             }
 
             await supabase.from('prestador_cidades').delete().eq('prestador_id', pid)
-            const cidadesPayload = []
-            if (cidadesAtende.length) {
-                cidadesAtende.forEach((c) => {
-                    cidadesPayload.push({
-                        prestador_id: pid,
-                        cidade_id: c.cidadeId,
-                        principal: Number(c.cidadeId) === Number(cidadePrincipalId),
+            if (secaoMultiplasCidades) {
+                const cidadesPayload = []
+                if (cidadesAtende.length) {
+                    cidadesAtende.forEach((c) => {
+                        cidadesPayload.push({
+                            prestador_id: pid,
+                            cidade_id: c.cidadeId,
+                            principal: Number(c.cidadeId) === Number(cidadePrincipalId),
+                        })
                     })
-                })
-            } else if (cidadePrincipalId) {
-                cidadesPayload.push({ prestador_id: pid, cidade_id: cidadePrincipalId, principal: true })
-            }
-            if (cidadesPayload.length) {
-                await supabase.from('prestador_cidades').upsert(cidadesPayload, {
-                    onConflict: 'prestador_id,cidade_id',
-                    ignoreDuplicates: true,
-                })
+                } else if (cidadePrincipalId) {
+                    cidadesPayload.push({ prestador_id: pid, cidade_id: cidadePrincipalId, principal: true })
+                }
+                if (cidadesPayload.length) {
+                    await supabase.from('prestador_cidades').upsert(cidadesPayload, {
+                        onConflict: 'prestador_id,cidade_id',
+                        ignoreDuplicates: true,
+                    })
+                }
+                salvarOrdemCidadesAtende(pid, cidadesAtende)
             }
 
             await supabase.from('prestador_especialidades').delete().eq('prestador_id', pid)
@@ -387,7 +526,22 @@ const CredenciamentoCadastroForm = () => {
             })
             await supabase.from('prestador_especialidades').insert(payloadEsp)
 
-            if (mostrarVets) {
+            if (secaoMultiplasCidades) {
+                await supabase.from('prestador_estabelecimentos').delete().eq('veterinario_id', pid)
+                if (atendeEmClinica && estabelecimentosSelecionados.length) {
+                    const rowsEst = estabelecimentosSelecionados.map((estabelecimentoId, idx) => ({
+                        veterinario_id: pid,
+                        estabelecimento_id: Number(estabelecimentoId),
+                        principal: idx === 0,
+                    }))
+                    const { error: errEst } = await supabase.from('prestador_estabelecimentos').insert(rowsEst)
+                    if (errEst) throw new Error(errEst.message)
+                }
+            } else {
+                await supabase.from('prestador_estabelecimentos').delete().eq('veterinario_id', pid)
+            }
+
+            if (secaoVetsVinculados) {
                 const credIdVet = acharSituacaoCredenciadoId(situacoes)
                 let idsVets = [...vetsVinculados.map(Number)]
                 let cidadeVet = form.cidade_id ? Number(form.cidade_id) : null
@@ -406,7 +560,7 @@ const CredenciamentoCadastroForm = () => {
                         .from('prestadores')
                         .insert({
                             nome: v.nome.trim(),
-                            crmv: v.crmv?.trim() || null,
+                            crmv: normalizarCrmvParaSalvar(v.crmv),
                             especialidade_id: Number(v.especialidade_id),
                             tipo: tipoV,
                             cidade_id: cidadeVet,
@@ -432,16 +586,13 @@ const CredenciamentoCadastroForm = () => {
                     await supabase.from('prestador_estabelecimentos').insert(rows)
                 }
                 setVetsPendentes([])
+            } else {
+                await supabase.from('prestador_estabelecimentos').delete().eq('estabelecimento_id', pid)
             }
 
-            await supabase.from('prestador_procedimentos').delete().eq('prestador_id', pid)
-            if (procSelecionados.length) {
-                const rows = procSelecionados.map((cod) => ({
-                    prestador_id: pid,
-                    procedimento_cod: String(cod),
-                }))
-                await supabase.from('prestador_procedimentos').insert(rows)
-            }
+            await sincronizarPrestadorProcedimentos(pid, procSelecionados)
+            const codigosAtualizados = await carregarCodigosPrestadorProcedimentos(pid)
+            setProcSelecionados(codigosAtualizados)
 
             await supabase.from('prestador_laboratorios_solicitacao').delete().eq('prestador_id', pid)
             if (laboratoriosSolicitacaoIds.length) {
@@ -453,7 +604,7 @@ const CredenciamentoCadastroForm = () => {
                 if (errLabs) throw new Error(errLabs.message)
             }
 
-            navigate(`/credenciamento/cadastro/${pid}`, { replace: true })
+            navigate('/credenciamento/cadastro', { replace: true })
         } catch (e) {
             setErro(e?.message || String(e))
         } finally {
@@ -491,6 +642,15 @@ const CredenciamentoCadastroForm = () => {
                                 className="credenciamento_main_input"
                                 value={form.cpf_cnpj}
                                 onChange={(e) => setCampo('cpf_cnpj', formatarCpfCnpjEntrada(e.target.value))}
+                                onBlur={(e) => setCampo('cpf_cnpj', formatarCpfCnpjEntrada(e.target.value))}
+                                inputMode="numeric"
+                                autoComplete="off"
+                                placeholder={
+                                    tipoDocumentoCpfCnpj(form.cpf_cnpj) === 'CNPJ'
+                                        ? '00.000.000/0000-00'
+                                        : '000.000.000-00'
+                                }
+                                maxLength={18}
                                 disabled={somenteLeitura}
                             />
                         </label>
@@ -508,7 +668,7 @@ const CredenciamentoCadastroForm = () => {
                             <input
                                 className="credenciamento_main_input"
                                 value={form.crmv}
-                                onChange={(e) => setCampo('crmv', e.target.value)}
+                                onChange={(e) => setCampo('crmv', formatarCrmvEntrada(e.target.value))}
                                 disabled={somenteLeitura}
                             />
                         </label>
@@ -534,8 +694,13 @@ const CredenciamentoCadastroForm = () => {
                             Telefone
                             <input
                                 className="credenciamento_main_input"
-                                value={form.telefone}
+                                value={
+                                    mostrarAtendeClinica && atendeEmClinica
+                                        ? telefoneAutoClinica
+                                        : form.telefone
+                                }
                                 onChange={(e) => setCampo('telefone', formatarTelefoneEntrada(e.target.value))}
+                                readOnly={mostrarAtendeClinica && atendeEmClinica}
                                 disabled={somenteLeitura}
                             />
                         </label>
@@ -554,7 +719,7 @@ const CredenciamentoCadastroForm = () => {
                                 type="email"
                                 className="credenciamento_main_input"
                                 value={form.email}
-                                onChange={(e) => setCampo('email', e.target.value)}
+                                onChange={(e) => setCampo('email', formatarEmailEntrada(e.target.value))}
                                 disabled={somenteLeitura}
                             />
                         </label>
@@ -562,8 +727,13 @@ const CredenciamentoCadastroForm = () => {
                             Modalidade
                             <input
                                 className="credenciamento_main_input"
-                                value={form.modalidade}
+                                value={
+                                    mostrarAtendeClinica && atendeEmClinica
+                                        ? modalidadeAutoClinica
+                                        : form.modalidade
+                                }
                                 onChange={(e) => setCampo('modalidade', e.target.value)}
+                                readOnly={mostrarAtendeClinica && atendeEmClinica}
                                 disabled={somenteLeitura}
                             />
                         </label>
@@ -714,7 +884,13 @@ const CredenciamentoCadastroForm = () => {
                     <h2>Serviços</h2>
                     <PrestadorServicosAbas
                         prestadorId={prestadorId}
-                        cidadeId={form.cidade_id ? Number(form.cidade_id) : null}
+                        cidadeId={
+                            form.cidade_id
+                                ? Number(form.cidade_id)
+                                : cidadesAtende[0]?.cidadeId
+                                  ? Number(cidadesAtende[0].cidadeId)
+                                  : null
+                        }
                         somenteLeitura={somenteLeitura}
                         selecionadosInicial={procSelecionados}
                         onChangeSelecionados={setProcSelecionados}
@@ -723,66 +899,118 @@ const CredenciamentoCadastroForm = () => {
                     />
                 </section>
 
-                {mostrarCidades && (
-                    <section className="pcad_card">
+                <section className="pcad_card">
+                    <div className="pcad_card_head_switch">
                         <h2>Cidades que atende</h2>
-                        <div className="pcad_row pcad_row_cidades">
-                            <label className="pcad_field">
-                                UF
-                                <select
-                                    className="credenciamento_main_select"
-                                    value={ufAtende}
-                                    onChange={(e) => setUfAtende(e.target.value)}
-                                    disabled={somenteLeitura}
-                                >
-                                    {UFS_BRASIL.map((u) => (
-                                        <option key={u} value={u}>
-                                            {u}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            <label className="pcad_field">
-                                Cidade
-                                <select
-                                    className="credenciamento_main_select"
-                                    value={municipioIbgeId}
-                                    onChange={(e) => setMunicipioIbgeId(e.target.value)}
-                                    disabled={somenteLeitura || carregandoMunicipios}
-                                >
-                                    <option value="">{carregandoMunicipios ? 'Carregando…' : 'Selecione a cidade'}</option>
-                                    {municipiosUf.map((m) => (
-                                        <option key={m.id} value={m.id}>
-                                            {m.nome}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            <div className="pcad_field pcad_cidades_add_btn">
-                                <span className="pcad_field_label" aria-hidden="true">
-                                    &nbsp;
+                        <div className="pcad_card_head_switch_ctl">
+                            <span className="pcad_card_head_switch_lbl">Múltiplas cidades</span>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={secaoMultiplasCidades}
+                                className={`credenciamento_switch ${secaoMultiplasCidades ? 'is-on' : 'is-off'}`}
+                                disabled={somenteLeitura}
+                                onClick={() => setSecaoMultiplasCidades((v) => !v)}
+                            >
+                                <span className="credenciamento_switch_track">
+                                    <span className="credenciamento_switch_knob" />
                                 </span>
-                                <button
-                                    type="button"
-                                    className="credenciamento_main_action_btn"
-                                    disabled={somenteLeitura}
-                                    onClick={() => void adicionarCidadeAtende()}
-                                >
-                                    Adicionar
-                                </button>
-                            </div>
+                                <span className="credenciamento_switch_label">{secaoMultiplasCidades ? 'Sim' : 'Não'}</span>
+                            </button>
                         </div>
-                        <CidadesAtendeVirtualList
-                            itens={cidadesAtende}
-                            onRemover={removerCidadeAtende}
-                            somenteLeitura={somenteLeitura}
-                        />
-                    </section>
-                )}
+                    </div>
+                    {secaoMultiplasCidades ? (
+                        <>
+                            <div className="pcad_row pcad_row_cidades">
+                                <label className="pcad_field">
+                                    UF
+                                    <select
+                                        className="credenciamento_main_select"
+                                        value={ufAtende}
+                                        onChange={(e) => setUfAtende(e.target.value)}
+                                        disabled={somenteLeitura}
+                                    >
+                                        {UFS_BRASIL.map((u) => (
+                                            <option key={u} value={u}>
+                                                {u}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                                <label className="pcad_field">
+                                    Cidade
+                                    <select
+                                        className="credenciamento_main_select"
+                                        value={municipioIbgeId}
+                                        onChange={(e) => setMunicipioIbgeId(e.target.value)}
+                                        disabled={somenteLeitura || carregandoMunicipios}
+                                    >
+                                        <option value="">{carregandoMunicipios ? 'Carregando…' : 'Selecione a cidade'}</option>
+                                        {municipiosUf.map((m) => (
+                                            <option key={m.id} value={m.id}>
+                                                {m.nome}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                                <div className="pcad_field pcad_cidades_add_btn">
+                                    <span className="pcad_field_label" aria-hidden="true">
+                                        &nbsp;
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="credenciamento_main_action_btn"
+                                        disabled={somenteLeitura}
+                                        onClick={() => void adicionarCidadeAtende()}
+                                    >
+                                        Adicionar
+                                    </button>
+                                </div>
+                            </div>
+                            <CidadesAtendeVirtualList
+                                itens={cidadesAtende}
+                                onRemover={removerCidadeAtende}
+                                somenteLeitura={somenteLeitura}
+                            />
+                            <div className="pcad_row pcad_row_atende_clinica">
+                                <ClinicasAtendeInput
+                                    layout="inline"
+                                    prestadores={prestadoresTodos}
+                                    prestadorAtualId={prestadorId}
+                                    selecionadosIds={estabelecimentosSelecionados}
+                                    onChangeSelecionados={setEstabelecimentosSelecionados}
+                                    ativo={atendeEmClinica}
+                                    onAtivoChange={setAtendeEmClinica}
+                                    disabled={somenteLeitura}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <p className="pcad_muted pcad_secao_off_hint">Ative «Múltiplas cidades» para incluir cidades e vínculos com clínicas.</p>
+                    )}
+                </section>
 
-                {mostrarVets && (
-                    <section className="pcad_card">
+                <section className="pcad_card">
+                    <div className="pcad_card_head_switch">
                         <h2>Veterinários vinculados</h2>
+                        <div className="pcad_card_head_switch_ctl">
+                            <span className="pcad_card_head_switch_lbl">Vets vinculados</span>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={secaoVetsVinculados}
+                                className={`credenciamento_switch ${secaoVetsVinculados ? 'is-on' : 'is-off'}`}
+                                disabled={somenteLeitura}
+                                onClick={() => setSecaoVetsVinculados((v) => !v)}
+                            >
+                                <span className="credenciamento_switch_track">
+                                    <span className="credenciamento_switch_knob" />
+                                </span>
+                                <span className="credenciamento_switch_label">{secaoVetsVinculados ? 'Sim' : 'Não'}</span>
+                            </button>
+                        </div>
+                    </div>
+                    {secaoVetsVinculados ? (
                         <VeterinariosVinculados
                             estabelecimentoId={prestadorId}
                             cidadeIdClinica={form.cidade_id ? Number(form.cidade_id) : null}
@@ -797,8 +1025,10 @@ const CredenciamentoCadastroForm = () => {
                             somenteLeitura={somenteLeitura}
                             onErro={setErro}
                         />
-                    </section>
-                )}
+                    ) : (
+                        <p className="pcad_muted pcad_secao_off_hint">Ative «Vets vinculados» para gerenciar veterinários deste estabelecimento.</p>
+                    )}
+                </section>
             </div>
 
             <div className="pcad_form_footer">
