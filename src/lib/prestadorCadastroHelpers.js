@@ -122,3 +122,44 @@ export const montarEnderecoUmaLinha = (e) => {
     ].filter(Boolean)
     return partes.join(' — ')
 }
+
+const campoPreenchido = (valor) => {
+    if (valor == null) return false
+    if (typeof valor === 'string') return valor.trim().length > 0
+    if (typeof valor === 'number') return !Number.isNaN(valor)
+    return Boolean(valor)
+}
+
+/**
+ * Percentual de completude da ficha (Perfil, Endereço, Financeiro, cidades atendidas).
+ * Não considera procedimentos/serviços cadastrados.
+ */
+export const calcularPercentualCompletudePerfil = (prestador, opcoes = {}) => {
+    const { temCidadeAtende = false, temVinculoClinica = false } = opcoes
+    const ehEstabelecimento = prestadorEhEstabelecimento(prestador?.especialidade_id)
+
+    const criterios = [
+        campoPreenchido(prestador?.nome),
+        campoPreenchido(prestador?.especialidade_id),
+        campoPreenchido(prestador?.cpf_cnpj),
+        !ehEstabelecimento ? campoPreenchido(prestador?.crmv) : true,
+        campoPreenchido(prestador?.situacao_id),
+        campoPreenchido(prestador?.telefone) ||
+            campoPreenchido(prestador?.celular) ||
+            temVinculoClinica,
+        campoPreenchido(prestador?.email),
+        campoPreenchido(prestador?.modalidade) || temVinculoClinica,
+        campoPreenchido(prestador?.cep),
+        campoPreenchido(prestador?.endereco_logradouro) || campoPreenchido(prestador?.endereco),
+        campoPreenchido(prestador?.endereco_numero),
+        campoPreenchido(prestador?.endereco_bairro),
+        campoPreenchido(prestador?.endereco_cidade),
+        campoPreenchido(prestador?.endereco_uf),
+        campoPreenchido(prestador?.chave_pix),
+        campoPreenchido(prestador?.tipo_repasse),
+        temCidadeAtende || campoPreenchido(prestador?.cidade_id),
+    ]
+
+    const preenchidos = criterios.filter(Boolean).length
+    return Math.round((preenchidos / criterios.length) * 100)
+}

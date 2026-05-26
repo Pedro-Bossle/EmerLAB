@@ -79,6 +79,51 @@
     width: 100%;
 }
 
+.credenciamento_cadastro_perfil_pct {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 7rem;
+}
+
+.credenciamento_cadastro_perfil_bar {
+    flex: 1;
+    min-width: 3.5rem;
+    max-width: 5rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: #e2eaf0;
+    overflow: hidden;
+}
+
+.credenciamento_cadastro_perfil_bar_fill {
+    display: block;
+    height: 100%;
+    width: var(--pct, 0%);
+    border-radius: inherit;
+    transition: width 0.2s ease;
+}
+
+.credenciamento_cadastro_perfil_bar--low .credenciamento_cadastro_perfil_bar_fill {
+    background: #c0392b;
+}
+
+.credenciamento_cadastro_perfil_bar--mid .credenciamento_cadastro_perfil_bar_fill {
+    background: #d68910;
+}
+
+.credenciamento_cadastro_perfil_bar--full .credenciamento_cadastro_perfil_bar_fill {
+    background: #1e8449;
+}
+
+.credenciamento_cadastro_perfil_pct_num {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #2c3e50;
+    min-width: 2.25rem;
+    text-align: right;
+}
+
 .credenciamento_cadastro_th_sortable {
     padding: 0;
     vertical-align: middle;

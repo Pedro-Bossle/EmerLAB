@@ -2,7 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission } from '../../../lib/accessControl'
 import { supabase } from '../../../lib/supabase'
-import { acharSituacaoCredenciadoId, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
+import {
+    acharSituacaoCredenciadoId,
+    calcularPercentualCompletudePerfil,
+    normalizarTextoBusca,
+} from '../../../lib/prestadorCadastroHelpers'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 
@@ -68,7 +72,7 @@ const CredenciamentoCadastroLista = () => {
                 supabase
                     .from('prestadores')
                     .select(
-                        'id, nome, tipo, telefone, celular, email, cidade_id, especialidade_id, situacao_id, cpf_cnpj, crmv, ativo'
+                        'id, nome, tipo, telefone, celular, email, cidade_id, especialidade_id, situacao_id, cpf_cnpj, crmv, ativo, cep, endereco, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, modalidade, chave_pix, tipo_repasse'
                     )
                     .eq('ativo', true),
                 supabase.from('cidades_credenciamento').select('id, nome').order('nome', { ascending: true }),
@@ -166,12 +170,22 @@ const CredenciamentoCadastroLista = () => {
             if (!cidadesPorPrestador.has(pid)) cidadesPorPrestador.set(pid, [])
             cidadesPorPrestador.get(pid).push(rel)
         })
+        const temVinculoClinicaPorVet = new Map()
+        ;(prestadorEstabelecimentos || []).forEach((rel) => {
+            const vid = Number(rel.veterinario_id)
+            if (vid) temVinculoClinicaPorVet.set(vid, true)
+        })
         return (prestadores || []).map((p) => {
-            const rels = cidadesPorPrestador.get(Number(p.id)) || []
+            const pid = Number(p.id)
+            const rels = cidadesPorPrestador.get(pid) || []
             const principal = rels.find((r) => r.principal) || rels[0]
             const cidadeNome = principal ? cidadePorId.get(Number(principal.cidade_id))?.nome || '—' : '—'
             const espObj = especialidadePorId.get(Number(p.especialidade_id))
             const tipoLabel = espObj?.nome || '—'
+            const perfilCompletoPct = calcularPercentualCompletudePerfil(p, {
+                temCidadeAtende: rels.length > 0,
+                temVinculoClinica: temVinculoClinicaPorVet.get(pid) === true,
+            })
             return {
                 id: p.id,
                 nome: p.nome || '—',
@@ -179,9 +193,17 @@ const CredenciamentoCadastroLista = () => {
                 tipoLabel,
                 situacaoId: p.situacao_id,
                 situacao: situacaoPorId.get(Number(p.situacao_id))?.descricao || '—',
+                perfilCompletoPct,
             }
         })
-    }, [prestadores, prestadorCidades, cidadePorId, situacaoPorId, especialidadePorId])
+    }, [
+        prestadores,
+        prestadorCidades,
+        prestadorEstabelecimentos,
+        cidadePorId,
+        situacaoPorId,
+        especialidadePorId,
+    ])
 
     const linhasFiltradas = useMemo(() => {
         const b1 = normalizarTextoBusca(termoBusca1)
@@ -220,14 +242,20 @@ const CredenciamentoCadastroLista = () => {
                   ? 'tipoLabel'
                   : ordenarColuna === 'situacao'
                     ? 'situacao'
-                    : 'nome'
-        lista.sort(
-            (a, b) =>
+                    : ordenarColuna === 'perfil'
+                      ? 'perfilCompletoPct'
+                      : 'nome'
+        lista.sort((a, b) => {
+            if (ordenarColuna === 'perfil') {
+                return fator * (Number(a.perfilCompletoPct) - Number(b.perfilCompletoPct))
+            }
+            return (
                 fator *
                 String(a[chave] ?? '').localeCompare(String(b[chave] ?? ''), 'pt-BR', {
                     sensitivity: 'base',
                 })
-        )
+            )
+        })
         return lista
     }, [linhasFiltradas, ordenarColuna, ordenarDir])
 
@@ -381,6 +409,16 @@ const CredenciamentoCadastroLista = () => {
                                         <button
                                             type="button"
                                             className="credenciamento_cadastro_th_sort_btn"
+                                            onClick={() => alternarOrdenacao('perfil')}
+                                            title="Completude da ficha (perfil, endereço, financeiro e cidades). Não inclui procedimentos."
+                                        >
+                                            Perfil %{indicadorOrdenacao('perfil')}
+                                        </button>
+                                    </th>
+                                    <th className="table_header credenciamento_cadastro_th_sortable">
+                                        <button
+                                            type="button"
+                                            className="credenciamento_cadastro_th_sort_btn"
                                             onClick={() => alternarOrdenacao('situacao')}
                                         >
                                             Situação{indicadorOrdenacao('situacao')}
@@ -391,7 +429,7 @@ const CredenciamentoCadastroLista = () => {
                             <tbody>
                                 {linhasPaginadas.length === 0 && (
                                     <tr>
-                                        <td colSpan={4}>Nenhum prestador encontrado.</td>
+                                        <td colSpan={5}>Nenhum prestador encontrado.</td>
                                     </tr>
                                 )}
                                 {linhasPaginadas.map((l) => (
@@ -403,6 +441,16 @@ const CredenciamentoCadastroLista = () => {
                                         <td className="table_text_left credenciamento_main_nome_click">{l.nome}</td>
                                         <td className="table_text_left">{l.cidadeNome}</td>
                                         <td className="table_text_left">{l.tipoLabel}</td>
+                                        <td className="table_text_left credenciamento_cadastro_perfil_pct">
+                                            <span
+                                                className={`credenciamento_cadastro_perfil_bar credenciamento_cadastro_perfil_bar--${l.perfilCompletoPct >= 100 ? 'full' : l.perfilCompletoPct >= 50 ? 'mid' : 'low'}`}
+                                                style={{ '--pct': `${l.perfilCompletoPct}%` }}
+                                                title="Perfil, endereço, financeiro e cidades (sem procedimentos)"
+                                            >
+                                                <span className="credenciamento_cadastro_perfil_bar_fill" />
+                                            </span>
+                                            <span className="credenciamento_cadastro_perfil_pct_num">{l.perfilCompletoPct}%</span>
+                                        </td>
                                         <td className="table_text_left">{l.situacao}</td>
                                     </tr>
                                 ))}
