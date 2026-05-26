@@ -131,11 +131,11 @@ const campoPreenchido = (valor) => {
 }
 
 /**
- * Percentual de completude da ficha (Perfil, Endereço, Financeiro, cidades atendidas).
- * Não considera procedimentos/serviços cadastrados.
+ * Percentual de completude da ficha (Perfil, Endereço, Financeiro).
+ * Não considera modalidade, cidades de atuação nem procedimentos/serviços.
  */
 export const calcularPercentualCompletudePerfil = (prestador, opcoes = {}) => {
-    const { temCidadeAtende = false, temVinculoClinica = false } = opcoes
+    const { temVinculoClinica = false } = opcoes
     const ehEstabelecimento = prestadorEhEstabelecimento(prestador?.especialidade_id)
 
     const criterios = [
@@ -148,7 +148,6 @@ export const calcularPercentualCompletudePerfil = (prestador, opcoes = {}) => {
             campoPreenchido(prestador?.celular) ||
             temVinculoClinica,
         campoPreenchido(prestador?.email),
-        campoPreenchido(prestador?.modalidade) || temVinculoClinica,
         campoPreenchido(prestador?.cep),
         campoPreenchido(prestador?.endereco_logradouro) || campoPreenchido(prestador?.endereco),
         campoPreenchido(prestador?.endereco_numero),
@@ -157,7 +156,6 @@ export const calcularPercentualCompletudePerfil = (prestador, opcoes = {}) => {
         campoPreenchido(prestador?.endereco_uf),
         campoPreenchido(prestador?.chave_pix),
         campoPreenchido(prestador?.tipo_repasse),
-        temCidadeAtende || campoPreenchido(prestador?.cidade_id),
     ]
 
     const preenchidos = criterios.filter(Boolean).length

@@ -183,7 +183,6 @@ const CredenciamentoCadastroLista = () => {
             const espObj = especialidadePorId.get(Number(p.especialidade_id))
             const tipoLabel = espObj?.nome || '—'
             const perfilCompletoPct = calcularPercentualCompletudePerfil(p, {
-                temCidadeAtende: rels.length > 0,
                 temVinculoClinica: temVinculoClinicaPorVet.get(pid) === true,
             })
             return {
@@ -410,7 +409,7 @@ const CredenciamentoCadastroLista = () => {
                                             type="button"
                                             className="credenciamento_cadastro_th_sort_btn"
                                             onClick={() => alternarOrdenacao('perfil')}
-                                            title="Completude da ficha (perfil, endereço, financeiro e cidades). Não inclui procedimentos."
+                                            title="Completude da ficha (perfil, endereço e financeiro). Não inclui modalidade, atuação nem procedimentos."
                                         >
                                             Perfil %{indicadorOrdenacao('perfil')}
                                         </button>
@@ -445,7 +444,7 @@ const CredenciamentoCadastroLista = () => {
                                             <span
                                                 className={`credenciamento_cadastro_perfil_bar credenciamento_cadastro_perfil_bar--${l.perfilCompletoPct >= 100 ? 'full' : l.perfilCompletoPct >= 50 ? 'mid' : 'low'}`}
                                                 style={{ '--pct': `${l.perfilCompletoPct}%` }}
-                                                title="Perfil, endereço, financeiro e cidades (sem procedimentos)"
+                                                title="Perfil, endereço e financeiro (sem modalidade, atuação nem procedimentos)"
                                             >
                                                 <span className="credenciamento_cadastro_perfil_bar_fill" />
                                             </span>
