@@ -982,3 +982,23 @@ body.dark-mode .credenciamento_main.pcad_form_page .credenciamento_main_select {
     color: #dce7f2;
     border-color: #355372;
 }
+
+body.dark-mode .credenciamento_cadastro_perfil_pct_num {
+    color: var(--text-main);
+}
+
+body.dark-mode .credenciamento_cadastro_perfil_bar {
+    background: #2a4560;
+}
+
+body.dark-mode .credenciamento_cadastro_perfil_bar--low .credenciamento_cadastro_perfil_bar_fill {
+    background: #ef6b6b;
+}
+
+body.dark-mode .credenciamento_cadastro_perfil_bar--mid .credenciamento_cadastro_perfil_bar_fill {
+    background: #f0b429;
+}
+
+body.dark-mode .credenciamento_cadastro_perfil_bar--full .credenciamento_cadastro_perfil_bar_fill {
+    background: #5dce8a;
+}
