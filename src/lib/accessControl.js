@@ -5,13 +5,23 @@ export const PERMISSION_KEYS = {
   SUPERTABELA_VIEW: 'supertabela.view',
   SUPERTABELA_EDIT: 'supertabela.edit',
   SUPERTABELA_DELETE_BY_LIST: 'supertabela.tools.deleteByList',
+  SUPERTABELA_NEGOCIACOES_VIEW: 'supertabela.negociacoes.view',
   CREDENCIAMENTO_VIEW: 'credenciamento.view',
   CREDENCIAMENTO_EDIT: 'credenciamento.edit',
+  CREDENCIAMENTO_CADASTRO_VIEW: 'credenciamento.cadastro.view',
+  CREDENCIAMENTO_QUEM_REALIZA_VIEW: 'credenciamento.quem_realiza.view',
   COMPRAS_VIEW: 'compras.view',
   COMPRAS_EDIT: 'compras.edit',
   CONTRATOS_VIEW: 'contratos.view',
   CONTRATOS_EDIT: 'contratos.edit',
 }
+
+/** Telas com chave própria: se ausente no JSON salvo, herda o «ver» do módulo. */
+const HERANCA_PERMISSAO_TELA = [
+  [PERMISSION_KEYS.SUPERTABELA_NEGOCIACOES_VIEW, PERMISSION_KEYS.SUPERTABELA_VIEW],
+  [PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW, PERMISSION_KEYS.CREDENCIAMENTO_VIEW],
+  [PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW, PERMISSION_KEYS.CREDENCIAMENTO_VIEW],
+]
 
 export const PERMISSOES = [
   {
@@ -30,7 +40,12 @@ export const PERMISSOES = [
       {
         chave: PERMISSION_KEYS.SUPERTABELA_VIEW,
         rotulo: 'Ver Super-Tabela',
-        descricao: 'Pode acessar as telas da Super-Tabela.',
+        descricao: 'Acesso geral à Super-Tabela (exceto telas com permissão própria desligada).',
+      },
+      {
+        chave: PERMISSION_KEYS.SUPERTABELA_NEGOCIACOES_VIEW,
+        rotulo: 'Ver Negociações',
+        descricao: 'Tela Super-Tabela > Negociações (vínculo com prestador, exportação).',
       },
       {
         chave: PERMISSION_KEYS.SUPERTABELA_EDIT,
@@ -50,7 +65,17 @@ export const PERMISSOES = [
       {
         chave: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
         rotulo: 'Ver Credenciamento',
-        descricao: 'Pode acessar as telas de Credenciamento.',
+        descricao: 'Painel principal e documentação de credenciamento.',
+      },
+      {
+        chave: PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW,
+        rotulo: 'Ver Cadastro de Prestadores',
+        descricao: 'Lista e formulário em Credenciamento > Cadastros.',
+      },
+      {
+        chave: PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW,
+        rotulo: 'Ver Quem Realiza',
+        descricao: 'Busca por UF, cidade e procedimentos (Credenciamento > Quem Realiza).',
       },
       {
         chave: PERMISSION_KEYS.CREDENCIAMENTO_EDIT,
@@ -95,8 +120,11 @@ export const DEFAULT_PROFILE_PERMISSIONS = {
   [PERMISSION_KEYS.SUPERTABELA_VIEW]: true,
   [PERMISSION_KEYS.SUPERTABELA_EDIT]: true,
   [PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST]: false,
+  [PERMISSION_KEYS.SUPERTABELA_NEGOCIACOES_VIEW]: true,
   [PERMISSION_KEYS.CREDENCIAMENTO_VIEW]: true,
   [PERMISSION_KEYS.CREDENCIAMENTO_EDIT]: true,
+  [PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW]: true,
+  [PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW]: true,
   [PERMISSION_KEYS.COMPRAS_VIEW]: true,
   [PERMISSION_KEYS.COMPRAS_EDIT]: true,
   [PERMISSION_KEYS.CONTRATOS_VIEW]: true,
@@ -108,8 +136,11 @@ export const DEFAULT_INVITED_PERMISSIONS = {
   [PERMISSION_KEYS.SUPERTABELA_VIEW]: true,
   [PERMISSION_KEYS.SUPERTABELA_EDIT]: false,
   [PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST]: false,
+  [PERMISSION_KEYS.SUPERTABELA_NEGOCIACOES_VIEW]: true,
   [PERMISSION_KEYS.CREDENCIAMENTO_VIEW]: true,
   [PERMISSION_KEYS.CREDENCIAMENTO_EDIT]: false,
+  [PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW]: true,
+  [PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW]: true,
   [PERMISSION_KEYS.COMPRAS_VIEW]: true,
   [PERMISSION_KEYS.COMPRAS_EDIT]: false,
   [PERMISSION_KEYS.CONTRATOS_VIEW]: true,
@@ -129,10 +160,15 @@ export const normalizarPermissions = (profile = {}) => {
         [PERMISSION_KEYS.CREDENCIAMENTO_EDIT]: !legadoCredReadonly,
       }
 
-  return {
+  const perms = {
     ...base,
     ...raw,
   }
+  const rawKeys = Object.keys(raw)
+  for (const [filho, pai] of HERANCA_PERMISSAO_TELA) {
+    if (!rawKeys.includes(filho) && perms[pai]) perms[filho] = true
+  }
+  return perms
 }
 
 export const normalizarProfileAcesso = (profile = {}) => ({

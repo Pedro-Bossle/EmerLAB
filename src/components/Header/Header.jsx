@@ -9,7 +9,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 
 
-const Header = () => {
+const Header = ({ onNavigate }) => {
     const navigate = useNavigate()
     const [darkModeAtivo, setDarkModeAtivo] = useState(() => {
         if (typeof window === 'undefined') return false
@@ -33,6 +33,7 @@ const Header = () => {
             return
         }
         clearAccessState()
+        onNavigate?.()
         navigate('/', { replace: true })
     }
 
@@ -40,13 +41,11 @@ const Header = () => {
         <header className='header'>
             <nav className='header_nav'>
                 <img src={darkModeAtivo ? logoBranco : logoNav} alt="Emerdog" className='logo logo_header' />
-                <Link className='header_nav_link' to="/home">Início</Link>
-                <Link className='header_nav_link' to="/supertabelamain">Super-Tabela</Link>
-                <Link className='header_nav_link' to="/credenciamento/principal">Credenciamento</Link>
-                <Link className='header_nav_link' to="/Compras/Orcamento">Orçamentos</Link>
-                <Link className='header_nav_link' to="/contratos/clicksign">
-                    Contratos
-                </Link>
+                <Link className='header_nav_link' to="/home" onClick={onNavigate}>Início</Link>
+                <Link className='header_nav_link' to="/supertabelamain" onClick={onNavigate}>Super-Tabela</Link>
+                <Link className='header_nav_link' to="/credenciamento/principal" onClick={onNavigate}>Credenciamento</Link>
+                <Link className='header_nav_link' to="/Compras/Orcamento" onClick={onNavigate}>Orçamentos</Link>
+                <Link className='header_nav_link' to="/contratos/clicksign" onClick={onNavigate}>Contratos</Link>
                 {/*<a className='header_nav_link' href="#">Formulário</a>
                 <a className='header_nav_link' href="#">Planos</a>
                 <a className='header_nav_link' href="#">Pagamentos</a>

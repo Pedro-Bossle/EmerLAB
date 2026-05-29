@@ -16,6 +16,13 @@ import {
   nomePlanoPorId,
 } from "../../../lib/planosHierarquia";
 
+import {
+  buscarPrestadoresQuemRealiza,
+  carregarDadosCredenciamentoQuemRealiza,
+} from "../../../lib/buscarQuemRealizaPrestadores.js";
+
+import { UFS_BRASIL, buscarMunicipiosPorUf } from "../../../lib/ibgeLocalidades.js";
+
 import { buscarTodosPaginado, supabase } from "../../../lib/supabase";
 
 import "./ComprasOrcamento.css";
@@ -35,8 +42,21 @@ const normalizarCod = (cod) =>
     .trim()
     .toUpperCase();
 
+const normalizarNomeCidade = (texto) =>
+  String(texto || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
 const ComprasOrcamento = () => {
   const calcLiveIdRef = useRef(0);
+
+  const credenciamentoCacheRef = useRef(null);
+
+  const [quemRealizaLoading, setQuemRealizaLoading] = useState(false);
+
+  const [quemRealizaLista, setQuemRealizaLista] = useState([]);
 
   const [loading, setLoading] = useState(false);
 
@@ -56,6 +76,10 @@ const ComprasOrcamento = () => {
 
   const [carrinho, setCarrinho] = useState([]);
 
+  const [ufComprador, setUfComprador] = useState("");
+
+  const [nomesMunicipiosUf, setNomesMunicipiosUf] = useState(null);
+
   const [cidadeCompradorId, setCidadeCompradorId] = useState("");
 
   const [planoCompradorId, setPlanoCompradorId] = useState("");
@@ -69,24 +93,53 @@ const ComprasOrcamento = () => {
 
   const mapaPlanos = useMemo(() => mapearPlanos(planos), [planos]);
 
-  const regiaoDaCidade = useMemo(() => {
-    if (!cidadeCompradorId) return null;
-
-    const c = cidades.find(
-      (item) => String(item.id) === String(cidadeCompradorId),
-    );
-
-    return c?.regiao_id != null ? Number(c.regiao_id) : null;
-  }, [cidadeCompradorId, cidades]);
+  const contextoComprador = useMemo(
+    () => ({
+      uf: ufComprador,
+      cidadeId: cidadeCompradorId,
+    }),
+    [ufComprador, cidadeCompradorId],
+  );
 
   const codigosComValorVenda = useMemo(() => {
     const s = new Set();
-    for (const v of vendas) {
-      const c = normalizarCod(v.cod_procedimento);
-      if (c) s.add(c);
+    const cods = new Set(
+      (vendas || []).map((v) => normalizarCod(v.cod_procedimento)).filter(Boolean),
+    );
+    for (const cod of cods) {
+      const { valor } = escolherValorVendaParaContexto(cod, vendas, contextoComprador);
+      if (valor != null) s.add(cod);
     }
     return s;
-  }, [vendas]);
+  }, [vendas, contextoComprador]);
+
+  useEffect(() => {
+    if (!ufComprador) {
+      setNomesMunicipiosUf(null);
+      return undefined;
+    }
+    let cancelado = false;
+    buscarMunicipiosPorUf(ufComprador)
+      .then((lista) => {
+        if (cancelado) return;
+        setNomesMunicipiosUf(
+          new Set(lista.map((m) => normalizarNomeCidade(m.nome))),
+        );
+      })
+      .catch(() => {
+        if (!cancelado) setNomesMunicipiosUf(new Set());
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [ufComprador]);
+
+  const cidadesFiltradasUf = useMemo(() => {
+    if (!ufComprador || !nomesMunicipiosUf) return [];
+    return (cidades || []).filter((c) =>
+      nomesMunicipiosUf.has(normalizarNomeCidade(c.nome)),
+    );
+  }, [cidades, ufComprador, nomesMunicipiosUf]);
 
   const sugestoesProcedimentos = useMemo(() => {
     const termo = normalizarTexto(buscaProc);
@@ -140,7 +193,7 @@ const ComprasOrcamento = () => {
         buscarTodosPaginado(() =>
           supabase
             .from("servico_valor_venda")
-            .select("id, cod_procedimento, valor_venda"),
+            .select("id, cod_procedimento, valor_venda, uf, cidade_id"),
         ),
 
         supabase
@@ -150,7 +203,7 @@ const ComprasOrcamento = () => {
 
         supabase
           .from("cidades")
-          .select("id, nome, regiao_id")
+          .select("id, nome, uf")
           .order("nome", { ascending: true }),
       ]);
 
@@ -199,17 +252,7 @@ const ComprasOrcamento = () => {
 
     const isLatest = () => reqId === calcLiveIdRef.current;
 
-    if (!cidadeCompradorId || !planoCompradorId || !carrinho.length) {
-      setResultado(null);
-
-      if (isLatest()) setGerando(false);
-
-      return;
-    }
-
-    const regiaoId = regiaoDaCidade;
-
-    if (regiaoId == null) {
+    if (!ufComprador || !cidadeCompradorId || !planoCompradorId || !carrinho.length) {
       setResultado(null);
 
       if (isLatest()) setGerando(false);
@@ -233,6 +276,7 @@ const ComprasOrcamento = () => {
         const { valor: valorContexto } = escolherValorVendaParaContexto(
           cod,
           vendas,
+          contextoComprador,
         );
 
         const valorVenda =
@@ -240,9 +284,8 @@ const ComprasOrcamento = () => {
 
         const diffRes = await buscarDiferencaComCascataPlanos(supabase, {
           procedimentoCod: cod,
-
-          regiaoId,
-
+          cidadeId: cidadeCompradorId ? Number(cidadeCompradorId) : null,
+          uf: ufComprador,
           planoIdsOrdenados: planoIds,
         });
 
@@ -276,7 +319,7 @@ const ComprasOrcamento = () => {
 
           valorVenda,
 
-          valorPlanoRegiao: dif,
+          valorPlanoCidade: dif,
 
           planoUsadoNome,
 
@@ -309,24 +352,12 @@ const ComprasOrcamento = () => {
     vendas,
     mapaPlanos,
     planos,
-    regiaoDaCidade,
+    contextoComprador,
+    ufComprador,
   ]);
 
   useEffect(() => {
     void calcularOrcamentoLive();
-  }, [calcularOrcamentoLive]);
-
-  useEffect(() => {
-    const recalc = () => {
-      if (document.visibilityState !== "visible") return;
-      void calcularOrcamentoLive();
-    };
-    document.addEventListener("visibilitychange", recalc);
-    window.addEventListener("focus", recalc);
-    return () => {
-      document.removeEventListener("visibilitychange", recalc);
-      window.removeEventListener("focus", recalc);
-    };
   }, [calcularOrcamentoLive]);
 
   const adicionarAoCarrinho = (proc) => {
@@ -352,7 +383,7 @@ const ComprasOrcamento = () => {
         return copia;
       }
 
-      const escolha = escolherValorVendaParaContexto(codigo, vendas);
+      const escolha = escolherValorVendaParaContexto(codigo, vendas, contextoComprador);
 
       return [
         ...atual,
@@ -497,16 +528,77 @@ const ComprasOrcamento = () => {
   );
 
   const mensagemContexto = () => {
-    if (!cidadeCompradorId || !planoCompradorId)
-      return "Selecione cidade e plano do comprador para preencher coparticipação e totais.";
-
-    if (regiaoDaCidade == null)
-      return "A cidade selecionada não possui região vinculada; não é possível buscar coparticipação em planos_cidade.";
+    if (!ufComprador || !cidadeCompradorId || !planoCompradorId)
+      return "Selecione UF, cidade e plano do comprador para preencher coparticipação e totais.";
 
     return null;
   };
 
   const ctxMsg = mensagemContexto();
+
+  const cidadeCompradorNome = useMemo(() => {
+    const c = cidades.find(
+      (item) => String(item.id) === String(cidadeCompradorId),
+    );
+    return c?.nome || "";
+  }, [cidades, cidadeCompradorId]);
+
+  const codigosOrcamento = useMemo(
+    () =>
+      carrinho
+        .map((item) => normalizarCod(item.codigo))
+        .filter(Boolean),
+    [carrinho],
+  );
+
+  const chaveQuemRealiza = useMemo(() => {
+    if (!ufComprador || !cidadeCompradorId || !codigosOrcamento.length) return "";
+    const cods = [...codigosOrcamento].sort().join(",");
+    return `${ufComprador}|${cidadeCompradorId}|${cods}`;
+  }, [ufComprador, cidadeCompradorId, codigosOrcamento]);
+
+  const mostrarQuemRealiza =
+    Boolean(chaveQuemRealiza) &&
+    (Boolean(resultado?.length) || quemRealizaLista.length > 0);
+
+  useEffect(() => {
+    if (!chaveQuemRealiza) {
+      setQuemRealizaLista([]);
+      return undefined;
+    }
+
+    let cancelado = false;
+
+    const run = async () => {
+      setQuemRealizaLoading(true);
+      try {
+        if (!credenciamentoCacheRef.current) {
+          credenciamentoCacheRef.current =
+            await carregarDadosCredenciamentoQuemRealiza(supabase, {
+              somenteVeterinarios: false,
+            });
+        }
+        const lista = await buscarPrestadoresQuemRealiza(supabase, {
+          codigosProcedimento: codigosOrcamento,
+          cidadesAlvo: [{ nome: cidadeCompradorNome, uf: ufComprador }],
+          incluirCidadesParalelas: true,
+          somenteVeterinarios: false,
+          dadosCredenciamento: credenciamentoCacheRef.current,
+        });
+        if (!cancelado) setQuemRealizaLista(lista);
+      } catch {
+        if (!cancelado) setQuemRealizaLista([]);
+      } finally {
+        if (!cancelado) setQuemRealizaLoading(false);
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [chaveQuemRealiza, cidadeCompradorNome, ufComprador]);
 
   return (
     <div className="compras_orc">
@@ -555,16 +647,42 @@ const ComprasOrcamento = () => {
             </div>
 
             <label className="compras_orc_filtro_item">
+              <span className="compras_orc_filtro_label">UF</span>
+              <select
+                className="compras_orc_select"
+                value={ufComprador}
+                onChange={(e) => {
+                  setUfComprador(e.target.value);
+                  setCidadeCompradorId("");
+                }}
+              >
+                <option value="">Selecione</option>
+                {UFS_BRASIL.map((sigla) => (
+                  <option key={sigla} value={sigla}>
+                    {sigla}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="compras_orc_filtro_item">
               <span className="compras_orc_filtro_label">Cidade</span>
 
               <select
                 className="compras_orc_select"
                 value={cidadeCompradorId}
+                disabled={!ufComprador || !nomesMunicipiosUf}
                 onChange={(e) => setCidadeCompradorId(e.target.value)}
               >
-                <option value="">Selecione</option>
+                <option value="">
+                  {!ufComprador
+                    ? "Selecione a UF"
+                    : !nomesMunicipiosUf
+                      ? "A carregar…"
+                      : "Selecione"}
+                </option>
 
-                {cidades.map((c) => (
+                {cidadesFiltradasUf.map((c) => (
                   <option key={c.id} value={String(c.id)}>
                     {c.nome}
                   </option>
@@ -707,8 +825,8 @@ const ComprasOrcamento = () => {
                           : null;
 
                     const copUn =
-                      !gerando && calc?.valorPlanoRegiao != null
-                        ? Number(calc.valorPlanoRegiao)
+                      !gerando && calc?.valorPlanoCidade != null
+                        ? Number(calc.valorPlanoCidade)
                         : null;
 
                     const totalCompraExib =
@@ -843,6 +961,57 @@ const ComprasOrcamento = () => {
                   </tr>
                 </tfoot>
               </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {mostrarQuemRealiza && (
+        <section className="compras_orc_quem_realiza" aria-labelledby="compras_orc_quem_titulo">
+          <h2 id="compras_orc_quem_titulo" className="compras_orc_quem_titulo">
+            Conferir quem realiza
+          </h2>
+          {quemRealizaLoading ? (
+            <p className="compras_orc_quem_muted">A carregar prestadores…</p>
+          ) : quemRealizaLista.length === 0 ? (
+            <p className="compras_orc_quem_muted">
+              Nenhum veterinário encontrado para estes procedimentos nesta cidade.
+            </p>
+          ) : (
+            <div className="compras_orc_quem_cards">
+              {quemRealizaLista.map((r) => (
+                <article key={r.id} className="compras_orc_quem_card">
+                  {r.viaCidadeParalela && (
+                    <span
+                      className="compras_orc_quem_badge"
+                      title={`Atende em ${cidadeCompradorNome} (cidade paralela). Cidade principal: ${r.cidadePrincipal}`}
+                    >
+                      {r.cidadePrincipal}
+                    </span>
+                  )}
+                  <div className="compras_orc_quem_card_meta">
+                    <div className="compras_orc_quem_card_meta_item compras_orc_quem_card_meta_nome">
+                      <span className="compras_orc_quem_lbl">Nome</span>
+                      <span className="compras_orc_quem_val compras_orc_quem_val_nome">{r.nome}</span>
+                    </div>
+                    <div className="compras_orc_quem_card_meta_row">
+                      <div className="compras_orc_quem_card_meta_item">
+                        <span className="compras_orc_quem_lbl">Especialidade</span>
+                        <span className="compras_orc_quem_val">{r.especialidade}</span>
+                      </div>
+                      <div className="compras_orc_quem_card_meta_item">
+                        <span className="compras_orc_quem_lbl">Telefone</span>
+                        <span className="compras_orc_quem_val">{r.telefone}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <ul className="compras_orc_quem_procs">
+                    {r.procedimentos.map((nome) => (
+                      <li key={`${r.id}-${nome}`}>{nome}</li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
             </div>
           )}
         </section>

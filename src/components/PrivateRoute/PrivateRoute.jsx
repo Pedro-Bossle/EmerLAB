@@ -8,7 +8,7 @@ import {
 } from '../../lib/accessControl'
 import { clearAccessState, supabase, setReadOnlyFlag } from '../../lib/supabase'
 
-const PrivateRoute = ({ children, permission }) => {
+const PrivateRoute = ({ children, permission, screenPermission }) => {
     const [session, setSession] = useState(undefined)
     const [profile, setProfile] = useState(undefined)
 
@@ -51,8 +51,11 @@ const PrivateRoute = ({ children, permission }) => {
 
     if (session === undefined) return <p>Carregando...</p>
     if (!session) return <Navigate to="/" replace />
-    if (permission && profile === undefined) return <p>Carregando...</p>
+    if ((permission || screenPermission) && profile === undefined) return <p>Carregando...</p>
     if (permission && (!profile || !hasPermission(profile, permission))) return <Navigate to="/home" replace />
+    if (screenPermission && (!profile || !hasPermission(profile, screenPermission))) {
+        return <Navigate to="/home" replace />
+    }
 
     return children
 }

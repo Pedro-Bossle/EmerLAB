@@ -6,17 +6,32 @@
 .content {
     min-height: 100vh;
     transition: margin-left 0.3s ease, width 0.3s ease;
-    overflow: visible;
+    overflow-x: clip;
+    box-sizing: border-box;
+}
+
+/* Quem Realiza: uma única área rolável (colunas), sem scroll da página atrás da sidebar */
+.content:has(.credenciamento_main.quem_realiza) {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .content.open {
     margin-left: 202px;
     width: calc(100% - 202px);
+    max-width: calc(100vw - 202px);
 }
 
 .content.closed {
     margin-left: 45px;
     width: calc(100% - 45px);
+    max-width: calc(100vw - 45px);
 }
 
 /* Telemóvel / tablet: conteúdo a largura total (gaveta sobreposta) */
@@ -67,6 +82,10 @@
 
 .layout2_nav_fab:active {
     transform: scale(0.96);
+}
+
+.app-shell--compact[data-nav-open='true'] .layout2_nav_fab {
+    z-index: 440;
 }
 
 body.dark-mode .layout2_nav_fab {

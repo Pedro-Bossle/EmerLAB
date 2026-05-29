@@ -7,12 +7,28 @@
 /* Tablet e telemóvel — margens e HR das páginas “operacionais” (Layout2)     */
 /* -------------------------------------------------------------------------- */
 @media (max-width: 1023px) {
+    .content:has(.credenciamento_main.quem_realiza) {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .credenciamento_main.quem_realiza {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .credenciamento_main.quem_realiza .quem_realiza_split {
+        overflow: visible;
+    }
+
     .supertabelamain,
     .supertabelacidades,
     .supertabelaplanos,
     .supertabelaprocedimentos,
     .supertabelanegociacoes,
-    .credenciamento_main,
+    .credenciamento_main:not(.quem_realiza),
     .compras_vv,
     .compras_orc,
     .gerenciamento_acessos {

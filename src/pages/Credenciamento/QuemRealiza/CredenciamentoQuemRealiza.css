@@ -1,0 +1,441 @@
+/* Ocupa a largura/altura útil do Layout2; scroll só nas listas internas */
+.credenciamento_main.quem_realiza {
+    margin: 0;
+    padding: 0.65rem 1rem 0.75rem;
+    width: 100%;
+    max-width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    box-sizing: border-box;
+    text-align: left;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.credenciamento_main.quem_realiza > h1,
+.credenciamento_main.quem_realiza > hr,
+.credenciamento_main.quem_realiza > .quem_realiza_filtros {
+    flex-shrink: 0;
+}
+
+.credenciamento_main.quem_realiza > h1 {
+    text-align: center;
+    margin: 0.35rem 0 0.5rem;
+}
+
+.credenciamento_main.quem_realiza > hr {
+    margin: 0.5rem 0 1rem;
+    max-width: 100%;
+}
+
+.quem_realiza_filtros_center {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.quem_realiza_row_center {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    align-items: flex-end;
+    max-width: 720px;
+    width: 100%;
+}
+
+.quem_realiza_switch_cidades {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    flex-shrink: 0;
+}
+
+.quem_realiza_switch_cidades_label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.25;
+    max-width: 11rem;
+}
+
+.quem_realiza_switch_cidades .credenciamento_switch:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.quem_realiza_row_center .pcad_field {
+    flex: 1 1 200px;
+    max-width: 240px;
+}
+
+.quem_realiza_erro_col {
+    margin: 0 0 0.5rem;
+    font-size: 0.88rem;
+}
+
+.quem_realiza_lista_vazia {
+    padding: 0.75rem 0.25rem;
+    font-size: 0.88rem;
+}
+
+.quem_realiza_split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1rem 1.25rem;
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.quem_realiza_col {
+    min-width: 0;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+@media (max-width: 960px) {
+    .quem_realiza_split {
+        grid-template-columns: 1fr;
+    }
+
+    .quem_realiza_busca {
+        flex-wrap: wrap;
+    }
+
+    .quem_realiza_busca_input_wrap {
+        flex: 1 1 100%;
+    }
+}
+
+.quem_realiza_col h2,
+.quem_realiza_cat_label,
+.quem_realiza_tabs,
+.quem_realiza_busca,
+.quem_realiza_busca_hint,
+.quem_realiza_erro_col {
+    flex-shrink: 0;
+}
+
+.quem_realiza_col h2 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+}
+
+.quem_realiza_tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.quem_realiza_tab {
+    border: 1px solid #94a3b8;
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.quem_realiza_tab:hover {
+    background: #e2e8f0;
+}
+
+.quem_realiza_tab.is-on {
+    background: #0a5d96;
+    color: #fff;
+    border-color: #0a5d96;
+}
+
+body.dark-mode .quem_realiza_tab {
+    background: #334155;
+    color: #f8fafc;
+    border-color: #64748b;
+}
+
+body.dark-mode .quem_realiza_tab.is-on {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+}
+
+.quem_realiza_busca {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.quem_realiza_busca_input_wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.quem_realiza_busca_input_wrap .credenciamento_main_input {
+    width: 100%;
+}
+
+.quem_realiza_sugestoes {
+    position: absolute;
+    z-index: 40;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    margin: 0;
+    padding: 0.25rem 0;
+    list-style: none;
+    max-height: 280px;
+    overflow: auto;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+body.dark-mode .quem_realiza_sugestoes {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+.quem_realiza_sugestoes li button {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    width: 100%;
+    text-align: left;
+    padding: 0.45rem 0.65rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: inherit;
+}
+
+.quem_realiza_sugestoes li button:hover {
+    background: rgba(37, 99, 235, 0.1);
+}
+
+.quem_realiza_sug_linha {
+    line-height: 1.3;
+}
+
+.quem_realiza_sug_cat {
+    font-size: 0.75rem;
+    opacity: 0.75;
+}
+
+.quem_realiza_busca_hint {
+    font-size: 0.85rem;
+    margin: 0 0 0.5rem;
+}
+
+.quem_realiza_proc_cat {
+    font-size: 0.78rem;
+    opacity: 0.7;
+}
+
+.quem_realiza_lupa,
+.quem_realiza_limpar_proc {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.quem_realiza_cat_label {
+    margin: 0 0 0.45rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: inherit;
+    opacity: 0.85;
+}
+
+.quem_realiza_proc_list {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: auto;
+    overflow-x: hidden;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 8px;
+    padding: 0.5rem;
+    box-sizing: border-box;
+}
+
+.quem_realiza_proc_item {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    padding: 0.35rem 0.25rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--cinza-escuro, #1e293b);
+    min-width: 0;
+}
+
+.quem_realiza_proc_item_texto {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.quem_realiza_proc_item.is-on {
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.quem_realiza_resultados {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.quem_realiza_resultados > h2 {
+    flex-shrink: 0;
+}
+
+.quem_realiza_cards {
+    display: flex;
+    flex-direction: column;
+    align-content: flex-start;
+    gap: 0.85rem;
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.25rem;
+    box-sizing: border-box;
+}
+
+.quem_realiza_card {
+    position: relative;
+    flex-shrink: 0;
+    flex-grow: 0;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    background: var(--card-bg, #fff);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: visible;
+}
+
+.quem_realiza_card:has(.quem_realiza_card_badge) {
+    padding-top: 1.4rem;
+}
+
+.quem_realiza_card_badge {
+    position: absolute;
+    top: 0.45rem;
+    right: 0.5rem;
+    max-width: calc(100% - 1rem);
+    padding: 0.2rem 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #0c4a6e;
+    background: #e0f2fe;
+    border: 1px solid #7dd3fc;
+    border-radius: 999px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 1px 3px rgba(14, 116, 144, 0.15);
+    z-index: 1;
+}
+
+body.dark-mode .quem_realiza_card_badge {
+    color: #e0f2fe;
+    background: #0c4a6e;
+    border-color: #38bdf8;
+}
+
+body.dark-mode .quem_realiza_card {
+    background: var(--card-bg, #1e293b);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.quem_realiza_card_meta {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.35rem 1rem;
+    margin-bottom: 0.65rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid var(--border-color, #eee);
+}
+
+@media (min-width: 520px) {
+    .quem_realiza_card_meta {
+        grid-template-columns: 1.2fr 1fr 0.9fr;
+    }
+}
+
+.quem_realiza_card_meta_item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.quem_realiza_card_label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    opacity: 0.65;
+}
+
+.quem_realiza_card_value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+.quem_realiza_card_procs {
+    margin: 0;
+    padding-left: 1.15rem;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.quem_realiza_card_procs li {
+    margin-bottom: 0.2rem;
+}

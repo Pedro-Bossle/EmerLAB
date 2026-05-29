@@ -8,6 +8,7 @@ import {
     setStoredAccessProfile,
 } from '../../../lib/accessControl'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
+import { UFS_BRASIL } from '../../../lib/ibgeLocalidades.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import './ComprasValorVenda.css'
@@ -21,7 +22,12 @@ const normalizarTexto = (texto) =>
 
 const normalizarCod = (cod) => String(cod || '').trim().toUpperCase()
 
-const mesmaChaveNatural = (a, b) => normalizarCod(a.cod_procedimento) === normalizarCod(b.cod_procedimento)
+const normUf = (u) => String(u || '').trim().toUpperCase()
+
+const mesmaChaveNatural = (a, b) =>
+    normalizarCod(a.cod_procedimento) === normalizarCod(b.cod_procedimento) &&
+    String(a.cidade_id ?? '') === String(b.cidade_id ?? '') &&
+    normUf(a.uf) === normUf(b.uf)
 
 const CHAVE_OUTROS = 'outros'
 
@@ -35,6 +41,9 @@ const ComprasValorVenda = () => {
     const [vendas, setVendas] = useState([])
     const [procedimentos, setProcedimentos] = useState([])
     const [categorias, setCategorias] = useState([])
+    const [cidadesVv, setCidadesVv] = useState([])
+    const [ufEscopo, setUfEscopo] = useState('')
+    const [cidadeEscopoId, setCidadeEscopoId] = useState('')
 
     const [termoBusca, setTermoBusca] = useState('')
 
@@ -69,6 +78,25 @@ const ComprasValorVenda = () => {
         return m
     }, [procedimentos])
 
+    const mapaCidadeNome = useMemo(
+        () => new Map((cidadesVv || []).map((c) => [Number(c.id), c.nome])),
+        [cidadesVv],
+    )
+
+    const linhaNoEscopoFiltro = useCallback(
+        (row) => {
+            const legado = (row.uf == null || row.uf === '') && (row.cidade_id == null || row.cidade_id === '')
+            if (!ufEscopo && !cidadeEscopoId) return true
+            if (legado) return false
+            if (cidadeEscopoId && Number(row.cidade_id) === Number(cidadeEscopoId)) {
+                if (!ufEscopo || normUf(row.uf) === normUf(ufEscopo)) return true
+            }
+            if (ufEscopo && !cidadeEscopoId && normUf(row.uf) === normUf(ufEscopo) && !row.cidade_id) return true
+            return false
+        },
+        [ufEscopo, cidadeEscopoId],
+    )
+
     const mostrarAviso = (mensagem) => {
         setAviso('')
         setTimeout(() => setAviso(mensagem), 0)
@@ -82,14 +110,19 @@ const ComprasValorVenda = () => {
                 { data: vendasData, error: errVendas },
                 { data: procData, error: errProc },
                 { data: categoriasData, error: errCat },
+                cidResp,
             ] = await Promise.all([
                 buscarTodosPaginado(() =>
-                    supabase.from('servico_valor_venda').select('id, cod_procedimento, valor_venda').order('id', { ascending: true })
+                    supabase
+                        .from('servico_valor_venda')
+                        .select('id, cod_procedimento, valor_venda, uf, cidade_id')
+                        .order('id', { ascending: true })
                 ),
                 buscarTodosPaginado(() =>
                     supabase.from('procedimentos').select('codigo, nome, categoria_id').order('codigo', { ascending: true })
                 ),
                 supabase.from('categorias').select('id, nome').gte('id', 3).lte('id', 25).order('id', { ascending: true }),
+                supabase.from('cidades').select('id, nome').order('nome', { ascending: true }),
             ])
 
             const mensagens = []
@@ -107,6 +140,9 @@ const ComprasValorVenda = () => {
 
             if (errCat) mensagens.push(`Categorias: ${errCat.message}`)
             else setCategorias(categoriasData || [])
+
+            if (cidResp.error) mensagens.push(`Cidades: ${cidResp.error.message}`)
+            else setCidadesVv(cidResp.data || [])
 
             if (mensagens.length) setErro(mensagens.join(' | '))
             else setErro('')
@@ -167,20 +203,34 @@ const ComprasValorVenda = () => {
             const p = mapaProcByCod.get(normalizarCod(row.cod_procedimento))
             const categoriaId = p?.categoria_id != null ? Number(p.categoria_id) : null
             const cat = categoriaId != null ? categorias.find((c) => Number(c.id) === categoriaId) : null
+            const legado = (row.uf == null || row.uf === '') && (row.cidade_id == null || row.cidade_id === '')
+            const cidadeLabel = legado
+                ? 'Legado (todas)'
+                : [
+                      row.uf ? normUf(row.uf) : '',
+                      row.cidade_id ? mapaCidadeNome.get(Number(row.cidade_id)) || '—' : '',
+                  ]
+                      .filter(Boolean)
+                      .join(' · ') || '—'
             return {
                 ...row,
                 procedimentoNome: p?.nome || row.cod_procedimento,
                 categoriaId,
                 categoriaNome: cat?.nome || '',
+                escopoLabel: cidadeLabel,
             }
         })
-    }, [vendas, mapaProcByCod, categorias])
+    }, [vendas, mapaProcByCod, categorias, mapaCidadeNome])
 
     const linhasFiltradas = useMemo(() => {
+        let base = linhasMontadas
+        if (ufEscopo || cidadeEscopoId) {
+            base = base.filter(linhaNoEscopoFiltro)
+        }
         const termo = normalizarTexto(termoBusca)
-        if (!termo) return linhasMontadas
+        if (!termo) return base
 
-        return linhasMontadas.filter((row) => {
+        return base.filter((row) => {
             const cod = normalizarTexto(row.cod_procedimento)
             const nome = normalizarTexto(row.procedimentoNome)
             const valorTxt = normalizarTexto(String(row.valor_venda ?? ''))
@@ -188,7 +238,7 @@ const ComprasValorVenda = () => {
             const pilha = [cod, nome, valorTxt, catNome].join(' ')
             return pilha.includes(termo)
         })
-    }, [linhasMontadas, termoBusca])
+    }, [linhasMontadas, termoBusca, ufEscopo, cidadeEscopoId, linhaNoEscopoFiltro])
 
     const totalProcedimentosPorCategoria = useMemo(() => {
         const mapa = new Map()
@@ -337,20 +387,24 @@ const ComprasValorVenda = () => {
         const payload = {
             cod_procedimento: cod,
             valor_venda: valorNum,
+            uf: ufEscopo ? normUf(ufEscopo) : null,
+            cidade_id: cidadeEscopoId ? Number(cidadeEscopoId) : null,
         }
 
-        const candidato = { cod_procedimento: cod }
+        const candidato = {
+            cod_procedimento: cod,
+            uf: payload.uf,
+            cidade_id: payload.cidade_id,
+        }
         const duplicado = vendas.some((v) => mesmaChaveNatural(v, candidato))
         if (duplicado) {
-            mostrarAviso('Já existe registro com o mesmo procedimento.')
+            mostrarAviso('Já existe registro com o mesmo procedimento neste escopo (UF/cidade).')
             return
         }
 
         setLoading(true)
         try {
-            const { error } = await supabase.from('servico_valor_venda').upsert(payload, {
-                onConflict: 'cod_procedimento',
-            })
+            const { error } = await supabase.from('servico_valor_venda').insert(payload)
             if (error) {
                 mostrarAviso(`Erro ao inserir: ${error.message}`)
                 return
@@ -607,7 +661,7 @@ const ComprasValorVenda = () => {
         return totalProcedimentosPorCategoria.get(Number(secao.categoriaId)) || 0
     }
 
-    const colSpanTabela = !somenteLeitura ? 4 : 3
+    const colSpanTabela = !somenteLeitura ? 5 : 4
 
     return (
         <div className='compras_vv'>
@@ -628,6 +682,42 @@ const ComprasValorVenda = () => {
                                 onChange={(e) => setTermoBusca(e.target.value)}
                             />
                         </div>
+
+                        <label className='compras_vv_filter_item'>
+                            <span>UF (escopo)</span>
+                            <select
+                                className='compras_vv_input compras_vv_input_filter'
+                                value={ufEscopo}
+                                onChange={(e) => {
+                                    setUfEscopo(e.target.value)
+                                    setCidadeEscopoId('')
+                                }}
+                            >
+                                <option value="">Legado / todas</option>
+                                {UFS_BRASIL.map((sigla) => (
+                                    <option key={sigla} value={sigla}>
+                                        {sigla}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className='compras_vv_filter_item'>
+                            <span>Cidade (escopo)</span>
+                            <select
+                                className='compras_vv_input compras_vv_input_filter'
+                                value={cidadeEscopoId}
+                                disabled={!ufEscopo}
+                                onChange={(e) => setCidadeEscopoId(e.target.value)}
+                            >
+                                <option value="">{ufEscopo ? 'Todas da UF' : '—'}</option>
+                                {cidadesVv.map((c) => (
+                                    <option key={c.id} value={String(c.id)}>
+                                        {c.nome}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
 
                         {!somenteLeitura && (
                             <label className='compras_vv_edit_wrap'>
@@ -748,6 +838,7 @@ const ComprasValorVenda = () => {
                                         <colgroup>
                                             <col className='compras_vv_col_cod' />
                                             <col className='compras_vv_col_nome' />
+                                            <col className='compras_vv_col_escopo' />
                                             <col className='compras_vv_col_valor' />
                                             {!somenteLeitura && <col className='compras_vv_col_acao' />}
                                         </colgroup>
@@ -759,6 +850,7 @@ const ComprasValorVenda = () => {
                                                 <th className='table_header' onClick={() => handleOrdenarCategoria(secao.categoriaChave, 'procedimentoNome')}>
                                                     Procedimento{obterIndicadorOrdenacao(secao.categoriaChave, 'procedimentoNome')}
                                                 </th>
+                                                <th className='table_header table_header_no_sort'>UF / Cidade</th>
                                                 <th className='table_header' onClick={() => handleOrdenarCategoria(secao.categoriaChave, 'valor_venda')}>
                                                     Valor venda{obterIndicadorOrdenacao(secao.categoriaChave, 'valor_venda')}
                                                 </th>
@@ -772,6 +864,7 @@ const ComprasValorVenda = () => {
                                                         <strong>{row.cod_procedimento}</strong>
                                                     </td>
                                                     <td className='table_text_left compras_vv_cell_nome'>{row.procedimentoNome}</td>
+                                                    <td className='table_text_left compras_vv_cell_escopo'>{row.escopoLabel}</td>
                                                     <td className='compras_vv_cell_valor'>
                                                         {podeEditar ? (
                                                             <input

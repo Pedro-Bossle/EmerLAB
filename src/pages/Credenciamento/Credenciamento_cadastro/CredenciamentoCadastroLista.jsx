@@ -6,6 +6,7 @@ import {
     acharSituacaoCredenciadoId,
     calcularPercentualCompletudePerfil,
     normalizarTextoBusca,
+    resolverCidadePrincipalNome,
 } from '../../../lib/prestadorCadastroHelpers'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
@@ -178,8 +179,10 @@ const CredenciamentoCadastroLista = () => {
         return (prestadores || []).map((p) => {
             const pid = Number(p.id)
             const rels = cidadesPorPrestador.get(pid) || []
-            const principal = rels.find((r) => r.principal) || rels[0]
-            const cidadeNome = principal ? cidadePorId.get(Number(principal.cidade_id))?.nome || '—' : '—'
+            const cidadeNome = resolverCidadePrincipalNome(p, {
+                mapaCidadeNomePorId: cidadePorId,
+                relacoesCidades: rels,
+            })
             const espObj = especialidadePorId.get(Number(p.especialidade_id))
             const tipoLabel = espObj?.nome || '—'
             const perfilCompletoPct = calcularPercentualCompletudePerfil(p, {

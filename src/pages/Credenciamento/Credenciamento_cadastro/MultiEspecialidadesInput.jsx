@@ -31,6 +31,10 @@ export default function MultiEspecialidadesInput({
     }, [ativo, onAtivoChange])
     const [sugestoesAbertas, setSugestoesAbertas] = useState(false)
     const wrapRef = useRef(null)
+    const inputRef = useRef(null)
+    const removendoTagRef = useRef(false)
+    const inputFocadoRef = useRef(false)
+    const textoEditadoRef = useRef(false)
 
     const mapaNome = useMemo(() => {
         const m = new Map()
@@ -39,6 +43,12 @@ export default function MultiEspecialidadesInput({
     }, [especialidades])
 
     const idsSec = useMemo(() => new Set((secundariasIds || []).map(Number)), [secundariasIds])
+
+    useEffect(() => {
+        if (inputFocadoRef.current) return
+        const labels = idsParaNomesTexto(secundariasIds)
+        setTexto(labels.length ? `${labels.join(', ')}, ` : '')
+    }, [secundariasIds, especialidades])
 
     const segmentoAtual = useMemo(() => {
         const partes = texto.split(',')
@@ -69,25 +79,63 @@ export default function MultiEspecialidadesInput({
         setSugestoesAbertas(false)
     }
 
+    const idsParaNomesTexto = (ids) =>
+        (ids || [])
+            .map((eid) => especialidades.find((e) => Number(e.id) === Number(eid))?.nome)
+            .filter(Boolean)
+
     const removerSec = (id) => {
-        onChangeSecundarias(secundariasIds.filter((x) => Number(x) !== Number(id)))
+        const next = secundariasIds.filter((x) => Number(x) !== Number(id))
+        onChangeSecundarias(next)
+        const labels = idsParaNomesTexto(next)
+        setTexto(labels.length ? `${labels.join(', ')}, ` : '')
     }
 
-    const onBlurValidar = () => {
-        setTimeout(() => setSugestoesAbertas(false), 150)
+    const restaurarTextoDasTags = () => {
+        const labels = idsParaNomesTexto(secundariasIds)
+        setTexto(labels.length ? `${labels.join(', ')}, ` : '')
+    }
+
+    const sincronizarTextoParaIds = () => {
         const partes = texto.split(',').map((p) => p.trim()).filter(Boolean)
-        const novosIds = []
+        const idsDoTexto = []
         partes.forEach((nome) => {
             const esp = mapaNome.get(normalizar(nome))
-            if (esp && Number(esp.id) !== Number(principalId) && !novosIds.includes(Number(esp.id))) {
-                novosIds.push(Number(esp.id))
+            if (esp && Number(esp.id) !== Number(principalId) && !idsDoTexto.includes(Number(esp.id))) {
+                idsDoTexto.push(Number(esp.id))
             }
         })
-        if (novosIds.length) onChangeSecundarias([...new Set([...secundariasIds, ...novosIds])])
-        const labels = [...new Set([...secundariasIds, ...novosIds])]
-            .map((id) => especialidades.find((e) => Number(e.id) === id)?.nome)
-            .filter(Boolean)
+        onChangeSecundarias(idsDoTexto)
+        const labels = idsParaNomesTexto(idsDoTexto)
         setTexto(labels.length ? `${labels.join(', ')}, ` : '')
+    }
+
+    const onBlurCampo = (event) => {
+        const alvo = event.relatedTarget
+        if (alvo && wrapRef.current?.contains(alvo)) return
+        setTimeout(() => {
+            setSugestoesAbertas(false)
+            inputFocadoRef.current = false
+            if (removendoTagRef.current) {
+                removendoTagRef.current = false
+                return
+            }
+            if (wrapRef.current?.contains(document.activeElement)) return
+            if (!textoEditadoRef.current) {
+                restaurarTextoDasTags()
+                return
+            }
+            textoEditadoRef.current = false
+            sincronizarTextoParaIds()
+        }, 0)
+    }
+
+    const onMouseDownWrap = (event) => {
+        if (event.target.closest('.pcad_multi_esp_tag_remove')) return
+        if (event.target.closest('.pcad_sugestoes')) return
+        if (event.target.closest('input')) return
+        event.preventDefault()
+        inputRef.current?.focus()
     }
 
     const tagsSecundarias = secundariasIds.map((id) => {
@@ -95,9 +143,22 @@ export default function MultiEspecialidadesInput({
         if (!esp) return null
         return (
             <span key={id} className="pcad_multi_esp_tag">
-                {esp.nome}
+                <span className="pcad_multi_esp_tag_label">{esp.nome}</span>
                 {!disabled && (
-                    <button type="button" aria-label="Remover" onClick={() => removerSec(id)}>
+                    <button
+                        type="button"
+                        className="pcad_multi_esp_tag_remove"
+                        aria-label={`Remover ${esp.nome}`}
+                        onMouseDown={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            removendoTagRef.current = true
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            removerSec(id)
+                        }}
+                    >
                         ×
                     </button>
                 )}
@@ -106,19 +167,26 @@ export default function MultiEspecialidadesInput({
     })
 
     const campoTexto = (
-        <div className="pcad_multi_esp_input_wrap" ref={wrapRef}>
-            {secundariasIds.length > 0 && <div className="pcad_multi_esp_tags pcad_multi_esp_tags_inline">{tagsSecundarias}</div>}
+        <div className="pcad_multi_esp_input_wrap" ref={wrapRef} onMouseDown={onMouseDownWrap}>
+            {secundariasIds.length > 0 && (
+                <div className="pcad_multi_esp_tags pcad_multi_esp_tags_inline">{tagsSecundarias}</div>
+            )}
             <input
+                ref={inputRef}
                 className="credenciamento_main_input"
                 disabled={disabled}
                 placeholder="Ex.: Cardiologia, Dermatologia (Insira as especialidades separadas por vírgula)"
                 value={texto}
                 onChange={(e) => {
+                    textoEditadoRef.current = true
                     setTexto(e.target.value)
                     setSugestoesAbertas(true)
                 }}
-                onFocus={() => ativo && setSugestoesAbertas(true)}
-                onBlur={onBlurValidar}
+                onFocus={() => {
+                    inputFocadoRef.current = true
+                    if (ativo) setSugestoesAbertas(true)
+                }}
+                onBlur={onBlurCampo}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' && sugestoes[0]) {
                         e.preventDefault()
@@ -154,10 +222,10 @@ export default function MultiEspecialidadesInput({
                     </button>
                 </div>
                 {ativo && (
-                    <label className="pcad_field pcad_multi_esp_outras_col">
-                        Outras especialidades
+                    <div className="pcad_field pcad_multi_esp_outras_col">
+                        <span className="pcad_field_label">Outras especialidades</span>
                         {campoTexto}
-                    </label>
+                    </div>
                 )}
             </>
         )
@@ -174,9 +242,11 @@ export default function MultiEspecialidadesInput({
                 Múltiplas especialidades
             </button>
             {ativo && (
-                <div className="pcad_multi_esp_panel" ref={wrapRef}>
+                <div className="pcad_multi_esp_panel">
                     <p className="pcad_muted">Separe por vírgula. Só entram especialidades já cadastradas; use as sugestões.</p>
-                    <div className="pcad_multi_esp_tags">{tagsSecundarias}</div>
+                    <div className="pcad_multi_esp_tags" onMouseDown={onMouseDownWrap}>
+                        {tagsSecundarias}
+                    </div>
                     {campoTexto}
                 </div>
             )}

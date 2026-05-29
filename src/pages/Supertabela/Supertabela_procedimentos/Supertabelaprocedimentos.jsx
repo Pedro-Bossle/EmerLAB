@@ -412,7 +412,7 @@ const Supertabelaprocedimentos = () => {
 
         const { data: registros, error: errBuscar } = await supabase
             .from('planos_cidade')
-            .select('id, plano_id, regiao_id')
+            .select('id, plano_id, cidade_id')
             .eq('procedimento_cod', linha.codigo)
 
         if (errBuscar) {
@@ -451,12 +451,12 @@ const Supertabelaprocedimentos = () => {
 
         const agrupadoPorOrigem = new Map()
         listaRegistros.forEach((item) => {
-            const regiaoId = item.regiao_id != null ? Number(item.regiao_id) : null
-            if (regiaoId == null) return
-            const chaveOrigem = `R-${regiaoId}`
+            const cidadeIdRow = item.cidade_id != null ? Number(item.cidade_id) : null
+            if (cidadeIdRow == null) return
+            const chaveOrigem = `C-${cidadeIdRow}`
             if (!agrupadoPorOrigem.has(chaveOrigem)) {
                 agrupadoPorOrigem.set(chaveOrigem, {
-                    regiao_id: regiaoId,
+                    cidade_id: cidadeIdRow,
                     planos: new Set(),
                 })
             }
@@ -468,7 +468,7 @@ const Supertabelaprocedimentos = () => {
             planoIdsPermitidos.forEach((planoId) => {
                 if (origem.planos.has(planoId)) return
                 payloadInsercao.push({
-                    regiao_id: origem.regiao_id,
+                    cidade_id: origem.cidade_id,
                     plano_id: planoId,
                     procedimento_cod: linha.codigo,
                     diferenca: 0,
@@ -478,7 +478,7 @@ const Supertabelaprocedimentos = () => {
 
         if (payloadInsercao.length > 0) {
             const { error: errInserir } = await upsertPlanosCidadeCompat(supabase, payloadInsercao, {
-                regiaoId: payloadInsercao[0]?.regiao_id,
+                cidadeId: payloadInsercao[0]?.cidade_id,
             })
             if (errInserir) {
                 if (planoBaseAnteriorId) {

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, normalizarProfileAcesso, setStoredAccessProfile } from '../../../lib/accessControl'
 import { supabase } from '../../../lib/supabase'
+import { resolverCidadePrincipalNome } from '../../../lib/prestadorCadastroHelpers'
 import './Credenciamento_main.css'
 
 const normalizarTexto = (texto) =>
@@ -57,6 +58,23 @@ const classeCorSituacao = (descricao) => {
 }
 
 const textoCredenciado = (descricao) => normalizarTexto(descricao).includes('CREDENCIAD')
+
+const COLUNAS_FLAGS_STORAGE_KEY = 'emerdog_cred_principal_colunas_flags'
+
+function lerColunasFlagsUi() {
+    try {
+        const raw = window.localStorage.getItem(COLUNAS_FLAGS_STORAGE_KEY)
+        if (!raw) return { pdf: true, site: true, mapa: true }
+        const parsed = JSON.parse(raw)
+        return {
+            pdf: parsed.pdf !== false,
+            site: parsed.site !== false,
+            mapa: parsed.mapa !== false,
+        }
+    } catch {
+        return { pdf: true, site: true, mapa: true }
+    }
+}
 
 const Credenciamento_main = () => {
     const [loading, setLoading] = useState(false)
@@ -119,7 +137,32 @@ const Credenciamento_main = () => {
     const [cidadeSecundariaInput, setCidadeSecundariaInput] = useState('')
     const [cidadesSecundariasSelecionadas, setCidadesSecundariasSelecionadas] = useState([])
     const [cidadesSecundariasNovas, setCidadesSecundariasNovas] = useState([])
-    const totalColunasTabela = somenteLeitura ? 10 : 11
+    const [colunasFlagsVisiveis, setColunasFlagsVisiveis] = useState(lerColunasFlagsUi)
+
+    const mostrarColunaPdf = colunasFlagsVisiveis.pdf
+    const mostrarColunaSite = colunasFlagsVisiveis.site
+    const mostrarColunaMapa = colunasFlagsVisiveis.mapa
+
+    const totalColunasTabela = useMemo(() => {
+        let n = 7
+        if (mostrarColunaPdf) n += 1
+        if (mostrarColunaSite) n += 1
+        if (mostrarColunaMapa) n += 1
+        if (!somenteLeitura) n += 1
+        return n
+    }, [mostrarColunaPdf, mostrarColunaSite, mostrarColunaMapa, somenteLeitura])
+
+    const alternarColunaFlagVisivel = (chave) => {
+        setColunasFlagsVisiveis((prev) => {
+            const next = { ...prev, [chave]: !prev[chave] }
+            try {
+                window.localStorage.setItem(COLUNAS_FLAGS_STORAGE_KEY, JSON.stringify(next))
+            } catch {
+                /* ignore */
+            }
+            return next
+        })
+    }
 
     const cidadePorId = useMemo(() => new Map(cidades.map((cidade) => [Number(cidade.id), cidade])), [cidades])
     const situacaoPorId = useMemo(() => new Map(situacoes.map((situacao) => [Number(situacao.id), situacao])), [situacoes])
@@ -153,7 +196,7 @@ const Credenciamento_main = () => {
                 supabase
                     .from('prestadores')
                     .select(
-                        'id, nome, tipo, telefone, cidade_id, endereco, modalidade, especialidade_id, situacao_id, no_sistema, tem_pdf, no_site, no_mapa, data_cadastro, data_atualizacao, ativo'
+                        'id, nome, tipo, telefone, cidade_id, endereco, cep, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, modalidade, especialidade_id, situacao_id, no_sistema, tem_pdf, no_site, no_mapa, data_cadastro, data_atualizacao, ativo'
                     )
                     .eq('ativo', true),
                 supabase.from('cidades_credenciamento').select('id, nome').order('nome', { ascending: true }),
@@ -266,7 +309,11 @@ const Credenciamento_main = () => {
             const cidadesDoPrestador = cidadesPorPrestador.get(Number(prestador.id)) || []
             const cidadePrincipalRel = cidadesDoPrestador.find((item) => item.principal)
             const cidadePrincipalId = Number(prestador.cidade_id || cidadePrincipalRel?.cidade_id || 0)
-            const cidadePrincipalNome = cidadePorId.get(cidadePrincipalId)?.nome || '-'
+            const cidadePrincipalNome =
+                resolverCidadePrincipalNome(prestador, {
+                    mapaCidadeNomePorId: cidadePorId,
+                    relacoesCidades: cidadesDoPrestador,
+                }) || '-'
             const cidadesSecundarias = cidadesDoPrestador
                 .filter((item) => !item.principal && Number(item.cidade_id) !== cidadePrincipalId)
                 .map((item) => cidadePorId.get(Number(item.cidade_id))?.nome)
@@ -968,30 +1015,36 @@ const Credenciamento_main = () => {
                                 </div>
                             </div>
                             <div className='credenciamento_main_filters_row'>
-                                <div className='credenciamento_main_filter_item'>
-                                    <p>PDF</p>
-                                    <select className='credenciamento_main_select' value={filtroPdf} onChange={(e) => setFiltroPdf(e.target.value)}>
-                                        <option value='todos'>Todos</option>
-                                        <option value='sim'>Com PDF</option>
-                                        <option value='nao'>Sem PDF</option>
-                                    </select>
-                                </div>
-                                <div className='credenciamento_main_filter_item'>
-                                    <p>Site</p>
-                                    <select className='credenciamento_main_select' value={filtroSite} onChange={(e) => setFiltroSite(e.target.value)}>
-                                        <option value='todos'>Todos</option>
-                                        <option value='sim'>No site</option>
-                                        <option value='nao'>Fora do site</option>
-                                    </select>
-                                </div>
-                                <div className='credenciamento_main_filter_item'>
-                                    <p>Mapa</p>
-                                    <select className='credenciamento_main_select' value={filtroMapa} onChange={(e) => setFiltroMapa(e.target.value)}>
-                                        <option value='todos'>Todos</option>
-                                        <option value='sim'>No mapa</option>
-                                        <option value='nao'>Fora do mapa</option>
-                                    </select>
-                                </div>
+                                {mostrarColunaPdf && (
+                                    <div className='credenciamento_main_filter_item'>
+                                        <p>PDF</p>
+                                        <select className='credenciamento_main_select' value={filtroPdf} onChange={(e) => setFiltroPdf(e.target.value)}>
+                                            <option value='todos'>Todos</option>
+                                            <option value='sim'>Com PDF</option>
+                                            <option value='nao'>Sem PDF</option>
+                                        </select>
+                                    </div>
+                                )}
+                                {mostrarColunaSite && (
+                                    <div className='credenciamento_main_filter_item'>
+                                        <p>Site</p>
+                                        <select className='credenciamento_main_select' value={filtroSite} onChange={(e) => setFiltroSite(e.target.value)}>
+                                            <option value='todos'>Todos</option>
+                                            <option value='sim'>No site</option>
+                                            <option value='nao'>Fora do site</option>
+                                        </select>
+                                    </div>
+                                )}
+                                {mostrarColunaMapa && (
+                                    <div className='credenciamento_main_filter_item'>
+                                        <p>Mapa</p>
+                                        <select className='credenciamento_main_select' value={filtroMapa} onChange={(e) => setFiltroMapa(e.target.value)}>
+                                            <option value='todos'>Todos</option>
+                                            <option value='sim'>No mapa</option>
+                                            <option value='nao'>Fora do mapa</option>
+                                        </select>
+                                    </div>
+                                )}
                                 <div className='credenciamento_main_filter_item'>
                                     <p>Dia</p>
                                     <select className='credenciamento_main_select' value={filtroDia} onChange={(e) => setFiltroDia(e.target.value)}>
@@ -1003,6 +1056,33 @@ const Credenciamento_main = () => {
                                         ))}
                                     </select>
                                 </div>
+                            </div>
+                            <div className='credenciamento_main_colunas_toggle' role='group' aria-label='Exibir colunas na tabela'>
+                                <span className='credenciamento_main_colunas_toggle_label'>Exibir colunas:</span>
+                                <label className='credenciamento_main_colunas_toggle_item'>
+                                    <input
+                                        type='checkbox'
+                                        checked={mostrarColunaPdf}
+                                        onChange={() => alternarColunaFlagVisivel('pdf')}
+                                    />
+                                    PDF
+                                </label>
+                                <label className='credenciamento_main_colunas_toggle_item'>
+                                    <input
+                                        type='checkbox'
+                                        checked={mostrarColunaSite}
+                                        onChange={() => alternarColunaFlagVisivel('site')}
+                                    />
+                                    Site
+                                </label>
+                                <label className='credenciamento_main_colunas_toggle_item'>
+                                    <input
+                                        type='checkbox'
+                                        checked={mostrarColunaMapa}
+                                        onChange={() => alternarColunaFlagVisivel('mapa')}
+                                    />
+                                    Mapa
+                                </label>
                             </div>
                         </div>
                         <div className='credenciamento_main_filters_actions'>
@@ -1045,7 +1125,9 @@ const Credenciamento_main = () => {
                     <p>Carregando...</p>
                 ) : (
                     <>
-                        <table className='table_main'>
+                        <table
+                            className={`table_main${!mostrarColunaPdf && !mostrarColunaSite && !mostrarColunaMapa ? ' cred_table_sem_flags' : ''}`}
+                        >
                             <thead>
                                 <tr>
                                     <th className='table_header' onClick={() => handleOrdenar('nome')}>Nome{indicadorOrdenacao('nome')}</th>
@@ -1054,9 +1136,21 @@ const Credenciamento_main = () => {
                                     <th className='table_header' onClick={() => handleOrdenar('telefone')}>Telefone{indicadorOrdenacao('telefone')}</th>
                                     <th className='table_header cred_col_endereco' onClick={() => handleOrdenar('enderecoModalidade')}>Endereço/Modalidade{indicadorOrdenacao('enderecoModalidade')}</th>
                                     <th className='table_header cred_col_situacao' onClick={() => handleOrdenar('situacaoDescricao')}>Situação{indicadorOrdenacao('situacaoDescricao')}</th>
-                                    <th className='table_header cred_col_flag' onClick={() => handleOrdenar('tem_pdf')}>PDF{indicadorOrdenacao('tem_pdf')}</th>
-                                    <th className='table_header cred_col_flag' onClick={() => handleOrdenar('no_site')}>Site{indicadorOrdenacao('no_site')}</th>
-                                    <th className='table_header cred_col_flag' onClick={() => handleOrdenar('no_mapa')}>Mapa{indicadorOrdenacao('no_mapa')}</th>
+                                    {mostrarColunaPdf && (
+                                        <th className='table_header cred_col_flag' onClick={() => handleOrdenar('tem_pdf')}>
+                                            PDF{indicadorOrdenacao('tem_pdf')}
+                                        </th>
+                                    )}
+                                    {mostrarColunaSite && (
+                                        <th className='table_header cred_col_flag' onClick={() => handleOrdenar('no_site')}>
+                                            Site{indicadorOrdenacao('no_site')}
+                                        </th>
+                                    )}
+                                    {mostrarColunaMapa && (
+                                        <th className='table_header cred_col_flag' onClick={() => handleOrdenar('no_mapa')}>
+                                            Mapa{indicadorOrdenacao('no_mapa')}
+                                        </th>
+                                    )}
                                     <th className='table_header cred_col_dia' onClick={() => handleOrdenar('diaRef')}>Dia{indicadorOrdenacao('diaRef')}</th>
                                     {!somenteLeitura && <th className='table_header cred_col_excluir'>Excluir</th>}
                                 </tr>
@@ -1103,42 +1197,48 @@ const Credenciamento_main = () => {
                                                     ))}
                                                 </select>
                                             </td>
-                                            <td
-                                                onClick={(e) => alternarCampoBooleano(e, item, 'tem_pdf')}
-                                                className={`cred_col_flag ${!item.tem_pdf ? 'credenciamento_checkbox_false' : ''}`}
-                                            >
-                                                <input
-                                                    type='checkbox'
-                                                    checked={!!item.tem_pdf}
-                                                    disabled={somenteLeitura}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    onChange={(e) => atualizarCampoPrestador(item.id, { tem_pdf: e.target.checked })}
-                                                />
-                                            </td>
-                                            <td
-                                                onClick={(e) => alternarCampoBooleano(e, item, 'no_site')}
-                                                className={`cred_col_flag ${!item.no_site ? 'credenciamento_checkbox_false' : ''}`}
-                                            >
-                                                <input
-                                                    type='checkbox'
-                                                    checked={!!item.no_site}
-                                                    disabled={somenteLeitura}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    onChange={(e) => atualizarCampoPrestador(item.id, { no_site: e.target.checked })}
-                                                />
-                                            </td>
-                                            <td
-                                                onClick={(e) => alternarCampoBooleano(e, item, 'no_mapa')}
-                                                className={`cred_col_flag ${!item.no_mapa ? 'credenciamento_checkbox_false' : ''}`}
-                                            >
-                                                <input
-                                                    type='checkbox'
-                                                    checked={!!item.no_mapa}
-                                                    disabled={somenteLeitura}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    onChange={(e) => atualizarCampoPrestador(item.id, { no_mapa: e.target.checked })}
-                                                />
-                                            </td>
+                                            {mostrarColunaPdf && (
+                                                <td
+                                                    onClick={(e) => alternarCampoBooleano(e, item, 'tem_pdf')}
+                                                    className={`cred_col_flag ${!item.tem_pdf ? 'credenciamento_checkbox_false' : ''}`}
+                                                >
+                                                    <input
+                                                        type='checkbox'
+                                                        checked={!!item.tem_pdf}
+                                                        disabled={somenteLeitura}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onChange={(e) => atualizarCampoPrestador(item.id, { tem_pdf: e.target.checked })}
+                                                    />
+                                                </td>
+                                            )}
+                                            {mostrarColunaSite && (
+                                                <td
+                                                    onClick={(e) => alternarCampoBooleano(e, item, 'no_site')}
+                                                    className={`cred_col_flag ${!item.no_site ? 'credenciamento_checkbox_false' : ''}`}
+                                                >
+                                                    <input
+                                                        type='checkbox'
+                                                        checked={!!item.no_site}
+                                                        disabled={somenteLeitura}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onChange={(e) => atualizarCampoPrestador(item.id, { no_site: e.target.checked })}
+                                                    />
+                                                </td>
+                                            )}
+                                            {mostrarColunaMapa && (
+                                                <td
+                                                    onClick={(e) => alternarCampoBooleano(e, item, 'no_mapa')}
+                                                    className={`cred_col_flag ${!item.no_mapa ? 'credenciamento_checkbox_false' : ''}`}
+                                                >
+                                                    <input
+                                                        type='checkbox'
+                                                        checked={!!item.no_mapa}
+                                                        disabled={somenteLeitura}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onChange={(e) => atualizarCampoPrestador(item.id, { no_mapa: e.target.checked })}
+                                                    />
+                                                </td>
+                                            )}
                                             <td className='cred_col_dia'>{formatarData(item.diaRef)}</td>
                                             {!somenteLeitura && (
                                                 <td onClick={(e) => e.stopPropagation()} className='credenciamento_main_actions_cell cred_col_excluir'>

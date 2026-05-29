@@ -44,6 +44,10 @@ import {
     payloadSignatario,
 } from '../../lib/clicksign/clicksignClient.js'
 import {
+    PATHS_LEMBRETE_SIGNATARIO,
+    payloadAtualizarSignatario,
+} from '../../lib/clicksign/clicksignSignatarioOps.js'
+import {
     alternarFavoritoAgenda,
     atualizarContatoAgendaPorId,
     carregarAgendaSignatarios,
@@ -247,6 +251,8 @@ export default function ClicksignEmerdog() {
     const [detailCancelando, setDetailCancelando] = useState(false)
     const [detailDocs, setDetailDocs] = useState([])
     const [detailSigs, setDetailSigs] = useState([])
+    const [detailSignersRaw, setDetailSignersRaw] = useState({})
+    const [detailSigBusyId, setDetailSigBusyId] = useState('')
     const [detailReqs, setDetailReqs] = useState([])
     const [envelopeMenuId, setEnvelopeMenuId] = useState('')
     const [docMenuId, setDocMenuId] = useState('')
@@ -698,6 +704,106 @@ export default function ClicksignEmerdog() {
         setDocMenuId('')
     }, [])
 
+    const statusDetalheEnvelope = useMemo(() => {
+        const st = detailJson?.data?.attributes?.status ?? detailJson?.data?.attributes?.state ?? ''
+        return envelopeStatusNormalizado(st)
+    }, [detailJson])
+
+    const enviarLembreteSignatarioDetalhe = async (signerId, nomeExibicao) => {
+        const eid = String(detailId || '').trim()
+        const sid = String(signerId || '').trim()
+        if (!eid || !sid) return
+        if (somenteLeitura) {
+            pushToast('error', 'Permissão', 'Sem permissão para enviar lembretes.')
+            return
+        }
+        setDetailSigBusyId(sid)
+        try {
+            let ok = false
+            for (const path of PATHS_LEMBRETE_SIGNATARIO(eid, sid)) {
+                const tentativas = [
+                    {},
+                    { data: { type: 'notifications', attributes: {} } },
+                ]
+                for (const body of tentativas) {
+                    const r = await csRequest('POST', path, Object.keys(body).length ? body : undefined)
+                    if (r.ok) {
+                        ok = true
+                        break
+                    }
+                }
+                if (ok) break
+            }
+            if (!ok) {
+                pushToast(
+                    'error',
+                    'Lembrete',
+                    'Não foi possível enviar o lembrete. Verifique o plano Clicksign ou envie pelo painel da Clicksign.',
+                )
+                return
+            }
+            pushToast('success', 'Lembrete enviado', nomeExibicao || 'Signatário')
+        } finally {
+            setDetailSigBusyId('')
+        }
+    }
+
+    const abrirEdicaoSignatarioDetalhe = (signerId) => {
+        const sid = String(signerId || '').trim()
+        const raw = detailSignersRaw[sid] || {}
+        const st = statusDetalheEnvelope
+        if (st === 'draft') {
+            signReplaceSignerIdRef.current = sid
+            setFluxoEnvelopeId(detailId)
+            persistirEnvelopeSessao(detailId)
+            setSignDraft({
+                channel: raw.phone ? 'whatsapp' : 'email',
+                email: raw.email || '',
+                phone: raw.phone || '',
+                nome: raw.name || '',
+                saveAgenda: false,
+            })
+            setSignModal('novo')
+            fecharDetalheModal()
+            setTab('montar')
+            setFluxoEdicaoLista(true)
+            pushToast('info', 'Editar signatário', 'Altere os dados e confirme para substituir o signatário no rascunho.')
+            return
+        }
+        signReplaceSignerIdRef.current = sid
+        setFluxoEnvelopeId(detailId)
+        persistirEnvelopeSessao(detailId)
+        setSignDraft({
+            channel: raw.phone ? 'whatsapp' : 'email',
+            email: raw.email || '',
+            phone: raw.phone || '',
+            nome: raw.name || '',
+            saveAgenda: false,
+        })
+        setSignModal('novo')
+    }
+
+    const adicionarSignatarioDesdeDetalhe = () => {
+        const eid = String(detailId || '').trim()
+        if (!eid) return
+        setFluxoEnvelopeId(eid)
+        persistirEnvelopeSessao(eid)
+        signReplaceSignerIdRef.current = ''
+        setSignDraft({
+            channel: 'email',
+            email: '',
+            phone: '',
+            nome: '',
+            saveAgenda: true,
+        })
+        setSignModal('novo')
+        if (statusDetalheEnvelope === 'draft') {
+            fecharDetalheModal()
+            setTab('montar')
+            setFluxoEdicaoLista(true)
+        }
+    }
+
     const abrirDetalhe = async (id) => {
         setEnvelopeMenuId('')
         setDocMenuId('')
@@ -707,6 +813,7 @@ export default function ClicksignEmerdog() {
         setDetailJson(null)
         setDetailDocs([])
         setDetailSigs([])
+        setDetailSignersRaw({})
         setDetailReqs([])
         const enc = csRequest('GET', `/envelopes/${encodeURIComponent(id)}`)
         const docs = csRequest('GET', `/envelopes/${encodeURIComponent(id)}/documents`)
@@ -731,12 +838,19 @@ export default function ClicksignEmerdog() {
         if (r2.ok) {
             const arrSig = Array.isArray(r2.data?.data) ? r2.data.data : r2.data?.data ? [r2.data.data] : []
             const byId = {}
+            const rawMap = {}
             for (const item of arrSig) {
                 if (item?.id) byId[item.id] = item
             }
+            const rows = extrairListaSignatarios(r2.data)
+            rows.forEach((s) => {
+                rawMap[s.id] = s
+            })
+            setDetailSignersRaw(rawMap)
             setDetailSigs(montarLinhasSignatariosDetalhe(r2.data, reqNorm, byId))
         } else {
             setDetailSigs([])
+            setDetailSignersRaw({})
         }
         if (r3.ok) {
             const arr = Array.isArray(r3.data?.data) ? r3.data.data : r3.data?.data ? [r3.data.data] : []
@@ -1144,6 +1258,37 @@ export default function ClicksignEmerdog() {
                 }
             }
             const replaceId = String(signReplaceSignerIdRef.current || '').trim()
+            const encStRes = await csRequest('GET', `/envelopes/${encodeURIComponent(eid)}`)
+            const encSt = encStRes.ok
+                ? envelopeStatusNormalizado(encStRes.data?.data?.attributes?.status ?? encStRes.data?.data?.attributes?.state)
+                : 'draft'
+
+            if (replaceId && encSt === 'running') {
+                setFluxoBusy(true)
+                const patchBody = payloadAtualizarSignatario({
+                    name: nomeTrim,
+                    email,
+                    phone,
+                    channel: ch,
+                })
+                patchBody.data.id = replaceId
+                const pr = await csRequest(
+                    'PATCH',
+                    `/envelopes/${encodeURIComponent(eid)}/signers/${encodeURIComponent(replaceId)}`,
+                    patchBody,
+                )
+                setFluxoBusy(false)
+                signReplaceSignerIdRef.current = ''
+                if (!pr.ok) {
+                    pushToast('error', `Atualizar signatário ${pr.status}`, erroApiTexto(pr.data))
+                    return false
+                }
+                pushToast('success', 'Signatário atualizado', nomeTrim)
+                if (detailOpen && detailId === eid) await abrirDetalhe(eid)
+                else await refreshFluxoListas(eid)
+                return true
+            }
+
             if (replaceId) {
                 const dr = await csRequest('DELETE', `/envelopes/${encodeURIComponent(eid)}/signers/${encodeURIComponent(replaceId)}`)
                 if (!dr.ok) {
@@ -1282,9 +1427,10 @@ export default function ClicksignEmerdog() {
             setFluxoSignEmail('')
             setFluxoPhone('')
             await refreshFluxoListas(eid)
+            if (detailOpen && detailId === eid) await abrirDetalhe(eid)
             return true
         },
-        [fluxoEnvelopeId, fluxoDocs, pushToast, refreshFluxoListas],
+        [fluxoEnvelopeId, fluxoDocs, pushToast, refreshFluxoListas, detailOpen, detailId, abrirDetalhe],
     )
 
     const ativarEnvelopeFluxo = async () => {
@@ -2990,7 +3136,18 @@ export default function ClicksignEmerdog() {
                                             </p>
                                         ) : null}
                                     </div>
-                                    <h3 className="clicksign_subtitle">Signatários</h3>
+                                    <div className="clicksign_detail_sig_head">
+                                        <h3 className="clicksign_subtitle">Signatários</h3>
+                                        {!somenteLeitura && (statusDetalheEnvelope === 'running' || statusDetalheEnvelope === 'draft') && (
+                                            <button
+                                                type="button"
+                                                className="contratos_btn contratos_btn_secondary clicksign_btn_sm"
+                                                onClick={adicionarSignatarioDesdeDetalhe}
+                                            >
+                                                + Adicionar signatário
+                                            </button>
+                                        )}
+                                    </div>
                                     <div className="clicksign_detail_table_wrap">
                                         <table className="clicksign_detail_table">
                                             <thead>
@@ -2999,12 +3156,13 @@ export default function ClicksignEmerdog() {
                                                     <th>Contacto</th>
                                                     <th>Qualificação</th>
                                                     <th>Assinatura</th>
+                                                    <th>Ações</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {detailSigs.length === 0 && (
                                                     <tr>
-                                                        <td colSpan={4} className="clicksign_td_empty">
+                                                        <td colSpan={5} className="clicksign_td_empty">
                                                             Nenhum signatário.
                                                         </td>
                                                     </tr>
@@ -3015,6 +3173,38 @@ export default function ClicksignEmerdog() {
                                                         <td>{s.contactLabel}</td>
                                                         <td>{s.qualificationLabel}</td>
                                                         <td>{s.signatureLabel}</td>
+                                                        <td>
+                                                            {!somenteLeitura && statusDetalheEnvelope === 'running' && (
+                                                                <div className="clicksign_detail_sig_actions">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="contratos_btn contratos_btn_secondary clicksign_btn_sm"
+                                                                        disabled={detailSigBusyId === s.id}
+                                                                        onClick={() =>
+                                                                            void enviarLembreteSignatarioDetalhe(s.id, s.name)
+                                                                        }
+                                                                    >
+                                                                        Lembrete
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="contratos_btn contratos_btn_secondary clicksign_btn_sm"
+                                                                        onClick={() => abrirEdicaoSignatarioDetalhe(s.id)}
+                                                                    >
+                                                                        Editar
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                            {!somenteLeitura && statusDetalheEnvelope === 'draft' && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="contratos_btn contratos_btn_secondary clicksign_btn_sm"
+                                                                    onClick={() => abrirEdicaoSignatarioDetalhe(s.id)}
+                                                                >
+                                                                    Editar
+                                                                </button>
+                                                            )}
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>

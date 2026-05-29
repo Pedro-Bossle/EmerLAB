@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import './Supertabelamain.css'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
+import {
+    buscarTodosPlanosCidadeCompat,
+    consultarPlanoCidadeUnicoCompat,
+    contextoPlanosCidadeFromCidades,
+    upsertPlanosCidadeCompat,
+} from '../../../lib/planosCidadeCompat'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 
@@ -37,8 +43,6 @@ const Supertabelamain = () => {
         () => cidades.find((cidade) => String(cidade.id) === String(cidadeId)) || null,
         [cidades, cidadeId]
     )
-    const regiaoSelecionadaId = cidadeSelecionada?.regiao_id ?? null
-
     /**
      * Formata valores numéricos para moeda BRL.
      */
@@ -136,7 +140,7 @@ const Supertabelamain = () => {
                 { data: portesData, error: errPortes },
                 { data: categoriasData, error: errCategorias },
             ] = await Promise.all([
-                supabase.from('cidades').select('id, nome, regiao_id').order('nome', { ascending: true }),
+                supabase.from('cidades').select('id, nome, uf').order('nome', { ascending: true }),
                 supabase.from('planos').select('id, nome').order('id', { ascending: true }),
                 supabase.from('portes').select('id, nome').order('id', { ascending: true }),
                 supabase
@@ -215,13 +219,15 @@ const Supertabelamain = () => {
                     .in('plano_base_id', planosBaseElegiveis)
             )
 
+            const ctxPlanosCidade = contextoPlanosCidadeFromCidades(cidadeId)
+
             const [planosCidadeResp, repassesPorCidadeResp] = await Promise.all([
-                buscarTodosPaginado(() =>
-                    supabase
-                        .from('planos_cidade')
-                        .select('id, procedimento_cod, diferenca')
-                        .eq('cidade_id', cidadeId)
-                        .eq('plano_id', planoId)
+                buscarTodosPlanosCidadeCompat(
+                    supabase,
+                    buscarTodosPaginado,
+                    ctxPlanosCidade,
+                    'id, procedimento_cod, diferenca, plano_id',
+                    (q) => q.eq('plano_id', planoId),
                 ),
                 buscarTodosPaginado(() =>
                     supabase
@@ -231,38 +237,11 @@ const Supertabelamain = () => {
                 ),
             ])
 
-            let planosCidade = planosCidadeResp.data
-            let errPlanosCidade = planosCidadeResp.error
+            const planosCidade = planosCidadeResp.data
+            const errPlanosCidade = planosCidadeResp.error
 
-            let repasses = repassesPorCidadeResp.data
-            let errRepasses = repassesPorCidadeResp.error
-
-            if (errPlanosCidade && regiaoSelecionadaId) {
-                // Compatibilidade com bases antigas onde planos_cidade ainda usa regiao_id.
-                const fallbackPlanos = await buscarTodosPaginado(() =>
-                    supabase
-                        .from('planos_cidade')
-                        .select('id, procedimento_cod, diferenca')
-                        .eq('regiao_id', regiaoSelecionadaId)
-                        .eq('plano_id', planoId)
-                )
-
-                planosCidade = fallbackPlanos.data
-                errPlanosCidade = fallbackPlanos.error
-            }
-
-            if (errRepasses && regiaoSelecionadaId) {
-                // Compatibilidade com bases antigas onde repasses ainda usam regiao_id.
-                const fallbackRepasses = await buscarTodosPaginado(() =>
-                    supabase
-                        .from('repasses')
-                        .select('id, procedimento_id, porte_id, valor')
-                        .eq('regiao_id', regiaoSelecionadaId)
-                )
-
-                repasses = fallbackRepasses.data
-                errRepasses = fallbackRepasses.error
-            }
+            const repasses = repassesPorCidadeResp.data
+            const errRepasses = repassesPorCidadeResp.error
 
             const procedimentosData = procedimentosResp.data
             const errProcedimentos = procedimentosResp.error
@@ -453,32 +432,8 @@ const Supertabelamain = () => {
                 .select('id')
                 .single()
 
-            let data = tentativaPorCidade.data
             erroPersistencia = tentativaPorCidade.error
-
-            if (erroPersistencia && regiaoSelecionadaId) {
-                // Compatibilidade com bases antigas onde repasses ainda usam regiao_id.
-                const tentativaPorRegiao = await supabase
-                    .from('repasses')
-                    .upsert(
-                        {
-                            procedimento_id: linha.codigo,
-                            regiao_id: Number(regiaoSelecionadaId),
-                            porte_id: Number(meta.porteId),
-                            valor: valorNumerico,
-                        },
-                        {
-                            onConflict: 'procedimento_id,regiao_id,porte_id',
-                        }
-                    )
-                    .select('id')
-                    .single()
-
-                data = tentativaPorRegiao.data
-                erroPersistencia = tentativaPorRegiao.error
-            }
-
-            novoRepasseId = data?.id || null
+            novoRepasseId = tentativaPorCidade.data?.id || null
         }
 
         if (erroPersistencia) {
@@ -539,34 +494,13 @@ const Supertabelamain = () => {
         })
     }
 
-    /**
-     * Resolve o ID de planos_cidade para o procedimento/plano/região atuais quando não vier no estado.
-     */
+    /** Resolve o ID de planos_cidade para o procedimento/plano/cidade atuais. */
     const resolverPlanoCidadeId = async (linha) => {
-        const tentativaPorCidade = await supabase
-            .from('planos_cidade')
-            .select('id')
-            .eq('cidade_id', cidadeId)
-            .eq('plano_id', planoId)
-            .eq('procedimento_cod', linha.codigo)
-            .maybeSingle()
-
-        let data = tentativaPorCidade.data
-        let error = tentativaPorCidade.error
-
-        if (error && regiaoSelecionadaId) {
-            // Compatibilidade com bases antigas onde planos_cidade ainda usa regiao_id.
-            const tentativaPorRegiao = await supabase
-                .from('planos_cidade')
-                .select('id')
-                .eq('regiao_id', regiaoSelecionadaId)
-                .eq('plano_id', planoId)
-                .eq('procedimento_cod', linha.codigo)
-                .maybeSingle()
-
-            data = tentativaPorRegiao.data
-            error = tentativaPorRegiao.error
-        }
+        const ctx = contextoPlanosCidadeFromCidades(cidadeId, cidades)
+        const { data, error } = await consultarPlanoCidadeUnicoCompat(supabase, ctx, {
+            planoId,
+            procedimentoCod: linha.codigo,
+        })
 
         if (error) {
             setErroDetalhe(`Erro ao localizar registro de diferença: ${error.message}`)
@@ -584,35 +518,21 @@ const Supertabelamain = () => {
         let error = null
 
         if (planoCidadeId == null) {
-            const tentativaPorCidade = await supabase
-                .from('planos_cidade')
-                .insert({
-                    cidade_id: Number(cidadeId),
-                    plano_id: Number(planoId),
-                    procedimento_cod: linha.codigo,
-                    diferenca: valorNumerico,
-                })
-                .select('id')
-                .single()
-
-            planoCidadeId = tentativaPorCidade.data?.id ?? null
-            error = tentativaPorCidade.error
-
-            if (error && regiaoSelecionadaId) {
-                const tentativaPorRegiao = await supabase
-                    .from('planos_cidade')
-                    .insert({
-                        regiao_id: Number(regiaoSelecionadaId),
+            const ctx = contextoPlanosCidadeFromCidades(cidadeId)
+            const insercao = await upsertPlanosCidadeCompat(
+                supabase,
+                [
+                    {
                         plano_id: Number(planoId),
                         procedimento_cod: linha.codigo,
                         diferenca: valorNumerico,
-                    })
-                    .select('id')
-                    .single()
-
-                planoCidadeId = tentativaPorRegiao.data?.id ?? null
-                error = tentativaPorRegiao.error
-            }
+                    },
+                ],
+                ctx,
+                'id',
+            )
+            planoCidadeId = insercao.data?.[0]?.id ?? null
+            error = insercao.error
         } else {
             const atualizacao = await supabase
                 .from('planos_cidade')

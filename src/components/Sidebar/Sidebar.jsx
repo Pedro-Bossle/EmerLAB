@@ -41,14 +41,14 @@ const menuItems = [
     },
     {
         id: 'supertabela',
-        label: 'Super-Tabela',
+        label: 'Tabelas de Valores',
         permission: PERMISSION_KEYS.SUPERTABELA_VIEW,
         children: [
             { label: 'Visão geral', href: '/supertabelamain', permission: PERMISSION_KEYS.SUPERTABELA_VIEW },
             { label: 'Cidades', href: '/supertabela/cidades', permission: PERMISSION_KEYS.SUPERTABELA_VIEW },
             { label: 'Planos', href: '/supertabela/planos', permission: PERMISSION_KEYS.SUPERTABELA_VIEW },
             { label: 'Procedimentos', href: '/supertabela/procedimentos', permission: PERMISSION_KEYS.SUPERTABELA_VIEW },
-            { label: 'Negociações', href: '/supertabela/negociacoes', permission: PERMISSION_KEYS.SUPERTABELA_VIEW },
+            { label: 'Negociações', href: '/supertabela/negociacoes', permission: PERMISSION_KEYS.SUPERTABELA_NEGOCIACOES_VIEW },
             { label: 'Documentação', href: '/supertabeladoc', permission: PERMISSION_KEYS.SUPERTABELA_VIEW },
         ],
     },
@@ -58,7 +58,8 @@ const menuItems = [
         permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
         children: [
             { label: 'Processos', href: '/credenciamento/principal', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
-            { label: 'Cadastros', href: '/credenciamento/cadastro', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
+            { label: 'Cadastros', href: '/credenciamento/cadastro', permission: PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW },
+            { label: 'Quem Realiza', href: '/credenciamento/quem-realiza', permission: PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW },
             { label: 'Documentação', href: '/credenciamentodoc', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
 
         ],
@@ -328,7 +329,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
                                 navigate('/administrativo/acessos')
                                 onAfterNavigate?.()
                             }}
-                            title='Gerenciamento de Acessos'
+                            title='Gerenciamento de acessos'
                         >
                             <span className='sidebar_admin_icon' aria-hidden>🛡️</span>
                             <span className='sidebar_admin_text'>Admin</span>

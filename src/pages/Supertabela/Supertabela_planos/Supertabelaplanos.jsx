@@ -4,8 +4,25 @@ import { PERMISSION_KEYS, hasStoredPermission, podeUsarExclusaoPorLista } from '
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
-import { upsertPlanosCidadeCompat } from '../../../lib/planosCidadeCompat'
+import {
+    buscarTodosPlanosCidadeCompat,
+    consultarPlanosCidadeExistentesCompat,
+    contextoPlanosCidadeFromCidades,
+    excluirPlanosCidadeCompat,
+    upsertPlanosCidadeCompat,
+} from '../../../lib/planosCidadeCompat'
 import { inserirPlanoConfigSeNaoExiste } from '../../../lib/planosConfigCompat'
+import CidadeTabelaIbgeForm from '../../../components/Supertabela/CidadeTabelaIbgeForm.jsx'
+import GerenciarTabelasModal from '../../../components/Supertabela/GerenciarTabelasModal.jsx'
+import { mapCidadeParaGerenciador, payloadCidadeComUf } from '../../../lib/cidadesSupertabelaHelpers.js'
+import {
+    buildOpcoesFiltroSupertabela,
+    carregarVinculosMunicipios,
+    isMissingVinculosTableError,
+    municipiosPorCidadeId,
+    normalizarMunicipioChave,
+    salvarVinculosDaCidade,
+} from '../../../lib/cidadesSupertabelaVinculos.js'
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 import './Supertabelaplanos.css'
 
@@ -81,7 +98,9 @@ const Supertabelaplanos = () => {
         })
     })
     const [cidades, setCidades] = useState([])
-    const [regioes, setRegioes] = useState([])
+    const [municipiosVinculos, setMunicipiosVinculos] = useState([])
+    const [suportaVinculosMunicipios, setSuportaVinculosMunicipios] = useState(true)
+    const [valorFiltroCidade, setValorFiltroCidade] = useState('')
     const [planos, setPlanos] = useState([])
     const [categorias, setCategorias] = useState([])
     const [procedimentos, setProcedimentos] = useState([])
@@ -119,17 +138,18 @@ const Supertabelaplanos = () => {
     const [cidadeDuplicarOrigem, setCidadeDuplicarOrigem] = useState(null)
     const [novoNomeCidadeDuplicada, setNovoNomeCidadeDuplicada] = useState('')
     const [mostrarAdicionarCidade, setMostrarAdicionarCidade] = useState(false)
-    const [novaCidadeNome, setNovaCidadeNome] = useState('')
-    const [novaCidadeRegiaoId, setNovaCidadeRegiaoId] = useState('')
+    const [novaCidadeUf, setNovaCidadeUf] = useState('')
+    const [novaCidadeMunicipio, setNovaCidadeMunicipio] = useState('')
+    const [novaCidadeEnglobados, setNovaCidadeEnglobados] = useState([])
     const [cidadeEdicao, setCidadeEdicao] = useState(null)
-    const [cidadeEdicaoNome, setCidadeEdicaoNome] = useState('')
-    const [cidadeEdicaoRegiaoId, setCidadeEdicaoRegiaoId] = useState('')
+    const [cidadeEdicaoUf, setCidadeEdicaoUf] = useState('')
+    const [cidadeEdicaoMunicipio, setCidadeEdicaoMunicipio] = useState('')
+    const [cidadeEdicaoEnglobados, setCidadeEdicaoEnglobados] = useState([])
 
     const cidadeSelecionada = useMemo(
         () => cidades.find((c) => String(c.id) === String(cidadeId)) || null,
         [cidades, cidadeId]
     )
-    const regiaoSelecionadaId = cidadeSelecionada?.regiao_id ?? null
 
     const planoDetalheNome = useMemo(() => {
         const p = planos.find((item) => String(item.id) === String(planoDetalheId))
@@ -198,13 +218,11 @@ const Supertabelaplanos = () => {
 
             const [
                 { data: cidadesData, error: errCidades },
-                { data: regioesData, error: errRegioes },
                 { data: planosData, error: errPlanos },
                 { data: categoriasData, error: errCategorias },
                 { data: procedimentosData, error: errProcedimentos },
             ] = await Promise.all([
-                supabase.from('cidades').select('id, nome, regiao_id').order('nome', { ascending: true }),
-                supabase.from('regioes').select('id, nome').order('nome', { ascending: true }),
+                supabase.from('cidades').select('id, nome, uf').order('nome', { ascending: true }),
                 supabase.from('planos').select('id, nome').order('id', { ascending: true }),
                 supabase.from('categorias').select('id, nome').gte('id', 3).lte('id', 25).order('id', { ascending: true }),
                 buscarTodosPaginado(() =>
@@ -215,10 +233,22 @@ const Supertabelaplanos = () => {
                 ),
             ])
 
-            if (errCidades || errRegioes || errPlanos || errCategorias || errProcedimentos) {
+            let vinculos = []
+            try {
+                vinculos = await carregarVinculosMunicipios(supabase)
+                setSuportaVinculosMunicipios(true)
+            } catch (errV) {
+                if (isMissingVinculosTableError(errV)) {
+                    setSuportaVinculosMunicipios(false)
+                    vinculos = []
+                } else {
+                    throw errV
+                }
+            }
+
+            if (errCidades || errPlanos || errCategorias || errProcedimentos) {
                 const detalhes = [
                     errCidades?.message,
-                    errRegioes?.message,
                     errPlanos?.message,
                     errCategorias?.message,
                     errProcedimentos?.message,
@@ -229,16 +259,30 @@ const Supertabelaplanos = () => {
                 return
             }
 
-            setCidades(cidadesData || [])
-            setRegioes(regioesData || [])
+            const listaCidades = cidadesData || []
+            setCidades(listaCidades)
+            setMunicipiosVinculos(vinculos)
             setPlanos(planosData || [])
             setCategorias(categoriasData || [])
             setProcedimentos(procedimentosData || [])
 
-            const listaCidades = cidadesData || []
+            const opcoes = buildOpcoesFiltroSupertabela(listaCidades, vinculos)
+            if (!valorFiltroCidade && opcoes.length > 0) {
+                setValorFiltroCidade(opcoes[0].value)
+                setCidadeId(String(opcoes[0].cidadeId))
+            } else if (cidadeId && opcoes.length > 0) {
+                const hit = opcoes.find((o) => String(o.cidadeId) === String(cidadeId))
+                if (hit) {
+                    setValorFiltroCidade(hit.value)
+                } else {
+                    setValorFiltroCidade(opcoes[0].value)
+                    setCidadeId(String(opcoes[0].cidadeId))
+                }
+            }
+
             const listaPlanos = planosData || []
-            if (listaCidades.length > 0) {
-                setCidadeId((prev) => prev || String(listaCidades[0].id))
+            if (!cidadeId && opcoes.length > 0) {
+                setCidadeId(String(opcoes[0].cidadeId))
             }
             if (listaPlanos.length > 0) {
                 setPlanoDetalheId((prev) => prev || String(listaPlanos[0].id))
@@ -250,26 +294,21 @@ const Supertabelaplanos = () => {
         }
     }, [])
 
+    const contextoPlanosCidade = useMemo(
+        () => contextoPlanosCidadeFromCidades(cidadeId),
+        [cidadeId, cidades],
+    )
+
     const buscarPlanosCidadePorCidade = useCallback(async () => {
         if (!cidadeId) return { data: [], error: null }
 
-        const porCidade = await buscarTodosPaginado(() =>
-            supabase
-                .from('planos_cidade')
-                .select('id, plano_id, procedimento_cod, diferenca')
-                .eq('cidade_id', cidadeId)
+        return buscarTodosPlanosCidadeCompat(
+            supabase,
+            buscarTodosPaginado,
+            contextoPlanosCidade,
+            'id, plano_id, procedimento_cod, diferenca',
         )
-        if (!porCidade.error) {
-            if ((porCidade.data || []).length > 0 || !regiaoSelecionadaId) return porCidade
-        } else if (!regiaoSelecionadaId) return porCidade
-
-        return buscarTodosPaginado(() =>
-            supabase
-                .from('planos_cidade')
-                .select('id, plano_id, procedimento_cod, diferenca')
-                .eq('regiao_id', regiaoSelecionadaId)
-        )
-    }, [cidadeId, regiaoSelecionadaId])
+    }, [cidadeId, contextoPlanosCidade])
 
     const buscarLinhasDiferencas = useCallback(async () => {
         if (!cidadeId || planos.length === 0) {
@@ -283,7 +322,7 @@ const Supertabelaplanos = () => {
 
             const { data: planosCidade, error: errPc } = await buscarPlanosCidadePorCidade()
             if (errPc) {
-                setErroDetalhe(`Erro ao buscar planos da região: ${errPc.message}`)
+                setErroDetalhe(`Erro ao buscar planos da tabela: ${errPc.message}`)
                 setLinhasDiferencas([])
                 return
             }
@@ -327,7 +366,6 @@ const Supertabelaplanos = () => {
                     if (planosExistentes.has(Number(planoId))) return
                     payloadComplemento.push({
                         cidade_id: Number(cidadeId),
-                        regiao_id: Number(regiaoSelecionadaId),
                         plano_id: Number(planoId),
                         procedimento_cod: cod,
                         diferenca: 0,
@@ -339,8 +377,8 @@ const Supertabelaplanos = () => {
                 const { data: inseridos, error: errComplemento } = await upsertPlanosCidadeCompat(
                     supabase,
                     payloadComplemento,
-                    { cidadeId, regiaoId: regiaoSelecionadaId },
-                    'id, plano_id, procedimento_cod, diferenca'
+                    contextoPlanosCidade,
+                    'id, plano_id, procedimento_cod, diferenca',
                 )
                 if (errComplemento) {
                     setErroDetalhe(`Erro ao completar planos do procedimento: ${errComplemento.message}`)
@@ -386,7 +424,7 @@ const Supertabelaplanos = () => {
         } finally {
             setLoading(false)
         }
-    }, [buscarPlanosCidadePorCidade, cidadeId, planos, regiaoSelecionadaId, somenteLeitura])
+    }, [buscarPlanosCidadePorCidade, cidadeId, planos, somenteLeitura])
 
     const buscarLinhasLimitacoes = useCallback(async () => {
         if (!planoDetalheId || planos.length === 0) {
@@ -471,9 +509,9 @@ const Supertabelaplanos = () => {
             if (!opcoes.silencioso) mostrarErroToast(mensagem)
         }
 
-        if (!cidadeId || !regiaoSelecionadaId) {
+        if (!cidadeId) {
             reportarErro('Selecione uma cidade.')
-            return { status: 'erro', mensagem: 'Cidade/região não selecionada.' }
+            return { status: 'erro', mensagem: 'Cidade não selecionada.' }
         }
 
         const mapaPlanosCol = mapearPlanosPorChave(planos)
@@ -486,7 +524,6 @@ const Supertabelaplanos = () => {
             if (!planosPermitidos.has(Number(meta.id))) return
             candidatos.push({
                 cidade_id: Number(cidadeId),
-                regiao_id: Number(regiaoSelecionadaId),
                 plano_id: Number(meta.id),
                 procedimento_cod: codigoNormalizado,
                 diferenca: 0,
@@ -498,19 +535,11 @@ const Supertabelaplanos = () => {
             return { status: 'erro', mensagem: 'Sem planos mapeados.' }
         }
 
-        let consultaExistentes = await supabase
-            .from('planos_cidade')
-            .select('plano_id')
-            .eq('cidade_id', cidadeId)
-            .eq('procedimento_cod', codigoNormalizado)
-
-        if (consultaExistentes.error && regiaoSelecionadaId) {
-            consultaExistentes = await supabase
-                .from('planos_cidade')
-                .select('plano_id')
-                .eq('regiao_id', regiaoSelecionadaId)
-                .eq('procedimento_cod', codigoNormalizado)
-        }
+        const consultaExistentes = await consultarPlanosCidadeExistentesCompat(
+            supabase,
+            contextoPlanosCidade,
+            codigoNormalizado,
+        )
 
         if (consultaExistentes.error) {
             reportarErro(`Erro ao verificar registros: ${consultaExistentes.error.message}`)
@@ -524,10 +553,7 @@ const Supertabelaplanos = () => {
             return { status: 'ja_existia' }
         }
 
-        const { error } = await upsertPlanosCidadeCompat(supabase, novos, {
-            cidadeId,
-            regiaoId: regiaoSelecionadaId,
-        })
+        const { error } = await upsertPlanosCidadeCompat(supabase, novos, contextoPlanosCidade)
 
         if (error) {
             const msg = String(error.message || '')
@@ -850,8 +876,8 @@ const Supertabelaplanos = () => {
             mostrarErroToast('Seu usuário não possui permissão para usar a Exclusão por lista.')
             return
         }
-        if (!cidadeId || !regiaoSelecionadaId) {
-            mostrarErroToast('Selecione uma cidade com região vinculada.')
+        if (!cidadeId) {
+            mostrarErroToast('Selecione uma cidade.')
             return
         }
         setCodigosManterLista('')
@@ -872,11 +898,6 @@ const Supertabelaplanos = () => {
             mostrarErroToast('Seu usuário não possui permissão para usar a Exclusão por lista.')
             return
         }
-        if (!regiaoSelecionadaId) {
-            mostrarErroToast('A cidade selecionada não possui região vinculada.')
-            return
-        }
-
         const codigosParaExcluir = previewExclusaoLista.aExcluir
         if (codigosParaExcluir.length === 0) {
             mostrarErroToast('Nada a excluir: todos os procedimentos atuais já estão na lista informada.')
@@ -897,11 +918,9 @@ const Supertabelaplanos = () => {
 
             for (let inicio = 0; inicio < codigosParaExcluir.length; inicio += TAMANHO_LOTE) {
                 const lote = codigosParaExcluir.slice(inicio, inicio + TAMANHO_LOTE)
-                const { error } = await supabase
-                    .from('planos_cidade')
-                    .delete()
-                    .eq('regiao_id', regiaoSelecionadaId)
-                    .in('procedimento_cod', lote)
+                const { error } = await excluirPlanosCidadeCompat(supabase, contextoPlanosCidade, (q) =>
+                    q.in('procedimento_cod', lote),
+                )
 
                 if (error) {
                     mostrarErroToast(`Erro ao excluir procedimentos em massa: ${error.message}`)
@@ -1253,15 +1272,9 @@ const Supertabelaplanos = () => {
     const excluirProcedimentoCidadePlanos = async (linha, opcoes = {}) => {
         if (bloquearSeSomenteLeitura(mostrarErroToast)) return
         const executarExclusao = async () => {
-            if (!regiaoSelecionadaId) {
-                mostrarErroToast('A cidade selecionada não possui região vinculada.')
-                return
-            }
-            const { error } = await supabase
-                .from('planos_cidade')
-                .delete()
-                .eq('regiao_id', regiaoSelecionadaId)
-                .eq('procedimento_cod', linha.codigo)
+            const { error } = await excluirPlanosCidadeCompat(supabase, contextoPlanosCidade, (q) =>
+                q.eq('procedimento_cod', linha.codigo),
+            )
 
             if (error) {
                 mostrarErroToast(`Erro ao excluir registros de plano: ${error.message}`)
@@ -1276,20 +1289,21 @@ const Supertabelaplanos = () => {
             return
         }
 
-        abrirConfirmacaoExclusao(`Excluir o procedimento ${linha.codigo} de todos os planos desta região?`, executarExclusao)
+        abrirConfirmacaoExclusao(`Excluir o procedimento ${linha.codigo} de todos os planos desta cidade?`, executarExclusao)
     }
 
+    const mapaMunicipiosPorCidade = useMemo(() => municipiosPorCidadeId(municipiosVinculos), [municipiosVinculos])
+
+    const opcoesFiltroCidade = useMemo(
+        () => buildOpcoesFiltroSupertabela(cidades, municipiosVinculos),
+        [cidades, municipiosVinculos],
+    )
+
     const cidadesGerenciaveis = useMemo(() => {
-        const mapaRegioes = new Map(regioes.map((regiao) => [Number(regiao.id), regiao.nome]))
         return cidades
-            .map((cidade) => ({
-                id: cidade.id,
-                nome: cidade.nome,
-                regiaoId: cidade.regiao_id,
-                regiaoNome: cidade.regiao_id ? mapaRegioes.get(Number(cidade.regiao_id)) || '-' : '-',
-            }))
+            .map((cidade) => mapCidadeParaGerenciador(cidade))
             .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'))
-    }, [cidades, regioes])
+    }, [cidades])
 
     const cidadesGerenciaveisOrdenadas = useMemo(() => {
         const lista = [...cidadesGerenciaveis]
@@ -1323,6 +1337,7 @@ const Supertabelaplanos = () => {
 
     const acessarCidadeNoGerenciador = (id) => {
         setCidadeId(String(id))
+        setValorFiltroCidade(`c-${id}`)
         setMostrarGerenciarModal(false)
         setCidadeDuplicarOrigem(null)
         setNovoNomeCidadeDuplicada('')
@@ -1378,15 +1393,149 @@ const Supertabelaplanos = () => {
     const abrirAdicionarCidade = () => {
         setCidadeDuplicarOrigem(null)
         setCidadeEdicao(null)
-        setNovaCidadeNome('')
-        setNovaCidadeRegiaoId('')
+        setNovaCidadeUf('')
+        setNovaCidadeMunicipio('')
+        setNovaCidadeEnglobados([])
         setMostrarAdicionarCidade(true)
     }
 
+    const fecharGerenciarModal = () => {
+        setMostrarGerenciarModal(false)
+        setCidadeDuplicarOrigem(null)
+        setNovoNomeCidadeDuplicada('')
+        setMostrarAdicionarCidade(false)
+        setCidadeEdicao(null)
+    }
+
+    const selecionarCidadeGerenciador = (cidade) => {
+        setCidadeDuplicarOrigem(null)
+        setMostrarAdicionarCidade(false)
+        iniciarEdicaoCidade(cidade)
+    }
+
+    const renderPainelGerenciarDireito = () => {
+        if (mostrarAdicionarCidade) {
+            return (
+                <div className='manager_edit_panel'>
+                    <h4 className='manager_edit_panel_title'>Nova tabela</h4>
+                    <CidadeTabelaIbgeForm
+                        uf={novaCidadeUf}
+                        onUfChange={(v) => {
+                            setNovaCidadeUf(v)
+                            setNovaCidadeMunicipio('')
+                            setNovaCidadeEnglobados([])
+                        }}
+                        municipioPrincipal={novaCidadeMunicipio}
+                        onMunicipioPrincipalChange={setNovaCidadeMunicipio}
+                        municipiosEnglobados={novaCidadeEnglobados}
+                        onMunicipiosEnglobadosChange={setNovaCidadeEnglobados}
+                        disabled={!suportaVinculosMunicipios}
+                    />
+                    {!suportaVinculosMunicipios && (
+                        <small>Execute `cidades_municipios_vinculo.sql` no Supabase.</small>
+                    )}
+                    <div className='manager_add_bar_actions'>
+                        <button type='button' className='manager_action_btn save' onClick={salvarNovaCidade}>
+                            Salvar
+                        </button>
+                        <button
+                            type='button'
+                            className='manager_action_btn'
+                            onClick={() => {
+                                setMostrarAdicionarCidade(false)
+                                setNovaCidadeUf('')
+                                setNovaCidadeMunicipio('')
+                                setNovaCidadeEnglobados([])
+                            }}
+                        >
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            )
+        }
+        if (cidadeDuplicarOrigem) {
+            return (
+                <div className='manager_edit_panel'>
+                    <h4 className='manager_edit_panel_title'>
+                        Duplicar tabela <strong>{cidadeDuplicarOrigem.nome}</strong>
+                    </h4>
+                    <label className='manager_duplicate_field'>
+                        <span>Nome da nova tabela</span>
+                        <input
+                            type='text'
+                            value={novoNomeCidadeDuplicada}
+                            onChange={(event) => setNovoNomeCidadeDuplicada(event.target.value)}
+                            placeholder='Nome da nova tabela'
+                        />
+                    </label>
+                    <div className='manager_add_bar_actions'>
+                        <button type='button' className='manager_action_btn save' onClick={duplicarCidadeSelecionada}>
+                            Confirmar
+                        </button>
+                        <button
+                            type='button'
+                            className='manager_action_btn'
+                            onClick={() => {
+                                setCidadeDuplicarOrigem(null)
+                                setNovoNomeCidadeDuplicada('')
+                            }}
+                        >
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            )
+        }
+        if (cidadeEdicao) {
+            return (
+                <div className='manager_edit_panel'>
+                    <h4 className='manager_edit_panel_title'>
+                        Editar tabela <strong>{cidadeEdicao.nome}</strong>
+                    </h4>
+                    <CidadeTabelaIbgeForm
+                        uf={cidadeEdicaoUf}
+                        onUfChange={(v) => {
+                            setCidadeEdicaoUf(v)
+                            setCidadeEdicaoMunicipio('')
+                            setCidadeEdicaoEnglobados([])
+                        }}
+                        municipioPrincipal={cidadeEdicaoMunicipio}
+                        onMunicipioPrincipalChange={setCidadeEdicaoMunicipio}
+                        municipiosEnglobados={cidadeEdicaoEnglobados}
+                        onMunicipiosEnglobadosChange={setCidadeEdicaoEnglobados}
+                        disabled={!suportaVinculosMunicipios}
+                    />
+                    <div className='manager_add_bar_actions'>
+                        <button type='button' className='manager_action_btn save' onClick={salvarEdicaoCidade}>
+                            Salvar
+                        </button>
+                        <button
+                            type='button'
+                            className='manager_action_btn'
+                            onClick={() => {
+                                setCidadeEdicao(null)
+                                setCidadeEdicaoUf('')
+                                setCidadeEdicaoMunicipio('')
+                                setCidadeEdicaoEnglobados([])
+                            }}
+                        >
+                            Fechar edição
+                        </button>
+                    </div>
+                </div>
+            )
+        }
+        return null
+    }
+
+    const edicaoGerenciarAberta =
+        mostrarAdicionarCidade || Boolean(cidadeEdicao) || Boolean(cidadeDuplicarOrigem)
+
     const salvarNovaCidade = async () => {
-        const nome = novaCidadeNome.trim()
-        if (!nome) {
-            mostrarErroToast('Informe o nome da cidade.')
+        const nome = String(novaCidadeMunicipio || '').trim()
+        if (!nome || !novaCidadeUf) {
+            mostrarErroToast('Selecione UF e o município principal da tabela.')
             return
         }
 
@@ -1394,10 +1543,7 @@ const Supertabelaplanos = () => {
         try {
             const { data, error } = await supabase
                 .from('cidades')
-                .insert({
-                    nome,
-                    regiao_id: novaCidadeRegiaoId ? Number(novaCidadeRegiaoId) : null,
-                })
+                .insert(payloadCidadeComUf({ nome, uf: novaCidadeUf }))
                 .select('id')
                 .single()
 
@@ -1406,11 +1552,26 @@ const Supertabelaplanos = () => {
                 return
             }
 
+            if (suportaVinculosMunicipios) {
+                try {
+                    await salvarVinculosDaCidade(
+                        supabase,
+                        data.id,
+                        novaCidadeUf,
+                        nome,
+                        novaCidadeEnglobados,
+                    )
+                } catch (errV) {
+                    mostrarErroToast(`Cidade criada, mas falha nos vínculos: ${errV.message}`)
+                }
+            }
+
             await carregarBase()
             setCidadeId(String(data.id))
             setMostrarAdicionarCidade(false)
-            setNovaCidadeNome('')
-            setNovaCidadeRegiaoId('')
+            setNovaCidadeUf('')
+            setNovaCidadeMunicipio('')
+            setNovaCidadeEnglobados([])
         } catch (error) {
             mostrarErroToast(`Falha ao adicionar cidade: ${error.message}`)
         } finally {
@@ -1422,15 +1583,27 @@ const Supertabelaplanos = () => {
         setCidadeDuplicarOrigem(null)
         setMostrarAdicionarCidade(false)
         setCidadeEdicao(cidade)
-        setCidadeEdicaoNome(cidade.nome)
-        setCidadeEdicaoRegiaoId(cidade.regiaoId ? String(cidade.regiaoId) : '')
+        const vincs = mapaMunicipiosPorCidade.get(Number(cidade.id)) || []
+        const uf = cidade.uf || vincs[0]?.uf || ''
+        const principal =
+            vincs.find((v) => normalizarMunicipioChave(v.municipio_nome) === normalizarMunicipioChave(cidade.nome))
+                ?.municipio_nome ||
+            vincs[0]?.municipio_nome ||
+            cidade.nome
+        const chavePrincipal = normalizarMunicipioChave(principal)
+        const englobados = vincs
+            .map((v) => v.municipio_nome)
+            .filter((n) => normalizarMunicipioChave(n) !== chavePrincipal)
+        setCidadeEdicaoUf(uf)
+        setCidadeEdicaoMunicipio(principal)
+        setCidadeEdicaoEnglobados(englobados)
     }
 
     const salvarEdicaoCidade = async () => {
         if (!cidadeEdicao) return
-        const nome = cidadeEdicaoNome.trim()
-        if (!nome) {
-            mostrarErroToast('Informe o nome da cidade para editar.')
+        const nome = String(cidadeEdicaoMunicipio || '').trim()
+        if (!nome || !cidadeEdicaoUf) {
+            mostrarErroToast('Selecione UF e o município principal da tabela.')
             return
         }
 
@@ -1438,10 +1611,7 @@ const Supertabelaplanos = () => {
         try {
             const { error } = await supabase
                 .from('cidades')
-                .update({
-                    nome,
-                    regiao_id: cidadeEdicaoRegiaoId ? Number(cidadeEdicaoRegiaoId) : null,
-                })
+                .update(payloadCidadeComUf({ nome, uf: cidadeEdicaoUf }))
                 .eq('id', cidadeEdicao.id)
 
             if (error) {
@@ -1449,10 +1619,25 @@ const Supertabelaplanos = () => {
                 return
             }
 
+            if (suportaVinculosMunicipios) {
+                try {
+                    await salvarVinculosDaCidade(
+                        supabase,
+                        cidadeEdicao.id,
+                        cidadeEdicaoUf,
+                        nome,
+                        cidadeEdicaoEnglobados,
+                    )
+                } catch (errV) {
+                    mostrarErroToast(`Dados salvos, mas falha nos vínculos: ${errV.message}`)
+                }
+            }
+
             await carregarBase()
             setCidadeEdicao(null)
-            setCidadeEdicaoNome('')
-            setCidadeEdicaoRegiaoId('')
+            setCidadeEdicaoUf('')
+            setCidadeEdicaoMunicipio('')
+            setCidadeEdicaoEnglobados([])
         } catch (error) {
             mostrarErroToast(`Falha ao editar cidade: ${error.message}`)
         } finally {
@@ -1472,10 +1657,12 @@ const Supertabelaplanos = () => {
         try {
             const { data: cidadeNova, error: errCidadeNova } = await supabase
                 .from('cidades')
-                .insert({
-                    nome: nomeCidade,
-                    regiao_id: cidadeDuplicarOrigem.regiaoId || null,
-                })
+                .insert(
+                    payloadCidadeComUf({
+                        nome: nomeCidade,
+                        uf: cidadeDuplicarOrigem.uf,
+                    }),
+                )
                 .select('id')
                 .single()
 
@@ -1588,12 +1775,17 @@ const Supertabelaplanos = () => {
                             <p>Cidade</p>
                             <select
                                 className='supertabelaplanos_select'
-                                value={cidadeId}
-                                onChange={(e) => setCidadeId(e.target.value)}
+                                value={valorFiltroCidade}
+                                onChange={(e) => {
+                                    const valor = e.target.value
+                                    setValorFiltroCidade(valor)
+                                    const op = opcoesFiltroCidade.find((o) => o.value === valor)
+                                    if (op) setCidadeId(String(op.cidadeId))
+                                }}
                             >
-                                {cidades.map((cidade) => (
-                                    <option key={cidade.id} value={cidade.id}>
-                                        {cidade.nome}
+                                {opcoesFiltroCidade.map((op) => (
+                                    <option key={op.value} value={op.value}>
+                                        {op.label}
                                     </option>
                                 ))}
                             </select>
@@ -1916,202 +2108,23 @@ ou um código por linha`}
             )}
 
             {mostrarGerenciarModal && (
-                <div className='manager_modal_overlay' onClick={() => setMostrarGerenciarModal(false)}>
-                    <div className='manager_modal' onClick={(event) => event.stopPropagation()}>
-                        <div className='manager_modal_header'>
-                            <h3>Gerenciar tabelas</h3>
-                            <div className='manager_header_actions'>
-                                {!somenteLeitura && (
-                                    <button
-                                        type='button'
-                                        className='manager_add_city_btn'
-                                        onClick={abrirAdicionarCidade}
-                                        title='Adicionar nova cidade'
-                                    >
-                                        ＋ Nova cidade
-                                    </button>
-                                )}
-                                <button
-                                    type='button'
-                                    className='manager_close_btn'
-                                    onClick={() => setMostrarGerenciarModal(false)}
-                                    title='Fechar'
-                                >
-                                    x
-                                </button>
-                            </div>
-                        </div>
-
-                        {mostrarAdicionarCidade && (
-                            <div className='manager_add_bar'>
-                                <span>Adicionar nova cidade</span>
-                                <input
-                                    type='text'
-                                    value={novaCidadeNome}
-                                    onChange={(event) => setNovaCidadeNome(event.target.value)}
-                                    placeholder='Nome da cidade'
-                                />
-                                <select
-                                    value={novaCidadeRegiaoId}
-                                    onChange={(event) => setNovaCidadeRegiaoId(event.target.value)}
-                                >
-                                    <option value=''>Sem região</option>
-                                    {regioes.map((regiao) => (
-                                        <option key={`nova-regiao-${regiao.id}`} value={regiao.id}>
-                                            {regiao.id} - {regiao.nome}
-                                        </option>
-                                    ))}
-                                </select>
-                                <button type='button' className='manager_action_btn save' onClick={salvarNovaCidade}>
-                                    Salvar
-                                </button>
-                                <button
-                                    type='button'
-                                    className='manager_action_btn'
-                                    onClick={() => {
-                                        setMostrarAdicionarCidade(false)
-                                        setNovaCidadeNome('')
-                                        setNovaCidadeRegiaoId('')
-                                    }}
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        )}
-
-                        {cidadeEdicao && (
-                            <div className='manager_edit_bar'>
-                                <span>
-                                    Editar cidade <strong>{cidadeEdicao.nome}</strong>
-                                </span>
-                                <input
-                                    type='text'
-                                    value={cidadeEdicaoNome}
-                                    onChange={(event) => setCidadeEdicaoNome(event.target.value)}
-                                    placeholder='Nome da cidade'
-                                />
-                                <select
-                                    value={cidadeEdicaoRegiaoId}
-                                    onChange={(event) => setCidadeEdicaoRegiaoId(event.target.value)}
-                                >
-                                    <option value=''>Sem região</option>
-                                    {regioes.map((regiao) => (
-                                        <option key={`edit-regiao-${regiao.id}`} value={regiao.id}>
-                                            {regiao.id} - {regiao.nome}
-                                        </option>
-                                    ))}
-                                </select>
-                                <button type='button' className='manager_action_btn save' onClick={salvarEdicaoCidade}>
-                                    Salvar
-                                </button>
-                                <button
-                                    type='button'
-                                    className='manager_action_btn'
-                                    onClick={() => {
-                                        setCidadeEdicao(null)
-                                        setCidadeEdicaoNome('')
-                                        setCidadeEdicaoRegiaoId('')
-                                    }}
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        )}
-
-                        {cidadeDuplicarOrigem && (
-                            <div className='manager_duplicate_bar'>
-                                <span>
-                                    Duplicar tabela de <strong>{cidadeDuplicarOrigem.nome}</strong> para:
-                                </span>
-                                <input
-                                    type='text'
-                                    value={novoNomeCidadeDuplicada}
-                                    onChange={(event) => setNovoNomeCidadeDuplicada(event.target.value)}
-                                    placeholder='Nome da nova cidade'
-                                />
-                                <button type='button' className='manager_action_btn save' onClick={duplicarCidadeSelecionada}>
-                                    Confirmar
-                                </button>
-                                <button
-                                    type='button'
-                                    className='manager_action_btn'
-                                    onClick={() => {
-                                        setCidadeDuplicarOrigem(null)
-                                        setNovoNomeCidadeDuplicada('')
-                                    }}
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        )}
-
-                        <div className='manager_table_wrap'>
-                            <table className='manager_table'>
-                                <thead>
-                                    <tr>
-                                        <th onClick={() => ordenarGerenciador('regiaoId')}>
-                                            Código da Região{indicadorOrdenacaoGerenciador('regiaoId')}
-                                        </th>
-                                        <th onClick={() => ordenarGerenciador('nome')}>
-                                            Cidade Nome{indicadorOrdenacaoGerenciador('nome')}
-                                        </th>
-                                        <th>Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {cidadesGerenciaveisOrdenadas.map((cidade) => (
-                                        <tr key={`manager-${cidade.id}`}>
-                                            <td>{cidade.regiaoId ?? '-'}</td>
-                                            <td>{cidade.nome}</td>
-                                            <td>
-                                                <div className='manager_actions'>
-                                                    <button
-                                                        type='button'
-                                                        className='manager_icon_btn'
-                                                        onClick={() => acessarCidadeNoGerenciador(cidade.id)}
-                                                        title='Acessar tabela'
-                                                    >
-                                                        👁️
-                                                    </button>
-                                                    <button
-                                                        type='button'
-                                                        className='manager_icon_btn'
-                                                        onClick={() => iniciarEdicaoCidade(cidade)}
-                                                        title='Editar cidade'
-                                                    >
-                                                        ✏️
-                                                    </button>
-                                                    <button
-                                                        type='button'
-                                                        className='manager_icon_btn'
-                                                        onClick={() => iniciarDuplicacaoCidade(cidade)}
-                                                        title='Duplicar tabela'
-                                                    >
-                                                        📄
-                                                    </button>
-                                                    {!somenteLeitura && (
-                                                        <button
-                                                            type='button'
-                                                            className='manager_icon_btn danger'
-                                                            onClick={(event) =>
-                                                                excluirCidadeNoGerenciador(cidade, {
-                                                                    ignorarConfirmacao: event.shiftKey,
-                                                                })
-                                                            }
-                                                            title='Excluir tabela'
-                                                        >
-                                                            🗑️
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+                <GerenciarTabelasModal
+                    onClose={fecharGerenciarModal}
+                    somenteLeitura={somenteLeitura}
+                    onNovaCidade={abrirAdicionarCidade}
+                    cidadesOrdenadas={cidadesGerenciaveisOrdenadas}
+                    ordenarGerenciador={ordenarGerenciador}
+                    indicadorOrdenacaoGerenciador={indicadorOrdenacaoGerenciador}
+                    idCidadeEmEdicao={cidadeEdicao?.id}
+                    emModoNova={mostrarAdicionarCidade}
+                    onSelecionarCidade={selecionarCidadeGerenciador}
+                    onAcessarCidade={acessarCidadeNoGerenciador}
+                    onEditarCidade={selecionarCidadeGerenciador}
+                    onDuplicarCidade={iniciarDuplicacaoCidade}
+                    onExcluirCidade={excluirCidadeNoGerenciador}
+                    edicaoAberta={edicaoGerenciarAberta}
+                    painelDireito={renderPainelGerenciarDireito()}
+                />
             )}
 
             <div className='supertabelaplanos_table_container'>

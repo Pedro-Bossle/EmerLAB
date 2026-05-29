@@ -1,0 +1,97 @@
+.layout1-shell {
+    min-height: 100vh;
+    position: relative;
+}
+
+.layout1_main {
+    min-height: 50vh;
+}
+
+.layout1_header_wrap {
+    position: relative;
+    z-index: 100;
+}
+
+.layout1_header_backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 480;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    background: rgba(15, 30, 48, 0.45);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.layout1_header_fab {
+    position: fixed;
+    top: max(12px, env(safe-area-inset-top));
+    left: max(12px, env(safe-area-inset-left));
+    z-index: 520;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    border: 1px solid rgba(47, 135, 198, 0.45);
+    background: linear-gradient(180deg, #f0f8fc 0%, #dceef8 100%);
+    color: #1e3148;
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(30, 49, 72, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.layout1_header_fab:active {
+    transform: scale(0.96);
+}
+
+body.dark-mode .layout1_header_fab {
+    background: linear-gradient(180deg, #1a334d 0%, #142a40 100%);
+    border-color: #4d7aa0;
+    color: #e8f2fc;
+}
+
+@media (max-width: 1023px) {
+    .layout1-shell--compact .layout1_header_wrap {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 500;
+        padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 12px
+            max(12px, env(safe-area-inset-left));
+        pointer-events: none;
+        transform: translateY(-120%);
+        opacity: 0;
+        transition: transform 0.28s ease, opacity 0.22s ease;
+    }
+
+    .layout1-shell--compact[data-header-open='true'] .layout1_header_wrap {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .layout1-shell--compact .layout1_header_wrap .header {
+        padding: 0;
+    }
+
+    .layout1-shell--compact .layout1_main {
+        padding-top: calc(56px + env(safe-area-inset-top));
+    }
+
+    .layout1-shell--compact footer {
+        padding: 1.5rem 1rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .layout1_header_backdrop,
+    .layout1_header_fab {
+        display: none !important;
+    }
+}

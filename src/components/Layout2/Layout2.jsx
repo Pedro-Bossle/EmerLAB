@@ -61,14 +61,15 @@ const Layout2 = () => {
                     onClick={() => setOpenManual(false)}
                 />
             )}
-            {isCompact && !openManual && (
+            {isCompact && (
                 <button
                     type="button"
                     className="layout2_nav_fab"
-                    aria-label="Abrir menu de navegação"
-                    onClick={() => setOpenManual(true)}
+                    aria-label={openManual ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
+                    aria-expanded={openManual}
+                    onClick={handleToggleManual}
                 >
-                    ☰
+                    {openManual ? '✕' : '☰'}
                 </button>
             )}
 

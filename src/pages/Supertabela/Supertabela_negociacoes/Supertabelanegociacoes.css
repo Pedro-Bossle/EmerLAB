@@ -145,6 +145,14 @@ body.supertabelanegociacoes_no_bounce {
     accent-color: var(--azul-destaque);
 }
 
+.supertabelanegociacoes_filters .supertabelanegociacoes_form_box {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
 .supertabelanegociacoes_form_box {
     max-width: 980px;
     margin: 0 auto 12px;
@@ -156,6 +164,8 @@ body.supertabelanegociacoes_no_bounce {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    box-sizing: border-box;
+    overflow: visible;
 }
 
 .supertabelanegociacoes_form_box h3 {
@@ -165,8 +175,20 @@ body.supertabelanegociacoes_no_bounce {
 
 .supertabelanegociacoes_form_grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px 12px;
+    width: 100%;
+    min-width: 0;
+}
+
+@media (max-width: 640px) {
+    .supertabelanegociacoes_form_grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.supertabelanegociacoes_form_grid .supertabelanegociacoes_form_full {
+    grid-column: 1 / -1;
 }
 
 .supertabelanegociacoes_form_grid label,
@@ -174,6 +196,7 @@ body.supertabelanegociacoes_no_bounce {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    min-width: 0;
 }
 
 .supertabelanegociacoes_form_grid label span,
@@ -185,6 +208,10 @@ body.supertabelanegociacoes_no_bounce {
 .supertabelanegociacoes_form_grid input,
 .supertabelanegociacoes_form_grid select,
 .supertabelanegociacoes_form_full textarea {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     padding: 8px 10px;
     border-radius: 8px;
     border: 1px solid #9fc5de;
@@ -197,8 +224,11 @@ body.supertabelanegociacoes_no_bounce {
 
 .supertabelanegociacoes_form_actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     justify-content: flex-end;
+    width: 100%;
+    min-width: 0;
 }
 
 .supertabelanegociacoes_table_container {
@@ -314,6 +344,30 @@ body.supertabelanegociacoes_no_bounce {
     padding: 8px 10px;
     border-radius: 8px;
     border: 1px solid #92bfdd;
+}
+
+.supertabelanegociacoes .prestador_vinculo_busca.row_add_suggest_wrap {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.supertabelanegociacoes .prestador_vinculo_busca .prestador_vinculo_busca_input {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex: none;
+    box-sizing: border-box;
+}
+
+.supertabelanegociacoes .prestador_vinculo_busca .row_add_suggest_item span {
+    min-width: 0;
+    font-weight: 600;
+    flex: 1;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+    text-align: left;
 }
 
 .supertabelanegociacoes .row_add_suggest_wrap {

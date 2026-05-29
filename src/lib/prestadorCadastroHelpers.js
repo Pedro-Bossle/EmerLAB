@@ -161,3 +161,49 @@ export const calcularPercentualCompletudePerfil = (prestador, opcoes = {}) => {
     const preenchidos = criterios.filter(Boolean).length
     return Math.round((preenchidos / criterios.length) * 100)
 }
+
+/** Endereço do cadastro preenchido de forma a definir a cidade principal pelo bloco Endereço. */
+export const enderecoCadastroCompleto = (prestador) => {
+    const p = prestador || {}
+    return (
+        campoPreenchido(p.cep) &&
+        (campoPreenchido(p.endereco_logradouro) || campoPreenchido(p.endereco)) &&
+        campoPreenchido(p.endereco_numero) &&
+        campoPreenchido(p.endereco_bairro) &&
+        campoPreenchido(p.endereco_cidade) &&
+        campoPreenchido(p.endereco_uf)
+    )
+}
+
+const nomeCidadeNoMapa = (mapa, cidadeId) => {
+    if (!cidadeId) return ''
+    const hit = mapa.get(Number(cidadeId))
+    if (!hit) return ''
+    if (typeof hit === 'string') return hit
+    return String(hit.nome || '').trim()
+}
+
+/**
+ * Cidade principal para listas, filtros e badges.
+ * Com endereço completo, usa `endereco_cidade`; caso contrário, relação principal / `cidade_id`.
+ */
+export const resolverCidadePrincipalNome = (prestador, opcoes = {}) => {
+    const { mapaCidadeNomePorId = new Map(), relacoesCidades = [] } = opcoes
+    const p = prestador || {}
+
+    if (enderecoCadastroCompleto(p)) {
+        const end = String(p.endereco_cidade || '').trim()
+        if (end) return end
+    }
+
+    const rels = relacoesCidades || []
+    const principal = rels.find((r) => r.principal) || rels[0]
+    const viaRel = principal ? nomeCidadeNoMapa(mapaCidadeNomePorId, principal.cidade_id) : ''
+    if (viaRel) return viaRel
+
+    const viaId = nomeCidadeNoMapa(mapaCidadeNomePorId, p.cidade_id)
+    if (viaId) return viaId
+
+    const endParcial = String(p.endereco_cidade || '').trim()
+    return endParcial || '—'
+}

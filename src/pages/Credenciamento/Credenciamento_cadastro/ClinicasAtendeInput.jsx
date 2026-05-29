@@ -68,32 +68,25 @@ export default function ClinicasAtendeInput({
         const p = mapaPorId.get(Number(id))
         const nome = p?.nome || `Clínica #${id}`
         return (
-            <span
-                key={id}
-                role={disabled ? undefined : 'button'}
-                tabIndex={disabled ? undefined : 0}
-                className={`pcad_multi_esp_tag ${disabled ? '' : 'pcad_multi_esp_tag_removivel'}`}
-                aria-label={disabled ? nome : `${nome}. Clique na tag para remover.`}
-                onMouseDown={(e) => {
-                    if (disabled) return
-                    e.preventDefault()
-                    e.stopPropagation()
-                }}
-                onClick={(e) => {
-                    if (disabled) return
-                    e.stopPropagation()
-                    remover(id)
-                }}
-                onKeyDown={(e) => {
-                    if (disabled) return
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        remover(id)
-                    }
-                }}
-            >
-                {nome}
-                {!disabled && <span className="pcad_multi_esp_tag_x" aria-hidden="true">×</span>}
+            <span key={id} className="pcad_multi_esp_tag">
+                <span className="pcad_multi_esp_tag_label">{nome}</span>
+                {!disabled && (
+                    <button
+                        type="button"
+                        className="pcad_multi_esp_tag_remove"
+                        aria-label={`Remover ${nome}`}
+                        onMouseDown={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            remover(id)
+                        }}
+                    >
+                        ×
+                    </button>
+                )}
             </span>
         )
     })

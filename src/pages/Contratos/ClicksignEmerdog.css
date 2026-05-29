@@ -613,6 +613,21 @@ button.cs_dash_metric_box:hover {
     word-break: break-word;
 }
 
+.clicksign_detail_sig_head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+}
+
+.clicksign_detail_sig_actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
 .clicksign_detail_table_wrap {
     overflow-x: auto;
     margin: 0 0 1rem;

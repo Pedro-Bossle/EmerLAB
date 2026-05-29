@@ -4,7 +4,15 @@ import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
+import { exportarNegociacaoParaExcel } from '../../../lib/exportNegociacaoExcel.js'
+import { carregarCodigosPrestadorProcedimentos } from '../../../lib/prestadorProcedimentos.js'
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
+import PrestadorVinculoBusca from './PrestadorVinculoBusca.jsx'
+import {
+    carregarVinculosMunicipios,
+    cidadeExibicaoNegociacaoPrestador,
+    resolverCidadeIdTabelaNegociacao,
+} from '../../../lib/cidadesSupertabelaVinculos.js'
 import './Supertabelanegociacoes.css'
 
 const ALTURA_LINHA_TABELA = 42
@@ -102,6 +110,12 @@ const Supertabelanegociacoes = () => {
     const [procedimentos, setProcedimentos] = useState([])
     const [negociacoes, setNegociacoes] = useState([])
     const [suportaTipo, setSuportaTipo] = useState(true)
+    const [suportaPrestadorId, setSuportaPrestadorId] = useState(true)
+    const [prestadoresParaVinculo, setPrestadoresParaVinculo] = useState([])
+    const [especialidadesPrestador, setEspecialidadesPrestador] = useState([])
+    const [mapaCidadesCred, setMapaCidadesCred] = useState(() => new Map())
+    const [municipiosVinculos, setMunicipiosVinculos] = useState([])
+    const [novoPrestadorId, setNovoPrestadorId] = useState('')
 
     const [negociacaoSelecionadaId, setNegociacaoSelecionadaId] = useState(null)
     const [detalheBase, setDetalheBase] = useState([])
@@ -139,11 +153,13 @@ const Supertabelanegociacoes = () => {
     const [novoNome, setNovoNome] = useState('')
     const [novoCidadeId, setNovoCidadeId] = useState('')
     const [novoTipo, setNovoTipo] = useState('')
+    const [vincularPrestador, setVincularPrestador] = useState(false)
 
     const [mostrarGerenciarForm, setMostrarGerenciarForm] = useState(false)
     const [editarNome, setEditarNome] = useState('')
     const [editarCidadeId, setEditarCidadeId] = useState('')
     const [editarTipo, setEditarTipo] = useState('')
+    const [editarPrestadorId, setEditarPrestadorId] = useState('')
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
 
     const cidadePorId = useMemo(
@@ -151,10 +167,35 @@ const Supertabelanegociacoes = () => {
         [cidades]
     )
 
+    const resolverIdTabelaCidade = useCallback(
+        (prestador, veterinarioCidadeId = null) =>
+            resolverCidadeIdTabelaNegociacao({
+                prestador,
+                veterinarioCidadeId,
+                cidades,
+                vinculos: municipiosVinculos,
+                mapaCred: mapaCidadesCred,
+            }),
+        [cidades, municipiosVinculos, mapaCidadesCred],
+    )
+
     const negociacaoSelecionada = useMemo(
         () => negociacoes.find((item) => Number(item.id) === Number(negociacaoSelecionadaId)) || null,
         [negociacoes, negociacaoSelecionadaId]
     )
+
+    const mapaEspPrestadorNome = useMemo(
+        () => new Map((especialidadesPrestador || []).map((e) => [Number(e.id), e.nome])),
+        [especialidadesPrestador]
+    )
+
+    const rotuloOpcaoPrestador = (p) => {
+        const esp = mapaEspPrestadorNome.get(Number(p.especialidade_id))
+        const partes = [p.nome]
+        if (esp) partes.push(esp)
+        if (p.endereco_cidade) partes.push(p.endereco_cidade)
+        return partes.join(' — ')
+    }
 
     const planoSelecionadoNome = useMemo(() => {
         const plano = planos.find((item) => String(item.id) === String(planoId))
@@ -208,8 +249,11 @@ const Supertabelanegociacoes = () => {
                 { data: categoriasData, error: errCategorias },
                 { data: procedimentosData, error: errProcedimentos },
                 { data: negociacoesVetData, error: errNegociacoesVet },
+                { data: prestadoresData },
+                { data: cidadesCredData },
+                { data: especialidadesData },
             ] = await Promise.all([
-                supabase.from('cidades').select('id, nome, regiao_id').order('nome', { ascending: true }),
+                supabase.from('cidades').select('id, nome, uf').order('nome', { ascending: true }),
                 supabase.from('planos').select('id, nome').order('id', { ascending: true }),
                 supabase.from('portes').select('id, nome').order('id', { ascending: true }),
                 supabase.from('categorias').select('id, nome').gte('id', 3).lte('id', 25).order('id', { ascending: true }),
@@ -222,6 +266,13 @@ const Supertabelanegociacoes = () => {
                 buscarTodosPaginado(() =>
                     supabase.from('negociacoes_vet').select('veterinario_id, procedimento_id')
                 ),
+                supabase
+                    .from('prestadores')
+                    .select('id, nome, cidade_id, endereco_cidade, endereco_uf, especialidade_id, ativo')
+                    .eq('ativo', true)
+                    .order('nome'),
+                supabase.from('cidades_credenciamento').select('id, nome'),
+                supabase.from('especialidades').select('id, nome'),
             ])
 
             if (errCidades || errPlanos || errPortes || errCategorias || errProcedimentos || errNegociacoesVet) {
@@ -242,26 +293,36 @@ const Supertabelanegociacoes = () => {
             let veterinariosData = []
             let veterinariosError = null
             let temTipo = true
+            let temPrestadorId = true
 
-            const tentativaComTipo = await supabase
+            const tentativaCompleta = await supabase
                 .from('veterinarios')
-                .select('id, nome, cidade_id, tipo')
+                .select('id, nome, cidade_id, tipo, prestador_id')
                 .order('nome', { ascending: true })
 
-            veterinariosData = tentativaComTipo.data || []
-            veterinariosError = tentativaComTipo.error
+            veterinariosData = tentativaCompleta.data || []
+            veterinariosError = tentativaCompleta.error
 
             if (veterinariosError) {
-                const tentativaSemTipo = await supabase
+                const tentativaComTipo = await supabase
                     .from('veterinarios')
-                    .select('id, nome, cidade_id')
+                    .select('id, nome, cidade_id, tipo')
                     .order('nome', { ascending: true })
-                veterinariosData = (tentativaSemTipo.data || []).map((item) => ({
-                    ...item,
-                    tipo: '-',
-                }))
-                veterinariosError = tentativaSemTipo.error
-                temTipo = false
+                veterinariosData = tentativaComTipo.data || []
+                veterinariosError = tentativaComTipo.error
+                temPrestadorId = false
+                if (veterinariosError) {
+                    const tentativaSemTipo = await supabase
+                        .from('veterinarios')
+                        .select('id, nome, cidade_id')
+                        .order('nome', { ascending: true })
+                    veterinariosData = (tentativaSemTipo.data || []).map((item) => ({
+                        ...item,
+                        tipo: '-',
+                    }))
+                    veterinariosError = tentativaSemTipo.error
+                    temTipo = false
+                }
             }
 
             if (veterinariosError) {
@@ -269,8 +330,16 @@ const Supertabelanegociacoes = () => {
                 return
             }
 
+            let vinculos = []
+            try {
+                vinculos = await carregarVinculosMunicipios(supabase)
+            } catch {
+                vinculos = []
+            }
+
             const cidadesLista = cidadesData || []
             const mapaCidades = new Map(cidadesLista.map((cidade) => [String(cidade.id), cidade.nome]))
+            const mapaPrestadores = new Map((prestadoresData || []).map((p) => [Number(p.id), p]))
             const mapaProcedimentosIdParaCodigo = new Map(
                 (procedimentosData || []).map((item) => [Number(item.id), String(item.codigo || '').trim()])
             )
@@ -290,16 +359,42 @@ const Supertabelanegociacoes = () => {
                 mapaProcedimentosAtivos.get(veterinarioId).add(codigoProcedimento)
             })
 
-            const negociacoesLista = (veterinariosData || []).map((item) => ({
-                id: item.id,
-                nome: item.nome,
-                cidadeId: item.cidade_id,
-                cidadeNome: mapaCidades.get(String(item.cidade_id)) || '-',
-                tipo: item.tipo || '-',
-                procedimentosAtivos: mapaProcedimentosAtivos.get(Number(item.id))?.size || 0,
-            }))
+            const mapaCred = new Map((cidadesCredData || []).map((c) => [Number(c.id), c.nome]))
+            const negociacoesLista = (veterinariosData || []).map((item) => {
+                const prestador =
+                    item.prestador_id != null ? mapaPrestadores.get(Number(item.prestador_id)) : null
+                const cidadeIdTabela = resolverCidadeIdTabelaNegociacao({
+                    prestador,
+                    veterinarioCidadeId: item.cidade_id,
+                    cidades: cidadesLista,
+                    vinculos,
+                    mapaCred,
+                })
+                const exibicaoPrestador = cidadeExibicaoNegociacaoPrestador(prestador, mapaCred)
+                const cidadeNome =
+                    exibicaoPrestador ||
+                    mapaCidades.get(String(item.cidade_id)) ||
+                    (cidadeIdTabela != null ? mapaCidades.get(String(cidadeIdTabela)) : null) ||
+                    '-'
+
+                return {
+                    id: item.id,
+                    nome: item.nome,
+                    cidadeId: item.cidade_id,
+                    cidadeIdTabela: cidadeIdTabela ?? item.cidade_id,
+                    cidadeNome,
+                    tipo: item.tipo || '-',
+                    prestadorId: item.prestador_id != null ? Number(item.prestador_id) : null,
+                    procedimentosAtivos: mapaProcedimentosAtivos.get(Number(item.id))?.size || 0,
+                }
+            })
 
             setCidades(cidadesLista)
+            setMunicipiosVinculos(vinculos)
+            setPrestadoresParaVinculo(prestadoresData || [])
+            setEspecialidadesPrestador(especialidadesData || [])
+            setMapaCidadesCred(mapaCred)
+            setSuportaPrestadorId(temPrestadorId)
             setPlanos(planosData || [])
             setPortes(portesData || [])
             setCategorias(categoriasData || [])
@@ -421,30 +516,15 @@ const Supertabelanegociacoes = () => {
             return
         }
 
-        const cidade = cidadePorId.get(String(negociacaoItem.cidadeId))
-        const regiaoId = cidade?.regiao_id ?? null
+        const idTabela = negociacaoItem.cidadeIdTabela ?? negociacaoItem.cidadeId
         let mapaResultado = {}
 
-        const tentativaCidade = await supabase
+        const { data, error } = await supabase
             .from('planos_cidade')
             .select('id, procedimento_cod, diferenca')
-            .eq('cidade_id', negociacaoItem.cidadeId)
+            .eq('cidade_id', idTabela)
             .eq('plano_id', planoId)
             .in('procedimento_cod', codigos)
-
-        let data = tentativaCidade.data
-        let error = tentativaCidade.error
-
-        if (error && regiaoId) {
-            const tentativaRegiao = await supabase
-                .from('planos_cidade')
-                .select('id, procedimento_cod, diferenca')
-                .eq('regiao_id', regiaoId)
-                .eq('plano_id', planoId)
-                .in('procedimento_cod', codigos)
-            data = tentativaRegiao.data
-            error = tentativaRegiao.error
-        }
 
         if (error) {
             setErroDetalhe(`Erro ao carregar diferenças da negociação: ${error.message}`)
@@ -966,7 +1046,8 @@ const Supertabelanegociacoes = () => {
             if (!opcoes.silencioso) mostrarErroToast(mensagem)
         }
 
-        if (!negociacaoSelecionada) return { status: 'erro', mensagem: 'Negociação não selecionada.' }
+        const vetId = Number(opcoes.veterinarioId || negociacaoSelecionada?.id)
+        if (!vetId) return { status: 'erro', mensagem: 'Negociação não selecionada.' }
         const porteIds = [obterPorteIdPorLetra('P'), obterPorteIdPorLetra('M'), obterPorteIdPorLetra('G')].filter(Boolean)
         if (porteIds.length === 0) {
             reportarErro('Portes P/M/G não encontrados para inclusão.')
@@ -974,7 +1055,7 @@ const Supertabelanegociacoes = () => {
         }
 
         const payload = porteIds.map((porteId) => ({
-            veterinario_id: Number(negociacaoSelecionada.id),
+            veterinario_id: vetId,
             procedimento_id: Number(procedimentoItem.id),
             porte_id: Number(porteId),
             valor: 0,
@@ -994,12 +1075,12 @@ const Supertabelanegociacoes = () => {
             return { status: 'erro', mensagem: error.message }
         }
 
-        if (!opcoes.semRecarregar) {
+        if (!opcoes.semRecarregar && negociacaoSelecionada) {
             await carregarDetalheNegociacao(negociacaoSelecionada)
         }
         setNegociacoes((anteriores) =>
             anteriores.map((item) =>
-                Number(item.id) === Number(negociacaoSelecionada.id)
+                Number(item.id) === vetId
                     ? { ...item, procedimentosAtivos: Number(item.procedimentosAtivos || 0) + 1 }
                     : item
             )
@@ -1102,10 +1183,47 @@ const Supertabelanegociacoes = () => {
         }
     }
 
+    const importarProcedimentosPrestadorNaNegociacao = async (veterinarioId, prestadorId) => {
+        const pid = Number(prestadorId)
+        const vid = Number(veterinarioId)
+        if (!pid || !vid) return 0
+        let codigos = []
+        try {
+            codigos = await carregarCodigosPrestadorProcedimentos(pid)
+        } catch {
+            return 0
+        }
+        const mapaProc = new Map(
+            procedimentos.map((p) => [normalizarTexto(p.codigo), p])
+        )
+        let inseridos = 0
+        for (const cod of codigos) {
+            const proc = mapaProc.get(normalizarTexto(cod))
+            if (!proc) continue
+            const r = await inserirProcedimentoNaNegociacao(proc, {
+                silencioso: true,
+                semRecarregar: true,
+                veterinarioId: vid,
+            })
+            if (r.status === 'ok') inseridos += 1
+        }
+        return inseridos
+    }
+
     const criarNegociacao = async () => {
-        const nome = String(novoNome || '').trim()
-        if (!nome || !novoCidadeId) {
-            mostrarErroToast('Preencha nome e cidade para adicionar nova negociação.')
+        const prestadorSel =
+            vincularPrestador && novoPrestadorId
+                ? prestadoresParaVinculo.find((p) => String(p.id) === String(novoPrestadorId))
+                : null
+        let nome = String(novoNome || '').trim()
+        let cidadeIdNum = Number(novoCidadeId)
+        if (prestadorSel) {
+            if (!nome) nome = String(prestadorSel.nome || '').trim()
+            const cidResolvida = resolverIdTabelaCidade(prestadorSel)
+            if (cidResolvida) cidadeIdNum = cidResolvida
+        }
+        if (!nome || !cidadeIdNum) {
+            mostrarErroToast('Preencha nome e cidade (ou vincule um prestador com cidade válida).')
             return
         }
 
@@ -1113,24 +1231,49 @@ const Supertabelanegociacoes = () => {
         try {
             let payload = {
                 nome,
-                cidade_id: Number(novoCidadeId),
+                cidade_id: cidadeIdNum,
             }
             if (suportaTipo) payload = { ...payload, tipo: String(novoTipo || '').trim() || '-' }
+            if (suportaPrestadorId && prestadorSel) payload = { ...payload, prestador_id: Number(prestadorSel.id) }
 
-            const { data, error } = await supabase.from('veterinarios').insert(payload).select('id').single()
+            let data = null
+            let error = null
+            ;({ data, error } = await supabase.from('veterinarios').insert(payload).select('id').single())
+            if (error && suportaPrestadorId && prestadorSel && /prestador_id/i.test(error.message || '')) {
+                const { prestador_id: _omit, ...semPrestador } = payload
+                ;({ data, error } = await supabase.from('veterinarios').insert(semPrestador).select('id').single())
+            }
             if (error) {
                 mostrarErroToast(`Erro ao criar negociação: ${error.message}`)
                 return
+            }
+
+            if (prestadorSel) {
+                const qtd = await importarProcedimentosPrestadorNaNegociacao(data.id, prestadorSel.id)
+                if (qtd > 0) {
+                    mostrarErroToast(`${qtd} procedimento(s) importado(s) do perfil do prestador.`)
+                }
             }
 
             await carregarBase()
             setMostrarNovoForm(false)
             setNovoNome('')
             setNovoTipo('')
+            setNovoPrestadorId('')
+            setVincularPrestador(false)
             setNegociacaoSelecionadaId(data.id)
         } finally {
             setLoading(false)
         }
+    }
+
+    const baixarExcelNegociacao = () => {
+        if (!negociacaoSelecionada || !detalheBase.length) {
+            mostrarErroToast('Não há procedimentos para exportar nesta negociação.')
+            return
+        }
+        const nomeArquivo = `negociacao-${negociacaoSelecionada.nome || negociacaoSelecionada.id}`
+        exportarNegociacaoParaExcel(detalheBase, nomeArquivo)
     }
 
     const abrirGerenciarSelecionada = () => {
@@ -1138,7 +1281,32 @@ const Supertabelanegociacoes = () => {
         setEditarNome(negociacaoSelecionada.nome || '')
         setEditarCidadeId(String(negociacaoSelecionada.cidadeId || ''))
         setEditarTipo(negociacaoSelecionada.tipo || '')
+        setEditarPrestadorId(
+            negociacaoSelecionada.prestadorId != null ? String(negociacaoSelecionada.prestadorId) : ''
+        )
         setMostrarGerenciarForm(true)
+    }
+
+    const importarProcedimentosVinculoAtual = async () => {
+        if (!negociacaoSelecionada) return
+        const pid = editarPrestadorId ? Number(editarPrestadorId) : null
+        if (!pid) {
+            mostrarErroToast('Selecione uma clínica ou prestador vinculado.')
+            return
+        }
+        setLoading(true)
+        try {
+            const qtd = await importarProcedimentosPrestadorNaNegociacao(negociacaoSelecionada.id, pid)
+            await carregarDetalheNegociacao(negociacaoSelecionada)
+            await carregarBase()
+            if (qtd > 0) {
+                mostrarErroToast(`${qtd} procedimento(s) importado(s) do perfil do prestador.`)
+            } else {
+                mostrarErroToast('Nenhum procedimento novo foi importado (perfil vazio ou já na tabela).')
+            }
+        } finally {
+            setLoading(false)
+        }
     }
 
     const salvarGerenciarSelecionada = async () => {
@@ -1149,18 +1317,31 @@ const Supertabelanegociacoes = () => {
             return
         }
 
+        let cidadeIdSalvar = Number(editarCidadeId)
+        if (suportaPrestadorId && editarPrestadorId) {
+            const prestadorEd =
+                prestadoresParaVinculo.find((p) => String(p.id) === String(editarPrestadorId)) || null
+            const cidTab = resolverIdTabelaCidade(prestadorEd, editarCidadeId)
+            if (cidTab) cidadeIdSalvar = cidTab
+        }
+
         setLoading(true)
         try {
             let payload = {
                 nome,
-                cidade_id: Number(editarCidadeId),
+                cidade_id: cidadeIdSalvar,
             }
             if (suportaTipo) payload = { ...payload, tipo: String(editarTipo || '').trim() || '-' }
+            if (suportaPrestadorId) {
+                payload.prestador_id = editarPrestadorId ? Number(editarPrestadorId) : null
+            }
 
-            const { error } = await supabase
-                .from('veterinarios')
-                .update(payload)
-                .eq('id', negociacaoSelecionada.id)
+            let { error } = await supabase.from('veterinarios').update(payload).eq('id', negociacaoSelecionada.id)
+
+            if (error && suportaPrestadorId && /prestador_id/i.test(error.message || '')) {
+                const { prestador_id: _omit, ...semPrestador } = payload
+                ;({ error } = await supabase.from('veterinarios').update(semPrestador).eq('id', negociacaoSelecionada.id))
+            }
 
             if (error) {
                 mostrarErroToast(`Erro ao salvar negociação: ${error.message}`)
@@ -1321,6 +1502,14 @@ const Supertabelanegociacoes = () => {
                         >
                             Gerenciar
                         </button>
+                        <button
+                            type='button'
+                            className='supertabelanegociacoes_action_btn secondary'
+                            onClick={baixarExcelNegociacao}
+                            title='Exportar CSV (Excel): Codigo, Nome, Nome Alternativo, P, M, G'
+                        >
+                            Baixar Excel
+                        </button>
                         {!somenteLeitura && (
                             <label className='supertabelanegociacoes_edit_wrap'>
                                 <input
@@ -1418,6 +1607,38 @@ const Supertabelanegociacoes = () => {
                 {mostrarNovoForm && !negociacaoSelecionada && (
                     <div className='supertabelanegociacoes_form_box'>
                         <h3>Nova negociação</h3>
+                        <label className='supertabelanegociacoes_edit_wrap' style={{ marginBottom: '0.75rem' }}>
+                            <input
+                                type='checkbox'
+                                checked={vincularPrestador}
+                                onChange={(e) => {
+                                    setVincularPrestador(e.target.checked)
+                                    if (!e.target.checked) setNovoPrestadorId('')
+                                }}
+                            />
+                            <span>Vincular a clínica / prestador credenciado</span>
+                        </label>
+                        {vincularPrestador && (
+                            <label className='supertabelanegociacoes_form_full' style={{ marginBottom: '0.75rem' }}>
+                                <span>Clínica / prestador</span>
+                                <PrestadorVinculoBusca
+                                    prestadores={prestadoresParaVinculo}
+                                    prestadorId={novoPrestadorId}
+                                    rotuloFn={rotuloOpcaoPrestador}
+                                    onChange={(p) => {
+                                        setNovoPrestadorId(p ? String(p.id) : '')
+                                        if (p) {
+                                            setNovoNome(p.nome || '')
+                                            const cid = resolverIdTabelaCidade(p)
+                                            if (cid) setNovoCidadeId(String(cid))
+                                        }
+                                    }}
+                                />
+                                <small style={{ opacity: 0.85 }}>
+                                    Ao salvar, os procedimentos habilitados no perfil do prestador serão incluídos na negociação.
+                                </small>
+                            </label>
+                        )}
                         <div className='supertabelanegociacoes_form_grid'>
                             <label>
                                 <span>Nome</span>
@@ -1507,10 +1728,33 @@ const Supertabelanegociacoes = () => {
                                     disabled={!suportaTipo}
                                 />
                             </label>
+                            <label className='supertabelanegociacoes_form_full'>
+                                <span>Clínica / prestador vinculado</span>
+                                <PrestadorVinculoBusca
+                                    prestadores={prestadoresParaVinculo}
+                                    prestadorId={editarPrestadorId}
+                                    rotuloFn={rotuloOpcaoPrestador}
+                                    disabled={!suportaPrestadorId}
+                                    onChange={(p) => setEditarPrestadorId(p ? String(p.id) : '')}
+                                />
+                                {!suportaPrestadorId && (
+                                    <small style={{ opacity: 0.85 }}>
+                                        Execute o script SQL `veterinarios_prestador_id` no Supabase para persistir o vínculo.
+                                    </small>
+                                )}
+                            </label>
                         </div>
                         <div className='supertabelanegociacoes_form_actions'>
                             <button type='button' className='supertabelanegociacoes_action_btn' onClick={salvarGerenciarSelecionada}>
                                 Salvar
+                            </button>
+                            <button
+                                type='button'
+                                className='supertabelanegociacoes_action_btn secondary'
+                                disabled={loading || !editarPrestadorId}
+                                onClick={() => void importarProcedimentosVinculoAtual()}
+                            >
+                                Importar procedimentos do perfil
                             </button>
                             <button
                                 type='button'

@@ -504,6 +504,197 @@
     flex-direction: column;
 }
 
+.manager_modal.manager_modal_split {
+    width: min(1280px, 96vw);
+    max-height: min(90vh, 860px);
+}
+
+.manager_split_body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.manager_split_list {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 100%;
+    max-width: 100%;
+    border-right: 1px solid transparent;
+    background: #f9fcff;
+    transition:
+        flex 0.38s ease,
+        max-width 0.38s ease,
+        border-color 0.28s ease;
+}
+
+.manager_split_body.is-editing .manager_split_list {
+    flex: 0 0 42%;
+    max-width: 42%;
+    border-right-color: #d5e7f3;
+}
+
+.manager_split_edit {
+    flex: 0 0 0;
+    width: 0;
+    min-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    padding: 0;
+    pointer-events: none;
+    transition:
+        flex 0.38s ease,
+        width 0.38s ease,
+        opacity 0.28s ease,
+        padding 0.38s ease;
+}
+
+.manager_split_body.is-editing .manager_split_edit {
+    flex: 1 1 58%;
+    width: auto;
+    min-width: 0;
+    opacity: 1;
+    overflow: auto;
+    padding: 12px 14px 14px;
+    pointer-events: auto;
+}
+
+.manager_split_list_title {
+    margin: 0;
+    padding: 10px 12px 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #32566f;
+}
+
+.manager_table_wrap_inset {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    margin: 0;
+    border-top: 1px solid #e4eff7;
+}
+
+.manager_table_wrap_inset .manager_table.manager_table_compact {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+}
+
+.manager_table_compact th,
+.manager_table_compact td {
+    font-size: 0.88rem;
+    padding: 7px 8px;
+}
+
+.manager_table_compact .col_uf {
+    width: 2.75rem;
+    text-align: center;
+}
+
+.manager_table_compact .col_nome {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.manager_table_compact .col_proc {
+    width: 3.75rem;
+    text-align: right;
+}
+
+.manager_table_compact .col_acoes {
+    width: 11.5rem;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.manager_table_compact th.col_acoes {
+    cursor: default;
+}
+
+.manager_table_compact .col_acoes .manager_actions {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.manager_table_compact .manager_icon_btn {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+}
+
+.manager_table tbody tr.is-selected {
+    background: #dff0fb;
+    cursor: pointer;
+}
+
+.manager_table tbody tr:not(.is-selected) {
+    cursor: pointer;
+}
+
+.manager_table tbody tr:hover {
+    background: #eef7fd;
+}
+
+.manager_table tbody tr.is-selected:hover {
+    background: #d4ebfa;
+}
+
+.manager_split_edit {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.manager_split_edit .cidade_tabela_englobados {
+    max-height: min(52vh, 480px);
+}
+
+.manager_edit_panel_title {
+    margin: 0 0 10px;
+    font-size: 1.05rem;
+    color: #2a4a63;
+}
+
+.manager_duplicate_field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.manager_duplicate_field input {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #9fc5de;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+@media (max-width: 900px) {
+    .manager_split_body.is-editing {
+        flex-direction: column;
+    }
+
+    .manager_split_body.is-editing .manager_split_list {
+        flex: 0 0 auto;
+        max-width: 100%;
+        max-height: 38vh;
+        border-right: none;
+        border-bottom: 1px solid #d5e7f3;
+    }
+
+    .manager_split_body.is-editing .manager_split_edit {
+        flex: 1 1 auto;
+        width: 100%;
+    }
+}
+
 .manager_modal_header {
     display: flex;
     justify-content: space-between;
@@ -527,6 +718,162 @@
     font-weight: 700;
     padding: 6px 10px;
     cursor: pointer;
+}
+
+.cidade_tabela_ibge_form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    min-width: 0;
+}
+
+.cidade_tabela_ibge_form_row {
+    display: grid;
+    grid-template-columns: minmax(5.5rem, 7rem) minmax(0, 1fr);
+    gap: 12px 20px;
+    align-items: end;
+}
+
+.cidade_tabela_field_label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.cidade_tabela_field_label > span {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #32566f;
+}
+
+.cidade_tabela_field_label_grow {
+    grid-column: 2;
+}
+
+.cidade_tabela_field,
+.cidade_tabela_ibge_form_row select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 11px;
+    border: 1px solid #9fc5de;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 0.92rem;
+    color: #1e3a4f;
+    line-height: 1.35;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.cidade_tabela_field_search {
+    padding-left: 34px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%235d7b92' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242 1.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 11px center;
+}
+
+.cidade_tabela_field:focus {
+    outline: none;
+    border-color: #4d9ad0;
+    box-shadow: 0 0 0 2px rgba(77, 154, 208, 0.22);
+}
+
+.cidade_tabela_field:disabled {
+    background-color: #f0f6fa;
+    color: #6a8498;
+    cursor: not-allowed;
+}
+
+.cidade_tabela_field_wrap_select {
+    position: relative;
+}
+
+.cidade_tabela_field_wrap_select .cidade_tabela_field {
+    padding-right: 2rem;
+    appearance: none;
+    cursor: pointer;
+}
+
+.cidade_tabela_field_wrap_select::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    margin-top: -3px;
+    border: 5px solid transparent;
+    border-top-color: #5d7b92;
+    pointer-events: none;
+}
+
+.cidade_tabela_field_hint {
+    font-size: 0.82rem;
+    color: #8a4a4a;
+}
+
+.cidade_tabela_englobados {
+    border: 1px solid #d5e7f3;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #f9fcff;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: min(52vh, 420px);
+}
+
+.cidade_tabela_englobados_busca {
+    flex-shrink: 0;
+    margin-bottom: 10px;
+}
+
+.cidade_tabela_englobados_meta {
+    margin: 0 0 10px;
+    font-size: 0.8rem;
+    color: #5d7b92;
+    flex-shrink: 0;
+}
+
+.cidade_tabela_englobados_vazio {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #40617a;
+    padding: 8px 0;
+}
+
+.cidade_tabela_englobados_titulo {
+    margin: 0 0 8px;
+    font-size: 0.92rem;
+    color: #32566f;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.cidade_tabela_englobados_grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 6px 10px;
+    align-content: start;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.cidade_tabela_englobados_item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.cidade_tabela_englobados_hint {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #40617a;
 }
 
 .manager_modal_header h3 {
@@ -563,6 +910,32 @@
     flex-wrap: wrap;
     border-bottom: 1px solid #e4eff7;
     background: #fbfdff;
+}
+
+.manager_add_bar_stack {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.manager_edit_panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.manager_edit_panel .manager_add_bar_actions {
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid #e8f1f7;
+}
+
+.manager_add_bar_actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: flex-end;
 }
 
 .manager_duplicate_bar input {
@@ -642,7 +1015,7 @@
 
 .manager_actions {
     display: inline-flex;
-    gap: 6px;
+    gap: 10px;
 }
 
 .manager_icon_btn {

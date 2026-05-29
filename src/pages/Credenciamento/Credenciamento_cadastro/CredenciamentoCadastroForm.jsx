@@ -182,6 +182,11 @@ const CredenciamentoCadastroForm = () => {
                 setErro(error.message)
                 return
             }
+            let cidadeIdForm = data.cidade_id != null ? String(data.cidade_id) : ''
+            if (data.endereco_cidade?.trim()) {
+                const objEnd = await obterOuCriarCidadePorNome(data.endereco_cidade)
+                if (objEnd?.id) cidadeIdForm = String(objEnd.id)
+            }
             setForm({
                 nome: data.nome || '',
                 cpf_cnpj: data.cpf_cnpj ? formatarCpfCnpjEntrada(data.cpf_cnpj) : '',
@@ -202,7 +207,7 @@ const CredenciamentoCadastroForm = () => {
                 chave_pix: data.chave_pix || '',
                 tipo_repasse: data.tipo_repasse || '',
                 modalidade: data.modalidade || '',
-                cidade_id: data.cidade_id != null ? String(data.cidade_id) : '',
+                cidade_id: cidadeIdForm,
             })
             ultimoCepBuscadoRef.current = String(data.cep || '').replace(/\D/g, '')
 
@@ -444,12 +449,13 @@ const CredenciamentoCadastroForm = () => {
         setSalvando(true)
         setErro('')
         try {
-            let cidadePrincipalId = form.cidade_id ? Number(form.cidade_id) : null
-            if (!cidadePrincipalId && cidadesAtende[0]) cidadePrincipalId = cidadesAtende[0].cidadeId
-            if (!cidadePrincipalId && form.endereco_cidade) {
+            let cidadePrincipalId = null
+            if (form.endereco_cidade?.trim()) {
                 const obj = await obterOuCriarCidadePorNome(form.endereco_cidade)
                 if (obj?.id) cidadePrincipalId = Number(obj.id)
             }
+            if (!cidadePrincipalId && form.cidade_id) cidadePrincipalId = Number(form.cidade_id)
+            if (!cidadePrincipalId && cidadesAtende[0]) cidadePrincipalId = cidadesAtende[0].cidadeId
 
             const enderecoLegado = montarEnderecoUmaLinha(form)
 

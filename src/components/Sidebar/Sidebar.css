@@ -4,6 +4,9 @@
     left: 0;
     z-index: 150;
     height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
     width: 250px;
     background: var(--azul-escuro);
     color: white;

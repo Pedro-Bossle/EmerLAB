@@ -14,6 +14,7 @@ import Credenciamento_doc from './pages/Credenciamento/Credenciamento_doc/Creden
 import Credenciamento_main from './pages/Credenciamento/Credenciamento_main/Credenciamento_main';
 import CredenciamentoCadastroLista from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroLista';
 import CredenciamentoCadastroForm from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroForm';
+import CredenciamentoQuemRealiza from './pages/Credenciamento/QuemRealiza/CredenciamentoQuemRealiza';
 import GerenciamentoAcessos from './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos';
 import ComprasValorVenda from './pages/Compras/ValorVenda/ComprasValorVenda';
 import ComprasOrcamento from './pages/Compras/Orcamento/ComprasOrcamento';
@@ -91,7 +92,7 @@ function App() {
           <Route
             path="/supertabela/negociacoes"
             element={
-              <PrivateRoute permission="supertabela.view">
+              <PrivateRoute permission="supertabela.view" screenPermission="supertabela.negociacoes.view">
                 <Supertabelanegociacoes />
               </PrivateRoute>
             }
@@ -109,7 +110,7 @@ function App() {
           <Route
             path="/credenciamento/cadastro"
             element={
-              <PrivateRoute permission="credenciamento.view">
+              <PrivateRoute permission="credenciamento.view" screenPermission="credenciamento.cadastro.view">
                 <CredenciamentoCadastroLista />
               </PrivateRoute>
             }
@@ -117,8 +118,16 @@ function App() {
           <Route
             path="/credenciamento/cadastro/:id"
             element={
-              <PrivateRoute permission="credenciamento.view">
+              <PrivateRoute permission="credenciamento.view" screenPermission="credenciamento.cadastro.view">
                 <CredenciamentoCadastroForm />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/credenciamento/quem-realiza"
+            element={
+              <PrivateRoute permission="credenciamento.view" screenPermission="credenciamento.quem_realiza.view">
+                <CredenciamentoQuemRealiza />
               </PrivateRoute>
             }
           />
