@@ -713,7 +713,7 @@ export default function ClicksignEmerdog() {
         const eid = String(detailId || '').trim()
         const sid = String(signerId || '').trim()
         if (!eid || !sid) return
-        if (somenteLeitura) {
+        if (!podeEditarContratos) {
             pushToast('error', 'Permissão', 'Sem permissão para enviar lembretes.')
             return
         }
@@ -3138,7 +3138,7 @@ export default function ClicksignEmerdog() {
                                     </div>
                                     <div className="clicksign_detail_sig_head">
                                         <h3 className="clicksign_subtitle">Signatários</h3>
-                                        {!somenteLeitura && (statusDetalheEnvelope === 'running' || statusDetalheEnvelope === 'draft') && (
+                                        {podeEditarContratos && (statusDetalheEnvelope === 'running' || statusDetalheEnvelope === 'draft') && (
                                             <button
                                                 type="button"
                                                 className="contratos_btn contratos_btn_secondary clicksign_btn_sm"
@@ -3174,7 +3174,7 @@ export default function ClicksignEmerdog() {
                                                         <td>{s.qualificationLabel}</td>
                                                         <td>{s.signatureLabel}</td>
                                                         <td>
-                                                            {!somenteLeitura && statusDetalheEnvelope === 'running' && (
+                                                            {podeEditarContratos && statusDetalheEnvelope === 'running' && (
                                                                 <div className="clicksign_detail_sig_actions">
                                                                     <button
                                                                         type="button"
@@ -3195,7 +3195,7 @@ export default function ClicksignEmerdog() {
                                                                     </button>
                                                                 </div>
                                                             )}
-                                                            {!somenteLeitura && statusDetalheEnvelope === 'draft' && (
+                                                            {podeEditarContratos && statusDetalheEnvelope === 'draft' && (
                                                                 <button
                                                                     type="button"
                                                                     className="contratos_btn contratos_btn_secondary clicksign_btn_sm"
