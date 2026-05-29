@@ -94,8 +94,8 @@ const Supertabelaplanos = () => {
     const podeExclusaoPorLista =
         !getReadOnlyFlag() &&
         hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT) &&
-        (hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST) ||
-            (hasStoredDevTools() && devToolsUi.exclusaoMassa))
+        hasStoredDevTools() &&
+        devToolsUi.exclusaoMassa
     const [cidades, setCidades] = useState([])
     const [municipiosVinculos, setMunicipiosVinculos] = useState([])
     const [suportaVinculosMunicipios, setSuportaVinculosMunicipios] = useState(true)
@@ -861,7 +861,9 @@ const Supertabelaplanos = () => {
             return
         }
         if (!podeExclusaoPorLista) {
-            mostrarErroToast('Seu usuário não possui permissão para usar a Exclusão por lista.')
+            mostrarErroToast(
+                'Ative «Exclusão por lista» no Dev Tool (🔧) e confira se você pode editar a Super-Tabela.',
+            )
             return
         }
         if (!cidadeId) {
@@ -883,7 +885,9 @@ const Supertabelaplanos = () => {
             return
         }
         if (!podeExclusaoPorLista) {
-            mostrarErroToast('Seu usuário não possui permissão para usar a Exclusão por lista.')
+            mostrarErroToast(
+                'Ative «Exclusão por lista» no Dev Tool (🔧) e confira se você pode editar a Super-Tabela.',
+            )
             return
         }
         const codigosParaExcluir = previewExclusaoLista.aExcluir

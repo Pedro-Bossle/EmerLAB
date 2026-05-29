@@ -59,11 +59,6 @@ export const PERMISSOES = [
         rotulo: 'Editar Super-Tabela',
         descricao: 'Necessário para criar, editar ou excluir linhas na Super-Tabela.',
       },
-      {
-        chave: PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST,
-        rotulo: 'Usar Exclusao por lista',
-        descricao: 'Exige também «Editar Super-Tabela». Sem edição, não há exclusão.',
-      },
     ],
   },
   {
@@ -126,7 +121,6 @@ export const PERMISSOES = [
 export const DEFAULT_PROFILE_PERMISSIONS = {
   [PERMISSION_KEYS.SUPERTABELA_VIEW]: true,
   [PERMISSION_KEYS.SUPERTABELA_EDIT]: true,
-  [PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST]: false,
   [PERMISSION_KEYS.SUPERTABELA_NEGOCIACOES_VIEW]: true,
   [PERMISSION_KEYS.CREDENCIAMENTO_VIEW]: true,
   [PERMISSION_KEYS.CREDENCIAMENTO_EDIT]: true,
@@ -143,7 +137,6 @@ export const DEFAULT_PROFILE_PERMISSIONS = {
 export const DEFAULT_INVITED_PERMISSIONS = {
   [PERMISSION_KEYS.SUPERTABELA_VIEW]: true,
   [PERMISSION_KEYS.SUPERTABELA_EDIT]: false,
-  [PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST]: false,
   [PERMISSION_KEYS.SUPERTABELA_NEGOCIACOES_VIEW]: true,
   [PERMISSION_KEYS.CREDENCIAMENTO_VIEW]: true,
   [PERMISSION_KEYS.CREDENCIAMENTO_EDIT]: false,
@@ -177,6 +170,7 @@ export const normalizarPermissions = (profile = {}) => {
   for (const [filho, pai] of HERANCA_PERMISSAO_TELA) {
     if (!rawKeys.includes(filho) && perms[pai]) perms[filho] = true
   }
+  delete perms[PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST]
   return perms
 }
 
@@ -210,8 +204,7 @@ export const podeExcluirNaSuperTabela = (profileOrPermissions) =>
   hasPermission(profileOrPermissions, PERMISSION_KEYS.SUPERTABELA_EDIT)
 
 export const podeUsarExclusaoPorLista = (profileOrPermissions) =>
-  podeExcluirNaSuperTabela(profileOrPermissions) &&
-  hasPermission(profileOrPermissions, PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST)
+  podeExcluirNaSuperTabela(profileOrPermissions) && isDevToolsEnabled(profileOrPermissions)
 
 export const isDevToolsEnabled = (profileOrPermissions) =>
   hasPermission(profileOrPermissions, PERMISSION_KEYS.DEV_TOOLS)

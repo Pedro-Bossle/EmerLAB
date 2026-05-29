@@ -244,6 +244,30 @@ export function chaveProcedimentoVinculo(row) {
 }
 
 /**
+ * Mapa prestador_id → Set de códigos de procedimento (resolve procedimento_id via catálogo).
+ * @param {Map<number, string>} mapaCodigoPorProcedimentoId — id em `procedimentos` → código normalizado
+ */
+export function mapaCodigosPorPrestadorDeVinculos(vinculos, mapaCodigoPorProcedimentoId = new Map()) {
+    const porPrestador = new Map()
+    for (const v of vinculos || []) {
+        const pid = Number(v.prestador_id)
+        if (!pid) continue
+        let cod = normalizarCodigo(v.procedimento_cod)
+        if (!cod) {
+            const idNum = Number(v.procedimento_id)
+            if (Number.isFinite(idNum) && idNum > 0) {
+                cod = mapaCodigoPorProcedimentoId.get(idNum) || ''
+            }
+            if (!cod) cod = normalizarCodigo(v.procedimento_id)
+        }
+        if (!cod) continue
+        if (!porPrestador.has(pid)) porPrestador.set(pid, new Set())
+        porPrestador.get(pid).add(cod)
+    }
+    return porPrestador
+}
+
+/**
  * Mapa prestador_id → quantidade de procedimentos distintos no perfil (não linhas duplicadas).
  */
 export function contarProcedimentosDistintosPorPrestador(rows) {

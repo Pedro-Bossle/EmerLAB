@@ -6,6 +6,8 @@ import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
 import '../Credenciamento_main/Credenciamento_main.css'
 import {
     avaliarViaCidadeParalela,
+    mapaCodigoProcedimentoIdDeCatalogo,
+    pesquisarQuemRealizaNaRede,
     prestadorAtendeCidadeAlvo,
 } from '../../../lib/buscarQuemRealizaPrestadores.js'
 import './CredenciamentoQuemRealiza.css'
@@ -259,6 +261,11 @@ export default function CredenciamentoQuemRealiza() {
 
     const nomeServico = (codigo) => mapaNomePorCodigo.get(normCodigo(codigo)) || codigo
 
+    const mapaCodigoPorProcedimentoId = useMemo(
+        () => mapaCodigoProcedimentoIdDeCatalogo(procedimentosCatalogo),
+        [procedimentosCatalogo],
+    )
+
     const executarPesquisa = async () => {
         setErro('')
         setPesquisou(false)
@@ -273,60 +280,17 @@ export default function CredenciamentoQuemRealiza() {
         }
         setLoading(true)
         try {
-            const candidatos = prestadores.filter(prestadorAtendeCidade)
-            const ids = candidatos.map((p) => Number(p.id)).filter(Boolean)
-            if (!ids.length) {
-                setResultados([])
-                setPesquisou(true)
-                return
-            }
-            const vinculos = []
-            const chunk = 40
-            for (let i = 0; i < ids.length; i += chunk) {
-                const lote = ids.slice(i, i + chunk)
-                const { data, error } = await supabase
-                    .from('prestador_procedimentos')
-                    .select('prestador_id, procedimento_cod')
-                    .in('prestador_id', lote)
-                if (error) throw new Error(error.message)
-                vinculos.push(...(data || []))
-            }
-            const porPrestador = new Map()
-            vinculos.forEach((v) => {
-                const pid = Number(v.prestador_id)
-                const cod = normCodigo(v.procedimento_cod)
-                if (!pid || !cod) return
-                if (!porPrestador.has(pid)) porPrestador.set(pid, new Set())
-                porPrestador.get(pid).add(cod)
+            const lista = await pesquisarQuemRealizaNaRede(supabase, {
+                codigosProcedimento: codigos,
+                cidadesAlvo: [{ nome: cidadeNome, uf }],
+                incluirCidadesParalelas: buscarCidadesParalelas,
+                prestadores,
+                prestadorCidades,
+                mapaCidadesCred,
+                especialidades,
+                mapaNomePorCodigo,
+                mapaCodigoPorProcedimentoId,
             })
-            const lista = candidatos
-                .filter((p) => {
-                    const set = porPrestador.get(Number(p.id))
-                    if (!set) return false
-                    return codigos.some((c) => set.has(c))
-                })
-                .map((p) => {
-                    const set = porPrestador.get(Number(p.id)) || new Set()
-                    const realizaNomes = codigos
-                        .filter((c) => set.has(c))
-                        .map((c) => nomeServico(c))
-                        .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }))
-                    const tel = [p.celular, p.telefone].map((t) => String(t || '').trim()).find(Boolean) || '—'
-                    const viaCidadeParalela =
-                        buscarCidadesParalelas &&
-                        alvoCidadeFiltro &&
-                        avaliarViaCidadeParalela(p, [alvoCidadeFiltro], ctxFiltroCidade)
-                    return {
-                        id: p.id,
-                        nome: p.nome,
-                        especialidade: mapaEspNome.get(Number(p.especialidade_id)) || '—',
-                        telefone: tel,
-                        procedimentos: realizaNomes,
-                        viaCidadeParalela,
-                        cidadePrincipal: nomeCidadePrincipalPrestador(p),
-                    }
-                })
-                .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
             setResultados(lista)
             setPesquisou(true)
         } catch (e) {
@@ -528,7 +492,7 @@ export default function CredenciamentoQuemRealiza() {
                     {loading && <p className="pcad_muted">A pesquisar…</p>}
                     {!loading && pesquisou && resultados.length === 0 && (
                         <p className="pcad_muted">
-                            Nenhum prestador (veterinário ou clínica) encontrado que realize algum dos procedimentos selecionados nesta cidade
+                            Nenhum prestador (veterinário, clínica ou laboratório) encontrado que realize algum dos procedimentos selecionados nesta cidade
                             {buscarCidadesParalelas
                                 ? ' (endereço ou «Cidades que atendem»).'
                                 : ' (somente cidade do endereço do cadastro). Ative «Buscar em cidades paralelas» para incluir quem atende na cidade sem endereço aqui.'}
