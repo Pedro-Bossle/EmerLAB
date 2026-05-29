@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { classificarCategoriaExameLaboratorial } from './prestadorCadastroHelpers.js'
 
 const normalizarCodigo = (cod) =>
     String(cod || '')
@@ -229,4 +230,126 @@ export async function carregarCodigosPrestadorProcedimentos(prestadorId) {
             lista.map((x) => String(x.codigo).trim()).filter((c) => c && c !== '—'),
         ),
     ]
+}
+
+/** Chave estável de procedimento numa linha de `prestador_procedimentos` (contagem = códigos distintos). */
+export function chaveProcedimentoVinculo(row) {
+    const cod = normalizarCodigo(row?.procedimento_cod)
+    if (cod) return cod
+    const idNum = Number(row?.procedimento_id)
+    if (Number.isFinite(idNum) && idNum > 0) return `id:${idNum}`
+    const idStr = String(row?.procedimento_id ?? '').trim()
+    if (idStr) return normalizarCodigo(idStr)
+    return ''
+}
+
+/**
+ * Mapa prestador_id → quantidade de procedimentos distintos no perfil (não linhas duplicadas).
+ */
+export function contarProcedimentosDistintosPorPrestador(rows) {
+    const sets = new Map()
+    for (const row of rows || []) {
+        const pid = Number(row.prestador_id)
+        const chave = chaveProcedimentoVinculo(row)
+        if (!pid || !chave) continue
+        if (!sets.has(pid)) sets.set(pid, new Set())
+        sets.get(pid).add(chave)
+    }
+    const mapa = new Map()
+    sets.forEach((set, pid) => mapa.set(pid, set.size))
+    return mapa
+}
+
+const CATEGORIA_SERVICO_MIN = 3
+const CATEGORIA_SERVICO_MAX = 25
+
+/** IDs das categorias «Exames simples» e «Exames especiais» (por nome). */
+export async function resolverIdsCategoriasExamesLaboratoriais() {
+    const { data, error } = await supabase
+        .from('categorias')
+        .select('id, nome')
+        .gte('id', CATEGORIA_SERVICO_MIN)
+        .lte('id', CATEGORIA_SERVICO_MAX)
+    if (error) throw new Error(error.message)
+    const idsSimples = []
+    const idsEspeciais = []
+    ;(data || []).forEach((c) => {
+        const tipo = classificarCategoriaExameLaboratorial(c.nome)
+        if (tipo === 'simples') idsSimples.push(Number(c.id))
+        if (tipo === 'especiais') idsEspeciais.push(Number(c.id))
+    })
+    return { idsSimples, idsEspeciais }
+}
+
+/**
+ * Remove vínculos do prestador nas categorias de exame indicadas.
+ * @param {'simples' | 'especiais' | 'ambas'} escopo
+ */
+export async function limparProcedimentosPrestadorCategoriasExame(prestadorId, escopo) {
+    const { idsSimples, idsEspeciais } = await resolverIdsCategoriasExamesLaboratoriais()
+    const alvo =
+        escopo === 'ambas'
+            ? new Set([...idsSimples, ...idsEspeciais])
+            : escopo === 'simples'
+              ? new Set(idsSimples)
+              : new Set(idsEspeciais)
+    if (!alvo.size) {
+        throw new Error('Categorias de exames não encontradas na base (Exames simples / Exames especiais).')
+    }
+
+    const codigosAtuais = await carregarCodigosPrestadorProcedimentos(prestadorId)
+    if (!codigosAtuais.length) return { removidos: 0, restantes: [] }
+
+    const unicos = [...new Set(codigosAtuais.map(normalizarCodigo).filter(Boolean))]
+    const { data: procs, error: errP } = await supabase
+        .from('procedimentos')
+        .select('codigo, categoria_id')
+        .in('codigo', unicos)
+    if (errP) throw new Error(errP.message)
+
+    const categoriaPorCod = new Map(
+        (procs || []).map((p) => [normalizarCodigo(p.codigo), Number(p.categoria_id)]),
+    )
+
+    const manter = codigosAtuais.filter((cod) => {
+        const catId = categoriaPorCod.get(normalizarCodigo(cod))
+        if (!catId) return true
+        return !alvo.has(catId)
+    })
+
+    await sincronizarPrestadorProcedimentos(prestadorId, manter)
+    return { removidos: codigosAtuais.length - manter.length, restantes: manter }
+}
+
+/** Filtra códigos selecionados (UI) removendo os das categorias de exame. */
+export async function filtrarCodigosRemovendoCategoriasExame(codigos, escopo) {
+    const { idsSimples, idsEspeciais } = await resolverIdsCategoriasExamesLaboratoriais()
+    const alvo =
+        escopo === 'ambas'
+            ? new Set([...idsSimples, ...idsEspeciais])
+            : escopo === 'simples'
+              ? new Set(idsSimples)
+              : new Set(idsEspeciais)
+    if (!alvo.size) return { codigos: codigos || [], removidos: 0 }
+
+    const lista = (codigos || []).map((c) => String(c).trim()).filter(Boolean)
+    if (!lista.length) return { codigos: [], removidos: 0 }
+
+    const unicos = [...new Set(lista.map(normalizarCodigo))]
+    const { data: procs, error } = await supabase
+        .from('procedimentos')
+        .select('codigo, categoria_id')
+        .in('codigo', unicos)
+    if (error) throw new Error(error.message)
+
+    const categoriaPorCod = new Map(
+        (procs || []).map((p) => [normalizarCodigo(p.codigo), Number(p.categoria_id)]),
+    )
+
+    const manter = lista.filter((cod) => {
+        const catId = categoriaPorCod.get(normalizarCodigo(cod))
+        if (!catId) return true
+        return !alvo.has(catId)
+    })
+    return { codigos: manter, removidos: lista.length - manter.length }
 }

@@ -1,0 +1,264 @@
+import React, { useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
+
+import { hasStoredDevTools } from '../../lib/accessControl'
+
+import {
+
+    alternarColunaDevTools,
+
+    alternarDevToolsUiFlag,
+
+    useDevToolsUi,
+
+} from '../../lib/devToolsUi'
+
+import './DevToolsFloating.css'
+
+
+
+const ITENS_GLOBAIS = [
+
+    {
+
+        chave: 'buscaNot',
+
+        rotulo: 'Pesquisa NOT',
+
+        descricao: 'Em todas as buscas de listas: NOT termo ou !termo exclui quem contém o texto.',
+
+    },
+
+    {
+
+        chave: 'exclusaoMassa',
+
+        rotulo: 'Exclusão por lista',
+
+        descricao: 'Somente Super-Tabela › Planos (modo Ver diferenças).',
+
+    },
+
+]
+
+
+
+const ITENS_CADASTRO = [
+
+    { chave: 'perfil', rotulo: 'Coluna Perfil %', descricao: 'Cadastro de prestadores: barra de completude da ficha.' },
+
+    { chave: 'crmv', rotulo: 'Coluna CRMV', descricao: 'Cadastro de prestadores: exibe CRMV na lista.' },
+
+    { chave: 'procs', rotulo: 'Coluna Procedimentos', descricao: 'Cadastro de prestadores: quantidade de procedimentos (vets e clínicas).' },
+
+    {
+
+        chave: 'ocultarVetsClinica',
+
+        rotulo: 'Ocultar vets em clínicas',
+
+        descricao: 'Cadastro: esconde veterinários vinculados a estabelecimentos.',
+
+    },
+
+]
+
+
+
+export default function DevToolsFloating() {
+
+    const [permitido] = useState(() => hasStoredDevTools())
+
+    const { pathname } = useLocation()
+    const acimaRodapeFormulario = /\/credenciamento\/cadastro\/[^/]+/.test(pathname)
+
+    const [aberto, setAberto] = useState(false)
+
+    const { ui } = useDevToolsUi()
+
+    const painelRef = useRef(null)
+
+    const btnRef = useRef(null)
+
+
+
+    useEffect(() => {
+
+        if (!aberto) return undefined
+
+        const onDoc = (e) => {
+
+            const alvo = e.target
+
+            if (painelRef.current?.contains(alvo) || btnRef.current?.contains(alvo)) return
+
+            setAberto(false)
+
+        }
+
+        const onKey = (e) => {
+
+            if (e.key === 'Escape') setAberto(false)
+
+        }
+
+        document.addEventListener('mousedown', onDoc)
+
+        document.addEventListener('keydown', onKey)
+
+        return () => {
+
+            document.removeEventListener('mousedown', onDoc)
+
+            document.removeEventListener('keydown', onKey)
+
+        }
+
+    }, [aberto])
+
+
+
+    if (!permitido) return null
+
+
+
+    const colCad = ui.colunasCadastro || {}
+
+
+
+    const algumAtivo =
+
+        ui.buscaNot ||
+
+        ui.exclusaoMassa ||
+
+        Object.values(ui.colunasProcessos || {}).some(Boolean) ||
+
+        Object.values(colCad).some(Boolean)
+
+
+
+    return (
+
+        <div
+            className={`dev_tools_float${acimaRodapeFormulario ? ' dev_tools_float--rodape_fixo' : ''}`}
+            aria-live="polite"
+        >
+
+            {aberto && (
+
+                <div ref={painelRef} className="dev_tools_float_panel" role="dialog" aria-label="Ferramentas de desenvolvimento">
+
+                    <p className="dev_tools_float_titulo">Dev Tool</p>
+
+                    <ul className="dev_tools_float_lista">
+
+                        {ITENS_GLOBAIS.map((item) => (
+
+                            <li key={item.chave}>
+
+                                <label className="dev_tools_float_item">
+
+                                    <input
+
+                                        type="checkbox"
+
+                                        className="dev_tools_float_checkbox"
+
+                                        checked={Boolean(ui[item.chave])}
+
+                                        onChange={() => alternarDevToolsUiFlag(item.chave)}
+
+                                    />
+
+                                    <span className="dev_tools_float_item_texto">
+
+                                        <strong>{item.rotulo}</strong>
+
+                                        <small>{item.descricao}</small>
+
+                                    </span>
+
+                                </label>
+
+                            </li>
+
+                        ))}
+
+                    </ul>
+
+                    <p className="dev_tools_float_subtitulo">Cadastro de prestadores</p>
+
+                    <ul className="dev_tools_float_lista">
+
+                        {ITENS_CADASTRO.map((item) => (
+
+                            <li key={item.chave}>
+
+                                <label className="dev_tools_float_item">
+
+                                    <input
+
+                                        type="checkbox"
+
+                                        className="dev_tools_float_checkbox"
+
+                                        checked={Boolean(colCad[item.chave])}
+
+                                        onChange={() => alternarColunaDevTools('cadastro', item.chave)}
+
+                                    />
+
+                                    <span className="dev_tools_float_item_texto">
+
+                                        <strong>{item.rotulo}</strong>
+
+                                        <small>{item.descricao}</small>
+
+                                    </span>
+
+                                </label>
+
+                            </li>
+
+                        ))}
+
+                    </ul>
+
+                </div>
+
+            )}
+
+            <button
+
+                ref={btnRef}
+
+                type="button"
+
+                className={`dev_tools_float_btn${aberto ? ' is-open' : ''}${algumAtivo ? ' is-active' : ''}`}
+
+                aria-label="Ferramentas Dev Tool"
+
+                aria-expanded={aberto}
+
+                title="Dev Tool"
+
+                onClick={() => setAberto((v) => !v)}
+
+            >
+
+                <span className="dev_tools_float_btn_ico" aria-hidden="true">
+
+                    🔧
+
+                </span>
+
+            </button>
+
+        </div>
+
+    )
+
+}
+
+

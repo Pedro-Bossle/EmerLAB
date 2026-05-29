@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
+import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
+import { filtrarPorTermoBusca, normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
@@ -37,6 +39,7 @@ const Supertabelacidades = () => {
     const [erroDetalhe, setErroDetalhe] = useState('')
     const [headerCompacto, setHeaderCompacto] = useState(false)
     const [ordenacaoPorCategoria, setOrdenacaoPorCategoria] = useState({})
+    const buscaNotAtiva = useBuscaNotAtiva()
 
     const [mostrarGerenciarModal, setMostrarGerenciarModal] = useState(false)
     const [repassesResumo, setRepassesResumo] = useState([])
@@ -277,17 +280,13 @@ const Supertabelacidades = () => {
     }, [cidadeId, portes])
 
     const linhasFiltradas = useMemo(() => {
-        const termo = termoBusca.trim().toLowerCase()
-        if (!termo) return linhas
+        if (!termoBusca.trim() && !buscaNotAtiva) return linhas
         return linhas.filter((linha) => {
-            const codigo = String(linha.codigo || '').toLowerCase()
-            const procedimento = String(linha.procedimento || '').toLowerCase()
-            const categoriaNome = String(
-                categorias.find((categoria) => Number(categoria.id) === Number(linha.categoriaId))?.nome || ''
-            ).toLowerCase()
-            return codigo.includes(termo) || procedimento.includes(termo) || categoriaNome.includes(termo)
+            const categoriaNome = categorias.find((categoria) => Number(categoria.id) === Number(linha.categoriaId))?.nome || ''
+            const blob = normalizarTextoBuscaDev([linha.codigo, linha.procedimento, categoriaNome].filter(Boolean).join(' '))
+            return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
         })
-    }, [linhas, termoBusca, categorias])
+    }, [linhas, termoBusca, categorias, buscaNotAtiva])
 
     const handleOrdenarCategoria = (categoriaId, coluna) => {
         setOrdenacaoPorCategoria((anterior) => {
@@ -1473,11 +1472,11 @@ ou um código por linha`}
                             <table className='table_main'>
                                 <colgroup>
                                     <col style={{ width: '14%' }} />
-                                    <col style={{ width: '42%' }} />
+                                    <col style={{ width: somenteLeitura ? '53%' : '42%' }} />
                                     <col style={{ width: '11%' }} />
                                     <col style={{ width: '11%' }} />
                                     <col style={{ width: '11%' }} />
-                                    <col style={{ width: '11%' }} />
+                                    {!somenteLeitura && <col style={{ width: '11%' }} />}
                                 </colgroup>
                                 <thead>
                                     <tr>
@@ -1568,7 +1567,7 @@ ou um código por linha`}
                                         </tr>
                                     ))}
                                     <tr className='row_add_line'>
-                                        <td colSpan={6}>
+                                        <td colSpan={somenteLeitura ? 5 : 6}>
                                             {categoriaEmInclusao === secao.categoriaId ? (
                                                 <div className='row_add_inline'>
                                                     <div

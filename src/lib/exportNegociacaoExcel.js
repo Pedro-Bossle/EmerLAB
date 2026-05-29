@@ -12,7 +12,7 @@ export function exportarNegociacaoParaExcel(linhas, nomeArquivoBase = 'negociaca
     const corpo = (linhas || []).map((linha) =>
         [
             linha.codigo,
-            linha.nome,
+            linha.procedimento ?? linha.nome ?? '',
             linha.nomeAlternativo ?? '',
             formatarNumeroCelula(linha.porteP),
             formatarNumeroCelula(linha.porteM),

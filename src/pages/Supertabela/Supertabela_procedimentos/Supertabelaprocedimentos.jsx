@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
+import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
+import { filtrarPorTermoBusca, normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { upsertPlanosCidadeCompat } from '../../../lib/planosCidadeCompat'
@@ -62,6 +64,7 @@ const Supertabelaprocedimentos = () => {
     const MAX_LINHAS_VISIVEIS = 10
     const LINHAS_OVERSCAN = 6
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
+    const buscaNotAtiva = useBuscaNotAtiva()
 
     const [planos, setPlanos] = useState([])
     const [categorias, setCategorias] = useState([])
@@ -183,23 +186,16 @@ const Supertabelaprocedimentos = () => {
     }, [])
 
     const linhasFiltradas = useMemo(() => {
-        const termo = normalizarTextoBusca(termoBusca)
-        if (!termo) return linhas
+        if (!termoBusca.trim() && !buscaNotAtiva) return linhas
         return linhas.filter((linha) => {
-            const codigo = normalizarTextoBusca(linha.codigo)
-            const procedimento = normalizarTextoBusca(linha.procedimento)
-            const categoriaNome = normalizarTextoBusca(
-                categorias.find((c) => Number(c.id) === Number(linha.categoriaId))?.nome || ''
+            const categoriaNome = categorias.find((c) => Number(c.id) === Number(linha.categoriaId))?.nome || ''
+            const planoNome = ROTULO_PLANO[linha.planoBaseChave] || ''
+            const blob = normalizarTextoBuscaDev(
+                [linha.codigo, linha.procedimento, categoriaNome, planoNome].filter(Boolean).join(' '),
             )
-            const planoNome = normalizarTextoBusca(ROTULO_PLANO[linha.planoBaseChave] || '')
-            return (
-                codigo.includes(termo) ||
-                procedimento.includes(termo) ||
-                categoriaNome.includes(termo) ||
-                planoNome.includes(termo)
-            )
+            return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
         })
-    }, [linhas, termoBusca, categorias])
+    }, [linhas, termoBusca, categorias, buscaNotAtiva])
 
     const handleOrdenarCategoria = (categoriaId, coluna) => {
         setOrdenacaoPorCategoria((anterior) => {
@@ -813,6 +809,10 @@ const Supertabelaprocedimentos = () => {
                                 const linhasVisiveis = secao.linhas.slice(indiceInicial, indiceFinal)
                                 const alturaEspacadorTopo = indiceInicial * ALTURA_LINHA_TABELA
                                 const alturaEspacadorBase = (totalLinhasSecao - indiceFinal) * ALTURA_LINHA_TABELA
+                                const colSpanProc = somenteLeitura ? 4 : 5
+                                const colProcWidths = somenteLeitura
+                                    ? ['12%', '50%', '20%', '18%']
+                                    : ['12%', '40%', '20%', '18%', '10%']
 
                                 const renderLinha = (linha) => (
                                     <tr key={linha.rowId}>
@@ -906,11 +906,9 @@ const Supertabelaprocedimentos = () => {
                                     <>
                                         <table className='table_main table_main_virtual_header'>
                                             <colgroup>
-                                                <col style={{ width: '12%' }} />
-                                                <col style={{ width: '40%' }} />
-                                                <col style={{ width: '20%' }} />
-                                                <col style={{ width: '18%' }} />
-                                                <col style={{ width: '10%' }} />
+                                                {colProcWidths.map((w, i) => (
+                                                    <col key={`vh-${i}`} style={{ width: w }} />
+                                                ))}
                                             </colgroup>
                                             <thead>
                                                 <tr>
@@ -924,7 +922,7 @@ const Supertabelaprocedimentos = () => {
                                                         Plano Base{obterIndicadorOrdenacao(secao.categoriaId, 'planoBaseChave')}
                                                     </th>
                                                     <th className='table_header'>Categoria</th>
-                                                    <th className='table_header'>Ação</th>
+                                                    {!somenteLeitura && <th className='table_header'>Ação</th>}
                                                 </tr>
                                             </thead>
                                         </table>
@@ -941,22 +939,20 @@ const Supertabelaprocedimentos = () => {
                                         >
                                             <table className='table_main table_main_virtual_rows'>
                                                 <colgroup>
-                                                    <col style={{ width: '12%' }} />
-                                                    <col style={{ width: '40%' }} />
-                                                    <col style={{ width: '20%' }} />
-                                                    <col style={{ width: '18%' }} />
-                                                    <col style={{ width: '10%' }} />
+                                                    {colProcWidths.map((w, i) => (
+                                                        <col key={`vr-${i}`} style={{ width: w }} />
+                                                    ))}
                                                 </colgroup>
                                                 <tbody>
                                                     {alturaEspacadorTopo > 0 && (
                                                         <tr className='table_spacer_row' aria-hidden='true'>
-                                                            <td colSpan={5} style={{ height: `${alturaEspacadorTopo}px` }} />
+                                                            <td colSpan={colSpanProc} style={{ height: `${alturaEspacadorTopo}px` }} />
                                                         </tr>
                                                     )}
                                                     {linhasVisiveis.map(renderLinha)}
                                                     {alturaEspacadorBase > 0 && (
                                                         <tr className='table_spacer_row' aria-hidden='true'>
-                                                            <td colSpan={5} style={{ height: `${alturaEspacadorBase}px` }} />
+                                                            <td colSpan={colSpanProc} style={{ height: `${alturaEspacadorBase}px` }} />
                                                         </tr>
                                                     )}
                                                 </tbody>
@@ -966,11 +962,9 @@ const Supertabelaprocedimentos = () => {
                                 ) : (
                                     <table className='table_main'>
                                         <colgroup>
-                                            <col style={{ width: '12%' }} />
-                                            <col style={{ width: '40%' }} />
-                                            <col style={{ width: '20%' }} />
-                                            <col style={{ width: '18%' }} />
-                                            <col style={{ width: '10%' }} />
+                                            {colProcWidths.map((w, i) => (
+                                                <col key={`t-${i}`} style={{ width: w }} />
+                                            ))}
                                         </colgroup>
                                         <thead>
                                             <tr>
@@ -984,7 +978,7 @@ const Supertabelaprocedimentos = () => {
                                                     Plano Base{obterIndicadorOrdenacao(secao.categoriaId, 'planoBaseChave')}
                                                 </th>
                                                 <th className='table_header'>Categoria</th>
-                                                <th className='table_header'>Ação</th>
+                                                {!somenteLeitura && <th className='table_header'>Ação</th>}
                                             </tr>
                                         </thead>
                                         <tbody>{secao.linhas.map(renderLinha)}</tbody>

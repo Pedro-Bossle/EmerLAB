@@ -1,12 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission } from '../../../lib/accessControl'
-import { supabase } from '../../../lib/supabase'
+import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, hasStoredDevTools } from '../../../lib/accessControl'
+import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
+import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
+import { contarProcedimentosDistintosPorPrestador } from '../../../lib/prestadorProcedimentos'
 import {
     acharSituacaoCredenciadoId,
     calcularPercentualCompletudePerfil,
+    formatarCrmvEntrada,
+    filtrarPorTermoBusca,
+    listarPendenciasCompletudePerfil,
     normalizarTextoBusca,
     resolverCidadePrincipalNome,
+    prestadorEhEstabelecimento,
 } from '../../../lib/prestadorCadastroHelpers'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
@@ -40,9 +46,6 @@ const CredenciamentoCadastroLista = () => {
     )
     const [ordenarColuna, setOrdenarColuna] = useState(() => lerEstadoListaUi()?.ordenarColuna ?? 'nome')
     const [ordenarDir, setOrdenarDir] = useState(() => lerEstadoListaUi()?.ordenarDir ?? 'asc')
-    const [ocultarVetsVinculadosClinica, setOcultarVetsVinculadosClinica] = useState(
-        () => lerEstadoListaUi()?.ocultarVetsVinculadosClinica !== false
-    )
     const aplicouDefaultSituacaoRef = useRef(!!lerEstadoListaUi())
     const pularResetPaginaRef = useRef(true)
 
@@ -52,6 +55,16 @@ const CredenciamentoCadastroLista = () => {
     const [especialidades, setEspecialidades] = useState([])
     const [prestadorCidades, setPrestadorCidades] = useState([])
     const [prestadorEstabelecimentos, setPrestadorEstabelecimentos] = useState([])
+    const [qtdProcedimentosPorPrestador, setQtdProcedimentosPorPrestador] = useState(() => new Map())
+
+    const { ui: devToolsUi } = useDevToolsUi()
+    const podeDevTool = hasStoredDevTools()
+    const buscaNotAtiva = useBuscaNotAtiva()
+    const colCad = devToolsUi.colunasCadastro
+    const mostrarColunaPerfil = podeDevTool && colCad.perfil
+    const mostrarColunaCrmv = podeDevTool && colCad.crmv
+    const mostrarColunaProcs = podeDevTool && colCad.procs
+    const ocultarVetsClinica = podeDevTool && colCad.ocultarVetsClinica
 
     const somenteLeitura = useMemo(() => {
         const profile = getStoredAccessProfile()
@@ -82,6 +95,24 @@ const CredenciamentoCadastroLista = () => {
                 supabase.from('prestador_cidades').select('prestador_id, cidade_id, principal'),
                 supabase.from('prestador_estabelecimentos').select('veterinario_id, estabelecimento_id'),
             ])
+            let procRows = []
+            if (hasStoredDevTools() && colCad.procs) {
+                const { data: procData, error: errProc } = await buscarTodosPaginado(() =>
+                    supabase
+                        .from('prestador_procedimentos')
+                        .select('prestador_id, procedimento_cod, procedimento_id'),
+                )
+                if (errProc?.message) {
+                    setErro(
+                        [errP, errC, errS, errE, errPc, errPe, errProc]
+                            .map((e) => e?.message)
+                            .filter(Boolean)
+                            .join(' | '),
+                    )
+                    return
+                }
+                procRows = procData || []
+            }
             const erros = [errP, errC, errS, errE, errPc, errPe].map((e) => e?.message).filter(Boolean)
             if (erros.length) {
                 setErro(erros.join(' | '))
@@ -93,12 +124,17 @@ const CredenciamentoCadastroLista = () => {
             setEspecialidades(especialidadesData || [])
             setPrestadorCidades(pcData || [])
             setPrestadorEstabelecimentos(peData || [])
+            if (hasStoredDevTools() && colCad.procs) {
+                setQtdProcedimentosPorPrestador(contarProcedimentosDistintosPorPrestador(procRows))
+            } else {
+                setQtdProcedimentosPorPrestador(new Map())
+            }
         } catch (e) {
             setErro(e?.message || String(e))
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [colCad.procs])
 
     useEffect(() => {
         void carregar()
@@ -122,7 +158,6 @@ const CredenciamentoCadastroLista = () => {
                 paginaAtual,
                 ordenarColuna,
                 ordenarDir,
-                ocultarVetsVinculadosClinica,
             })
         )
     }, [
@@ -133,7 +168,6 @@ const CredenciamentoCadastroLista = () => {
         paginaAtual,
         ordenarColuna,
         ordenarDir,
-        ocultarVetsVinculadosClinica,
     ])
 
     useEffect(() => {
@@ -149,7 +183,7 @@ const CredenciamentoCadastroLista = () => {
             return
         }
         setPaginaAtual(1)
-    }, [termoBusca1, termoBusca2, filtroSituacao, itensPorPagina, ocultarVetsVinculadosClinica])
+    }, [termoBusca1, termoBusca2, filtroSituacao, itensPorPagina, ocultarVetsClinica])
 
     const idsVetsVinculadosClinica = useMemo(() => {
         const ids = new Set()
@@ -188,6 +222,10 @@ const CredenciamentoCadastroLista = () => {
             const perfilCompletoPct = calcularPercentualCompletudePerfil(p, {
                 temVinculoClinica: temVinculoClinicaPorVet.get(pid) === true,
             })
+            const pendenciasPerfil = listarPendenciasCompletudePerfil(p, {
+                temVinculoClinica: temVinculoClinicaPorVet.get(pid) === true,
+            })
+            const ehEstab = prestadorEhEstabelecimento(p.especialidade_id)
             return {
                 id: p.id,
                 nome: p.nome || '—',
@@ -195,7 +233,11 @@ const CredenciamentoCadastroLista = () => {
                 tipoLabel,
                 situacaoId: p.situacao_id,
                 situacao: situacaoPorId.get(Number(p.situacao_id))?.descricao || '—',
+                crmv: p.crmv ? formatarCrmvEntrada(String(p.crmv)) : '',
+                ehEstabelecimento: ehEstab,
                 perfilCompletoPct,
+                pendenciasPerfil,
+                qtdProcedimentos: qtdProcedimentosPorPrestador.get(pid) ?? null,
             }
         })
     }, [
@@ -205,20 +247,37 @@ const CredenciamentoCadastroLista = () => {
         cidadePorId,
         situacaoPorId,
         especialidadePorId,
+        qtdProcedimentosPorPrestador,
     ])
 
     const linhasFiltradas = useMemo(() => {
-        const b1 = normalizarTextoBusca(termoBusca1)
-        const b2 = normalizarTextoBusca(termoBusca2)
+        const b1 = termoBusca1
+        const b2 = termoBusca2
         return linhas.filter((l) => {
-            if (ocultarVetsVinculadosClinica && idsVetsVinculadosClinica.has(Number(l.id))) return false
+            if (ocultarVetsClinica && idsVetsVinculadosClinica.has(Number(l.id))) return false
             if (filtroSituacao && Number(l.situacaoId) !== Number(filtroSituacao)) return false
-            const blob = normalizarTextoBusca(`${l.nome} ${l.cidadeNome} ${l.tipoLabel} ${l.situacao}`)
-            if (b1 && !blob.includes(b1)) return false
-            if (b2 && !blob.includes(b2)) return false
+            const blob = normalizarTextoBusca(`${l.nome} ${l.cidadeNome} ${l.tipoLabel} ${l.situacao} ${l.crmv}`)
+            if (!filtrarPorTermoBusca(blob, b1, buscaNotAtiva)) return false
+            if (!filtrarPorTermoBusca(blob, b2, buscaNotAtiva)) return false
             return true
         })
-    }, [linhas, termoBusca1, termoBusca2, filtroSituacao, ocultarVetsVinculadosClinica, idsVetsVinculadosClinica])
+    }, [
+        linhas,
+        termoBusca1,
+        termoBusca2,
+        filtroSituacao,
+        buscaNotAtiva,
+        ocultarVetsClinica,
+        idsVetsVinculadosClinica,
+    ])
+
+    const totalColunasTabela = useMemo(() => {
+        let n = 4
+        if (mostrarColunaPerfil) n += 1
+        if (mostrarColunaCrmv) n += 1
+        if (mostrarColunaProcs) n += 1
+        return n
+    }, [mostrarColunaPerfil, mostrarColunaCrmv, mostrarColunaProcs])
 
     const alternarOrdenacao = (coluna) => {
         if (ordenarColuna === coluna) {
@@ -246,10 +305,15 @@ const CredenciamentoCadastroLista = () => {
                     ? 'situacao'
                     : ordenarColuna === 'perfil'
                       ? 'perfilCompletoPct'
-                      : 'nome'
+                      : ordenarColuna === 'procedimentos'
+                        ? 'qtdProcedimentos'
+                        : 'nome'
         lista.sort((a, b) => {
             if (ordenarColuna === 'perfil') {
                 return fator * (Number(a.perfilCompletoPct) - Number(b.perfilCompletoPct))
+            }
+            if (ordenarColuna === 'procedimentos') {
+                return fator * (Number(a.qtdProcedimentos ?? 0) - Number(b.qtdProcedimentos ?? 0))
             }
             return (
                 fator *
@@ -280,17 +344,14 @@ const CredenciamentoCadastroLista = () => {
     }, [linhasFiltradasOrdenadas, paginaAjustada, itensPorPagina])
 
     return (
-        <div className="credenciamento_main credenciamento_cadastro_lista">
+        <div className={`credenciamento_main credenciamento_cadastro_lista${somenteLeitura ? ' somente_leitura_lista' : ''}`}>
             <h1>Cadastro de prestadores</h1>
             <hr />
-            <p className="credenciamento_cadastro_sub">
-                Ficha completa do parceiro (separada do fluxo de processo na tela Principal). Clique numa linha para editar.
-            </p>
 
             <header className={`credenciamento_main_header ${headerCompacto ? 'is-compact' : ''}`}>
-                <h2>Filtros</h2>
+                <h2 className="credenciamento_cadastro_filters_title">Filtros</h2>
                 <div className="credenciamento_main_filters">
-                    <div className="credenciamento_main_filters_layout">
+                    <div className="credenciamento_main_filters_layout credenciamento_cadastro_filters_layout">
                         <div className="credenciamento_main_filters_selectors">
                             <div className="credenciamento_main_filters_row credenciamento_cadastro_filters_row">
                                 <div className="credenciamento_main_filter_item credenciamento_main_filter_busca">
@@ -298,7 +359,11 @@ const CredenciamentoCadastroLista = () => {
                                     <input
                                         type="text"
                                         className="credenciamento_main_input"
-                                        placeholder="Nome, cidade, tipo…"
+                                        placeholder={
+                                            buscaNotAtiva
+                                                ? 'Nome, cidade… ou NOT Caxias'
+                                                : 'Nome, cidade, tipo…'
+                                        }
                                         value={termoBusca1}
                                         onChange={(e) => setTermoBusca1(e.target.value)}
                                     />
@@ -308,7 +373,9 @@ const CredenciamentoCadastroLista = () => {
                                     <input
                                         type="text"
                                         className="credenciamento_main_input"
-                                        placeholder="Refinar busca (2º critério)"
+                                        placeholder={
+                                            buscaNotAtiva ? 'Refinar (NOT …)' : 'Refinar busca (2º critério)'
+                                        }
                                         value={termoBusca2}
                                         onChange={(e) => setTermoBusca2(e.target.value)}
                                     />
@@ -328,36 +395,18 @@ const CredenciamentoCadastroLista = () => {
                                         ))}
                                     </select>
                                 </div>
-                                <div className="credenciamento_main_filter_item credenciamento_cadastro_filter_switch">
-                                    <p>Ocultar vets em clínicas</p>
-                                    <button
-                                        type="button"
-                                        role="switch"
-                                        aria-checked={ocultarVetsVinculadosClinica}
-                                        className={`credenciamento_switch ${ocultarVetsVinculadosClinica ? 'is-on' : 'is-off'}`}
-                                        onClick={() => setOcultarVetsVinculadosClinica((v) => !v)}
-                                        title="Filtro temporário: esconde prestadores que são veterinários vinculados a um estabelecimento"
-                                    >
-                                        <span className="credenciamento_switch_track">
-                                            <span className="credenciamento_switch_knob" />
-                                        </span>
-                                        <span className="credenciamento_switch_label">
-                                            {ocultarVetsVinculadosClinica ? 'Sim' : 'Não'}
-                                        </span>
-                                    </button>
-                                </div>
+                                {!somenteLeitura && (
+                                    <div className="credenciamento_main_filter_item credenciamento_cadastro_filters_action">
+                                        <button
+                                            type="button"
+                                            className="credenciamento_main_action_btn credenciamento_cadastro_btn_novo"
+                                            onClick={() => navigate('/credenciamento/cadastro/novo')}
+                                        >
+                                            ＋ Incluir novo
+                                        </button>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                        <div className="credenciamento_main_filters_actions">
-                            {!somenteLeitura && (
-                                <button
-                                    type="button"
-                                    className="credenciamento_main_action_btn"
-                                    onClick={() => navigate('/credenciamento/cadastro/novo')}
-                                >
-                                    ＋ Incluir novo
-                                </button>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -407,16 +456,33 @@ const CredenciamentoCadastroLista = () => {
                                             Especialidade{indicadorOrdenacao('especialidade')}
                                         </button>
                                     </th>
-                                    <th className="table_header credenciamento_cadastro_th_sortable">
-                                        <button
-                                            type="button"
-                                            className="credenciamento_cadastro_th_sort_btn"
-                                            onClick={() => alternarOrdenacao('perfil')}
-                                            title="Completude da ficha (perfil, endereço e financeiro). Não inclui modalidade, atuação nem procedimentos."
-                                        >
-                                            Perfil %{indicadorOrdenacao('perfil')}
-                                        </button>
-                                    </th>
+                                    {mostrarColunaPerfil && (
+                                        <th className="table_header credenciamento_cadastro_th_sortable">
+                                            <button
+                                                type="button"
+                                                className="credenciamento_cadastro_th_sort_btn"
+                                                onClick={() => alternarOrdenacao('perfil')}
+                                                title="Completude da ficha (perfil, endereço e financeiro). Passe o mouse na barra para ver pendências."
+                                            >
+                                                Perfil %{indicadorOrdenacao('perfil')}
+                                            </button>
+                                        </th>
+                                    )}
+                                    {mostrarColunaCrmv && (
+                                        <th className="table_header">CRMV</th>
+                                    )}
+                                    {mostrarColunaProcs && (
+                                        <th className="table_header credenciamento_cadastro_th_sortable">
+                                            <button
+                                                type="button"
+                                                className="credenciamento_cadastro_th_sort_btn"
+                                                onClick={() => alternarOrdenacao('procedimentos')}
+                                                title="Quantidade de procedimentos distintos no perfil (códigos únicos)"
+                                            >
+                                                Procs.{indicadorOrdenacao('procedimentos')}
+                                            </button>
+                                        </th>
+                                    )}
                                     <th className="table_header credenciamento_cadastro_th_sortable">
                                         <button
                                             type="button"
@@ -431,7 +497,7 @@ const CredenciamentoCadastroLista = () => {
                             <tbody>
                                 {linhasPaginadas.length === 0 && (
                                     <tr>
-                                        <td colSpan={5}>Nenhum prestador encontrado.</td>
+                                        <td colSpan={totalColunasTabela}>Nenhum prestador encontrado.</td>
                                     </tr>
                                 )}
                                 {linhasPaginadas.map((l) => (
@@ -443,16 +509,30 @@ const CredenciamentoCadastroLista = () => {
                                         <td className="table_text_left credenciamento_main_nome_click">{l.nome}</td>
                                         <td className="table_text_left">{l.cidadeNome}</td>
                                         <td className="table_text_left">{l.tipoLabel}</td>
-                                        <td className="table_text_left credenciamento_cadastro_perfil_pct">
-                                            <span
-                                                className={`credenciamento_cadastro_perfil_bar credenciamento_cadastro_perfil_bar--${l.perfilCompletoPct >= 100 ? 'full' : l.perfilCompletoPct >= 50 ? 'mid' : 'low'}`}
-                                                style={{ '--pct': `${l.perfilCompletoPct}%` }}
-                                                title="Perfil, endereço e financeiro (sem modalidade, atuação nem procedimentos)"
-                                            >
-                                                <span className="credenciamento_cadastro_perfil_bar_fill" />
-                                            </span>
-                                            <span className="credenciamento_cadastro_perfil_pct_num">{l.perfilCompletoPct}%</span>
-                                        </td>
+                                        {mostrarColunaPerfil && (
+                                            <td className="table_text_left credenciamento_cadastro_perfil_pct">
+                                                <span
+                                                    className={`credenciamento_cadastro_perfil_bar credenciamento_cadastro_perfil_bar--${l.perfilCompletoPct >= 100 ? 'full' : l.perfilCompletoPct >= 50 ? 'mid' : 'low'}`}
+                                                    style={{ '--pct': `${l.perfilCompletoPct}%` }}
+                                                    title={
+                                                        l.pendenciasPerfil?.length
+                                                            ? `Falta: ${l.pendenciasPerfil.join(', ')}`
+                                                            : 'Perfil, endereço e financeiro completos (sem modalidade, atuação nem procedimentos)'
+                                                    }
+                                                >
+                                                    <span className="credenciamento_cadastro_perfil_bar_fill" />
+                                                </span>
+                                                <span className="credenciamento_cadastro_perfil_pct_num">{l.perfilCompletoPct}%</span>
+                                            </td>
+                                        )}
+                                        {mostrarColunaCrmv && (
+                                            <td className="table_text_left">{l.crmv || '—'}</td>
+                                        )}
+                                        {mostrarColunaProcs && (
+                                            <td className="table_text_left credenciamento_cadastro_qtd_procs">
+                                                {l.qtdProcedimentos ?? 0}
+                                            </td>
+                                        )}
                                         <td className="table_text_left">{l.situacao}</td>
                                     </tr>
                                 ))}

@@ -13,6 +13,15 @@ export const categoriaExigeLaboratoriosSolicitacao = (nomeCategoria) => {
     return n.includes('simples') || n.includes('especial')
 }
 
+/** `simples` | `especiais` | null */
+export const classificarCategoriaExameLaboratorial = (nomeCategoria) => {
+    const n = normalizarTextoBusca(nomeCategoria)
+    if (!n.includes('exame')) return null
+    if (n.includes('simples')) return 'simples'
+    if (n.includes('especial')) return 'especiais'
+    return null
+}
+
 export const TIPOS_REPASSE = [
     { value: '', label: '— Selecione —' },
     { value: 'rpa', label: 'RPA' },
@@ -160,6 +169,77 @@ export const calcularPercentualCompletudePerfil = (prestador, opcoes = {}) => {
 
     const preenchidos = criterios.filter(Boolean).length
     return Math.round((preenchidos / criterios.length) * 100)
+}
+
+/** Rótulos dos critérios de completude (mesma ordem de `calcularPercentualCompletudePerfil`). */
+export const listarPendenciasCompletudePerfil = (prestador, opcoes = {}) => {
+    const { temVinculoClinica = false } = opcoes
+    const ehEstabelecimento = prestadorEhEstabelecimento(prestador?.especialidade_id)
+
+    const itens = [
+        { ok: campoPreenchido(prestador?.nome), label: 'Nome' },
+        { ok: campoPreenchido(prestador?.especialidade_id), label: 'Especialidade / tipo' },
+        { ok: campoPreenchido(prestador?.cpf_cnpj), label: 'CPF ou CNPJ' },
+        {
+            ok: !ehEstabelecimento ? campoPreenchido(prestador?.crmv) : true,
+            label: 'CRMV',
+            skip: ehEstabelecimento,
+        },
+        { ok: campoPreenchido(prestador?.situacao_id), label: 'Situação' },
+        {
+            ok:
+                campoPreenchido(prestador?.telefone) ||
+                campoPreenchido(prestador?.celular) ||
+                temVinculoClinica,
+            label: temVinculoClinica
+                ? 'Telefone ou celular (dispensado: vet vinculado a clínica)'
+                : 'Telefone ou celular',
+        },
+        { ok: campoPreenchido(prestador?.email), label: 'E-mail' },
+        { ok: campoPreenchido(prestador?.cep), label: 'CEP' },
+        {
+            ok: campoPreenchido(prestador?.endereco_logradouro) || campoPreenchido(prestador?.endereco),
+            label: 'Logradouro',
+        },
+        { ok: campoPreenchido(prestador?.endereco_numero), label: 'Número do endereço' },
+        { ok: campoPreenchido(prestador?.endereco_bairro), label: 'Bairro' },
+        { ok: campoPreenchido(prestador?.endereco_cidade), label: 'Cidade (endereço)' },
+        { ok: campoPreenchido(prestador?.endereco_uf), label: 'UF (endereço)' },
+        { ok: campoPreenchido(prestador?.chave_pix), label: 'Chave PIX' },
+        { ok: campoPreenchido(prestador?.tipo_repasse), label: 'Tipo de repasse' },
+    ]
+
+    return itens.filter((i) => !i.skip && !i.ok).map((i) => i.label)
+}
+
+/**
+ * Filtro de texto com prefixo NOT (ex.: «NOT Caxias» exclui quem contém Caxias no blob).
+ * Sem prefixo, comportamento de inclusão usual.
+ */
+export const passaFiltroBuscaTexto = (blobNormalizado, termoBruto) => {
+    const bruto = String(termoBruto || '').trim()
+    if (!bruto) return true
+    const norm = normalizarTextoBusca(bruto)
+    let negativo = false
+    let consulta = norm
+    if (norm.startsWith('not ')) {
+        negativo = true
+        consulta = norm.slice(4).trim()
+    } else if (norm.startsWith('!')) {
+        negativo = true
+        consulta = norm.slice(1).trim()
+    }
+    if (!consulta) return true
+    const achou = blobNormalizado.includes(consulta)
+    return negativo ? !achou : achou
+}
+
+/** Filtro de lista: com `usarNot`, aceita NOT/!; senão, inclusão simples. */
+export const filtrarPorTermoBusca = (blobNormalizado, termoBruto, usarNot = false) => {
+    if (usarNot) return passaFiltroBuscaTexto(blobNormalizado, termoBruto)
+    const n = normalizarTextoBusca(termoBruto)
+    if (!n) return true
+    return blobNormalizado.includes(n)
 }
 
 /** Endereço do cadastro preenchido de forma a definir a cidade principal pelo bloco Endereço. */

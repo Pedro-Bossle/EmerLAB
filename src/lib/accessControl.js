@@ -14,6 +14,7 @@ export const PERMISSION_KEYS = {
   COMPRAS_EDIT: 'compras.edit',
   CONTRATOS_VIEW: 'contratos.view',
   CONTRATOS_EDIT: 'contratos.edit',
+  DEV_TOOLS: 'dev.tools',
 }
 
 /** Telas com chave própria: se ausente no JSON salvo, herda o «ver» do módulo. */
@@ -31,6 +32,12 @@ export const PERMISSOES = [
         chave: PERMISSION_KEYS.ACCESS_MANAGE,
         rotulo: 'Gerenciar acessos',
         descricao: 'Pode abrir a tela administrativa, convidar usuarios e alterar permissoes.',
+      },
+      {
+        chave: PERMISSION_KEYS.DEV_TOOLS,
+        rotulo: 'Dev Tool',
+        descricao:
+            'Exibe a chave Dev (canto inferior direito) para ligar pesquisa NOT, colunas extras e exclusão por lista.',
       },
     ],
   },
@@ -130,6 +137,7 @@ export const DEFAULT_PROFILE_PERMISSIONS = {
   [PERMISSION_KEYS.CONTRATOS_VIEW]: true,
   [PERMISSION_KEYS.CONTRATOS_EDIT]: true,
   [PERMISSION_KEYS.ACCESS_MANAGE]: false,
+  [PERMISSION_KEYS.DEV_TOOLS]: false,
 }
 
 export const DEFAULT_INVITED_PERMISSIONS = {
@@ -146,6 +154,7 @@ export const DEFAULT_INVITED_PERMISSIONS = {
   [PERMISSION_KEYS.CONTRATOS_VIEW]: true,
   [PERMISSION_KEYS.CONTRATOS_EDIT]: false,
   [PERMISSION_KEYS.ACCESS_MANAGE]: false,
+  [PERMISSION_KEYS.DEV_TOOLS]: false,
 }
 
 export const normalizarPermissions = (profile = {}) => {
@@ -203,6 +212,11 @@ export const podeExcluirNaSuperTabela = (profileOrPermissions) =>
 export const podeUsarExclusaoPorLista = (profileOrPermissions) =>
   podeExcluirNaSuperTabela(profileOrPermissions) &&
   hasPermission(profileOrPermissions, PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST)
+
+export const isDevToolsEnabled = (profileOrPermissions) =>
+  hasPermission(profileOrPermissions, PERMISSION_KEYS.DEV_TOOLS)
+
+export const hasStoredDevTools = () => isDevToolsEnabled(getStoredAccessProfile())
 
 const ROTULOS_PERMISSAO = Object.fromEntries(
   PERMISSOES.flatMap((g) => g.itens.map((i) => [i.chave, i.rotulo])),

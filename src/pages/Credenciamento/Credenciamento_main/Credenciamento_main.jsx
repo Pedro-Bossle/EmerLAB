@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, normalizarProfileAcesso, setStoredAccessProfile } from '../../../lib/accessControl'
+import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, hasStoredDevTools, normalizarProfileAcesso, setStoredAccessProfile } from '../../../lib/accessControl'
+import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
+import { filtrarPorTermoBusca, normalizarTextoBusca, resolverCidadePrincipalNome } from '../../../lib/prestadorCadastroHelpers'
 import { supabase } from '../../../lib/supabase'
-import { resolverCidadePrincipalNome } from '../../../lib/prestadorCadastroHelpers'
 import './Credenciamento_main.css'
 
 const normalizarTexto = (texto) =>
@@ -58,23 +59,6 @@ const classeCorSituacao = (descricao) => {
 }
 
 const textoCredenciado = (descricao) => normalizarTexto(descricao).includes('CREDENCIAD')
-
-const COLUNAS_FLAGS_STORAGE_KEY = 'emerdog_cred_principal_colunas_flags'
-
-function lerColunasFlagsUi() {
-    try {
-        const raw = window.localStorage.getItem(COLUNAS_FLAGS_STORAGE_KEY)
-        if (!raw) return { pdf: true, site: true, mapa: true }
-        const parsed = JSON.parse(raw)
-        return {
-            pdf: parsed.pdf !== false,
-            site: parsed.site !== false,
-            mapa: parsed.mapa !== false,
-        }
-    } catch {
-        return { pdf: true, site: true, mapa: true }
-    }
-}
 
 const Credenciamento_main = () => {
     const [loading, setLoading] = useState(false)
@@ -137,11 +121,14 @@ const Credenciamento_main = () => {
     const [cidadeSecundariaInput, setCidadeSecundariaInput] = useState('')
     const [cidadesSecundariasSelecionadas, setCidadesSecundariasSelecionadas] = useState([])
     const [cidadesSecundariasNovas, setCidadesSecundariasNovas] = useState([])
-    const [colunasFlagsVisiveis, setColunasFlagsVisiveis] = useState(lerColunasFlagsUi)
+    const { ui: devToolsUi, toggleColuna } = useDevToolsUi()
+    const podeDevTool = hasStoredDevTools()
+    const buscaNotAtiva = useBuscaNotAtiva()
+    const colProc = devToolsUi.colunasProcessos
 
-    const mostrarColunaPdf = colunasFlagsVisiveis.pdf
-    const mostrarColunaSite = colunasFlagsVisiveis.site
-    const mostrarColunaMapa = colunasFlagsVisiveis.mapa
+    const mostrarColunaPdf = podeDevTool && colProc.pdf
+    const mostrarColunaSite = podeDevTool && colProc.site
+    const mostrarColunaMapa = podeDevTool && colProc.mapa
 
     const totalColunasTabela = useMemo(() => {
         let n = 7
@@ -151,18 +138,6 @@ const Credenciamento_main = () => {
         if (!somenteLeitura) n += 1
         return n
     }, [mostrarColunaPdf, mostrarColunaSite, mostrarColunaMapa, somenteLeitura])
-
-    const alternarColunaFlagVisivel = (chave) => {
-        setColunasFlagsVisiveis((prev) => {
-            const next = { ...prev, [chave]: !prev[chave] }
-            try {
-                window.localStorage.setItem(COLUNAS_FLAGS_STORAGE_KEY, JSON.stringify(next))
-            } catch {
-                /* ignore */
-            }
-            return next
-        })
-    }
 
     const cidadePorId = useMemo(() => new Map(cidades.map((cidade) => [Number(cidade.id), cidade])), [cidades])
     const situacaoPorId = useMemo(() => new Map(situacoes.map((situacao) => [Number(situacao.id), situacao])), [situacoes])
@@ -394,22 +369,22 @@ const Credenciamento_main = () => {
     }, [mapaCidadePrestadoresCredenciados, rcCidadeBusca])
 
     const linhasFiltradas = useMemo(() => {
-        const termo1 = normalizarTexto(termoBusca1)
-        const termo2 = normalizarTexto(termoBusca2)
         const passaTriBool = (filtro, valor) => (filtro === 'todos' ? true : filtro === 'sim' ? !!valor : !valor)
         return linhasCompletas.filter((item) => {
-            const pilhaBusca = [
-                item.nome,
-                item.cidadePrincipalNome,
-                item.cidadesSecundarias.join(' '),
-                item.especialidadePrincipalNome,
-                item.especialidadesExtras.join(' '),
-                item.modalidadeEfetiva,
-            ]
-                .map(normalizarTexto)
-                .join(' ')
-            if (termo1 && !pilhaBusca.includes(termo1)) return false
-            if (termo2 && !pilhaBusca.includes(termo2)) return false
+            const pilhaBusca = normalizarTextoBusca(
+                [
+                    item.nome,
+                    item.cidadePrincipalNome,
+                    item.cidadesSecundarias.join(' '),
+                    item.especialidadePrincipalNome,
+                    item.especialidadesExtras.join(' '),
+                    item.modalidadeEfetiva,
+                ]
+                    .filter(Boolean)
+                    .join(' '),
+            )
+            if (!filtrarPorTermoBusca(pilhaBusca, termoBusca1, buscaNotAtiva)) return false
+            if (!filtrarPorTermoBusca(pilhaBusca, termoBusca2, buscaNotAtiva)) return false
             if (filtroSituacao && String(item.situacao_id) !== String(filtroSituacao)) return false
             if (!passaTriBool(filtroPdf, item.tem_pdf)) return false
             if (!passaTriBool(filtroSite, item.no_site)) return false
@@ -417,7 +392,17 @@ const Credenciamento_main = () => {
             if (filtroDia !== 'todos' && item.chaveMes !== filtroDia) return false
             return true
         })
-    }, [linhasCompletas, termoBusca1, termoBusca2, filtroSituacao, filtroPdf, filtroSite, filtroMapa, filtroDia])
+    }, [
+        linhasCompletas,
+        termoBusca1,
+        termoBusca2,
+        filtroSituacao,
+        filtroPdf,
+        filtroSite,
+        filtroMapa,
+        filtroDia,
+        buscaNotAtiva,
+    ])
 
     const temFiltroAtivo = useMemo(
         () =>
@@ -1057,33 +1042,35 @@ const Credenciamento_main = () => {
                                     </select>
                                 </div>
                             </div>
-                            <div className='credenciamento_main_colunas_toggle' role='group' aria-label='Exibir colunas na tabela'>
-                                <span className='credenciamento_main_colunas_toggle_label'>Exibir colunas:</span>
+                            {podeDevTool && (
+                            <div className='credenciamento_main_colunas_toggle' role='group' aria-label='Dev Tool — colunas extras'>
+                                <span className='credenciamento_main_colunas_toggle_label'>Dev · colunas:</span>
                                 <label className='credenciamento_main_colunas_toggle_item'>
                                     <input
                                         type='checkbox'
-                                        checked={mostrarColunaPdf}
-                                        onChange={() => alternarColunaFlagVisivel('pdf')}
+                                        checked={colProc.pdf}
+                                        onChange={() => toggleColuna('processos', 'pdf')}
                                     />
                                     PDF
                                 </label>
                                 <label className='credenciamento_main_colunas_toggle_item'>
                                     <input
                                         type='checkbox'
-                                        checked={mostrarColunaSite}
-                                        onChange={() => alternarColunaFlagVisivel('site')}
+                                        checked={colProc.site}
+                                        onChange={() => toggleColuna('processos', 'site')}
                                     />
                                     Site
                                 </label>
                                 <label className='credenciamento_main_colunas_toggle_item'>
                                     <input
                                         type='checkbox'
-                                        checked={mostrarColunaMapa}
-                                        onChange={() => alternarColunaFlagVisivel('mapa')}
+                                        checked={colProc.mapa}
+                                        onChange={() => toggleColuna('processos', 'mapa')}
                                     />
                                     Mapa
                                 </label>
                             </div>
+                            )}
                         </div>
                         <div className='credenciamento_main_filters_actions'>
                             {!somenteLeitura && (

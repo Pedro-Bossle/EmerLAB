@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
+import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
+import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
@@ -104,6 +106,7 @@ const normalizarNumeroEntrada = (valorTexto) => {
 
 const Supertabelanegociacoes = () => {
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
+    const buscaNotAtiva = useBuscaNotAtiva()
     const [cidades, setCidades] = useState([])
     const [planos, setPlanos] = useState([])
     const [portes, setPortes] = useState([])
@@ -206,17 +209,24 @@ const Supertabelanegociacoes = () => {
     const colunasDetalheWidths = useMemo(() => {
         const na = mostrarNomeAlternativo
         const c = mostrarCustos
+        let w
         if (c && na) {
-            return { cod: '9%', nom: '22%', nalt: '12%', p: '9%', diff: '10%', custo: '10%', acao: '10%' }
+            w = { cod: '9%', nom: '22%', nalt: '12%', p: '9%', diff: '10%', custo: '10%', acao: '10%' }
+        } else if (c && !na) {
+            w = { cod: '11%', nom: '31%', p: '11%', diff: '12%', custo: '12%', acao: '12%' }
+        } else if (!c && na) {
+            w = { cod: '11%', nom: '34%', nalt: '13%', p: '10%', acao: '12%' }
+        } else {
+            w = { cod: '12%', nom: '48%', p: '11%', acao: '12%' }
         }
-        if (c && !na) {
-            return { cod: '11%', nom: '31%', p: '11%', diff: '12%', custo: '12%', acao: '12%' }
+        if (somenteLeitura) {
+            const acaoNum = parseFloat(w.acao || '0')
+            const nomNum = parseFloat(w.nom || '0')
+            const { acao: _acao, ...rest } = w
+            return { ...rest, nom: `${nomNum + acaoNum}%` }
         }
-        if (!c && na) {
-            return { cod: '11%', nom: '34%', nalt: '13%', p: '10%', acao: '12%' }
-        }
-        return { cod: '12%', nom: '48%', p: '11%', acao: '12%' }
-    }, [mostrarCustos, mostrarNomeAlternativo])
+        return w
+    }, [mostrarCustos, mostrarNomeAlternativo, somenteLeitura])
 
     const mapaPlanosHierarquia = useMemo(() => mapearPlanosListaPorChave(planos || []), [planos])
 
@@ -579,15 +589,12 @@ const Supertabelanegociacoes = () => {
     }, [detalheBase, diferencasPorCodigo, porteSelecionado, planoId, planos, mapaPlanosHierarquia])
 
     const negociacoesFiltradas = useMemo(() => {
-        const termo = normalizarTexto(termoBuscaLista)
-        if (!termo) return negociacoes
+        if (!termoBuscaLista.trim() && !buscaNotAtiva) return negociacoes
         return negociacoes.filter((item) => {
-            const nome = normalizarTexto(item.nome)
-            const cidade = normalizarTexto(item.cidadeNome)
-            const tipo = normalizarTexto(item.tipo)
-            return nome.includes(termo) || cidade.includes(termo) || tipo.includes(termo)
+            const blob = normalizarTextoBusca([item.nome, item.cidadeNome, item.tipo].filter(Boolean).join(' '))
+            return filtrarPorTermoBusca(blob, termoBuscaLista, buscaNotAtiva)
         })
-    }, [negociacoes, termoBuscaLista])
+    }, [negociacoes, termoBuscaLista, buscaNotAtiva])
 
     const negociacoesListaOrdenada = useMemo(() => {
         const resultado = [...negociacoesFiltradas]
@@ -618,23 +625,15 @@ const Supertabelanegociacoes = () => {
     }, [negociacoesListaOrdenada, paginaAtualLista, itensPorPaginaLista])
 
     const linhasDetalheFiltradas = useMemo(() => {
-        const termo = normalizarTexto(termoBuscaDetalhe)
-        if (!termo) return linhasDetalheComCustos
+        if (!termoBuscaDetalhe.trim() && !buscaNotAtiva) return linhasDetalheComCustos
         return linhasDetalheComCustos.filter((linha) => {
-            const codigo = normalizarTexto(linha.codigo)
-            const procedimento = normalizarTexto(linha.procedimento)
-            const nomeAlt = normalizarTexto(linha.nomeAlternativo || '')
-            const categoriaNome = normalizarTexto(
-                categorias.find((categoria) => Number(categoria.id) === Number(linha.categoriaId))?.nome || ''
+            const categoriaNome = categorias.find((categoria) => Number(categoria.id) === Number(linha.categoriaId))?.nome || ''
+            const blob = normalizarTextoBusca(
+                [linha.codigo, linha.procedimento, linha.nomeAlternativo, categoriaNome].filter(Boolean).join(' '),
             )
-            return (
-                codigo.includes(termo) ||
-                procedimento.includes(termo) ||
-                nomeAlt.includes(termo) ||
-                categoriaNome.includes(termo)
-            )
+            return filtrarPorTermoBusca(blob, termoBuscaDetalhe, buscaNotAtiva)
         })
-    }, [linhasDetalheComCustos, termoBuscaDetalhe, categorias])
+    }, [linhasDetalheComCustos, termoBuscaDetalhe, categorias, buscaNotAtiva])
 
     const handleOrdenarListaNegociacoes = (coluna) => {
         setOrdenacaoListaNegociacoes((anterior) => {
@@ -1278,7 +1277,7 @@ const Supertabelanegociacoes = () => {
     }
 
     const abrirGerenciarSelecionada = () => {
-        if (!negociacaoSelecionada) return
+        if (somenteLeitura || !negociacaoSelecionada) return
         setEditarNome(negociacaoSelecionada.nome || '')
         setEditarCidadeId(String(negociacaoSelecionada.cidadeId || ''))
         setEditarTipo(negociacaoSelecionada.tipo || '')
@@ -1498,19 +1497,21 @@ const Supertabelanegociacoes = () => {
                         </div>
                         <button
                             type='button'
-                            className='supertabelanegociacoes_action_btn'
-                            onClick={abrirGerenciarSelecionada}
-                        >
-                            Gerenciar
-                        </button>
-                        <button
-                            type='button'
                             className='supertabelanegociacoes_action_btn secondary'
                             onClick={baixarExcelNegociacao}
                             title='Exportar CSV (Excel): Codigo, Nome, Nome Alternativo, P, M, G'
                         >
                             Baixar Excel
                         </button>
+                        {!somenteLeitura && (
+                            <button
+                                type='button'
+                                className='supertabelanegociacoes_action_btn'
+                                onClick={abrirGerenciarSelecionada}
+                            >
+                                Gerenciar
+                            </button>
+                        )}
                         {!somenteLeitura && (
                             <label className='supertabelanegociacoes_edit_wrap'>
                                 <input
@@ -1844,10 +1845,10 @@ ou um código por linha`}
                         <>
                             <table className='table_main'>
                                 <colgroup>
-                                    <col style={{ width: '34%' }} />
+                                    <col style={{ width: somenteLeitura ? '40%' : '34%' }} />
                                     <col style={{ width: '22%' }} />
-                                    <col style={{ width: '32%' }} />
-                                    <col style={{ width: '12%' }} />
+                                    <col style={{ width: somenteLeitura ? '38%' : '32%' }} />
+                                    {!somenteLeitura && <col style={{ width: '12%' }} />}
                                 </colgroup>
                                 <thead>
                                     <tr>
@@ -1869,7 +1870,9 @@ ou um código por linha`}
                                     >
                                         Cidade{obterIndicadorOrdenacaoLista('cidadeNome')}
                                     </th>
-                                    <th className='table_header table_header_no_sort'>Ações</th>
+                                    {!somenteLeitura && (
+                                        <th className='table_header table_header_no_sort'>Ações</th>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody>
@@ -1893,23 +1896,25 @@ ou um código por linha`}
                                         >
                                             {item.cidadeNome}
                                         </td>
-                                        <td>
-                                            <button
-                                                type='button'
-                                                className='table_delete_btn'
-                                                onClick={(event) =>
-                                                    excluirNegociacao(item, { ignorarConfirmacao: event.shiftKey })
-                                                }
-                                                title='Excluir negociação, SHIFT = Excluir rápido'
-                                            >
-                                                🗑️
-                                            </button>
-                                        </td>
+                                        {!somenteLeitura && (
+                                            <td>
+                                                <button
+                                                    type='button'
+                                                    className='table_delete_btn'
+                                                    onClick={(event) =>
+                                                        excluirNegociacao(item, { ignorarConfirmacao: event.shiftKey })
+                                                    }
+                                                    title='Excluir negociação, SHIFT = Excluir rápido'
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                                     {!loading && negociacoesListaPaginada.length === 0 && (
                                         <tr>
-                                            <td colSpan={4}>Nenhuma negociação encontrada.</td>
+                                            <td colSpan={somenteLeitura ? 3 : 4}>Nenhuma negociação encontrada.</td>
                                         </tr>
                                     )}
                                 </tbody>
@@ -1986,7 +1991,10 @@ ou um código por linha`}
                             const alturaEspacadorTopo = indiceInicial * ALTURA_LINHA_TABELA
                             const alturaEspacadorBase = (totalLinhasSecao - indiceFinal) * ALTURA_LINHA_TABELA
                             const colSpanDetalhe =
-                                6 + (mostrarNomeAlternativo ? 1 : 0) + (mostrarCustos ? 2 : 0)
+                                5 +
+                                (mostrarNomeAlternativo ? 1 : 0) +
+                                (mostrarCustos ? 2 : 0) +
+                                (somenteLeitura ? 0 : 1)
 
                             const renderLinha = (linha, linhaIndex) => (
                                 <tr key={linha.rowId}>
@@ -2118,18 +2126,22 @@ ou um código por linha`}
                                             )}
                                         </td>
                                     )}
-                                    <td>
-                                        <button
-                                            type='button'
-                                            className='table_delete_btn'
-                                            onClick={(event) =>
-                                                excluirLinhaProcedimentoNegociacao(linha, { ignorarConfirmacao: event.shiftKey })
-                                            }
-                                            title='Excluir procedimento, SHIFT = Excluir rápido'
-                                        >
-                                            🗑️
-                                        </button>
-                                    </td>
+                                    {!somenteLeitura && (
+                                        <td>
+                                            <button
+                                                type='button'
+                                                className='table_delete_btn'
+                                                onClick={(event) =>
+                                                    excluirLinhaProcedimentoNegociacao(linha, {
+                                                        ignorarConfirmacao: event.shiftKey,
+                                                    })
+                                                }
+                                                title='Excluir procedimento, SHIFT = Excluir rápido'
+                                            >
+                                                🗑️
+                                            </button>
+                                        </td>
+                                    )}
                                 </tr>
                             )
 
@@ -2157,7 +2169,9 @@ ou um código por linha`}
                                                     {mostrarCustos && (
                                                         <col style={{ width: colunasDetalheWidths.custo }} />
                                                     )}
-                                                    <col style={{ width: colunasDetalheWidths.acao }} />
+                                                    {!somenteLeitura && colunasDetalheWidths.acao && (
+                                                        <col style={{ width: colunasDetalheWidths.acao }} />
+                                                    )}
                                                 </colgroup>
                                                 <thead>
                                                     <tr>
@@ -2248,7 +2262,9 @@ ou um código por linha`}
                                                                 </span>
                                                             </th>
                                                         )}
-                                                        <th className='table_header table_header_no_sort'>Ação</th>
+                                                        {!somenteLeitura && (
+                                                            <th className='table_header table_header_no_sort'>Ação</th>
+                                                        )}
                                                     </tr>
                                                 </thead>
                                             </table>
@@ -2282,7 +2298,9 @@ ou um código por linha`}
                                                         {mostrarCustos && (
                                                             <col style={{ width: colunasDetalheWidths.custo }} />
                                                         )}
-                                                        <col style={{ width: colunasDetalheWidths.acao }} />
+                                                        {!somenteLeitura && colunasDetalheWidths.acao && (
+                                                            <col style={{ width: colunasDetalheWidths.acao }} />
+                                                        )}
                                                     </colgroup>
                                                     <tbody>
                                                         {alturaEspacadorTopo > 0 && (
@@ -2319,7 +2337,9 @@ ou um código por linha`}
                                                 {mostrarCustos && (
                                                     <col style={{ width: colunasDetalheWidths.custo }} />
                                                 )}
-                                                <col style={{ width: colunasDetalheWidths.acao }} />
+                                                {!somenteLeitura && colunasDetalheWidths.acao && (
+                                                    <col style={{ width: colunasDetalheWidths.acao }} />
+                                                )}
                                             </colgroup>
                                             <thead>
                                                 <tr>
@@ -2410,7 +2430,9 @@ ou um código por linha`}
                                                             </span>
                                                         </th>
                                                     )}
-                                                    <th className='table_header table_header_no_sort'>Ação</th>
+                                                    {!somenteLeitura && (
+                                                        <th className='table_header table_header_no_sort'>Ação</th>
+                                                    )}
                                                 </tr>
                                             </thead>
                                             <tbody>{secao.linhas.map((linha, linhaIndex) => renderLinha(linha, linhaIndex))}</tbody>

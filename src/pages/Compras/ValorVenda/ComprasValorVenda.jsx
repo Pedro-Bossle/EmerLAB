@@ -7,6 +7,8 @@ import {
     normalizarProfileAcesso,
     setStoredAccessProfile,
 } from '../../../lib/accessControl'
+import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
+import { filtrarPorTermoBusca, normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
 import { UFS_BRASIL } from '../../../lib/ibgeLocalidades.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
@@ -33,6 +35,7 @@ const CHAVE_OUTROS = 'outros'
 
 const ComprasValorVenda = () => {
     const [somenteLeitura, setSomenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.COMPRAS_EDIT))
+    const buscaNotAtiva = useBuscaNotAtiva()
     const [loading, setLoading] = useState(false)
     const [erro, setErro] = useState('')
     const [aviso, setAviso] = useState('')
@@ -227,18 +230,17 @@ const ComprasValorVenda = () => {
         if (ufEscopo || cidadeEscopoId) {
             base = base.filter(linhaNoEscopoFiltro)
         }
-        const termo = normalizarTexto(termoBusca)
-        if (!termo) return base
+        if (!termoBusca.trim() && !buscaNotAtiva) return base
 
         return base.filter((row) => {
-            const cod = normalizarTexto(row.cod_procedimento)
-            const nome = normalizarTexto(row.procedimentoNome)
-            const valorTxt = normalizarTexto(String(row.valor_venda ?? ''))
-            const catNome = normalizarTexto(row.categoriaNome)
-            const pilha = [cod, nome, valorTxt, catNome].join(' ')
-            return pilha.includes(termo)
+            const blob = normalizarTextoBuscaDev(
+                [row.cod_procedimento, row.procedimentoNome, String(row.valor_venda ?? ''), row.categoriaNome]
+                    .filter(Boolean)
+                    .join(' '),
+            )
+            return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
         })
-    }, [linhasMontadas, termoBusca, ufEscopo, cidadeEscopoId, linhaNoEscopoFiltro])
+    }, [linhasMontadas, termoBusca, ufEscopo, cidadeEscopoId, linhaNoEscopoFiltro, buscaNotAtiva])
 
     const totalProcedimentosPorCategoria = useMemo(() => {
         const mapa = new Map()

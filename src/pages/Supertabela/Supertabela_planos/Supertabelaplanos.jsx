@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { PERMISSION_KEYS, hasStoredPermission, podeUsarExclusaoPorLista } from '../../../lib/accessControl'
+import { PERMISSION_KEYS, hasStoredDevTools, hasStoredPermission } from '../../../lib/accessControl'
+import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
+import { filtrarPorTermoBusca, normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
@@ -87,17 +89,13 @@ const obterPlanoIdsPermitidos = (planoBaseId, mapaPlanos) => {
 
 const Supertabelaplanos = () => {
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
-    const [podeExclusaoPorLista] = useState(() => {
-        if (getReadOnlyFlag()) return false
-        return podeUsarExclusaoPorLista({
-            permissions: {
-                [PERMISSION_KEYS.SUPERTABELA_EDIT]: hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT),
-                [PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST]: hasStoredPermission(
-                    PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST,
-                ),
-            },
-        })
-    })
+    const { ui: devToolsUi } = useDevToolsUi()
+    const buscaNotAtiva = useBuscaNotAtiva()
+    const podeExclusaoPorLista =
+        !getReadOnlyFlag() &&
+        hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT) &&
+        (hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST) ||
+            (hasStoredDevTools() && devToolsUi.exclusaoMassa))
     const [cidades, setCidades] = useState([])
     const [municipiosVinculos, setMunicipiosVinculos] = useState([])
     const [suportaVinculosMunicipios, setSuportaVinculosMunicipios] = useState(true)
@@ -613,29 +611,18 @@ const Supertabelaplanos = () => {
     const linhasAtivas = modoLimitacoes ? linhasLimitacoes : linhasDiferencas
 
     const linhasFiltradas = useMemo(() => {
-        const termo = normalizarTextoBusca(termoBusca)
-        if (!termo) return linhasAtivas
+        if (!termoBusca.trim() && !buscaNotAtiva) return linhasAtivas
 
         return linhasAtivas.filter((linha) => {
-            const codigo = normalizarTextoBusca(linha.codigo)
-            const procedimento = normalizarTextoBusca(linha.procedimento)
-            const categoriaNome = normalizarTextoBusca(
-                categorias.find((c) => Number(c.id) === Number(linha.categoriaId))?.nome || ''
-            )
+            const categoriaNome = categorias.find((c) => Number(c.id) === Number(linha.categoriaId))?.nome || ''
+            const partes = [linha.codigo, linha.procedimento, categoriaNome]
             if (modoLimitacoes) {
-                const limite = normalizarTextoBusca(linha.limite)
-                const carencia = normalizarTextoBusca(linha.carencia)
-                return (
-                    codigo.includes(termo) ||
-                    procedimento.includes(termo) ||
-                    categoriaNome.includes(termo) ||
-                    limite.includes(termo) ||
-                    carencia.includes(termo)
-                )
+                partes.push(linha.limite, linha.carencia)
             }
-            return codigo.includes(termo) || procedimento.includes(termo) || categoriaNome.includes(termo)
+            const blob = normalizarTextoBuscaDev(partes.filter(Boolean).join(' '))
+            return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
         })
-    }, [linhasAtivas, termoBusca, categorias, modoLimitacoes])
+    }, [linhasAtivas, termoBusca, categorias, modoLimitacoes, buscaNotAtiva])
 
     const obterSugestoesProcedimentos = (categoriaId) => {
         const lista = modoLimitacoes ? linhasLimitacoes : linhasDiferencas
@@ -2190,12 +2177,12 @@ ou um código por linha`}
                                 <table className='table_main'>
                                     <colgroup>
                                         <col style={{ width: '14%' }} />
-                                        <col style={{ width: '42%' }} />
+                                        <col style={{ width: somenteLeitura ? '53%' : '42%' }} />
                                         <col style={{ width: '11%' }} />
                                         <col style={{ width: '11%' }} />
                                         <col style={{ width: '11%' }} />
                                         <col style={{ width: '11%' }} />
-                                        <col style={{ width: '11%' }} />
+                                        {!somenteLeitura && <col style={{ width: '11%' }} />}
                                     </colgroup>
                                     <thead>
                                         <tr>
@@ -2215,7 +2202,9 @@ ou um código por linha`}
                                                     {obterIndicadorOrdenacao(secao.categoriaId, chave)}
                                                 </th>
                                             ))}
-                                            <th className='table_header table_header_no_sort'>Ação</th>
+                                            {!somenteLeitura && (
+                                                <th className='table_header table_header_no_sort'>Ação</th>
+                                            )}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -2269,7 +2258,7 @@ ou um código por linha`}
                                             </tr>
                                         ))}
                                         <tr className='row_add_line'>
-                                            <td colSpan={7}>
+                                            <td colSpan={somenteLeitura ? 6 : 7}>
                                                 {categoriaEmInclusao === secao.categoriaId ? (
                                                     <div className='row_add_inline'>
                                                         <div
@@ -2329,10 +2318,10 @@ ou um código por linha`}
                                 <table className='table_main'>
                                     <colgroup>
                                         <col style={{ width: '13%' }} />
-                                        <col style={{ width: '40%' }} />
+                                        <col style={{ width: somenteLeitura ? '51%' : '40%' }} />
                                         <col style={{ width: '18%' }} />
                                         <col style={{ width: '18%' }} />
-                                        <col style={{ width: '11%' }} />
+                                        {!somenteLeitura && <col style={{ width: '11%' }} />}
                                     </colgroup>
                                     <thead>
                                         <tr>
@@ -2356,7 +2345,9 @@ ou um código por linha`}
                                                 </span>
                                                 {obterIndicadorOrdenacao(secao.categoriaId, 'carencia')}
                                             </th>
-                                            <th className='table_header table_header_no_sort'>Ação</th>
+                                            {!somenteLeitura && (
+                                                <th className='table_header table_header_no_sort'>Ação</th>
+                                            )}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -2423,7 +2414,7 @@ ou um código por linha`}
                                             </tr>
                                         ))}
                                         <tr className='row_add_line'>
-                                            <td colSpan={5}>
+                                            <td colSpan={somenteLeitura ? 4 : 5}>
                                                 {categoriaEmInclusao === secao.categoriaId ? (
                                                     <div className='row_add_inline'>
                                                         <div

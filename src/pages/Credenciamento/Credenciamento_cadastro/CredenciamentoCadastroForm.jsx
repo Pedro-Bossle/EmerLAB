@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission } from '../../../lib/accessControl'
+import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, hasStoredDevTools } from '../../../lib/accessControl'
 import { supabase } from '../../../lib/supabase'
 import { buscarEnderecoPorCep } from '../../../lib/viacepClient'
 import {
@@ -27,6 +27,7 @@ import PrestadorServicosAbas from './PrestadorServicosAbas.jsx'
 import MultiEspecialidadesInput from './MultiEspecialidadesInput.jsx'
 import CidadesAtendeVirtualList from './CidadesAtendeVirtualList.jsx'
 import VeterinariosVinculados from './VeterinariosVinculados.jsx'
+import CredenciamentoDevToolsPerfil from './CredenciamentoDevToolsPerfil.jsx'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 
@@ -127,6 +128,8 @@ const CredenciamentoCadastroForm = () => {
         const profile = getStoredAccessProfile()
         return profile ? !hasPermission(profile, PERMISSION_KEYS.CREDENCIAMENTO_EDIT) : false
     }, [])
+
+    const podeDevToolPerfil = hasStoredDevTools()
 
     const mostrarAtendeClinica = secaoMultiplasCidades
 
@@ -888,6 +891,14 @@ const CredenciamentoCadastroForm = () => {
 
                 <section className="pcad_card pcad_card_full">
                     <h2>Serviços</h2>
+                    {podeDevToolPerfil && (
+                        <CredenciamentoDevToolsPerfil
+                            prestadorId={prestadorId}
+                            procSelecionados={procSelecionados}
+                            onChangeSelecionados={setProcSelecionados}
+                            somenteLeitura={somenteLeitura}
+                        />
+                    )}
                     <PrestadorServicosAbas
                         prestadorId={prestadorId}
                         cidadeId={

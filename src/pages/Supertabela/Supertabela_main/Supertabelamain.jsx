@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import './Supertabelamain.css'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
+import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
+import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import {
     buscarTodosPlanosCidadeCompat,
     consultarPlanoCidadeUnicoCompat,
@@ -33,6 +35,7 @@ const Supertabelamain = () => {
     const [headerCompactProgress, setHeaderCompactProgress] = useState(0)
     const [edicaoAtiva, setEdicaoAtiva] = useState(false)
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
+    const buscaNotAtiva = useBuscaNotAtiva()
     const [edicoesLocais, setEdicoesLocais] = useState({})
     const [scrollTopoPorCategoria, setScrollTopoPorCategoria] = useState({})
 
@@ -325,24 +328,16 @@ const Supertabelamain = () => {
      * Filtra localmente por texto para facilitar busca por código/procedimento/parceiro.
      */
     const linhasFiltradas = useMemo(() => {
-        const termo = termoBusca.trim().toLowerCase()
-        if (!termo) return linhas
+        if (!termoBusca.trim() && !buscaNotAtiva) return linhas
 
         return linhas.filter((linha) => {
-            const codigo = String(linha.codigo || '').toLowerCase()
-            const procedimento = String(linha.procedimento || '').toLowerCase()
-            const parceiro = String(linha.parceiro || '').toLowerCase()
-            const categoriaNome = String(
-                categorias.find((categoria) => Number(categoria.id) === Number(linha.categoriaId))?.nome || ''
-            ).toLowerCase()
-            return (
-                codigo.includes(termo) ||
-                procedimento.includes(termo) ||
-                parceiro.includes(termo) ||
-                categoriaNome.includes(termo)
+            const categoriaNome = categorias.find((categoria) => Number(categoria.id) === Number(linha.categoriaId))?.nome || ''
+            const blob = normalizarTextoBusca(
+                [linha.codigo, linha.procedimento, linha.parceiro, categoriaNome].filter(Boolean).join(' '),
             )
+            return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
         })
-    }, [linhas, termoBusca, categorias])
+    }, [linhas, termoBusca, categorias, buscaNotAtiva])
 
     /**
      * Retorna um valor textual para input de edição do repasse.

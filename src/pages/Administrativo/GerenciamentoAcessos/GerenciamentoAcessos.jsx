@@ -7,6 +7,8 @@ import {
     normalizarProfileAcesso,
     setStoredAccessProfile,
 } from '../../../lib/accessControl'
+import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
+import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import { supabase } from '../../../lib/supabase'
 import './GerenciamentoAcessos.css'
 
@@ -38,6 +40,7 @@ const GerenciamentoAcessos = () => {
         permissions: permissoesPadraoNovoUsuario(),
     })
     const [edicao, setEdicao] = useState(null)
+    const buscaNotAtiva = useBuscaNotAtiva()
 
     const usuarioSelecionado = useMemo(
         () => usuarios.find((usuario) => String(usuario.id) === String(usuarioSelecionadoId)) || null,
@@ -45,14 +48,13 @@ const GerenciamentoAcessos = () => {
     )
 
     const usuariosFiltrados = useMemo(() => {
-        const termo = String(busca || '').trim().toLowerCase()
-        if (!termo) return usuarios
+        const termo = busca
+        if (!String(termo || '').trim() && !buscaNotAtiva) return usuarios
         return usuarios.filter((usuario) => {
-            const nome = String(usuario.name || '').toLowerCase()
-            const email = String(usuario.email || '').toLowerCase()
-            return nome.includes(termo) || email.includes(termo)
+            const blob = normalizarTextoBusca(`${usuario.name || ''} ${usuario.email || ''}`)
+            return filtrarPorTermoBusca(blob, termo, buscaNotAtiva)
         })
-    }, [busca, usuarios])
+    }, [busca, usuarios, buscaNotAtiva])
 
     const chamarAdminUsers = async (payload) => {
         const { data } = await supabase.auth.getSession()

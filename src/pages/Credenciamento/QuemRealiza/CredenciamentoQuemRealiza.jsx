@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
-import { normalizarTextoBusca, resolverCidadePrincipalNome } from '../../../lib/prestadorCadastroHelpers.js'
+import { normalizarTextoBusca, filtrarPorTermoBusca, resolverCidadePrincipalNome } from '../../../lib/prestadorCadastroHelpers.js'
+import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
 import '../Credenciamento_main/Credenciamento_main.css'
 import {
@@ -35,6 +36,7 @@ function idCategoriaPadrao(lista) {
 }
 
 export default function CredenciamentoQuemRealiza() {
+    const buscaNotAtiva = useBuscaNotAtiva()
     const [uf, setUf] = useState('')
     const [cidadeNome, setCidadeNome] = useState('')
     const [buscarCidadesParalelas, setBuscarCidadesParalelas] = useState(false)
@@ -147,36 +149,37 @@ export default function CredenciamentoQuemRealiza() {
     )
 
     const procedimentoCombinaTermo = useCallback(
-        (p, q) => {
-            if (!q) return true
-            const cod = normalizarTextoBusca(p.codigo)
-            const nom = normalizarTextoBusca(p.nome)
+        (p, termoBruto) => {
             const cat = normalizarTextoBusca(mapaCategoriaNome.get(Number(p.categoria_id)) || '')
-            return cod.includes(q) || nom.includes(q) || cat.includes(q)
+            const blob = normalizarTextoBusca([p.codigo, p.nome, cat].filter(Boolean).join(' '))
+            return filtrarPorTermoBusca(blob, termoBruto, buscaNotAtiva)
         },
-        [mapaCategoriaNome]
+        [mapaCategoriaNome, buscaNotAtiva],
     )
 
     const sugestoesProcedimento = useMemo(() => {
+        const bruto = String(buscaProc || '').trim()
         const q = normalizarTextoBusca(buscaProc)
-        if (!q || q.length < 2) return []
-        return procedimentosCatalogo.filter((p) => procedimentoCombinaTermo(p, q)).slice(0, 18)
-    }, [buscaProc, procedimentosCatalogo, procedimentoCombinaTermo])
+        if (!buscaNotAtiva && (!q || q.length < 2)) return []
+        if (buscaNotAtiva && !bruto) return []
+        return procedimentosCatalogo.filter((p) => procedimentoCombinaTermo(p, buscaProc)).slice(0, 18)
+    }, [buscaProc, procedimentosCatalogo, procedimentoCombinaTermo, buscaNotAtiva])
 
     const procedimentosFiltrados = useMemo(() => {
+        const bruto = String(buscaProc || '').trim()
         const q = normalizarTextoBusca(buscaProc)
-        const base = q ? procedimentosCatalogo.filter((p) => procedimentoCombinaTermo(p, q)) : procedimentosCat
-        return base.slice(0, q ? 300 : undefined)
+        const base = bruto || q ? procedimentosCatalogo.filter((p) => procedimentoCombinaTermo(p, buscaProc)) : procedimentosCat
+        return base.slice(0, bruto || q ? 300 : undefined)
     }, [procedimentosCat, buscaProc, procedimentosCatalogo, procedimentoCombinaTermo])
 
     const buscaEmTodasCategorias = Boolean(normalizarTextoBusca(buscaProc))
 
     const resolverCodigosParaPesquisa = useCallback(() => {
         const out = new Set([...codigosSelecionados])
-        const q = normalizarTextoBusca(buscaProc)
-        if (q) {
+        const bruto = String(buscaProc || '').trim()
+        if (bruto || normalizarTextoBusca(buscaProc)) {
             procedimentosCatalogo.forEach((p) => {
-                if (!procedimentoCombinaTermo(p, q)) return
+                if (!procedimentoCombinaTermo(p, buscaProc)) return
                 const cod = normCodigo(p.codigo)
                 if (cod) out.add(cod)
             })

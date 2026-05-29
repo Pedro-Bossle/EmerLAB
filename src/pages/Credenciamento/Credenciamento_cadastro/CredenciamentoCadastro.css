@@ -1,17 +1,35 @@
 /* Lista: layout largo igual credenciamento principal (usa Credenciamento_main.css) */
-.credenciamento_cadastro_lista .credenciamento_cadastro_sub {
-    margin: 0 2em 0.75em;
-    font-size: 0.9rem;
-    color: #40617a;
+.credenciamento_cadastro_lista .credenciamento_cadastro_filters_title {
+    margin: 0 0 0.35rem;
+    font-size: 1.05rem;
 }
 
-/* Uma única linha de filtros: sobrescreve :last-child da Credenciamento_main (rótulo ao lado) */
+.credenciamento_cadastro_lista .credenciamento_cadastro_filters_layout {
+    align-items: end;
+}
+
+.credenciamento_cadastro_lista .credenciamento_main_filters {
+    max-width: none;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    text-align: left;
+}
+
+/* Uma única linha: busca, refinar, situação e ação */
 .credenciamento_cadastro_lista .credenciamento_main_filters_selectors .credenciamento_cadastro_filters_row {
     display: grid !important;
-    grid-template-columns: minmax(170px, 1.5fr) minmax(170px, 1.5fr) minmax(170px, 1fr) minmax(200px, auto) !important;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.35fr) minmax(140px, 0.85fr) minmax(148px, auto) !important;
     align-items: end !important;
     flex-wrap: unset !important;
     justify-content: unset !important;
+    gap: 10px !important;
+}
+
+.credenciamento_cadastro_lista.somente_leitura_lista
+    .credenciamento_main_filters_selectors
+    .credenciamento_cadastro_filters_row {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.35fr) minmax(140px, 0.85fr) !important;
 }
 
 .credenciamento_cadastro_lista
@@ -38,6 +56,17 @@
 .credenciamento_cadastro_lista .credenciamento_cadastro_filters_row .credenciamento_main_select {
     width: 100%;
     min-width: 0;
+}
+
+.credenciamento_cadastro_lista .credenciamento_cadastro_filters_action {
+    justify-content: flex-end;
+    padding-bottom: 0;
+}
+
+.credenciamento_cadastro_lista .credenciamento_cadastro_btn_novo {
+    width: 100%;
+    min-width: 148px;
+    height: 30px;
 }
 
 .credenciamento_cadastro_filter_switch .credenciamento_switch {
@@ -838,14 +867,14 @@
 }
 
 @media (max-width: 1023px) {
-    .credenciamento_cadastro_lista .credenciamento_cadastro_sub {
-        margin: 0 0.5rem 0.65rem;
-    }
-
     .credenciamento_cadastro_lista .credenciamento_cadastro_filters_row {
         display: grid !important;
         grid-template-columns: 1fr !important;
         align-items: stretch !important;
+    }
+
+    .credenciamento_cadastro_lista .credenciamento_cadastro_btn_novo {
+        min-width: 0;
     }
 
     .credenciamento_main.pcad_form_page {
@@ -1034,4 +1063,47 @@ body.dark-mode .credenciamento_cadastro_perfil_bar--mid .credenciamento_cadastro
 
 body.dark-mode .credenciamento_cadastro_perfil_bar--full .credenciamento_cadastro_perfil_bar_fill {
     background: #5dce8a;
+}
+
+.pcad_dev_tools_perfil {
+    margin-bottom: 0.65rem;
+}
+
+.pcad_dev_tools_perfil_desc {
+    margin: 0 0 0.65rem;
+    font-size: 0.82rem;
+    color: #5a7288;
+    line-height: 1.4;
+}
+
+.pcad_dev_tools_perfil_painel {
+    border-color: #dce8f2;
+    background: #f6fafd;
+}
+
+.pcad_dev_tools_perfil_acao {
+    border-color: #c5a0a0;
+    color: #8b3030;
+    background: #fff;
+}
+
+.pcad_dev_tools_perfil_acao:hover:not(:disabled) {
+    border-color: #b00020;
+    color: #b00020;
+    background: #fff5f5;
+}
+
+body.dark-mode .pcad_dev_tools_perfil_desc {
+    color: #a8b8c8;
+}
+
+body.dark-mode .pcad_dev_tools_perfil_painel {
+    border-color: #3d5a73;
+    background: #152232;
+}
+
+body.dark-mode .pcad_dev_tools_perfil_acao {
+    border-color: #8b5050;
+    color: #f0a0a0;
+    background: #1a2836;
 }

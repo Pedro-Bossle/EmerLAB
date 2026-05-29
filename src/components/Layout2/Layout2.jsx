@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../Sidebar/Sidebar'
+import DevToolsFloating from '../DevTools/DevToolsFloating'
 import { Outlet } from 'react-router-dom'
 import './Layout2.css'
 
@@ -89,6 +90,7 @@ const Layout2 = () => {
             >
                 <Outlet />
             </main>
+            <DevToolsFloating />
         </div>
     )
 }
