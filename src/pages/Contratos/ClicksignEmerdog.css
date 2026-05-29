@@ -2112,6 +2112,11 @@ body.dark-mode .cs_details summary {
     color: #7eb8e8;
 }
 
+/* Signatário por cima do modal de detalhe do envelope (mesmo z-index base no backdrop). */
+.contratos_modal_backdrop.cs_sign_modal_layer {
+    z-index: 1200;
+}
+
 /* Modais de signatários — paleta alinhada ao fluxo (.cs_flow) */
 .contratos_modal.cs_sign_modal {
     --cs-text: #1e3148;

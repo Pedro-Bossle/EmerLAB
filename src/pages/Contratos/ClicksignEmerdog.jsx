@@ -44,7 +44,7 @@ import {
     payloadSignatario,
 } from '../../lib/clicksign/clicksignClient.js'
 import {
-    PATHS_LEMBRETE_SIGNATARIO,
+    enviarLembreteSignatario,
     payloadAtualizarSignatario,
 } from '../../lib/clicksign/clicksignSignatarioOps.js'
 import {
@@ -203,6 +203,8 @@ export default function ClicksignEmerdog() {
     const [filtroNomeEnvelope, setFiltroNomeEnvelope] = useState('')
     const [filtroNomeDebounced, setFiltroNomeDebounced] = useState('')
     const debounceNomeRef = useRef(null)
+    /** Evita rajadas que geram 429 na Clicksign (1 lembrete/min por signatário). */
+    const lembreteEnviadoEmRef = useRef(new Map())
     const [mostrarIds, setMostrarIds] = useState(true)
     const [deletingId, setDeletingId] = useState('')
     const [ordenarColuna, setOrdenarColuna] = useState('created')
@@ -719,27 +721,9 @@ export default function ClicksignEmerdog() {
         }
         setDetailSigBusyId(sid)
         try {
-            let ok = false
-            for (const path of PATHS_LEMBRETE_SIGNATARIO(eid, sid)) {
-                const tentativas = [
-                    {},
-                    { data: { type: 'notifications', attributes: {} } },
-                ]
-                for (const body of tentativas) {
-                    const r = await csRequest('POST', path, Object.keys(body).length ? body : undefined)
-                    if (r.ok) {
-                        ok = true
-                        break
-                    }
-                }
-                if (ok) break
-            }
-            if (!ok) {
-                pushToast(
-                    'error',
-                    'Lembrete',
-                    'Não foi possível enviar o lembrete. Verifique o plano Clicksign ou envie pelo painel da Clicksign.',
-                )
+            const resultado = await enviarLembreteSignatario(csRequest, eid, sid, lembreteEnviadoEmRef.current)
+            if (!resultado.ok) {
+                pushToast('error', resultado.rateLimited ? 'Limite de lembretes' : 'Lembrete', resultado.message)
                 return
             }
             pushToast('success', 'Lembrete enviado', nomeExibicao || 'Signatário')
@@ -2372,7 +2356,11 @@ export default function ClicksignEmerdog() {
             </div>
 
             {signModal && (
-                <div className="contratos_modal_backdrop" role="presentation" onClick={() => !fluxoBusy && fecharSignModal()}>
+                <div
+                    className="contratos_modal_backdrop cs_sign_modal_layer"
+                    role="presentation"
+                    onClick={() => !fluxoBusy && fecharSignModal()}
+                >
                     <div
                         className={`contratos_modal cs_sign_modal ${signModal === 'novo' ? 'cs_sign_modal--novo' : ''} ${signModal === 'agenda' || signModal === 'agenda_edit' || signModal === 'agenda_multi_qual' ? 'cs_sign_modal--wide' : ''}`}
                         role="dialog"
