@@ -13,6 +13,7 @@ import {
     cidadeExibicaoNegociacaoPrestador,
     resolverCidadeIdTabelaNegociacao,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
+import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelanegociacoes.css'
 
 const ALTURA_LINHA_TABELA = 42

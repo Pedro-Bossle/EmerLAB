@@ -1,0 +1,37 @@
+/**
+ * Folha única de entrada — Vite inclui tudo no bundle de produção (Vercel).
+ * Novas telas: adicione um @import abaixo.
+ */
+
+@import '../index.css';
+@import './responsive-app.css';
+
+@import '../components/Layout/Layout.css';
+@import '../components/Layout2/Layout2.css';
+@import '../components/Header/Header.css';
+@import '../components/Sidebar/Sidebar.css';
+@import '../components/Footer/Footer.css';
+
+@import '../pages/Home/Home.css';
+@import '../pages/Login/Login.css';
+@import '../pages/NotFound/NotFound.css';
+
+@import '../pages/Supertabela/Supertabela_doc/Supertabeladoc.css';
+@import '../pages/Supertabela/Supertabela_main/Supertabelamain.css';
+@import '../pages/Supertabela/Supertabela_cidades/Supertabelacidades.css';
+@import '../pages/Supertabela/Supertabela_planos/Supertabelaplanos.css';
+@import '../pages/Supertabela/Supertabela_procedimentos/Supertabelaprocedimentos.css';
+@import '../pages/Supertabela/Supertabela_negociacoes/Supertabelanegociacoes.css';
+
+@import '../pages/Credenciamento/Credenciamento_main/Credenciamento_main.css';
+@import '../pages/Credenciamento/Credenciamento_doc/Credenciamento_doc.css';
+@import '../pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastro.css';
+@import '../pages/Credenciamento/QuemRealiza/CredenciamentoQuemRealiza.css';
+
+@import '../pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos.css';
+
+@import '../pages/Compras/ValorVenda/ComprasValorVenda.css';
+@import '../pages/Compras/Orcamento/ComprasOrcamento.css';
+
+@import '../pages/Contratos/ContratosEmerdog.css';
+@import '../pages/Contratos/ClicksignEmerdog.css';

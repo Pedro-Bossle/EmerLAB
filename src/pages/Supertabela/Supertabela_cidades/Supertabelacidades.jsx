@@ -16,6 +16,7 @@ import {
     salvarVinculosDaCidade,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
+import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelacidades.css'
 
 const Supertabelacidades = () => {
