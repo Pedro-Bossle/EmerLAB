@@ -91,6 +91,41 @@
     padding: 0.65rem 0.85rem;
     border-bottom: 1px solid #e2ecf4;
     background: #f8fbfd;
+    flex-shrink: 0;
+}
+
+.form_inbox_bell_head_actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.form_inbox_bell_clear {
+    border: 1px solid #9ab9cf;
+    background: #fff;
+    color: #40617a;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.form_inbox_bell_clear:hover:not(:disabled) {
+    background: #f0f7fc;
+}
+
+.form_inbox_bell_clear:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.form_inbox_bell_body {
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .form_inbox_bell_close {
@@ -112,8 +147,6 @@
     list-style: none;
     margin: 0;
     padding: 0;
-    overflow-y: auto;
-    flex: 1;
 }
 
 .form_inbox_bell_item {

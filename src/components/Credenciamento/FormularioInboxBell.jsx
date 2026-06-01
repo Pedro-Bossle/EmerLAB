@@ -8,6 +8,7 @@ import {
     listarNotificacoesContratosRecentes,
     contarNotificacoesArmazenadas,
     listarNotificacoesRecentes,
+    limparTodasNotificacoesContratos,
     sincronizarNotificacoesClicksign,
 } from '../../lib/clicksign/clicksignNotificacoes'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl'
@@ -39,6 +40,7 @@ export default function FormularioInboxBell() {
     const [aberto, setAberto] = useState(false)
     const [loading, setLoading] = useState(false)
     const [syncContratos, setSyncContratos] = useState(false)
+    const [limpando, setLimpando] = useState(false)
     const painelRef = useRef(null)
     const btnRef = useRef(null)
     const ultimoSyncContratosRef = useRef(0)
@@ -203,7 +205,24 @@ export default function FormularioInboxBell() {
         return () => document.removeEventListener('mousedown', onDoc)
     }, [aberto])
 
+    const limparTudo = useCallback(async () => {
+        setLimpando(true)
+        try {
+            if (podeContratos) {
+                await limparTodasNotificacoesContratos()
+                ultimoSyncContratosRef.current = Date.now()
+            }
+            setCountContratos(0)
+            setRecentesContratos([])
+            /* entradas do formulário não são “notificações” apagáveis aqui */
+        } finally {
+            setLimpando(false)
+        }
+    }, [podeContratos])
+
     if (!visivel) return null
+
+    const podeLimparContratos = podeContratos && countContratos > 0
 
     const vazio = !loading && !syncContratos && countTotal === 0
 
@@ -229,17 +248,32 @@ export default function FormularioInboxBell() {
                 <div ref={painelRef} className="form_inbox_bell_panel" role="dialog" aria-label="Notificações">
                     <header className="form_inbox_bell_head">
                         <strong>Notificações</strong>
-                        <button type="button" className="form_inbox_bell_close" onClick={() => setAberto(false)}>
-                            ×
-                        </button>
+                        <div className="form_inbox_bell_head_actions">
+                            {podeLimparContratos && (
+                                <button
+                                    type="button"
+                                    className="form_inbox_bell_clear"
+                                    disabled={limpando || loading}
+                                    onClick={() => void limparTudo()}
+                                >
+                                    {limpando ? 'A limpar…' : 'Limpar'}
+                                </button>
+                            )}
+                            <button type="button" className="form_inbox_bell_close" onClick={() => setAberto(false)}>
+                                ×
+                            </button>
+                        </div>
                     </header>
 
-                    {loading && <p className="form_inbox_bell_muted form_inbox_bell_pad">A carregar…</p>}
-                    {syncContratos && !loading && (
-                        <p className="form_inbox_bell_muted form_inbox_bell_pad">A verificar contratos (Clicksign)…</p>
-                    )}
+                    <div className="form_inbox_bell_body">
+                        {loading && <p className="form_inbox_bell_muted form_inbox_bell_pad">A carregar…</p>}
+                        {syncContratos && !loading && (
+                            <p className="form_inbox_bell_muted form_inbox_bell_pad">
+                                A verificar contratos (Clicksign)…
+                            </p>
+                        )}
 
-                    {podeCred && countForm > 0 && (
+                        {podeCred && countForm > 0 && (
                         <section className="form_inbox_bell_sec" aria-labelledby="bell-sec-form">
                             <h3 id="bell-sec-form" className="form_inbox_bell_sec_tit">
                                 Formulário público
@@ -315,9 +349,10 @@ export default function FormularioInboxBell() {
                         </section>
                     )}
 
-                    {vazio && (
-                        <p className="form_inbox_bell_muted form_inbox_bell_pad">Nada novo por aqui.</p>
-                    )}
+                        {vazio && (
+                            <p className="form_inbox_bell_muted form_inbox_bell_pad">Nada novo por aqui.</p>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

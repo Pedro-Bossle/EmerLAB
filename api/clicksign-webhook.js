@@ -144,6 +144,22 @@ async function persistirNotificacao({ evento, texto, envelopeId, envelopeName, p
     if (!url || !key) return { ok: false, reason: 'supabase_not_configured' }
 
     const supabase = createClient(url, key)
+    const desde = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+    let dupQuery = supabase
+        .from('clicksign_notificacoes_webhook')
+        .select('id')
+        .eq('evento', evento)
+        .eq('texto', texto)
+        .gte('criado_em', desde)
+        .limit(1)
+    if (envelopeId) {
+        dupQuery = dupQuery.eq('envelope_id', envelopeId)
+    }
+    const { data: dupRows, error: dupErr } = await dupQuery
+    if (!dupErr && dupRows?.length) {
+        return { ok: true, duplicate: true }
+    }
+
     const { error } = await supabase.from('clicksign_notificacoes_webhook').insert({
         evento,
         texto,

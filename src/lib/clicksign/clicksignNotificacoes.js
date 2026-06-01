@@ -38,6 +38,48 @@ export function limparNotificacoes() {
     return gravarNotificacoes([])
 }
 
+export function limparSnapshotNotificacoes() {
+    try {
+        localStorage.removeItem(KEY_SNAP)
+    } catch {
+        /* ignore */
+    }
+}
+
+/** Marca como lidas as notificações do webhook no Supabase (sininho). */
+export async function marcarTodasNotificacoesWebhookComoLidas() {
+    try {
+        const { error } = await supabase
+            .from('clicksign_notificacoes_webhook')
+            .update({ lido: true })
+            .eq('lido', false)
+        return !error
+    } catch {
+        return false
+    }
+}
+
+/** Limpa localStorage + snapshot de polling + webhook não lidas. */
+export async function limparTodasNotificacoesContratos() {
+    limparNotificacoes()
+    limparSnapshotNotificacoes()
+    await marcarTodasNotificacoesWebhookComoLidas()
+    emitirMudancaNotificacoes()
+}
+
+function notificacaoJaExiste(lista, item, janelaMs = 24 * 60 * 60 * 1000) {
+    const texto = String(item.texto || '').trim()
+    const envelopeId = String(item.envelopeId || '').trim()
+    if (!texto) return false
+    const limite = Date.now() - janelaMs
+    return lista.some((n) => {
+        if (String(n.texto || '').trim() !== texto) return false
+        if (envelopeId && String(n.envelopeId || '').trim() !== envelopeId) return false
+        const at = new Date(n.at || 0).getTime()
+        return !Number.isNaN(at) && at >= limite
+    })
+}
+
 export function listarNotificacoesRecentes(limite = 8) {
     return carregarNotificacoes().slice(0, Math.max(1, limite))
 }
@@ -86,7 +128,15 @@ export async function listarNotificacoesWebhookRecentes(limite = 8) {
 export function mesclarListasNotificacoesContratos(local, webhook, limite = 8) {
     const todas = [...webhook, ...local]
     todas.sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0))
-    return todas.slice(0, Math.max(1, limite))
+    const vistos = new Set()
+    const unicas = []
+    for (const n of todas) {
+        const chave = `${String(n.envelopeId || '').trim()}|${String(n.texto || '').trim()}`
+        if (vistos.has(chave)) continue
+        vistos.add(chave)
+        unicas.push(n)
+    }
+    return unicas.slice(0, Math.max(1, limite))
 }
 
 export async function contarNotificacoesContratosTotal() {
@@ -158,11 +208,14 @@ export async function sincronizarNotificacoesClicksign(clickReq) {
     const runningIds = new Set(runningRows.map((r) => r.id))
 
     const pushNotif = (item) => {
-        novas.push({
+        const candidato = {
             id: novoId(),
             at: new Date().toISOString(),
             ...item,
-        })
+        }
+        const base = [...novas, ...notifs]
+        if (notificacaoJaExiste(base, candidato)) return
+        novas.push(candidato)
     }
 
     for (const env of runningRows) {

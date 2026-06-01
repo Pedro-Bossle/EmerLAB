@@ -56,7 +56,7 @@ import {
 } from '../../lib/clicksign/agendaSignatarios.js'
 import {
     carregarNotificacoes,
-    limparNotificacoes,
+    limparTodasNotificacoesContratos,
     sincronizarNotificacoesClicksign,
 } from '../../lib/clicksign/clicksignNotificacoes.js'
 import { maskTelefoneBr } from '../../lib/telefoneBrasil.js'
@@ -504,7 +504,10 @@ export default function ClicksignEmerdog() {
     }, [csRequest])
 
     const limparListaNotificacoes = useCallback(() => {
-        setNotificacoes(limparNotificacoes())
+        void (async () => {
+            await limparTodasNotificacoesContratos()
+            setNotificacoes([])
+        })()
     }, [])
 
     const carregarContagensDashboard = useCallback(async () => {
