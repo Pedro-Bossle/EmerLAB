@@ -1,4 +1,7 @@
 import { maskCNPJ, maskCPF } from './contratos/mascarasDocumento.js'
+import { maskTelefoneBr } from './telefoneBrasil.js'
+
+export const formatarTelefoneEntrada = maskTelefoneBr
 
 /** IDs de especialidade = estabelecimento (clínica, consultório, laboratório, hospital, 24h). */
 export const ESPECIALIDADES_ESTABELECIMENTO_IDS = new Set([1, 2, 3, 5])
@@ -92,8 +95,6 @@ export const normalizarCpfCnpjParaSalvar = (valor) => {
     return d || null
 }
 
-export { maskTelefoneBr as formatarTelefoneEntrada } from './telefoneBrasil.js'
-
 export const formatarCrmvEntrada = (valor) => String(valor || '').toUpperCase()
 
 export const formatarEmailEntrada = (valor) => String(valor || '').toLowerCase()
@@ -137,7 +138,7 @@ export const formatarChavePixEntrada = (valor, tipoPix) => {
     if (t === 'email') return formatarEmailEntrada(valor)
     if (t === 'cpf') return maskCPF(String(valor || '').replace(/\D/g, '').slice(0, 11))
     if (t === 'cnpj') return maskCNPJ(String(valor || '').replace(/\D/g, '').slice(0, 14))
-    if (t === 'telefone') return formatarTelefoneEntrada(valor)
+    if (t === 'telefone') return maskTelefoneBr(valor)
     return String(valor || '').toLowerCase()
 }
 

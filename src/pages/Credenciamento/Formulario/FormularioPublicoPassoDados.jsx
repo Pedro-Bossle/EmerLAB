@@ -227,6 +227,15 @@ export default function FormularioPublicoPassoDados({
                     <label className="fcred_field">
                         <span>Chave PIX</span>
                         <input
+                            type={tipoPix === 'email' ? 'email' : tipoPix === 'telefone' ? 'tel' : 'text'}
+                            inputMode={
+                                tipoPix === 'telefone'
+                                    ? 'tel'
+                                    : tipoPix === 'cpf' || tipoPix === 'cnpj'
+                                      ? 'numeric'
+                                      : undefined
+                            }
+                            autoComplete={tipoPix === 'email' ? 'email' : tipoPix === 'telefone' ? 'tel' : 'off'}
                             value={chavePix}
                             disabled={!tipoPix}
                             placeholder={
