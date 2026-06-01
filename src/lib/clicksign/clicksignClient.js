@@ -806,14 +806,64 @@ export function intervaloCriacaoUltimos30DiasUtc() {
 }
 
 /** Monta query string de listagem de envelopes. */
-export function montarPathListagemEnvelopes({ pageNumber = 1, pageSize = 20, filterStatus = '', filterCreated = '', filterName = '' } = {}) {
+export function montarPathListagemEnvelopes({
+    pageNumber = 1,
+    pageSize = 20,
+    filterStatus = '',
+    filterCreated = '',
+    filterName = '',
+    sort = '-created',
+} = {}) {
     const q = new URLSearchParams()
     q.set('page[number]', String(pageNumber))
     q.set('page[size]', String(pageSize))
     if (filterStatus) q.set('filter[status]', filterStatus)
     if (filterCreated) q.set('filter[created]', filterCreated)
     if (filterName) q.set('filter[name]', filterName)
+    if (sort) q.set('sort', sort)
     return `/envelopes?${q.toString()}`
+}
+
+const MAX_PAGINAS_LISTAGEM_ENVELOPES = 30
+
+/**
+ * Percorre páginas da API até trazer todos os envelopes do filtro (com limite de segurança).
+ * @param {(method: string, path: string) => Promise<{ ok: boolean, data?: object }>} clickReq
+ */
+export async function listarEnvelopesTodasPaginas(clickReq, opts = {}) {
+    const pageSize = Math.min(50, Math.max(1, Number(opts.pageSize) || 50))
+    const base = {
+        pageSize,
+        filterStatus: opts.filterStatus || '',
+        filterCreated: opts.filterCreated || '',
+        filterName: opts.filterName || '',
+        sort: opts.sort ?? '-created',
+    }
+    const merged = []
+    let meta = {}
+    let links = {}
+    let sortAtivo = base.sort
+    for (let pageNumber = 1; pageNumber <= MAX_PAGINAS_LISTAGEM_ENVELOPES; pageNumber += 1) {
+        let path = montarPathListagemEnvelopes({ ...base, pageNumber, sort: sortAtivo })
+        let res = await clickReq('GET', path)
+        if (!res.ok && sortAtivo && pageNumber === 1) {
+            sortAtivo = ''
+            path = montarPathListagemEnvelopes({ ...base, pageNumber, sort: '' })
+            res = await clickReq('GET', path)
+        }
+        if (!res.ok) {
+            return { ok: false, status: res.status, data: res.data, rows: merged, meta, links }
+        }
+        const ex = extrairListaEnvelopes(res.data)
+        merged.push(...ex.rows)
+        meta = ex.meta || {}
+        links = ex.links || {}
+        const total = typeof meta.record_count === 'number' ? meta.record_count : null
+        if (total !== null && merged.length >= total) break
+        if (ex.rows.length < pageSize) break
+        if (!links.next) break
+    }
+    return { ok: true, rows: merged, meta, links }
 }
 
 /** Nome com pelo menos duas palavras (requisito comum da API Clicksign). */

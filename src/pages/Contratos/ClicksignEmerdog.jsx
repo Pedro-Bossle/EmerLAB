@@ -26,6 +26,7 @@ import {
     mergeSignersWithQualificationLabels,
     intervaloCriacaoMesAtualUtc,
     intervaloCriacaoUltimos30DiasUtc,
+    listarEnvelopesTodasPaginas,
     montarPathListagemEnvelopes,
     nomeSignatarioValido,
     normalizarPapelQualificacao,
@@ -376,24 +377,63 @@ export default function ClicksignEmerdog() {
     )
 
     const carregarLista = useCallback(
-        async (path) => {
+        async (origem) => {
             setLoading(true)
-            const { ok, status, data } = await csRequest('GET', path)
-            setLoading(false)
-            if (!ok) {
-                pushToast('error', `Erro ${status}`, erroApiTexto(data))
-                setRows([])
+            try {
+                if (typeof origem === 'string' && origem.startsWith('/envelopes')) {
+                    const { ok, status, data } = await csRequest('GET', origem)
+                    if (!ok) {
+                        pushToast('error', `Erro ${status}`, erroApiTexto(data))
+                        setRows([])
+                        setLinks({})
+                        setMeta({})
+                        return
+                    }
+                    const ex = extrairListaEnvelopes(data)
+                    setRows(ex.rows)
+                    setLinks(ex.links || {})
+                    setMeta(ex.meta || {})
+                    setListPath(origem)
+                    return
+                }
+                const opts =
+                    origem && typeof origem === 'object'
+                        ? origem
+                        : {
+                              filterStatus: statusFilter,
+                              filterName: filtroNomeDebounced,
+                          }
+                const res = await listarEnvelopesTodasPaginas(csRequest, opts)
+                if (!res.ok) {
+                    pushToast('error', `Erro ${res.status || ''}`, erroApiTexto(res.data))
+                    setRows([])
+                    setLinks({})
+                    setMeta({})
+                    return
+                }
+                setRows(res.rows)
                 setLinks({})
-                setMeta({})
-                return
+                setMeta({
+                    ...(res.meta || {}),
+                    record_count:
+                        typeof res.meta?.record_count === 'number'
+                            ? res.meta.record_count
+                            : res.rows.length,
+                    loaded_count: res.rows.length,
+                })
+                setListPath(
+                    montarPathListagemEnvelopes({
+                        pageNumber: 1,
+                        pageSize: 50,
+                        filterStatus: opts.filterStatus || '',
+                        filterName: opts.filterName || '',
+                    }),
+                )
+            } finally {
+                setLoading(false)
             }
-            const ex = extrairListaEnvelopes(data)
-            setRows(ex.rows)
-            setLinks(ex.links || {})
-            setMeta(ex.meta || {})
-            setListPath(path)
         },
-        [pushToast, csRequest],
+        [pushToast, csRequest, statusFilter, filtroNomeDebounced],
     )
 
     const carregarUsoMes = useCallback(async () => {
@@ -569,13 +609,10 @@ export default function ClicksignEmerdog() {
     useEffect(() => {
         if (tab !== 'envelopes') return
         if (vistaPainel === 'hub') return
-        const path = montarPathListagemEnvelopes({
-            pageNumber: 1,
-            pageSize: 20,
+        void carregarLista({
             filterStatus: statusFilter,
             filterName: filtroNomeDebounced,
         })
-        void carregarLista(path)
     }, [tab, vistaPainel, statusFilter, filtroNomeDebounced, carregarLista])
 
     useEffect(() => {
@@ -646,7 +683,7 @@ export default function ClicksignEmerdog() {
             }
             pushToast('info', `Envelope excluido | ${nomeToast}`, undefined)
             if (detailOpen && detailId === id) setDetailOpen(false)
-            await carregarLista(listPath)
+            await carregarLista()
             await carregarUsoMes()
         }
         if (opcoes.ignorarConfirmacao) {
@@ -698,7 +735,7 @@ export default function ClicksignEmerdog() {
                 if (detailOpen && detailId === idStr) {
                     await abrirDetalhe(idStr)
                 }
-                await carregarLista(listPath)
+                await carregarLista()
                 await carregarUsoMes()
             },
         })
@@ -947,7 +984,7 @@ export default function ClicksignEmerdog() {
         }
         pushToast('info', 'Envelope criado', id ? 'Já pode anexar PDF e adicionar signatários nesta tela.' : 'Resposta sem ID — confira a lista de envelopes ou abra o detalhe do registo criado.')
         setFluxoNome('')
-        await carregarLista(listPath)
+        await carregarLista()
         await carregarUsoMes()
     }
 
@@ -985,7 +1022,7 @@ export default function ClicksignEmerdog() {
             const nome = String(nomeFicheiro || '').trim() || did.slice(0, 8)
             pushToast('info', 'Documento removido', nome)
             await refreshFluxoListas(eid)
-            await carregarLista(listPath)
+            await carregarLista()
         } finally {
             setFluxoDocRemovendoId('')
         }
@@ -1025,7 +1062,7 @@ export default function ClicksignEmerdog() {
             const nome = String(nomeExibicao || '').trim() || sid.slice(0, 8)
             pushToast('info', 'Signatário removido', nome)
             await refreshFluxoListas(eid)
-            await carregarLista(listPath)
+            await carregarLista()
         } finally {
             setFluxoSigRemovendoId('')
         }
@@ -1096,10 +1133,10 @@ export default function ClicksignEmerdog() {
             const nomeDoc = String(file.name || 'documento.pdf').trim() || 'documento.pdf'
             pushToast('info', 'Documento anexado', nomeDoc)
             await refreshFluxoListas(id)
-            await carregarLista(listPath)
+            await carregarLista()
             return true
         },
-        [pushToast, carregarLista, listPath, refreshFluxoListas],
+        [pushToast, carregarLista, refreshFluxoListas],
     )
 
     const executarMontarComPdf = useCallback(
@@ -1129,10 +1166,10 @@ export default function ClicksignEmerdog() {
             if (anexou) {
                 pushToast('info', 'Envelope criado', `«${nome}» — PDF anexado. Adicione signatários e envie quando estiver pronto.`)
             }
-            await carregarLista(listPath)
+            await carregarLista()
             await carregarUsoMes()
         },
-        [resetMontarFluxo, pushToast, anexarPdfAoEnvelopeId, carregarLista, listPath, carregarUsoMes],
+        [resetMontarFluxo, pushToast, anexarPdfAoEnvelopeId, carregarLista, carregarUsoMes],
     )
 
     const validarPdfFicheiro = useCallback(
@@ -1507,7 +1544,7 @@ export default function ClicksignEmerdog() {
             }
             resetMontarFluxo()
             setTab('envelopes')
-            await carregarLista(listPath)
+            await carregarLista()
             await carregarUsoMes()
             pushToast('success', 'Envelope enviado', 'O envelope foi ativado com sucesso. Os signatários serão notificados conforme a configuração da conta.')
             void atualizarNotificacoesPainel()
@@ -2044,12 +2081,31 @@ export default function ClicksignEmerdog() {
                             </table>
                         </div>
                         <div className="clicksign_pagination">
-                            <button type="button" className="contratos_btn contratos_btn_secondary" disabled={!links.prev || loading} onClick={() => pagina(links.prev)}>
-                                Anterior
-                            </button>
-                            <button type="button" className="contratos_btn contratos_btn_secondary" disabled={!links.next || loading} onClick={() => pagina(links.next)}>
-                                Seguinte
-                            </button>
+                            <span className="clicksign_pagination_info">
+                                {typeof meta.record_count === 'number'
+                                    ? `${rows.length} de ${meta.record_count} envelope(s)`
+                                    : `${rows.length} envelope(s)`}
+                            </span>
+                            {links.next ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        className="contratos_btn contratos_btn_secondary"
+                                        disabled={!links.prev || loading}
+                                        onClick={() => pagina(links.prev)}
+                                    >
+                                        Anterior
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="contratos_btn contratos_btn_secondary"
+                                        disabled={!links.next || loading}
+                                        onClick={() => pagina(links.next)}
+                                    >
+                                        Seguinte
+                                    </button>
+                                </>
+                            ) : null}
                         </div>
                                         </>
                                     )}

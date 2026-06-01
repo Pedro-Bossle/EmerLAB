@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 
-import { hasStoredDevTools } from '../../lib/accessControl'
+import { isDevToolsEnabled, useStoredAccessProfile } from '../../lib/accessControl'
 
 import {
 
@@ -67,7 +67,8 @@ const ITENS_CADASTRO = [
 
 export default function DevToolsFloating() {
 
-    const [permitido] = useState(() => hasStoredDevTools())
+    const profile = useStoredAccessProfile()
+    const permitido = isDevToolsEnabled(profile)
 
     const { pathname } = useLocation()
     const acimaRodapeFormulario = /\/credenciamento\/cadastro\/[^/]+/.test(pathname)

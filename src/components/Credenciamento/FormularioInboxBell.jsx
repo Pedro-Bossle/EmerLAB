@@ -11,7 +11,7 @@ import {
     limparTodasNotificacoesContratos,
     sincronizarNotificacoesClicksign,
 } from '../../lib/clicksign/clicksignNotificacoes'
-import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl'
+import { PERMISSION_KEYS, useStoredPermission } from '../../lib/accessControl'
 import {
     FORMULARIO_ENTRADAS_CHANGE_EVENT,
     contarEntradasFormularioPendentes,
@@ -28,10 +28,11 @@ import './FormularioInboxBell.css'
 const INTERVALO_MS = 30_000
 /** Intervalo mínimo entre chamadas à API Clicksign (polling). */
 const INTERVALO_SYNC_CONTRATOS_MS = 45_000
+const TITULO_ABA_BASE = 'Emerdog SFSC'
 
 export default function FormularioInboxBell() {
-    const [podeCred] = useState(() => hasStoredPermission(PERMISSION_KEYS.CREDENCIAMENTO_VIEW))
-    const [podeContratos] = useState(() => hasStoredPermission(PERMISSION_KEYS.CONTRATOS_VIEW))
+    const podeNotifForm = useStoredPermission(PERMISSION_KEYS.NOTIFICACOES_FORMULARIO)
+    const podeNotifContratos = useStoredPermission(PERMISSION_KEYS.NOTIFICACOES_CONTRATOS)
 
     const [countForm, setCountForm] = useState(0)
     const [countContratos, setCountContratos] = useState(0)
@@ -46,7 +47,16 @@ export default function FormularioInboxBell() {
     const ultimoSyncContratosRef = useRef(0)
 
     const countTotal = countForm + countContratos
-    const visivel = podeCred || podeContratos
+    const visivel = podeNotifForm || podeNotifContratos
+
+    useEffect(() => {
+        if (!visivel) return undefined
+        const n = countTotal > 0 ? (countTotal > 99 ? '99+' : String(countTotal)) : ''
+        document.title = n ? `(${n}) ${TITULO_ABA_BASE}` : TITULO_ABA_BASE
+        return () => {
+            document.title = TITULO_ABA_BASE
+        }
+    }, [visivel, countTotal])
 
     const lerContratosLocal = useCallback(async () => {
         const lista = carregarNotificacoes()
@@ -56,7 +66,7 @@ export default function FormularioInboxBell() {
     }, [])
 
     const sincronizarContratosSeDevido = useCallback(async (forcar = false) => {
-        if (!podeContratos) return
+        if (!podeNotifContratos) return
         const agora = Date.now()
         if (!forcar && agora - ultimoSyncContratosRef.current < INTERVALO_SYNC_CONTRATOS_MS) {
             await lerContratosLocal()
@@ -74,10 +84,10 @@ export default function FormularioInboxBell() {
         } finally {
             setSyncContratos(false)
         }
-    }, [podeContratos, aberto, lerContratosLocal])
+    }, [podeNotifContratos, aberto, lerContratosLocal])
 
     const atualizarFormulario = useCallback(async () => {
-        if (!podeCred) return
+        if (!podeNotifForm) return
         const n = await contarEntradasFormularioPendentes()
         setCountForm(n)
         if (aberto) {
@@ -87,15 +97,15 @@ export default function FormularioInboxBell() {
             })
             setRecentesForm(lista)
         }
-    }, [podeCred, aberto])
+    }, [podeNotifForm, aberto])
 
     const atualizar = useCallback(
         async (opts = {}) => {
             if (!visivel) return
             const forcarContratos = Boolean(opts.forcarContratos)
             try {
-                if (podeCred) await atualizarFormulario()
-                if (podeContratos) {
+                if (podeNotifForm) await atualizarFormulario()
+                if (podeNotifContratos) {
                     await sincronizarContratosSeDevido(forcarContratos)
                     const n = await contarNotificacoesContratosTotal()
                     setCountContratos(n)
@@ -105,7 +115,7 @@ export default function FormularioInboxBell() {
                 /* silencioso no polling */
             }
         },
-        [visivel, podeCred, podeContratos, aberto, sincronizarContratosSeDevido, atualizarFormulario],
+        [visivel, podeNotifForm, podeNotifContratos, aberto, sincronizarContratosSeDevido, atualizarFormulario],
     )
 
     useEffect(() => {
@@ -116,7 +126,7 @@ export default function FormularioInboxBell() {
     }, [visivel, atualizar])
 
     useEffect(() => {
-        if (!visivel || !podeCred) return undefined
+        if (!visivel || !podeNotifForm) return undefined
         const onCustom = () => {
             void atualizarFormulario().catch(() => {})
         }
@@ -133,7 +143,7 @@ export default function FormularioInboxBell() {
             window.removeEventListener(FORMULARIO_ENTRADAS_CHANGE_EVENT, onCustom)
             void supabase.removeChannel(channel)
         }
-    }, [visivel, podeCred, atualizarFormulario])
+    }, [visivel, podeNotifForm, atualizarFormulario])
 
     useEffect(() => {
         if (!visivel) return undefined
@@ -174,7 +184,7 @@ export default function FormularioInboxBell() {
         setLoading(true)
         void (async () => {
             try {
-                if (podeCred) {
+                if (podeNotifForm) {
                     const lista = await listarEntradasFormulario({
                         status: ['pendente', 'em_analise'],
                         limite: 6,
@@ -183,7 +193,7 @@ export default function FormularioInboxBell() {
                     const n = await contarEntradasFormularioPendentes()
                     setCountForm(n)
                 }
-                if (podeContratos) {
+                if (podeNotifContratos) {
                     ultimoSyncContratosRef.current = 0
                     await sincronizarContratosSeDevido(true)
                     setRecentesContratos(await listarNotificacoesContratosRecentes(8))
@@ -193,7 +203,7 @@ export default function FormularioInboxBell() {
                 setLoading(false)
             }
         })()
-    }, [aberto, visivel, podeCred, podeContratos, sincronizarContratosSeDevido])
+    }, [aberto, visivel, podeNotifForm, podeNotifContratos, sincronizarContratosSeDevido])
 
     useEffect(() => {
         if (!aberto) return undefined
@@ -208,7 +218,7 @@ export default function FormularioInboxBell() {
     const limparTudo = useCallback(async () => {
         setLimpando(true)
         try {
-            if (podeContratos) {
+            if (podeNotifContratos) {
                 await limparTodasNotificacoesContratos()
                 ultimoSyncContratosRef.current = Date.now()
             }
@@ -218,11 +228,11 @@ export default function FormularioInboxBell() {
         } finally {
             setLimpando(false)
         }
-    }, [podeContratos])
+    }, [podeNotifContratos])
 
     if (!visivel) return null
 
-    const podeLimparContratos = podeContratos && countContratos > 0
+    const podeLimparContratos = podeNotifContratos && countContratos > 0
 
     const vazio = !loading && !syncContratos && countTotal === 0
 
@@ -273,7 +283,7 @@ export default function FormularioInboxBell() {
                             </p>
                         )}
 
-                        {podeCred && countForm > 0 && (
+                        {podeNotifForm && countForm > 0 && (
                         <section className="form_inbox_bell_sec" aria-labelledby="bell-sec-form">
                             <h3 id="bell-sec-form" className="form_inbox_bell_sec_tit">
                                 Formulário público
@@ -314,7 +324,7 @@ export default function FormularioInboxBell() {
                         </section>
                     )}
 
-                    {podeContratos && countContratos > 0 && (
+                    {podeNotifContratos && countContratos > 0 && (
                         <section className="form_inbox_bell_sec" aria-labelledby="bell-sec-contratos">
                             <h3 id="bell-sec-contratos" className="form_inbox_bell_sec_tit">
                                 Contratos (Clicksign)

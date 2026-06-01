@@ -1078,6 +1078,14 @@ button.cs_dash_metric_box:hover {
     flex-wrap: wrap;
     gap: 10px;
     justify-content: flex-end;
+    align-items: center;
+}
+
+.clicksign_pagination_info {
+    margin-right: auto;
+    font-size: 0.85rem;
+    color: #5a7085;
+    font-weight: 600;
 }
 
 .clicksign_novo .contratos_field {

@@ -66,8 +66,11 @@ function rotuloContagem(n) {
 
 export default function CredenciamentoFormularioConfig() {
     const { askExclusao, exclusaoToast } = useSfscExclusaoConfirm()
-    const somenteLeitura =
-        getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.CREDENCIAMENTO_EDIT)
+    const podeEditarLink = hasStoredPermission(PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_CONFIG)
+    const podeEditarPaginas = hasStoredPermission(PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_PAGINAS)
+    const mostrarLinkInbox = hasStoredPermission(PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_INBOX)
+    const somenteLeituraLink = getReadOnlyFlag() || !podeEditarLink
+    const somenteLeituraPaginas = getReadOnlyFlag() || !podeEditarPaginas
 
     const [loading, setLoading] = useState(true)
     const [autoEstado, setAutoEstado] = useState('idle')
@@ -206,22 +209,22 @@ export default function CredenciamentoFormularioConfig() {
     }, [config])
 
     useEffect(() => {
-        if (!hidratadoRef.current || loading || somenteLeitura) return undefined
+        if (!hidratadoRef.current || loading || somenteLeituraPaginas) return undefined
         const snap = serializarPaginas(paginas)
         if (paginasSalvasRef.current === snap) return undefined
         setAutoEstado('pending')
         const t = setTimeout(() => void persistirPaginas(), AUTOSAVE_MS)
         return () => clearTimeout(t)
-    }, [paginas, loading, somenteLeitura, persistirPaginas])
+    }, [paginas, loading, somenteLeituraPaginas, persistirPaginas])
 
     useEffect(() => {
-        if (!hidratadoRef.current || loading || somenteLeitura || !config) return undefined
+        if (!hidratadoRef.current || loading || somenteLeituraLink || !config) return undefined
         const snap = serializarConfig(config)
         if (configSalvaRef.current === snap) return undefined
         setAutoEstado('pending')
         const t = setTimeout(() => void persistirConfig(), AUTOSAVE_MS)
         return () => clearTimeout(t)
-    }, [config, loading, somenteLeitura, persistirConfig])
+    }, [config, loading, somenteLeituraLink, persistirConfig])
 
     const onDropPagina = (toIndex) => {
         if (dragPaginaIdx == null) return
@@ -244,7 +247,7 @@ export default function CredenciamentoFormularioConfig() {
     }
 
     const adicionarCategoriaNaPagina = (cat) => {
-        if (!paginaSelecionada || somenteLeitura) return
+        if (!paginaSelecionada || somenteLeituraPaginas) return
         const cid = Number(cat.id)
         setPaginas((prev) =>
             prev.map((p) => {
@@ -264,7 +267,7 @@ export default function CredenciamentoFormularioConfig() {
     }
 
     const removerCategoriaDaPagina = (categoriaId) => {
-        if (!paginaSelecionada || somenteLeitura) return
+        if (!paginaSelecionada || somenteLeituraPaginas) return
         atualizarPaginaLocal(paginaSelecionada.id, {
             categorias: paginaSelecionada.categorias.filter((c) => c.categoriaId !== categoriaId),
         })
@@ -298,7 +301,7 @@ export default function CredenciamentoFormularioConfig() {
                     : 'Páginas do wizard e categorias exibidas ao parceiro'}
             </p>
             <p className="fcred_config_nav">
-                {!somenteLeitura && rotuloAutoEstado && (
+                {(!somenteLeituraLink || !somenteLeituraPaginas) && rotuloAutoEstado && (
                     <span
                         className={`fcred_autosave ${autoEstado === 'error' ? 'is-error' : ''} ${autoEstado === 'saved' ? 'is-ok' : ''}`}
                         aria-live="polite"
@@ -306,12 +309,14 @@ export default function CredenciamentoFormularioConfig() {
                         {rotuloAutoEstado}
                     </span>
                 )}
-                <Link
-                    to="/credenciamento/formulario/entradas"
-                    className="credenciamento_main_action_btn secondary"
-                >
-                    Inbox de pré-cadastros
-                </Link>
+                {mostrarLinkInbox && (
+                    <Link
+                        to="/credenciamento/formulario/entradas"
+                        className="credenciamento_main_action_btn secondary"
+                    >
+                        Inbox de pré-cadastros
+                    </Link>
+                )}
             </p>
             <hr />
 
@@ -372,7 +377,7 @@ export default function CredenciamentoFormularioConfig() {
                                 Abrir
                             </a>
                         </div>
-                        {!somenteLeitura && config && (
+                        {!somenteLeituraLink && config && (
                             <div className="fcred_config_meta">
                                 <label className="pcad_field">
                                     <span>Slug na URL</span>
@@ -417,7 +422,7 @@ export default function CredenciamentoFormularioConfig() {
                     <aside className="fcred_paginas">
                         <div className="fcred_paginas_head">
                             <h2>Páginas do formulário</h2>
-                            {!somenteLeitura && (
+                            {!somenteLeituraPaginas && (
                                 <button
                                     type="button"
                                     className="credenciamento_main_action_btn secondary"
@@ -439,7 +444,7 @@ export default function CredenciamentoFormularioConfig() {
                             {paginas.map((p, idx) => (
                                 <li
                                     key={p.id}
-                                    draggable={!somenteLeitura}
+                                    draggable={!somenteLeituraPaginas}
                                     onDragStart={() => setDragPaginaIdx(idx)}
                                     onDragOver={(e) => e.preventDefault()}
                                     onDrop={() => onDropPagina(idx)}
@@ -457,7 +462,7 @@ export default function CredenciamentoFormularioConfig() {
                                             <input
                                                 className="fcred_titulo_input"
                                                 value={p.titulo}
-                                                disabled={somenteLeitura}
+                                                disabled={somenteLeituraPaginas}
                                                 onClick={(e) => e.stopPropagation()}
                                                 onChange={(e) =>
                                                     atualizarPaginaLocal(p.id, { titulo: e.target.value })
@@ -472,7 +477,7 @@ export default function CredenciamentoFormularioConfig() {
                                             </span>
                                         </span>
                                     </button>
-                                    {!somenteLeitura && paginas.length > 1 && (
+                                    {!somenteLeituraPaginas && paginas.length > 1 && (
                                         <button
                                             type="button"
                                             className="fcred_rem credenciamento_main_action_btn secondary"
@@ -526,7 +531,7 @@ export default function CredenciamentoFormularioConfig() {
                                     {paginaSelecionada.categorias.map((c, idx) => (
                                         <li
                                             key={c.categoriaId}
-                                            draggable={!somenteLeitura}
+                                            draggable={!somenteLeituraPaginas}
                                             onDragStart={() => setDragCatIdx(idx)}
                                             onDragOver={(e) => e.preventDefault()}
                                             onDrop={() => onDropCategoria(idx)}
@@ -541,7 +546,7 @@ export default function CredenciamentoFormularioConfig() {
                                                     )}
                                                 </span>
                                             </span>
-                                            {!somenteLeitura && (
+                                            {!somenteLeituraPaginas && (
                                                 <button
                                                     type="button"
                                                     className="fcred_rem_cat"
@@ -559,7 +564,7 @@ export default function CredenciamentoFormularioConfig() {
                                     )}
                                 </ul>
 
-                                {!somenteLeitura && categoriasDisponiveis.length > 0 && (
+                                {!somenteLeituraPaginas && categoriasDisponiveis.length > 0 && (
                                     <div className="fcred_pool">
                                         <h3>Adicionar categoria</h3>
                                         <div className="fcred_pool_tags">

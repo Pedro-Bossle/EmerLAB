@@ -1,6 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, hasStoredDevTools } from '../../../lib/accessControl'
+import {
+    PERMISSION_KEYS,
+    getStoredAccessProfile,
+    hasPermission,
+    useStoredPermission,
+} from '../../../lib/accessControl'
 import { supabase } from '../../../lib/supabase'
 import { buscarEnderecoPorCep } from '../../../lib/viacepClient'
 import {
@@ -129,7 +134,7 @@ const CredenciamentoCadastroForm = () => {
         return profile ? !hasPermission(profile, PERMISSION_KEYS.CREDENCIAMENTO_EDIT) : false
     }, [])
 
-    const podeDevToolPerfil = hasStoredDevTools()
+    const podeDevToolPerfil = useStoredPermission(PERMISSION_KEYS.DEV_TOOLS)
 
     const mostrarAtendeClinica = secaoMultiplasCidades
 

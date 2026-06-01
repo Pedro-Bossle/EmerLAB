@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react'
+
 export const ACCESS_PROFILE_STORAGE_KEY = 'sfsc-access-profile'
+export const ACCESS_PROFILE_CHANGE_EVENT = 'sfsc-access-profile-change'
 
 export const PERMISSION_KEYS = {
   ACCESS_MANAGE: 'access.manage',
@@ -10,6 +13,11 @@ export const PERMISSION_KEYS = {
   CREDENCIAMENTO_EDIT: 'credenciamento.edit',
   CREDENCIAMENTO_CADASTRO_VIEW: 'credenciamento.cadastro.view',
   CREDENCIAMENTO_QUEM_REALIZA_VIEW: 'credenciamento.quem_realiza.view',
+  CREDENCIAMENTO_FORMULARIO_CONFIG: 'credenciamento.formulario.config',
+  CREDENCIAMENTO_FORMULARIO_PAGINAS: 'credenciamento.formulario.paginas',
+  CREDENCIAMENTO_FORMULARIO_INBOX: 'credenciamento.formulario.inbox',
+  NOTIFICACOES_FORMULARIO: 'notificacoes.formulario',
+  NOTIFICACOES_CONTRATOS: 'notificacoes.contratos',
   COMPRAS_VIEW: 'compras.view',
   COMPRAS_EDIT: 'compras.edit',
   CONTRATOS_VIEW: 'contratos.view',
@@ -22,6 +30,11 @@ const HERANCA_PERMISSAO_TELA = [
   [PERMISSION_KEYS.SUPERTABELA_NEGOCIACOES_VIEW, PERMISSION_KEYS.SUPERTABELA_VIEW],
   [PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW, PERMISSION_KEYS.CREDENCIAMENTO_VIEW],
   [PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW, PERMISSION_KEYS.CREDENCIAMENTO_VIEW],
+  [PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_CONFIG, PERMISSION_KEYS.CREDENCIAMENTO_EDIT],
+  [PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_PAGINAS, PERMISSION_KEYS.CREDENCIAMENTO_EDIT],
+  [PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_INBOX, PERMISSION_KEYS.CREDENCIAMENTO_VIEW],
+  [PERMISSION_KEYS.NOTIFICACOES_FORMULARIO, PERMISSION_KEYS.CREDENCIAMENTO_VIEW],
+  [PERMISSION_KEYS.NOTIFICACOES_CONTRATOS, PERMISSION_KEYS.CONTRATOS_VIEW],
 ]
 
 export const PERMISSOES = [
@@ -38,6 +51,21 @@ export const PERMISSOES = [
         rotulo: 'Dev Tool',
         descricao:
             'Exibe a chave Dev (canto inferior direito) para ligar pesquisa NOT, colunas extras e exclusão por lista.',
+      },
+    ],
+  },
+  {
+    grupo: 'Notificações',
+    itens: [
+      {
+        chave: PERMISSION_KEYS.NOTIFICACOES_FORMULARIO,
+        rotulo: 'Alertas do formulário público',
+        descricao: 'Sininho: pré-cadastros pendentes no inbox do formulário.',
+      },
+      {
+        chave: PERMISSION_KEYS.NOTIFICACOES_CONTRATOS,
+        rotulo: 'Alertas Clicksign (contratos)',
+        descricao: 'Sininho: eventos de assinatura e documentos via webhook/polling.',
       },
     ],
   },
@@ -84,6 +112,21 @@ export const PERMISSOES = [
         rotulo: 'Editar Credenciamento',
         descricao: 'Pode alterar dados de Credenciamento.',
       },
+      {
+        chave: PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_CONFIG,
+        rotulo: 'Editar status do formulário',
+        descricao: 'Link público, slug, título e ativo/inativo (caixa «Link e definições gerais»).',
+      },
+      {
+        chave: PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_PAGINAS,
+        rotulo: 'Reorganizar páginas do formulário',
+        descricao: 'Criar, ordenar, excluir páginas e categorias do wizard público.',
+      },
+      {
+        chave: PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_INBOX,
+        rotulo: 'Acessar inbox do formulário',
+        descricao: 'Tela de pré-cadastros e conversão em ficha de prestador.',
+      },
     ],
   },
   {
@@ -126,6 +169,11 @@ export const DEFAULT_PROFILE_PERMISSIONS = {
   [PERMISSION_KEYS.CREDENCIAMENTO_EDIT]: true,
   [PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW]: true,
   [PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW]: true,
+  [PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_CONFIG]: true,
+  [PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_PAGINAS]: true,
+  [PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_INBOX]: true,
+  [PERMISSION_KEYS.NOTIFICACOES_FORMULARIO]: true,
+  [PERMISSION_KEYS.NOTIFICACOES_CONTRATOS]: true,
   [PERMISSION_KEYS.COMPRAS_VIEW]: true,
   [PERMISSION_KEYS.COMPRAS_EDIT]: true,
   [PERMISSION_KEYS.CONTRATOS_VIEW]: true,
@@ -142,6 +190,11 @@ export const DEFAULT_INVITED_PERMISSIONS = {
   [PERMISSION_KEYS.CREDENCIAMENTO_EDIT]: false,
   [PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW]: true,
   [PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW]: true,
+  [PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_CONFIG]: false,
+  [PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_PAGINAS]: false,
+  [PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_INBOX]: false,
+  [PERMISSION_KEYS.NOTIFICACOES_FORMULARIO]: false,
+  [PERMISSION_KEYS.NOTIFICACOES_CONTRATOS]: false,
   [PERMISSION_KEYS.COMPRAS_VIEW]: true,
   [PERMISSION_KEYS.COMPRAS_EDIT]: false,
   [PERMISSION_KEYS.CONTRATOS_VIEW]: true,
@@ -231,7 +284,9 @@ export const resumirAlteracoesPermissoes = (antes = {}, depois = {}) => {
 
 export const setStoredAccessProfile = (profile) => {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(ACCESS_PROFILE_STORAGE_KEY, JSON.stringify(normalizarProfileAcesso(profile)))
+  const normalizado = normalizarProfileAcesso(profile)
+  window.localStorage.setItem(ACCESS_PROFILE_STORAGE_KEY, JSON.stringify(normalizado))
+  window.dispatchEvent(new CustomEvent(ACCESS_PROFILE_CHANGE_EVENT, { detail: normalizado }))
 }
 
 export const getStoredAccessProfile = () => {
@@ -250,3 +305,28 @@ export const clearStoredAccessProfile = () => {
 }
 
 export const hasStoredPermission = (key) => hasPermission(getStoredAccessProfile(), key)
+
+/** Reage a alterações de permissões (login, Gerenciamento de Acessos, etc.). */
+export function useStoredAccessProfile() {
+  const [profile, setProfile] = useState(() => getStoredAccessProfile())
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const sync = () => setProfile(getStoredAccessProfile())
+    window.addEventListener(ACCESS_PROFILE_CHANGE_EVENT, sync)
+    window.addEventListener('storage', (e) => {
+      if (e.key === ACCESS_PROFILE_STORAGE_KEY) sync()
+    })
+    return () => {
+      window.removeEventListener(ACCESS_PROFILE_CHANGE_EVENT, sync)
+      window.removeEventListener('storage', sync)
+    }
+  }, [])
+
+  return profile
+}
+
+export function useStoredPermission(key) {
+  const profile = useStoredAccessProfile()
+  return hasPermission(profile, key)
+}

@@ -147,7 +147,10 @@ function App() {
           <Route
             path="/credenciamento/formulario/entradas"
             element={
-              <PrivateRoute permission="credenciamento.view">
+              <PrivateRoute
+                permission="credenciamento.view"
+                screenPermission="credenciamento.formulario.inbox"
+              >
                 <CredenciamentoFormularioInbox />
               </PrivateRoute>
             }
