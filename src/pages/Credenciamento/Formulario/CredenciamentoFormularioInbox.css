@@ -201,6 +201,28 @@
     margin-top: 0.35rem;
 }
 
+.fcred_inbox_sec_tit {
+    margin: 0 0 0.65rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1e3148;
+}
+
+.fcred_inbox_proc_grupo {
+    margin-top: 0.85rem;
+}
+
+.fcred_inbox_proc_grupo:first-of-type {
+    margin-top: 0.35rem;
+}
+
+.fcred_inbox_proc_cat {
+    margin: 0 0 0.4rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #2d6a9f;
+}
+
 .fcred_inbox_proc_list {
     margin: 0.35rem 0 0;
     padding-left: 1.15rem;

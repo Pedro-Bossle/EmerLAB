@@ -12,7 +12,15 @@ import {
     obterEntradaFormulario,
     rotuloTipoPerfil,
 } from '../../../lib/formularioCredenciamento'
-import { formatarCpfCnpjEntrada } from '../../../lib/prestadorCadastroHelpers'
+import {
+    TIPOS_CHAVE_PIX,
+    TIPOS_REPASSE,
+    formatarChavePixEntrada,
+    formatarCpfCnpjEntrada,
+    formatarCrmvEntrada,
+    formatarTelefoneEntrada,
+    inferirTipoPixDaChave,
+} from '../../../lib/prestadorCadastroHelpers'
 import { supabase } from '../../../lib/supabase'
 
 const FILTROS = [
@@ -23,6 +31,25 @@ const FILTROS = [
     { id: 'descartado', label: 'Descartados', status: ['descartado'] },
     { id: 'todos', label: 'Todas', status: null },
 ]
+
+function rotuloTipoPix(valor) {
+    const v = String(valor || '').toLowerCase()
+    return TIPOS_CHAVE_PIX.find((t) => t.value === v)?.label || v || '—'
+}
+
+function rotuloTipoRepasse(valor) {
+    const v = String(valor || '').toLowerCase()
+    return TIPOS_REPASSE.find((t) => t.value === v)?.label || v || '—'
+}
+
+function exibirChavePix(payload) {
+    const p = payload || {}
+    const tipo = String(p.tipo_pix || '').toLowerCase() || inferirTipoPixDaChave(p.chave_pix)
+    const bruto = p.chave_pix
+    if (!bruto) return '—'
+    if (tipo) return formatarChavePixEntrada(bruto, tipo)
+    return String(bruto)
+}
 
 function rotuloStatus(st) {
     const s = String(st || '')
@@ -50,7 +77,9 @@ export default function CredenciamentoFormularioInbox() {
 
     const [lista, setLista] = useState([])
     const [selecionada, setSelecionada] = useState(null)
-    const [mapaProcedimentos, setMapaProcedimentos] = useState(new Map())
+    const [procedimentosPorCategoria, setProcedimentosPorCategoria] = useState([])
+    const [nomesEspecialidades, setNomesEspecialidades] = useState([])
+    const [mapaEspecialidades, setMapaEspecialidades] = useState(() => new Map())
     const [loading, setLoading] = useState(true)
     const [acaoLoading, setAcaoLoading] = useState(false)
     const [erro, setErro] = useState('')
@@ -88,17 +117,75 @@ export default function CredenciamentoFormularioInbox() {
         try {
             const row = await obterEntradaFormulario(id)
             setSelecionada(row)
-            const codigos = [...new Set((row?.payload?.procedimentos || []).map((c) => String(c).trim().toUpperCase()))]
+            const pl = row?.payload || {}
+            const codigos = [...new Set((pl.procedimentos || []).map((c) => String(c).trim().toUpperCase()))].filter(
+                Boolean,
+            )
             if (codigos.length) {
-                const { data } = await supabase
+                const { data: procs } = await supabase
                     .from('procedimentos')
-                    .select('codigo, nome')
+                    .select('codigo, nome, categoria_id')
                     .in('codigo', codigos)
-                const m = new Map()
-                ;(data || []).forEach((p) => m.set(String(p.codigo).toUpperCase(), p.nome))
-                setMapaProcedimentos(m)
+                const catIds = [
+                    ...new Set((procs || []).map((x) => Number(x.categoria_id)).filter((id) => id > 0)),
+                ]
+                let mapaCat = new Map()
+                if (catIds.length) {
+                    const { data: cats } = await supabase.from('categorias').select('id, nome').in('id', catIds)
+                    mapaCat = new Map((cats || []).map((c) => [Number(c.id), String(c.nome || '').trim()]))
+                }
+                const porCat = new Map()
+                const codigosEncontrados = new Set()
+                ;(procs || []).forEach((pr) => {
+                    const cod = String(pr.codigo || '').toUpperCase()
+                    codigosEncontrados.add(cod)
+                    const cid = Number(pr.categoria_id) || 0
+                    const nomeCat = mapaCat.get(cid) || (cid ? `Categoria #${cid}` : 'Outros')
+                    if (!porCat.has(nomeCat)) porCat.set(nomeCat, [])
+                    porCat.get(nomeCat).push({
+                        codigo: cod,
+                        nome: String(pr.nome || '').trim(),
+                    })
+                })
+                const faltando = codigos.filter((c) => !codigosEncontrados.has(c))
+                if (faltando.length) {
+                    if (!porCat.has('Outros')) porCat.set('Outros', [])
+                    faltando.forEach((cod) => {
+                        porCat.get('Outros').push({ codigo: cod, nome: '' })
+                    })
+                }
+                const grupos = [...porCat.entries()]
+                    .sort((a, b) => a[0].localeCompare(b[0], 'pt-BR', { sensitivity: 'base' }))
+                    .map(([categoriaNome, itens]) => ({
+                        categoriaNome,
+                        itens: itens.sort((a, b) =>
+                            String(a.codigo).localeCompare(String(b.codigo), 'pt-BR', { sensitivity: 'base' }),
+                        ),
+                    }))
+                setProcedimentosPorCategoria(grupos)
             } else {
-                setMapaProcedimentos(new Map())
+                setProcedimentosPorCategoria([])
+            }
+
+            const espIds = [...new Set((pl.especialidades_ids || []).map(Number).filter(Boolean))]
+            const espIdsVets = new Set()
+            ;(pl.vetsPendentes || []).forEach((v) => {
+                ;(v.especialidades_ids || []).forEach((id) => espIdsVets.add(Number(id)))
+                if (v.especialidade_id) espIdsVets.add(Number(v.especialidade_id))
+            })
+            const todosEspIds = [...new Set([...espIds, ...espIdsVets])]
+            if (todosEspIds.length) {
+                const { data: esps } = await supabase.from('especialidades').select('id, nome').in('id', todosEspIds)
+                const mapa = new Map(
+                    (esps || []).map((e) => [Number(e.id), String(e.nome || '').trim()]).filter(([, n]) => n),
+                )
+                setMapaEspecialidades(mapa)
+                setNomesEspecialidades(
+                    espIds.map((id) => mapa.get(id)).filter(Boolean),
+                )
+            } else {
+                setMapaEspecialidades(new Map())
+                setNomesEspecialidades([])
             }
         } catch (e) {
             setErro(e?.message || String(e))
@@ -199,6 +286,8 @@ export default function CredenciamentoFormularioInbox() {
 
     const p = selecionada?.payload || {}
     const end = p.endereco || {}
+    const tipoPerfil = String(selecionada?.tipo_perfil || '').toLowerCase()
+    const mostrarCrmv = tipoPerfil === 'volante' || tipoPerfil === 'clinica'
     const podeConverter =
         selecionada &&
         !selecionada.prestador_id &&
@@ -323,54 +412,134 @@ export default function CredenciamentoFormularioInbox() {
                             </p>
 
                             <div className="credenciamento_main_detail_box fcred_inbox_detail_box">
+                                <h3 className="fcred_inbox_sec_tit">Identificação</h3>
                                 <p>
                                     <strong>Enviado em:</strong> {formatarDataEntrada(selecionada.criado_em)}
                                 </p>
+                                {mostrarCrmv && (
+                                    <p>
+                                        <strong>CRMV:</strong>{' '}
+                                        {p.crmv ? formatarCrmvEntrada(p.crmv) : '—'}
+                                    </p>
+                                )}
+                                {nomesEspecialidades.length > 0 && (
+                                    <p>
+                                        <strong>Especialidade(s):</strong> {nomesEspecialidades.join(' · ')}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="credenciamento_main_detail_box fcred_inbox_detail_box">
+                                <h3 className="fcred_inbox_sec_tit">Contato</h3>
                                 <p>
                                     <strong>E-mail:</strong> {p.email || '—'}
                                 </p>
                                 <p>
-                                    <strong>Telefone / celular:</strong>{' '}
-                                    {[p.telefone, p.celular].filter(Boolean).join(' · ') || '—'}
+                                    <strong>Telefone:</strong>{' '}
+                                    {p.telefone ? formatarTelefoneEntrada(p.telefone) : '—'}
+                                </p>
+                                <p>
+                                    <strong>WhatsApp / celular:</strong>{' '}
+                                    {p.celular ? formatarTelefoneEntrada(p.celular) : '—'}
                                 </p>
                             </div>
 
                             <div className="credenciamento_main_detail_box fcred_inbox_detail_box">
+                                <h3 className="fcred_inbox_sec_tit">Financeiro</h3>
+                                <p>
+                                    <strong>Tipo de PIX:</strong> {rotuloTipoPix(p.tipo_pix)}
+                                </p>
+                                <p>
+                                    <strong>Chave PIX:</strong> {exibirChavePix(p)}
+                                </p>
+                                <p>
+                                    <strong>Nota / RPA:</strong> {rotuloTipoRepasse(p.tipo_repasse)}
+                                </p>
+                            </div>
+
+                            <div className="credenciamento_main_detail_box fcred_inbox_detail_box">
+                                <h3 className="fcred_inbox_sec_tit">Endereço</h3>
                                 <p>
                                     <strong>CEP:</strong> {p.cep || '—'}
                                 </p>
                                 <p>
-                                    <strong>Endereço:</strong>{' '}
-                                    {[
-                                        [end.logradouro, end.numero].filter(Boolean).join(', '),
-                                        end.complemento,
-                                        end.bairro,
-                                        [end.cidade, end.uf].filter(Boolean).join(' / '),
-                                    ]
-                                        .filter(Boolean)
-                                        .join(' — ') || '—'}
+                                    <strong>Logradouro:</strong> {end.logradouro || '—'}
+                                </p>
+                                <p>
+                                    <strong>Número:</strong> {end.numero || '—'}
+                                </p>
+                                <p>
+                                    <strong>Complemento:</strong> {end.complemento || '—'}
+                                </p>
+                                <p>
+                                    <strong>Bairro:</strong> {end.bairro || '—'}
+                                </p>
+                                <p>
+                                    <strong>Cidade / UF:</strong>{' '}
+                                    {[end.cidade, end.uf].filter(Boolean).join(' / ') || '—'}
+                                </p>
+                                <p>
+                                    <strong>País:</strong> {end.pais || '—'}
                                 </p>
                             </div>
 
+                            {tipoPerfil === 'volante' && (p.cidadesAtende || []).length > 0 && (
+                                <div className="credenciamento_main_detail_box fcred_inbox_detail_box">
+                                    <h3 className="fcred_inbox_sec_tit">Cidades que atende</h3>
+                                    <ul className="fcred_inbox_proc_list">
+                                        {(p.cidadesAtende || []).map((c, idx) => (
+                                            <li key={`${c.cidadeId || idx}-${c.nome}`}>
+                                                {[c.nome, c.uf].filter(Boolean).join(' — ') || '—'}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {tipoPerfil === 'clinica' && (p.vetsPendentes || []).length > 0 && (
+                                <div className="credenciamento_main_detail_box fcred_inbox_detail_box">
+                                    <h3 className="fcred_inbox_sec_tit">Veterinários vinculados</h3>
+                                    <ul className="fcred_inbox_proc_list">
+                                        {(p.vetsPendentes || []).map((v, idx) => {
+                                            const ids = v.especialidades_ids?.length
+                                                ? v.especialidades_ids
+                                                : v.especialidade_id
+                                                  ? [v.especialidade_id]
+                                                  : []
+                                            const rotEsp = ids
+                                                .map((id) => mapaEspecialidades.get(Number(id)))
+                                                .filter(Boolean)
+                                                .join(', ')
+                                            return (
+                                                <li key={`${v.nome}-${idx}`}>
+                                                    <strong>{v.nome || '—'}</strong>
+                                                    {v.crmv ? ` · ${formatarCrmvEntrada(v.crmv)}` : ''}
+                                                    {rotEsp ? ` · ${rotEsp}` : ''}
+                                                </li>
+                                            )
+                                        })}
+                                    </ul>
+                                </div>
+                            )}
+
                             <div className="credenciamento_main_detail_box fcred_inbox_detail_box">
-                                <p>
-                                    <strong>Procedimentos selecionados</strong>
-                                </p>
+                                <h3 className="fcred_inbox_sec_tit">Procedimentos selecionados</h3>
                                 {(p.procedimentos || []).length === 0 && (
                                     <p className="pcad_muted">Nenhum procedimento no envio.</p>
                                 )}
-                                <ul className="fcred_inbox_proc_list">
-                                    {(p.procedimentos || []).map((cod) => {
-                                        const c = String(cod).trim().toUpperCase()
-                                        const nome = mapaProcedimentos.get(c)
-                                        return (
-                                            <li key={c}>
-                                                <code>{c}</code>
-                                                {nome ? ` — ${nome}` : ''}
-                                            </li>
-                                        )
-                                    })}
-                                </ul>
+                                {procedimentosPorCategoria.map((grupo) => (
+                                    <div key={grupo.categoriaNome} className="fcred_inbox_proc_grupo">
+                                        <h4 className="fcred_inbox_proc_cat">{grupo.categoriaNome}</h4>
+                                        <ul className="fcred_inbox_proc_list">
+                                            {grupo.itens.map((item) => (
+                                                <li key={item.codigo}>
+                                                    <code>{item.codigo}</code>
+                                                    {item.nome ? ` — ${item.nome}` : ''}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
                             </div>
 
                             <div className="fcred_inbox_acoes">
