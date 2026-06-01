@@ -1,0 +1,258 @@
+/* Inbox — alinhado a credenciamento_main + fcred_layout (formulário config) */
+
+.fcred_inbox .fcred_inbox_lead {
+    margin: 0.35rem auto 0.5rem;
+    max-width: 52rem;
+}
+
+.fcred_inbox .fcred_inbox_top_links {
+    margin: 0 0 0.25rem;
+}
+
+.fcred_inbox .fcred_inbox_top_links .credenciamento_main_action_btn {
+    width: auto;
+    min-width: 0;
+    text-decoration: none;
+}
+
+.fcred_inbox .credenciamento_main_header {
+    text-align: center;
+}
+
+.fcred_inbox .credenciamento_cadastro_filters_title {
+    margin-bottom: 0.35rem;
+}
+
+.fcred_inbox_filters {
+    max-width: none;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    text-align: left;
+}
+
+.fcred_inbox_filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-start;
+    width: 100%;
+}
+
+.fcred_inbox_filtros .credenciamento_main_action_btn {
+    width: auto;
+    min-width: 0;
+    height: 30px;
+}
+
+.fcred_inbox_layout {
+    text-align: left;
+    margin-top: 0.5rem;
+}
+
+.fcred_inbox_lista {
+    max-height: calc(100vh - 280px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.fcred_inbox_lista .fcred_paginas_head h2 {
+    font-size: 1.05rem;
+}
+
+.fcred_inbox_pad {
+    padding: 0 0.25rem 0.5rem;
+    margin: 0;
+}
+
+.fcred_inbox_ul {
+    list-style: none;
+    margin: 0;
+    padding: 0 0.25rem 0.5rem;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
+
+.fcred_inbox_item {
+    width: 100%;
+    text-align: left;
+    border: 1px solid #d7e8f2;
+    border-radius: 6px;
+    background: #fff;
+    padding: 0.55rem 0.6rem;
+    margin-bottom: 6px;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto auto;
+    gap: 0.12rem 0.5rem;
+    font-family: inherit;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.fcred_inbox_item:hover {
+    background: #f5fbff;
+    border-color: var(--azul-destaque, #2f87c6);
+}
+
+.fcred_inbox_item.is-active {
+    background: #e8f5ff;
+    border-color: var(--azul-destaque, #2f87c6);
+    box-shadow: 0 2px 8px rgba(30, 49, 72, 0.08);
+}
+
+.fcred_inbox_item_nome {
+    grid-column: 1;
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: var(--azul-escuro, #1e3148);
+}
+
+.fcred_inbox_badge {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: start;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.fcred_inbox_badge.status-pendente {
+    background: #fff3e0;
+    color: #a65b00;
+    border: 1px solid #ffd9b0;
+}
+
+.fcred_inbox_badge.status-em_analise {
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #90caf9;
+}
+
+.fcred_inbox_badge.status-convertido {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #a5d6a7;
+}
+
+.fcred_inbox_badge.status-descartado {
+    background: #f5f5f5;
+    color: #616161;
+    border: 1px solid #e0e0e0;
+}
+
+.fcred_inbox_item_meta,
+.fcred_inbox_item_data {
+    grid-column: 1 / -1;
+    font-size: 0.78rem;
+    color: #40617a;
+}
+
+.fcred_inbox_detalhe {
+    border: 1px solid #c5d8e8;
+    border-radius: 10px;
+    padding: 1rem 1.15rem;
+    background: #fff;
+    max-height: calc(100vh - 280px);
+    overflow-y: auto;
+    text-align: left;
+}
+
+.fcred_inbox_placeholder {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    margin: 0;
+}
+
+.fcred_inbox_detalhe_head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.fcred_inbox_detalhe_tit {
+    margin: 0;
+    font-size: 1.15rem;
+    color: var(--azul-escuro, #1e3148);
+}
+
+.fcred_inbox_detalhe_sub {
+    margin: 0 0 0.85rem;
+    font-size: 0.88rem;
+}
+
+.fcred_inbox_detail_box {
+    margin-bottom: 0.65rem;
+}
+
+.fcred_inbox_detail_box p {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.fcred_inbox_detail_box p + p {
+    margin-top: 0.35rem;
+}
+
+.fcred_inbox_proc_list {
+    margin: 0.35rem 0 0;
+    padding-left: 1.15rem;
+    font-size: 0.86rem;
+}
+
+.fcred_inbox_proc_list code {
+    font-size: 0.85em;
+}
+
+.fcred_inbox_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #d7e8f2;
+}
+
+.fcred_inbox_acoes .credenciamento_main_action_btn {
+    width: auto;
+    min-width: 0;
+}
+
+.fcred_inbox_btn_descartar {
+    color: #b3261e !important;
+    border-color: #e8b4b0 !important;
+}
+
+.fcred_inbox_readonly {
+    margin-top: 0.65rem;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+    .fcred_inbox .fcred_inbox_filtros {
+        gap: 0.35rem;
+    }
+
+    .fcred_inbox .fcred_inbox_filtros .credenciamento_main_action_btn {
+        font-size: 0.78rem;
+        padding: 0 0.5rem;
+        height: auto;
+        min-height: 36px;
+    }
+
+    .fcred_inbox_lista,
+    .fcred_inbox_detalhe {
+        max-height: none;
+    }
+
+    .fcred_inbox_item {
+        min-height: 48px;
+    }
+}

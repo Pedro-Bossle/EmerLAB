@@ -230,8 +230,6 @@
 
 .supertabelaprocedimentos_confirm_toast {
     position: fixed;
-    top: 96px;
-    right: 18px;
     z-index: 1200;
     max-width: 420px;
     min-width: 300px;
@@ -272,4 +270,62 @@
     border-color: #c97a7a;
     background: #ffdede;
     color: #7a2323;
+}
+
+.supertabelaprocedimentos_col_formulario {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.supertabelaprocedimentos_formulario_label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #35556d;
+}
+
+.supertabelaprocedimentos_form_switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 2px 0;
+}
+
+.supertabelaprocedimentos_form_switch_track {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    background: #c5d4e0;
+    transition: background 0.15s ease;
+}
+
+.supertabelaprocedimentos_form_switch_knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform 0.15s ease;
+}
+
+.supertabelaprocedimentos_form_switch.is-on .supertabelaprocedimentos_form_switch_track {
+    background: #2d7a4f;
+}
+
+.supertabelaprocedimentos_form_switch.is-on .supertabelaprocedimentos_form_switch_knob {
+    transform: translateX(16px);
+}
+
+.supertabelaprocedimentos_form_switch_label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #35556d;
+    min-width: 1.8rem;
+    text-align: left;
 }

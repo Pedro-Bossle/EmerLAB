@@ -4,6 +4,7 @@
  */
 
 @import '../index.css';
+@import './sfsc-exclusao-confirm.css';
 @import './responsive-app.css';
 
 @import '../components/Layout/Layout.css';
@@ -26,6 +27,8 @@
 @import '../pages/Credenciamento/Credenciamento_main/Credenciamento_main.css';
 @import '../pages/Credenciamento/Credenciamento_doc/Credenciamento_doc.css';
 @import '../pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastro.css';
+@import '../pages/Credenciamento/Formulario/CredenciamentoFormulario.css';
+@import '../pages/Credenciamento/Formulario/CredenciamentoFormularioInbox.css';
 @import '../pages/Credenciamento/QuemRealiza/CredenciamentoQuemRealiza.css';
 
 @import '../pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos.css';
@@ -35,3 +38,5 @@
 
 @import '../pages/Contratos/ContratosEmerdog.css';
 @import '../pages/Contratos/ClicksignEmerdog.css';
+
+@import './sfsc-toast-position.css';

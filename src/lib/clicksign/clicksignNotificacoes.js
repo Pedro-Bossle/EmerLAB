@@ -1,3 +1,4 @@
+import { supabase } from '../supabase'
 import {
     extrairListaDocumentos,
     extrairListaEnvelopes,
@@ -21,15 +22,91 @@ export function carregarNotificacoes() {
     }
 }
 
+function emitirMudancaNotificacoes() {
+    if (typeof window === 'undefined') return
+    window.dispatchEvent(new CustomEvent('emerdog-clicksign-notif-change'))
+}
+
 export function gravarNotificacoes(lista) {
     const arr = Array.isArray(lista) ? lista.slice(0, MAX_NOTIF) : []
     localStorage.setItem(KEY_NOTIF, JSON.stringify(arr))
+    emitirMudancaNotificacoes()
     return arr
 }
 
 export function limparNotificacoes() {
     return gravarNotificacoes([])
 }
+
+export function listarNotificacoesRecentes(limite = 8) {
+    return carregarNotificacoes().slice(0, Math.max(1, limite))
+}
+
+export function contarNotificacoesArmazenadas() {
+    return carregarNotificacoes().length
+}
+
+/** Notificações persistidas pelo webhook (Supabase). Falha silenciosa se a tabela não existir. */
+export async function contarNotificacoesWebhookNaoLidas() {
+    try {
+        const { count, error } = await supabase
+            .from('clicksign_notificacoes_webhook')
+            .select('id', { count: 'exact', head: true })
+            .eq('lido', false)
+        if (error) return 0
+        return count || 0
+    } catch {
+        return 0
+    }
+}
+
+export async function listarNotificacoesWebhookRecentes(limite = 8) {
+    try {
+        const { data, error } = await supabase
+            .from('clicksign_notificacoes_webhook')
+            .select('id, texto, envelope_id, envelope_name, criado_em, evento')
+            .eq('lido', false)
+            .order('criado_em', { ascending: false })
+            .limit(Math.max(1, limite))
+        if (error) return []
+        return (data || []).map((row) => ({
+            id: `wh-${row.id}`,
+            at: row.criado_em,
+            texto: row.texto,
+            envelopeName: row.envelope_name || '',
+            envelopeId: row.envelope_id || '',
+            tipo: row.evento,
+            webhookRowId: row.id,
+        }))
+    } catch {
+        return []
+    }
+}
+
+export function mesclarListasNotificacoesContratos(local, webhook, limite = 8) {
+    const todas = [...webhook, ...local]
+    todas.sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0))
+    return todas.slice(0, Math.max(1, limite))
+}
+
+export async function contarNotificacoesContratosTotal() {
+    const [local, wh] = await Promise.all([
+        Promise.resolve(contarNotificacoesArmazenadas()),
+        contarNotificacoesWebhookNaoLidas(),
+    ])
+    return local + wh
+}
+
+export async function listarNotificacoesContratosRecentes(limite = 8) {
+    const [local, webhook] = await Promise.all([
+        Promise.resolve(listarNotificacoesRecentes(limite)),
+        listarNotificacoesWebhookRecentes(limite),
+    ])
+    return mesclarListasNotificacoesContratos(local, webhook, limite)
+}
+
+/** Chave usada no localStorage (para evento storage entre abas). */
+export const CLICKSIGN_NOTIF_STORAGE_KEY = KEY_NOTIF
 
 function carregarSnapshot() {
     try {

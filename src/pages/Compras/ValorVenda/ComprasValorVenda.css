@@ -603,8 +603,6 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
 
 .compras_vv_confirm_toast {
     position: fixed;
-    top: 96px;
-    right: 18px;
     z-index: 1400;
     max-width: 420px;
     min-width: 300px;

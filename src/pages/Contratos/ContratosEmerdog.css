@@ -188,8 +188,6 @@ body.dark-mode .contratos_readonly_banner {
 /* Toast fixo — canto superior direito, até 15s (TOAST_AUTO_DISMISS_MS em JS) */
 .contratos_toast {
     position: fixed;
-    top: 18px;
-    right: 18px;
     z-index: 1300;
     max-width: 420px;
     min-width: 280px;

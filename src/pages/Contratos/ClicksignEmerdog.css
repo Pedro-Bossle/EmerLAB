@@ -1342,8 +1342,6 @@ body.dark-mode .clicksign_details summary {
 /* Confirmação de exclusão (padrão Credenciamento / Supertabela) */
 .clicksign_confirm_exclusao {
     position: fixed;
-    right: 18px;
-    top: 96px;
     z-index: 1350;
     min-width: 320px;
     max-width: 460px;

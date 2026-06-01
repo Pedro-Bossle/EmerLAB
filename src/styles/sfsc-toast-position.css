@@ -1,0 +1,28 @@
+/**
+ * Toasts fixos no canto superior direito, à esquerda do sininho de notificações
+ * (.form_inbox_bell_wrap: right 18px + botão 44px + folga 16px).
+ */
+:root {
+    --sfsc-toast-top: 14px;
+    --sfsc-toast-right: 78px;
+}
+
+.contratos_toast,
+.credenciamento_confirm_toast,
+.supertabelaplanos_confirm_toast,
+.supertabelaprocedimentos_confirm_toast,
+.supertabelacidades_confirm_toast,
+.supertabelanegociacoes_confirm_toast,
+.compras_vv_confirm_toast,
+.clicksign_confirm_exclusao,
+.sfsc_exclusao_confirm_toast {
+    top: var(--sfsc-toast-top);
+    right: var(--sfsc-toast-right);
+}
+
+@media (max-width: 480px) {
+    :root {
+        --sfsc-toast-right: 12px;
+        --sfsc-toast-top: 64px;
+    }
+}

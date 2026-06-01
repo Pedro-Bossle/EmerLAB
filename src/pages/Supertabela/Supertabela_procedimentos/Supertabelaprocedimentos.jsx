@@ -126,7 +126,7 @@ const Supertabelaprocedimentos = () => {
                 buscarTodosPaginado(() =>
                     supabase
                         .from('procedimentos')
-                        .select('codigo, nome, categoria_id, plano_base_id')
+                        .select('codigo, nome, categoria_id, plano_base_id, publicado_formulario')
                         .order('codigo', { ascending: true })
                 ),
                 buscarTodosPaginado(() =>
@@ -172,6 +172,7 @@ const Supertabelaprocedimentos = () => {
                     procedimento: String(item.nome || codigo),
                     categoriaId: item.categoria_id != null ? Number(item.categoria_id) : null,
                     planoBaseChave: chavePorPlanoBase || planoBasePorQuantidade(quantidadePlanos),
+                    publicadoFormulario: Boolean(item.publicado_formulario),
                 }
             })
 
@@ -191,7 +192,15 @@ const Supertabelaprocedimentos = () => {
             const categoriaNome = categorias.find((c) => Number(c.id) === Number(linha.categoriaId))?.nome || ''
             const planoNome = ROTULO_PLANO[linha.planoBaseChave] || ''
             const blob = normalizarTextoBuscaDev(
-                [linha.codigo, linha.procedimento, categoriaNome, planoNome].filter(Boolean).join(' '),
+                [
+                    linha.codigo,
+                    linha.procedimento,
+                    categoriaNome,
+                    planoNome,
+                    linha.publicadoFormulario ? 'formulario sim' : 'formulario nao',
+                ]
+                    .filter(Boolean)
+                    .join(' '),
             )
             return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
         })
@@ -221,6 +230,9 @@ const Supertabelaprocedimentos = () => {
         resultado.sort((a, b) => {
             const valorA = a[atual.coluna]
             const valorB = b[atual.coluna]
+            if (typeof valorA === 'boolean' || typeof valorB === 'boolean') {
+                return (Number(Boolean(valorA)) - Number(Boolean(valorB))) * fator
+            }
             return String(valorA ?? '').localeCompare(String(valorB ?? ''), 'pt-BR', { sensitivity: 'base' }) * fator
         })
         return resultado
@@ -240,6 +252,27 @@ const Supertabelaprocedimentos = () => {
                 .filter((secao) => secao.linhas.length > 0),
         [categorias, linhasFiltradas, ordenacaoPorCategoria]
     )
+
+    const atualizarPublicadoFormulario = async (linha, valor) => {
+        const anterior = Boolean(linha.publicadoFormulario)
+        setLinhas((prev) =>
+            prev.map((item) =>
+                item.rowId === linha.rowId ? { ...item, publicadoFormulario: valor } : item,
+            ),
+        )
+        const { error } = await supabase
+            .from('procedimentos')
+            .update({ publicado_formulario: valor })
+            .eq('codigo', linha.codigoBanco)
+        if (error) {
+            setLinhas((prev) =>
+                prev.map((item) =>
+                    item.rowId === linha.rowId ? { ...item, publicadoFormulario: anterior } : item,
+                ),
+            )
+            mostrarErroToast(`Erro ao atualizar formulário: ${error.message}`)
+        }
+    }
 
     const atualizarCategoriaProcedimento = async (linha, novaCategoriaId) => {
         const categoriaIdNumerico = novaCategoriaId ? Number(novaCategoriaId) : null
@@ -576,6 +609,7 @@ const Supertabelaprocedimentos = () => {
                 nome,
                 categoria_id: categoriaId,
                 plano_base_id: planoBaseId,
+                publicado_formulario: false,
             })
             if (errInsercao) {
                 mostrarErroToast(`Erro ao inserir procedimento: ${errInsercao.message}`)
@@ -809,10 +843,10 @@ const Supertabelaprocedimentos = () => {
                                 const linhasVisiveis = secao.linhas.slice(indiceInicial, indiceFinal)
                                 const alturaEspacadorTopo = indiceInicial * ALTURA_LINHA_TABELA
                                 const alturaEspacadorBase = (totalLinhasSecao - indiceFinal) * ALTURA_LINHA_TABELA
-                                const colSpanProc = somenteLeitura ? 4 : 5
+                                const colSpanProc = somenteLeitura ? 5 : 6
                                 const colProcWidths = somenteLeitura
-                                    ? ['12%', '50%', '20%', '18%']
-                                    : ['12%', '40%', '20%', '18%', '10%']
+                                    ? ['10%', '36%', '14%', '16%', '12%']
+                                    : ['10%', '30%', '13%', '15%', '12%', '8%']
 
                                 const renderLinha = (linha) => (
                                     <tr key={linha.rowId}>
@@ -885,6 +919,38 @@ const Supertabelaprocedimentos = () => {
                                                 '-'
                                             )}
                                         </td>
+                                        <td className='supertabelaprocedimentos_col_formulario'>
+                                            {somenteLeitura ? (
+                                                <span className='supertabelaprocedimentos_formulario_label'>
+                                                    {linha.publicadoFormulario ? 'Sim' : 'Não'}
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    type='button'
+                                                    role='switch'
+                                                    aria-checked={linha.publicadoFormulario}
+                                                    className={`supertabelaprocedimentos_form_switch ${linha.publicadoFormulario ? 'is-on' : 'is-off'}`}
+                                                    title={
+                                                        linha.publicadoFormulario
+                                                            ? 'Publicado no formulário — clique para desativar'
+                                                            : 'Não publicado — clique para incluir no formulário'
+                                                    }
+                                                    onClick={() =>
+                                                        void atualizarPublicadoFormulario(
+                                                            linha,
+                                                            !linha.publicadoFormulario,
+                                                        )
+                                                    }
+                                                >
+                                                    <span className='supertabelaprocedimentos_form_switch_track'>
+                                                        <span className='supertabelaprocedimentos_form_switch_knob' />
+                                                    </span>
+                                                    <span className='supertabelaprocedimentos_form_switch_label'>
+                                                        {linha.publicadoFormulario ? 'Sim' : 'Não'}
+                                                    </span>
+                                                </button>
+                                            )}
+                                        </td>
                                         {!somenteLeitura && (
                                             <td>
                                                 <button
@@ -922,6 +988,15 @@ const Supertabelaprocedimentos = () => {
                                                         Plano Base{obterIndicadorOrdenacao(secao.categoriaId, 'planoBaseChave')}
                                                     </th>
                                                     <th className='table_header'>Categoria</th>
+                                                    <th
+                                                        className='table_header'
+                                                        onClick={() =>
+                                                            handleOrdenarCategoria(secao.categoriaId, 'publicadoFormulario')
+                                                        }
+                                                    >
+                                                        Formulário
+                                                        {obterIndicadorOrdenacao(secao.categoriaId, 'publicadoFormulario')}
+                                                    </th>
                                                     {!somenteLeitura && <th className='table_header'>Ação</th>}
                                                 </tr>
                                             </thead>
@@ -978,6 +1053,15 @@ const Supertabelaprocedimentos = () => {
                                                     Plano Base{obterIndicadorOrdenacao(secao.categoriaId, 'planoBaseChave')}
                                                 </th>
                                                 <th className='table_header'>Categoria</th>
+                                                <th
+                                                    className='table_header'
+                                                    onClick={() =>
+                                                        handleOrdenarCategoria(secao.categoriaId, 'publicadoFormulario')
+                                                    }
+                                                >
+                                                    Formulário
+                                                    {obterIndicadorOrdenacao(secao.categoriaId, 'publicadoFormulario')}
+                                                </th>
                                                 {!somenteLeitura && <th className='table_header'>Ação</th>}
                                             </tr>
                                         </thead>

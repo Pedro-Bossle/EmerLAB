@@ -17,6 +17,9 @@
     "api/clicksign-download.js": {
       "maxDuration": 30
     },
+    "api/clicksign-webhook.js": {
+      "maxDuration": 15
+    },
     "api/admin-users.js": {
       "maxDuration": 30
     }

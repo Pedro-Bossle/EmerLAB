@@ -108,6 +108,35 @@ export const normalizarEmailParaSalvar = (valor) => {
     return v || null
 }
 
+/** Tipo da chave PIX (formatação do campo «Chave PIX» no formulário público). */
+export const TIPOS_CHAVE_PIX = [
+    { value: '', label: '— Selecione —' },
+    { value: 'telefone', label: 'Telefone' },
+    { value: 'cpf', label: 'CPF' },
+    { value: 'cnpj', label: 'CNPJ' },
+    { value: 'email', label: 'E-mail' },
+]
+
+export const formatarChavePixEntrada = (valor, tipoPix) => {
+    const t = String(tipoPix || '').toLowerCase()
+    if (t === 'email') return formatarEmailEntrada(valor)
+    if (t === 'cpf' || t === 'cnpj') return formatarCpfCnpjEntrada(valor)
+    if (t === 'telefone') return formatarTelefoneEntrada(valor)
+    return String(valor || '').toLowerCase()
+}
+
+export const normalizarChavePixParaSalvar = (valor, tipoPix) => {
+    const t = String(tipoPix || '').toLowerCase()
+    if (!String(valor || '').trim()) return null
+    if (t === 'email') return normalizarEmailParaSalvar(valor)
+    if (t === 'cpf' || t === 'cnpj') return normalizarCpfCnpjParaSalvar(valor)
+    if (t === 'telefone') {
+        const d = String(valor || '').replace(/\D/g, '')
+        return d || null
+    }
+    return String(valor || '').trim().toLowerCase()
+}
+
 /** ID da situação «Credenciado» para filtro/cadastro padrão. */
 export const acharSituacaoCredenciadoId = (situacoes) => {
     const hit = (situacoes || []).find((s) =>
@@ -117,6 +146,18 @@ export const acharSituacaoCredenciadoId = (situacoes) => {
             .toUpperCase()
             .includes('CREDENCIAD'),
     )
+    return hit != null ? String(hit.id) : ''
+}
+
+/** Situação «Preenchendo formulário(s)» ou equivalente. */
+export const acharSituacaoPreenchendoFormularioId = (situacoes) => {
+    const hit = (situacoes || []).find((s) => {
+        const t = String(s.descricao || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toUpperCase()
+        return t.includes('PREENCH') && (t.includes('FORMUL') || t.includes('FORM'))
+    })
     return hit != null ? String(hit.id) : ''
 }
 

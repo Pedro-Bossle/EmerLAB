@@ -1,0 +1,53 @@
+.sfsc_exclusao_confirm_toast {
+    position: fixed;
+    z-index: 1250;
+    max-width: 420px;
+    min-width: 300px;
+    border: 1px solid #d1a2a2;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #fff9f9 0%, #ffecec 100%);
+    box-shadow: 0 8px 22px rgba(30, 49, 72, 0.18);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sfsc_exclusao_confirm_text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+    color: #4b2b2b;
+    font-size: 0.9rem;
+}
+
+.sfsc_exclusao_confirm_text strong {
+    font-size: 0.95rem;
+}
+
+.sfsc_exclusao_confirm_actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.sfsc_exclusao_confirm_btn {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 6px;
+    border: 1px solid #b9cfde;
+    background: #fff;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.sfsc_exclusao_confirm_btn--danger {
+    background: #c0392b;
+    border-color: #a93226;
+    color: #fff;
+}
+
+.sfsc_exclusao_confirm_btn--danger:hover {
+    background: #a93226;
+}

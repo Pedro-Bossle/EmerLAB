@@ -421,8 +421,6 @@
 
 .credenciamento_confirm_toast {
     position: fixed;
-    right: 18px;
-    top: 96px;
     z-index: 1400;
     min-width: 320px;
     max-width: 460px;

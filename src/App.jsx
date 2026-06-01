@@ -15,6 +15,9 @@ import Credenciamento_main from './pages/Credenciamento/Credenciamento_main/Cred
 import CredenciamentoCadastroLista from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroLista';
 import CredenciamentoCadastroForm from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroForm';
 import CredenciamentoQuemRealiza from './pages/Credenciamento/QuemRealiza/CredenciamentoQuemRealiza';
+import CredenciamentoFormularioConfig from './pages/Credenciamento/Formulario/CredenciamentoFormularioConfig';
+import CredenciamentoFormularioInbox from './pages/Credenciamento/Formulario/CredenciamentoFormularioInbox';
+import CredenciamentoFormularioPublico from './pages/Credenciamento/Formulario/CredenciamentoFormularioPublico';
 import GerenciamentoAcessos from './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos';
 import ComprasValorVenda from './pages/Compras/ValorVenda/ComprasValorVenda';
 import ComprasOrcamento from './pages/Compras/Orcamento/ComprasOrcamento';
@@ -27,6 +30,8 @@ function App() {
       <Routes>
         {/* Sem layout */}
         <Route path="/" element={<Login />} />
+        <Route path="/credenciamento/cadastro-publico" element={<CredenciamentoFormularioPublico />} />
+        <Route path="/credenciamento/cadastro-publico/:slug" element={<CredenciamentoFormularioPublico />} />
         {/* Com layout */}
         <Route element={<Layout />}>
           <Route
@@ -128,6 +133,22 @@ function App() {
             element={
               <PrivateRoute permission="credenciamento.view" screenPermission="credenciamento.quem_realiza.view">
                 <CredenciamentoQuemRealiza />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/credenciamento/formulario"
+            element={
+              <PrivateRoute permission="credenciamento.view">
+                <CredenciamentoFormularioConfig />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/credenciamento/formulario/entradas"
+            element={
+              <PrivateRoute permission="credenciamento.view">
+                <CredenciamentoFormularioInbox />
               </PrivateRoute>
             }
           />

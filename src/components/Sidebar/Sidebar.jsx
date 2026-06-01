@@ -60,6 +60,8 @@ const menuItems = [
             { label: 'Processos', href: '/credenciamento/principal', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
             { label: 'Cadastros', href: '/credenciamento/cadastro', permission: PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW },
             { label: 'Quem Realiza', href: '/credenciamento/quem-realiza', permission: PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW },
+            { label: 'Formulário público', href: '/credenciamento/formulario', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
+            { label: 'Inbox formulário', href: '/credenciamento/formulario/entradas', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
             { label: 'Documentação', href: '/credenciamentodoc', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
 
         ],
