@@ -41,6 +41,9 @@ import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 
 const COLS_PRESTADOR =
+    'id, nome, tipo, telefone, celular, email, cpf_cnpj, crmv, cidade_id, endereco, modalidade, especialidade_id, situacao_id, cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_pais, endereco_uf, endereco_cidade, endereco_bairro, chave_pix, tipo_pix, tipo_repasse, ativo'
+
+const COLS_PRESTADOR_SEM_TIPO_PIX =
     'id, nome, tipo, telefone, celular, email, cpf_cnpj, crmv, cidade_id, endereco, modalidade, especialidade_id, situacao_id, cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_pais, endereco_uf, endereco_cidade, endereco_bairro, chave_pix, tipo_repasse, ativo'
 
 const ORDEM_CIDADES_STORAGE_PREFIX = 'emerdog_prestador_cidades_ordem_'
@@ -190,7 +193,16 @@ const CredenciamentoCadastroForm = () => {
         setLoading(true)
         setErro('')
         try {
-            const { data, error } = await supabase.from('prestadores').select(COLS_PRESTADOR).eq('id', prestadorId).single()
+            let { data, error } = await supabase.from('prestadores').select(COLS_PRESTADOR).eq('id', prestadorId).single()
+            if (error && String(error.message || '').toLowerCase().includes('tipo_pix')) {
+                const fallback = await supabase
+                    .from('prestadores')
+                    .select(COLS_PRESTADOR_SEM_TIPO_PIX)
+                    .eq('id', prestadorId)
+                    .single()
+                data = fallback.data
+                error = fallback.error
+            }
             if (error) {
                 setErro(error.message)
                 return
@@ -218,12 +230,14 @@ const CredenciamentoCadastroForm = () => {
                 endereco_cidade: data.endereco_cidade || '',
                 endereco_bairro: data.endereco_bairro || '',
                 tipo_pix: (() => {
-                    const bruto = data.chave_pix || ''
-                    return inferirTipoPixDaChave(bruto)
+                    const salvo = String(data.tipo_pix || '').toLowerCase()
+                    if (salvo) return salvo
+                    return inferirTipoPixDaChave(data.chave_pix)
                 })(),
                 chave_pix: (() => {
                     const bruto = data.chave_pix || ''
-                    const tipo = inferirTipoPixDaChave(bruto)
+                    const tipo =
+                        String(data.tipo_pix || '').toLowerCase() || inferirTipoPixDaChave(bruto)
                     return bruto ? formatarChavePixEntrada(bruto, tipo) : ''
                 })(),
                 tipo_repasse: data.tipo_repasse || '',
@@ -502,6 +516,7 @@ const CredenciamentoCadastroForm = () => {
                 endereco_bairro: form.endereco_bairro.trim() || null,
                 endereco: enderecoLegado || null,
                 chave_pix: normalizarChavePixParaSalvar(form.chave_pix, form.tipo_pix),
+                tipo_pix: form.tipo_pix ? String(form.tipo_pix).toLowerCase() : null,
                 tipo_repasse: form.tipo_repasse || null,
                 modalidade: (usaClinica ? modalidadeAutoClinica : form.modalidade).trim() || null,
                 cidade_id: cidadePrincipalId,
@@ -509,14 +524,30 @@ const CredenciamentoCadastroForm = () => {
                 data_atualizacao: new Date().toISOString(),
             }
 
+            const erroColunaTipoPix = (err) =>
+                String(err?.message || '')
+                    .toLowerCase()
+                    .includes('tipo_pix')
+
             let pid = prestadorId
             if (isNovo) {
                 payload.data_cadastro = new Date().toISOString()
-                const { data: ins, error: errIns } = await supabase.from('prestadores').insert(payload).select('id').single()
+                let { data: ins, error: errIns } = await supabase.from('prestadores').insert(payload).select('id').single()
+                if (errIns && erroColunaTipoPix(errIns)) {
+                    const { tipo_pix: _t, ...semTipo } = payload
+                    const retry = await supabase.from('prestadores').insert(semTipo).select('id').single()
+                    ins = retry.data
+                    errIns = retry.error
+                }
                 if (errIns) throw new Error(errIns.message)
                 pid = Number(ins.id)
             } else {
-                const { error: errUp } = await supabase.from('prestadores').update(payload).eq('id', pid)
+                let { error: errUp } = await supabase.from('prestadores').update(payload).eq('id', pid)
+                if (errUp && erroColunaTipoPix(errUp)) {
+                    const { tipo_pix: _t, ...semTipo } = payload
+                    const retry = await supabase.from('prestadores').update(semTipo).eq('id', pid)
+                    errUp = retry.error
+                }
                 if (errUp) throw new Error(errUp.message)
             }
 

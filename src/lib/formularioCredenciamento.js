@@ -588,6 +588,7 @@ export async function converterEntradaFormularioEmPrestador(entradaId) {
         chave_pix: payload.chave_pix
             ? String(payload.chave_pix)
             : null,
+        tipo_pix: payload.tipo_pix ? String(payload.tipo_pix).toLowerCase() : null,
         tipo_repasse: payload.tipo_repasse ? String(payload.tipo_repasse) : null,
         modalidade: null,
         cidade_id: cidadeId,
