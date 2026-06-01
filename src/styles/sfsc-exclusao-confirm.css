@@ -51,3 +51,23 @@
 .sfsc_exclusao_confirm_btn--danger:hover {
     background: #a93226;
 }
+
+.sfsc_exclusao_confirm_toast--primary {
+    border-color: #9fc5de;
+    background: linear-gradient(180deg, #f8fbfd 0%, #eef7fd 100%);
+}
+
+.sfsc_exclusao_confirm_toast--primary .sfsc_exclusao_confirm_text {
+    color: #1e3148;
+}
+
+.sfsc_exclusao_confirm_btn--primary {
+    background: #0f74b9;
+    border-color: #0a5d96;
+    color: #fff;
+    font-weight: 700;
+}
+
+.sfsc_exclusao_confirm_btn--primary:hover {
+    background: #0a5d96;
+}

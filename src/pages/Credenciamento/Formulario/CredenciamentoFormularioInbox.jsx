@@ -174,27 +174,27 @@ export default function CredenciamentoFormularioInbox() {
         )
     }
 
-    const criarCadastro = async () => {
+    const criarCadastro = () => {
         if (!selecionada?.id || somenteLeitura) return
-        if (
-            !window.confirm(
-                'Criar o cadastro do prestador com os dados enviados no formulário? Você poderá completar a ficha em seguida.',
-            )
-        ) {
-            return
-        }
-        setAcaoLoading(true)
-        setOkMsg('')
-        setErro('')
-        try {
-            const prestadorId = await converterEntradaFormularioEmPrestador(selecionada.id)
-            setOkMsg('Cadastro criado. Abrindo ficha do prestador…')
-            navigate(`/credenciamento/cadastro/${prestadorId}`)
-        } catch (e) {
-            setErro(e?.message || String(e))
-        } finally {
-            setAcaoLoading(false)
-        }
+        askExclusao(
+            'Será criado um prestador com os dados enviados no formulário. Você poderá completar a ficha em seguida.',
+            async () => {
+                setAcaoLoading(true)
+                setOkMsg('')
+                setErro('')
+                try {
+                    const prestadorId = await converterEntradaFormularioEmPrestador(selecionada.id)
+                    setOkMsg('Cadastro criado. Abrindo ficha do prestador…')
+                    navigate(`/credenciamento/cadastro/${prestadorId}`)
+                } catch (e) {
+                    setErro(e?.message || String(e))
+                } finally {
+                    setAcaoLoading(false)
+                }
+            },
+            'Criar cadastro definitivo',
+            { variante: 'primary', rotuloConfirmar: 'Criar cadastro' },
+        )
     }
 
     const p = selecionada?.payload || {}

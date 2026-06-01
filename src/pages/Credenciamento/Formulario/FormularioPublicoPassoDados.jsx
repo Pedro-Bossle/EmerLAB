@@ -1,4 +1,5 @@
 import React from 'react'
+import { documentoCpfCnpjEstaCompleto } from '../../../lib/formularioCredenciamento'
 import MultiEspecialidadesInput from '../Credenciamento_cadastro/MultiEspecialidadesInput.jsx'
 import {
     TIPOS_CHAVE_PIX,
@@ -8,7 +9,6 @@ import {
     formatarCrmvEntrada,
     formatarEmailEntrada,
     formatarTelefoneEntrada,
-    normalizarCpfCnpjParaSalvar,
 } from '../../../lib/prestadorCadastroHelpers'
 import FormularioPublicoPerfilExtra from './FormularioPublicoPerfilExtra.jsx'
 
@@ -66,8 +66,7 @@ export default function FormularioPublicoPassoDados({
         setChavePix(formatarChavePixEntrada(valor, tipoPix))
     }
 
-    const docDigitos = normalizarCpfCnpjParaSalvar(cpfCnpj)
-    const docCompleto = docDigitos && docDigitos.length >= 11
+    const docCompleto = documentoCpfCnpjEstaCompleto(cpfCnpj)
     const mostrarDocIndisponivel = docOk === false && docCompleto
 
     return (
@@ -85,7 +84,9 @@ export default function FormularioPublicoPassoDados({
                             onChange={(e) => {
                                 setCpfCnpj(formatarCpfCnpjEntrada(e.target.value))
                             }}
-                            onBlur={() => void onVerificarDoc()}
+                            onBlur={() => {
+                                if (documentoCpfCnpjEstaCompleto(cpfCnpj)) void onVerificarDoc()
+                            }}
                         />
                         <span className="fcred_field_hint" aria-live="polite">
                             {verificandoDoc && <span className="fcred_doc_muted">A verificar…</span>}

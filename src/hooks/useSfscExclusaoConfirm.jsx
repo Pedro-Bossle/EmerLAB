@@ -7,9 +7,18 @@ import SfscExclusaoConfirmToast from '../components/Toast/SfscExclusaoConfirmToa
 export function useSfscExclusaoConfirm() {
     const [pending, setPending] = useState(null)
 
-    const askExclusao = useCallback((mensagem, onConfirmar, titulo = 'Confirmar exclusão') => {
-        setPending({ mensagem, onConfirmar, titulo })
-    }, [])
+    const askExclusao = useCallback(
+        (mensagem, onConfirmar, titulo = 'Confirmar exclusão', opcoes = {}) => {
+            setPending({
+                mensagem,
+                onConfirmar,
+                titulo,
+                variante: opcoes.variante || 'danger',
+                rotuloConfirmar: opcoes.rotuloConfirmar || 'Confirmar',
+            })
+        },
+        [],
+    )
 
     const cancelar = useCallback(() => setPending(null), [])
 
@@ -17,6 +26,8 @@ export function useSfscExclusaoConfirm() {
         <SfscExclusaoConfirmToast
             titulo={pending.titulo}
             mensagem={pending.mensagem}
+            variante={pending.variante}
+            rotuloConfirmar={pending.rotuloConfirmar}
             onConfirmar={async () => {
                 const fn = pending.onConfirmar
                 setPending(null)

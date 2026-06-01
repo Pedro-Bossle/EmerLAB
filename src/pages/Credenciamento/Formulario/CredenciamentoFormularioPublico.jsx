@@ -11,6 +11,7 @@ import {
     carregarConfigFormularioCredenciamento,
     carregarProcedimentosPublicadosFormulario,
     enviarEntradaFormularioCredenciamento,
+    documentoCpfCnpjEstaCompleto,
     verificarDocumentoDisponivel,
 } from '../../../lib/formularioCredenciamento'
 import {
@@ -165,8 +166,7 @@ export default function CredenciamentoFormularioPublico() {
     }, [slug])
 
     const verificarDoc = async () => {
-        const doc = normalizarCpfCnpjParaSalvar(cpfCnpj)
-        if (!doc || doc.length < 11) {
+        if (!documentoCpfCnpjEstaCompleto(cpfCnpj)) {
             setVerificandoDoc(false)
             setDocOk(null)
             return false
@@ -180,7 +180,13 @@ export default function CredenciamentoFormularioPublico() {
             setErro('')
             return true
         }
-        setDocOk(false)
+        if (r.motivo === 'duplicado') {
+            setDocOk(false)
+            setErro(r.erro || '')
+            return false
+        }
+        setDocOk(null)
+        if (r.motivo === 'erro' && r.erro) setErro(r.erro)
         return false
     }
 
@@ -253,16 +259,12 @@ export default function CredenciamentoFormularioPublico() {
                     }
                 }
             }
-            const doc = normalizarCpfCnpjParaSalvar(cpfCnpj)
-            if (!doc || doc.length < 11) {
-                setErro('Informe um CPF ou CNPJ válido.')
+            if (!documentoCpfCnpjEstaCompleto(cpfCnpj)) {
+                setErro('Informe um CPF ou CNPJ válido e completo.')
                 return
             }
             const ok = await verificarDoc()
-            if (!ok) {
-                setErro('Este CPF/CNPJ já consta no cadastro ou há uma solicitação pendente.')
-                return
-            }
+            if (!ok) return
             if (passosServico.length === 0) {
                 await enviar()
                 return

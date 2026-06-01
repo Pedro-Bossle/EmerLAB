@@ -36,20 +36,71 @@ export function urlPublicaFormularioCredenciamento(slug = FORMULARIO_CRED_SLUG_P
     return `${origin}${base}credenciamento/cadastro-publico/${encodeURIComponent(slug)}`
 }
 
+export function documentoCpfCnpjEstaCompleto(cpfCnpj) {
+    const doc = normalizarCpfCnpjParaSalvar(cpfCnpj)
+    return doc?.length === 11 || doc?.length === 14
+}
+
+const MSG_DOC_OCUPADO =
+    'Este CPF/CNPJ já consta no cadastro ou há uma solicitação pendente com o mesmo documento.'
+
+async function documentoOcupadoConsultaDireta(doc) {
+    const mascarado =
+        doc.length === 11
+            ? doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+            : doc.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+
+    const { data: prest, error: errP } = await supabase
+        .from('prestadores')
+        .select('id, cpf_cnpj')
+        .or(`cpf_cnpj.eq.${doc},cpf_cnpj.eq.${mascarado}`)
+        .limit(5)
+    if (errP) return { erro: errP.message }
+    const hitPrest = (prest || []).some(
+        (p) => somenteDigitosCpfCnpj(p.cpf_cnpj) === doc,
+    )
+    if (hitPrest) return { ocupado: true }
+
+    const filtroEntrada = async (valor) => {
+        if (!valor) return false
+        const { data, error } = await supabase
+            .from('formulario_cred_entradas')
+            .select('id')
+            .eq('cpf_cnpj', valor)
+            .in('status', ['pendente', 'em_analise'])
+            .limit(1)
+        if (error) throw error
+        return (data || []).length > 0
+    }
+    try {
+        if (await filtroEntrada(doc)) return { ocupado: true }
+        if (mascarado !== doc && (await filtroEntrada(mascarado))) return { ocupado: true }
+    } catch (errE) {
+        return { erro: errE.message }
+    }
+    return { ocupado: false }
+}
+
 export async function verificarDocumentoDisponivel(cpfCnpj) {
     const doc = normalizarCpfCnpjParaSalvar(cpfCnpj)
-    if (!doc || doc.length < 11) {
-        return { ok: false, erro: 'Informe um CPF ou CNPJ válido.' }
+    if (!documentoCpfCnpjEstaCompleto(doc)) {
+        return { ok: false, motivo: 'incompleto', erro: 'Informe um CPF ou CNPJ válido e completo.' }
     }
+
     const { data, error } = await supabase.rpc('credenciamento_documento_disponivel', { doc })
-    if (error) {
-        return { ok: false, erro: error.message }
+    if (!error && data === true) {
+        return { ok: true, documento: doc }
     }
-    if (data === false) {
-        return {
-            ok: false,
-            erro: 'Este CPF/CNPJ já consta no cadastro ou há uma solicitação pendente com o mesmo documento.',
-        }
+    if (!error && data === false) {
+        return { ok: false, motivo: 'duplicado', erro: MSG_DOC_OCUPADO }
+    }
+
+    const direto = await documentoOcupadoConsultaDireta(doc)
+    if (direto.erro) {
+        return { ok: false, motivo: 'erro', erro: direto.erro }
+    }
+    if (direto.ocupado) {
+        return { ok: false, motivo: 'duplicado', erro: MSG_DOC_OCUPADO }
     }
     return { ok: true, documento: doc }
 }
