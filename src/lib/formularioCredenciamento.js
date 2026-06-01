@@ -19,6 +19,34 @@ function emitirMudancaEntradasFormulario() {
     window.dispatchEvent(new CustomEvent(FORMULARIO_ENTRADAS_CHANGE_EVENT))
 }
 
+const FORM_BELL_LIMPO_EM_KEY = 'emerdog_formulario_bell_limpo_em'
+
+/** Marca no browser que o sininho do formulário foi limpo (inbox continua com todas as entradas). */
+export function limparNotificacoesFormularioBell() {
+    if (typeof window === 'undefined') return
+    try {
+        localStorage.setItem(FORM_BELL_LIMPO_EM_KEY, new Date().toISOString())
+    } catch {
+        /* ignore */
+    }
+    emitirMudancaEntradasFormulario()
+}
+
+function obterFormularioBellLimpoEm() {
+    if (typeof window === 'undefined') return null
+    try {
+        return localStorage.getItem(FORM_BELL_LIMPO_EM_KEY) || null
+    } catch {
+        return null
+    }
+}
+
+function aplicarFiltroBellFormulario(query) {
+    const limpoEm = obterFormularioBellLimpoEm()
+    if (limpoEm) return query.gt('criado_em', limpoEm)
+    return query
+}
+
 export const CODIGOS_BLOQUEADOS_FORMULARIO = new Set([
     'SERV-004',
     'SERV-007',
@@ -358,6 +386,34 @@ export async function contarEntradasFormularioPendentes() {
         .in('status', ['pendente', 'em_analise'])
     if (error) throw new Error(error.message)
     return count || 0
+}
+
+/** Contagem para o sininho (respeita «Limpar» sem apagar entradas do inbox). */
+export async function contarEntradasFormularioPendentesNotificacao() {
+    let q = supabase
+        .from('formulario_cred_entradas')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['pendente', 'em_analise'])
+    q = aplicarFiltroBellFormulario(q)
+    const { count, error } = await q
+    if (error) throw new Error(error.message)
+    return count || 0
+}
+
+export async function listarEntradasFormularioNotificacao({ status = null, limite = 100 } = {}) {
+    let q = supabase
+        .from('formulario_cred_entradas')
+        .select('id, cpf_cnpj, tipo_perfil, payload, status, criado_em, prestador_id')
+        .order('criado_em', { ascending: false })
+        .limit(limite)
+    if (status) {
+        const lista = Array.isArray(status) ? status : [status]
+        q = q.in('status', lista)
+    }
+    q = aplicarFiltroBellFormulario(q)
+    const { data, error } = await q
+    if (error) throw new Error(error.message)
+    return data || []
 }
 
 export async function obterEntradaFormulario(id) {

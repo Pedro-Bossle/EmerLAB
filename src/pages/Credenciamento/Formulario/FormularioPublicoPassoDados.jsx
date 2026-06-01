@@ -51,7 +51,8 @@ export default function FormularioPublicoPassoDados({
     tipoRepasse,
     setTipoRepasse,
     cep,
-    setCep,
+    onCepChange,
+    cepLoading,
     onBuscarCep,
     endereco,
     setEndereco,
@@ -272,12 +273,13 @@ export default function FormularioPublicoPassoDados({
             <Bloco titulo="Endereço">
                 <div className="fcred_grid fcred_grid_3">
                     <label className="fcred_field">
-                        <span>CEP</span>
+                        <span>CEP {cepLoading ? '(buscando…)' : ''}</span>
                         <input
                             inputMode="numeric"
                             autoComplete="postal-code"
                             value={cep}
-                            onChange={(e) => setCep(e.target.value)}
+                            placeholder="00000-000"
+                            onChange={(e) => onCepChange(e.target.value)}
                             onBlur={() => void onBuscarCep()}
                         />
                     </label>

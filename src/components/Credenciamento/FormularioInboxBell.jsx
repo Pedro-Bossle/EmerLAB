@@ -14,9 +14,10 @@ import {
 import { PERMISSION_KEYS, useStoredPermission } from '../../lib/accessControl'
 import {
     FORMULARIO_ENTRADAS_CHANGE_EVENT,
-    contarEntradasFormularioPendentes,
+    contarEntradasFormularioPendentesNotificacao,
     formatarDataEntrada,
-    listarEntradasFormulario,
+    limparNotificacoesFormularioBell,
+    listarEntradasFormularioNotificacao,
     rotuloTipoPerfil,
 } from '../../lib/formularioCredenciamento'
 import { supabase } from '../../lib/supabase'
@@ -88,10 +89,10 @@ export default function FormularioInboxBell() {
 
     const atualizarFormulario = useCallback(async () => {
         if (!podeNotifForm) return
-        const n = await contarEntradasFormularioPendentes()
+        const n = await contarEntradasFormularioPendentesNotificacao()
         setCountForm(n)
         if (aberto) {
-            const lista = await listarEntradasFormulario({
+            const lista = await listarEntradasFormularioNotificacao({
                 status: ['pendente', 'em_analise'],
                 limite: 6,
             })
@@ -185,12 +186,12 @@ export default function FormularioInboxBell() {
         void (async () => {
             try {
                 if (podeNotifForm) {
-                    const lista = await listarEntradasFormulario({
+                    const lista = await listarEntradasFormularioNotificacao({
                         status: ['pendente', 'em_analise'],
                         limite: 6,
                     })
                     setRecentesForm(lista)
-                    const n = await contarEntradasFormularioPendentes()
+                    const n = await contarEntradasFormularioPendentesNotificacao()
                     setCountForm(n)
                 }
                 if (podeNotifContratos) {
@@ -224,15 +225,20 @@ export default function FormularioInboxBell() {
             }
             setCountContratos(0)
             setRecentesContratos([])
-            /* entradas do formulário não são “notificações” apagáveis aqui */
+            if (podeNotifForm) {
+                limparNotificacoesFormularioBell()
+                setCountForm(0)
+                setRecentesForm([])
+            }
         } finally {
             setLimpando(false)
         }
-    }, [podeNotifContratos])
+    }, [podeNotifContratos, podeNotifForm])
 
     if (!visivel) return null
 
-    const podeLimparContratos = podeNotifContratos && countContratos > 0
+    const podeLimpar =
+        (podeNotifContratos && countContratos > 0) || (podeNotifForm && countForm > 0)
 
     const vazio = !loading && !syncContratos && countTotal === 0
 
@@ -259,14 +265,14 @@ export default function FormularioInboxBell() {
                     <header className="form_inbox_bell_head">
                         <strong>Notificações</strong>
                         <div className="form_inbox_bell_head_actions">
-                            {podeLimparContratos && (
+                            {podeLimpar && (
                                 <button
                                     type="button"
                                     className="form_inbox_bell_clear"
                                     disabled={limpando || loading}
                                     onClick={() => void limparTudo()}
                                 >
-                                    {limpando ? 'A limpar…' : 'Limpar'}
+                                    {limpando ? 'Limpando…' : 'Limpar'}
                                 </button>
                             )}
                             <button type="button" className="form_inbox_bell_close" onClick={() => setAberto(false)}>

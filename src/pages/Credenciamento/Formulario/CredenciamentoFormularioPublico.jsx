@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { buscarEnderecoPorCep } from '../../../lib/viacepClient'
 import { setReadOnlyFlag } from '../../../lib/supabase'
@@ -70,6 +70,8 @@ export default function CredenciamentoFormularioPublico() {
     const [procsPorPagina, setProcsPorPagina] = useState({})
     const [codigosSelecionados, setCodigosSelecionados] = useState(() => new Set())
     const [enviando, setEnviando] = useState(false)
+    const [cepLoading, setCepLoading] = useState(false)
+    const ultimoCepBuscadoRef = useRef('')
     const [crmv, setCrmv] = useState('')
     const [cidadesAtende, setCidadesAtende] = useState([])
     const [vetsPendentes, setVetsPendentes] = useState([])
@@ -219,21 +221,57 @@ export default function CredenciamentoFormularioPublico() {
         return false
     }
 
-    const buscarCep = async () => {
-        const digits = String(cep || '').replace(/\D/g, '')
+    const aplicarEnderecoCep = useCallback((r) => {
+        setEndereco((e) => ({
+            ...e,
+            logradouro: r.logradouro || e.logradouro,
+            bairro: r.bairro || e.bairro,
+            cidade: r.cidade || e.cidade,
+            uf: r.uf || e.uf,
+            pais: r.pais || e.pais || 'Brasil',
+            complemento: e.complemento || r.complemento || '',
+        }))
+        if (r.cep) setCep(r.cep)
+    }, [])
+
+    const buscarCepPorDigitos = useCallback(async (digits) => {
         if (digits.length !== 8) return
+        if (ultimoCepBuscadoRef.current === digits) return
+        ultimoCepBuscadoRef.current = digits
+        setCepLoading(true)
+        setErro('')
         try {
             const r = await buscarEnderecoPorCep(digits)
-            setEndereco((e) => ({
-                ...e,
-                logradouro: r.logradouro || e.logradouro,
-                bairro: r.bairro || e.bairro,
-                cidade: r.localidade || e.cidade,
-                uf: r.uf || e.uf,
-            }))
+            aplicarEnderecoCep(r)
         } catch (e) {
+            ultimoCepBuscadoRef.current = ''
             setErro(e?.message || 'CEP não encontrado.')
+        } finally {
+            setCepLoading(false)
         }
+    }, [aplicarEnderecoCep])
+
+    const buscarCep = async () => {
+        const digits = String(cep || '').replace(/\D/g, '')
+        await buscarCepPorDigitos(digits)
+    }
+
+    useEffect(() => {
+        const digits = String(cep || '').replace(/\D/g, '')
+        if (digits.length < 8) {
+            ultimoCepBuscadoRef.current = ''
+            return
+        }
+        void buscarCepPorDigitos(digits)
+    }, [cep, buscarCepPorDigitos])
+
+    const onCepChange = (valor) => {
+        const digits = String(valor || '').replace(/\D/g, '').slice(0, 8)
+        if (digits.length <= 5) {
+            setCep(digits)
+            return
+        }
+        setCep(`${digits.slice(0, 5)}-${digits.slice(5)}`)
     }
 
     const avancar = async () => {
@@ -381,8 +419,11 @@ export default function CredenciamentoFormularioPublico() {
         return (
             <div className="fcred_public_wrap fcred_public_page">
                 <div className="fcred_public_card">
-                    <h1>Solicitação enviada</h1>
-                    <p>Recebemos seus dados. A equipe Emerdog entrará em contacto para concluir o credenciamento.</p>
+                    <h1>Solicitação enviada com sucesso!</h1>
+                    <p>
+                        Recebemos seus dados. Em breve, nossa equipe da Emerdog entrará em contato para concluir o
+                        credenciamento.
+                    </p>
                 </div>
             </div>
         )
@@ -398,7 +439,7 @@ export default function CredenciamentoFormularioPublico() {
                     </p>
                 </header>
 
-                {loading && <p>A carregar formulário…</p>}
+                {loading && <p>Carregando formulário…</p>}
                 {erro && <p className="fcred_public_erro">{erro}</p>}
 
                 {!loading && !erro && passo === 0 && (
@@ -462,7 +503,8 @@ export default function CredenciamentoFormularioPublico() {
                         tipoRepasse={tipoRepasse}
                         setTipoRepasse={setTipoRepasse}
                         cep={cep}
-                        setCep={setCep}
+                        onCepChange={onCepChange}
+                        cepLoading={cepLoading}
                         onBuscarCep={buscarCep}
                         endereco={endereco}
                         setEndereco={setEndereco}
