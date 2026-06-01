@@ -24,11 +24,18 @@ import {
 } from '../../../lib/prestadorCadastroHelpers'
 import FormularioPublicoPassoDados from './FormularioPublicoPassoDados.jsx'
 
-const TIPOS = [
+/** Reativar quando o fluxo de comércio/petshop estiver liberado no formulário público. */
+const FORMULARIO_PUBLICO_COMERCIO_ATIVO = false
+
+const TIPOS_TODOS = [
     { id: 'clinica', label: 'Clínica / Consultório' },
     { id: 'volante', label: 'Veterinário volante' },
     { id: 'comercio', label: 'Comércio / petshop' },
 ]
+
+const TIPOS = FORMULARIO_PUBLICO_COMERCIO_ATIVO
+    ? TIPOS_TODOS
+    : TIPOS_TODOS.filter((t) => t.id !== 'comercio')
 
 const normCod = (c) => String(c || '').trim().toUpperCase()
 
@@ -279,6 +286,11 @@ export default function CredenciamentoFormularioPublico() {
         if (passo === 0) {
             if (!tipoPerfil) {
                 setErro('Selecione o tipo de cadastro.')
+                return
+            }
+            if (!FORMULARIO_PUBLICO_COMERCIO_ATIVO && tipoPerfil === 'comercio') {
+                setErro('O cadastro para comércio / petshop não está disponível no momento.')
+                setTipoPerfil('')
                 return
             }
             setPasso(1)
