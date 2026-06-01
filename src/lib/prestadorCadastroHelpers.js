@@ -117,10 +117,26 @@ export const TIPOS_CHAVE_PIX = [
     { value: 'email', label: 'E-mail' },
 ]
 
+/** Deduz o tipo de chave PIX a partir do valor salvo (edição de cadastro sem tipo_pix na base). */
+export const inferirTipoPixDaChave = (chave) => {
+    const s = String(chave || '').trim()
+    if (!s) return ''
+    if (s.includes('@')) return 'email'
+    const digits = s.replace(/\D/g, '')
+    if (digits.length === 14) return 'cnpj'
+    if (digits.length === 11) {
+        if (/[().\s-]/.test(s) && !s.includes('/')) return 'telefone'
+        return 'cpf'
+    }
+    if (digits.length >= 10 && digits.length <= 13) return 'telefone'
+    return ''
+}
+
 export const formatarChavePixEntrada = (valor, tipoPix) => {
     const t = String(tipoPix || '').toLowerCase()
     if (t === 'email') return formatarEmailEntrada(valor)
-    if (t === 'cpf' || t === 'cnpj') return formatarCpfCnpjEntrada(valor)
+    if (t === 'cpf') return maskCPF(String(valor || '').replace(/\D/g, '').slice(0, 11))
+    if (t === 'cnpj') return maskCNPJ(String(valor || '').replace(/\D/g, '').slice(0, 14))
     if (t === 'telefone') return formatarTelefoneEntrada(valor)
     return String(valor || '').toLowerCase()
 }
@@ -129,7 +145,14 @@ export const normalizarChavePixParaSalvar = (valor, tipoPix) => {
     const t = String(tipoPix || '').toLowerCase()
     if (!String(valor || '').trim()) return null
     if (t === 'email') return normalizarEmailParaSalvar(valor)
-    if (t === 'cpf' || t === 'cnpj') return normalizarCpfCnpjParaSalvar(valor)
+    if (t === 'cpf') {
+        const d = String(valor || '').replace(/\D/g, '').slice(0, 11)
+        return d || null
+    }
+    if (t === 'cnpj') {
+        const d = String(valor || '').replace(/\D/g, '').slice(0, 14)
+        return d || null
+    }
     if (t === 'telefone') {
         const d = String(valor || '').replace(/\D/g, '')
         return d || null

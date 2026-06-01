@@ -105,6 +105,35 @@ export async function verificarDocumentoDisponivel(cpfCnpj) {
     return { ok: true, documento: doc }
 }
 
+/** Especialidades para o cadastro público (RPC com security definer; fallback se já existir policy anon). */
+export async function carregarEspecialidadesFormularioPublico() {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('credenciamento_listar_especialidades')
+    if (!rpcError && Array.isArray(rpcData)) {
+        return rpcData.map((e) => ({
+            id: Number(e.id),
+            nome: String(e.nome || ''),
+            tipo: e.tipo != null ? String(e.tipo) : '',
+        }))
+    }
+
+    const { data, error } = await supabase.from('especialidades').select('id, nome, tipo').order('nome')
+    if (!error && (data || []).length > 0) {
+        return data
+    }
+
+    const rpcMsg = String(rpcError?.message || '')
+    const fnMissing =
+        rpcMsg.includes('credenciamento_listar_especialidades') ||
+        rpcMsg.toLowerCase().includes('could not find the function')
+    if (fnMissing) {
+        throw new Error(
+            'Lista de especialidades indisponível no formulário público. Peça à equipe técnica para executar o script SQL credenciamento_listar_especialidades no Supabase.',
+        )
+    }
+    if (error) throw new Error(error.message)
+    throw new Error('Não foi possível carregar especialidades para o formulário público.')
+}
+
 export async function carregarConfigFormularioCredenciamento() {
     const [
         { data: config, error: errConfig },
@@ -450,7 +479,7 @@ export async function converterEntradaFormularioEmPrestador(entradaId) {
     const espIdsPayload = (Array.isArray(payload.especialidades_ids) ? payload.especialidades_ids : [])
         .map(Number)
         .filter(Boolean)
-        .filter((id) => especialidadePermitidaParaPerfil(tipoPerfilEntrada, id))
+        .filter((id) => especialidadePermitidaParaPerfil(tipoPerfilEntrada, id, esps || []))
 
     let espId = espIdsPayload[0] ? Number(espIdsPayload[0]) : null
     if (!espId) {

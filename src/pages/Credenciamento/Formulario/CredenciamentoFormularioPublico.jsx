@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { buscarEnderecoPorCep } from '../../../lib/viacepClient'
-import { supabase } from '../../../lib/supabase'
+import { setReadOnlyFlag } from '../../../lib/supabase'
 import {
     especialidadePermitidaParaPerfil,
     filtrarEspecialidadesPorPerfil,
@@ -9,6 +9,7 @@ import {
 } from '../../../lib/formularioPublicoEspecialidades'
 import {
     carregarConfigFormularioCredenciamento,
+    carregarEspecialidadesFormularioPublico,
     carregarProcedimentosPublicadosFormulario,
     enviarEntradaFormularioCredenciamento,
     documentoCpfCnpjEstaCompleto,
@@ -33,6 +34,10 @@ const normCod = (c) => String(c || '').trim().toUpperCase()
 
 export default function CredenciamentoFormularioPublico() {
     const { slug } = useParams()
+
+    useEffect(() => {
+        setReadOnlyFlag(false)
+    }, [])
     const [loading, setLoading] = useState(true)
     const [erro, setErro] = useState('')
     const [config, setConfig] = useState(null)
@@ -106,21 +111,33 @@ export default function CredenciamentoFormularioPublico() {
     }, [paginaServicoAtual, procsPorPagina])
 
     useEffect(() => {
-        supabase
-            .from('especialidades')
-            .select('id, nome, tipo')
-            .order('nome')
-            .then(({ data }) => setEspecialidades(data || []))
+        let cancelado = false
+        carregarEspecialidadesFormularioPublico()
+            .then((lista) => {
+                if (!cancelado) setEspecialidades(lista)
+            })
+            .catch((e) => {
+                if (!cancelado) {
+                    console.error(e)
+                    setErro((prev) => prev || 'Não foi possível carregar a lista de especialidades. Tente recarregar a página.')
+                }
+            })
+        return () => {
+            cancelado = true
+        }
     }, [])
 
     useEffect(() => {
-        if (especialidadePrincipalId && !especialidadePermitidaParaPerfil(tipoPerfil, especialidadePrincipalId)) {
+        if (
+            especialidadePrincipalId &&
+            !especialidadePermitidaParaPerfil(tipoPerfil, especialidadePrincipalId, especialidades)
+        ) {
             setEspecialidadePrincipalId('')
         }
         setEspecialidadesSecundariasIds((prev) =>
-            prev.filter((id) => especialidadePermitidaParaPerfil(tipoPerfil, id)),
+            prev.filter((id) => especialidadePermitidaParaPerfil(tipoPerfil, id, especialidades)),
         )
-    }, [tipoPerfil, especialidadePrincipalId])
+    }, [tipoPerfil, especialidadePrincipalId, especialidades])
 
     useEffect(() => {
         if (passo === 1) {
@@ -145,6 +162,18 @@ export default function CredenciamentoFormularioPublico() {
                 }
                 setConfig(pack.config)
                 setPaginas(pack.paginas)
+
+                try {
+                    const esps = await carregarEspecialidadesFormularioPublico()
+                    setEspecialidades(esps)
+                } catch (errEsp) {
+                    console.error(errEsp)
+                    setErro(
+                        (prev) =>
+                            prev ||
+                            'Não foi possível carregar a lista de especialidades. Confirme o script SQL credenciamento_listar_especialidades no Supabase.',
+                    )
+                }
 
                 const mapa = {}
                 for (const p of pack.paginas) {

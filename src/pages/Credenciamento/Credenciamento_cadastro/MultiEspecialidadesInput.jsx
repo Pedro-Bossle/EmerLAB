@@ -8,7 +8,7 @@ const normalizar = (t) =>
         .toLowerCase()
 
 /**
- * @param {{ especialidades: {id:number,nome:string,tipo?:string}[], principalId: string|number, secundariasIds: number[], onChangeSecundarias: (ids:number[]) => void, disabled?: boolean, layout?: 'stacked' | 'inline', onAtivoChange?: (ativo: boolean) => void }} props
+ * @param {{ especialidades: {id:number,nome:string,tipo?:string}[], principalId: string|number, secundariasIds: number[], onChangeSecundarias: (ids:number[]) => void, disabled?: boolean, layout?: 'stacked' | 'inline', onAtivoChange?: (ativo: boolean) => void, placeholderOutras?: string }} props
  */
 export default function MultiEspecialidadesInput({
     especialidades,
@@ -18,6 +18,7 @@ export default function MultiEspecialidadesInput({
     disabled,
     layout = 'stacked',
     onAtivoChange,
+    placeholderOutras,
 }) {
     const [ativo, setAtivo] = useState(secundariasIds.length > 0)
     const [texto, setTexto] = useState('')
@@ -175,7 +176,10 @@ export default function MultiEspecialidadesInput({
                 ref={inputRef}
                 className="credenciamento_main_input"
                 disabled={disabled}
-                placeholder="Ex.: Cardiologia, Dermatologia (Insira as especialidades separadas por vírgula)"
+                placeholder={
+                    placeholderOutras ||
+                    'Ex.: Cardiologia, Dermatologia (Insira as especialidades separadas por vírgula)'
+                }
                 value={texto}
                 onChange={(e) => {
                     textoEditadoRef.current = true

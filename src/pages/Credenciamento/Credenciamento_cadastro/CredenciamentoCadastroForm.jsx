@@ -10,8 +10,12 @@ import { supabase } from '../../../lib/supabase'
 import { buscarEnderecoPorCep } from '../../../lib/viacepClient'
 import {
     TIPOS_REPASSE,
+    TIPOS_CHAVE_PIX,
     acharSituacaoCredenciadoId,
     formatarCpfCnpjEntrada,
+    formatarChavePixEntrada,
+    inferirTipoPixDaChave,
+    normalizarChavePixParaSalvar,
     normalizarCpfCnpjParaSalvar,
     tipoDocumentoCpfCnpj,
     formatarCrmvEntrada,
@@ -93,6 +97,7 @@ const estadoVazio = () => ({
     endereco_cidade: '',
     endereco_bairro: '',
     chave_pix: '',
+    tipo_pix: '',
     tipo_repasse: '',
     modalidade: '',
     cidade_id: '',
@@ -212,7 +217,15 @@ const CredenciamentoCadastroForm = () => {
                 endereco_uf: data.endereco_uf || '',
                 endereco_cidade: data.endereco_cidade || '',
                 endereco_bairro: data.endereco_bairro || '',
-                chave_pix: data.chave_pix || '',
+                tipo_pix: (() => {
+                    const bruto = data.chave_pix || ''
+                    return inferirTipoPixDaChave(bruto)
+                })(),
+                chave_pix: (() => {
+                    const bruto = data.chave_pix || ''
+                    const tipo = inferirTipoPixDaChave(bruto)
+                    return bruto ? formatarChavePixEntrada(bruto, tipo) : ''
+                })(),
                 tipo_repasse: data.tipo_repasse || '',
                 modalidade: data.modalidade || '',
                 cidade_id: cidadeIdForm,
@@ -488,7 +501,7 @@ const CredenciamentoCadastroForm = () => {
                 endereco_cidade: form.endereco_cidade.trim() || null,
                 endereco_bairro: form.endereco_bairro.trim() || null,
                 endereco: enderecoLegado || null,
-                chave_pix: form.chave_pix.trim() || null,
+                chave_pix: normalizarChavePixParaSalvar(form.chave_pix, form.tipo_pix),
                 tipo_repasse: form.tipo_repasse || null,
                 modalidade: (usaClinica ? modalidadeAutoClinica : form.modalidade).trim() || null,
                 cidade_id: cidadePrincipalId,
@@ -868,16 +881,50 @@ const CredenciamentoCadastroForm = () => {
                     <h2>Financeiro</h2>
                     <div className="pcad_row pcad_row_fin">
                         <label className="pcad_field">
+                            Tipo de PIX
+                            <select
+                                className="credenciamento_main_select"
+                                value={form.tipo_pix}
+                                onChange={(e) => {
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        tipo_pix: e.target.value,
+                                        chave_pix: '',
+                                    }))
+                                }}
+                                disabled={somenteLeitura}
+                            >
+                                {TIPOS_CHAVE_PIX.map((t) => (
+                                    <option key={t.value || 'vazio'} value={t.value}>
+                                        {t.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="pcad_field">
                             Chave PIX
                             <input
                                 className="credenciamento_main_input"
                                 value={form.chave_pix}
-                                onChange={(e) => setCampo('chave_pix', e.target.value)}
-                                disabled={somenteLeitura}
+                                disabled={somenteLeitura || !form.tipo_pix}
+                                placeholder={
+                                    form.tipo_pix === 'email'
+                                        ? 'email@exemplo.com'
+                                        : form.tipo_pix === 'telefone'
+                                          ? '(00) 00000-0000'
+                                          : form.tipo_pix === 'cpf'
+                                            ? '000.000.000-00'
+                                            : form.tipo_pix === 'cnpj'
+                                              ? '00.000.000/0000-00'
+                                              : 'Selecione o tipo de PIX'
+                                }
+                                onChange={(e) =>
+                                    setCampo('chave_pix', formatarChavePixEntrada(e.target.value, form.tipo_pix))
+                                }
                             />
                         </label>
                         <label className="pcad_field">
-                            Tipo
+                            Nota / RPA
                             <select
                                 className="credenciamento_main_select"
                                 value={form.tipo_repasse}

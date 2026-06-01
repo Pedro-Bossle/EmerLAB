@@ -21,6 +21,13 @@ export const getReadOnlyFlag = () => {
   return window.localStorage.getItem(READ_ONLY_STORAGE_KEY) === '1'
 }
 
+/** Formulário de credenciamento aberto sem login (link público). */
+export function isRotaFormularioPublicoCredenciamento() {
+  if (typeof window === 'undefined') return false
+  const path = String(window.location.pathname || '')
+  return path.includes('/credenciamento/cadastro-publico')
+}
+
 export const clearAccessState = () => {
   setReadOnlyFlag(false)
   clearStoredAccessProfile()
@@ -32,7 +39,12 @@ const guardedFetch = async (input, init = {}) => {
   const isDbRestCall = url.includes('/rest/v1/')
   const isWriteMethod = method === 'POST' || method === 'PATCH' || method === 'DELETE' || method === 'PUT'
 
-  if (isDbRestCall && isWriteMethod && getReadOnlyFlag()) {
+  if (
+    isDbRestCall &&
+    isWriteMethod &&
+    getReadOnlyFlag() &&
+    !isRotaFormularioPublicoCredenciamento()
+  ) {
     throw new Error('Acesso somente leitura: alterações estão bloqueadas para este perfil.')
   }
 

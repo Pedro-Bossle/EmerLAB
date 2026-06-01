@@ -604,8 +604,8 @@
 
 /* Financeiro */
 .pcad_row_fin {
-    /* 1º Chave PIX | 2º Tipo (repasse) */
-    grid-template-columns: minmax(0, 2.5fr) minmax(100px, 0.4fr);
+    /* 1º Tipo PIX | 2º Chave PIX | 3º Nota/RPA */
+    grid-template-columns: minmax(120px, 0.55fr) minmax(0, 2fr) minmax(120px, 0.5fr);
 }
 
 /* Cidades que atende — linha de inclusão: 1º UF | 2º Cidade | 3º Adicionar */

@@ -10,6 +10,7 @@ import {
     formatarEmailEntrada,
     formatarTelefoneEntrada,
 } from '../../../lib/prestadorCadastroHelpers'
+import { placeholderOutrasEspecialidadesPublico } from '../../../lib/formularioPublicoEspecialidades'
 import FormularioPublicoPerfilExtra from './FormularioPublicoPerfilExtra.jsx'
 
 function Bloco({ titulo, children }) {
@@ -61,6 +62,7 @@ export default function FormularioPublicoPassoDados({
     onVetsPendentesChange,
 }) {
     const mostrarCrmv = tipoPerfil === 'volante' || tipoPerfil === 'clinica'
+    const placeholderOutrasEsp = placeholderOutrasEspecialidadesPublico(tipoPerfil)
 
     const onChavePixChange = (valor) => {
         setChavePix(formatarChavePixEntrada(valor, tipoPix))
@@ -167,6 +169,7 @@ export default function FormularioPublicoPassoDados({
                                     principalId={especialidadePrincipalId}
                                     secundariasIds={especialidadesSecundariasIds}
                                     onChangeSecundarias={setEspecialidadesSecundariasIds}
+                                    placeholderOutras={placeholderOutrasEsp}
                                 />
                             </div>
                         </div>
@@ -195,6 +198,7 @@ export default function FormularioPublicoPassoDados({
                                 principalId={especialidadePrincipalId}
                                 secundariasIds={especialidadesSecundariasIds}
                                 onChangeSecundarias={setEspecialidadesSecundariasIds}
+                                placeholderOutras={placeholderOutrasEsp}
                             />
                         </div>
                     </div>
@@ -230,9 +234,11 @@ export default function FormularioPublicoPassoDados({
                                     ? 'email@exemplo.com'
                                     : tipoPix === 'telefone'
                                       ? '(00) 00000-0000'
-                                      : tipoPix === 'cpf' || tipoPix === 'cnpj'
+                                      : tipoPix === 'cpf'
                                         ? '000.000.000-00'
-                                        : 'Selecione o tipo de PIX'
+                                        : tipoPix === 'cnpj'
+                                          ? '00.000.000/0000-00'
+                                          : 'Selecione o tipo de PIX'
                             }
                             onChange={(e) => onChavePixChange(e.target.value)}
                         />
