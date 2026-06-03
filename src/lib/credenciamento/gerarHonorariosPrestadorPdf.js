@@ -14,15 +14,14 @@ function dataGeracaoPtBr() {
     })
 }
 
-function rotuloFonte(fonte, cidadeTabelaLabel) {
-    if (fonte === 'negociacao') return 'Valores da negociação específica'
-    if (fonte === 'repasses') {
-        const tab = String(cidadeTabelaLabel || '').trim()
-        return tab
-            ? `Supertabela — Cidades: ${tab} (P / M / G)`
-            : 'Supertabela — Cidades (P / M / G)'
-    }
-    return '—'
+function cidadeCabecalhoPdf(cidadeTabelaLabel) {
+    let t = String(cidadeTabelaLabel || '').trim()
+    if (!t) return ''
+    t = t.replace(/^Supertabela\s*—\s*Cidades:\s*/i, '')
+    t = t.replace(/\s*\(P\s*\/\s*M\s*\/\s*G\)\s*$/i, '').trim()
+    const idx = t.indexOf(' · endereço:')
+    if (idx >= 0) t = t.slice(0, idx).trim()
+    return t
 }
 
 /**
@@ -33,30 +32,27 @@ export async function gerarHonorariosPrestadorPdf(opts) {
     const logo = await carregarLogoPdfEmerdog()
     let y = MM_MARGIN
 
-    doc.addImage(logo.dataUrl, 'PNG', (PAGE_W - logo.w) / 2, y, logo.w, logo.h)
-    y += logo.h + 8
+    const rightX = PAGE_W - MM_MARGIN
+    const nome = String(opts.prestadorNome || 'Prestador').trim() || 'Prestador'
+    const cidade = cidadeCabecalhoPdf(opts.cidadeTabelaLabel)
+
+    doc.addImage(logo.dataUrl, 'PNG', MM_MARGIN, y, logo.w, logo.h)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(60, 60, 60)
+    doc.text(`Gerado em: ${dataGeracaoPtBr()}`, rightX, y + logo.h * 0.45, { align: 'right' })
+    doc.setTextColor(0, 0, 0)
+    y += logo.h + 6
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(14)
-    doc.text('Honorários — procedimentos', PAGE_W / 2, y, { align: 'center' })
+    doc.text('Honorários de Procedimento', MM_MARGIN, y)
     y += 7
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
-    const nome = String(opts.prestadorNome || 'Prestador').trim() || 'Prestador'
-    doc.text(nome, PAGE_W / 2, y, { align: 'center' })
-    y += 5
-    if (opts.prestadorId) {
-        doc.setFontSize(9)
-        doc.setTextColor(80, 80, 80)
-        doc.text(`ID ${opts.prestadorId}`, PAGE_W / 2, y, { align: 'center' })
-        doc.setTextColor(0, 0, 0)
-        y += 5
-    }
-    doc.setFontSize(9)
-    doc.text(`Gerado em: ${dataGeracaoPtBr()}`, PAGE_W / 2, y, { align: 'center' })
-    y += 5
-    doc.text(rotuloFonte(opts.fonte, opts.cidadeTabelaLabel), PAGE_W / 2, y, { align: 'center' })
+    const linhaPrestador = cidade ? `${nome} - ${cidade}` : nome
+    doc.text(linhaPrestador, MM_MARGIN, y)
     y += 8
 
     for (const cat of opts.categorias || []) {
