@@ -486,7 +486,7 @@
 
 .pcad_servicos_item {
     display: grid;
-    grid-template-columns: auto 1fr var(--pcad-servicos-col-nome-alt, 14rem);
+    grid-template-columns: 1fr var(--pcad-servicos-col-nome-alt, 14rem);
     column-gap: 0.5rem;
     padding: 0.25rem 0;
     font-size: 0.88rem;
@@ -494,12 +494,21 @@
     border-bottom: 1px solid #f0f0f0;
 }
 
-.pcad_servicos_item_check {
+.pcad_servicos_item_sel {
     display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
     cursor: pointer;
+    user-select: none;
+}
+
+.pcad_servicos_item_sel.is-disabled {
+    cursor: default;
 }
 
 .pcad_servicos_item_titulo {
+    flex: 1;
     min-width: 0;
     line-height: 1.35;
     text-align: left;

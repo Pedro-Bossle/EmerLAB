@@ -570,17 +570,19 @@ export default function PrestadorServicosAbas({
                     )}
                     {procedimentosOrdenados.map((p, linhaIndex) => (
                         <div key={p.codigo} className="pcad_servicos_item">
-                            <label className="pcad_servicos_item_check">
+                            <label
+                                className={`pcad_servicos_item_sel${somenteLeitura || loading ? ' is-disabled' : ''}`}
+                            >
                                 <input
                                     type="checkbox"
                                     checked={selecionados.has(String(p.codigo))}
                                     disabled={somenteLeitura || loading}
                                     onChange={() => toggle(p.codigo)}
                                 />
+                                <span className="pcad_servicos_item_titulo">
+                                    <strong>{p.codigo}</strong> — {p.nome}
+                                </span>
                             </label>
-                            <span className="pcad_servicos_item_titulo">
-                                <strong>{p.codigo}</strong> — {p.nome}
-                            </span>
                             <input
                                 ref={(el) => {
                                     if (el) nomeAltInputRefs.current.set(String(p.codigo), el)
