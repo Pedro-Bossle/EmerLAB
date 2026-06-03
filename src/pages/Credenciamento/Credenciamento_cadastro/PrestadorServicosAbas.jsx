@@ -7,6 +7,7 @@ import {
     nomeParaHonorariosPdf,
     salvarNomeAlternativoPrestadorProcedimento,
 } from '../../../lib/prestadorNomeAlternativo.js'
+import { listarLaboratoriosIdsPorCidadeDoPrestador } from '../../../lib/vincularLaboratoriosPorCidadeTabela.js'
 
 const CATEGORIA_SERVICO_MIN = 3
 const CATEGORIA_SERVICO_MAX = 25
@@ -43,6 +44,8 @@ export default function PrestadorServicosAbas({
     const [labsSelecionados, setLabsSelecionados] = useState(() => new Set(laboratoriosSelecionadosInicial || []))
     const [buscaLab, setBuscaLab] = useState('')
     const [sugestoesLabAbertas, setSugestoesLabAbertas] = useState(false)
+    const [labsPorCidadeBusy, setLabsPorCidadeBusy] = useState(false)
+    const [feedbackLabsPorCidade, setFeedbackLabsPorCidade] = useState('')
     const labWrapRef = useRef(null)
     const nomeAltInputRefs = useRef(new Map())
     const [nomesAlternativos, setNomesAlternativos] = useState(() => new Map())
@@ -245,6 +248,41 @@ export default function PrestadorServicosAbas({
             emitirLabs(next)
             return next
         })
+    }
+
+    const vincularLabsMesmaCidadeTabela = async () => {
+        if (somenteLeitura || labsPorCidadeBusy) return
+        if (!prestadorId) {
+            setFeedbackLabsPorCidade('Salve o prestador antes de vincular laboratórios automaticamente.')
+            return
+        }
+        setLabsPorCidadeBusy(true)
+        setFeedbackLabsPorCidade('')
+        try {
+            const { labIds, stats } = await listarLaboratoriosIdsPorCidadeDoPrestador(prestadorId)
+            if (!labIds.length) {
+                setFeedbackLabsPorCidade(
+                    stats.cidadeTabelaIds?.length
+                        ? 'Nenhum laboratório ativo na mesma cidade-tabela (repasses/planos).'
+                        : 'Não foi possível resolver a cidade-tabela pelo endereço ou vínculo IBGE. Confira endereço e cidades_municipios_vinculo.',
+                )
+                return
+            }
+            setLabsSelecionados((prev) => {
+                const next = new Set(prev)
+                labIds.forEach((id) => next.add(Number(id)))
+                emitirLabs(next)
+                return next
+            })
+            setLabsAtivo(true)
+            setFeedbackLabsPorCidade(
+                `${labIds.length} laboratório(s) sugerido(s) pela cidade-tabela (tabela #${(stats.cidadeTabelaIds || []).join(', ')}). Clique em Salvar para persistir.`,
+            )
+        } catch (e) {
+            setFeedbackLabsPorCidade(e?.message || String(e))
+        } finally {
+            setLabsPorCidadeBusy(false)
+        }
     }
 
     const obterNomeAlt = useCallback(
@@ -452,6 +490,29 @@ export default function PrestadorServicosAbas({
 
             {(labsAtivo || (somenteLeitura && laboratoriosVinculados.length > 0)) && (
                 <div className="pcad_servicos_labs">
+                    {!somenteLeitura && (
+                        <>
+                            <div className="pcad_servicos_labs_auto_row">
+                                <button
+                                    type="button"
+                                    className="credenciamento_main_action_btn secondary"
+                                    disabled={labsPorCidadeBusy}
+                                    onClick={() => void vincularLabsMesmaCidadeTabela()}
+                                >
+                                    {labsPorCidadeBusy
+                                        ? 'Buscando…'
+                                        : 'Vincular labs da mesma cidade-tabela'}
+                                </button>
+                                <span className="pcad_muted pcad_servicos_labs_auto_hint">
+                                    Endereço (UF + município) e, se existir, vínculo IBGE → mesma tabela de repasses/planos
+                                    que o laboratório.
+                                </span>
+                            </div>
+                            {feedbackLabsPorCidade ? (
+                                <p className="pcad_muted pcad_servicos_massa_feedback">{feedbackLabsPorCidade}</p>
+                            ) : null}
+                        </>
+                    )}
                     {!somenteLeitura && (
                         <label className="pcad_field pcad_servicos_lab_busca">
                             Buscar laboratório

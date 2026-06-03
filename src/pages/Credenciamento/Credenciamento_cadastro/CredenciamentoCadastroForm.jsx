@@ -710,7 +710,15 @@ const CredenciamentoCadastroForm = () => {
                     laboratorio_id: lid,
                 }))
                 const { error: errLabs } = await supabase.from('prestador_laboratorios_solicitacao').insert(rowsLabs)
-                if (errLabs) throw new Error(errLabs.message)
+                if (errLabs) {
+                    const msg = String(errLabs.message || '')
+                    if (msg.toLowerCase().includes('row-level security')) {
+                        throw new Error(
+                            'Sem permissão para gravar laboratórios de solicitação (RLS). Execute no Supabase o script scripts/sql/prestador_laboratorios_solicitacao_rls.sql.',
+                        )
+                    }
+                    throw new Error(msg)
+                }
             }
 
             navigate('/credenciamento/cadastro', { replace: true })

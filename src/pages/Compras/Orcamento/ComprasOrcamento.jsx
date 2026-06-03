@@ -1050,8 +1050,16 @@ const ComprasOrcamento = () => {
                     </div>
                   </div>
                   <ul className="compras_orc_quem_procs">
-                    {r.procedimentos.map((nome) => (
-                      <li key={`${r.id}-${nome}`}>{nome}</li>
+                    {r.procedimentos.map((proc) => (
+                      <li key={`${r.id}-${proc.nomeBase}-${proc.nomeAlt || ''}`}>
+                        <span className="compras_orc_quem_proc_base">{proc.nomeBase}</span>
+                        {proc.nomeAlt ? (
+                          <>
+                            {' — '}
+                            <span className="compras_orc_quem_proc_alt">{proc.nomeAlt}</span>
+                          </>
+                        ) : null}
+                      </li>
                     ))}
                   </ul>
                 </article>

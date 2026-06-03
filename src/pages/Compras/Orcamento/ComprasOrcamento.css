@@ -1268,6 +1268,16 @@ body.dark-mode .compras_orc hr {
     line-height: 1.45;
 }
 
+.compras_orc_quem_proc_base {
+    font-weight: 600;
+}
+
+.compras_orc_quem_proc_alt {
+    font-size: 0.82em;
+    font-weight: 500;
+    color: #5d7b92;
+}
+
 body.dark-mode .compras_orc_quem_realiza {
     background: var(--bg-surface, #132335);
     border-color: var(--border-soft, #355372);
@@ -1276,6 +1286,10 @@ body.dark-mode .compras_orc_quem_realiza {
 body.dark-mode .compras_orc_quem_card {
     background: var(--bg-surface, #132335);
     border-color: var(--border-soft, #355372);
+}
+
+body.dark-mode .compras_orc_quem_proc_alt {
+    color: #94b8d4;
 }
 
 @media (max-width: 1024px) {

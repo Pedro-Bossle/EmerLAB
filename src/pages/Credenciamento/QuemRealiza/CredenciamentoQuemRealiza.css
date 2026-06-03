@@ -394,6 +394,10 @@ body.dark-mode .quem_realiza_card {
     border-color: rgba(255, 255, 255, 0.12);
 }
 
+body.dark-mode .quem_realiza_proc_alt {
+    color: #94b8d4;
+}
+
 .quem_realiza_card_meta {
     display: grid;
     grid-template-columns: 1fr;
@@ -438,4 +442,14 @@ body.dark-mode .quem_realiza_card {
 
 .quem_realiza_card_procs li {
     margin-bottom: 0.2rem;
+}
+
+.quem_realiza_proc_base {
+    font-weight: 600;
+}
+
+.quem_realiza_proc_alt {
+    font-size: 0.82em;
+    font-weight: 500;
+    color: #5d7b92;
 }

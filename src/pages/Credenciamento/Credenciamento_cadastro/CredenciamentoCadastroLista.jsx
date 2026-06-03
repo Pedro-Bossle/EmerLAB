@@ -4,6 +4,7 @@ import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, hasStoredDevToo
 import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
 import { contarProcedimentosDistintosPorPrestador } from '../../../lib/prestadorProcedimentos'
+import { aplicarVinculosLaboratoriosPorCidadeEmMassa } from '../../../lib/vincularLaboratoriosPorCidadeTabela.js'
 import {
     acharSituacaoCredenciadoId,
     calcularPercentualCompletudePerfil,
@@ -56,6 +57,8 @@ const CredenciamentoCadastroLista = () => {
     const [prestadorCidades, setPrestadorCidades] = useState([])
     const [prestadorEstabelecimentos, setPrestadorEstabelecimentos] = useState([])
     const [qtdProcedimentosPorPrestador, setQtdProcedimentosPorPrestador] = useState(() => new Map())
+    const [labsMassaBusy, setLabsMassaBusy] = useState(false)
+    const [feedbackLabsMassa, setFeedbackLabsMassa] = useState('')
 
     const { ui: devToolsUi } = useDevToolsUi()
     const podeDevTool = hasStoredDevTools()
@@ -70,6 +73,33 @@ const CredenciamentoCadastroLista = () => {
         const profile = getStoredAccessProfile()
         return profile ? !hasPermission(profile, PERMISSION_KEYS.CREDENCIAMENTO_EDIT) : false
     }, [])
+
+    const vincularLaboratoriosEmMassa = async () => {
+        if (somenteLeitura || labsMassaBusy) return
+        const ok = window.confirm(
+            'Vincular em massa cada prestador (não laboratório) aos laboratórios da mesma cidade-tabela?\n\n' +
+                'Critério: endereço (UF + município) resolvido via cidades_municipios_vinculo → id em cidades.\n' +
+                'Vínculos já existentes são mantidos; só entram pares novos.',
+        )
+        if (!ok) return
+        setLabsMassaBusy(true)
+        setFeedbackLabsMassa('')
+        setErro('')
+        try {
+            const stats = await aplicarVinculosLaboratoriosPorCidadeEmMassa(supabase, {
+                apenasAtivos: true,
+                substituir: false,
+            })
+            setFeedbackLabsMassa(
+                `Concluído: ${stats.prestadoresComVinculo} prestador(es) com lab(s); ${stats.totalPares} par(es); ` +
+                    `${stats.prestadoresSemCidadeTabela} sem cidade-tabela; ${stats.prestadoresSemLabNaRegiao} sem lab na região.`,
+            )
+        } catch (e) {
+            setErro(e?.message || String(e))
+        } finally {
+            setLabsMassaBusy(false)
+        }
+    }
 
     const carregar = useCallback(async () => {
         setLoading(true)
@@ -411,6 +441,24 @@ const CredenciamentoCadastroLista = () => {
                     </div>
                 </div>
             </header>
+
+            {podeDevTool && !somenteLeitura && (
+                <div className="credenciamento_cadastro_dev_massa">
+                    <div className="credenciamento_cadastro_dev_massa_acoes">
+                        <button
+                            type="button"
+                            className="credenciamento_main_action_btn secondary"
+                            disabled={labsMassaBusy}
+                            onClick={() => void vincularLaboratoriosEmMassa()}
+                        >
+                            {labsMassaBusy ? 'Vinculando…' : 'Dev · vincular labs por cidade-tabela (todos)'}
+                        </button>
+                    </div>
+                    {feedbackLabsMassa ? (
+                        <p className="pcad_muted pcad_servicos_massa_feedback">{feedbackLabsMassa}</p>
+                    ) : null}
+                </div>
+            )}
 
             {erro && (
                 <div className="credenciamento_main_alert" role="alert">

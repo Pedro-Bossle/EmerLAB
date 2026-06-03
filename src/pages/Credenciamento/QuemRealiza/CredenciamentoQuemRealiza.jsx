@@ -582,8 +582,16 @@ export default function CredenciamentoQuemRealiza() {
                                         </div>
                                     </div>
                                     <ul className="quem_realiza_card_procs">
-                                        {r.procedimentos.map((nome) => (
-                                            <li key={`${r.id}-${nome}`}>{nome}</li>
+                                        {r.procedimentos.map((proc) => (
+                                            <li key={`${r.id}-${proc.nomeBase}-${proc.nomeAlt || ''}`}>
+                                                <span className="quem_realiza_proc_base">{proc.nomeBase}</span>
+                                                {proc.nomeAlt ? (
+                                                    <>
+                                                        {' — '}
+                                                        <span className="quem_realiza_proc_alt">{proc.nomeAlt}</span>
+                                                    </>
+                                                ) : null}
+                                            </li>
                                         ))}
                                     </ul>
                                 </article>

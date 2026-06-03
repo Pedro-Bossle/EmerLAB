@@ -3,6 +3,7 @@ import {
     prestadorEhLaboratorio,
     resolverCidadePrincipalNome,
 } from './prestadorCadastroHelpers.js'
+import { carregarMapaNomesAlternativosPrestador } from './prestadorNomeAlternativo.js'
 import { mapaCodigosPorPrestadorDeVinculos } from './prestadorProcedimentos.js'
 
 const norm = (t) =>
@@ -120,23 +121,6 @@ export async function buscarVinculosPrestadorProcedimentosEmLote(supabase, prest
     return vinculos
 }
 
-async function buscarLaboratoriosVinculadosAosVets(supabase, vetIds) {
-    const ids = [...new Set((vetIds || []).map(Number).filter(Boolean))]
-    if (!ids.length) return []
-    const rows = []
-    const chunk = 80
-    for (let i = 0; i < ids.length; i += chunk) {
-        const lote = ids.slice(i, i + chunk)
-        const { data, error } = await supabase
-            .from('prestador_laboratorios_solicitacao')
-            .select('prestador_id, laboratorio_id')
-            .in('prestador_id', lote)
-        if (error) throw new Error(error.message)
-        rows.push(...(data || []))
-    }
-    return rows
-}
-
 function montarLinhaResultadoQuemRealiza(p, codigos, porPrestador, ctx) {
     const {
         mapaEsp,
@@ -145,12 +129,21 @@ function montarLinhaResultadoQuemRealiza(p, codigos, porPrestador, ctx) {
         prestadorCidades,
         cidadesAlvo,
         incluirCidadesParalelas,
+        mapaAltPorPrestadorId,
     } = ctx
     const set = porPrestador.get(Number(p.id)) || new Set()
+    const mapaAlt = mapaAltPorPrestadorId?.get(Number(p.id)) || new Map()
     const realizaNomes = codigos
         .filter((c) => set.has(c))
-        .map((c) => mapaNomePorCodigo.get(normCodigoProcedimento(c)) || c)
-        .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }))
+        .map((c) => {
+            const cod = normCodigoProcedimento(c)
+            const nomeBase = String(mapaNomePorCodigo.get(cod) || c).trim() || cod
+            const altRaw = String(mapaAlt.get(cod) ?? '').trim()
+            const nomeAlt =
+                altRaw && altRaw.localeCompare(nomeBase, 'pt-BR', { sensitivity: 'base' }) !== 0 ? altRaw : ''
+            return { nomeBase, nomeAlt }
+        })
+        .sort((a, b) => a.nomeBase.localeCompare(b.nomeBase, 'pt-BR', { sensitivity: 'base' }))
     const tel = [p.celular, p.telefone].map((t) => String(t || '').trim()).find(Boolean) || '—'
     const rels = prestadorCidades.filter((r) => Number(r.prestador_id) === Number(p.id))
     const cidadePrincipal = resolverCidadePrincipalNome(p, {
@@ -170,8 +163,26 @@ function montarLinhaResultadoQuemRealiza(p, codigos, porPrestador, ctx) {
     }
 }
 
+/** Mapa prestador_id → Map(código → nome alternativo) para exibição no Quem realiza. */
+async function carregarMapasNomesAlternativosPorPrestador(prestadorIds) {
+    const ids = [...new Set((prestadorIds || []).map(Number).filter(Boolean))]
+    const mapaPorId = new Map()
+    await Promise.all(
+        ids.map(async (id) => {
+            try {
+                const m = await carregarMapaNomesAlternativosPrestador(id)
+                mapaPorId.set(id, m)
+            } catch {
+                mapaPorId.set(id, new Map())
+            }
+        }),
+    )
+    return mapaPorId
+}
+
 /**
- * Monta resultados: prestadores com o procedimento + laboratórios vinculados a vets que realizam o exame.
+ * Prestadores (e laboratórios) na cidade com o procedimento no **perfil** (`prestador_procedimentos`).
+ * Laboratório não herda exames de vets vinculados em `prestador_laboratorios_solicitacao`.
  */
 export async function pesquisarQuemRealizaNaRede(supabase, opcoes) {
     const {
@@ -193,7 +204,6 @@ export async function pesquisarQuemRealizaNaRede(supabase, opcoes) {
 
     const mapaEsp = new Map((especialidades || []).map((e) => [Number(e.id), e.nome]))
     const ctxFiltro = { mapaCidadesCred, prestadorCidades, incluirCidadesParalelas }
-    const mapaPrest = new Map((prestadores || []).map((p) => [Number(p.id), p]))
 
     const todosIds = (prestadores || []).map((p) => Number(p.id)).filter(Boolean)
     if (!todosIds.length) return []
@@ -206,8 +216,15 @@ export async function pesquisarQuemRealizaNaRede(supabase, opcoes) {
         return set && codigos.some((c) => set.has(c))
     }
 
-    const candidatos = (prestadores || []).filter(
-        (p) => prestadorAtendeAlgumaCidadeAlvo(p, cidades, ctxFiltro) && prestadorRealizaAlgumCodigo(p),
+    const candidatos = (prestadores || []).filter((p) => {
+        if (filtrarSomenteVeterinarios && prestadorEhLaboratorio(p.especialidade_id, especialidades)) {
+            return false
+        }
+        return prestadorAtendeAlgumaCidadeAlvo(p, cidades, ctxFiltro) && prestadorRealizaAlgumCodigo(p)
+    })
+
+    const mapaAltPorPrestadorId = await carregarMapasNomesAlternativosPorPrestador(
+        candidatos.map((p) => p.id),
     )
 
     const ctxLinha = {
@@ -217,6 +234,7 @@ export async function pesquisarQuemRealizaNaRede(supabase, opcoes) {
         prestadorCidades,
         cidadesAlvo: cidades,
         incluirCidadesParalelas,
+        mapaAltPorPrestadorId,
     }
 
     const resultadoPorId = new Map()
@@ -224,44 +242,6 @@ export async function pesquisarQuemRealizaNaRede(supabase, opcoes) {
     candidatos.forEach((p) => {
         resultadoPorId.set(Number(p.id), montarLinhaResultadoQuemRealiza(p, codigos, porPrestador, ctxLinha))
     })
-
-    const vetIdsComProc = (prestadores || [])
-        .filter(
-            (p) =>
-                prestadorAtendeAlgumaCidadeAlvo(p, cidades, ctxFiltro) &&
-                prestadorRealizaAlgumCodigo(p) &&
-                !prestadorEhLaboratorio(p.especialidade_id, especialidades),
-        )
-        .map((p) => Number(p.id))
-
-    if (vetIdsComProc.length) {
-        const linksLab = await buscarLaboratoriosVinculadosAosVets(supabase, vetIdsComProc)
-        const codigosPorLab = new Map()
-
-        linksLab.forEach((link) => {
-            const vid = Number(link.prestador_id)
-            const lid = Number(link.laboratorio_id)
-            if (!vid || !lid) return
-            const setVet = porPrestador.get(vid)
-            if (!setVet) return
-            const codigosVet = codigos.filter((c) => setVet.has(c))
-            if (!codigosVet.length) return
-            if (!codigosPorLab.has(lid)) codigosPorLab.set(lid, new Set())
-            codigosVet.forEach((c) => codigosPorLab.get(lid).add(c))
-        })
-
-        codigosPorLab.forEach((setCodigos, labId) => {
-            if (resultadoPorId.has(labId)) return
-            const lab = mapaPrest.get(labId)
-            if (!lab) return
-            if (!prestadorAtendeAlgumaCidadeAlvo(lab, cidades, ctxFiltro)) return
-            if (filtrarSomenteVeterinarios && !prestadorEhLaboratorio(lab.especialidade_id, especialidades)) {
-                return
-            }
-            const porLab = new Map([[labId, setCodigos]])
-            resultadoPorId.set(labId, montarLinhaResultadoQuemRealiza(lab, codigos, porLab, ctxLinha))
-        })
-    }
 
     return [...resultadoPorId.values()].sort((a, b) =>
         a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }),
