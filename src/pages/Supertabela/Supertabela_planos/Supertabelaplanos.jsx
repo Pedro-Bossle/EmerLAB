@@ -19,6 +19,7 @@ import GerenciarTabelasModal from '../../../components/Supertabela/GerenciarTabe
 import { mapCidadeParaGerenciador, payloadCidadeComUf } from '../../../lib/cidadesSupertabelaHelpers.js'
 import {
     buildOpcoesFiltroSupertabela,
+    buscarCidadeIdsFiltroPlanoCredenciados,
     carregarVinculosMunicipios,
     isMissingVinculosTableError,
     municipiosPorCidadeId,
@@ -100,6 +101,7 @@ const Supertabelaplanos = () => {
     const [municipiosVinculos, setMunicipiosVinculos] = useState([])
     const [suportaVinculosMunicipios, setSuportaVinculosMunicipios] = useState(true)
     const [valorFiltroCidade, setValorFiltroCidade] = useState('')
+    const [cidadeIdsFiltroPlano, setCidadeIdsFiltroPlano] = useState(null)
     const [planos, setPlanos] = useState([])
     const [categorias, setCategorias] = useState([])
     const [procedimentos, setProcedimentos] = useState([])
@@ -265,7 +267,13 @@ const Supertabelaplanos = () => {
             setCategorias(categoriasData || [])
             setProcedimentos(procedimentosData || [])
 
-            const opcoes = buildOpcoesFiltroSupertabela(listaCidades, vinculos)
+            const idsFiltro = await buscarCidadeIdsFiltroPlanoCredenciados(
+                supabase,
+                null,
+                buscarTodosPaginado,
+            )
+            setCidadeIdsFiltroPlano(idsFiltro)
+            const opcoes = buildOpcoesFiltroSupertabela(listaCidades, vinculos, idsFiltro)
             if (!valorFiltroCidade && opcoes.length > 0) {
                 setValorFiltroCidade(opcoes[0].value)
                 setCidadeId(String(opcoes[0].cidadeId))
@@ -1287,9 +1295,37 @@ const Supertabelaplanos = () => {
     const mapaMunicipiosPorCidade = useMemo(() => municipiosPorCidadeId(municipiosVinculos), [municipiosVinculos])
 
     const opcoesFiltroCidade = useMemo(
-        () => buildOpcoesFiltroSupertabela(cidades, municipiosVinculos),
-        [cidades, municipiosVinculos],
+        () => buildOpcoesFiltroSupertabela(cidades, municipiosVinculos, cidadeIdsFiltroPlano),
+        [cidades, municipiosVinculos, cidadeIdsFiltroPlano],
     )
+
+    useEffect(() => {
+        if (!cidades.length) return undefined
+        let cancelado = false
+        void (async () => {
+            try {
+                const ids = await buscarCidadeIdsFiltroPlanoCredenciados(
+                    supabase,
+                    planoDetalheId,
+                    buscarTodosPaginado,
+                )
+                if (cancelado) return
+                setCidadeIdsFiltroPlano(ids)
+                const opcoes = buildOpcoesFiltroSupertabela(cidades, municipiosVinculos, ids)
+                if (!opcoes.length) return
+                const hit = opcoes.find((o) => String(o.cidadeId) === String(cidadeId))
+                if (!hit) {
+                    setValorFiltroCidade(opcoes[0].value)
+                    setCidadeId(String(opcoes[0].cidadeId))
+                }
+            } catch {
+                /* mantém filtro anterior */
+            }
+        })()
+        return () => {
+            cancelado = true
+        }
+    }, [planoDetalheId, cidades, municipiosVinculos, cidadeId])
 
     const cidadesGerenciaveis = useMemo(() => {
         return cidades

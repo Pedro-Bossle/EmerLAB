@@ -11,9 +11,12 @@ const LOGO_W_MM = 52
 
 let logoCache = null
 
-async function carregarLogo() {
+export async function carregarLogoPdfEmerdog() {
     if (logoCache) return logoCache
     const res = await fetch(logoAzulUrl)
+    if (!res.ok) {
+        throw new Error(`Não foi possível carregar a logo do PDF (${res.status}).`)
+    }
     const blob = await res.blob()
     const dataUrl = await new Promise((resolve, reject) => {
         const reader = new FileReader()
@@ -66,12 +69,20 @@ function aplicarRodapePaginas(doc) {
 
 function tabelaAssinaturas(doc, tipo, d, startY) {
     const margin = { left: MM_MARGIN, right: MM_MARGIN }
+    const tableWidth = PAGE_W - MM_MARGIN * 2
+    const half = tableWidth / 2
+    const headAssinatura = { fillColor: [248, 251, 253], textColor: [30, 49, 72], fontStyle: 'bold' }
+    const colStylesDuas = {
+        0: { cellWidth: half, overflow: 'linebreak' },
+        1: { cellWidth: half, overflow: 'linebreak' },
+    }
     if (tipo === 'parceria') {
         autoTable(doc, {
             startY: startY,
             margin,
+            tableWidth,
             theme: 'plain',
-            styles: { font: 'helvetica', fontSize: 9, cellPadding: 3, valign: 'top' },
+            styles: { font: 'helvetica', fontSize: 9, cellPadding: 3, valign: 'top', overflow: 'linebreak' },
             head: [
                 [
                     'EMERDOG PLANO DE SAÚDE ANIMAL LTDA\nRepresentante Legal – Assinatura',
@@ -79,8 +90,8 @@ function tabelaAssinaturas(doc, tipo, d, startY) {
                 ],
             ],
             body: [['\n\n\n\n', '\n\n\n\n']],
-            headStyles: { fillColor: [248, 251, 253], textColor: [30, 49, 72], fontStyle: 'bold' },
-            columnStyles: { 0: { cellWidth: 80 }, 1: { cellWidth: 80 } },
+            headStyles: headAssinatura,
+            columnStyles: colStylesDuas,
         })
         return
     }
@@ -88,12 +99,13 @@ function tabelaAssinaturas(doc, tipo, d, startY) {
     autoTable(doc, {
         startY: startY,
         margin,
+        tableWidth,
         theme: 'plain',
-        styles: { font: 'helvetica', fontSize: 9, cellPadding: 3 },
+        styles: { font: 'helvetica', fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
         head: [['EMERDOG – Representante Legal', `${colContratada} – Representante Legal`]],
         body: [['\n\n\n\n', '\n\n\n\n']],
-        headStyles: { fillColor: [248, 251, 253], textColor: [30, 49, 72], fontStyle: 'bold' },
-        columnStyles: { 0: { cellWidth: 80 }, 1: { cellWidth: 80 } },
+        headStyles: headAssinatura,
+        columnStyles: colStylesDuas,
     })
 }
 
@@ -173,7 +185,7 @@ function desenharSegmentosQuebrados(doc, line, yInicio, maxY) {
 export async function gerarPdfBlob(tipo, dados) {
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
     const linhas = getLinhas(tipo, dados)
-    const logo = await carregarLogo()
+    const logo = await carregarLogoPdfEmerdog()
 
     let y = MM_MARGIN
     const maxY = 275

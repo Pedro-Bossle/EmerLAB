@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
+import {
+    buscarCidadeIdsFiltroPlanoCredenciados,
+    buildNomesMunicipioPermitidosPorUf,
+    carregarVinculosMunicipios,
+    filtrarMunicipiosIbgePorCredenciamento,
+    ufsDisponiveisFiltroCredenciamento,
+} from '../../../lib/cidadesSupertabelaVinculos.js'
 import { normalizarTextoBusca, filtrarPorTermoBusca, resolverCidadePrincipalNome } from '../../../lib/prestadorCadastroHelpers.js'
 import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
@@ -44,6 +51,9 @@ export default function CredenciamentoQuemRealiza() {
     const [buscarCidadesParalelas, setBuscarCidadesParalelas] = useState(false)
     const [municipios, setMunicipios] = useState([])
     const [loadingMun, setLoadingMun] = useState(false)
+    const [cidadesTabela, setCidadesTabela] = useState([])
+    const [vinculosMunicipios, setVinculosMunicipios] = useState([])
+    const [idsFiltroCidadeCred, setIdsFiltroCidadeCred] = useState(null)
 
     const [categorias, setCategorias] = useState([])
     const [abaCategoria, setAbaCategoria] = useState(null)
@@ -117,6 +127,43 @@ export default function CredenciamentoQuemRealiza() {
     }, [])
 
     useEffect(() => {
+        let cancelado = false
+        const run = async () => {
+            try {
+                const [ids, cidResp, vinculos] = await Promise.all([
+                    buscarCidadeIdsFiltroPlanoCredenciados(supabase, null, buscarTodosPaginado),
+                    supabase.from('cidades').select('id, nome, uf').order('nome', { ascending: true }),
+                    carregarVinculosMunicipios(supabase).catch(() => []),
+                ])
+                if (cancelado) return
+                setIdsFiltroCidadeCred(ids)
+                setCidadesTabela(cidResp.data || [])
+                setVinculosMunicipios(vinculos || [])
+            } catch {
+                if (!cancelado) {
+                    setIdsFiltroCidadeCred(new Set())
+                    setCidadesTabela([])
+                    setVinculosMunicipios([])
+                }
+            }
+        }
+        void run()
+        return () => {
+            cancelado = true
+        }
+    }, [])
+
+    const nomesMunicipioPermitidosPorUf = useMemo(
+        () => buildNomesMunicipioPermitidosPorUf(cidadesTabela, vinculosMunicipios, idsFiltroCidadeCred),
+        [cidadesTabela, vinculosMunicipios, idsFiltroCidadeCred],
+    )
+
+    const ufsPermitidasCredenciamento = useMemo(() => {
+        const set = ufsDisponiveisFiltroCredenciamento(cidadesTabela, idsFiltroCidadeCred)
+        return UFS_BRASIL.filter((sigla) => set.has(sigla))
+    }, [cidadesTabela, idsFiltroCidadeCred])
+
+    useEffect(() => {
         if (!uf) {
             setMunicipios([])
             setCidadeNome('')
@@ -124,10 +171,20 @@ export default function CredenciamentoQuemRealiza() {
         }
         setLoadingMun(true)
         buscarMunicipiosPorUf(uf)
-            .then((lista) => setMunicipios(lista))
+            .then((lista) =>
+                setMunicipios(
+                    filtrarMunicipiosIbgePorCredenciamento(lista, uf, nomesMunicipioPermitidosPorUf),
+                ),
+            )
             .catch(() => setMunicipios([]))
             .finally(() => setLoadingMun(false))
-    }, [uf])
+    }, [uf, nomesMunicipioPermitidosPorUf])
+
+    useEffect(() => {
+        if (!cidadeNome) return
+        const ok = municipios.some((m) => m.nome === cidadeNome)
+        if (!ok) setCidadeNome('')
+    }, [cidadeNome, municipios])
 
     useEffect(() => {
         if (!abaCategoria) {
@@ -312,7 +369,7 @@ export default function CredenciamentoQuemRealiza() {
                         <span>UF</span>
                         <select className="credenciamento_main_input" value={uf} onChange={(e) => setUf(e.target.value)}>
                             <option value="">—</option>
-                            {UFS_BRASIL.map((sigla) => (
+                            {ufsPermitidasCredenciamento.map((sigla) => (
                                 <option key={sigla} value={sigla}>
                                     {sigla}
                                 </option>

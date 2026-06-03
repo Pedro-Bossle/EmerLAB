@@ -104,8 +104,12 @@ export default async function handler(req, res) {
     try {
         const upstream = await fetch(upstreamUrl, fetchOpts)
         const text = await upstream.text()
-        const ct = upstream.headers.get('content-type') || ''
-        if (!ct.includes('json') && text.length > 0) {
+        const ct = (upstream.headers.get('content-type') || '').toLowerCase()
+        const pareceJson =
+            !text.length ||
+            ct.includes('json') ||
+            ct.includes('application/vnd.api')
+        if (!pareceJson && text.length > 0) {
             sendRawResponse(res, upstream.status, ct || 'text/plain; charset=utf-8', text)
             return
         }
@@ -114,8 +118,12 @@ export default async function handler(req, res) {
             try {
                 data = JSON.parse(text)
             } catch {
-                res.status(502).json({ error: 'Resposta JSON inválida da Clicksign.', raw: text.slice(0, 500) })
-                return
+                if (upstream.status >= 200 && upstream.status < 300) {
+                    data = {}
+                } else {
+                    res.status(502).json({ error: 'Resposta JSON inválida da Clicksign.', raw: text.slice(0, 500) })
+                    return
+                }
             }
         }
         res.status(upstream.status).json(data)

@@ -4,36 +4,22 @@ import { erroApiTexto, normalizarTelefoneBr } from './clicksignClient.js'
 
 /** PATCH `/envelopes/:eid/signers/:sid` — atualizar nome, e-mail e telefone. */
 
-export function payloadAtualizarSignatario({ name, email, phone, channel = 'email' }) {
-
+export function payloadAtualizarSignatario({ signerId, name, email, phone, channel = 'email' }) {
     const attrs = {
-
         name: String(name || '').trim(),
-
         email: String(email || '').trim().toLowerCase(),
-
     }
-
     if (String(channel || '').toLowerCase() === 'whatsapp') {
-
         const tel = normalizarTelefoneBr(phone)
-
         if (tel) attrs.phone_number = tel
-
     }
-
-    return {
-
-        data: {
-
-            type: 'signers',
-
-            attributes: attrs,
-
-        },
-
+    const data = {
+        type: 'signers',
+        attributes: attrs,
     }
-
+    const id = String(signerId || '').trim()
+    if (id) data.id = id
+    return { data }
 }
 
 

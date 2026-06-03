@@ -47,17 +47,56 @@ export function normalizarPrestadorIdParaQuery(prestadorId) {
     return s || null
 }
 
+/** Coluna `nome_alternativo` ainda não migrada no Supabase — evita GET 400 repetidos. */
+export let prestadorProcedimentosTemNomeAlternativo = true
+
+export function isErroColunaNomeAlternativo(error) {
+    if (!error) return false
+    const msg = String(error.message || '').toLowerCase()
+    const details = String(error.details || '').toLowerCase()
+    const hint = String(error.hint || '').toLowerCase()
+    const code = String(error.code || '')
+    if (code === '42703' || code === 'PGRST204') return true
+    const blob = `${msg} ${details} ${hint}`
+    return (
+        blob.includes('nome_alternativo') &&
+        (blob.includes('does not exist') ||
+            blob.includes('schema cache') ||
+            blob.includes('could not find') ||
+            blob.includes('column'))
+    )
+}
+
+function desativarNomeAlternativoSeErro(error) {
+    if (isErroColunaNomeAlternativo(error)) {
+        prestadorProcedimentosTemNomeAlternativo = false
+        return true
+    }
+    return false
+}
+
 async function buscarVinculosPrestadorProcedimentos(prestadorId) {
     const pid = normalizarPrestadorIdParaQuery(prestadorId)
     if (pid == null) return []
 
     const tentar = async (selectCols) => {
-        let q = supabase.from('prestador_procedimentos').select(selectCols).eq('prestador_id', pid)
-        const { data, error } = await q
+        const { data, error } = await supabase
+            .from('prestador_procedimentos')
+            .select(selectCols)
+            .eq('prestador_id', pid)
         return { data: data || [], error }
     }
 
-    let res = await tentar('id, prestador_id, procedimento_cod, procedimento_id')
+    const colsBase = 'id, prestador_id, procedimento_cod, procedimento_id'
+    let res
+    if (prestadorProcedimentosTemNomeAlternativo) {
+        res = await tentar(`${colsBase}, nome_alternativo`)
+        if (res.error && desativarNomeAlternativoSeErro(res.error)) {
+            res = await tentar(colsBase)
+        }
+    } else {
+        res = await tentar(colsBase)
+    }
     if (res.error) {
         res = await tentar('*')
     }
@@ -184,19 +223,25 @@ export async function listarProcedimentosPrestadorPerfil(prestadorId) {
     return itens.sort((a, b) => String(a.codigo).localeCompare(String(b.codigo), 'pt-BR'))
 }
 
-export function montarLinhasPrestadorProcedimentos(prestadorId, codigos, mapaIdPorCodigo) {
+export function montarLinhasPrestadorProcedimentos(prestadorId, codigos, mapaIdPorCodigo, mapaNomeAlternativo = null) {
     const pid = normalizarPrestadorIdParaQuery(prestadorId)
     if (pid == null) return []
     const rows = []
     for (const codRaw of codigos || []) {
         const procedimento_cod = String(codRaw || '').trim()
         if (!procedimento_cod) continue
-        const procedimento_id = mapaIdPorCodigo.get(normalizarCodigo(procedimento_cod)) ?? null
-        rows.push({
+        const codNorm = normalizarCodigo(procedimento_cod)
+        const procedimento_id = mapaIdPorCodigo.get(codNorm) ?? null
+        const alt = mapaNomeAlternativo?.get?.(codNorm)
+        const row = {
             prestador_id: pid,
             procedimento_cod,
             procedimento_id,
-        })
+        }
+        if (alt !== undefined && prestadorProcedimentosTemNomeAlternativo) {
+            row.nome_alternativo = alt ? String(alt).trim() : null
+        }
+        rows.push(row)
     }
     return rows
 }
@@ -204,7 +249,7 @@ export function montarLinhasPrestadorProcedimentos(prestadorId, codigos, mapaIdP
 /**
  * Substitui vínculos em `prestador_procedimentos` (cod + id).
  */
-export async function sincronizarPrestadorProcedimentos(prestadorId, codigos) {
+export async function sincronizarPrestadorProcedimentos(prestadorId, codigos, mapaNomeAlternativo = null) {
     const pid = normalizarPrestadorIdParaQuery(prestadorId)
     if (pid == null) return
     const mapa = await mapaProcedimentoIdPorCodigo(codigos)
@@ -214,11 +259,34 @@ export async function sincronizarPrestadorProcedimentos(prestadorId, codigos) {
             `Procedimento(s) sem id na tabela procedimentos: ${faltando.slice(0, 5).join(', ')}${faltando.length > 5 ? '…' : ''}`,
         )
     }
+    const mapaAltPreservar = new Map()
+    try {
+        const vinculos = await buscarVinculosPrestadorProcedimentos(prestadorId)
+        for (const v of vinculos) {
+            const cod =
+                normalizarCodigo(v.procedimento_cod) || normalizarCodigo(v.procedimento_id)
+            const alt = String(v.nome_alternativo ?? '').trim()
+            if (cod && alt) mapaAltPreservar.set(cod, alt)
+        }
+    } catch {
+        /* coluna pode não existir ainda */
+    }
+    if (mapaNomeAlternativo) {
+        for (const [cod, alt] of mapaNomeAlternativo) {
+            mapaAltPreservar.set(cod, alt ? String(alt).trim() : '')
+        }
+    }
     const { error: errDel } = await supabase.from('prestador_procedimentos').delete().eq('prestador_id', pid)
     if (errDel) throw new Error(errDel.message)
-    const rows = montarLinhasPrestadorProcedimentos(pid, codigos, mapa)
+    const rows = montarLinhasPrestadorProcedimentos(pid, codigos, mapa, mapaAltPreservar)
     if (!rows.length) return
-    const { error: errIns } = await supabase.from('prestador_procedimentos').insert(rows)
+    const semAlt = (list) => list.map(({ nome_alternativo: _n, ...r }) => r)
+    let payload = prestadorProcedimentosTemNomeAlternativo ? rows : semAlt(rows)
+    let { error: errIns } = await supabase.from('prestador_procedimentos').insert(payload)
+    if (errIns && isErroColunaNomeAlternativo(errIns)) {
+        prestadorProcedimentosTemNomeAlternativo = false
+        ;({ error: errIns } = await supabase.from('prestador_procedimentos').insert(semAlt(rows)))
+    }
     if (errIns) throw new Error(errIns.message)
 }
 

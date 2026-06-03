@@ -378,18 +378,51 @@
     gap: 0.5rem;
 }
 
+.pcad_servicos_count_row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.pcad_servicos_copy_btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.15rem 0.3rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: #0b5cab;
+    border-radius: 4px;
+    line-height: 0;
+}
+
+.pcad_servicos_copy_btn:hover:not(:disabled) {
+    background: #e8f2fc;
+}
+
+.pcad_servicos_copy_btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
 /* Altura fixa: troca de categoria não empurra o restante do formulário */
 .pcad_servicos_panel {
     position: relative;
     height: 320px;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .pcad_servicos_lista {
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     overflow: auto;
-    border: 1px solid #eee;
-    border-radius: 6px;
     padding: 0.5rem;
     box-sizing: border-box;
     transition: opacity 0.15s ease;
@@ -420,12 +453,64 @@
     margin: 0;
 }
 
-.pcad_servicos_item {
+.pcad_servicos_sort_bar {
+    flex-shrink: 0;
     display: flex;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.75rem;
+    padding: 0.4rem 0.5rem 0.5rem;
+    border-bottom: 1px solid #dce8f2;
+    background: #fff;
+}
+
+.pcad_servicos_sort_lbl {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #5d7b92;
+}
+
+.pcad_servicos_sort_btn {
+    border: none;
+    background: transparent;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #32566f;
+    cursor: pointer;
+    padding: 0;
+}
+
+.pcad_servicos_sort_btn:hover {
+    color: #0b5cab;
+}
+
+.pcad_servicos_item {
+    display: grid;
+    grid-template-columns: auto 1fr var(--pcad-servicos-col-nome-alt, 14rem);
+    column-gap: 0.5rem;
     padding: 0.25rem 0;
     font-size: 0.88rem;
+    align-items: center;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.pcad_servicos_item_check {
+    display: flex;
     cursor: pointer;
+}
+
+.pcad_servicos_item_titulo {
+    min-width: 0;
+    line-height: 1.35;
+    text-align: left;
+}
+
+.pcad_servicos_nome_alt {
+    width: 100%;
+    min-width: 0;
+    font-size: 0.82rem;
+    font-weight: 400;
+    justify-self: stretch;
 }
 
 .pcad_servicos_massa {
@@ -948,6 +1033,7 @@ body.dark-mode .pcad_tag.is-on {
 }
 
 body.dark-mode .pcad_vet_vinculados,
+body.dark-mode .pcad_servicos_panel,
 body.dark-mode .pcad_servicos_lista,
 body.dark-mode .pcad_cidades_virtual {
     background: #0f1e2e;
@@ -1106,4 +1192,293 @@ body.dark-mode .pcad_dev_tools_perfil_acao {
     border-color: #8b5050;
     color: #f0a0a0;
     background: #1a2836;
+}
+
+.pcad_honorarios_bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.pcad_contrato_loading_toast {
+    pointer-events: none;
+}
+
+.pcad_contrato_loading_toast .contratos_toast_text strong::after {
+    content: '';
+    display: inline-block;
+    width: 0.85em;
+    height: 0.85em;
+    margin-left: 0.35em;
+    vertical-align: -0.1em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: pcad_contrato_loading_spin 0.7s linear infinite;
+}
+
+@keyframes pcad_contrato_loading_spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.pcad_contrato_menu_wrap {
+    position: relative;
+}
+
+.pcad_contrato_menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 40;
+    min-width: 200px;
+    margin: 0;
+    padding: 6px 0;
+    list-style: none;
+    border: 1px solid #d7e8f2;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(20, 40, 60, 0.12);
+}
+
+.pcad_contrato_menu button {
+    display: block;
+    width: 100%;
+    padding: 8px 14px;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font-size: 0.88rem;
+    cursor: pointer;
+    color: #1a3a52;
+}
+
+.pcad_contrato_menu button:hover:not(:disabled) {
+    background: #f0f6fb;
+    color: #0b5cab;
+}
+
+.pcad_contrato_menu button:disabled {
+    color: #8aa0b5;
+    cursor: not-allowed;
+}
+
+.pcad_modal_backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(15, 35, 55, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.pcad_modal {
+    width: min(960px, 100%);
+    max-height: min(90vh, 900px);
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 16px 48px rgba(20, 40, 60, 0.2);
+}
+
+.pcad_modal_head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e8f0f6;
+}
+
+.pcad_modal_head h3 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.pcad_modal_close {
+    border: none;
+    background: transparent;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    color: #5a7085;
+}
+
+.pcad_modal_sub {
+    margin: 0;
+    padding: 8px 18px 0;
+}
+
+.pcad_honorarios_scroll {
+    flex: 1;
+    overflow: auto;
+    padding: 12px 18px;
+}
+
+.pcad_honorarios_cat {
+    margin-bottom: 1.25rem;
+}
+
+.pcad_honorarios_cat h4 {
+    margin: 0 0 8px;
+    font-size: 0.95rem;
+    color: #1e4d7a;
+}
+
+.pcad_honorarios_table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.pcad_honorarios_table th,
+.pcad_honorarios_table td {
+    border: 1px solid #dce8f2;
+    padding: 6px 8px;
+    text-align: left;
+}
+
+.pcad_honorarios_table th {
+    background: #f0f6fb;
+}
+
+.pcad_honorarios_th_sort button {
+    border: none;
+    background: transparent;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+    color: inherit;
+}
+
+.pcad_honorarios_link {
+    border: none;
+    background: transparent;
+    font-size: 0.72rem;
+    color: #1e6bb8;
+    cursor: pointer;
+    padding: 0 2px;
+}
+
+.pcad_modal_foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 12px 18px;
+    border-top: 1px solid #e8f0f6;
+}
+
+body.dark-mode .pcad_modal {
+    background: #1a2836;
+}
+
+body.dark-mode .pcad_contrato_menu {
+    background: #243548;
+    border-color: #4a6a88;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+body.dark-mode .pcad_contrato_menu button {
+    color: #e8f2fa;
+}
+
+body.dark-mode .pcad_contrato_menu button:hover:not(:disabled) {
+    background: #2f4a62;
+    color: #fff;
+}
+
+body.dark-mode .pcad_contrato_menu button:disabled {
+    color: #7a92a8;
+}
+
+body.dark-mode .pcad_modal_backdrop {
+    background: rgba(5, 12, 20, 0.72);
+}
+
+body.dark-mode .pcad_modal_head {
+    border-bottom-color: #3d5a73;
+}
+
+body.dark-mode .pcad_modal_head h3,
+body.dark-mode .pcad_modal_sub {
+    color: #e8f2fa;
+}
+
+body.dark-mode .pcad_modal_close {
+    color: #b8d4e8;
+}
+
+body.dark-mode .pcad_modal_foot {
+    border-top-color: #3d5a73;
+}
+
+body.dark-mode .pcad_honorarios_cat h4 {
+    color: #9ecae8;
+}
+
+body.dark-mode .pcad_honorarios_table th,
+body.dark-mode .pcad_honorarios_table td {
+    border-color: #3d5a73;
+    color: #e8f2fa;
+}
+
+body.dark-mode .pcad_honorarios_table th {
+    background: #243548;
+}
+
+body.dark-mode .pcad_honorarios_th_sort button,
+body.dark-mode .pcad_honorarios_link {
+    color: #dce7f2;
+}
+
+body.dark-mode .pcad_honorarios_link {
+    color: #7fc0f0;
+}
+
+body.dark-mode .pcad_servicos_sort_bar {
+    background: #0f1e2e;
+    border-bottom-color: #3d5a73;
+}
+
+body.dark-mode .pcad_servicos_panel {
+    border-color: var(--border-soft);
+}
+
+body.dark-mode .pcad_servicos_sort_lbl {
+    color: #a8c0d4;
+}
+
+body.dark-mode .pcad_servicos_sort_btn {
+    color: #c5d9eb;
+}
+
+body.dark-mode .pcad_servicos_sort_btn:hover {
+    color: #7fc0f0;
+}
+
+body.dark-mode .pcad_servicos_item {
+    border-bottom-color: #2a3544;
+}
+
+body.dark-mode .pcad_servicos_nome_alt {
+    background: #1e2836;
+    border-color: #3d4f63;
+    color: #e8eef4;
+}
+
+body.dark-mode .pcad_servicos_loading {
+    background: linear-gradient(to bottom, rgba(19, 35, 53, 0.9), rgba(19, 35, 53, 0.4) 40%, transparent);
+}
+
+body.dark-mode .pcad_servicos_copy_btn {
+    color: #7fc0f0;
+}
+
+body.dark-mode .pcad_servicos_copy_btn:hover:not(:disabled) {
+    background: #2a3544;
 }

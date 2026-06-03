@@ -4,6 +4,12 @@
     color: var(--cinza-escuro);
 }
 
+.supertabelanegociacoes_nome_alt_readonly {
+    color: #5d7b92;
+    font-style: italic;
+    cursor: help;
+}
+
 body.supertabelanegociacoes_no_bounce {
     overscroll-behavior-y: none;
 }

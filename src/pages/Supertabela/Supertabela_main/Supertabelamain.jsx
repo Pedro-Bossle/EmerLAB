@@ -9,6 +9,10 @@ import {
     contextoPlanosCidadeFromCidades,
     upsertPlanosCidadeCompat,
 } from '../../../lib/planosCidadeCompat'
+import {
+    buscarCidadeIdsFiltroPlanoCredenciados,
+    buildOpcoesFiltroSupertabela,
+} from '../../../lib/cidadesSupertabelaVinculos.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 
@@ -25,6 +29,7 @@ const Supertabelamain = () => {
     const [linhas, setLinhas] = useState([])
 
     const [cidadeId, setCidadeId] = useState('')
+    const [cidadeIdsFiltroPlano, setCidadeIdsFiltroPlano] = useState(null)
     const [planoId, setPlanoId] = useState('')
     const [porteSelecionado, setPorteSelecionado] = useState('')
 
@@ -46,6 +51,12 @@ const Supertabelamain = () => {
         () => cidades.find((cidade) => String(cidade.id) === String(cidadeId)) || null,
         [cidades, cidadeId]
     )
+
+    const cidadesNoFiltroPlano = useMemo(() => {
+        if (!cidadeIdsFiltroPlano?.size) return cidades
+        return cidades.filter((c) => cidadeIdsFiltroPlano.has(Number(c.id)))
+    }, [cidades, cidadeIdsFiltroPlano])
+
     /**
      * Formata valores numéricos para moeda BRL.
      */
@@ -166,13 +177,21 @@ const Supertabelamain = () => {
             const planosLista = planosData || []
             const portesLista = portesData || []
 
+            const idsFiltro = await buscarCidadeIdsFiltroPlanoCredenciados(
+                supabase,
+                null,
+                buscarTodosPaginado,
+            )
+            setCidadeIdsFiltroPlano(idsFiltro)
+            const opcoesCidade = buildOpcoesFiltroSupertabela(cidadesLista, [], idsFiltro)
+
             setCidades(cidadesLista)
             setPlanos(planosLista)
             setPortes(portesLista)
             setCategorias(categoriasData || [])
 
-            if (cidadesLista.length > 0) {
-                setCidadeId(String(cidadesLista[0].id))
+            if (opcoesCidade.length > 0) {
+                setCidadeId(String(opcoesCidade[0].cidadeId))
             }
             if (planosLista.length > 0) {
                 setPlanoId(String(planosLista[0].id))
@@ -766,6 +785,31 @@ const Supertabelamain = () => {
     }, [])
 
     useEffect(() => {
+        if (!cidades.length) return undefined
+        let cancelado = false
+        void (async () => {
+            try {
+                const ids = await buscarCidadeIdsFiltroPlanoCredenciados(
+                    supabase,
+                    planoId,
+                    buscarTodosPaginado,
+                )
+                if (cancelado) return
+                setCidadeIdsFiltroPlano(ids)
+                const opcoes = buildOpcoesFiltroSupertabela(cidades, [], ids)
+                if (opcoes.length && !opcoes.some((o) => String(o.cidadeId) === String(cidadeId))) {
+                    setCidadeId(String(opcoes[0].cidadeId))
+                }
+            } catch {
+                /* mantém filtro anterior */
+            }
+        })()
+        return () => {
+            cancelado = true
+        }
+    }, [planoId, cidades, cidadeId])
+
+    useEffect(() => {
         buscarLinhasTabela()
     }, [cidadeId, planoId, porteSelecionado, cidades, portes])
 
@@ -842,9 +886,9 @@ const Supertabelamain = () => {
                             value={cidadeId}
                             onChange={(event) => setCidadeId(event.target.value)}
                         >
-                            {cidades.map((cidade) => (
+                            {cidadesNoFiltroPlano.map((cidade) => (
                                 <option key={cidade.id} value={cidade.id}>
-                                    {cidade.nome}
+                                    {cidade.uf ? `${cidade.nome} (${cidade.uf})` : cidade.nome}
                                 </option>
                             ))}
                         </select>

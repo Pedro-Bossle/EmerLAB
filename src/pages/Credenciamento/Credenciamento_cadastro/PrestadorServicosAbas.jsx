@@ -2,7 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { idsEspecialidadeLaboratorio, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers.js'
 import { resolverProcedimentosMassaGlobal } from '../../../lib/resolverProcedimentosMassa.js'
-import { carregarPortesDb, mapaLetraPorPorteId } from '../../../lib/prestadorProcedimentos.js'
+import {
+    carregarMapaNomesAlternativosPrestador,
+    nomeParaHonorariosPdf,
+    salvarNomeAlternativoPrestadorProcedimento,
+} from '../../../lib/prestadorNomeAlternativo.js'
 
 const CATEGORIA_SERVICO_MIN = 3
 const CATEGORIA_SERVICO_MAX = 25
@@ -12,20 +16,22 @@ const CATEGORIA_SERVICO_MAX = 25
  */
 export default function PrestadorServicosAbas({
     prestadorId,
-    cidadeId,
     somenteLeitura,
     selecionadosInicial,
     onChangeSelecionados,
     laboratoriosSelecionadosInicial,
     onChangeLaboratorios,
+    onMapaNomeAlternativoChange,
+    barraAcoes,
 }) {
     const [categorias, setCategorias] = useState([])
     const [abaAtiva, setAbaAtiva] = useState(null)
     const [procedimentosAba, setProcedimentosAba] = useState([])
-    const [repassesMap, setRepassesMap] = useState(new Map())
     const [selecionados, setSelecionados] = useState(() => new Set(selecionadosInicial || []))
     const [loading, setLoading] = useState(false)
     const [erro, setErro] = useState('')
+    const [ordenColuna, setOrdenColuna] = useState('codigo')
+    const [ordenDir, setOrdenDir] = useState('asc')
 
     const [massaAtivo, setMassaAtivo] = useState(false)
     const [textoMassa, setTextoMassa] = useState('')
@@ -38,6 +44,39 @@ export default function PrestadorServicosAbas({
     const [buscaLab, setBuscaLab] = useState('')
     const [sugestoesLabAbertas, setSugestoesLabAbertas] = useState(false)
     const labWrapRef = useRef(null)
+    const nomeAltInputRefs = useRef(new Map())
+    const [nomesAlternativos, setNomesAlternativos] = useState(() => new Map())
+    const [salvandoNomeAlt, setSalvandoNomeAlt] = useState(null)
+    const [copiandoNomes, setCopiandoNomes] = useState(false)
+
+    const codigoNorm = (cod) =>
+        String(cod || '')
+            .trim()
+            .toUpperCase()
+
+    useEffect(() => {
+        if (!prestadorId) {
+            setNomesAlternativos(new Map())
+            return
+        }
+        let cancel = false
+        const run = async () => {
+            try {
+                const mapa = await carregarMapaNomesAlternativosPrestador(prestadorId)
+                if (!cancel) setNomesAlternativos(mapa)
+            } catch {
+                if (!cancel) setNomesAlternativos(new Map())
+            }
+        }
+        void run()
+        return () => {
+            cancel = true
+        }
+    }, [prestadorId, selecionadosInicial])
+
+    useEffect(() => {
+        onMapaNomeAlternativoChange?.(nomesAlternativos)
+    }, [nomesAlternativos, onMapaNomeAlternativoChange])
 
     useEffect(() => {
         const next = new Set((selecionadosInicial || []).map((c) => String(c).trim()).filter(Boolean))
@@ -84,59 +123,71 @@ export default function PrestadorServicosAbas({
         void run()
     }, [])
 
-    const carregarRepasses = useCallback(async () => {
-        if (!cidadeId) return new Map()
-        const { data } = await supabase
-            .from('repasses')
-            .select('procedimento_id, porte_id, valor')
-            .eq('cidade_id', cidadeId)
-        const portesLista = await carregarPortesDb()
-        const letraPorId = mapaLetraPorPorteId(portesLista)
-        const mapa = new Map()
-        ;(data || []).forEach((r) => {
-            const codProc = String(r.procedimento_id || '').trim()
-            if (!codProc) return
-            if (!mapa.has(codProc)) mapa.set(codProc, { P: '—', M: '—', G: '—' })
-            const letra = letraPorId.get(Number(r.porte_id))
-            if (letra === 'P' || letra === 'M' || letra === 'G') {
-                mapa.get(codProc)[letra] = r.valor != null ? String(r.valor) : '—'
-            }
-        })
-        return mapa
-    }, [cidadeId])
-
     useEffect(() => {
         if (!abaAtiva) return
         const run = async () => {
             setLoading(true)
             setErro('')
             try {
-                const [procRes, repMap] = await Promise.all([
-                    supabase
-                        .from('procedimentos')
-                        .select('codigo, nome, categoria_id')
-                        .eq('categoria_id', abaAtiva)
-                        .order('codigo', { ascending: true }),
-                    carregarRepasses(),
-                ])
+                const procRes = await supabase
+                    .from('procedimentos')
+                    .select('codigo, nome, categoria_id')
+                    .eq('categoria_id', abaAtiva)
+                    .order('codigo', { ascending: true })
                 if (procRes.error) {
                     setErro(procRes.error.message)
                     return
                 }
                 setErro('')
                 setProcedimentosAba(procRes.data || [])
-                setRepassesMap(repMap)
             } finally {
                 setLoading(false)
             }
         }
         void run()
-    }, [abaAtiva, carregarRepasses])
+    }, [abaAtiva])
 
     const categoriaAtiva = useMemo(
         () => categorias.find((c) => Number(c.id) === Number(abaAtiva)),
         [categorias, abaAtiva],
     )
+
+    const procedimentosOrdenados = useMemo(() => {
+        const list = [...procedimentosAba]
+        const fator = ordenDir === 'asc' ? 1 : -1
+        list.sort((a, b) => {
+            if (ordenColuna === 'nome') {
+                return (
+                    fator *
+                    String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', { sensitivity: 'base' })
+                )
+            }
+            if (ordenColuna === 'checked') {
+                const ca = selecionados.has(String(a.codigo)) ? 1 : 0
+                const cb = selecionados.has(String(b.codigo)) ? 1 : 0
+                return (ca - cb) * fator
+            }
+            return (
+                fator *
+                String(a.codigo || '').localeCompare(String(b.codigo || ''), 'pt-BR', { sensitivity: 'base' })
+            )
+        })
+        return list
+    }, [procedimentosAba, ordenColuna, ordenDir, selecionados])
+
+    const alternarOrdenacao = (coluna) => {
+        if (ordenColuna === coluna) {
+            setOrdenDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+        } else {
+            setOrdenColuna(coluna)
+            setOrdenDir(coluna === 'nome' ? 'asc' : 'asc')
+        }
+    }
+
+    const indicadorOrdem = (coluna) => {
+        if (ordenColuna !== coluna) return ''
+        return ordenDir === 'asc' ? ' ▲' : ' ▼'
+    }
 
     const sugestoesLab = useMemo(() => {
         const seg = normalizarTextoBusca(buscaLab)
@@ -196,6 +247,111 @@ export default function PrestadorServicosAbas({
         })
     }
 
+    const obterNomeAlt = useCallback(
+        (codigo) => nomesAlternativos.get(codigoNorm(codigo)) || '',
+        [nomesAlternativos],
+    )
+
+    const atualizarNomeAltLocal = (codigo, texto) => {
+        const cod = codigoNorm(codigo)
+        if (!cod) return
+        setNomesAlternativos((prev) => {
+            const next = new Map(prev)
+            const v = String(texto ?? '').trim()
+            if (v) next.set(cod, v)
+            else next.delete(cod)
+            return next
+        })
+    }
+
+    const persistirNomeAlt = async (codigo, texto) => {
+        const cod = codigoNorm(codigo)
+        if (!cod) return
+        atualizarNomeAltLocal(codigo, texto)
+        if (!prestadorId || somenteLeitura) return
+        setSalvandoNomeAlt(cod)
+        try {
+            await salvarNomeAlternativoPrestadorProcedimento(prestadorId, codigo, texto)
+        } catch (e) {
+            setErro(e?.message || String(e))
+        } finally {
+            setSalvandoNomeAlt(null)
+        }
+    }
+
+    const processarColagemNomeAltVertical = (event, indiceInicial) => {
+        if (somenteLeitura) return
+        event.preventDefault()
+        const texto = event.clipboardData?.getData('text') || ''
+        const linhasColadas = texto
+            .replace(/\r/g, '')
+            .split('\n')
+            .filter((linha) => linha.length > 0)
+        if (!linhasColadas.length) return
+        void (async () => {
+            for (let i = 0; i < linhasColadas.length; i += 1) {
+                const proc = procedimentosOrdenados[indiceInicial + i]
+                if (!proc) break
+                const cel = String(linhasColadas[i].split('\t')[0] ?? '')
+                await persistirNomeAlt(proc.codigo, cel)
+            }
+        })()
+    }
+
+    const focarNomeAltLinha = (indice, shift) => {
+        const alvo = indice + (shift ? -1 : 1)
+        const proc = procedimentosOrdenados[alvo]
+        if (!proc) return
+        const el = nomeAltInputRefs.current.get(String(proc.codigo))
+        el?.focus()
+    }
+
+    const copiarNomesProcedimentosSelecionados = async () => {
+        const codigosSel = [...selecionados].map(codigoNorm).filter(Boolean)
+        if (!codigosSel.length) return
+        setCopiandoNomes(true)
+        try {
+            const rows = []
+            const chunk = 80
+            for (let i = 0; i < codigosSel.length; i += chunk) {
+                const { data, error } = await supabase
+                    .from('procedimentos')
+                    .select('codigo, nome, categoria_id')
+                    .in('codigo', codigosSel.slice(i, i + chunk))
+                if (error) throw new Error(error.message)
+                rows.push(...(data || []))
+            }
+            const selSet = new Set(codigosSel)
+            const porCategoria = new Map()
+            for (const row of rows) {
+                const cod = codigoNorm(row.codigo)
+                if (!selSet.has(cod)) continue
+                const catId = Number(row.categoria_id)
+                if (!porCategoria.has(catId)) porCategoria.set(catId, [])
+                porCategoria
+                    .get(catId)
+                    .push(nomeParaHonorariosPdf(row.nome, obterNomeAlt(row.codigo)))
+            }
+            const partes = []
+            const catsOrdenadas =
+                categorias.length > 0
+                    ? categorias
+                    : [...porCategoria.keys()].map((id) => ({ id, nome: `Categoria ${id}` }))
+            for (const cat of catsOrdenadas) {
+                const nomes = porCategoria.get(Number(cat.id))
+                if (!nomes?.length) continue
+                nomes.sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }))
+                partes.push([String(cat.nome || '').trim(), ...nomes].join('\n'))
+            }
+            const texto = partes.join('\n\n')
+            await navigator.clipboard.writeText(texto)
+        } catch (e) {
+            setErro(e?.message || 'Não foi possível copiar para a área de transferência.')
+        } finally {
+            setCopiandoNomes(false)
+        }
+    }
+
     const aplicarMassa = async () => {
         if (somenteLeitura || massaAplicando) return
         const idsCat = categorias.map((c) => Number(c.id)).filter(Boolean)
@@ -242,36 +398,6 @@ export default function PrestadorServicosAbas({
         } finally {
             setMassaAplicando(false)
         }
-    }
-
-    const linhasImpressao = useMemo(() => {
-        return procedimentosAba
-            .filter((p) => selecionados.has(String(p.codigo)))
-            .map((p) => {
-                const rep = repassesMap.get(String(p.codigo)) || { P: '—', M: '—', G: '—' }
-                return { codigo: p.codigo, nome: p.nome, P: rep.P, M: rep.M, G: rep.G }
-            })
-    }, [procedimentosAba, selecionados, repassesMap])
-
-    const imprimir = () => {
-        const titulo = categoriaAtiva?.nome || 'Serviços'
-        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${titulo}</title>
-<style>body{font-family:system-ui,sans-serif;padding:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px 8px;font-size:12px}th{background:#f0f0f0}</style></head><body>
-<h1>${titulo}</h1><p>Prestador #${prestadorId || '—'}</p>
-<table><thead><tr><th>Código</th><th>Nome</th><th>P</th><th>M</th><th>G</th></tr></thead><tbody>
-${linhasImpressao
-    .map(
-        (l) =>
-            `<tr><td>${l.codigo}</td><td>${l.nome}</td><td>${l.P}</td><td>${l.M}</td><td>${l.G}</td></tr>`,
-    )
-    .join('')}
-</tbody></table></body></html>`
-        const w = window.open('', '_blank')
-        if (!w) return
-        w.document.write(html)
-        w.document.close()
-        w.focus()
-        w.print()
     }
 
     return (
@@ -396,10 +522,27 @@ ${linhasImpressao
             {erro && <p className="pcad_erro pcad_servicos_erro">{erro}</p>}
 
             <div className="pcad_servicos_toolbar">
-                <span className="pcad_servicos_count">{selecionados.size} procedimento(s) selecionado(s) no total</span>
-                <button type="button" className="credenciamento_main_action_btn secondary" onClick={imprimir} disabled={linhasImpressao.length === 0}>
-                    Imprimir aba atual
-                </button>
+                <div className="pcad_servicos_count_row">
+                    <span className="pcad_servicos_count">
+                        {selecionados.size} procedimento(s) selecionado(s) no total
+                    </span>
+                    <button
+                        type="button"
+                        className="pcad_servicos_copy_btn"
+                        disabled={selecionados.size === 0 || copiandoNomes}
+                        title="Copiar nomes dos procedimentos marcados (por categoria)"
+                        aria-label="Copiar nomes dos procedimentos marcados para a área de transferência"
+                        onClick={() => void copiarNomesProcedimentosSelecionados()}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path
+                                fill="currentColor"
+                                d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                            />
+                        </svg>
+                    </button>
+                </div>
+                {barraAcoes}
             </div>
             <div className="pcad_servicos_panel">
                 {loading && (
@@ -407,22 +550,63 @@ ${linhasImpressao
                         <span className="pcad_muted">Atualizando…</span>
                     </div>
                 )}
+                {procedimentosAba.length > 0 && (
+                    <div className="pcad_servicos_sort_bar" role="group" aria-label="Ordenar lista">
+                        <span className="pcad_servicos_sort_lbl">Ordenar:</span>
+                        <button type="button" className="pcad_servicos_sort_btn" onClick={() => alternarOrdenacao('checked')}>
+                            Marcados{indicadorOrdem('checked')}
+                        </button>
+                        <button type="button" className="pcad_servicos_sort_btn" onClick={() => alternarOrdenacao('codigo')}>
+                            Código{indicadorOrdem('codigo')}
+                        </button>
+                        <button type="button" className="pcad_servicos_sort_btn" onClick={() => alternarOrdenacao('nome')}>
+                            Nome{indicadorOrdem('nome')}
+                        </button>
+                    </div>
+                )}
                 <div className={`pcad_servicos_lista${loading ? ' is-loading' : ''}`} role="tabpanel">
                     {!loading && procedimentosAba.length === 0 && (
                         <p className="pcad_muted pcad_servicos_vazio">Nenhum procedimento nesta categoria.</p>
                     )}
-                    {procedimentosAba.map((p) => (
-                        <label key={p.codigo} className="pcad_servicos_item">
-                            <input
-                                type="checkbox"
-                                checked={selecionados.has(String(p.codigo))}
-                                disabled={somenteLeitura || loading}
-                                onChange={() => toggle(p.codigo)}
-                            />
-                            <span>
+                    {procedimentosOrdenados.map((p, linhaIndex) => (
+                        <div key={p.codigo} className="pcad_servicos_item">
+                            <label className="pcad_servicos_item_check">
+                                <input
+                                    type="checkbox"
+                                    checked={selecionados.has(String(p.codigo))}
+                                    disabled={somenteLeitura || loading}
+                                    onChange={() => toggle(p.codigo)}
+                                />
+                            </label>
+                            <span className="pcad_servicos_item_titulo">
                                 <strong>{p.codigo}</strong> — {p.nome}
                             </span>
-                        </label>
+                            <input
+                                ref={(el) => {
+                                    if (el) nomeAltInputRefs.current.set(String(p.codigo), el)
+                                    else nomeAltInputRefs.current.delete(String(p.codigo))
+                                }}
+                                type="text"
+                                className="credenciamento_main_input pcad_servicos_nome_alt"
+                                placeholder="Nome alternativo"
+                                value={obterNomeAlt(p.codigo)}
+                                disabled={somenteLeitura || loading}
+                                title={
+                                    salvandoNomeAlt === codigoNorm(p.codigo)
+                                        ? 'A guardar…'
+                                        : 'Tab: linha seguinte · Cole uma coluna do Excel (Enter entre linhas)'
+                                }
+                                onChange={(e) => atualizarNomeAltLocal(p.codigo, e.target.value)}
+                                onBlur={(e) => void persistirNomeAlt(p.codigo, e.target.value)}
+                                onPaste={(e) => processarColagemNomeAltVertical(e, linhaIndex)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Tab') {
+                                        e.preventDefault()
+                                        focarNomeAltLinha(linhaIndex, e.shiftKey)
+                                    }
+                                }}
+                            />
+                        </div>
                     ))}
                 </div>
             </div>

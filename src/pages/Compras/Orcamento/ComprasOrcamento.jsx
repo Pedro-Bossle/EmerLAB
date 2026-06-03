@@ -23,6 +23,12 @@ import {
 
 import { UFS_BRASIL, buscarMunicipiosPorUf } from "../../../lib/ibgeLocalidades.js";
 
+import {
+  buscarCidadeIdsFiltroPlanoCredenciados,
+  filtrarCidadesTabelaPorIds,
+  ufsDisponiveisFiltroCredenciamento,
+} from "../../../lib/cidadesSupertabelaVinculos.js";
+
 import { buscarTodosPaginado, supabase } from "../../../lib/supabase";
 
 import "./ComprasOrcamento.css";
@@ -71,6 +77,8 @@ const ComprasOrcamento = () => {
   const [planos, setPlanos] = useState([]);
 
   const [cidades, setCidades] = useState([]);
+
+  const [idsFiltroPlanoCidade, setIdsFiltroPlanoCidade] = useState(null);
 
   const [buscaProc, setBuscaProc] = useState("");
 
@@ -134,12 +142,48 @@ const ComprasOrcamento = () => {
     };
   }, [ufComprador]);
 
+  const ufsPermitidasCredenciamento = useMemo(() => {
+    const set = ufsDisponiveisFiltroCredenciamento(cidades, idsFiltroPlanoCidade);
+    return UFS_BRASIL.filter((sigla) => set.has(sigla));
+  }, [cidades, idsFiltroPlanoCidade]);
+
   const cidadesFiltradasUf = useMemo(() => {
     if (!ufComprador || !nomesMunicipiosUf) return [];
-    return (cidades || []).filter((c) =>
+    const naUf = filtrarCidadesTabelaPorIds(cidades, idsFiltroPlanoCidade).filter(
+      (c) => String(c.uf || "").trim().toUpperCase() === ufComprador,
+    );
+    return naUf.filter((c) =>
       nomesMunicipiosUf.has(normalizarNomeCidade(c.nome)),
     );
-  }, [cidades, ufComprador, nomesMunicipiosUf]);
+  }, [cidades, ufComprador, nomesMunicipiosUf, idsFiltroPlanoCidade]);
+
+  useEffect(() => {
+    let cancelado = false;
+    const run = async () => {
+      try {
+        const ids = await buscarCidadeIdsFiltroPlanoCredenciados(
+          supabase,
+          planoCompradorId || null,
+          buscarTodosPaginado,
+        );
+        if (!cancelado) setIdsFiltroPlanoCidade(ids);
+      } catch {
+        if (!cancelado) setIdsFiltroPlanoCidade(new Set());
+      }
+    };
+    void run();
+    return () => {
+      cancelado = true;
+    };
+  }, [planoCompradorId]);
+
+  useEffect(() => {
+    if (!cidadeCompradorId) return;
+    const ok = cidadesFiltradasUf.some(
+      (c) => String(c.id) === String(cidadeCompradorId),
+    );
+    if (!ok) setCidadeCompradorId("");
+  }, [cidadeCompradorId, cidadesFiltradasUf]);
 
   const sugestoesProcedimentos = useMemo(() => {
     const termo = normalizarTexto(buscaProc);
@@ -657,7 +701,7 @@ const ComprasOrcamento = () => {
                 }}
               >
                 <option value="">Selecione</option>
-                {UFS_BRASIL.map((sigla) => (
+                {ufsPermitidasCredenciamento.map((sigla) => (
                   <option key={sigla} value={sigla}>
                     {sigla}
                   </option>

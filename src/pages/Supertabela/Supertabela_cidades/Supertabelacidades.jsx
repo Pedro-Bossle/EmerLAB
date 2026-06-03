@@ -11,6 +11,7 @@ import GerenciarTabelasModal from '../../../components/Supertabela/GerenciarTabe
 import { mapCidadeParaGerenciador, payloadCidadeComUf } from '../../../lib/cidadesSupertabelaHelpers.js'
 import {
     buildOpcoesFiltroSupertabela,
+    buscarCidadeIdsFiltroPlanoCredenciados,
     carregarVinculosMunicipios,
     isMissingVinculosTableError,
     municipiosPorCidadeId,
@@ -27,6 +28,7 @@ const Supertabelacidades = () => {
     const [municipiosVinculos, setMunicipiosVinculos] = useState([])
     const [suportaVinculosMunicipios, setSuportaVinculosMunicipios] = useState(true)
     const [valorFiltroCidade, setValorFiltroCidade] = useState('')
+    const [cidadeIdsFiltroPlano, setCidadeIdsFiltroPlano] = useState(null)
     const [categorias, setCategorias] = useState([])
     const [portes, setPortes] = useState([])
     const [procedimentos, setProcedimentos] = useState([])
@@ -175,7 +177,13 @@ const Supertabelacidades = () => {
             setPortes(portesData || [])
             setProcedimentos(procedimentosData || [])
 
-            const opcoes = buildOpcoesFiltroSupertabela(listaCidades, vinculos)
+            const idsFiltro = await buscarCidadeIdsFiltroPlanoCredenciados(
+                supabase,
+                null,
+                buscarTodosPaginado,
+            )
+            setCidadeIdsFiltroPlano(idsFiltro)
+            const opcoes = buildOpcoesFiltroSupertabela(listaCidades, vinculos, idsFiltro)
             if (!valorFiltroCidade && opcoes.length > 0) {
                 setValorFiltroCidade(opcoes[0].value)
                 setCidadeId(String(opcoes[0].cidadeId))
@@ -693,8 +701,8 @@ const Supertabelacidades = () => {
     const mapaMunicipiosPorCidade = useMemo(() => municipiosPorCidadeId(municipiosVinculos), [municipiosVinculos])
 
     const opcoesFiltroCidade = useMemo(
-        () => buildOpcoesFiltroSupertabela(cidades, municipiosVinculos),
-        [cidades, municipiosVinculos],
+        () => buildOpcoesFiltroSupertabela(cidades, municipiosVinculos, cidadeIdsFiltroPlano),
+        [cidades, municipiosVinculos, cidadeIdsFiltroPlano],
     )
 
     const cidadesGerenciaveis = useMemo(() => {

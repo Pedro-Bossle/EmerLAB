@@ -111,18 +111,118 @@ export function municipiosPorCidadeId(vinculos) {
 }
 
 /** Uma opção por tabela (`cidades`), rótulo = nome da tabela. */
-export function buildOpcoesFiltroSupertabela(cidades, _vinculos) {
+export function buildOpcoesFiltroSupertabela(cidades, _vinculos, cidadeIdsPermitidos = null) {
+    const permitir =
+        cidadeIdsPermitidos instanceof Set && cidadeIdsPermitidos.size > 0 ? cidadeIdsPermitidos : null
     return (cidades || [])
+        .filter((c) => {
+            if (!permitir) return true
+            return permitir.has(Number(c.id))
+        })
         .map((c) => {
             const nome = String(c.nome || '').trim() || '—'
+            const uf = String(c.uf || '').trim().toUpperCase()
+            const label = uf ? `${nome} (${uf})` : nome
             return {
                 value: `c-${c.id}`,
                 cidadeId: Number(c.id),
-                label: nome,
+                uf,
+                label,
                 sort: nome,
             }
         })
         .sort((a, b) => a.sort.localeCompare(b.sort, 'pt-BR', { sensitivity: 'base' }))
+}
+
+/** Cidades da tabela-mestre com repasse (credenciamento na supertabela). */
+export async function buscarCidadeIdsTabelaComRepasses(supabase, buscarTodosPaginado) {
+    const fn = buscarTodosPaginado || ((q) => q())
+    const { data, error } = await fn(() => supabase.from('repasses').select('cidade_id'))
+    if (error) throw error
+    const ids = new Set()
+    ;(data || []).forEach((r) => {
+        const id = Number(r.cidade_id)
+        if (id) ids.add(id)
+    })
+    return ids
+}
+
+/** Cidades com vínculo em `planos_cidade` para o plano. */
+export async function buscarCidadeIdsTabelaPorPlano(supabase, planoId, buscarTodosPaginado) {
+    const pid = Number(planoId)
+    if (!pid) return new Set()
+    const fn = buscarTodosPaginado || ((q) => q())
+    const { data, error } = await fn(() =>
+        supabase.from('planos_cidade').select('cidade_id').eq('plano_id', pid),
+    )
+    if (error) throw error
+    const ids = new Set()
+    ;(data || []).forEach((r) => {
+        const id = Number(r.cidade_id)
+        if (id) ids.add(id)
+    })
+    return ids
+}
+
+export function filtrarCidadesTabelaPorIds(cidades, cidadeIdsPermitidos) {
+    if (cidadeIdsPermitidos == null) return []
+    const permitir =
+        cidadeIdsPermitidos instanceof Set && cidadeIdsPermitidos.size > 0 ? cidadeIdsPermitidos : null
+    return (cidades || []).filter((c) => !permitir || permitir.has(Number(c.id)))
+}
+
+/** UFs presentes nas linhas da tabela-mestre após o filtro de credenciamento. */
+export function ufsDisponiveisFiltroCredenciamento(cidades, cidadeIdsPermitidos) {
+    if (cidadeIdsPermitidos == null) return new Set()
+    const ufs = new Set()
+    filtrarCidadesTabelaPorIds(cidades, cidadeIdsPermitidos).forEach((c) => {
+        const u = String(c.uf || '').trim().toUpperCase()
+        if (u) ufs.add(u)
+    })
+    return ufs
+}
+
+/** Nomes de município (chave normalizada) permitidos por UF — tabela `cidades` + vínculos IBGE. */
+export function buildNomesMunicipioPermitidosPorUf(cidades, vinculos, cidadeIdsPermitidos) {
+    if (cidadeIdsPermitidos == null) return new Map()
+    const permitir =
+        cidadeIdsPermitidos instanceof Set && cidadeIdsPermitidos.size > 0 ? cidadeIdsPermitidos : null
+    const porUf = new Map()
+    const add = (uf, nome) => {
+        const u = String(uf || '').trim().toUpperCase()
+        const chave = normalizarMunicipioChave(nome)
+        if (!u || !chave) return
+        if (!porUf.has(u)) porUf.set(u, new Set())
+        porUf.get(u).add(chave)
+    }
+    for (const c of cidades || []) {
+        if (permitir && !permitir.has(Number(c.id))) continue
+        add(c.uf, c.nome)
+    }
+    for (const v of vinculos || []) {
+        if (permitir && !permitir.has(Number(v.cidade_id))) continue
+        add(v.uf, v.municipio_nome)
+    }
+    return porUf
+}
+
+export function filtrarMunicipiosIbgePorCredenciamento(municipios, uf, nomesPorUf) {
+    if (!uf || !nomesPorUf) return []
+    const permitidos = nomesPorUf.get(String(uf).trim().toUpperCase())
+    if (!permitidos?.size) return []
+    return (municipios || []).filter((m) => permitidos.has(normalizarMunicipioChave(m.nome)))
+}
+
+/** Cidades com repasse na supertabela ∩ cidades do plano (quando há plano). */
+export async function buscarCidadeIdsFiltroPlanoCredenciados(supabase, planoId, buscarTodosPaginado) {
+    const comRepasse = await buscarCidadeIdsTabelaComRepasses(supabase, buscarTodosPaginado)
+    const doPlano = await buscarCidadeIdsTabelaPorPlano(supabase, planoId, buscarTodosPaginado)
+    if (!doPlano.size) return comRepasse
+    const out = new Set()
+    doPlano.forEach((id) => {
+        if (comRepasse.has(id)) out.add(id)
+    })
+    return out.size ? out : doPlano
 }
 
 export function parseValorFiltroCidade(value) {

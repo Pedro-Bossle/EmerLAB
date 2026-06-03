@@ -257,6 +257,68 @@
     font-size: 0.85rem;
 }
 
+/* Modo escuro — alinhado ao credenciamento / supertabela */
+body.dark-mode .fcred_inbox .fcred_inbox_lista,
+body.dark-mode .fcred_inbox .fcred_inbox_detalhe {
+    background: #1a2f45;
+    border-color: #3b5a77;
+    color: #e8f2fa;
+}
+
+body.dark-mode .fcred_inbox_item {
+    background: #223a52;
+    border-color: #3f5f7c;
+    color: #e8f2fa;
+}
+
+body.dark-mode .fcred_inbox_item:hover {
+    background: #2a4660;
+}
+
+body.dark-mode .fcred_inbox_item.is-active {
+    background: #2d5278;
+    border-color: #4a8cc9;
+}
+
+body.dark-mode .fcred_inbox_item_meta,
+body.dark-mode .fcred_inbox_item_data,
+body.dark-mode .fcred_inbox_detalhe_sub,
+body.dark-mode .fcred_inbox .pcad_muted {
+    color: #9eb8d0;
+}
+
+body.dark-mode .fcred_inbox_detalhe_tit,
+body.dark-mode .fcred_inbox_sec_tit {
+    color: #edf5fd;
+}
+
+body.dark-mode .fcred_inbox_detail_box {
+    background: #223a52;
+    border-color: #3f5f7c;
+}
+
+body.dark-mode .fcred_inbox_detail_box p {
+    color: #d4e6f5;
+}
+
+body.dark-mode .fcred_inbox_proc_cat {
+    color: #7ec0ff;
+}
+
+body.dark-mode .fcred_inbox_acoes {
+    border-top-color: #3f5f7c;
+}
+
+body.dark-mode .fcred_inbox_bell_panel {
+    background: #1a2f45;
+    border-color: #3b5a77;
+    color: #e8f2fa;
+}
+
+body.dark-mode .fcred_inbox_bell_head {
+    border-bottom-color: #3f5f7c;
+}
+
 @media (max-width: 900px) {
     .fcred_inbox .fcred_inbox_filtros {
         gap: 0.35rem;

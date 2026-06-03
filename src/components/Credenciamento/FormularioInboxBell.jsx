@@ -48,16 +48,17 @@ export default function FormularioInboxBell() {
     const ultimoSyncContratosRef = useRef(0)
 
     const countTotal = countForm + countContratos
-    const visivel = podeNotifForm || podeNotifContratos
+    const temPermissao = podeNotifForm || podeNotifContratos
+    const visivel = temPermissao && countTotal > 0
 
     useEffect(() => {
-        if (!visivel) return undefined
+        if (!temPermissao) return undefined
         const n = countTotal > 0 ? (countTotal > 99 ? '99+' : String(countTotal)) : ''
         document.title = n ? `(${n}) ${TITULO_ABA_BASE}` : TITULO_ABA_BASE
         return () => {
             document.title = TITULO_ABA_BASE
         }
-    }, [visivel, countTotal])
+    }, [temPermissao, countTotal])
 
     const lerContratosLocal = useCallback(async () => {
         const lista = carregarNotificacoes()
@@ -102,7 +103,7 @@ export default function FormularioInboxBell() {
 
     const atualizar = useCallback(
         async (opts = {}) => {
-            if (!visivel) return
+            if (!temPermissao) return
             const forcarContratos = Boolean(opts.forcarContratos)
             try {
                 if (podeNotifForm) await atualizarFormulario()
@@ -116,18 +117,18 @@ export default function FormularioInboxBell() {
                 /* silencioso no polling */
             }
         },
-        [visivel, podeNotifForm, podeNotifContratos, aberto, sincronizarContratosSeDevido, atualizarFormulario],
+        [temPermissao, podeNotifForm, podeNotifContratos, aberto, sincronizarContratosSeDevido, atualizarFormulario],
     )
 
     useEffect(() => {
-        if (!visivel) return undefined
+        if (!temPermissao) return undefined
         void atualizar({ forcarContratos: true })
         const t = setInterval(() => void atualizar(), INTERVALO_MS)
         return () => clearInterval(t)
-    }, [visivel, atualizar])
+    }, [temPermissao, atualizar])
 
     useEffect(() => {
-        if (!visivel || !podeNotifForm) return undefined
+        if (!temPermissao || !podeNotifForm) return undefined
         const onCustom = () => {
             void atualizarFormulario().catch(() => {})
         }
@@ -144,10 +145,10 @@ export default function FormularioInboxBell() {
             window.removeEventListener(FORMULARIO_ENTRADAS_CHANGE_EVENT, onCustom)
             void supabase.removeChannel(channel)
         }
-    }, [visivel, podeNotifForm, atualizarFormulario])
+    }, [temPermissao, podeNotifForm, atualizarFormulario])
 
     useEffect(() => {
-        if (!visivel) return undefined
+        if (!temPermissao) return undefined
         const onVis = () => {
             if (document.visibilityState !== 'visible') return
             ultimoSyncContratosRef.current = 0
@@ -155,7 +156,7 @@ export default function FormularioInboxBell() {
         }
         document.addEventListener('visibilitychange', onVis)
         return () => document.removeEventListener('visibilitychange', onVis)
-    }, [visivel, atualizar])
+    }, [temPermissao, atualizar])
 
     const refreshContratosUi = useCallback(() => {
         void (async () => {
@@ -166,7 +167,7 @@ export default function FormularioInboxBell() {
     }, [aberto])
 
     useEffect(() => {
-        if (!visivel) return undefined
+        if (!temPermissao) return undefined
         const onStorage = (e) => {
             if (e.key && e.key !== CLICKSIGN_NOTIF_STORAGE_KEY) return
             refreshContratosUi()
@@ -178,10 +179,10 @@ export default function FormularioInboxBell() {
             window.removeEventListener('storage', onStorage)
             window.removeEventListener('emerdog-clicksign-notif-change', onCustom)
         }
-    }, [visivel, refreshContratosUi])
+    }, [temPermissao, refreshContratosUi])
 
     useEffect(() => {
-        if (!aberto || !visivel) return undefined
+        if (!aberto || !temPermissao) return undefined
         setLoading(true)
         void (async () => {
             try {
@@ -204,7 +205,7 @@ export default function FormularioInboxBell() {
                 setLoading(false)
             }
         })()
-    }, [aberto, visivel, podeNotifForm, podeNotifContratos, sincronizarContratosSeDevido])
+    }, [aberto, temPermissao, podeNotifForm, podeNotifContratos, sincronizarContratosSeDevido])
 
     useEffect(() => {
         if (!aberto) return undefined
@@ -235,6 +236,7 @@ export default function FormularioInboxBell() {
         }
     }, [podeNotifContratos, podeNotifForm])
 
+    if (!temPermissao) return null
     if (!visivel) return null
 
     const podeLimpar =

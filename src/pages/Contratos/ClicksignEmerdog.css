@@ -1088,6 +1088,53 @@ button.cs_dash_metric_box:hover {
     font-weight: 600;
 }
 
+.clicksign_lista_paginacao {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid #d7e8f2;
+    border-radius: 10px;
+    background: #f8fbfd;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 12px;
+}
+
+.clicksign_lista_paginacao_info {
+    font-size: 0.84rem;
+    color: #35556d;
+}
+
+.clicksign_lista_paginacao_controles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.clicksign_lista_paginacao_label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #1e4d7a;
+}
+
+.clicksign_lista_paginacao_label .contratos_select {
+    min-width: 76px;
+}
+
+.clicksign_lista_paginacao_page {
+    min-width: 110px;
+    text-align: center;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #35556d;
+}
+
 .clicksign_novo .contratos_field {
     max-width: 420px;
 }

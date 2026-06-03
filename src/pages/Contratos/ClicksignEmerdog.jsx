@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../lib/prestadorCadastroHelpers.js'
+import { useBuscaNotAtiva } from '../../lib/devToolsUi'
 import {
     PAPEIS_SIGNATARIO_CLICKSIGN,
     clicksignRequest,
@@ -180,6 +182,7 @@ function IconeOlho({ visivel }) {
 }
 
 export default function ClicksignEmerdog() {
+    const buscaNotAtiva = useBuscaNotAtiva()
     const [tab, setTab] = useState('envelopes')
     const [toast, setToast] = useState(null)
     const [loading, setLoading] = useState(false)
@@ -210,6 +213,8 @@ export default function ClicksignEmerdog() {
     const [deletingId, setDeletingId] = useState('')
     const [ordenarColuna, setOrdenarColuna] = useState('created')
     const [ordenarDir, setOrdenarDir] = useState('desc')
+    const [itensPorPaginaLista, setItensPorPaginaLista] = useState(20)
+    const [paginaAtualLista, setPaginaAtualLista] = useState(1)
 
     const [fluxoEnvelopeId, setFluxoEnvelopeId] = useState('')
     const [fluxoNome, setFluxoNome] = useState('')
@@ -398,11 +403,8 @@ export default function ClicksignEmerdog() {
                 }
                 const opts =
                     origem && typeof origem === 'object'
-                        ? origem
-                        : {
-                              filterStatus: statusFilter,
-                              filterName: filtroNomeDebounced,
-                          }
+                        ? { filterStatus: statusFilter, ...origem, filterName: '' }
+                        : { filterStatus: statusFilter, filterName: '' }
                 const res = await listarEnvelopesTodasPaginas(csRequest, opts)
                 if (!res.ok) {
                     pushToast('error', `Erro ${res.status || ''}`, erroApiTexto(res.data))
@@ -426,14 +428,13 @@ export default function ClicksignEmerdog() {
                         pageNumber: 1,
                         pageSize: 50,
                         filterStatus: opts.filterStatus || '',
-                        filterName: opts.filterName || '',
                     }),
                 )
             } finally {
                 setLoading(false)
             }
         },
-        [pushToast, csRequest, statusFilter, filtroNomeDebounced],
+        [pushToast, csRequest, statusFilter],
     )
 
     const carregarUsoMes = useCallback(async () => {
@@ -609,11 +610,8 @@ export default function ClicksignEmerdog() {
     useEffect(() => {
         if (tab !== 'envelopes') return
         if (vistaPainel === 'hub') return
-        void carregarLista({
-            filterStatus: statusFilter,
-            filterName: filtroNomeDebounced,
-        })
-    }, [tab, vistaPainel, statusFilter, filtroNomeDebounced, carregarLista])
+        void carregarLista({ filterStatus: statusFilter })
+    }, [tab, vistaPainel, statusFilter, carregarLista])
 
     useEffect(() => {
         if (tab === 'envelopes' && vistaPainel === 'hub') {
@@ -1290,12 +1288,12 @@ export default function ClicksignEmerdog() {
             if (replaceId && encSt === 'running') {
                 setFluxoBusy(true)
                 const patchBody = payloadAtualizarSignatario({
+                    signerId: replaceId,
                     name: nomeTrim,
                     email,
                     phone,
                     channel: ch,
                 })
-                patchBody.data.id = replaceId
                 const pr = await csRequest(
                     'PATCH',
                     `/envelopes/${encodeURIComponent(eid)}/signers/${encodeURIComponent(replaceId)}`,
@@ -1304,7 +1302,12 @@ export default function ClicksignEmerdog() {
                 setFluxoBusy(false)
                 signReplaceSignerIdRef.current = ''
                 if (!pr.ok) {
-                    pushToast('error', `Atualizar signatário ${pr.status}`, erroApiTexto(pr.data))
+                    const msg = erroApiTexto(pr.data)
+                    const hint502 =
+                        pr.status === 502
+                            ? ' A API pode ter respondido vazio; confira o proxy Clicksign e tente remover e adicionar o signatário em rascunho.'
+                            : ''
+                    pushToast('error', `Atualizar signatário ${pr.status}`, `${msg}${hint502}`)
                     return false
                 }
                 pushToast('success', 'Signatário atualizado', nomeTrim)
@@ -1572,8 +1575,17 @@ export default function ClicksignEmerdog() {
         return ordenarDir === 'asc' ? ' ▲' : ' ▼'
     }
 
+    const rowsFiltradasNome = useMemo(() => {
+        const termo = filtroNomeDebounced
+        if (!termo.trim() && !buscaNotAtiva) return rows
+        return rows.filter((r) => {
+            const blob = normalizarTextoBusca([r.name, r.id].filter(Boolean).join(' '))
+            return filtrarPorTermoBusca(blob, termo, buscaNotAtiva)
+        })
+    }, [rows, filtroNomeDebounced, buscaNotAtiva])
+
     const rowsOrdenadas = useMemo(() => {
-        const list = [...rows]
+        const list = [...rowsFiltradasNome]
         const fator = ordenarDir === 'asc' ? 1 : -1
         list.sort((a, b) => {
             if (ordenarColuna === 'name') {
@@ -1596,7 +1608,32 @@ export default function ClicksignEmerdog() {
             return 0
         })
         return list
-    }, [rows, ordenarColuna, ordenarDir])
+    }, [rowsFiltradasNome, ordenarColuna, ordenarDir])
+
+    const totalPaginasLista = useMemo(() => {
+        return Math.max(1, Math.ceil(rowsOrdenadas.length / Number(itensPorPaginaLista || 20)))
+    }, [rowsOrdenadas.length, itensPorPaginaLista])
+
+    const rowsPaginadas = useMemo(() => {
+        const inicio = (Math.max(1, paginaAtualLista) - 1) * Number(itensPorPaginaLista || 20)
+        const fim = inicio + Number(itensPorPaginaLista || 20)
+        return rowsOrdenadas.slice(inicio, fim)
+    }, [rowsOrdenadas, paginaAtualLista, itensPorPaginaLista])
+
+    useEffect(() => {
+        setPaginaAtualLista(1)
+    }, [filtroNomeDebounced, statusFilter])
+
+    useEffect(() => {
+        setPaginaAtualLista((anterior) => Math.min(Math.max(1, anterior), totalPaginasLista))
+    }, [totalPaginasLista])
+
+    const handleTrocarItensPorPaginaLista = (valor) => {
+        const proximo = Number(valor)
+        if (!proximo || proximo < 1) return
+        setItensPorPaginaLista(proximo)
+        setPaginaAtualLista(1)
+    }
 
     const agendaOrdenada = useMemo(() => {
         return [...agendaSigs].sort((a, b) => {
@@ -1892,7 +1929,7 @@ export default function ClicksignEmerdog() {
                                             commitFiltroNomeImediato()
                                         }
                                     }}
-                                    placeholder="Filtra por nome (atualiza ao digitar)…"
+                                    placeholder="Buscar por nome ou ID…"
                                 />
                             </div>
                             <div className="contratos_field clicksign_field_inline">
@@ -1967,7 +2004,7 @@ export default function ClicksignEmerdog() {
                                             </td>
                                         </tr>
                                     )}
-                                    {rowsOrdenadas.map((r) => {
+                                    {rowsPaginadas.map((r) => {
                                         const stLinha = envelopeStatusNormalizado(r.status)
                                         return (
                                         <tr key={r.id}>
@@ -2080,33 +2117,54 @@ export default function ClicksignEmerdog() {
                                 </tbody>
                             </table>
                         </div>
-                        <div className="clicksign_pagination">
-                            <span className="clicksign_pagination_info">
-                                {typeof meta.record_count === 'number'
-                                    ? `${rows.length} de ${meta.record_count} envelope(s)`
-                                    : `${rows.length} envelope(s)`}
-                            </span>
-                            {links.next ? (
-                                <>
+                        {!loading && rowsOrdenadas.length > 0 && (
+                            <div className="clicksign_lista_paginacao">
+                                <div className="clicksign_lista_paginacao_info">
+                                    Exibindo{' '}
+                                    <strong>
+                                        {(paginaAtualLista - 1) * itensPorPaginaLista + 1}-
+                                        {Math.min(paginaAtualLista * itensPorPaginaLista, rowsOrdenadas.length)}
+                                    </strong>{' '}
+                                    de <strong>{rowsOrdenadas.length}</strong>
+                                </div>
+                                <div className="clicksign_lista_paginacao_controles">
+                                    <label className="clicksign_lista_paginacao_label">
+                                        Por página
+                                        <select
+                                            className="contratos_select"
+                                            value={itensPorPaginaLista}
+                                            onChange={(e) => handleTrocarItensPorPaginaLista(e.target.value)}
+                                        >
+                                            <option value={20}>20</option>
+                                            <option value={30}>30</option>
+                                            <option value={40}>40</option>
+                                            <option value={100}>100</option>
+                                        </select>
+                                    </label>
                                     <button
                                         type="button"
                                         className="contratos_btn contratos_btn_secondary"
-                                        disabled={!links.prev || loading}
-                                        onClick={() => pagina(links.prev)}
+                                        onClick={() => setPaginaAtualLista((p) => Math.max(1, p - 1))}
+                                        disabled={paginaAtualLista <= 1}
                                     >
                                         Anterior
                                     </button>
+                                    <span className="clicksign_lista_paginacao_page">
+                                        Página {paginaAtualLista} de {totalPaginasLista}
+                                    </span>
                                     <button
                                         type="button"
                                         className="contratos_btn contratos_btn_secondary"
-                                        disabled={!links.next || loading}
-                                        onClick={() => pagina(links.next)}
+                                        onClick={() =>
+                                            setPaginaAtualLista((p) => Math.min(totalPaginasLista, p + 1))
+                                        }
+                                        disabled={paginaAtualLista >= totalPaginasLista}
                                     >
-                                        Seguinte
+                                        Próxima
                                     </button>
-                                </>
-                            ) : null}
-                        </div>
+                                </div>
+                            </div>
+                        )}
                                         </>
                                     )}
                                 </div>

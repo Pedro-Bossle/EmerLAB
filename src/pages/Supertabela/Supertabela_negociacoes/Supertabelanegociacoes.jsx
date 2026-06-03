@@ -7,10 +7,12 @@ import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/sup
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
 import { exportarNegociacaoParaExcel } from '../../../lib/exportNegociacaoExcel.js'
+import { carregarMapaNomesAlternativosPrestador } from '../../../lib/prestadorNomeAlternativo.js'
 import { carregarCodigosPrestadorProcedimentos } from '../../../lib/prestadorProcedimentos.js'
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 import PrestadorVinculoBusca from './PrestadorVinculoBusca.jsx'
 import {
+    buscarCidadeIdsFiltroPlanoCredenciados,
     carregarVinculosMunicipios,
     cidadeExibicaoNegociacaoPrestador,
     resolverCidadeIdTabelaNegociacao,
@@ -156,6 +158,7 @@ const Supertabelanegociacoes = () => {
     const [mostrarNovoForm, setMostrarNovoForm] = useState(false)
     const [novoNome, setNovoNome] = useState('')
     const [novoCidadeId, setNovoCidadeId] = useState('')
+    const [cidadeIdsFiltroPlano, setCidadeIdsFiltroPlano] = useState(null)
     const [novoTipo, setNovoTipo] = useState('')
     const [vincularPrestador, setVincularPrestador] = useState(false)
 
@@ -229,6 +232,36 @@ const Supertabelanegociacoes = () => {
     }, [mostrarCustos, mostrarNomeAlternativo, somenteLeitura])
 
     const mapaPlanosHierarquia = useMemo(() => mapearPlanosListaPorChave(planos || []), [planos])
+
+    const cidadesParaSeletor = useMemo(() => {
+        if (!cidadeIdsFiltroPlano?.size) return cidades
+        return cidades.filter((c) => cidadeIdsFiltroPlano.has(Number(c.id)))
+    }, [cidades, cidadeIdsFiltroPlano])
+
+    useEffect(() => {
+        if (!cidades.length) return undefined
+        let cancelado = false
+        void (async () => {
+            try {
+                const ids = await buscarCidadeIdsFiltroPlanoCredenciados(
+                    supabase,
+                    planoId,
+                    buscarTodosPaginado,
+                )
+                if (cancelado) return
+                setCidadeIdsFiltroPlano(ids)
+                const lista = cidades.filter((c) => !ids.size || ids.has(Number(c.id)))
+                if (lista.length && !lista.some((c) => String(c.id) === String(novoCidadeId))) {
+                    setNovoCidadeId(String(lista[0].id))
+                }
+            } catch {
+                /* mantém */
+            }
+        })()
+        return () => {
+            cancelado = true
+        }
+    }, [planoId, cidades, novoCidadeId])
 
     const mostrarErroToast = (mensagem) => {
         setErroDetalhe('')
@@ -400,6 +433,13 @@ const Supertabelanegociacoes = () => {
                 }
             })
 
+            const idsFiltro = await buscarCidadeIdsFiltroPlanoCredenciados(
+                supabase,
+                null,
+                buscarTodosPaginado,
+            )
+            setCidadeIdsFiltroPlano(idsFiltro)
+
             setCidades(cidadesLista)
             setMunicipiosVinculos(vinculos)
             setPrestadoresParaVinculo(prestadoresData || [])
@@ -511,6 +551,17 @@ const Supertabelanegociacoes = () => {
                     linha.negociacaoIdG = item.id
                 }
             })
+
+            const prestadorIdMapaAlt =
+                negociacaoItem.prestadorId != null ? Number(negociacaoItem.prestadorId) : negociacaoItem.id
+            const mapaAltCadastro = await carregarMapaNomesAlternativosPrestador(prestadorIdMapaAlt)
+            for (const linha of mapaLinhas.values()) {
+                const cod = String(linha.codigo || '')
+                    .trim()
+                    .toUpperCase()
+                const alt = mapaAltCadastro.get(cod)
+                if (alt) linha.nomeAlternativo = alt
+            }
 
             setDetalheBase([...mapaLinhas.values()])
         } catch (error) {
@@ -807,76 +858,6 @@ const Supertabelanegociacoes = () => {
             delete copia[chave]
             return copia
         })
-    }
-
-    const salvarNomeAlternativoNegociacao = async (linha, textoBruto) => {
-        if (!negociacaoSelecionada) return false
-        const texto = String(textoBruto ?? '').trim()
-        const valorDb = texto === '' ? null : texto
-
-        const { error } = await supabase
-            .from('negociacoes_vet')
-            .update({ nome_alternativo: valorDb })
-            .eq('veterinario_id', Number(negociacaoSelecionada.id))
-            .eq('procedimento_id', Number(linha.procedimentoDbId))
-
-        if (error) {
-            mostrarErroToast(`Erro ao salvar nome alternativo: ${error.message}`)
-            return false
-        }
-
-        setDetalheBase((anteriores) =>
-            anteriores.map((item) =>
-                item.rowId === linha.rowId ? { ...item, nomeAlternativo: texto } : item
-            )
-        )
-        return true
-    }
-
-    const salvarCampoTextoEditado = async (linha, campo, categoriaId) => {
-        const chave = `${categoriaId}-${linha.codigo}-${campo}`
-        const bruto = edicoesLocais[chave]
-        if (bruto === undefined) return
-
-        const salvou = await salvarNomeAlternativoNegociacao(linha, String(bruto))
-        if (!salvou) return
-        setEdicoesLocais((anterior) => {
-            const copia = { ...anterior }
-            delete copia[chave]
-            return copia
-        })
-    }
-
-    const processarColagemNomeAlternativo = async (event, secao, linhaIndexInicial) => {
-        event.preventDefault()
-        if (!edicaoAtiva) return
-
-        const texto = event.clipboardData?.getData('text') || ''
-        const linhasColadas = texto
-            .replace(/\r/g, '')
-            .split('\n')
-            .filter((linha) => linha.length > 0)
-
-        if (linhasColadas.length === 0) return
-
-        const chavesLimpar = []
-        for (let i = 0; i < linhasColadas.length; i += 1) {
-            const linhaTabela = secao.linhas[linhaIndexInicial + i]
-            if (!linhaTabela) break
-
-            const primeiraCelula = String(linhasColadas[i].split('\t')[0] ?? '')
-            await salvarNomeAlternativoNegociacao(linhaTabela, primeiraCelula)
-            chavesLimpar.push(`${secao.categoriaId}-${linhaTabela.codigo}-nomeAlternativo`)
-        }
-        if (chavesLimpar.length > 0) {
-            setEdicoesLocais((anterior) => {
-                const copia = { ...anterior }
-                chavesLimpar.forEach((chave) => {
-                    delete copia[chave]
-                })
-                return copia
-            })
-        }
     }
 
     const processarColagemRepasse = async (event, secao, linhaIndexInicial, campoInicial) => {
@@ -1552,7 +1533,7 @@ const Supertabelanegociacoes = () => {
                             </button>
                         </div>
                         <div className='supertabelanegociacoes_filter_item supertabelanegociacoes_filter_pill'>
-                            <p>Nome alternativo</p>
+                            <p>Nome alt. (cadastro)</p>
                             <button
                                 type='button'
                                 role='switch'
@@ -1657,9 +1638,9 @@ const Supertabelanegociacoes = () => {
                                     value={novoCidadeId}
                                     onChange={(event) => setNovoCidadeId(event.target.value)}
                                 >
-                                    {cidades.map((cidade) => (
+                                    {cidadesParaSeletor.map((cidade) => (
                                         <option key={`nova-neg-${cidade.id}`} value={cidade.id}>
-                                            {cidade.nome}
+                                            {cidade.uf ? `${cidade.nome} (${cidade.uf})` : cidade.nome}
                                         </option>
                                     ))}
                                 </select>
@@ -2003,38 +1984,11 @@ ou um código por linha`}
                                         <span>{linha.procedimento}</span>
                                     </td>
                                     {mostrarNomeAlternativo && (
-                                        <td className='table_text_left'>
-                                            {edicaoAtiva ? (
-                                                <input
-                                                    className='table_cell_input'
-                                                    type='text'
-                                                    value={obterValorInputTexto(
-                                                        linha,
-                                                        'nomeAlternativo',
-                                                        secao.categoriaId
-                                                    )}
-                                                    onChange={(event) =>
-                                                        atualizarEdicaoLocal(
-                                                            linha,
-                                                            'nomeAlternativo',
-                                                            secao.categoriaId,
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                    onBlur={() =>
-                                                        salvarCampoTextoEditado(
-                                                            linha,
-                                                            'nomeAlternativo',
-                                                            secao.categoriaId
-                                                        )
-                                                    }
-                                                    onPaste={(event) =>
-                                                        processarColagemNomeAlternativo(event, secao, linhaIndex)
-                                                    }
-                                                />
-                                            ) : (
-                                                <span>{linha.nomeAlternativo?.trim() ? linha.nomeAlternativo : '—'}</span>
-                                            )}
+                                        <td
+                                            className='table_text_left supertabelanegociacoes_nome_alt_readonly'
+                                            title='Edite no cadastro do prestador (Serviços)'
+                                        >
+                                            <span>{linha.nomeAlternativo?.trim() ? linha.nomeAlternativo : '—'}</span>
                                         </td>
                                     )}
                                     <td>
@@ -2197,7 +2151,7 @@ ou um código por linha`}
                                                                     )
                                                                 }
                                                             >
-                                                                Nome alternativo
+                                                                Nome alt. (cadastro)
                                                                 {obterIndicadorOrdenacao(
                                                                     secao.categoriaId,
                                                                     'nomeAlternativo'
@@ -2365,7 +2319,7 @@ ou um código por linha`}
                                                                 )
                                                             }
                                                         >
-                                                            Nome alternativo
+                                                            Nome alt. (cadastro)
                                                             {obterIndicadorOrdenacao(
                                                                 secao.categoriaId,
                                                                 'nomeAlternativo'

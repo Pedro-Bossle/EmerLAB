@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
 import { supabase } from '../../../lib/supabase'
 import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades'
 import { formatarCrmvEntrada, normalizarCrmvParaSalvar } from '../../../lib/prestadorCadastroHelpers'
@@ -9,21 +10,6 @@ import {
 import MultiEspecialidadesInput from '../Credenciamento_cadastro/MultiEspecialidadesInput.jsx'
 
 const PLACEHOLDER_CRMV = 'PF/PJ - 123456 - UF'
-
-async function obterOuCriarCidadePorNome(nomeCidade) {
-    const nome = String(nomeCidade || '').trim()
-    if (!nome) return null
-    const { data: existentes } = await supabase
-        .from('cidades_credenciamento')
-        .select('id, nome')
-        .ilike('nome', nome)
-        .limit(1)
-    if (existentes?.[0]?.id) return existentes[0]
-
-    const { data: ins, error } = await supabase.from('cidades_credenciamento').insert({ nome }).select('id, nome').single()
-    if (error) throw new Error(error.message)
-    return ins
-}
 
 /**
  * Campos extras do passo de dados conforme tipo de perfil (volante / clínica).
@@ -89,8 +75,12 @@ export default function FormularioPublicoPerfilExtra({
         }
         setAdicionandoCidade(true)
         try {
-            const obj = await obterOuCriarCidadePorNome(mun.nome)
-            const cid = Number(obj.id)
+            const obj = await obterOuCriarCidadeCredenciamento(mun.nome)
+            const cid = Number(obj?.id)
+            if (!cid) {
+                setErroLocal('Não foi possível vincular a cidade.')
+                return
+            }
             if (cidadesAtende.some((c) => Number(c.cidadeId) === cid)) {
                 setErroLocal('Esta cidade já está na lista.')
                 return

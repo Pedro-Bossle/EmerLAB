@@ -67,14 +67,12 @@ export async function limparTodasNotificacoesContratos() {
     emitirMudancaNotificacoes()
 }
 
-function notificacaoJaExiste(lista, item, janelaMs = 24 * 60 * 60 * 1000) {
-    const texto = String(item.texto || '').trim()
-    const envelopeId = String(item.envelopeId || '').trim()
-    if (!texto) return false
+function notificacaoJaExiste(lista, item, janelaMs = 7 * 24 * 60 * 60 * 1000) {
+    const chave = chaveNotificacaoContrato(item)
+    if (!chave.replace(/\|/g, '').trim()) return false
     const limite = Date.now() - janelaMs
     return lista.some((n) => {
-        if (String(n.texto || '').trim() !== texto) return false
-        if (envelopeId && String(n.envelopeId || '').trim() !== envelopeId) return false
+        if (chaveNotificacaoContrato(n) !== chave) return false
         const at = new Date(n.at || 0).getTime()
         return !Number.isNaN(at) && at >= limite
     })
@@ -139,12 +137,26 @@ export function mesclarListasNotificacoesContratos(local, webhook, limite = 8) {
     return unicas.slice(0, Math.max(1, limite))
 }
 
+function chaveNotificacaoContrato(n) {
+    return `${String(n.envelopeId || '').trim()}|${String(n.texto || '').trim()}`
+}
+
+/** Contagem única (local + webhook sem duplicar o mesmo evento). */
 export async function contarNotificacoesContratosTotal() {
-    const [local, wh] = await Promise.all([
-        Promise.resolve(contarNotificacoesArmazenadas()),
-        contarNotificacoesWebhookNaoLidas(),
+    const [local, webhook] = await Promise.all([
+        Promise.resolve(carregarNotificacoes()),
+        listarNotificacoesWebhookRecentes(80),
     ])
-    return local + wh
+    const vistos = new Set()
+    let total = 0
+    for (const n of [...webhook, ...local]) {
+        const chave = chaveNotificacaoContrato(n)
+        if (!chave.replace(/\|/g, '').trim()) continue
+        if (vistos.has(chave)) continue
+        vistos.add(chave)
+        total += 1
+    }
+    return total
 }
 
 export async function listarNotificacoesContratosRecentes(limite = 8) {

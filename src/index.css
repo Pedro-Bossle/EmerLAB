@@ -584,6 +584,123 @@ body.dark-mode .manager_modal_header h3 {
     color: #eef5fc;
 }
 
+body.dark-mode .manager_split_list {
+    background: #152232;
+}
+
+body.dark-mode .manager_split_list_title {
+    color: #dce7f2;
+}
+
+body.dark-mode .manager_table_wrap_inset {
+    border-top-color: var(--border-soft);
+}
+
+body.dark-mode .manager_table td {
+    color: #dce7f2;
+}
+
+body.dark-mode .manager_table tbody tr.is-selected {
+    background: #1f4a66;
+}
+
+body.dark-mode .manager_table tbody tr.is-selected:hover {
+    background: #255878;
+}
+
+body.dark-mode .manager_table tbody tr:hover {
+    background: #17314a;
+}
+
+body.dark-mode .manager_split_edit {
+    background: var(--bg-surface);
+}
+
+body.dark-mode .manager_split_body.is-editing .manager_split_list {
+    border-right-color: var(--border-soft);
+}
+
+body.dark-mode .manager_icon_btn {
+    background: #27435d;
+    border-color: #557696;
+    color: #e6f1fb;
+}
+
+body.dark-mode .manager_edit_panel_title {
+    color: #eef5fc;
+}
+
+body.dark-mode .manager_edit_panel .manager_add_bar_actions {
+    border-top-color: var(--border-soft);
+}
+
+body.dark-mode .cidade_tabela_field_label > span {
+    color: #c5d9eb;
+}
+
+body.dark-mode .cidade_tabela_field,
+body.dark-mode .cidade_tabela_ibge_form_row select {
+    background: #0f1e2e;
+    color: #dce7f2;
+    border-color: #355372;
+}
+
+body.dark-mode .cidade_tabela_field:disabled {
+    background-color: #1a2d42;
+    color: #8aa8c0;
+}
+
+body.dark-mode .cidade_tabela_field_wrap_select::after {
+    border-top-color: #9eb8d0;
+}
+
+body.dark-mode .cidade_tabela_englobados {
+    background: #152232;
+    border-color: var(--border-soft);
+}
+
+body.dark-mode .cidade_tabela_englobados_titulo {
+    color: #dce7f2;
+}
+
+body.dark-mode .cidade_tabela_englobados_meta,
+body.dark-mode .cidade_tabela_englobados_vazio,
+body.dark-mode .cidade_tabela_englobados_hint {
+    color: #a8c0d4;
+}
+
+body.dark-mode .cidade_tabela_englobados_sugestoes {
+    background: #1a3248;
+    border-color: #4a6a88;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .cidade_tabela_englobados_sugestao_btn {
+    color: #e8f2fa;
+}
+
+body.dark-mode .cidade_tabela_englobados_sugestao_btn:hover {
+    background: #243548;
+}
+
+body.dark-mode .cidade_tabela_englobados_tag {
+    background: #243548;
+    border-color: #4a6a88;
+    color: #e8f2fa;
+}
+
+body.dark-mode .cidade_tabela_englobados_tag_remove {
+    color: #b8d4e8;
+}
+
+body.dark-mode .cidade_tabela_englobados_tag_remove:hover {
+    color: #f0a8a8;
+}
+
+body.dark-mode .cidade_tabela_englobados_item {
+    color: #dce7f2;
+}
+
 body.dark-mode .manager_add_city_btn,
 body.dark-mode .manager_close_btn,
 body.dark-mode .manager_action_btn {

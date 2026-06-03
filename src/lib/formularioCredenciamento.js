@@ -6,6 +6,7 @@ import {
     normalizarCrmvParaSalvar,
     somenteDigitosCpfCnpj,
 } from './prestadorCadastroHelpers'
+import { obterOuCriarCidadeCredenciamento as obterOuCriarCidadeCredenciamentoDb } from './cidadesCredenciamento.js'
 import { sincronizarPrestadorProcedimentos } from './prestadorProcedimentos.js'
 import { especialidadePermitidaParaPerfil } from './formularioPublicoEspecialidades.js'
 
@@ -465,22 +466,8 @@ async function resolverEspecialidadeIdPorTipoPerfil(tipoPerfil, especialidades) 
 }
 
 async function obterOuCriarCidadeCredenciamento(nomeCidade) {
-    const nome = String(nomeCidade || '').trim()
-    if (!nome) return null
-    const { data: existentes } = await supabase
-        .from('cidades_credenciamento')
-        .select('id, nome')
-        .ilike('nome', nome)
-        .limit(1)
-    if (existentes?.[0]?.id) return Number(existentes[0].id)
-
-    const { data: ins, error } = await supabase
-        .from('cidades_credenciamento')
-        .insert({ nome })
-        .select('id')
-        .single()
-    if (error) throw new Error(error.message)
-    return Number(ins.id)
+    const row = await obterOuCriarCidadeCredenciamentoDb(nomeCidade)
+    return row?.id ? Number(row.id) : null
 }
 
 function montarEnderecoLegado(payload) {

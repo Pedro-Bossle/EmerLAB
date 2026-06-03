@@ -33,10 +33,14 @@ import {
 } from '../../../lib/prestadorProcedimentos.js'
 import { UFS_BRASIL, buscarMunicipiosPorUf, resolverUfPorNomeMunicipio } from '../../../lib/ibgeLocalidades.js'
 import PrestadorServicosAbas from './PrestadorServicosAbas.jsx'
+import PrestadorHonorariosContratos from './PrestadorHonorariosContratos.jsx'
 import MultiEspecialidadesInput from './MultiEspecialidadesInput.jsx'
 import CidadesAtendeVirtualList from './CidadesAtendeVirtualList.jsx'
 import VeterinariosVinculados from './VeterinariosVinculados.jsx'
 import CredenciamentoDevToolsPerfil from './CredenciamentoDevToolsPerfil.jsx'
+import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
+import { buscarDadosCNPJ } from '../../../lib/contratos/cnpjBizClient.js'
+import { apenasDigitos } from '../../../lib/contratos/validarDocumentos.js'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 
@@ -136,6 +140,7 @@ const CredenciamentoCadastroForm = () => {
     const [secaoMultiplasCidades, setSecaoMultiplasCidades] = useState(false)
     const [secaoVetsVinculados, setSecaoVetsVinculados] = useState(false)
     const ultimoCepBuscadoRef = useRef('')
+    const mapaNomeAlternativoRef = useRef(new Map())
 
     const somenteLeitura = useMemo(() => {
         const profile = getStoredAccessProfile()
@@ -143,6 +148,12 @@ const CredenciamentoCadastroForm = () => {
     }, [])
 
     const podeDevToolPerfil = useStoredPermission(PERMISSION_KEYS.DEV_TOOLS)
+    const podeGerarContrato = useStoredPermission(PERMISSION_KEYS.CONTRATOS_EDIT)
+
+    const nomeEspecialidadePrincipal = useMemo(() => {
+        const esp = especialidades.find((e) => Number(e.id) === Number(form.especialidade_id))
+        return esp?.nome || ''
+    }, [especialidades, form.especialidade_id])
 
     const mostrarAtendeClinica = secaoMultiplasCidades
 
@@ -376,6 +387,39 @@ const CredenciamentoCadastroForm = () => {
 
     const setCampo = (campo, valor) => setForm((f) => ({ ...f, [campo]: valor }))
 
+    const consultarCnpjNoPerfil = useCallback(async () => {
+        if (somenteLeitura) return
+        if (tipoDocumentoCpfCnpj(form.cpf_cnpj) !== 'CNPJ') return
+        const digits = apenasDigitos(form.cpf_cnpj)
+        if (digits.length !== 14) return
+        try {
+            const data = await buscarDadosCNPJ(form.cpf_cnpj)
+            if (!data?.razaoSocial?.trim()) return
+            setForm((f) => {
+                if (apenasDigitos(f.cpf_cnpj) !== digits) return f
+                const razao = String(data.razaoSocial).trim()
+                const patch = { ...f, nome: razao }
+                if (data.cep && !String(f.cep || '').trim()) {
+                    const c = apenasDigitos(data.cep)
+                    patch.cep = c.length === 8 ? `${c.slice(0, 5)}-${c.slice(5)}` : String(data.cep)
+                }
+                if (data.logradouro && !String(f.endereco_logradouro || '').trim()) {
+                    patch.endereco_logradouro = data.logradouro
+                }
+                if (data.numero && !String(f.endereco_numero || '').trim()) patch.endereco_numero = data.numero
+                if (data.complemento && !String(f.endereco_complemento || '').trim()) {
+                    patch.endereco_complemento = data.complemento
+                }
+                if (data.bairro && !String(f.endereco_bairro || '').trim()) patch.endereco_bairro = data.bairro
+                if (data.municipio && !String(f.endereco_cidade || '').trim()) patch.endereco_cidade = data.municipio
+                if (data.uf && !String(f.endereco_uf || '').trim()) patch.endereco_uf = data.uf
+                return patch
+            })
+        } catch {
+            /* consulta opcional no blur; contrato refaz na geração */
+        }
+    }, [form.cpf_cnpj, somenteLeitura])
+
     const buscarCepPorDigitos = useCallback(
         async (digits) => {
             if (somenteLeitura || digits.length !== 8) return
@@ -454,10 +498,17 @@ const CredenciamentoCadastroForm = () => {
         if (!nome) return null
         const existente = cidades.find((c) => c.nome.toLowerCase() === nome.toLowerCase())
         if (existente) return existente
-        const { data, error } = await supabase.from('cidades_credenciamento').insert({ nome }).select('id, nome').single()
-        if (error) return null
-        setCidades((prev) => [...prev, data])
-        return data
+        try {
+            const row = await obterOuCriarCidadeCredenciamento(nome)
+            if (!row?.id) return null
+            setCidades((prev) => {
+                if (prev.some((c) => Number(c.id) === Number(row.id))) return prev
+                return [...prev, { id: row.id, nome: row.nome }]
+            })
+            return { id: row.id, nome: row.nome }
+        } catch {
+            return null
+        }
     }
 
     const salvar = async () => {
@@ -648,7 +699,7 @@ const CredenciamentoCadastroForm = () => {
                 await supabase.from('prestador_estabelecimentos').delete().eq('estabelecimento_id', pid)
             }
 
-            await sincronizarPrestadorProcedimentos(pid, procSelecionados)
+            await sincronizarPrestadorProcedimentos(pid, procSelecionados, mapaNomeAlternativoRef.current)
             const codigosAtualizados = await carregarCodigosPrestadorProcedimentos(pid)
             setProcSelecionados(codigosAtualizados)
 
@@ -700,7 +751,10 @@ const CredenciamentoCadastroForm = () => {
                                 className="credenciamento_main_input"
                                 value={form.cpf_cnpj}
                                 onChange={(e) => setCampo('cpf_cnpj', formatarCpfCnpjEntrada(e.target.value))}
-                                onBlur={(e) => setCampo('cpf_cnpj', formatarCpfCnpjEntrada(e.target.value))}
+                                onBlur={(e) => {
+                                    setCampo('cpf_cnpj', formatarCpfCnpjEntrada(e.target.value))
+                                    void consultarCnpjNoPerfil()
+                                }}
                                 inputMode="numeric"
                                 autoComplete="off"
                                 placeholder={
@@ -713,7 +767,7 @@ const CredenciamentoCadastroForm = () => {
                             />
                         </label>
                         <label className="pcad_field">
-                            Nome *
+                            {tipoDocumentoCpfCnpj(form.cpf_cnpj) === 'CNPJ' ? 'Razão social *' : 'Nome *'}
                             <input
                                 className="credenciamento_main_input"
                                 value={form.nome}
@@ -984,18 +1038,25 @@ const CredenciamentoCadastroForm = () => {
                     )}
                     <PrestadorServicosAbas
                         prestadorId={prestadorId}
-                        cidadeId={
-                            form.cidade_id
-                                ? Number(form.cidade_id)
-                                : cidadesAtende[0]?.cidadeId
-                                  ? Number(cidadesAtende[0].cidadeId)
-                                  : null
-                        }
                         somenteLeitura={somenteLeitura}
                         selecionadosInicial={procSelecionados}
                         onChangeSelecionados={setProcSelecionados}
+                        onMapaNomeAlternativoChange={(mapa) => {
+                            mapaNomeAlternativoRef.current = mapa
+                        }}
                         laboratoriosSelecionadosInicial={laboratoriosSolicitacaoIds}
                         onChangeLaboratorios={setLaboratoriosSolicitacaoIds}
+                        barraAcoes={
+                            <PrestadorHonorariosContratos
+                                prestadorId={prestadorId}
+                                prestadorNome={form.nome}
+                                codigosSelecionados={procSelecionados}
+                                form={form}
+                                nomeEspecialidade={nomeEspecialidadePrincipal}
+                                podeGerarContrato={podeGerarContrato}
+                                disabled={somenteLeitura || isNovo}
+                            />
+                        }
                     />
                 </section>
 
