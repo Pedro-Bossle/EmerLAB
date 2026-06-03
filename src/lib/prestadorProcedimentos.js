@@ -48,7 +48,15 @@ export function normalizarPrestadorIdParaQuery(prestadorId) {
 }
 
 /** Coluna `nome_alternativo` ainda não migrada no Supabase — evita GET 400 repetidos. */
-export let prestadorProcedimentosTemNomeAlternativo = true
+let prestadorProcedimentosTemNomeAlternativo = true
+
+export function getPrestadorProcedimentosTemNomeAlternativo() {
+    return prestadorProcedimentosTemNomeAlternativo
+}
+
+export function setPrestadorProcedimentosTemNomeAlternativo(valor) {
+    prestadorProcedimentosTemNomeAlternativo = Boolean(valor)
+}
 
 export function isErroColunaNomeAlternativo(error) {
     if (!error) return false

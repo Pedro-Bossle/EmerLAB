@@ -1,9 +1,10 @@
 import { supabase } from './supabase.js'
 import {
+    getPrestadorProcedimentosTemNomeAlternativo,
     isErroColunaNomeAlternativo,
     mapaProcedimentoIdPorCodigo,
     normalizarPrestadorIdParaQuery,
-    prestadorProcedimentosTemNomeAlternativo,
+    setPrestadorProcedimentosTemNomeAlternativo,
 } from './prestadorProcedimentos.js'
 
 const normalizarCodigo = (cod) =>
@@ -87,13 +88,13 @@ async function mesclarNomesAlternativosNegociacao(mapa, prestadorId) {
 async function mesclarNomesAlternativosCadastro(mapa, prestadorId) {
     const colsBase = 'procedimento_cod, procedimento_id'
     let res
-    if (prestadorProcedimentosTemNomeAlternativo) {
+    if (getPrestadorProcedimentosTemNomeAlternativo()) {
         res = await supabase
             .from('prestador_procedimentos')
             .select(`${colsBase}, nome_alternativo`)
             .eq('prestador_id', prestadorId)
         if (res.error && isErroColunaNomeAlternativo(res.error)) {
-            prestadorProcedimentosTemNomeAlternativo = false
+            setPrestadorProcedimentosTemNomeAlternativo(false)
             return
         }
     } else {
@@ -139,7 +140,7 @@ export async function salvarNomeAlternativoPrestadorProcedimento(prestadorId, pr
     if (pid == null) return
     const cod = normalizarCodigo(procedimentoCodigo)
     if (!cod) return
-    if (!prestadorProcedimentosTemNomeAlternativo) return
+    if (!getPrestadorProcedimentosTemNomeAlternativo()) return
 
     const valorDb = String(textoBruto ?? '').trim() || null
     const mapaId = await mapaProcedimentoIdPorCodigo([cod])
@@ -159,7 +160,7 @@ export async function salvarNomeAlternativoPrestadorProcedimento(prestadorId, pr
             .update({ nome_alternativo: valorDb })
             .eq('id', exist.id)
         if (error && isErroColunaNomeAlternativo(error)) {
-            prestadorProcedimentosTemNomeAlternativo = false
+            setPrestadorProcedimentosTemNomeAlternativo(false)
             return
         }
         if (error) throw new Error(error.message)
@@ -171,7 +172,7 @@ export async function salvarNomeAlternativoPrestadorProcedimento(prestadorId, pr
             nome_alternativo: valorDb,
         })
         if (error && isErroColunaNomeAlternativo(error)) {
-            prestadorProcedimentosTemNomeAlternativo = false
+            setPrestadorProcedimentosTemNomeAlternativo(false)
             return
         }
         if (error) throw new Error(error.message)
