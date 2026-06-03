@@ -70,7 +70,9 @@ const menuItems = [
                 href: '/credenciamento/formulario/entradas',
                 permission: PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_INBOX,
             },
+            /* Documentação credenciamento — inativo por hora
             { label: 'Documentação', href: '/credenciamentodoc', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
+            */
 
         ],
     },

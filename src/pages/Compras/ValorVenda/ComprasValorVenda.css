@@ -4,6 +4,13 @@
     color: var(--cinza-escuro);
 }
 
+.compras_vv_lojinha_nota {
+    margin: 0 2em 0.5rem;
+    font-size: 0.92rem;
+    color: #40617a;
+    line-height: 1.4;
+}
+
 .compras_vv hr {
     border-radius: 10px;
     margin: 10px 8em;
@@ -570,6 +577,11 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
     justify-content: flex-end;
     gap: 8px;
     margin-top: 14px;
+}
+
+.compras_vv_alert_info {
+    border-color: #8ab9d8;
+    background: linear-gradient(180deg, #f8fbfd 0%, #eef6fc 100%);
 }
 
 .compras_vv_alert {

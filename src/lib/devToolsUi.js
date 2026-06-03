@@ -17,11 +17,17 @@ export const DEFAULT_COLUNAS_CADASTRO = {
     ocultarVetsClinica: false,
 }
 
+export const DEFAULT_COLUNAS_NEGOCIACOES = {
+    /** Lista principal: coluna Prestador vinculado (edição inline). */
+    vinculoPrestadorLista: true,
+}
+
 const DEFAULT_UI = {
     buscaNot: false,
     exclusaoMassa: false,
     colunasProcessos: { ...DEFAULT_COLUNAS_PROCESSOS },
     colunasCadastro: { ...DEFAULT_COLUNAS_CADASTRO },
+    colunasNegociacoes: { ...DEFAULT_COLUNAS_NEGOCIACOES },
 }
 
 function normalizarColunasProcessos(raw) {
@@ -45,8 +51,26 @@ function normalizarColunasCadastro(raw) {
     return base
 }
 
+function normalizarColunasNegociacoes(raw) {
+    const base = { ...DEFAULT_COLUNAS_NEGOCIACOES }
+    if (raw && typeof raw === 'object') {
+        base.vinculoPrestadorLista =
+            raw.vinculoPrestadorLista !== undefined
+                ? !!raw.vinculoPrestadorLista
+                : DEFAULT_COLUNAS_NEGOCIACOES.vinculoPrestadorLista
+    }
+    return base
+}
+
 export function lerDevToolsUi() {
-    if (typeof window === 'undefined') return { ...DEFAULT_UI, colunasProcessos: { ...DEFAULT_COLUNAS_PROCESSOS }, colunasCadastro: { ...DEFAULT_COLUNAS_CADASTRO } }
+    if (typeof window === 'undefined') {
+        return {
+            ...DEFAULT_UI,
+            colunasProcessos: { ...DEFAULT_COLUNAS_PROCESSOS },
+            colunasCadastro: { ...DEFAULT_COLUNAS_CADASTRO },
+            colunasNegociacoes: { ...DEFAULT_COLUNAS_NEGOCIACOES },
+        }
+    }
     try {
         const raw = window.localStorage.getItem(DEV_TOOLS_UI_STORAGE_KEY)
         if (!raw) {
@@ -54,6 +78,7 @@ export function lerDevToolsUi() {
                 ...DEFAULT_UI,
                 colunasProcessos: { ...DEFAULT_COLUNAS_PROCESSOS },
                 colunasCadastro: { ...DEFAULT_COLUNAS_CADASTRO },
+                colunasNegociacoes: { ...DEFAULT_COLUNAS_NEGOCIACOES },
             }
         }
         const parsed = JSON.parse(raw)
@@ -63,6 +88,7 @@ export function lerDevToolsUi() {
                 exclusaoMassa: !!parsed.exclusaoMassa,
                 colunasProcessos: { pdf: true, site: true, mapa: true },
                 colunasCadastro: { perfil: true, crmv: true, procs: true, ocultarVetsClinica: false },
+                colunasNegociacoes: { vinculoPrestadorLista: true },
             }
         }
         return {
@@ -70,12 +96,14 @@ export function lerDevToolsUi() {
             exclusaoMassa: !!parsed.exclusaoMassa,
             colunasProcessos: normalizarColunasProcessos(parsed.colunasProcessos),
             colunasCadastro: normalizarColunasCadastro(parsed.colunasCadastro),
+            colunasNegociacoes: normalizarColunasNegociacoes(parsed.colunasNegociacoes),
         }
     } catch {
         return {
             ...DEFAULT_UI,
             colunasProcessos: { ...DEFAULT_COLUNAS_PROCESSOS },
             colunasCadastro: { ...DEFAULT_COLUNAS_CADASTRO },
+            colunasNegociacoes: { ...DEFAULT_COLUNAS_NEGOCIACOES },
         }
     }
 }
@@ -92,6 +120,9 @@ export function salvarDevToolsUi(partial) {
         colunasCadastro: partial.colunasCadastro
             ? { ...atual.colunasCadastro, ...partial.colunasCadastro }
             : atual.colunasCadastro,
+        colunasNegociacoes: partial.colunasNegociacoes
+            ? { ...atual.colunasNegociacoes, ...partial.colunasNegociacoes }
+            : atual.colunasNegociacoes,
     }
     window.localStorage.setItem(DEV_TOOLS_UI_STORAGE_KEY, JSON.stringify(next))
     window.dispatchEvent(new CustomEvent(DEV_TOOLS_UI_CHANGE_EVENT, { detail: next }))
@@ -119,6 +150,14 @@ export function alternarColunaDevTools(tela, chaveColuna) {
             [chaveColuna]: !atualCol[chaveColuna],
         }
         return salvarDevToolsUi({ colunasCadastro })
+    }
+    if (tela === 'negociacoes') {
+        const atualCol = { ...DEFAULT_COLUNAS_NEGOCIACOES, ...atual.colunasNegociacoes }
+        const colunasNegociacoes = {
+            ...atualCol,
+            [chaveColuna]: !atualCol[chaveColuna],
+        }
+        return salvarDevToolsUi({ colunasNegociacoes })
     }
     return atual
 }
@@ -161,5 +200,6 @@ export function devToolsAlgumRecursoAtivo(ui) {
     if (u.buscaNot || u.exclusaoMassa) return true
     if (Object.values(u.colunasProcessos || {}).some(Boolean)) return true
     if (Object.values(u.colunasCadastro || {}).some(Boolean)) return true
+    if (Object.values(u.colunasNegociacoes || {}).some(Boolean)) return true
     return false
 }

@@ -15,6 +15,7 @@ import {
 } from '../../../lib/cidadesSupertabelaVinculos.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
+import { calcularJanelaVirtualTabela, criarHandlerScrollVirtualTabela } from '../../../lib/tabelaVirtualScroll.js'
 
 const Supertabelamain = () => {
     const ALTURA_LINHA_TABELA = 42
@@ -968,17 +969,15 @@ const Supertabelamain = () => {
                         const totalLinhasSecao = secao.linhas.length
                         const usarVirtualizacao = totalLinhasSecao > MAX_LINHAS_VISIVEIS
                         const alturaVisivelCorpo = Math.min(totalLinhasSecao, MAX_LINHAS_VISIVEIS) * ALTURA_LINHA_TABELA
-                        const scrollTopoAtual = Number(scrollTopoPorCategoria[secao.categoriaId] || 0)
-                        const indiceInicial = Math.max(
-                            0,
-                            Math.floor(scrollTopoAtual / ALTURA_LINHA_TABELA) - LINHAS_OVERSCAN
-                        )
-                        const quantidadeRenderizada =
-                            Math.ceil(alturaVisivelCorpo / ALTURA_LINHA_TABELA) + LINHAS_OVERSCAN * 2
-                        const indiceFinal = Math.min(totalLinhasSecao, indiceInicial + quantidadeRenderizada)
+                        const janelaVirtual = calcularJanelaVirtualTabela({
+                            scrollTop: scrollTopoPorCategoria[secao.categoriaId] ?? 0,
+                            totalLinhas: totalLinhasSecao,
+                            alturaLinha: ALTURA_LINHA_TABELA,
+                            alturaVisivel: alturaVisivelCorpo,
+                            overscan: LINHAS_OVERSCAN,
+                        })
+                        const { indiceInicial, indiceFinal, alturaEspacadorTopo, alturaEspacadorBase } = janelaVirtual
                         const linhasVisiveis = secao.linhas.slice(indiceInicial, indiceFinal)
-                        const alturaEspacadorTopo = indiceInicial * ALTURA_LINHA_TABELA
-                        const alturaEspacadorBase = (totalLinhasSecao - indiceFinal) * ALTURA_LINHA_TABELA
 
                         return (
                             <section className='categoria_secao' key={secao.categoriaId}>
@@ -1012,13 +1011,10 @@ const Supertabelamain = () => {
                                         <div
                                             className='table_main_virtual_body'
                                             style={{ maxHeight: `${Math.max(alturaVisivelCorpo, ALTURA_LINHA_TABELA)}px` }}
-                                            onScroll={(event) => {
-                                                const scrollTopAtual = event.currentTarget?.scrollTop ?? 0
-                                                setScrollTopoPorCategoria((anterior) => ({
-                                                    ...anterior,
-                                                    [secao.categoriaId]: scrollTopAtual,
-                                                }))
-                                            }}
+                                            onScroll={criarHandlerScrollVirtualTabela({
+                                                categoriaId: secao.categoriaId,
+                                                setScrollTopoPorCategoria,
+                                            })}
                                         >
                                             <table className='table_main table_main_virtual_rows'>
                                                 <colgroup>

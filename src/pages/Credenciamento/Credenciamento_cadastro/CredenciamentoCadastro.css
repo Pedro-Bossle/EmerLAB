@@ -409,7 +409,7 @@
 /* Altura fixa: troca de categoria não empurra o restante do formulário */
 .pcad_servicos_panel {
     position: relative;
-    height: 320px;
+    height: 400px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;

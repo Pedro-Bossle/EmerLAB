@@ -254,6 +254,38 @@ body.supertabelanegociacoes_no_bounce {
     text-underline-offset: 3px;
 }
 
+.supertabelanegociacoes_lista_vinculo_cell {
+    vertical-align: middle;
+    padding: 4px 6px;
+    max-width: 0;
+    min-width: 10rem;
+}
+
+.supertabelanegociacoes_lista_vinculo_cell .prestador_vinculo_busca.row_add_suggest_wrap {
+    z-index: 2;
+    width: 100%;
+    max-width: 100%;
+}
+
+.supertabelanegociacoes_lista_vinculo_cell .prestador_vinculo_busca_input {
+    font-size: 0.78rem;
+    padding: 0.35rem 0.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.supertabelanegociacoes_lista_vinculo_cell .prestador_vinculo_busca_input:focus {
+    white-space: normal;
+    text-overflow: clip;
+}
+
+.supertabelanegociacoes_vinculo_readonly {
+    font-size: 0.88rem;
+    color: #32566f;
+    line-height: 1.35;
+}
+
 .supertabelanegociacoes .categoria_secao {
     display: flex;
     flex-direction: column;
@@ -379,7 +411,7 @@ body.supertabelanegociacoes_no_bounce {
 .supertabelanegociacoes .row_add_suggest_wrap {
     position: relative;
     width: min(560px, 100%);
-    z-index: 1200;
+    z-index: 1;
     isolation: isolate;
 }
 
@@ -402,7 +434,8 @@ body.supertabelanegociacoes_no_bounce {
     box-shadow: 0 8px 20px rgba(30, 49, 72, 0.15);
 }
 
-.supertabelanegociacoes .row_add_suggest_list.is-portal {
+.supertabelanegociacoes .row_add_suggest_list.is-portal,
+.prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     position: fixed;
     right: auto;
     z-index: 3000;

@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
-import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
+import { PERMISSION_KEYS, hasStoredDevTools, hasStoredPermission } from '../../../lib/accessControl'
+import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
+import { calcularJanelaVirtualTabela, criarHandlerScrollVirtualTabela } from '../../../lib/tabelaVirtualScroll.js'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
 import { exportarNegociacaoParaExcel } from '../../../lib/exportNegociacaoExcel.js'
 import { carregarMapaNomesAlternativosPrestador } from '../../../lib/prestadorNomeAlternativo.js'
@@ -109,6 +110,10 @@ const normalizarNumeroEntrada = (valorTexto) => {
 const Supertabelanegociacoes = () => {
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
     const buscaNotAtiva = useBuscaNotAtiva()
+    const { ui: devToolsUi } = useDevToolsUi()
+    const podeDevToolNeg = hasStoredDevTools()
+    const mostrarColunaVinculoLista =
+        !podeDevToolNeg || !!devToolsUi.colunasNegociacoes?.vinculoPrestadorLista
     const [cidades, setCidades] = useState([])
     const [planos, setPlanos] = useState([])
     const [portes, setPortes] = useState([])
@@ -168,6 +173,7 @@ const Supertabelanegociacoes = () => {
     const [editarTipo, setEditarTipo] = useState('')
     const [editarPrestadorId, setEditarPrestadorId] = useState('')
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
+    const [salvandoVinculoListaId, setSalvandoVinculoListaId] = useState(null)
 
     const cidadePorId = useMemo(
         () => new Map(cidades.map((cidade) => [String(cidade.id), cidade])),
@@ -404,6 +410,15 @@ const Supertabelanegociacoes = () => {
             })
 
             const mapaCred = new Map((cidadesCredData || []).map((c) => [Number(c.id), c.nome]))
+            const mapaEspLista = new Map((especialidadesData || []).map((e) => [Number(e.id), e.nome]))
+            const rotuloPrestadorLista = (p) => {
+                if (!p) return ''
+                const esp = mapaEspLista.get(Number(p.especialidade_id))
+                const partes = [p.nome]
+                if (esp) partes.push(esp)
+                if (p.endereco_cidade) partes.push(p.endereco_cidade)
+                return partes.join(' — ')
+            }
             const negociacoesLista = (veterinariosData || []).map((item) => {
                 const prestador =
                     item.prestador_id != null ? mapaPrestadores.get(Number(item.prestador_id)) : null
@@ -429,6 +444,7 @@ const Supertabelanegociacoes = () => {
                     cidadeNome,
                     tipo: item.tipo || '-',
                     prestadorId: item.prestador_id != null ? Number(item.prestador_id) : null,
+                    prestadorVinculoNome: rotuloPrestadorLista(prestador),
                     procedimentosAtivos: mapaProcedimentosAtivos.get(Number(item.id))?.size || 0,
                 }
             })
@@ -642,7 +658,9 @@ const Supertabelanegociacoes = () => {
     const negociacoesFiltradas = useMemo(() => {
         if (!termoBuscaLista.trim() && !buscaNotAtiva) return negociacoes
         return negociacoes.filter((item) => {
-            const blob = normalizarTextoBusca([item.nome, item.cidadeNome, item.tipo].filter(Boolean).join(' '))
+            const blob = normalizarTextoBusca(
+                [item.nome, item.cidadeNome, item.tipo, item.prestadorVinculoNome].filter(Boolean).join(' '),
+            )
             return filtrarPorTermoBusca(blob, termoBuscaLista, buscaNotAtiva)
         })
     }, [negociacoes, termoBuscaLista, buscaNotAtiva])
@@ -1290,6 +1308,44 @@ const Supertabelanegociacoes = () => {
         }
     }
 
+    const salvarVinculoPrestadorNaLista = async (negociacaoItem, prestadorSelecionado) => {
+        if (bloquearSeSomenteLeitura(mostrarErroToast)) return
+        if (!suportaPrestadorId) {
+            mostrarErroToast('Execute o script SQL veterinarios_prestador_id no Supabase para vincular prestadores.')
+            return
+        }
+        const novoId = prestadorSelecionado ? Number(prestadorSelecionado.id) : null
+        if (Number(negociacaoItem.prestadorId) === novoId) return
+
+        setSalvandoVinculoListaId(negociacaoItem.id)
+        try {
+            let { error } = await supabase
+                .from('veterinarios')
+                .update({ prestador_id: novoId })
+                .eq('id', negociacaoItem.id)
+
+            if (error && /prestador_id/i.test(error.message || '')) {
+                mostrarErroToast(`Erro ao salvar vínculo: ${error.message}`)
+                return
+            }
+            if (error) {
+                mostrarErroToast(`Erro ao salvar vínculo: ${error.message}`)
+                return
+            }
+
+            const rotulo = prestadorSelecionado ? rotuloOpcaoPrestador(prestadorSelecionado) : ''
+            setNegociacoes((anteriores) =>
+                anteriores.map((n) =>
+                    Number(n.id) === Number(negociacaoItem.id)
+                        ? { ...n, prestadorId: novoId, prestadorVinculoNome: rotulo }
+                        : n,
+                ),
+            )
+        } finally {
+            setSalvandoVinculoListaId(null)
+        }
+    }
+
     const salvarGerenciarSelecionada = async () => {
         if (!negociacaoSelecionada) return
         const nome = String(editarNome || '').trim()
@@ -1826,10 +1882,29 @@ ou um código por linha`}
                         <>
                             <table className='table_main'>
                                 <colgroup>
-                                    <col style={{ width: somenteLeitura ? '40%' : '34%' }} />
-                                    <col style={{ width: '22%' }} />
-                                    <col style={{ width: somenteLeitura ? '38%' : '32%' }} />
-                                    {!somenteLeitura && <col style={{ width: '12%' }} />}
+                                    <col
+                                        style={{
+                                            width: mostrarColunaVinculoLista
+                                                ? '24%'
+                                                : somenteLeitura
+                                                  ? '40%'
+                                                  : '34%',
+                                        }}
+                                    />
+                                    <col style={{ width: '14%' }} />
+                                    <col
+                                        style={{
+                                            width: mostrarColunaVinculoLista
+                                                ? '18%'
+                                                : somenteLeitura
+                                                  ? '46%'
+                                                  : '40%',
+                                        }}
+                                    />
+                                    {mostrarColunaVinculoLista && (
+                                        <col style={{ width: somenteLeitura ? '44%' : '36%' }} />
+                                    )}
+                                    {!somenteLeitura && <col style={{ width: '8%' }} />}
                                 </colgroup>
                                 <thead>
                                     <tr>
@@ -1851,6 +1926,15 @@ ou um código por linha`}
                                     >
                                         Cidade{obterIndicadorOrdenacaoLista('cidadeNome')}
                                     </th>
+                                    {mostrarColunaVinculoLista && (
+                                        <th
+                                            className='table_header'
+                                            onClick={() => handleOrdenarListaNegociacoes('prestadorVinculoNome')}
+                                        >
+                                            Prestador vinculado
+                                            {obterIndicadorOrdenacaoLista('prestadorVinculoNome')}
+                                        </th>
+                                    )}
                                     {!somenteLeitura && (
                                         <th className='table_header table_header_no_sort'>Ações</th>
                                     )}
@@ -1877,6 +1961,44 @@ ou um código por linha`}
                                         >
                                             {item.cidadeNome}
                                         </td>
+                                        {mostrarColunaVinculoLista && (
+                                            <td
+                                                className='table_text_left supertabelanegociacoes_lista_vinculo_cell'
+                                                onClick={(event) => event.stopPropagation()}
+                                            >
+                                                {somenteLeitura ? (
+                                                    <span className='supertabelanegociacoes_vinculo_readonly'>
+                                                        {item.prestadorVinculoNome?.trim()
+                                                            ? item.prestadorVinculoNome
+                                                            : '—'}
+                                                    </span>
+                                                ) : (
+                                                    <PrestadorVinculoBusca
+                                                        usePortal
+                                                        titleValor={item.prestadorVinculoNome || ''}
+                                                        prestadores={prestadoresParaVinculo}
+                                                        prestadorId={
+                                                            item.prestadorId != null
+                                                                ? String(item.prestadorId)
+                                                                : ''
+                                                        }
+                                                        rotuloFn={rotuloOpcaoPrestador}
+                                                        disabled={
+                                                            !suportaPrestadorId ||
+                                                            salvandoVinculoListaId === item.id
+                                                        }
+                                                        placeholder={
+                                                            salvandoVinculoListaId === item.id
+                                                                ? 'A guardar…'
+                                                                : 'Buscar prestador…'
+                                                        }
+                                                        onChange={(p) =>
+                                                            void salvarVinculoPrestadorNaLista(item, p)
+                                                        }
+                                                    />
+                                                )}
+                                            </td>
+                                        )}
                                         {!somenteLeitura && (
                                             <td>
                                                 <button
@@ -1895,7 +2017,14 @@ ou um código por linha`}
                                 ))}
                                     {!loading && negociacoesListaPaginada.length === 0 && (
                                         <tr>
-                                            <td colSpan={somenteLeitura ? 3 : 4}>Nenhuma negociação encontrada.</td>
+                                            <td
+                                                colSpan={
+                                                    (somenteLeitura ? 3 : 4) +
+                                                    (mostrarColunaVinculoLista ? 1 : 0)
+                                                }
+                                            >
+                                                Nenhuma negociação encontrada.
+                                            </td>
                                         </tr>
                                     )}
                                 </tbody>
@@ -1960,17 +2089,16 @@ ou um código por linha`}
                             const totalLinhasSecao = secao.linhas.length
                             const usarVirtualizacao = totalLinhasSecao > MAX_LINHAS_VISIVEIS
                             const alturaVisivelCorpo = Math.min(totalLinhasSecao, MAX_LINHAS_VISIVEIS) * ALTURA_LINHA_TABELA
-                            const scrollTopoAtual = Number(scrollTopoPorCategoria[secao.categoriaId] || 0)
-                            const indiceInicial = Math.max(
-                                0,
-                                Math.floor(scrollTopoAtual / ALTURA_LINHA_TABELA) - LINHAS_OVERSCAN
-                            )
-                            const quantidadeRenderizada =
-                                Math.ceil(alturaVisivelCorpo / ALTURA_LINHA_TABELA) + LINHAS_OVERSCAN * 2
-                            const indiceFinal = Math.min(totalLinhasSecao, indiceInicial + quantidadeRenderizada)
+                            const janelaVirtual = calcularJanelaVirtualTabela({
+                                scrollTop: scrollTopoPorCategoria[secao.categoriaId] ?? 0,
+                                totalLinhas: totalLinhasSecao,
+                                alturaLinha: ALTURA_LINHA_TABELA,
+                                alturaVisivel: alturaVisivelCorpo,
+                                overscan: LINHAS_OVERSCAN,
+                            })
+                            const { indiceInicial, indiceFinal, alturaEspacadorTopo, alturaEspacadorBase } =
+                                janelaVirtual
                             const linhasVisiveis = secao.linhas.slice(indiceInicial, indiceFinal)
-                            const alturaEspacadorTopo = indiceInicial * ALTURA_LINHA_TABELA
-                            const alturaEspacadorBase = (totalLinhasSecao - indiceFinal) * ALTURA_LINHA_TABELA
                             const colSpanDetalhe =
                                 5 +
                                 (mostrarNomeAlternativo ? 1 : 0) +
@@ -2228,13 +2356,10 @@ ou um código por linha`}
                                                 }-${mostrarCustos ? 'c1' : 'c0'}`}
                                                 className='table_main_virtual_body'
                                                 style={{ maxHeight: `${Math.max(alturaVisivelCorpo, ALTURA_LINHA_TABELA)}px` }}
-                                                onScroll={(event) => {
-                                                    const scrollTopAtual = event.currentTarget?.scrollTop ?? 0
-                                                    setScrollTopoPorCategoria((anterior) => ({
-                                                        ...anterior,
-                                                        [secao.categoriaId]: scrollTopAtual,
-                                                    }))
-                                                }}
+                                                onScroll={criarHandlerScrollVirtualTabela({
+                                                    categoriaId: secao.categoriaId,
+                                                    setScrollTopoPorCategoria,
+                                                })}
                                             >
                                                 <table className='table_main table_main_virtual_rows'>
                                                     <colgroup>

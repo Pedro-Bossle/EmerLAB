@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home/Home';
 import Login from './pages/Login/Login';
 import Layout from './components/Layout/Layout';
@@ -10,7 +10,9 @@ import Supertabelacidades from './pages/Supertabela/Supertabela_cidades/Supertab
 import Supertabelaplanos from './pages/Supertabela/Supertabela_planos/Supertabelaplanos';
 import Supertabelaprocedimentos from './pages/Supertabela/Supertabela_procedimentos/Supertabelaprocedimentos';
 import Supertabelanegociacoes from './pages/Supertabela/Supertabela_negociacoes/Supertabelanegociacoes';
+/* Credenciamento documentação — inativo por hora
 import Credenciamento_doc from './pages/Credenciamento/Credenciamento_doc/Credenciamento_doc';
+*/
 import Credenciamento_main from './pages/Credenciamento/Credenciamento_main/Credenciamento_main';
 import CredenciamentoCadastroLista from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroLista';
 import CredenciamentoCadastroForm from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroForm';
@@ -169,11 +171,7 @@ function App() {
         <Route element={<Layout2 />}>
           <Route
             path="/credenciamentodoc"
-            element={
-              <PrivateRoute permission="credenciamento.view">
-                <Credenciamento_doc />
-              </PrivateRoute>
-            }
+            element={<Navigate to="/credenciamento/principal" replace />}
           />
         </Route>
         <Route element={<Layout2 />}>
