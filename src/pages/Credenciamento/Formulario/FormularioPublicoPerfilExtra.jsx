@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
-import { supabase } from '../../../lib/supabase'
+import { obterOuCriarCidadeCredenciamentoPorMunicipio } from '../../../lib/cidadesCredenciamento.js'
 import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades'
 import { formatarCrmvEntrada, normalizarCrmvParaSalvar } from '../../../lib/prestadorCadastroHelpers'
 import {
@@ -75,7 +74,7 @@ export default function FormularioPublicoPerfilExtra({
         }
         setAdicionandoCidade(true)
         try {
-            const obj = await obterOuCriarCidadeCredenciamento(mun.nome)
+            const obj = await obterOuCriarCidadeCredenciamentoPorMunicipio(ufAtende, mun.nome)
             const cid = Number(obj?.id)
             if (!cid) {
                 setErroLocal('Não foi possível vincular a cidade.')
