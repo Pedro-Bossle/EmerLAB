@@ -94,6 +94,14 @@ const menuItems = [
             { label: 'Clicksign', href: '/contratos/clicksign', permission: PERMISSION_KEYS.CONTRATOS_VIEW },
         ],
     },
+    {
+        id: 'pagamentos',
+        label: 'Pagamentos',
+        permission: PERMISSION_KEYS.PAGAMENTOS_VIEW,
+        children: [
+            { label: 'Registro', href: '/pagamentos/registro', permission: PERMISSION_KEYS.PAGAMENTOS_VIEW },
+        ],
+    },
     /*{
         id: 'formulario',
         label: 'Formulário',
@@ -111,17 +119,6 @@ const menuItems = [
         children: [
             { label: 'Editor', href: '/editor' },
             { label: 'Publico', href: '/planos/publico' },
-            { label: 'Documentação', href: '#' },
-
-        ],
-    },
-    {
-        id: 'pagamentos',
-        label: 'Pagamentos',
-        children: [
-            { label: 'Cadastrar', href: '/pagamentos/cadastro' },
-            { label: 'Todos', href: '/pagamentos/todos' },
-            { label: 'Pendências', href: '/pagamentos/pendencias' },
             { label: 'Documentação', href: '#' },
 
         ],

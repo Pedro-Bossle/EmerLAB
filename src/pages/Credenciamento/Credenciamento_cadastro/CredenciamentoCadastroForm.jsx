@@ -394,11 +394,19 @@ const CredenciamentoCadastroForm = () => {
         if (digits.length !== 14) return
         try {
             const data = await buscarDadosCNPJ(form.cpf_cnpj)
-            if (!data?.razaoSocial?.trim()) return
+            if (!data) return
+            const temEndereco =
+                data.cep ||
+                data.logradouro ||
+                data.numero ||
+                data.complemento ||
+                data.bairro ||
+                data.municipio ||
+                data.uf
+            if (!temEndereco) return
             setForm((f) => {
                 if (apenasDigitos(f.cpf_cnpj) !== digits) return f
-                const razao = String(data.razaoSocial).trim()
-                const patch = { ...f, nome: razao }
+                const patch = { ...f }
                 if (data.cep && !String(f.cep || '').trim()) {
                     const c = apenasDigitos(data.cep)
                     patch.cep = c.length === 8 ? `${c.slice(0, 5)}-${c.slice(5)}` : String(data.cep)

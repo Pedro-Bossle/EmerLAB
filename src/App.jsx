@@ -25,6 +25,7 @@ import ComprasValorVenda from './pages/Compras/ValorVenda/ComprasValorVenda';
 import ComprasOrcamento from './pages/Compras/Orcamento/ComprasOrcamento';
 import ContratosEmerdog from './pages/Contratos/ContratosEmerdog';
 import ClicksignEmerdog from './pages/Contratos/ClicksignEmerdog';
+import PagamentosRegistro from './pages/Pagamentos/PagamentosRegistro';
 import NotFound from './pages/NotFound/NotFound';
 function App() {
   return (
@@ -211,6 +212,19 @@ function App() {
               </PrivateRoute>
             }
           />
+        </Route>
+        <Route element={<Layout2 />}>
+          <Route
+            path="/pagamentos/registro"
+            element={
+              <PrivateRoute permission="pagamentos.view">
+                <PagamentosRegistro />
+              </PrivateRoute>
+            }
+          />
+          <Route path="/pagamentos/cadastro" element={<Navigate to="/pagamentos/registro" replace />} />
+          <Route path="/pagamentos/todos" element={<Navigate to="/pagamentos/registro" replace />} />
+          <Route path="/pagamentos/pendencias" element={<Navigate to="/pagamentos/registro" replace />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

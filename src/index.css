@@ -271,7 +271,8 @@ body.dark-mode .supertabelacidades_filters,
 body.dark-mode .supertabelaplanos_filters,
 body.dark-mode .supertabelaprocedimentos_filters,
 body.dark-mode .supertabelanegociacoes_filters,
-body.dark-mode .credenciamento_main_filters {
+body.dark-mode .credenciamento_main_filters,
+body.dark-mode .pag_reg_filtros_flutuantes {
     background: #182e44;
     border-color: #3b5a77;
     box-shadow: 0 6px 18px rgba(3, 10, 18, 0.35);
