@@ -48,7 +48,7 @@ const ordemGrupoEspecialidade = (especialidadeNome) => {
     if (nome.includes('CLINICA')) return 2
     if (nome.includes('CONSULT')) return 3
     if (nome.includes('LABORAT')) return 4
-    if (nome.includes('PETSHOP') || nome.includes('PET SHOP') || nome.includes('FARMAC') || nome.includes('COMERC')) return 6
+    if (nome.includes('PETSHOP') || nome.includes('PET SHOP') || nome.includes('FARMAC') || nome.includes('COMERC')|| nome.includes('Banho e Tosa')|| nome.includes('Crematório')|| nome.includes('Hotel')|| nome.includes('Recreação')|| nome.includes('Adestramento')) return 6
     return 5
 }
 
