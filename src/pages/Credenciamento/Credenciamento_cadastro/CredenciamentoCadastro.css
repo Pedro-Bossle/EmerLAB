@@ -108,6 +108,32 @@
     width: 100%;
 }
 
+.credenciamento_cadastro_qtd_procs {
+    font-variant-numeric: tabular-nums;
+}
+
+.credenciamento_cadastro_td_copiar_codigos {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.credenciamento_cadastro_copiar_codigos_btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8rem;
+    line-height: 1.2;
+}
+
+.pcad_dev_tools_perfil_opcoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.pcad_dev_tools_copiar_codigos {
+    flex-shrink: 0;
+}
+
 .credenciamento_cadastro_perfil_pct {
     display: flex;
     align-items: center;

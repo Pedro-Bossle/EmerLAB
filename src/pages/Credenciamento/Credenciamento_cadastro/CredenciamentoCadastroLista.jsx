@@ -15,6 +15,7 @@ import {
     resolverCidadePrincipalNome,
     prestadorEhEstabelecimento,
 } from '../../../lib/prestadorCadastroHelpers'
+import CopiarCodigosProcedimentosBtn from './CopiarCodigosProcedimentosBtn.jsx'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 
@@ -67,6 +68,7 @@ const CredenciamentoCadastroLista = () => {
     const mostrarColunaPerfil = podeDevTool && colCad.perfil
     const mostrarColunaCrmv = podeDevTool && colCad.crmv
     const mostrarColunaProcs = podeDevTool && colCad.procs
+    const mostrarColunaCopiarCodigos = podeDevTool && colCad.copiarCodigosProcs
     const ocultarVetsClinica = podeDevTool && colCad.ocultarVetsClinica
 
     const somenteLeitura = useMemo(() => {
@@ -306,8 +308,9 @@ const CredenciamentoCadastroLista = () => {
         if (mostrarColunaPerfil) n += 1
         if (mostrarColunaCrmv) n += 1
         if (mostrarColunaProcs) n += 1
+        if (mostrarColunaCopiarCodigos) n += 1
         return n
-    }, [mostrarColunaPerfil, mostrarColunaCrmv, mostrarColunaProcs])
+    }, [mostrarColunaPerfil, mostrarColunaCrmv, mostrarColunaProcs, mostrarColunaCopiarCodigos])
 
     const alternarOrdenacao = (coluna) => {
         if (ordenarColuna === coluna) {
@@ -531,6 +534,11 @@ const CredenciamentoCadastroLista = () => {
                                             </button>
                                         </th>
                                     )}
+                                    {mostrarColunaCopiarCodigos && (
+                                        <th className="table_header credenciamento_cadastro_th_copiar_codigos">
+                                            Códigos
+                                        </th>
+                                    )}
                                     <th className="table_header credenciamento_cadastro_th_sortable">
                                         <button
                                             type="button"
@@ -579,6 +587,16 @@ const CredenciamentoCadastroLista = () => {
                                         {mostrarColunaProcs && (
                                             <td className="table_text_left credenciamento_cadastro_qtd_procs">
                                                 {l.qtdProcedimentos ?? 0}
+                                            </td>
+                                        )}
+                                        {mostrarColunaCopiarCodigos && (
+                                            <td className="table_text_left credenciamento_cadastro_td_copiar_codigos">
+                                                <CopiarCodigosProcedimentosBtn
+                                                    prestadorId={l.id}
+                                                    compacto
+                                                    rotulo="Copiar"
+                                                    className="credenciamento_main_action_btn secondary credenciamento_cadastro_copiar_codigos_btn"
+                                                />
                                             </td>
                                         )}
                                         <td className="table_text_left">{l.situacao}</td>

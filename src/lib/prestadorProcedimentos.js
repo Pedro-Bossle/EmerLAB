@@ -301,11 +301,28 @@ export async function sincronizarPrestadorProcedimentos(prestadorId, codigos, ma
 /** Códigos para marcar checkboxes (resolvidos via `prestador_procedimentos` + FK `procedimento_id`). */
 export async function carregarCodigosPrestadorProcedimentos(prestadorId) {
     const lista = await listarProcedimentosPrestadorPerfil(prestadorId)
+    return ordenarCodigosProcedimentosUnicos(
+        lista.map((x) => String(x.codigo).trim()).filter((c) => c && c !== '—'),
+    )
+}
+
+/** Lista única de códigos, ordenada (uma linha por código na área de transferência). */
+export function ordenarCodigosProcedimentosUnicos(codigos) {
     return [
         ...new Set(
-            lista.map((x) => String(x.codigo).trim()).filter((c) => c && c !== '—'),
+            (codigos || []).map((c) => String(c || '').trim()).filter((c) => c && c !== '—'),
         ),
-    ]
+    ].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }))
+}
+
+export function formatarCodigosProcedimentosParaClipboard(codigos) {
+    return ordenarCodigosProcedimentosUnicos(codigos).join('\n')
+}
+
+export async function copiarCodigosProcedimentosParaClipboard(codigos) {
+    const lista = ordenarCodigosProcedimentosUnicos(codigos)
+    await navigator.clipboard.writeText(lista.join('\n'))
+    return lista.length
 }
 
 /** Chave estável de procedimento numa linha de `prestador_procedimentos` (contagem = códigos distintos). */

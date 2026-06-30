@@ -14,6 +14,7 @@ export const DEFAULT_COLUNAS_CADASTRO = {
     perfil: false,
     crmv: false,
     procs: false,
+    copiarCodigosProcs: false,
     ocultarVetsClinica: false,
 }
 
@@ -46,6 +47,7 @@ function normalizarColunasCadastro(raw) {
         base.perfil = !!raw.perfil
         base.crmv = !!raw.crmv
         base.procs = !!raw.procs
+        base.copiarCodigosProcs = !!raw.copiarCodigosProcs
         base.ocultarVetsClinica = !!(raw.ocultarVetsClinica ?? raw.ocultarVets)
     }
     return base

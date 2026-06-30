@@ -57,6 +57,13 @@ const ITENS_CADASTRO = [
     { chave: 'procs', rotulo: 'Coluna Procedimentos', descricao: 'Cadastro de prestadores: quantidade de procedimentos (vets e clínicas).' },
 
     {
+        chave: 'copiarCodigosProcs',
+        rotulo: 'Copiar códigos do perfil',
+        descricao:
+            'Cadastro: botão para copiar só os códigos dos procedimentos do perfil (lista e ficha do prestador).',
+    },
+
+    {
 
         chave: 'ocultarVetsClinica',
 
