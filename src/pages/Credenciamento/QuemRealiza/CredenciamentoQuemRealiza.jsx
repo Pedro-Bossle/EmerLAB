@@ -7,17 +7,19 @@ import {
     filtrarMunicipiosIbgePorCredenciamento,
     ufsDisponiveisFiltroCredenciamento,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
-import { normalizarTextoBusca, filtrarPorTermoBusca, resolverCidadePrincipalNome } from '../../../lib/prestadorCadastroHelpers.js'
+import { normalizarTextoBusca, filtrarPorTermoBusca, resolverCidadePrincipalNome, prestadorEhCredenciado } from '../../../lib/prestadorCadastroHelpers.js'
 import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
 import '../Credenciamento_main/Credenciamento_main.css'
 import {
     avaliarViaCidadeParalela,
+    formatarResultadosQuemRealizaParaClipboard,
     mapaCodigoProcedimentoIdDeCatalogo,
     pesquisarQuemRealizaNaRede,
     prestadorAtendeCidadeAlvo,
 } from '../../../lib/buscarQuemRealizaPrestadores.js'
 import './CredenciamentoQuemRealiza.css'
+import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 
 const CATEGORIA_MIN = 3
 const CATEGORIA_MAX = 25
@@ -73,6 +75,7 @@ export default function CredenciamentoQuemRealiza() {
     const [loading, setLoading] = useState(false)
     const [erro, setErro] = useState('')
     const [pesquisou, setPesquisou] = useState(false)
+    const [copiandoResultados, setCopiandoResultados] = useState(false)
 
     useEffect(() => {
         const run = async () => {
@@ -82,6 +85,7 @@ export default function CredenciamentoQuemRealiza() {
                 { data: pc },
                 { data: cc },
                 { data: esps },
+                { data: situacoesData },
                 procPaginado,
             ] = await Promise.all([
                 supabase
@@ -93,12 +97,13 @@ export default function CredenciamentoQuemRealiza() {
                 supabase
                     .from('prestadores')
                     .select(
-                        'id, nome, telefone, celular, especialidade_id, endereco_uf, endereco_cidade, cidade_id, tipo, ativo'
+                        'id, nome, telefone, celular, especialidade_id, endereco_uf, endereco_cidade, cidade_id, tipo, ativo, situacao_id'
                     )
                     .eq('ativo', true),
                 supabase.from('prestador_cidades').select('prestador_id, cidade_id'),
                 supabase.from('cidades_credenciamento').select('id, nome'),
                 supabase.from('especialidades').select('id, nome'),
+                supabase.from('situacoes').select('id, descricao'),
                 buscarTodosPaginado(() =>
                     supabase
                         .from('procedimentos')
@@ -118,7 +123,9 @@ export default function CredenciamentoQuemRealiza() {
             setCategorias(listaCats)
             const idPadrao = idCategoriaPadrao(listaCats)
             if (idPadrao != null) setAbaCategoria(idPadrao)
-            setPrestadores(prest || [])
+            const listaSituacoes = situacoesData || []
+            const prestCred = (prest || []).filter((p) => prestadorEhCredenciado(p, listaSituacoes))
+            setPrestadores(prestCred)
             setPrestadorCidades(pc || [])
             setMapaCidadesCred(new Map((cc || []).map((c) => [Number(c.id), c.nome])))
             setEspecialidades(esps || [])
@@ -358,6 +365,19 @@ export default function CredenciamentoQuemRealiza() {
         }
     }
 
+    const copiarResultados = async () => {
+        if (!resultados.length || copiandoResultados) return
+        setCopiandoResultados(true)
+        try {
+            const texto = formatarResultadosQuemRealizaParaClipboard(resultados)
+            await navigator.clipboard.writeText(texto)
+        } catch (e) {
+            setErro(e?.message || 'Não foi possível copiar os resultados.')
+        } finally {
+            setCopiandoResultados(false)
+        }
+    }
+
     return (
         <div className="credenciamento_main quem_realiza">
             <h1>Credenciamento — Quem Realiza</h1>
@@ -441,7 +461,7 @@ export default function CredenciamentoQuemRealiza() {
                     )}
                     <div className="quem_realiza_busca">
                         <div className="quem_realiza_busca_input_wrap" ref={buscaProcRef}>
-                            <input
+                            <CampoBuscaComLimpar
                                 type="search"
                                 className="credenciamento_main_input"
                                 placeholder="Buscar em todas as categorias (código, nome ou categoria)"
@@ -545,11 +565,24 @@ export default function CredenciamentoQuemRealiza() {
                 </section>
 
                 <section className="quem_realiza_resultados quem_realiza_col">
-                    <h2>Resultados</h2>
+                    <div className="quem_realiza_resultados_head">
+                        <h2>Resultados</h2>
+                        {resultados.length > 0 && (
+                            <button
+                                type="button"
+                                className="credenciamento_main_action_btn secondary quem_realiza_copiar_resultados"
+                                disabled={copiandoResultados}
+                                onClick={() => void copiarResultados()}
+                                title="Copiar: prestador - especialidade - telefone, depois procedimentos (um bloco por linha)"
+                            >
+                                {copiandoResultados ? 'Copiando…' : 'Copiar resultados'}
+                            </button>
+                        )}
+                    </div>
                     {loading && <p className="pcad_muted">A pesquisar…</p>}
                     {!loading && pesquisou && resultados.length === 0 && (
                         <p className="pcad_muted">
-                            Nenhum prestador (veterinário, clínica ou laboratório) encontrado que realize algum dos procedimentos selecionados nesta cidade
+                            Nenhum prestador <strong>credenciado</strong> encontrado que realize algum dos procedimentos selecionados nesta cidade
                             {buscarCidadesParalelas
                                 ? ' (endereço ou «Cidades que atendem»).'
                                 : ' (somente cidade do endereço do cadastro). Ative «Buscar em cidades paralelas» para incluir quem atende na cidade sem endereço aqui.'}

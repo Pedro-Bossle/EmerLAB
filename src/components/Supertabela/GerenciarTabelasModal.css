@@ -1,0 +1,120 @@
+/* Lista compacta do modal — colunas proporcionais ao conteúdo */
+.manager_table_wrap_inset {
+    overflow-x: auto;
+    overflow-y: auto;
+}
+
+.manager_table_wrap_inset .manager_table.manager_table_compact {
+    width: max-content;
+    max-width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+}
+
+/* 26px botão + 4px gap → 5 botões ≈ 9.25rem */
+.manager_table_wrap_inset .manager_table.manager_table_compact col.col_uf {
+    width: 3.25rem;
+}
+
+.manager_table_wrap_inset .manager_table.manager_table_compact col.col_nome {
+    width: 11rem;
+}
+
+.manager_table_wrap_inset .manager_table.manager_table_compact col.col_proc {
+    width: 7.25rem;
+}
+
+.manager_table_wrap_inset .manager_table.manager_table_compact col.col_acoes {
+    width: 9.25rem;
+}
+
+.manager_table_wrap_inset .manager_table.manager_table_compact th {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+}
+
+.manager_table_wrap_inset .manager_table.manager_table_compact th.col_nome {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.manager_table_wrap_inset .manager_table.manager_table_compact td.col_uf {
+    text-align: center;
+}
+
+.manager_table_wrap_inset .manager_table.manager_table_compact td.col_proc {
+    text-align: right;
+    padding-right: 10px;
+}
+
+.manager_table_wrap_inset .manager_table.manager_table_compact td.col_nome {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.manager_table_wrap_inset .manager_table.manager_table_compact td.col_acoes,
+.manager_table_wrap_inset .manager_table.manager_table_compact th.col_acoes {
+    overflow: visible;
+    text-overflow: clip;
+    width: 9.25rem;
+    max-width: 9.25rem;
+    padding-left: 2px;
+    padding-right: 2px;
+    box-sizing: border-box;
+}
+
+.manager_table_compact .col_acoes .manager_actions {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.manager_table_compact .col_acoes .manager_icon_btn {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    line-height: 1;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.manager_table_compact th.col_acoes {
+    text-align: right;
+    font-size: 0.78rem;
+    cursor: default;
+    padding-right: 6px;
+}
+
+.manager_icon_btn_excel {
+    border-color: #7cb87c;
+    background: #e8f5e9;
+}
+
+.manager_icon_btn_excel:hover:not(:disabled) {
+    background: #d4edd6;
+}
+
+.manager_icon_btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.manager_split_body.is-list-only .manager_split_list {
+    width: max-content;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.manager_split_body.is-list-only .manager_table_wrap_inset {
+    width: max-content;
+    max-width: 100%;
+}

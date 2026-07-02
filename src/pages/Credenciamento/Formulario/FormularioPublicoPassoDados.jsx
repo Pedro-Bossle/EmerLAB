@@ -27,6 +27,7 @@ export default function FormularioPublicoPassoDados({
     cpfCnpj,
     setCpfCnpj,
     docOk,
+    docModo,
     verificandoDoc,
     onVerificarDoc,
     nome,
@@ -71,6 +72,7 @@ export default function FormularioPublicoPassoDados({
 
     const docCompleto = documentoCpfCnpjEstaCompleto(cpfCnpj)
     const mostrarDocIndisponivel = docOk === false && docCompleto
+    const docAtualizacao = docOk === true && docModo === 'atualizacao' && docCompleto
 
     return (
         <div className="fcred_passo_dados">
@@ -93,8 +95,13 @@ export default function FormularioPublicoPassoDados({
                         />
                         <span className="fcred_field_hint" aria-live="polite">
                             {verificandoDoc && <span className="fcred_doc_muted">A verificar…</span>}
-                            {docOk === true && docCompleto && (
+                            {docOk === true && docCompleto && !docAtualizacao && (
                                 <span className="fcred_doc_ok">Documento disponível</span>
+                            )}
+                            {docAtualizacao && (
+                                <span className="fcred_doc_ok">
+                                    Credenciado encontrado — após análise, os dados serão aplicados ao seu cadastro
+                                </span>
                             )}
                             {mostrarDocIndisponivel && (
                                 <span className="fcred_doc_bad">Documento já cadastrado ou pendente</span>

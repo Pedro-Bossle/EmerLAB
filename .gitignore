@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 *.sql
+.vercel
+.env*

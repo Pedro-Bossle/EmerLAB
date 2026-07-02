@@ -9,6 +9,17 @@ const supabaseKey =
   import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+function assertSupabaseConfig() {
+  if (supabaseUrl && supabaseKey) return
+  const faltando = []
+  if (!supabaseUrl) faltando.push('VITE_SUPABASE_URL')
+  if (!supabaseKey) faltando.push('VITE_SUPABASE_PUBLISHABLE_KEY ou VITE_SUPABASE_ANON_KEY')
+  throw new Error(
+    `Supabase não configurado (${faltando.join(', ')}). ` +
+      'Copie env.chaves.modelo para .env.local na raiz, preencha as chaves e reinicie npm run dev.',
+  )
+}
+
 const READ_ONLY_STORAGE_KEY = 'sfsc-read-only'
 
 export const setReadOnlyFlag = (enabled) => {
@@ -50,6 +61,8 @@ const guardedFetch = async (input, init = {}) => {
 
   return fetch(input, init)
 }
+
+assertSupabaseConfig()
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   global: {

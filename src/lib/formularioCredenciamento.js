@@ -110,6 +110,91 @@ async function documentoOcupadoConsultaDireta(doc) {
     return { ocupado: false }
 }
 
+async function documentoTemEntradaFormularioAberta(doc) {
+    const mascarado =
+        doc.length === 11
+            ? doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+            : doc.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+
+    const filtroEntrada = async (valor) => {
+        if (!valor) return false
+        const { data, error } = await supabase
+            .from('formulario_cred_entradas')
+            .select('id')
+            .eq('cpf_cnpj', valor)
+            .in('status', ['pendente', 'em_analise'])
+            .limit(1)
+        if (error) throw error
+        return (data || []).length > 0
+    }
+    if (await filtroEntrada(doc)) return true
+    if (mascarado !== doc && (await filtroEntrada(mascarado))) return true
+    return false
+}
+
+export async function buscarPrestadorIdPorDocumento(cpfCnpj) {
+    const doc = normalizarCpfCnpjParaSalvar(cpfCnpj)
+    if (!doc) return null
+    const mascarado =
+        doc.length === 11
+            ? doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+            : doc.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+
+    const { data, error } = await supabase
+        .from('prestadores')
+        .select('id, cpf_cnpj')
+        .or(`cpf_cnpj.eq.${doc},cpf_cnpj.eq.${mascarado}`)
+        .limit(5)
+    if (error) throw new Error(error.message)
+    const hit = (data || []).find((p) => somenteDigitosCpfCnpj(p.cpf_cnpj) === doc)
+    return hit?.id ? Number(hit.id) : null
+}
+
+/**
+ * Valida CPF/CNPJ para envio do formulário público (novo cadastro ou atualização de credenciado).
+ * @returns {{ ok: boolean, documento?: string, modo?: 'novo'|'atualizacao', prestadorId?: number, motivo?: string, erro?: string }}
+ */
+export async function verificarDocumentoParaEnvioFormulario(cpfCnpj) {
+    const doc = normalizarCpfCnpjParaSalvar(cpfCnpj)
+    if (!documentoCpfCnpjEstaCompleto(doc)) {
+        return { ok: false, motivo: 'incompleto', erro: 'Informe um CPF ou CNPJ válido e completo.' }
+    }
+
+    try {
+        if (await documentoTemEntradaFormularioAberta(doc)) {
+            return {
+                ok: false,
+                motivo: 'entrada_pendente',
+                erro: 'Já existe uma solicitação pendente ou em análise com este documento.',
+            }
+        }
+    } catch (errE) {
+        return { ok: false, motivo: 'erro', erro: errE.message }
+    }
+
+    const prestadorId = await buscarPrestadorIdPorDocumento(doc)
+    if (prestadorId) {
+        return { ok: true, documento: doc, modo: 'atualizacao', prestadorId }
+    }
+
+    const { data, error } = await supabase.rpc('credenciamento_documento_disponivel', { doc })
+    if (!error && data === true) {
+        return { ok: true, documento: doc, modo: 'novo' }
+    }
+    if (!error && data === false) {
+        return { ok: false, motivo: 'duplicado', erro: MSG_DOC_OCUPADO }
+    }
+
+    const direto = await documentoOcupadoConsultaDireta(doc)
+    if (direto.erro) {
+        return { ok: false, motivo: 'erro', erro: direto.erro }
+    }
+    if (direto.ocupado) {
+        return { ok: false, motivo: 'duplicado', erro: MSG_DOC_OCUPADO }
+    }
+    return { ok: true, documento: doc, modo: 'novo' }
+}
+
 export async function verificarDocumentoDisponivel(cpfCnpj) {
     const doc = normalizarCpfCnpjParaSalvar(cpfCnpj)
     if (!documentoCpfCnpjEstaCompleto(doc)) {
@@ -348,13 +433,19 @@ export async function carregarProcedimentosPublicadosFormulario(categoriaIds) {
 }
 
 export async function enviarEntradaFormularioCredenciamento({ cpfCnpj, tipoPerfil, payload }) {
-    const check = await verificarDocumentoDisponivel(cpfCnpj)
+    const check = await verificarDocumentoParaEnvioFormulario(cpfCnpj)
     if (!check.ok) throw new Error(check.erro)
+
+    const payloadFinal = { ...(payload || {}) }
+    if (check.modo === 'atualizacao' && check.prestadorId) {
+        payloadFinal.atualizacao_credenciado = true
+        payloadFinal.prestador_id_sugerido = check.prestadorId
+    }
 
     const { error } = await supabase.from('formulario_cred_entradas').insert({
         cpf_cnpj: check.documento,
         tipo_perfil: tipoPerfil,
-        payload,
+        payload: payloadFinal,
         status: 'pendente',
     })
     if (error) throw new Error(error.message)
@@ -678,6 +769,167 @@ export async function converterEntradaFormularioEmPrestador(entradaId) {
             principal: idx === 0,
         })),
     )
+
+    const codigos = [...new Set((payload.procedimentos || []).map((c) => normCod(c)).filter(Boolean))]
+    if (codigos.length) {
+        await sincronizarPrestadorProcedimentos(prestadorId, codigos)
+    }
+
+    await atualizarStatusEntradaFormulario(entradaId, 'convertido', { prestador_id: prestadorId })
+
+    return prestadorId
+}
+
+/**
+ * Mescla dados de uma entrada do formulário em prestador já cadastrado (mesmo CPF/CNPJ).
+ * @returns {number} prestador_id
+ */
+export async function aplicarEntradaFormularioEmPrestadorExistente(entradaId, prestadorIdInformado = null) {
+    const entrada = await obterEntradaFormulario(entradaId)
+    if (!entrada) throw new Error('Entrada não encontrada.')
+    if (entrada.prestador_id) {
+        return Number(entrada.prestador_id)
+    }
+    if (entrada.status === 'convertido' || entrada.status === 'descartado') {
+        throw new Error(
+            entrada.status === 'convertido'
+                ? 'Esta entrada já foi aplicada a um prestador.'
+                : 'Esta entrada foi descartada.',
+        )
+    }
+
+    const payload = entrada.payload || {}
+    const doc = normalizarCpfCnpjParaSalvar(entrada.cpf_cnpj)
+    if (!doc) throw new Error('CPF/CNPJ inválido na entrada.')
+
+    let prestadorId =
+        prestadorIdInformado != null && Number(prestadorIdInformado) > 0
+            ? Number(prestadorIdInformado)
+            : Number(payload.prestador_id_sugerido) > 0
+              ? Number(payload.prestador_id_sugerido)
+              : await buscarPrestadorIdPorDocumento(doc)
+    if (!prestadorId) {
+        throw new Error('Não há prestador cadastrado com este CPF/CNPJ para vincular.')
+    }
+
+    const { data: existente, error: errExist } = await supabase
+        .from('prestadores')
+        .select('id, cpf_cnpj')
+        .eq('id', prestadorId)
+        .maybeSingle()
+    if (errExist) throw new Error(errExist.message)
+    if (!existente?.id) throw new Error('Prestador não encontrado.')
+    if (somenteDigitosCpfCnpj(existente.cpf_cnpj) !== doc) {
+        throw new Error('O documento da entrada não confere com o prestador selecionado.')
+    }
+
+    const [{ data: esps }, { data: situacoes }] = await Promise.all([
+        supabase.from('especialidades').select('id, nome, tipo').order('nome'),
+        supabase.from('situacoes').select('id, descricao').eq('ativo', true),
+    ])
+
+    const tipoPerfilEntrada = String(entrada.tipo_perfil || '').toLowerCase()
+    const espIdsPayload = (Array.isArray(payload.especialidades_ids) ? payload.especialidades_ids : [])
+        .map(Number)
+        .filter(Boolean)
+        .filter((id) => especialidadePermitidaParaPerfil(tipoPerfilEntrada, id, esps || []))
+
+    let espId = espIdsPayload[0] ? Number(espIdsPayload[0]) : null
+    if (!espId) {
+        const { data: atual } = await supabase
+            .from('prestadores')
+            .select('especialidade_id')
+            .eq('id', prestadorId)
+            .maybeSingle()
+        espId = atual?.especialidade_id ? Number(atual.especialidade_id) : null
+    }
+    if (!espId) {
+        espId = await resolverEspecialidadeIdPorTipoPerfil(entrada.tipo_perfil, esps)
+    }
+
+    const esp = (esps || []).find((e) => Number(e.id) === espId)
+    const tipoSalvar = String(esp?.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
+
+    const end = payload.endereco || {}
+    const tipoPerfil = String(entrada.tipo_perfil || '').toLowerCase()
+    const cidadesPayload = Array.isArray(payload.cidadesAtende) ? payload.cidadesAtende : []
+    let cidadeId = await obterOuCriarCidadeCredenciamento(end.cidade)
+    if (!cidadeId && cidadesPayload[0]?.cidadeId) {
+        cidadeId = Number(cidadesPayload[0].cidadeId) || null
+    }
+    if (!cidadeId && cidadesPayload[0]?.nome) {
+        cidadeId = await obterOuCriarCidadeCredenciamento(cidadesPayload[0].nome)
+    }
+
+    const crmvPrincipal =
+        tipoPerfil === 'volante' || tipoPerfil === 'clinica'
+            ? normalizarCrmvParaSalvar(payload.crmv)
+            : null
+
+    const patch = {
+        nome: String(payload.nome || '').trim() || undefined,
+        telefone: String(payload.telefone || '').trim() || null,
+        celular: String(payload.celular || '').trim() || null,
+        email: String(payload.email || '').trim().toLowerCase() || null,
+        especialidade_id: espId || undefined,
+        tipo: tipoSalvar,
+        crmv: crmvPrincipal,
+        cep: String(payload.cep || '').replace(/\D/g, '') || null,
+        endereco_logradouro: String(end.logradouro || '').trim() || null,
+        endereco_numero: String(end.numero || '').trim() || null,
+        endereco_complemento: String(end.complemento || '').trim() || null,
+        endereco_pais: String(end.pais || '').trim() || 'Brasil',
+        endereco_uf: String(end.uf || '').trim() || null,
+        endereco_cidade: String(end.cidade || '').trim() || null,
+        endereco_bairro: String(end.bairro || '').trim() || null,
+        endereco: montarEnderecoLegado(payload),
+        chave_pix: payload.chave_pix ? String(payload.chave_pix) : null,
+        tipo_pix: payload.tipo_pix ? String(payload.tipo_pix).toLowerCase() : null,
+        tipo_repasse: payload.tipo_repasse ? String(payload.tipo_repasse) : null,
+        cidade_id: cidadeId || undefined,
+        data_atualizacao: new Date().toISOString(),
+    }
+    Object.keys(patch).forEach((k) => {
+        if (patch[k] === undefined) delete patch[k]
+    })
+
+    const { error: errUp } = await supabase.from('prestadores').update(patch).eq('id', prestadorId)
+    if (errUp) throw new Error(errUp.message)
+
+    const linhasCidades = []
+    if (tipoPerfil === 'volante' && cidadesPayload.length) {
+        for (let i = 0; i < cidadesPayload.length; i++) {
+            const item = cidadesPayload[i]
+            let cid = item.cidadeId ? Number(item.cidadeId) : null
+            if (!cid && item.nome) cid = await obterOuCriarCidadeCredenciamento(item.nome)
+            if (!cid) continue
+            linhasCidades.push({
+                prestador_id: prestadorId,
+                cidade_id: cid,
+                principal: i === 0 || Number(cid) === Number(cidadeId),
+            })
+        }
+    } else if (cidadeId) {
+        linhasCidades.push({ prestador_id: prestadorId, cidade_id: cidadeId, principal: true })
+    }
+    if (linhasCidades.length) {
+        await supabase.from('prestador_cidades').upsert(linhasCidades, {
+            onConflict: 'prestador_id,cidade_id',
+            ignoreDuplicates: true,
+        })
+    }
+
+    const idsEspPrestador = espIdsPayload.length ? espIdsPayload : espId ? [espId] : []
+    if (idsEspPrestador.length) {
+        await supabase.from('prestador_especialidades').delete().eq('prestador_id', prestadorId)
+        await supabase.from('prestador_especialidades').insert(
+            idsEspPrestador.map((eid, idx) => ({
+                prestador_id: prestadorId,
+                especialidade_id: Number(eid),
+                principal: idx === 0,
+            })),
+        )
+    }
 
     const codigos = [...new Set((payload.procedimentos || []).map((c) => normCod(c)).filter(Boolean))]
     if (codigos.length) {

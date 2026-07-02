@@ -1,4 +1,5 @@
 import React from 'react'
+import './GerenciarTabelasModal.css'
 
 /**
  * Modal «Gerenciar tabelas»: lista à esquerda, edição à direita.
@@ -17,6 +18,8 @@ export default function GerenciarTabelasModal({
     onEditarCidade,
     onDuplicarCidade,
     onExcluirCidade,
+    onBaixarExcelCidade,
+    exportandoExcelCidadeId = null,
     colunaProcedimentos = false,
     edicaoAberta = false,
     painelDireito,
@@ -24,7 +27,7 @@ export default function GerenciarTabelasModal({
     return (
         <div className='manager_modal_overlay' onClick={onClose}>
             <div
-                className='manager_modal manager_modal_split'
+                className={`manager_modal manager_modal_split${edicaoAberta ? '' : ' manager_modal_list_only'}`}
                 onClick={(event) => event.stopPropagation()}
                 role='dialog'
                 aria-labelledby='gerenciar-tabelas-titulo'
@@ -53,6 +56,12 @@ export default function GerenciarTabelasModal({
                         <p className='manager_split_list_title'>Tabelas cadastradas</p>
                         <div className='manager_table_wrap manager_table_wrap_inset'>
                             <table className='manager_table manager_table_compact'>
+                                <colgroup>
+                                    <col className='col_uf' />
+                                    <col className='col_nome' />
+                                    {colunaProcedimentos && <col className='col_proc' />}
+                                    <col className='col_acoes' />
+                                </colgroup>
                                 <thead>
                                     <tr>
                                         <th className='col_uf' onClick={() => ordenarGerenciador('uf')}>
@@ -66,10 +75,13 @@ export default function GerenciarTabelasModal({
                                                 className='col_proc'
                                                 onClick={() => ordenarGerenciador('procedimentosAtivos')}
                                             >
-                                                Proc.{indicadorOrdenacaoGerenciador('procedimentosAtivos')}
+                                                Procedimentos
+                                                {indicadorOrdenacaoGerenciador('procedimentosAtivos')}
                                             </th>
                                         )}
-                                        <th className='col_acoes' aria-label='Ações' />
+                                        <th className='col_acoes' aria-label='Ações'>
+                                            Ações
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -117,6 +129,22 @@ export default function GerenciarTabelasModal({
                                                         >
                                                             📄
                                                         </button>
+                                                        {onBaixarExcelCidade && (
+                                                            <button
+                                                                type='button'
+                                                                className='manager_icon_btn manager_icon_btn_excel'
+                                                                disabled={
+                                                                    Number(cidade.procedimentosAtivos || 0) === 0 ||
+                                                                    Number(exportandoExcelCidadeId) === Number(cidade.id)
+                                                                }
+                                                                onClick={() => onBaixarExcelCidade(cidade)}
+                                                                title='Baixar tabela em Excel (.xlsx)'
+                                                            >
+                                                                {Number(exportandoExcelCidadeId) === Number(cidade.id)
+                                                                    ? '…'
+                                                                    : '📊'}
+                                                            </button>
+                                                        )}
                                                         {!somenteLeitura && (
                                                             <button
                                                                 type='button'

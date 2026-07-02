@@ -305,5 +305,8 @@ export default defineConfig(({ command, mode }) => {
                 '/api/rc-pdf': 'http://localhost:3000',
             },
         },
+        optimizeDeps: {
+            include: ['exceljs'],
+        },
     }
 })

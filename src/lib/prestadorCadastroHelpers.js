@@ -161,17 +161,30 @@ export const normalizarChavePixParaSalvar = (valor, tipoPix) => {
     return String(valor || '').trim().toLowerCase()
 }
 
+const normalizarDescricaoSituacao = (descricao) =>
+    String(descricao || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+
+/** Descrição indica situação credenciado (ex.: CREDENCIADO). */
+export const situacaoDescricaoEhCredenciado = (descricao) =>
+    normalizarDescricaoSituacao(descricao).includes('CREDENCIAD')
+
 /** ID da situação «Credenciado» para filtro/cadastro padrão. */
 export const acharSituacaoCredenciadoId = (situacoes) => {
-    const hit = (situacoes || []).find((s) =>
-        String(s.descricao || '')
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toUpperCase()
-            .includes('CREDENCIAD'),
-    )
+    const hit = (situacoes || []).find((s) => situacaoDescricaoEhCredenciado(s.descricao))
     return hit != null ? String(hit.id) : ''
 }
+
+export const descricaoSituacaoPrestador = (prestador, situacoes) => {
+    const sid = Number(prestador?.situacao_id)
+    if (!sid) return ''
+    return (situacoes || []).find((s) => Number(s.id) === sid)?.descricao || ''
+}
+
+export const prestadorEhCredenciado = (prestador, situacoes) =>
+    situacaoDescricaoEhCredenciado(descricaoSituacaoPrestador(prestador, situacoes))
 
 /** Situação «Preenchendo formulário(s)» ou equivalente. */
 export const acharSituacaoPreenchendoFormularioId = (situacoes) => {

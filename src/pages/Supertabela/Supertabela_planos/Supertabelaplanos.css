@@ -478,6 +478,12 @@
     max-height: min(90vh, 860px);
 }
 
+.manager_modal.manager_modal_split.manager_modal_list_only {
+    width: max-content;
+    max-width: min(96vw, 36rem);
+    min-width: min(96vw, 28rem);
+}
+
 .manager_split_body {
     display: flex;
     flex: 0 1 auto;
@@ -1032,10 +1038,14 @@
 }
 
 .manager_table {
-    width: max-content;
-    min-width: 100%;
+    width: 100%;
     border-collapse: collapse;
     table-layout: auto;
+}
+
+.manager_table:not(.manager_table_compact) {
+    width: max-content;
+    min-width: 100%;
 }
 
 .manager_table th,

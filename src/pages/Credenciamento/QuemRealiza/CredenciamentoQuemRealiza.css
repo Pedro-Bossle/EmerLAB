@@ -1,4 +1,25 @@
-/* Ocupa a largura/altura útil do Layout2; scroll só nas listas internas */
+.quem_realiza_resultados_head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.quem_realiza_resultados_head h2 {
+    margin: 0;
+}
+
+.quem_realiza_copiar_resultados {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.65rem;
+}
+
+.quem_realiza_busca_input_wrap .campo_busca_limpar {
+    width: 100%;
+}
+
 .credenciamento_main.quem_realiza {
     margin: 0;
     padding: 0.65rem 1rem 0.75rem;

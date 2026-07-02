@@ -16,6 +16,7 @@ import {
     prestadorEhEstabelecimento,
 } from '../../../lib/prestadorCadastroHelpers'
 import CopiarCodigosProcedimentosBtn from './CopiarCodigosProcedimentosBtn.jsx'
+import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 
@@ -389,8 +390,7 @@ const CredenciamentoCadastroLista = () => {
                             <div className="credenciamento_main_filters_row credenciamento_cadastro_filters_row">
                                 <div className="credenciamento_main_filter_item credenciamento_main_filter_busca">
                                     <p>Busca</p>
-                                    <input
-                                        type="text"
+                                    <CampoBuscaComLimpar
                                         className="credenciamento_main_input"
                                         placeholder={
                                             buscaNotAtiva
@@ -403,8 +403,7 @@ const CredenciamentoCadastroLista = () => {
                                 </div>
                                 <div className="credenciamento_main_filter_item credenciamento_main_filter_busca">
                                     <p>Refinar busca</p>
-                                    <input
-                                        type="text"
+                                    <CampoBuscaComLimpar
                                         className="credenciamento_main_input"
                                         placeholder={
                                             buscaNotAtiva ? 'Refinar (NOT …)' : 'Refinar busca (2º critério)'

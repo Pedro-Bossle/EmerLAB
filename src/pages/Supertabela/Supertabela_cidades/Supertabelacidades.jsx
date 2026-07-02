@@ -18,7 +18,8 @@ import {
     normalizarMunicipioChave,
     salvarVinculosDaCidade,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
-import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
+import { exportarTabelaCidadeParaExcel } from '../../../lib/exportNegociacaoExcel.js'
+import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelacidades.css'
 
@@ -44,6 +45,7 @@ const Supertabelacidades = () => {
     const buscaNotAtiva = useBuscaNotAtiva()
 
     const [mostrarGerenciarModal, setMostrarGerenciarModal] = useState(false)
+    const [exportandoExcelCidadeId, setExportandoExcelCidadeId] = useState(null)
     const [repassesResumo, setRepassesResumo] = useState([])
     const [cidadeDuplicarOrigem, setCidadeDuplicarOrigem] = useState(null)
     const [novoNomeCidadeDuplicada, setNovoNomeCidadeDuplicada] = useState('')
@@ -203,33 +205,23 @@ const Supertabelacidades = () => {
         }
     }, [cidadeId, valorFiltroCidade])
 
-    const buscarTabelaCidade = useCallback(async () => {
-        if (!cidadeId || portes.length === 0) {
-            setLinhas([])
-            return
-        }
-
-        try {
-            setLoading(true)
-            setErroDetalhe('')
+    const carregarLinhasRepassesParaCidadeId = useCallback(
+        async (idAlvo) => {
+            if (!idAlvo || portes.length === 0) return []
 
             const { data: repassesData, error: errRepasses } = await buscarTodosPaginado(() =>
                 supabase
                     .from('repasses')
                     .select('id, procedimento_id, porte_id, valor')
-                    .eq('cidade_id', cidadeId)
+                    .eq('cidade_id', idAlvo),
             )
 
             if (errRepasses) {
-                setErroDetalhe(`Erro ao buscar repasses da cidade: ${errRepasses.message}`)
-                return
+                throw new Error(errRepasses.message)
             }
 
             const repasses = repassesData || []
-            if (repasses.length === 0) {
-                setLinhas([])
-                return
-            }
+            if (repasses.length === 0) return []
 
             const codigos = [...new Set(repasses.map((item) => String(item.procedimento_id)))]
             const { data: procedimentosData, error: errProcedimentos } = await supabase
@@ -238,15 +230,14 @@ const Supertabelacidades = () => {
                 .in('codigo', codigos)
 
             if (errProcedimentos) {
-                setErroDetalhe(`Erro ao carregar procedimentos: ${errProcedimentos.message}`)
-                return
+                throw new Error(errProcedimentos.message)
             }
 
             const mapaProcedimentos = new Map(
                 (procedimentosData || []).map((item) => [
                     String(item.codigo),
                     { nome: String(item.nome), categoriaId: item.categoria_id },
-                ])
+                ]),
             )
 
             const mapaRepasses = new Map()
@@ -264,7 +255,7 @@ const Supertabelacidades = () => {
             const porteIdM = obterPorteIdPorLetra('M')
             const porteIdG = obterPorteIdPorLetra('G')
 
-            const linhasMontadas = [...mapaRepasses.entries()].map(([codigo, valoresPorPorte]) => ({
+            return [...mapaRepasses.entries()].map(([codigo, valoresPorPorte]) => ({
                 codigo,
                 procedimento: mapaProcedimentos.get(codigo)?.nome || codigo,
                 categoriaId: mapaProcedimentos.get(codigo)?.categoriaId || null,
@@ -278,14 +269,27 @@ const Supertabelacidades = () => {
                 porteIdM,
                 porteIdG,
             }))
+        },
+        [portes],
+    )
 
+    const buscarTabelaCidade = useCallback(async () => {
+        if (!cidadeId || portes.length === 0) {
+            setLinhas([])
+            return
+        }
+
+        try {
+            setLoading(true)
+            setErroDetalhe('')
+            const linhasMontadas = await carregarLinhasRepassesParaCidadeId(cidadeId)
             setLinhas(linhasMontadas)
         } catch (error) {
             setErroDetalhe(`Falha ao carregar tabela da cidade: ${error.message}`)
         } finally {
             setLoading(false)
         }
-    }, [cidadeId, portes])
+    }, [cidadeId, portes, carregarLinhasRepassesParaCidadeId])
 
     const linhasFiltradas = useMemo(() => {
         if (!termoBusca.trim() && !buscaNotAtiva) return linhas
@@ -330,19 +334,24 @@ const Supertabelacidades = () => {
         return resultado
     }
 
-    const secoesPorCategoria = useMemo(
-        () =>
+    const montarSecoesExportDeLinhas = useCallback(
+        (linhasLista) =>
             categorias
                 .map((categoria) => ({
                     categoriaId: categoria.id,
                     categoriaNome: categoria.nome,
                     linhas: ordenarLinhas(
-                        linhasFiltradas.filter((linha) => Number(linha.categoriaId) === Number(categoria.id)),
-                        categoria.id
+                        linhasLista.filter((linha) => Number(linha.categoriaId) === Number(categoria.id)),
+                        categoria.id,
                     ),
                 }))
                 .filter((secao) => secao.linhas.length > 0),
-        [categorias, linhasFiltradas, ordenacaoPorCategoria]
+        [categorias, ordenacaoPorCategoria],
+    )
+
+    const secoesPorCategoria = useMemo(
+        () => montarSecoesExportDeLinhas(linhasFiltradas),
+        [linhasFiltradas, montarSecoesExportDeLinhas],
     )
 
     const totalProcedimentosPorCategoria = useMemo(() => {
@@ -704,6 +713,30 @@ const Supertabelacidades = () => {
         () => buildOpcoesFiltroSupertabela(cidades, municipiosVinculos, cidadeIdsFiltroPlano),
         [cidades, municipiosVinculos, cidadeIdsFiltroPlano],
     )
+
+    const baixarExcelCidadeGerenciador = async (cidade) => {
+        if (!cidade?.id) return
+        if (portes.length === 0) {
+            mostrarErroToast('Aguarde o carregamento dos portes (P/M/G) e tente novamente.')
+            return
+        }
+        setExportandoExcelCidadeId(cidade.id)
+        try {
+            const linhasLista = await carregarLinhasRepassesParaCidadeId(cidade.id)
+            const secoes = montarSecoesExportDeLinhas(linhasLista)
+            if (!secoes.length) {
+                mostrarErroToast('Esta tabela não tem procedimentos para exportar.')
+                return
+            }
+            await exportarTabelaCidadeParaExcel(secoes, {
+                nomeArquivoBase: `cidade-${cidade.nome || cidade.id}`,
+            })
+        } catch (error) {
+            mostrarErroToast(`Erro ao exportar Excel: ${error.message}`)
+        } finally {
+            setExportandoExcelCidadeId(null)
+        }
+    }
 
     const cidadesGerenciaveis = useMemo(() => {
         const mapaProcedimentosAtivos = new Map()
@@ -1281,9 +1314,9 @@ const Supertabelacidades = () => {
                 <div className='supertabelacidades_filters'>
                     <div className='supertabelacidades_filter_item supertabelacidades_filter_busca'>
                         <p>Busca</p>
-                        <input
-                            type='text'
+                        <CampoBuscaComLimpar
                             className='supertabelacidades_input'
+                            inputClassName='supertabelacidades_input'
                             placeholder='Código, procedimento ou categoria'
                             value={termoBusca}
                             onChange={(event) => setTermoBusca(event.target.value)}
@@ -1435,6 +1468,8 @@ ou um código por linha`}
                     onEditarCidade={selecionarCidadeGerenciador}
                     onDuplicarCidade={iniciarDuplicacaoCidade}
                     onExcluirCidade={excluirCidadeNoGerenciador}
+                    onBaixarExcelCidade={(cidade) => void baixarExcelCidadeGerenciador(cidade)}
+                    exportandoExcelCidadeId={exportandoExcelCidadeId}
                     colunaProcedimentos
                     edicaoAberta={edicaoGerenciarAberta}
                     painelDireito={renderPainelGerenciarDireito()}

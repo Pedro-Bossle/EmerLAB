@@ -1,0 +1,45 @@
+.campo_busca_limpar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.campo_busca_limpar .credenciamento_main_input,
+.campo_busca_limpar .supertabelacidades_input {
+    width: 100%;
+    padding-right: 2.1rem;
+}
+
+.campo_busca_limpar_btn {
+    position: absolute;
+    right: 0.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: var(--cred-muted, #666);
+    font-size: 1.25rem;
+    line-height: 1;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.campo_busca_limpar_btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: inherit;
+}
+
+body.dark-mode .campo_busca_limpar_btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.campo_busca_limpar.is-disabled .campo_busca_limpar_btn {
+    display: none;
+}

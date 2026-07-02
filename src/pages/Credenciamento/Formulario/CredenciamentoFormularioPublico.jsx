@@ -13,7 +13,7 @@ import {
     carregarProcedimentosPublicadosFormulario,
     enviarEntradaFormularioCredenciamento,
     documentoCpfCnpjEstaCompleto,
-    verificarDocumentoDisponivel,
+    verificarDocumentoParaEnvioFormulario,
 } from '../../../lib/formularioCredenciamento'
 import {
     formatarCpfCnpjEntrada,
@@ -55,6 +55,7 @@ export default function CredenciamentoFormularioPublico() {
     const [tipoPerfil, setTipoPerfil] = useState('')
     const [cpfCnpj, setCpfCnpj] = useState('')
     const [docOk, setDocOk] = useState(null)
+    const [docModo, setDocModo] = useState(null)
     const [verificandoDoc, setVerificandoDoc] = useState(false)
     const [nome, setNome] = useState('')
     const [telefone, setTelefone] = useState('')
@@ -211,15 +212,18 @@ export default function CredenciamentoFormularioPublico() {
         }
         setVerificandoDoc(true)
         setDocOk(null)
-        const r = await verificarDocumentoDisponivel(cpfCnpj)
+        setDocModo(null)
+        const r = await verificarDocumentoParaEnvioFormulario(cpfCnpj)
         setVerificandoDoc(false)
         if (r.ok) {
             setDocOk(true)
+            setDocModo(r.modo || 'novo')
             setErro('')
             return true
         }
-        if (r.motivo === 'duplicado') {
+        if (r.motivo === 'duplicado' || r.motivo === 'entrada_pendente') {
             setDocOk(false)
+            setDocModo(null)
             setErro(r.erro || '')
             return false
         }
@@ -377,8 +381,9 @@ export default function CredenciamentoFormularioPublico() {
         setEnviando(true)
         setErro('')
         try {
-            const ok = await verificarDocumentoDisponivel(cpfCnpj)
+            const ok = await verificarDocumentoParaEnvioFormulario(cpfCnpj)
             if (!ok.ok) throw new Error(ok.erro)
+            if (ok.modo) setDocModo(ok.modo)
 
             const payload = {
                 nome: nome.trim(),
@@ -433,8 +438,9 @@ export default function CredenciamentoFormularioPublico() {
                 <div className="fcred_public_card">
                     <h1>Solicitação enviada com sucesso!</h1>
                     <p>
-                        Recebemos seus dados. Em breve, nossa equipe da Emerdog entrará em contato para concluir o
-                        credenciamento.
+                        {docModo === 'atualizacao'
+                            ? 'Recebemos sua atualização. Nossa equipe revisará e aplicará ao seu cadastro de credenciado em breve.'
+                            : 'Recebemos seus dados. Em breve, nossa equipe da Emerdog entrará em contato para concluir o credenciamento.'}
                     </p>
                 </div>
             </div>
@@ -489,8 +495,10 @@ export default function CredenciamentoFormularioPublico() {
                         setCpfCnpj={(v) => {
                             setCpfCnpj(formatarCpfCnpjEntrada(v))
                             setDocOk(null)
+                            setDocModo(null)
                         }}
                         docOk={docOk}
+                        docModo={docModo}
                         verificandoDoc={verificandoDoc}
                         onVerificarDoc={verificarDoc}
                         nome={nome}

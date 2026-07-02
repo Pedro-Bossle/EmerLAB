@@ -6,6 +6,8 @@ import { getReadOnlyFlag } from '../../../lib/supabase'
 import {
     atualizarStatusEntradaFormulario,
     contarEntradasFormularioPendentes,
+    aplicarEntradaFormularioEmPrestadorExistente,
+    buscarPrestadorIdPorDocumento,
     converterEntradaFormularioEmPrestador,
     formatarDataEntrada,
     listarEntradasFormulario,
@@ -85,6 +87,7 @@ export default function CredenciamentoFormularioInbox() {
     const [erro, setErro] = useState('')
     const [okMsg, setOkMsg] = useState('')
     const [abertasCount, setAbertasCount] = useState(0)
+    const [prestadorExistenteId, setPrestadorExistenteId] = useState(null)
 
     const carregarLista = useCallback(async () => {
         setLoading(true)
@@ -117,6 +120,12 @@ export default function CredenciamentoFormularioInbox() {
         try {
             const row = await obterEntradaFormulario(id)
             setSelecionada(row)
+            try {
+                const pid = await buscarPrestadorIdPorDocumento(row?.cpf_cnpj)
+                setPrestadorExistenteId(pid)
+            } catch {
+                setPrestadorExistenteId(null)
+            }
             const pl = row?.payload || {}
             const codigos = [...new Set((pl.procedimentos || []).map((c) => String(c).trim().toUpperCase()))].filter(
                 Boolean,
@@ -261,8 +270,34 @@ export default function CredenciamentoFormularioInbox() {
         )
     }
 
+    const aplicarCadastroExistente = () => {
+        if (!selecionada?.id || somenteLeitura || !prestadorExistenteId) return
+        askExclusao(
+            'Os dados desta entrada serão mesclados no cadastro existente (contato, endereço, especialidades e procedimentos do envio). Continuar?',
+            async () => {
+                setAcaoLoading(true)
+                setOkMsg('')
+                setErro('')
+                try {
+                    const prestadorId = await aplicarEntradaFormularioEmPrestadorExistente(
+                        selecionada.id,
+                        prestadorExistenteId,
+                    )
+                    setOkMsg('Dados aplicados ao cadastro existente. Abrindo ficha…')
+                    navigate(`/credenciamento/cadastro/${prestadorId}`)
+                } catch (e) {
+                    setErro(e?.message || String(e))
+                } finally {
+                    setAcaoLoading(false)
+                }
+            },
+            'Aplicar ao cadastro existente',
+            { variante: 'primary', rotuloConfirmar: 'Aplicar ao cadastro' },
+        )
+    }
+
     const criarCadastro = () => {
-        if (!selecionada?.id || somenteLeitura) return
+        if (!selecionada?.id || somenteLeitura || prestadorExistenteId) return
         askExclusao(
             'Será criado um prestador com os dados enviados no formulário. Você poderá completar a ficha em seguida.',
             async () => {
@@ -409,6 +444,12 @@ export default function CredenciamentoFormularioInbox() {
                             <p className="pcad_muted fcred_inbox_detalhe_sub">
                                 {rotuloTipoPerfil(selecionada.tipo_perfil)} ·{' '}
                                 {formatarCpfCnpjEntrada(selecionada.cpf_cnpj)}
+                                {prestadorExistenteId && podeConverter && (
+                                    <>
+                                        {' '}
+                                        · <strong>Já credenciado</strong> (cadastro #{prestadorExistenteId})
+                                    </>
+                                )}
                             </p>
 
                             <div className="credenciamento_main_detail_box fcred_inbox_detail_box">
@@ -553,14 +594,25 @@ export default function CredenciamentoFormularioInbox() {
                                 )}
                                 {podeConverter && (
                                     <>
-                                        <button
-                                            type="button"
-                                            className="credenciamento_main_action_btn"
-                                            disabled={acaoLoading || somenteLeitura}
-                                            onClick={() => void criarCadastro()}
-                                        >
-                                            {acaoLoading ? 'A processar…' : 'Criar cadastro definitivo'}
-                                        </button>
+                                        {prestadorExistenteId ? (
+                                            <button
+                                                type="button"
+                                                className="credenciamento_main_action_btn"
+                                                disabled={acaoLoading || somenteLeitura}
+                                                onClick={() => void aplicarCadastroExistente()}
+                                            >
+                                                {acaoLoading ? 'A processar…' : 'Aplicar ao cadastro existente'}
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                className="credenciamento_main_action_btn"
+                                                disabled={acaoLoading || somenteLeitura}
+                                                onClick={() => void criarCadastro()}
+                                            >
+                                                {acaoLoading ? 'A processar…' : 'Criar cadastro definitivo'}
+                                            </button>
+                                        )}
                                         {selecionada.status === 'pendente' && (
                                             <button
                                                 type="button"

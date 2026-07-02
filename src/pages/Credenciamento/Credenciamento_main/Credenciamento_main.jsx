@@ -4,6 +4,7 @@ import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
 import { filtrarPorTermoBusca, normalizarTextoBusca, resolverCidadePrincipalNome } from '../../../lib/prestadorCadastroHelpers'
 import { supabase } from '../../../lib/supabase'
 import './Credenciamento_main.css'
+import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 
 const normalizarTexto = (texto) =>
     String(texto || '')
@@ -969,8 +970,7 @@ const Credenciamento_main = () => {
                             <div className='credenciamento_main_filters_row'>
                                 <div className='credenciamento_main_filter_item credenciamento_main_filter_busca'>
                                     <p>Busca</p>
-                                    <input
-                                        type='text'
+                                    <CampoBuscaComLimpar
                                         className='credenciamento_main_input'
                                         placeholder='Nome, especialidade, cidades ou tipos'
                                         value={termoBusca1}
@@ -979,8 +979,7 @@ const Credenciamento_main = () => {
                                 </div>
                                 <div className='credenciamento_main_filter_item credenciamento_main_filter_busca'>
                                     <p>Refinar busca</p>
-                                    <input
-                                        type='text'
+                                    <CampoBuscaComLimpar
                                         className='credenciamento_main_input'
                                         placeholder='Refinar busca (2º critério)'
                                         value={termoBusca2}
@@ -1313,11 +1312,11 @@ const Credenciamento_main = () => {
                         <h3>Gerar RC por cidades</h3>
                         <label className='credenciamento_modal_full'>
                             <span>Buscar cidades</span>
-                            <input
-                                type='text'
+                            <CampoBuscaComLimpar
                                 value={rcCidadeBusca}
                                 onChange={(event) => setRcCidadeBusca(event.target.value)}
                                 placeholder='Digite para filtrar cidades'
+                                className='credenciamento_main_input'
                             />
                         </label>
                         <div className='credenciamento_rc_cidades_lista'>

@@ -1266,13 +1266,21 @@ const Supertabelanegociacoes = () => {
         }
     }
 
-    const baixarExcelNegociacao = () => {
+    const baixarExcelNegociacao = async () => {
         if (!negociacaoSelecionada || !detalheBase.length) {
             mostrarErroToast('Não há procedimentos para exportar nesta negociação.')
             return
         }
+        if (!secoesDetalhePorCategoria.length) {
+            mostrarErroToast('Não há procedimentos para exportar nesta negociação.')
+            return
+        }
         const nomeArquivo = `negociacao-${negociacaoSelecionada.nome || negociacaoSelecionada.id}`
-        exportarNegociacaoParaExcel(detalheBase, nomeArquivo)
+        try {
+            await exportarNegociacaoParaExcel(secoesDetalhePorCategoria, nomeArquivo)
+        } catch (error) {
+            mostrarErroToast(`Erro ao exportar Excel: ${error.message}`)
+        }
     }
 
     const abrirGerenciarSelecionada = () => {
@@ -1535,8 +1543,8 @@ const Supertabelanegociacoes = () => {
                         <button
                             type='button'
                             className='supertabelanegociacoes_action_btn secondary'
-                            onClick={baixarExcelNegociacao}
-                            title='Exportar CSV (Excel): Codigo, Nome, Nome Alternativo, P, M, G'
+                            onClick={() => void baixarExcelNegociacao()}
+                            title='Excel (.xlsx): cabeçalho Proposta Emerdog / Resposta Veterinario com p, m, g'
                         >
                             Baixar Excel
                         </button>

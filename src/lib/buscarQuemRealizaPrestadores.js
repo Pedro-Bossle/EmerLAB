@@ -1,5 +1,6 @@
 import {
     prestadorEhEstabelecimento,
+    prestadorEhCredenciado,
     prestadorEhLaboratorio,
     resolverCidadePrincipalNome,
 } from './prestadorCadastroHelpers.js'
@@ -14,6 +15,29 @@ const norm = (t) =>
         .toLowerCase()
 
 export const normCodigoProcedimento = (c) => String(c || '').trim().toUpperCase()
+
+function formatarNomeProcedimentoQuemRealiza(proc) {
+    if (proc == null) return ''
+    if (typeof proc === 'string') return String(proc).trim()
+    const base = String(proc.nomeBase || '').trim()
+    const alt = String(proc.nomeAlt || '').trim()
+    if (base && alt) return `${base} — ${alt}`
+    return base || alt
+}
+
+/** Texto para copiar resultados do Quem Realiza (bloco por prestador). */
+export function formatarResultadosQuemRealizaParaClipboard(resultados) {
+    const blocos = (resultados || []).map((r) => {
+        const nome = String(r.nome || '').trim() || '—'
+        const esp = String(r.especialidade || '').trim() || '—'
+        const tel = String(r.telefone || '').trim() || '—'
+        const linhaPrestador = `${nome} - ${esp} - ${tel}`
+        const procs = (r.procedimentos || []).map(formatarNomeProcedimentoQuemRealiza).filter(Boolean)
+        const linhaProcs = procs.length ? procs.join(', ') : '—'
+        return `${linhaPrestador}\n${linhaProcs}`
+    })
+    return blocos.join('\n\n')
+}
 
 /** @typedef {{ nome: string, uf?: string }} CidadeAlvo */
 
@@ -257,17 +281,19 @@ export async function carregarDadosCredenciamentoQuemRealiza(supabase, opcoes = 
         { data: cc },
         { data: esps },
         { data: procs },
+        { data: situacoes },
     ] = await Promise.all([
         supabase
             .from('prestadores')
             .select(
-                'id, nome, telefone, celular, especialidade_id, endereco_uf, endereco_cidade, cidade_id, ativo'
+                'id, nome, telefone, celular, especialidade_id, endereco_uf, endereco_cidade, cidade_id, ativo, situacao_id'
             )
             .eq('ativo', true),
         supabase.from('prestador_cidades').select('prestador_id, cidade_id, principal'),
         supabase.from('cidades_credenciamento').select('id, nome'),
         supabase.from('especialidades').select('id, nome'),
         supabase.from('procedimentos').select('id, codigo, nome'),
+        supabase.from('situacoes').select('id, descricao'),
     ])
     const mapaNomePorCodigo = new Map()
     const mapaCodigoPorProcedimentoId = new Map()
@@ -277,12 +303,14 @@ export async function carregarDadosCredenciamentoQuemRealiza(supabase, opcoes = 
         if (cod) mapaNomePorCodigo.set(cod, String(row.nome || cod).trim())
         if (id && cod) mapaCodigoPorProcedimentoId.set(id, cod)
     })
+    const listaSituacoes = situacoes || []
+    const prestCredenciados = (prest || []).filter((p) => prestadorEhCredenciado(p, listaSituacoes))
     const listaPrest = somenteVeterinarios
-        ? (prest || []).filter((p) => !prestadorEhEstabelecimento(p.especialidade_id))
-        : prest || []
+        ? prestCredenciados.filter((p) => !prestadorEhEstabelecimento(p.especialidade_id))
+        : prestCredenciados
     return {
         prestadores: listaPrest,
-        todosPrestadores: prest || [],
+        todosPrestadores: prestCredenciados,
         prestadorCidades: pc || [],
         mapaCidadesCred: new Map((cc || []).map((c) => [Number(c.id), c.nome])),
         especialidades: esps || [],
