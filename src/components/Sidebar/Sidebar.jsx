@@ -77,6 +77,14 @@ const menuItems = [
         ],
     },
     {
+        id: 'planos',
+        label: 'Planos',
+        permission: PERMISSION_KEYS.PLANOS_VIEW,
+        children: [
+            { label: 'Impressão', href: '/planos/impressao', permission: PERMISSION_KEYS.PLANOS_VIEW },
+        ],
+    },
+    {
         id: 'compras',
         label: 'Compras',
         permission: PERMISSION_KEYS.COMPRAS_VIEW,

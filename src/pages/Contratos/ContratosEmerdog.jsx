@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { buscarDadosCNPJ } from '../../lib/contratos/cnpjBizClient.js'
+import { buscarDadosCNPJ, ORIGENS_CONSULTA_CNPJ } from '../../lib/contratos/consultaCnpj.js'
 import { apenasDigitos, errosValidacao } from '../../lib/contratos/validarDocumentos.js'
 import { maskCNPJ, maskCPF } from '../../lib/contratos/mascarasDocumento.js'
 import { formatarContatoSeTelefone, maskTelefoneBr } from '../../lib/telefoneBrasil.js'
@@ -102,7 +102,7 @@ const ContratosEmerdog = () => {
         const t = setTimeout(async () => {
             setCnpjLoading(true)
             try {
-                const data = await buscarDadosCNPJ(digits)
+                const data = await buscarDadosCNPJ(digits, { origem: ORIGENS_CONSULTA_CNPJ.CONTRATOS_EMERDOG })
                 if (!alive || tipoRef.current !== tipoSnapshot) return
                 if (tipoSnapshot === 'clinicas') {
                     setClinica((p) => {
@@ -593,7 +593,7 @@ const ContratosEmerdog = () => {
             <p className="contratos_assets_note">
                 Minutas de referência em PDF: <code>src/assets/contratos/</code>. O texto do PDF gerado espelha o conteúdo
                 dessas minutas (capítulos e cláusulas); revise juridicamente antes de assinatura. Consulta CNPJ via
-                ReceitaWS;.
+                Brasil API.
             </p>
 
             {toast && (

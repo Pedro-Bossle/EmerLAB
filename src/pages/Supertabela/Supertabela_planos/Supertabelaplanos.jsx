@@ -14,6 +14,14 @@ import {
     upsertPlanosCidadeCompat,
 } from '../../../lib/planosCidadeCompat'
 import { inserirPlanoConfigSeNaoExiste } from '../../../lib/planosConfigCompat'
+import {
+    buscarCategoriaLimitesGrupo,
+    montarMapaLimiteGrupoPorCategoria,
+    montarPlanosChaveDisponiveisPorCategoria,
+    procedimentoIsentoLimiteGrupo,
+    resolverLimiteGrupoExibicao,
+    textoCelulaLimiteGrupo,
+} from '../../../lib/categoriaLimitesGrupo'
 import CidadeTabelaIbgeForm from '../../../components/Supertabela/CidadeTabelaIbgeForm.jsx'
 import GerenciarTabelasModal from '../../../components/Supertabela/GerenciarTabelasModal.jsx'
 import { mapCidadeParaGerenciador, payloadCidadeComUf } from '../../../lib/cidadesSupertabelaHelpers.js'
@@ -114,6 +122,7 @@ const Supertabelaplanos = () => {
 
     const [linhasDiferencas, setLinhasDiferencas] = useState([])
     const [linhasLimitacoes, setLinhasLimitacoes] = useState([])
+    const [limitesGrupoPorCategoriaId, setLimitesGrupoPorCategoriaId] = useState(() => new Map())
 
     const [loading, setLoading] = useState(false)
     const [erroDetalhe, setErroDetalhe] = useState('')
@@ -156,6 +165,33 @@ const Supertabelaplanos = () => {
         const p = planos.find((item) => String(item.id) === String(planoDetalheId))
         return p?.nome || 'Plano'
     }, [planos, planoDetalheId])
+
+    const mapaPlanosPorChave = useMemo(() => mapearPlanosPorChave(planos), [planos])
+
+    const chavePlanoDetalhe = useMemo(
+        () => obterChavePlanoPorId(planoDetalheId, mapaPlanosPorChave),
+        [planoDetalheId, mapaPlanosPorChave]
+    )
+
+    const planosChaveDisponiveisPorCategoria = useMemo(
+        () =>
+            montarPlanosChaveDisponiveisPorCategoria(
+                procedimentos,
+                mapaPlanosPorChave,
+                ORDEM_PLANOS,
+                (planoBaseId) => obterChavePlanoPorId(planoBaseId, mapaPlanosPorChave)
+            ),
+        [procedimentos, mapaPlanosPorChave]
+    )
+
+    const contextoLimiteGrupoPlano = useMemo(
+        () => ({
+            planosChaveDisponiveisPorCategoria,
+            chavePlano: chavePlanoDetalhe,
+            mapaPlanosPorChave,
+        }),
+        [planosChaveDisponiveisPorCategoria, chavePlanoDetalhe, mapaPlanosPorChave]
+    )
 
     const percentualProgressoMassa = useMemo(() => {
         if (!progressoMassa.total) return 0
@@ -225,7 +261,7 @@ const Supertabelaplanos = () => {
             ] = await Promise.all([
                 supabase.from('cidades').select('id, nome, uf').order('nome', { ascending: true }),
                 supabase.from('planos').select('id, nome').order('id', { ascending: true }),
-                supabase.from('categorias').select('id, nome').gte('id', 3).lte('id', 25).order('id', { ascending: true }),
+                supabase.from('categorias').select('id, nome, usa_limite_grupo').gte('id', 3).order('id', { ascending: true }),
                 buscarTodosPaginado(() =>
                     supabase
                         .from('procedimentos')
@@ -264,7 +300,12 @@ const Supertabelaplanos = () => {
             setCidades(listaCidades)
             setMunicipiosVinculos(vinculos)
             setPlanos(planosData || [])
-            setCategorias(categoriasData || [])
+            setCategorias(
+                (categoriasData || []).map((item) => ({
+                    ...item,
+                    usa_limite_grupo: Boolean(item.usa_limite_grupo),
+                }))
+            )
             setProcedimentos(procedimentosData || [])
 
             const idsFiltro = await buscarCidadeIdsFiltroPlanoCredenciados(
@@ -436,6 +477,7 @@ const Supertabelaplanos = () => {
     const buscarLinhasLimitacoes = useCallback(async () => {
         if (!planoDetalheId || planos.length === 0) {
             setLinhasLimitacoes([])
+            setLimitesGrupoPorCategoriaId(new Map())
             return
         }
 
@@ -443,18 +485,28 @@ const Supertabelaplanos = () => {
             setLoading(true)
             setErroDetalhe('')
 
-            const { data: configs, error: errCfg } = await buscarTodosPaginado(() =>
-                supabase
-                    .from('planos_config')
-                    .select('id, procedimento, limite, carencia')
-                    .eq('plano_id', planoDetalheId)
-            )
+            const [{ data: configs, error: errCfg }, { data: limitesGrupoData, error: errLg }] = await Promise.all([
+                buscarTodosPaginado(() =>
+                    supabase
+                        .from('planos_config')
+                        .select('id, procedimento, limite, carencia')
+                        .eq('plano_id', planoDetalheId)
+                ),
+                buscarCategoriaLimitesGrupo(supabase, { planoId: planoDetalheId }),
+            ])
 
             if (errCfg) {
                 setErroDetalhe(`Erro ao buscar limitações: ${errCfg.message}`)
                 setLinhasLimitacoes([])
+                setLimitesGrupoPorCategoriaId(new Map())
                 return
             }
+
+            if (errLg && !String(errLg.message || '').toLowerCase().includes('categoria_limites_grupo')) {
+                setErroDetalhe(`Erro ao buscar limites de grupo: ${errLg.message}`)
+            }
+
+            setLimitesGrupoPorCategoriaId(montarMapaLimiteGrupoPorCategoria(limitesGrupoData || [], planoDetalheId))
 
             const listaCfg = configs || []
             if (listaCfg.length === 0) {
@@ -466,7 +518,7 @@ const Supertabelaplanos = () => {
 
             const { data: procedimentosData, error: errProc } = await supabase
                 .from('procedimentos')
-                .select('codigo, nome, categoria_id')
+                .select('id, codigo, nome, categoria_id')
                 .in('codigo', codigos)
 
             if (errProc) {
@@ -478,17 +530,22 @@ const Supertabelaplanos = () => {
             const mapaProc = new Map(
                 (procedimentosData || []).map((item) => [
                     String(item.codigo),
-                    { nome: String(item.nome), categoriaId: item.categoria_id },
+                    {
+                        nome: String(item.nome),
+                        categoriaId: item.categoria_id,
+                        procedimentoId: item.id != null ? Number(item.id) : null,
+                    },
                 ])
             )
 
             const linhas = listaCfg.map((row) => {
                 const cod = String(row.procedimento)
-                const meta = mapaProc.get(cod) || { nome: cod, categoriaId: null }
+                const meta = mapaProc.get(cod) || { nome: cod, categoriaId: null, procedimentoId: null }
                 return {
                     codigo: cod,
                     procedimento: meta.nome,
                     categoriaId: meta.categoriaId,
+                    procedimentoId: meta.procedimentoId,
                     planosConfigId: row.id,
                     limite: row.limite != null ? String(row.limite) : '',
                     carencia: row.carencia != null ? String(row.carencia) : '',
@@ -626,11 +683,20 @@ const Supertabelaplanos = () => {
             const partes = [linha.codigo, linha.procedimento, categoriaNome]
             if (modoLimitacoes) {
                 partes.push(linha.limite, linha.carencia)
+                const limiteGrupo = resolverLimiteGrupoExibicao(
+                    categorias,
+                    limitesGrupoPorCategoriaId,
+                    linha.categoriaId,
+                    contextoLimiteGrupoPlano
+                )
+                if (limiteGrupo) {
+                    partes.push(textoCelulaLimiteGrupo(limiteGrupo, categoriaNome))
+                }
             }
             const blob = normalizarTextoBuscaDev(partes.filter(Boolean).join(' '))
             return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
         })
-    }, [linhasAtivas, termoBusca, categorias, modoLimitacoes, buscaNotAtiva])
+    }, [linhasAtivas, termoBusca, categorias, modoLimitacoes, buscaNotAtiva, limitesGrupoPorCategoriaId, contextoLimiteGrupoPlano])
 
     const obterSugestoesProcedimentos = (categoriaId) => {
         const lista = modoLimitacoes ? linhasLimitacoes : linhasDiferencas
@@ -1226,6 +1292,13 @@ const Supertabelaplanos = () => {
         const colunaInicial = CAMPOS_LIM_COLAGEM.indexOf(campoInicial)
         if (colunaInicial < 0) return
 
+        const limiteGrupoSecao = resolverLimiteGrupoExibicao(
+            categorias,
+            limitesGrupoPorCategoriaId,
+            secao.categoriaId,
+            contextoLimiteGrupoPlano
+        )
+
         for (let i = 0; i < linhasColadas.length; i += 1) {
             const linhaTabela = secao.linhas[linhaIndexInicial + i]
             if (!linhaTabela) break
@@ -1236,6 +1309,13 @@ const Supertabelaplanos = () => {
                 if (colunaDestino > CAMPOS_LIM_COLAGEM.length - 1) break
 
                 const campoDestino = CAMPOS_LIM_COLAGEM[colunaDestino]
+                if (
+                    limiteGrupoSecao &&
+                    campoDestino === 'limite' &&
+                    !procedimentoIsentoLimiteGrupo(linhaTabela)
+                ) {
+                    continue
+                }
                 const valorTexto = String(colunas[j] ?? '')
                 if (!valorTexto.trim()) continue
 
@@ -2358,9 +2438,9 @@ ou um código por linha`}
                                 <table className='table_main'>
                                     <colgroup>
                                         <col style={{ width: '13%' }} />
-                                        <col style={{ width: somenteLeitura ? '51%' : '40%' }} />
+                                        <col style={{ width: somenteLeitura ? '54%' : '43%' }} />
                                         <col style={{ width: '18%' }} />
-                                        <col style={{ width: '18%' }} />
+                                        <col style={{ width: '15%' }} />
                                         {!somenteLeitura && <col style={{ width: '11%' }} />}
                                     </colgroup>
                                     <thead>
@@ -2391,12 +2471,20 @@ ou um código por linha`}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {secao.linhas.map((linha, linhaIndex) => (
-                                            <tr key={`${secao.categoriaId}-${linha.codigo}-lim`}>
-                                                <td className='table_text_left'>{linha.codigo}</td>
-                                                <td className={`table_text_left ${obterClasseProcedimento(linha.procedimento)}`}>
-                                                    {linha.procedimento}
-                                                </td>
+                                        {(() => {
+                                            const limiteGrupo = resolverLimiteGrupoExibicao(
+                                                categorias,
+                                                limitesGrupoPorCategoriaId,
+                                                secao.categoriaId,
+                                                contextoLimiteGrupoPlano
+                                            )
+                                            const usaLimiteGrupoSecao = Boolean(limiteGrupo)
+                                            const linhasNoGrupo = usaLimiteGrupoSecao
+                                                ? secao.linhas.filter((item) => !procedimentoIsentoLimiteGrupo(item))
+                                                : []
+                                            const rowspanGrupo = linhasNoGrupo.length
+
+                                            const renderCelulaLimiteIndividual = (linha, linhaIndex) => (
                                                 <td>
                                                     {edicaoAtiva && linha.planosConfigId ? (
                                                         <input
@@ -2404,18 +2492,55 @@ ou um código por linha`}
                                                             type='text'
                                                             value={obterValorInputLim(linha, 'limite', secao.categoriaId)}
                                                             onChange={(e) => {
-                                                                const chave = chaveEdicaoLim(secao.categoriaId, linha.codigo, 'limite')
+                                                                const chave = chaveEdicaoLim(
+                                                                    secao.categoriaId,
+                                                                    linha.codigo,
+                                                                    'limite'
+                                                                )
                                                                 setEdicoesLocais((a) => ({ ...a, [chave]: e.target.value }))
                                                             }}
-                                                            onBlur={() => salvarLimiteCarencia(linha, 'limite', secao.categoriaId)}
+                                                            onBlur={() =>
+                                                                salvarLimiteCarencia(linha, 'limite', secao.categoriaId)
+                                                            }
                                                             onPaste={(e) =>
-                                                                processarColagemLimCarencia(e, secao, linhaIndex, 'limite')
+                                                                processarColagemLimCarencia(
+                                                                    e,
+                                                                    secao,
+                                                                    linhaIndex,
+                                                                    'limite'
+                                                                )
                                                             }
                                                         />
                                                     ) : (
                                                         <span>{linha.limite || '\u00a0'}</span>
                                                     )}
                                                 </td>
+                                            )
+
+                                            return secao.linhas.map((linha, linhaIndex) => {
+                                                const isentoLimiteGrupo = procedimentoIsentoLimiteGrupo(linha)
+                                                const indiceNoGrupo = linhasNoGrupo.findIndex(
+                                                    (item) => item.codigo === linha.codigo
+                                                )
+
+                                                return (
+                                            <tr key={`${secao.categoriaId}-${linha.codigo}-lim`}>
+                                                <td className='table_text_left'>{linha.codigo}</td>
+                                                <td className={`table_text_left ${obterClasseProcedimento(linha.procedimento)}`}>
+                                                    {linha.procedimento}
+                                                </td>
+                                                {usaLimiteGrupoSecao && isentoLimiteGrupo ? (
+                                                    renderCelulaLimiteIndividual(linha, linhaIndex)
+                                                ) : usaLimiteGrupoSecao && indiceNoGrupo === 0 && rowspanGrupo > 0 ? (
+                                                    <td
+                                                        rowSpan={rowspanGrupo}
+                                                        className='supertabelaplanos_limite_grupo_cell'
+                                                    >
+                                                        {textoCelulaLimiteGrupo(limiteGrupo, secao.categoriaNome)}
+                                                    </td>
+                                                ) : usaLimiteGrupoSecao && indiceNoGrupo > 0 ? null : (
+                                                    renderCelulaLimiteIndividual(linha, linhaIndex)
+                                                )}
                                                 <td>
                                                     {edicaoAtiva && linha.planosConfigId ? (
                                                         <input
@@ -2452,7 +2577,9 @@ ou um código por linha`}
                                                     </td>
                                                 )}
                                             </tr>
-                                        ))}
+                                                )
+                                            })
+                                        })()}
                                         <tr className='row_add_line'>
                                             <td colSpan={somenteLeitura ? 4 : 5}>
                                                 {categoriaEmInclusao === secao.categoriaId ? (

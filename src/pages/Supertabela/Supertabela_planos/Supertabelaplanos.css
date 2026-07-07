@@ -1438,3 +1438,15 @@
     gap: 8px;
     margin-top: 4px;
 }
+
+.supertabelaplanos_limite_grupo_cell {
+    vertical-align: middle;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.88rem;
+    line-height: 1.35;
+    color: #1a4a6b;
+    background: #f0f7fc;
+    border-left: 3px solid #1f7ec2;
+    padding: 8px 10px;
+}

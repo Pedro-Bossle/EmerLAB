@@ -309,6 +309,32 @@ body.dark-mode .fcred_inbox_acoes {
     border-top-color: #3f5f7c;
 }
 
+.fcred_inbox_vinculo_box {
+    margin-top: 1rem;
+}
+
+.fcred_inbox_vinculo_hint {
+    margin: 0 0 0.75rem;
+    font-size: 0.88rem;
+}
+
+.fcred_inbox_vinculo_sug {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.fcred_inbox_vinculo_sug select {
+    font-weight: 400;
+}
+
+.fcred_inbox_vinculo_busca {
+    max-width: 28rem;
+}
+
 body.dark-mode .fcred_inbox_bell_panel {
     background: #1a2f45;
     border-color: #3b5a77;

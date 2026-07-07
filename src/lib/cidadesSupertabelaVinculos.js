@@ -213,6 +213,56 @@ export function filtrarMunicipiosIbgePorCredenciamento(municipios, uf, nomesPorU
     return (municipios || []).filter((m) => permitidos.has(normalizarMunicipioChave(m.nome)))
 }
 
+/**
+ * Municípios selecionáveis na impressão de planos (tabela-mestre + secundários via vínculo).
+ * @returns {Array<{ municipioNome: string, cidadeTabelaId: number, label: string, ehPointer: boolean, tabelaNome: string }>}
+ */
+export function listarOpcoesMunicipioImpressaoPlanos(cidades, vinculos, municipiosIbge, uf, cidadeIdsPermitidos) {
+    const ufNorm = String(uf || '').trim().toUpperCase()
+    if (!ufNorm) return []
+    const nomesPorUf = buildNomesMunicipioPermitidosPorUf(cidades, vinculos, cidadeIdsPermitidos)
+    const listaIbge = filtrarMunicipiosIbgePorCredenciamento(municipiosIbge, ufNorm, nomesPorUf)
+    const mapaTabelaNome = new Map(
+        (cidades || []).map((c) => [Number(c.id), String(c.nome || '').trim()]),
+    )
+
+    const opcoes = []
+    const vistos = new Set()
+
+    for (const m of listaIbge) {
+        const municipioNome = String(m.nome || '').trim()
+        if (!municipioNome) continue
+        const chave = normalizarMunicipioChave(municipioNome)
+        if (vistos.has(chave)) continue
+        vistos.add(chave)
+
+        const cidadeTabelaId = resolverCidadeTabelaId({
+            uf: ufNorm,
+            municipioNome,
+            vinculos,
+            cidades,
+        })
+        if (!cidadeTabelaId) continue
+
+        const tabelaNome = mapaTabelaNome.get(Number(cidadeTabelaId)) || ''
+        const ehPointer =
+            Boolean(tabelaNome) &&
+            normalizarMunicipioChave(tabelaNome) !== normalizarMunicipioChave(municipioNome)
+
+        opcoes.push({
+            municipioNome,
+            cidadeTabelaId: Number(cidadeTabelaId),
+            label: municipioNome,
+            ehPointer,
+            tabelaNome,
+        })
+    }
+
+    return opcoes.sort((a, b) =>
+        a.municipioNome.localeCompare(b.municipioNome, 'pt-BR', { sensitivity: 'base' }),
+    )
+}
+
 /** Cidades com repasse na supertabela ∩ cidades do plano (quando há plano). */
 export async function buscarCidadeIdsFiltroPlanoCredenciados(supabase, planoId, buscarTodosPaginado) {
     const comRepasse = await buscarCidadeIdsTabelaComRepasses(supabase, buscarTodosPaginado)

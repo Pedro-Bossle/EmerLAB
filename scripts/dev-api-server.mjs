@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import http from 'node:http'
 import adminUsersHandler from '../api/admin-users.js'
 import rcPdfHandler from '../api/rc-pdf.js'
-import cnpjLookupHandler from '../api/cnpj-lookup.js'
+import consultaCnpjHandler from '../api/consulta-cnpj.js'
 import clicksignProxyHandler from '../api/clicksign-proxy.js'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -70,7 +70,7 @@ const server = http.createServer(async (req, res) => {
         const handlers = {
             '/api/admin-users': adminUsersHandler,
             '/api/rc-pdf': rcPdfHandler,
-            '/api/cnpj-lookup': cnpjLookupHandler,
+            '/api/consulta-cnpj': consultaCnpjHandler,
         }
         const handler = handlers[pathname]
 

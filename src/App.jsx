@@ -8,6 +8,7 @@ import Supertabeladoc from './pages/Supertabela/Supertabela_doc/Supertabeladoc';
 import Supertabelamain from './pages/Supertabela/Supertabela_main/Supertabelamain';
 import Supertabelacidades from './pages/Supertabela/Supertabela_cidades/Supertabelacidades';
 import Supertabelaplanos from './pages/Supertabela/Supertabela_planos/Supertabelaplanos';
+import ImpressaoPlanos from './pages/Planos/ImpressaoPlanos/ImpressaoPlanos';
 import Supertabelaprocedimentos from './pages/Supertabela/Supertabela_procedimentos/Supertabelaprocedimentos';
 import Supertabelanegociacoes from './pages/Supertabela/Supertabela_negociacoes/Supertabelanegociacoes';
 /* Credenciamento documentação — inativo por hora
@@ -74,6 +75,20 @@ function App() {
                 <Supertabelacidades />
               </PrivateRoute>
             }
+          />
+        </Route>
+        <Route element={<Layout2 />}>
+          <Route
+            path="/planos/impressao"
+            element={
+              <PrivateRoute permission="planos.view">
+                <ImpressaoPlanos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/supertabela/planos/impressao"
+            element={<Navigate to="/planos/impressao" replace />}
           />
         </Route>
         <Route element={<Layout2 />}>

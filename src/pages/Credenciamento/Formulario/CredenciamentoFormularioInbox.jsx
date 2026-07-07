@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSfscExclusaoConfirm } from '../../../hooks/useSfscExclusaoConfirm.jsx'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
-import { getReadOnlyFlag } from '../../../lib/supabase'
+import { getReadOnlyFlag, buscarTodosPaginado, supabase } from '../../../lib/supabase'
+import { sugerirPrestadoresPorNome } from '../../../lib/pagamentosPrestador.js'
+import PrestadorVinculoBusca from '../../Supertabela/Supertabela_negociacoes/PrestadorVinculoBusca.jsx'
 import {
     atualizarStatusEntradaFormulario,
     contarEntradasFormularioPendentes,
@@ -23,7 +25,6 @@ import {
     formatarTelefoneEntrada,
     inferirTipoPixDaChave,
 } from '../../../lib/prestadorCadastroHelpers'
-import { supabase } from '../../../lib/supabase'
 
 const FILTROS = [
     { id: 'abertas', label: 'Pendentes e em análise', status: ['pendente', 'em_analise'] },
@@ -88,6 +89,26 @@ export default function CredenciamentoFormularioInbox() {
     const [okMsg, setOkMsg] = useState('')
     const [abertasCount, setAbertasCount] = useState(0)
     const [prestadorExistenteId, setPrestadorExistenteId] = useState(null)
+    const [prestadores, setPrestadores] = useState([])
+    const [prestadorVinculoManualId, setPrestadorVinculoManualId] = useState('')
+
+    const rotuloPrestador = useCallback((item) => item?.nome || '', [])
+
+    const carregarPrestadores = useCallback(async () => {
+        try {
+            const { data, error } = await buscarTodosPaginado(() =>
+                supabase
+                    .from('prestadores')
+                    .select('id, nome, cpf_cnpj')
+                    .eq('ativo', true)
+                    .order('nome', { ascending: true }),
+            )
+            if (error) throw error
+            setPrestadores(data || [])
+        } catch {
+            setPrestadores([])
+        }
+    }, [])
 
     const carregarLista = useCallback(async () => {
         setLoading(true)
@@ -114,15 +135,21 @@ export default function CredenciamentoFormularioInbox() {
     const carregarDetalhe = useCallback(async (id) => {
         if (!id) {
             setSelecionada(null)
+            setPrestadorVinculoManualId('')
             return
         }
         setErro('')
+        setPrestadorVinculoManualId('')
         try {
             const row = await obterEntradaFormulario(id)
             setSelecionada(row)
             try {
                 const pid = await buscarPrestadorIdPorDocumento(row?.cpf_cnpj)
                 setPrestadorExistenteId(pid)
+                if (!pid) {
+                    const sugerido = Number(row?.payload?.prestador_id_sugerido)
+                    if (sugerido > 0) setPrestadorVinculoManualId(String(sugerido))
+                }
             } catch {
                 setPrestadorExistenteId(null)
             }
@@ -203,7 +230,8 @@ export default function CredenciamentoFormularioInbox() {
 
     useEffect(() => {
         void carregarLista()
-    }, [carregarLista])
+        void carregarPrestadores()
+    }, [carregarLista, carregarPrestadores])
 
     useEffect(() => {
         const id = entradaIdParam?.trim() || null
@@ -271,7 +299,8 @@ export default function CredenciamentoFormularioInbox() {
     }
 
     const aplicarCadastroExistente = () => {
-        if (!selecionada?.id || somenteLeitura || !prestadorExistenteId) return
+        const prestadorAlvoId = prestadorExistenteId || Number(prestadorVinculoManualId) || null
+        if (!selecionada?.id || somenteLeitura || !prestadorAlvoId) return
         askExclusao(
             'Os dados desta entrada serão mesclados no cadastro existente (contato, endereço, especialidades e procedimentos do envio). Continuar?',
             async () => {
@@ -281,7 +310,7 @@ export default function CredenciamentoFormularioInbox() {
                 try {
                     const prestadorId = await aplicarEntradaFormularioEmPrestadorExistente(
                         selecionada.id,
-                        prestadorExistenteId,
+                        prestadorAlvoId,
                     )
                     setOkMsg('Dados aplicados ao cadastro existente. Abrindo ficha…')
                     navigate(`/credenciamento/cadastro/${prestadorId}`)
@@ -297,7 +326,7 @@ export default function CredenciamentoFormularioInbox() {
     }
 
     const criarCadastro = () => {
-        if (!selecionada?.id || somenteLeitura || prestadorExistenteId) return
+        if (!selecionada?.id || somenteLeitura || prestadorExistenteId || prestadorVinculoManualId) return
         askExclusao(
             'Será criado um prestador com os dados enviados no formulário. Você poderá completar a ficha em seguida.',
             async () => {
@@ -323,6 +352,11 @@ export default function CredenciamentoFormularioInbox() {
     const end = p.endereco || {}
     const tipoPerfil = String(selecionada?.tipo_perfil || '').toLowerCase()
     const mostrarCrmv = tipoPerfil === 'volante' || tipoPerfil === 'clinica'
+    const prestadorAlvoId = prestadorExistenteId || Number(prestadorVinculoManualId) || null
+    const sugestoesPrestadorNome = useMemo(
+        () => sugerirPrestadoresPorNome(prestadores, p.nome, { limite: 8 }),
+        [prestadores, p.nome],
+    )
     const podeConverter =
         selecionada &&
         !selecionada.prestador_id &&
@@ -448,6 +482,12 @@ export default function CredenciamentoFormularioInbox() {
                                     <>
                                         {' '}
                                         · <strong>Já credenciado</strong> (cadastro #{prestadorExistenteId})
+                                    </>
+                                )}
+                                {!prestadorExistenteId && prestadorVinculoManualId && podeConverter && (
+                                    <>
+                                        {' '}
+                                        · <strong>Perfil selecionado</strong> (cadastro #{prestadorVinculoManualId})
                                     </>
                                 )}
                             </p>
@@ -583,6 +623,47 @@ export default function CredenciamentoFormularioInbox() {
                                 ))}
                             </div>
 
+                            {podeConverter && !prestadorExistenteId && (
+                                <div className="credenciamento_main_detail_box fcred_inbox_vinculo_box">
+                                    <h3 className="fcred_inbox_sec_tit">Vincular a cadastro existente</h3>
+                                    <p className="pcad_muted fcred_inbox_vinculo_hint">
+                                        O CPF/CNPJ do envio não corresponde a um cadastro. Escolha um perfil pelo nome
+                                        (sugestões automáticas ou busca).
+                                    </p>
+                                    {sugestoesPrestadorNome.length > 0 ? (
+                                        <label className="fcred_inbox_vinculo_sug">
+                                            <span>Sugestões para «{p.nome || 'sem nome'}»</span>
+                                            <select
+                                                className="credenciamento_main_select"
+                                                value={prestadorVinculoManualId}
+                                                disabled={somenteLeitura || acaoLoading}
+                                                onChange={(e) => setPrestadorVinculoManualId(e.target.value)}
+                                            >
+                                                <option value="">Possíveis matches…</option>
+                                                {sugestoesPrestadorNome.map((s) => (
+                                                    <option key={s.id} value={s.id}>
+                                                        {s.nome}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    ) : (
+                                        <p className="pcad_muted">Nenhuma sugestão automática para este nome.</p>
+                                    )}
+                                    <div className="fcred_inbox_vinculo_busca">
+                                        <PrestadorVinculoBusca
+                                            prestadores={prestadores}
+                                            prestadorId={prestadorVinculoManualId}
+                                            onChange={setPrestadorVinculoManualId}
+                                            disabled={somenteLeitura || acaoLoading}
+                                            rotuloFn={rotuloPrestador}
+                                            placeholder="Buscar clínica ou prestador por nome…"
+                                            usePortal
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="fcred_inbox_acoes">
                                 {selecionada.prestador_id && (
                                     <Link
@@ -594,7 +675,7 @@ export default function CredenciamentoFormularioInbox() {
                                 )}
                                 {podeConverter && (
                                     <>
-                                        {prestadorExistenteId ? (
+                                        {prestadorAlvoId ? (
                                             <button
                                                 type="button"
                                                 className="credenciamento_main_action_btn"

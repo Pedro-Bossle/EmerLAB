@@ -462,7 +462,6 @@ export default function CredenciamentoQuemRealiza() {
                     <div className="quem_realiza_busca">
                         <div className="quem_realiza_busca_input_wrap" ref={buscaProcRef}>
                             <CampoBuscaComLimpar
-                                type="search"
                                 className="credenciamento_main_input"
                                 placeholder="Buscar em todas as categorias (código, nome ou categoria)"
                                 value={buscaProc}

@@ -11,6 +11,14 @@
     padding-right: 2.1rem;
 }
 
+/* Evita 2º «×» do navegador em type=search */
+.campo_busca_limpar input[type='search']::-webkit-search-cancel-button,
+.campo_busca_limpar input[type='search']::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+}
+
 .campo_busca_limpar_btn {
     position: absolute;
     right: 0.35rem;

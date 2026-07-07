@@ -22,6 +22,9 @@
     },
     "api/admin-users.js": {
       "maxDuration": 30
+    },
+    "api/consulta-cnpj.js": {
+      "maxDuration": 15
     }
   },
   "rewrites": [

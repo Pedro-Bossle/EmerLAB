@@ -64,6 +64,22 @@ export const obterChavePlanoPorId = (planoId, mapaPlanosLocal) => {
     return ORDEM_PLANOS.find((chave) => Number(mapaPlanosLocal[chave]?.id) === idNumerico) || null
 }
 
+/** Planos em que um procedimento (plano_base_id) pode aparecer — do nível base até o topo. */
+export const obterPlanoIdsPermitidosDesdeBase = (planoBaseId, mapaPlanosLocal) => {
+    const chaveBase = obterChavePlanoPorId(planoBaseId, mapaPlanosLocal) || 'basico'
+    const indiceBase = ORDEM_PLANOS.indexOf(chaveBase)
+    return ORDEM_PLANOS.slice(indiceBase < 0 ? 0 : indiceBase)
+        .map((chave) => mapaPlanosLocal[chave]?.id)
+        .filter(Boolean)
+        .map((id) => Number(id))
+}
+
+export const procedimentoPertenceAoPlanoSelecionado = (planoBaseId, planoSelecionadoId, mapaPlanosLocal) => {
+    const alvo = Number(planoSelecionadoId)
+    if (!alvo) return false
+    return obterPlanoIdsPermitidosDesdeBase(planoBaseId, mapaPlanosLocal).includes(alvo)
+}
+
 /**
  * Planos do nível do comprador até o topo da hierarquia (inclusive),
  * na ordem em que devem ser consultados em `planos_cidade`.

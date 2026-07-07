@@ -6,6 +6,14 @@ import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/sup
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { calcularJanelaVirtualTabela, criarHandlerScrollVirtualTabela } from '../../../lib/tabelaVirtualScroll.js'
 import { upsertPlanosCidadeCompat } from '../../../lib/planosCidadeCompat'
+import {
+    buscarCategoriaLimitesGrupo,
+    categoriaPermiteLimiteGrupoNaChavePlano,
+    isMissingCategoriaLimitesGrupoTable,
+    montarLimitesGrupoPorCategoriaEChavePlano,
+    montarPlanosChaveDisponiveisPorCategoria,
+    salvarLimiteGrupoCategoria,
+} from '../../../lib/categoriaLimitesGrupo'
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaprocedimentos.css'
@@ -80,6 +88,13 @@ const Supertabelaprocedimentos = () => {
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
     const [scrollTopoPorCategoria, setScrollTopoPorCategoria] = useState({})
     const [adicionarNovoAtivo, setAdicionarNovoAtivo] = useState(false)
+    const [modoCategorias, setModoCategorias] = useState(false)
+    const [limitesGrupoRows, setLimitesGrupoRows] = useState([])
+    const [edicoesLimiteGrupo, setEdicoesLimiteGrupo] = useState({})
+    const [edicoesNomeCategoria, setEdicoesNomeCategoria] = useState({})
+    const [adicionarCategoriaAtivo, setAdicionarCategoriaAtivo] = useState(false)
+    const [novaCategoriaNome, setNovaCategoriaNome] = useState('')
+    const [ordenacaoCategorias, setOrdenacaoCategorias] = useState({ coluna: 'id', direcao: 'asc' })
     const [novoProcedimento, setNovoProcedimento] = useState({
         codigo: '',
         nome: '',
@@ -88,6 +103,34 @@ const Supertabelaprocedimentos = () => {
     })
 
     const mapaPlanos = useMemo(() => mapearPlanos(planos), [planos])
+
+    const limitesGrupoPorCategoria = useMemo(
+        () => montarLimitesGrupoPorCategoriaEChavePlano(limitesGrupoRows, mapaPlanos),
+        [limitesGrupoRows, mapaPlanos]
+    )
+
+    const contagemProcedimentosPorCategoria = useMemo(() => {
+        const mapa = new Map()
+        linhas.forEach((linha) => {
+            const id = Number(linha.categoriaId)
+            if (!id) return
+            mapa.set(id, (mapa.get(id) || 0) + 1)
+        })
+        return mapa
+    }, [linhas])
+
+    const planosChaveDisponiveisPorCategoria = useMemo(
+        () => montarPlanosChaveDisponiveisPorCategoria(linhas, mapaPlanos, ORDEM_PLANOS),
+        [linhas, mapaPlanos]
+    )
+
+    const categoriaPermiteLimiteGrupoNoPlano = (categoriaId, chavePlano) =>
+        categoriaPermiteLimiteGrupoNaChavePlano(
+            planosChaveDisponiveisPorCategoria,
+            categoriaId,
+            chavePlano,
+            mapaPlanos
+        )
 
     const mostrarErroToast = (mensagem) => {
         setErroDetalhe('')
@@ -121,9 +164,10 @@ const Supertabelaprocedimentos = () => {
                 { data: categoriasData, error: errCategorias },
                 { data: procedimentosData, error: errProcedimentos },
                 { data: planosCidadeData, error: errPlanosCidade },
+                resultadoLimitesGrupo,
             ] = await Promise.all([
                 supabase.from('planos').select('id, nome').order('id', { ascending: true }),
-                supabase.from('categorias').select('id, nome').gte('id', 3).lte('id', 25).order('id', { ascending: true }),
+                supabase.from('categorias').select('id, nome, usa_limite_grupo').gte('id', 3).order('id', { ascending: true }),
                 buscarTodosPaginado(() =>
                     supabase
                         .from('procedimentos')
@@ -133,7 +177,14 @@ const Supertabelaprocedimentos = () => {
                 buscarTodosPaginado(() =>
                     supabase.from('planos_cidade').select('procedimento_cod, plano_id')
                 ),
+                buscarCategoriaLimitesGrupo(supabase),
             ])
+
+            const errLimitesGrupo = resultadoLimitesGrupo?.error
+            if (errLimitesGrupo && !isMissingCategoriaLimitesGrupoTable(errLimitesGrupo)) {
+                setErroDetalhe(`Erro ao carregar limites de grupo: ${errLimitesGrupo.message}`)
+            }
+            setLimitesGrupoRows(resultadoLimitesGrupo?.data || [])
 
             if (errPlanos || errCategorias || errProcedimentos || errPlanosCidade) {
                 const detalhes = [errPlanos?.message, errCategorias?.message, errProcedimentos?.message, errPlanosCidade?.message]
@@ -178,7 +229,12 @@ const Supertabelaprocedimentos = () => {
             })
 
             setPlanos(listaPlanos)
-            setCategorias(categoriasData || [])
+            setCategorias(
+                (categoriasData || []).map((item) => ({
+                    ...item,
+                    usa_limite_grupo: Boolean(item.usa_limite_grupo),
+                }))
+            )
             setLinhas(linhasMontadas)
         } catch (error) {
             setErroDetalhe(`Falha ao carregar dados base: ${error.message}`)
@@ -253,6 +309,246 @@ const Supertabelaprocedimentos = () => {
                 .filter((secao) => secao.linhas.length > 0),
         [categorias, linhasFiltradas, ordenacaoPorCategoria]
     )
+
+    const linhasTabelaCategorias = useMemo(() => {
+        const termo = normalizarTextoBusca(termoBusca)
+        let lista = categorias.map((categoria) => {
+            const id = Number(categoria.id)
+            const limites = limitesGrupoPorCategoria.get(id) || {
+                basico: '',
+                classico: '',
+                avancado: '',
+                ultra: '',
+            }
+            return {
+                categoriaId: id,
+                nome: categoria.nome,
+                quantidadeProcedimentos: contagemProcedimentosPorCategoria.get(id) || 0,
+                usaLimiteGrupo: Boolean(categoria.usa_limite_grupo),
+                limitesGrupo: limites,
+            }
+        })
+
+        if (termo || buscaNotAtiva) {
+            lista = lista.filter((linha) => {
+                const blob = normalizarTextoBuscaDev(
+                    [linha.categoriaId, linha.nome, linha.quantidadeProcedimentos].join(' ')
+                )
+                return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
+            })
+        }
+
+        const { coluna, direcao } = ordenacaoCategorias
+        const fator = direcao === 'asc' ? 1 : -1
+        lista.sort((a, b) => {
+            if (coluna === 'quantidadeProcedimentos') {
+                return (a.quantidadeProcedimentos - b.quantidadeProcedimentos) * fator
+            }
+            if (coluna === 'id') {
+                return (a.categoriaId - b.categoriaId) * fator
+            }
+            return String(a.nome ?? '').localeCompare(String(b.nome ?? ''), 'pt-BR', { sensitivity: 'base' }) * fator
+        })
+
+        return lista
+    }, [
+        categorias,
+        contagemProcedimentosPorCategoria,
+        limitesGrupoPorCategoria,
+        termoBusca,
+        buscaNotAtiva,
+        ordenacaoCategorias,
+    ])
+
+    const chaveEdicaoLimiteGrupo = (categoriaId, chavePlano) => `${categoriaId}-${chavePlano}`
+
+    const obterValorLimiteGrupoInput = (categoriaId, chavePlano) => {
+        const chave = chaveEdicaoLimiteGrupo(categoriaId, chavePlano)
+        if (Object.prototype.hasOwnProperty.call(edicoesLimiteGrupo, chave)) {
+            return edicoesLimiteGrupo[chave]
+        }
+        const bucket = limitesGrupoPorCategoria.get(Number(categoriaId))
+        return bucket?.[chavePlano] ?? ''
+    }
+
+    const obterValorNomeCategoriaInput = (categoriaId, nomeAtual) => {
+        const chave = `nome-${categoriaId}`
+        if (Object.prototype.hasOwnProperty.call(edicoesNomeCategoria, chave)) {
+            return edicoesNomeCategoria[chave]
+        }
+        return nomeAtual ?? ''
+    }
+
+    const handleOrdenarTabelaCategorias = (coluna) => {
+        setOrdenacaoCategorias((anterior) =>
+            anterior.coluna === coluna
+                ? { coluna, direcao: anterior.direcao === 'asc' ? 'desc' : 'asc' }
+                : { coluna, direcao: 'asc' }
+        )
+    }
+
+    const indicadorOrdenacaoCategorias = (coluna) => {
+        if (ordenacaoCategorias.coluna !== coluna) return ''
+        return ordenacaoCategorias.direcao === 'asc' ? ' ▲' : ' ▼'
+    }
+
+    const salvarLimiteGrupoCategoriaCampo = async (categoriaId, chavePlano) => {
+        if (!categoriaPermiteLimiteGrupoNoPlano(categoriaId, chavePlano)) return
+
+        const chave = chaveEdicaoLimiteGrupo(categoriaId, chavePlano)
+        if (!Object.prototype.hasOwnProperty.call(edicoesLimiteGrupo, chave)) return
+
+        const planoId = mapaPlanos[chavePlano]?.id
+        if (!planoId) {
+            mostrarErroToast(`Plano «${ROTULO_PLANO[chavePlano]}» não encontrado na base.`)
+            return
+        }
+
+        const valor = edicoesLimiteGrupo[chave]
+        const { error } = await salvarLimiteGrupoCategoria(supabase, {
+            categoriaId,
+            planoId,
+            limite: valor,
+        })
+
+        if (error) {
+            if (isMissingCategoriaLimitesGrupoTable(error)) {
+                mostrarErroToast('Tabela categoria_limites_grupo não existe. Execute o SQL em sql/categoria_limites_grupo.sql.')
+            } else {
+                mostrarErroToast(`Erro ao salvar limite de grupo: ${error.message}`)
+            }
+            return
+        }
+
+        setLimitesGrupoRows((anteriores) => {
+            const catNum = Number(categoriaId)
+            const planoNum = Number(planoId)
+            const semPar = anteriores.filter(
+                (row) => !(Number(row.categoria_id) === catNum && Number(row.plano_id) === planoNum)
+            )
+            const texto = String(valor ?? '').trim()
+            if (!texto) return semPar
+            return [...semPar, { categoria_id: catNum, plano_id: planoNum, limite: texto }]
+        })
+
+        setEdicoesLimiteGrupo((anterior) => {
+            const copia = { ...anterior }
+            delete copia[chave]
+            return copia
+        })
+    }
+
+    const salvarNomeCategoria = async (categoriaId, nomeAnterior) => {
+        const chave = `nome-${categoriaId}`
+        if (!Object.prototype.hasOwnProperty.call(edicoesNomeCategoria, chave)) return
+
+        const nomeNovo = String(edicoesNomeCategoria[chave] ?? '').trim()
+        if (!nomeNovo) {
+            setEdicoesNomeCategoria((anterior) => {
+                const copia = { ...anterior }
+                delete copia[chave]
+                return copia
+            })
+            mostrarErroToast('O nome da categoria não pode ficar vazio.')
+            return
+        }
+
+        if (nomeNovo === nomeAnterior) {
+            setEdicoesNomeCategoria((anterior) => {
+                const copia = { ...anterior }
+                delete copia[chave]
+                return copia
+            })
+            return
+        }
+
+        const { error } = await supabase.from('categorias').update({ nome: nomeNovo }).eq('id', categoriaId)
+        if (error) {
+            mostrarErroToast(`Erro ao atualizar categoria: ${error.message}`)
+            return
+        }
+
+        setCategorias((anteriores) =>
+            anteriores.map((item) => (Number(item.id) === Number(categoriaId) ? { ...item, nome: nomeNovo } : item))
+        )
+        setEdicoesNomeCategoria((anterior) => {
+            const copia = { ...anterior }
+            delete copia[chave]
+            return copia
+        })
+    }
+
+    const atualizarUsaLimiteGrupoCategoria = async (categoriaId, valor) => {
+        if (valor && !somenteLeitura) {
+            setEdicaoAtiva(true)
+        }
+
+        const anterior = categorias.find((item) => Number(item.id) === Number(categoriaId))?.usa_limite_grupo
+        setCategorias((prev) =>
+            prev.map((item) =>
+                Number(item.id) === Number(categoriaId) ? { ...item, usa_limite_grupo: valor } : item
+            )
+        )
+
+        const { error } = await supabase
+            .from('categorias')
+            .update({ usa_limite_grupo: valor })
+            .eq('id', categoriaId)
+
+        if (error) {
+            setCategorias((prev) =>
+                prev.map((item) =>
+                    Number(item.id) === Number(categoriaId) ? { ...item, usa_limite_grupo: anterior } : item
+                )
+            )
+            const msg = String(error.message || '')
+            if (msg.toLowerCase().includes('usa_limite_grupo')) {
+                mostrarErroToast(
+                    'Coluna usa_limite_grupo ausente. Execute o trecho ALTER TABLE em sql/categoria_limites_grupo.sql.'
+                )
+            } else {
+                mostrarErroToast(`Erro ao atualizar tipo de limite: ${error.message}`)
+            }
+        }
+    }
+
+    const inserirNovaCategoria = async () => {
+        const nome = String(novaCategoriaNome || '').trim()
+        if (!nome) {
+            mostrarErroToast('Informe o nome da nova categoria.')
+            return
+        }
+
+        setLoading(true)
+        try {
+            const { data: ultima, error: errUltima } = await supabase
+                .from('categorias')
+                .select('id')
+                .order('id', { ascending: false })
+                .limit(1)
+                .maybeSingle()
+
+            if (errUltima) {
+                mostrarErroToast(`Erro ao gerar ID da categoria: ${errUltima.message}`)
+                return
+            }
+
+            const proximoId = (ultima?.id ? Number(ultima.id) : 2) + 1
+            const { error: errInsert } = await supabase.from('categorias').insert({ id: proximoId, nome })
+            if (errInsert) {
+                mostrarErroToast(`Erro ao criar categoria: ${errInsert.message}`)
+                return
+            }
+
+            setNovaCategoriaNome('')
+            setAdicionarCategoriaAtivo(false)
+            await carregarBase()
+        } catch (error) {
+            mostrarErroToast(`Falha ao criar categoria: ${error.message}`)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const atualizarPublicadoFormulario = async (linha, valor) => {
         const anterior = Boolean(linha.publicadoFormulario)
@@ -660,7 +956,7 @@ const Supertabelaprocedimentos = () => {
     }, [categorias])
 
     return (
-        <div className='supertabelaprocedimentos'>
+        <div className={`supertabelaprocedimentos ${modoCategorias ? 'is-modo-categorias' : ''}`}>
             <h1>Supertabela - Procedimentos</h1>
             <hr />
             <header className={`supertabelaprocedimentos_header ${headerCompacto ? 'is-compact' : ''}`}>
@@ -671,10 +967,42 @@ const Supertabelaprocedimentos = () => {
                         <input
                             type='text'
                             className='supertabelaprocedimentos_input'
-                            placeholder='Código, procedimento, plano base ou categoria'
+                            placeholder={
+                                modoCategorias
+                                    ? 'ID, nome da categoria ou quantidade de procedimentos'
+                                    : 'Código, procedimento, plano base ou categoria'
+                            }
                             value={termoBusca}
                             onChange={(event) => setTermoBusca(event.target.value)}
                         />
+                    </div>
+
+                    <div className='supertabelaprocedimentos_filter_item supertabelaprocedimentos_filter_mode'>
+                        <p className='supertabelaprocedimentos_filter_mode_label'>Visualização</p>
+                        <div
+                            className='supertabelaprocedimentos_mode_rail'
+                            role='group'
+                            aria-label='Tipo de visualização'
+                        >
+                            <span
+                                className={`supertabelaprocedimentos_mode_thumb ${modoCategorias ? 'is-right' : 'is-left'}`}
+                                aria-hidden
+                            />
+                            <button
+                                type='button'
+                                className={`supertabelaprocedimentos_mode_btn ${!modoCategorias ? 'is-active' : ''}`}
+                                onClick={() => setModoCategorias(false)}
+                            >
+                                Procedimentos
+                            </button>
+                            <button
+                                type='button'
+                                className={`supertabelaprocedimentos_mode_btn ${modoCategorias ? 'is-active' : ''}`}
+                                onClick={() => setModoCategorias(true)}
+                            >
+                                Categorias
+                            </button>
+                        </div>
                     </div>
 
                     {!somenteLeitura && (
@@ -694,13 +1022,50 @@ const Supertabelaprocedimentos = () => {
                                 type='checkbox'
                                 checked={adicionarNovoAtivo}
                                 onChange={(event) => setAdicionarNovoAtivo(event.target.checked)}
+                                disabled={modoCategorias}
                             />
                             <span>Adicionar novo</span>
                         </label>
                     )}
+
+                    {!somenteLeitura && modoCategorias && (
+                        <label className='supertabelaprocedimentos_edit_wrap'>
+                            <input
+                                type='checkbox'
+                                checked={adicionarCategoriaAtivo}
+                                onChange={(event) => setAdicionarCategoriaAtivo(event.target.checked)}
+                            />
+                            <span>Nova categoria</span>
+                        </label>
+                    )}
                 </div>
 
-                {adicionarNovoAtivo && (
+                {adicionarCategoriaAtivo && modoCategorias && (
+                    <div className='supertabelaprocedimentos_massa_wrap'>
+                        <p>Adicionar categoria</p>
+                        <div className='supertabelaprocedimentos_massa_form'>
+                            <div className='supertabelaprocedimentos_novo_grid supertabelaprocedimentos_novo_grid_cat'>
+                                <input
+                                    type='text'
+                                    className='supertabelaprocedimentos_input'
+                                    placeholder='Nome da categoria'
+                                    value={novaCategoriaNome}
+                                    onChange={(event) => setNovaCategoriaNome(event.target.value)}
+                                />
+                            </div>
+                            <button
+                                type='button'
+                                className='supertabelaprocedimentos_massa_btn'
+                                onClick={inserirNovaCategoria}
+                                disabled={loading}
+                            >
+                                Criar categoria
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {adicionarNovoAtivo && !modoCategorias && (
                     <div className='supertabelaprocedimentos_massa_wrap'>
                         <p>Adicionar novo procedimento</p>
                         <div className='supertabelaprocedimentos_massa_form'>
@@ -820,9 +1185,188 @@ const Supertabelaprocedimentos = () => {
                 </div>
             )}
 
-            <div className='supertabelaprocedimentos_table_container'>
+            <div
+                className={`supertabelaprocedimentos_table_container ${
+                    modoCategorias ? 'is-categorias-full' : ''
+                }`}
+            >
                 {loading ? (
                     <p>Carregando...</p>
+                ) : modoCategorias ? (
+                    linhasTabelaCategorias.length === 0 ? (
+                        <p>Nenhuma categoria encontrada com os filtros atuais.</p>
+                    ) : (
+                        <section className='categoria_secao supertabelaprocedimentos_categorias_secao'>
+                            <h2 className='categoria_titulo'>Categorias de procedimentos</h2>
+                            <table
+                                className={`table_main supertabelaprocedimentos_categorias_table ${
+                                    edicaoAtiva ? 'is-editing' : ''
+                                }`}
+                            >
+                                <colgroup>
+                                    <col style={{ width: '4%' }} />
+                                    <col style={{ width: '35%' }} />
+                                    <col style={{ width: '9%' }} />
+                                    <col style={{ width: '12%' }} />
+                                    {ORDEM_PLANOS.map((chave) => (
+                                        <col key={`col-lim-${chave}`} style={{ width: '10%' }} />
+                                    ))}
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th
+                                            className='table_header'
+                                            onClick={() => handleOrdenarTabelaCategorias('id')}
+                                        >
+                                            ID{indicadorOrdenacaoCategorias('id')}
+                                        </th>
+                                        <th
+                                            className='table_header'
+                                            onClick={() => handleOrdenarTabelaCategorias('nome')}
+                                        >
+                                            Categoria{indicadorOrdenacaoCategorias('nome')}
+                                        </th>
+                                        <th
+                                            className='table_header supertabelaprocedimentos_col_center'
+                                            onClick={() => handleOrdenarTabelaCategorias('quantidadeProcedimentos')}
+                                        >
+                                            Procedimentos{indicadorOrdenacaoCategorias('quantidadeProcedimentos')}
+                                        </th>
+                                        <th className='table_header table_header_no_sort supertabelaprocedimentos_col_center'>
+                                            Tipo de limite
+                                        </th>
+                                        {ORDEM_PLANOS.map((chavePlano) => (
+                                            <th key={`th-lim-${chavePlano}`} className='table_header table_header_no_sort'>
+                                                <span className='supertabelaprocedimentos_th_stack'>
+                                                    <span className='supertabelaprocedimentos_th_main'>Limite de grupo</span>
+                                                    <span className='supertabelaprocedimentos_th_plan'>{ROTULO_PLANO[chavePlano]}</span>
+                                                </span>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {linhasTabelaCategorias.map((linha) => (
+                                        <tr
+                                            key={`cat-row-${linha.categoriaId}`}
+                                            className={!linha.usaLimiteGrupo ? 'is-limite-individual' : ''}
+                                        >
+                                            <td>{linha.categoriaId}</td>
+                                            <td className='table_text_left'>
+                                                {edicaoAtiva ? (
+                                                    <input
+                                                        className='table_cell_input_text supertabelaprocedimentos_categorias_input'
+                                                        type='text'
+                                                        value={obterValorNomeCategoriaInput(linha.categoriaId, linha.nome)}
+                                                        onChange={(e) => {
+                                                            const chave = `nome-${linha.categoriaId}`
+                                                            setEdicoesNomeCategoria((a) => ({
+                                                                ...a,
+                                                                [chave]: e.target.value,
+                                                            }))
+                                                        }}
+                                                        onBlur={() => salvarNomeCategoria(linha.categoriaId, linha.nome)}
+                                                    />
+                                                ) : (
+                                                    linha.nome
+                                                )}
+                                            </td>
+                                            <td className='supertabelaprocedimentos_col_center'>
+                                                {linha.quantidadeProcedimentos}
+                                            </td>
+                                            <td className='supertabelaprocedimentos_col_tipo_limite supertabelaprocedimentos_col_center'>
+                                                {somenteLeitura ? (
+                                                    <span className='supertabelaprocedimentos_tipo_limite_label'>
+                                                        {linha.usaLimiteGrupo ? 'Grupo' : 'Individual'}
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        type='button'
+                                                        role='switch'
+                                                        aria-checked={linha.usaLimiteGrupo}
+                                                        className={`supertabelaprocedimentos_form_switch supertabelaprocedimentos_limite_tipo_switch ${
+                                                            linha.usaLimiteGrupo ? 'is-on' : 'is-off'
+                                                        }`}
+                                                        title={
+                                                            linha.usaLimiteGrupo
+                                                                ? 'Limite de grupo — clique para individual'
+                                                                : 'Limite individual — clique para grupo'
+                                                        }
+                                                        onClick={() => {
+                                                            void atualizarUsaLimiteGrupoCategoria(
+                                                                linha.categoriaId,
+                                                                !linha.usaLimiteGrupo
+                                                            )
+                                                        }}
+                                                    >
+                                                        <span className='supertabelaprocedimentos_form_switch_track'>
+                                                            <span className='supertabelaprocedimentos_form_switch_knob' />
+                                                        </span>
+                                                        <span className='supertabelaprocedimentos_form_switch_label'>
+                                                            {linha.usaLimiteGrupo ? 'Grupo' : 'Individual'}
+                                                        </span>
+                                                    </button>
+                                                )}
+                                            </td>
+                                            {ORDEM_PLANOS.map((chavePlano) => {
+                                                const planoDisponivel = categoriaPermiteLimiteGrupoNoPlano(
+                                                    linha.categoriaId,
+                                                    chavePlano
+                                                )
+                                                const celulaInativa =
+                                                    !linha.usaLimiteGrupo || !planoDisponivel
+                                                const valorLimite = linha.limitesGrupo[chavePlano] || ''
+
+                                                return (
+                                                <td
+                                                    key={`lim-${linha.categoriaId}-${chavePlano}`}
+                                                    className={
+                                                        celulaInativa
+                                                            ? 'supertabelaprocedimentos_limite_grupo_inativo'
+                                                            : ''
+                                                    }
+                                                    title={
+                                                        linha.usaLimiteGrupo && !planoDisponivel
+                                                            ? `Nenhum procedimento desta categoria com plano base que inclua ${ROTULO_PLANO[chavePlano]}`
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {!linha.usaLimiteGrupo ? (
+                                                        <span className='supertabelaprocedimentos_limite_individual_muted'>—</span>
+                                                    ) : !planoDisponivel ? (
+                                                        <span className='supertabelaprocedimentos_limite_individual_muted'>—</span>
+                                                    ) : edicaoAtiva ? (
+                                                        <input
+                                                            className='table_cell_input_text supertabelaprocedimentos_categorias_input supertabelaprocedimentos_categorias_input_limite'
+                                                            type='text'
+                                                            placeholder='—'
+                                                            value={obterValorLimiteGrupoInput(linha.categoriaId, chavePlano)}
+                                                            onChange={(e) => {
+                                                                const chave = chaveEdicaoLimiteGrupo(
+                                                                    linha.categoriaId,
+                                                                    chavePlano
+                                                                )
+                                                                setEdicoesLimiteGrupo((a) => ({
+                                                                    ...a,
+                                                                    [chave]: e.target.value,
+                                                                }))
+                                                            }}
+                                                            onBlur={() =>
+                                                                salvarLimiteGrupoCategoriaCampo(linha.categoriaId, chavePlano)
+                                                            }
+                                                        />
+                                                    ) : (
+                                                        <span>{valorLimite || '\u00a0'}</span>
+                                                    )}
+                                                </td>
+                                                )
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </section>
+                    )
                 ) : secoesPorCategoria.length === 0 ? (
                     <p>Nenhum procedimento encontrado com os filtros atuais.</p>
                 ) : (

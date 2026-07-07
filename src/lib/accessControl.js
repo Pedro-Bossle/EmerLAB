@@ -20,6 +20,7 @@ export const PERMISSION_KEYS = {
   NOTIFICACOES_CONTRATOS: 'notificacoes.contratos',
   COMPRAS_VIEW: 'compras.view',
   COMPRAS_EDIT: 'compras.edit',
+  PLANOS_VIEW: 'planos.view',
   CONTRATOS_VIEW: 'contratos.view',
   CONTRATOS_EDIT: 'contratos.edit',
   PAGAMENTOS_VIEW: 'pagamentos.view',
@@ -40,6 +41,7 @@ const HERANCA_PERMISSAO_TELA = [
   [PERMISSION_KEYS.PAGAMENTOS_VIEW, PERMISSION_KEYS.CREDENCIAMENTO_VIEW],
   [PERMISSION_KEYS.PAGAMENTOS_EDIT, PERMISSION_KEYS.CREDENCIAMENTO_EDIT],
   [PERMISSION_KEYS.PAGAMENTOS_EDIT, PERMISSION_KEYS.ACCESS_MANAGE],
+  [PERMISSION_KEYS.PLANOS_VIEW, PERMISSION_KEYS.SUPERTABELA_VIEW],
 ]
 
 export const PERMISSOES = [
@@ -150,6 +152,16 @@ export const PERMISSOES = [
     ],
   },
   {
+    grupo: 'Planos',
+    itens: [
+      {
+        chave: PERMISSION_KEYS.PLANOS_VIEW,
+        rotulo: 'Ver Planos',
+        descricao: 'Impressão de planos por cidade (PDF para credenciados).',
+      },
+    ],
+  },
+  {
     grupo: 'Contratos',
     itens: [
       {
@@ -196,6 +208,7 @@ export const DEFAULT_PROFILE_PERMISSIONS = {
   [PERMISSION_KEYS.NOTIFICACOES_CONTRATOS]: true,
   [PERMISSION_KEYS.COMPRAS_VIEW]: true,
   [PERMISSION_KEYS.COMPRAS_EDIT]: true,
+  [PERMISSION_KEYS.PLANOS_VIEW]: true,
   [PERMISSION_KEYS.CONTRATOS_VIEW]: true,
   [PERMISSION_KEYS.CONTRATOS_EDIT]: true,
   [PERMISSION_KEYS.PAGAMENTOS_VIEW]: true,
@@ -219,6 +232,7 @@ export const DEFAULT_INVITED_PERMISSIONS = {
   [PERMISSION_KEYS.NOTIFICACOES_CONTRATOS]: false,
   [PERMISSION_KEYS.COMPRAS_VIEW]: true,
   [PERMISSION_KEYS.COMPRAS_EDIT]: false,
+  [PERMISSION_KEYS.PLANOS_VIEW]: true,
   [PERMISSION_KEYS.CONTRATOS_VIEW]: true,
   [PERMISSION_KEYS.CONTRATOS_EDIT]: false,
   [PERMISSION_KEYS.PAGAMENTOS_VIEW]: true,

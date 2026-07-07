@@ -2,7 +2,7 @@ import { formatarContatoSeTelefone } from '../telefoneBrasil.js'
 import { montarEnderecoUmaLinha, tipoDocumentoCpfCnpj } from '../prestadorCadastroHelpers.js'
 import { apenasDigitos } from '../contratos/validarDocumentos.js'
 import { maskCNPJ, maskCPF } from '../contratos/mascarasDocumento.js'
-import { buscarDadosCNPJ } from '../contratos/cnpjBizClient.js'
+import { buscarDadosCNPJ, ORIGENS_CONSULTA_CNPJ } from '../contratos/consultaCnpj.js'
 
 /** `tipoDocumentoCpfCnpj` devolve CPF/CNPJ em maiúsculas; contratos usam minúsculas. */
 function docTipoContrato(cpfCnpj) {
@@ -99,7 +99,15 @@ export async function buildPayloadContratoFromPrestadorForm(form, modelo, opts =
     }
 
     try {
-        const data = await buscarDadosCNPJ(form?.cpf_cnpj)
+        const origemPorModelo = {
+            clinica: ORIGENS_CONSULTA_CNPJ.CONTRATO_PDF_CLINICA,
+            desconto: ORIGENS_CONSULTA_CNPJ.CONTRATO_PDF_DESCONTO,
+            volante_pj: ORIGENS_CONSULTA_CNPJ.CONTRATO_PDF_VOLANTE_PJ,
+        }
+        const origem = origemPorModelo[modelo]
+        if (!origem) return payload
+
+        const data = await buscarDadosCNPJ(form?.cpf_cnpj, { origem })
         if (!data) return payload
 
         const razao = String(data.razaoSocial || '').trim()

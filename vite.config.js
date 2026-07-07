@@ -2,7 +2,7 @@ import path from 'node:path'
 import dotenv from 'dotenv'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
-import cnpjLookupHandler from './api/cnpj-lookup.js'
+import consultaCnpjHandler from './api/consulta-cnpj.js'
 import cepLookupHandler from './api/cep-lookup.js'
 import clicksignProxyHandler from './api/clicksign-proxy.js'
 import clicksignDownloadHandler from './api/clicksign-download.js'
@@ -67,15 +67,15 @@ function cepLookupDevPlugin() {
     }
 }
 
-/** Em dev/preview, atende /api/cnpj-lookup no próprio Vite (sem precisar de dev:api na porta 3000). */
-function cnpjLookupDevPlugin() {
+/** Em dev/preview, atende /api/consulta-cnpj no próprio Vite (sem precisar de dev:api na porta 3000). */
+function consultaCnpjDevPlugin() {
     return {
-        name: 'cnpj-lookup-dev',
+        name: 'consulta-cnpj-dev',
         enforce: 'pre',
         configureServer(server) {
             server.middlewares.use(async (req, res, next) => {
                 const url = req.url || ''
-                if (!url.startsWith('/api/cnpj-lookup')) {
+                if (!url.startsWith('/api/consulta-cnpj')) {
                     next()
                     return
                 }
@@ -103,7 +103,7 @@ function cnpjLookupDevPlugin() {
                     },
                 }
                 try {
-                    await cnpjLookupHandler(reqLike, resLike)
+                    await consultaCnpjHandler(reqLike, resLike)
                 } catch (e) {
                     res.statusCode = 502
                     res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -283,7 +283,7 @@ function clicksignDevPlugin() {
 export default defineConfig(({ command, mode }) => {
     if (command === 'serve') {
         const env = loadEnv(mode, process.cwd(), '')
-        if (env.RECEITAWS_API_TOKEN) process.env.RECEITAWS_API_TOKEN = env.RECEITAWS_API_TOKEN
+        if (env.CNPJ_CACHE_DAYS) process.env.CNPJ_CACHE_DAYS = env.CNPJ_CACHE_DAYS
         if (env.RECEITAWS_CACHE_DAYS) process.env.RECEITAWS_CACHE_DAYS = env.RECEITAWS_CACHE_DAYS
         const clickTok = (env.CLICKSIGN_ACCESS_TOKEN || env.CLICKSIGN_TOKEN || '').trim()
         if (clickTok) process.env.CLICKSIGN_ACCESS_TOKEN = clickTok
@@ -294,7 +294,7 @@ export default defineConfig(({ command, mode }) => {
         // Dev local sempre na raiz. Em build, usa base do Vercel ou do GitHub Pages.
         base: command === 'serve' ? '/' : process.env.VERCEL ? '/' : '/Emerdog_SFSC_SUPERTOOL/',
         plugins: [
-            command === 'serve' ? cnpjLookupDevPlugin() : null,
+            command === 'serve' ? consultaCnpjDevPlugin() : null,
             command === 'serve' ? cepLookupDevPlugin() : null,
             command === 'serve' ? adminUsersDevPlugin() : null,
             command === 'serve' ? clicksignDevPlugin() : null,
@@ -303,6 +303,7 @@ export default defineConfig(({ command, mode }) => {
         server: {
             proxy: {
                 '/api/rc-pdf': 'http://localhost:3000',
+                '/api/consulta-cnpj': 'http://localhost:3000',
             },
         },
         optimizeDeps: {

@@ -39,7 +39,6 @@ import CidadesAtendeVirtualList from './CidadesAtendeVirtualList.jsx'
 import VeterinariosVinculados from './VeterinariosVinculados.jsx'
 import CredenciamentoDevToolsPerfil from './CredenciamentoDevToolsPerfil.jsx'
 import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
-import { buscarDadosCNPJ } from '../../../lib/contratos/cnpjBizClient.js'
 import { apenasDigitos } from '../../../lib/contratos/validarDocumentos.js'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
@@ -387,47 +386,6 @@ const CredenciamentoCadastroForm = () => {
 
     const setCampo = (campo, valor) => setForm((f) => ({ ...f, [campo]: valor }))
 
-    const consultarCnpjNoPerfil = useCallback(async () => {
-        if (somenteLeitura) return
-        if (tipoDocumentoCpfCnpj(form.cpf_cnpj) !== 'CNPJ') return
-        const digits = apenasDigitos(form.cpf_cnpj)
-        if (digits.length !== 14) return
-        try {
-            const data = await buscarDadosCNPJ(form.cpf_cnpj)
-            if (!data) return
-            const temEndereco =
-                data.cep ||
-                data.logradouro ||
-                data.numero ||
-                data.complemento ||
-                data.bairro ||
-                data.municipio ||
-                data.uf
-            if (!temEndereco) return
-            setForm((f) => {
-                if (apenasDigitos(f.cpf_cnpj) !== digits) return f
-                const patch = { ...f }
-                if (data.cep && !String(f.cep || '').trim()) {
-                    const c = apenasDigitos(data.cep)
-                    patch.cep = c.length === 8 ? `${c.slice(0, 5)}-${c.slice(5)}` : String(data.cep)
-                }
-                if (data.logradouro && !String(f.endereco_logradouro || '').trim()) {
-                    patch.endereco_logradouro = data.logradouro
-                }
-                if (data.numero && !String(f.endereco_numero || '').trim()) patch.endereco_numero = data.numero
-                if (data.complemento && !String(f.endereco_complemento || '').trim()) {
-                    patch.endereco_complemento = data.complemento
-                }
-                if (data.bairro && !String(f.endereco_bairro || '').trim()) patch.endereco_bairro = data.bairro
-                if (data.municipio && !String(f.endereco_cidade || '').trim()) patch.endereco_cidade = data.municipio
-                if (data.uf && !String(f.endereco_uf || '').trim()) patch.endereco_uf = data.uf
-                return patch
-            })
-        } catch {
-            /* consulta opcional no blur; contrato refaz na geração */
-        }
-    }, [form.cpf_cnpj, somenteLeitura])
-
     const buscarCepPorDigitos = useCallback(
         async (digits) => {
             if (somenteLeitura || digits.length !== 8) return
@@ -769,7 +727,6 @@ const CredenciamentoCadastroForm = () => {
                                 onChange={(e) => setCampo('cpf_cnpj', formatarCpfCnpjEntrada(e.target.value))}
                                 onBlur={(e) => {
                                     setCampo('cpf_cnpj', formatarCpfCnpjEntrada(e.target.value))
-                                    void consultarCnpjNoPerfil()
                                 }}
                                 inputMode="numeric"
                                 autoComplete="off"
