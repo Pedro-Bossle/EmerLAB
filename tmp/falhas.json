@@ -1,0 +1,545 @@
+[
+  {
+    "prestadorId": 616,
+    "nome": "Clínica Veterinária Agropal - ZS",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 616,
+      "nome": "Clínica Veterinária Agropal - ZS",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Avenida Juca Batista, 1396, Cavalhada, Porto Alegre/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Avenida Juca Batista, 1396, Cavalhada, Porto Alegre/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  },
+  {
+    "prestadorId": 267,
+    "nome": "Clínica Veterinária Amigo Leal",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 267,
+      "nome": "Clínica Veterinária Amigo Leal",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Rua Graciano Luiz Silveira, 0229, Santa Teresa, São Leopoldo/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Rua Graciano Luiz Silveira, 0229, Santa Teresa, São Leopoldo/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  },
+  {
+    "prestadorId": 35,
+    "nome": "Clínica Veterinária Animanos",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 35,
+      "nome": "Clínica Veterinária Animanos",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Rua Engenheiro Chang, 58, Fátima, Canoas/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Rua Engenheiro Chang, 58, Fátima, Canoas/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  },
+  {
+    "prestadorId": 599,
+    "nome": "Clínica Veterinária Bertti e Machado",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 599,
+      "nome": "Clínica Veterinária Bertti e Machado",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Rua Heitor Curra, 1925, Centro, Flores da Cunha/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Rua Heitor Curra, 1925, Centro, Flores da Cunha/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  },
+  {
+    "prestadorId": 578,
+    "nome": "Clínica Veterinária CT Pet Center",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 578,
+      "nome": "Clínica Veterinária CT Pet Center",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Rua Joana Mattioda Manfro, 201, Sagrada Família, Caxias do Sul/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Rua Joana Mattioda Manfro, 201, Sagrada Família, Caxias do Sul/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  },
+  {
+    "prestadorId": 577,
+    "nome": "Clínica Veterinária Espaço Animal",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 577,
+      "nome": "Clínica Veterinária Espaço Animal",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "R. Padre Feijó, 876, Centro, São Marcos, RS, 95190-000, 876, Centro, São Marcos/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "R. Padre Feijó, 876, Centro, São Marcos, RS, 95190-000, 876, Centro, São Marcos/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  },
+  {
+    "prestadorId": 161,
+    "nome": "Clínica Veterinária Gato & Cão",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 161,
+      "nome": "Clínica Veterinária Gato & Cão",
+      "ufEsperada": "PR",
+      "dicasCadastro": [
+        "Sem logradouro nos campos novos (fallback estruturado pode ser fraco).",
+        "Legado contém complemento (CASA/SALA/LOJA); o Nominatim às vezes ignora o número.",
+        "CEP ausente ou incompleto (8 dígitos ajudam na precisão)."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Av. Fredolin Wolf, 3880, loja 1- Santa Felicidade, Curitiba/PR 82410-326",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Av. Fredolin Wolf, 3880, loja 1- Santa Felicidade, Curitiba/PR 82410-326, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Sem logradouro nos campos novos (fallback estruturado pode ser fraco)."
+    }
+  },
+  {
+    "prestadorId": 71,
+    "nome": "Clínica Veterinária Humanitare",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 71,
+      "nome": "Clínica Veterinária Humanitare",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Rua Angelina Gasparetto Sebben, 890, Presidente Vargas, Caxias do Sul/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Rua Angelina Gasparetto Sebben, 890, Presidente Vargas, Caxias do Sul/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  },
+  {
+    "prestadorId": 555,
+    "nome": "Clínica Veterinária KL",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 555,
+      "nome": "Clínica Veterinária KL",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido.",
+        "Legado contém complemento (CASA/SALA/LOJA); o Nominatim às vezes ignora o número."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "R. José de Alencar, 176, Centro, São Marcos, RS, 95190-000, 176, Sala 1, Centro, São Marcos/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "R. José de Alencar, 176, Centro, São Marcos, RS, 95190-000, 176, Sala 1, Centro, São Marcos/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "R. José de Alencar, 176, Centro, São Marcos, RS, 95190-000, 176, Centro, São Marcos/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "R. José de Alencar, 176, Centro, São Marcos, RS, 95190-000, 176, Centro, São Marcos/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "4 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  },
+  {
+    "prestadorId": 72,
+    "nome": "Clínica Veterinária Petmed",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 72,
+      "nome": "Clínica Veterinária Petmed",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Rua José Aloisio Brugger, 1472, Jardim América, Caxias do Sul/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Rua José Aloisio Brugger, 1472, Jardim América, Caxias do Sul/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  },
+  {
+    "prestadorId": 168,
+    "nome": "Clínica Veterinária PRONTOVET",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 168,
+      "nome": "Clínica Veterinária PRONTOVET",
+      "ufEsperada": "PR",
+      "dicasCadastro": [
+        "Sem logradouro nos campos novos (fallback estruturado pode ser fraco).",
+        "CEP ausente ou incompleto (8 dígitos ajudam na precisão)."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Av. Pres. Kennedy, 2997, Guaíra, Curitiba/PR 80610-011",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Av. Pres. Kennedy, 2997, Guaíra, Curitiba/PR 80610-011, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Sem logradouro nos campos novos (fallback estruturado pode ser fraco)."
+    }
+  },
+  {
+    "prestadorId": 393,
+    "nome": "Clínica Veterinária Vet Care",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 393,
+      "nome": "Clínica Veterinária Vet Care",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Rua Hermínio Machado, 21, Jardim Algarve, Alvorada/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Rua Hermínio Machado, 21, Jardim Algarve, Alvorada/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  },
+  {
+    "prestadorId": 608,
+    "nome": "Clínica Veterinária ZINVET",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 608,
+      "nome": "Clínica Veterinária ZINVET",
+      "ufEsperada": "PR",
+      "dicasCadastro": [
+        "Sem logradouro nos campos novos (fallback estruturado pode ser fraco).",
+        "Cidade (campo novo) vazia e legado sem padrão Cidade/UF.",
+        "CEP ausente ou incompleto (8 dígitos ajudam na precisão)."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Av. Mal. Floriano Peixoto, 7154, BoqueirãoCuritiba, PR, 81670-000",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Av. Mal. Floriano Peixoto, 7154, BoqueirãoCuritiba, PR, 81670-000, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Sem logradouro nos campos novos (fallback estruturado pode ser fraco)."
+    }
+  },
+  {
+    "prestadorId": 201,
+    "nome": "Conceitos Vet",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 201,
+      "nome": "Conceitos Vet",
+      "ufEsperada": "PR",
+      "dicasCadastro": [
+        "Sem logradouro nos campos novos (fallback estruturado pode ser fraco).",
+        "Cidade (campo novo) vazia e legado sem padrão Cidade/UF.",
+        "CEP ausente ou incompleto (8 dígitos ajudam na precisão)."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Av. Pres. Getúlio Vargas, 937, Rebouças, Curitiba, PR, 80230-030",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Av. Pres. Getúlio Vargas, 937, Rebouças, Curitiba, PR, 80230-030, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Sem logradouro nos campos novos (fallback estruturado pode ser fraco)."
+    }
+  },
+  {
+    "prestadorId": 102,
+    "nome": "Consultório Paula Scalabrin",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 102,
+      "nome": "Consultório Paula Scalabrin",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Rua José Aloisio Brugger, 482, Jardim América, Caxias do Sul/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Rua José Aloisio Brugger, 482, Jardim América, Caxias do Sul/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  },
+  {
+    "prestadorId": 693,
+    "nome": "Crematório e Memorial Pet da Serra",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 693,
+      "nome": "Crematório e Memorial Pet da Serra",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido.",
+        "Número do endereço vazio nos campos novos."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Estrada Olinto Carlos Toigo, Otávio Rocha, Flores da Cunha/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Estrada Olinto Carlos Toigo, Otávio Rocha, Flores da Cunha/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  },
+  {
+    "prestadorId": 272,
+    "nome": "Hospital Veterinário Dudu",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 272,
+      "nome": "Hospital Veterinário Dudu",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Avenida Juca Batista, 805, Cavalhada, Porto Alegre/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Avenida Juca Batista, 805, Cavalhada, Porto Alegre/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  },
+  {
+    "prestadorId": 431,
+    "nome": "Hospital Veterinário PetLandia",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 431,
+      "nome": "Hospital Veterinário PetLandia",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Avenida Therezinha Pauletti Sanvitto, 430, Sanvitto, Caxias do Sul/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Avenida Therezinha Pauletti Sanvitto, 430, Sanvitto, Caxias do Sul/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "2 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  }
+]

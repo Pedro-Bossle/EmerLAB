@@ -6,7 +6,7 @@
     "api/rc-pdf.js": {
       "memory": 1024,
       "maxDuration": 60,
-      "includeFiles": "src/assets/rc/**"
+      "includeFiles": "{src/assets/rc/**,src/lib/rc/**,src/lib/impressaoPlanos/montserratPdfFonts.js}"
     },
     "api/clicksign/[...path].js": {
       "maxDuration": 30
@@ -25,6 +25,9 @@
     },
     "api/consulta-cnpj.js": {
       "maxDuration": 15
+    },
+    "api/geocode-prestador.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [

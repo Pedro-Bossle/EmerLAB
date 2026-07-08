@@ -5,6 +5,8 @@ import { filtrarPorTermoBusca, normalizarTextoBusca, resolverCidadePrincipalNome
 import { supabase } from '../../../lib/supabase'
 import './Credenciamento_main.css'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
+import { montarNomeArquivoRc } from '../../../lib/rc/rcPdfNomeArquivo.js'
+import { solicitarGeocodePrestador } from '../../../lib/credenciamento/solicitarGeocodePrestador'
 
 const normalizarTexto = (texto) =>
     String(texto || '')
@@ -901,6 +903,9 @@ const Credenciamento_main = () => {
                 setOrdenacao({ coluna: 'data_atualizacao', direcao: 'desc' })
                 setPaginaAtual(1)
             }
+            if (tipoAtual === 'LOCAL' && prestadorId) {
+                solicitarGeocodePrestador(prestadorId)
+            }
             resetarModal()
         } catch (error) {
             setErro(error?.message || `Erro ao salvar: ${error}`)
@@ -946,7 +951,7 @@ const Credenciamento_main = () => {
             const url = URL.createObjectURL(blob)
             const a = document.createElement('a')
             a.href = url
-            a.download = `RC_${new Date().toISOString().slice(0, 10)}.pdf`
+            a.download = montarNomeArquivoRc(rcCidadesSelecionadas)
             a.click()
             URL.revokeObjectURL(url)
             setModalRcAberto(false)

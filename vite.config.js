@@ -304,6 +304,7 @@ export default defineConfig(({ command, mode }) => {
             proxy: {
                 '/api/rc-pdf': 'http://localhost:3000',
                 '/api/consulta-cnpj': 'http://localhost:3000',
+                '/api/geocode-prestador': 'http://localhost:3000',
             },
         },
         optimizeDeps: {

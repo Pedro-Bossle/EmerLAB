@@ -16,6 +16,7 @@ export const DEFAULT_COLUNAS_CADASTRO = {
     procs: false,
     copiarCodigosProcs: false,
     ocultarVetsClinica: false,
+    coordenadasMapa: false,
 }
 
 export const DEFAULT_COLUNAS_NEGOCIACOES = {
@@ -49,6 +50,7 @@ function normalizarColunasCadastro(raw) {
         base.procs = !!raw.procs
         base.copiarCodigosProcs = !!raw.copiarCodigosProcs
         base.ocultarVetsClinica = !!(raw.ocultarVetsClinica ?? raw.ocultarVets)
+        base.coordenadasMapa = !!raw.coordenadasMapa
     }
     return base
 }

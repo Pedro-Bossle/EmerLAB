@@ -41,15 +41,12 @@ const Header = ({ onNavigate }) => {
         <header className='header'>
             <nav className='header_nav'>
                 <img src={darkModeAtivo ? logoBranco : logoNav} alt="Emerdog" className='logo logo_header' />
-                <Link className='header_nav_link' to="/home" onClick={onNavigate}>Início</Link>
                 <Link className='header_nav_link' to="/supertabelamain" onClick={onNavigate}>Super-Tabela</Link>
-                <Link className='header_nav_link' to="/credenciamento/principal" onClick={onNavigate}>Credenciamento</Link>
-                <Link className='header_nav_link' to="/Compras/Orcamento" onClick={onNavigate}>Orçamentos</Link>
+                <Link className='header_nav_link' to="/credenciamento/cadastro" onClick={onNavigate}>Credenciamento</Link>
+                <Link className='header_nav_link' to="/compras/orcamento" onClick={onNavigate}>Orçamentos</Link>
+                <Link className='header_nav_link' to="/planos/impressao" onClick={onNavigate}>Impressão de Planos</Link>
                 <Link className='header_nav_link' to="/contratos/clicksign" onClick={onNavigate}>Contratos</Link>
-                {/*<a className='header_nav_link' href="#">Formulário</a>
-                <a className='header_nav_link' href="#">Planos</a>
-                <a className='header_nav_link' href="#">Pagamentos</a>
-                <a className='header_nav_link' href="#">Emer-Cast</a>*/}
+                <Link className='header_nav_link' to="/pagamentos/registro" onClick={onNavigate}>Pagamentos</Link>
                 <button
                     type='button'
                     className='header_darkmode_button'

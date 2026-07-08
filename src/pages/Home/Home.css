@@ -40,6 +40,7 @@
 }
 
 .card_link {
+    display: block;
     text-decoration: none;
     color: var(--azul-destaque);
     background-color: var(--azul-claro);

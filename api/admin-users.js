@@ -8,6 +8,7 @@ import {
     normalizarProfileAcesso,
     resumirAlteracoesPermissoes,
 } from '../src/lib/accessControl.js'
+import { sanitizarPermissionsParaSalvar } from '../src/lib/permissionCatalog.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
 dotenvConfig()
@@ -214,9 +215,10 @@ export default async function handler(req, res) {
         if (action === 'invite') {
             const email = String(body.email || '').trim().toLowerCase()
             const name = String(body.name || '').trim()
-            const permissions = body.permissions && typeof body.permissions === 'object'
+            let permissions = body.permissions && typeof body.permissions === 'object'
                 ? body.permissions
                 : DEFAULT_INVITED_PERMISSIONS
+            permissions = sanitizarPermissionsParaSalvar(permissions)
 
             if (!email || !email.includes('@')) return responderErro(res, 400, 'Informe um email válido.')
             if (!name) return responderErro(res, 400, 'Informe o nome do usuário.')
@@ -294,11 +296,12 @@ export default async function handler(req, res) {
         if (action === 'updateProfile') {
             const userId = String(body.userId || '').trim()
             const name = String(body.name || '').trim()
-            const permissions = body.permissions && typeof body.permissions === 'object' ? body.permissions : null
+            let permissions = body.permissions && typeof body.permissions === 'object' ? body.permissions : null
 
             if (!userId) return responderErro(res, 400, 'Usuário não informado.')
             if (!name) return responderErro(res, 400, 'Informe o nome do usuário.')
             if (!permissions) return responderErro(res, 400, 'Permissões não informadas.')
+            permissions = sanitizarPermissionsParaSalvar(permissions)
 
             if (userId === admin.user.id && !permissions[PERMISSION_KEYS.ACCESS_MANAGE]) {
                 return responderErro(res, 400, 'Você não pode remover a permissão de gerenciar acessos do seu próprio usuário.')

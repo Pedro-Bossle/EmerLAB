@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { expandLegacyToAcl, syncLegacyFromAcl, podeLerFerramenta } from './permissionCatalog.js'
 
 export const ACCESS_PROFILE_STORAGE_KEY = 'sfsc-access-profile'
 export const ACCESS_PROFILE_CHANGE_EVENT = 'sfsc-access-profile-change'
@@ -262,7 +263,8 @@ export const normalizarPermissions = (profile = {}) => {
     if (!rawKeys.includes(filho) && perms[pai]) perms[filho] = true
   }
   delete perms[PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST]
-  return perms
+  const comAcl = expandLegacyToAcl(perms)
+  return syncLegacyFromAcl(comAcl)
 }
 
 export const normalizarProfileAcesso = (profile = {}) => ({
@@ -344,6 +346,9 @@ export const clearStoredAccessProfile = () => {
 }
 
 export const hasStoredPermission = (key) => hasPermission(getStoredAccessProfile(), key)
+
+export { hasAcl, podeLerFerramenta, usuarioPodeEditarFerramenta } from './permissionCatalog.js'
+export { PERMISSION_CATALOG, ACL_ACTIONS, aclKey, aplicarFerramentaAcl, aplicarGrupoAcl } from './permissionCatalog.js'
 
 /** Reage a alterações de permissões (login, Gerenciamento de Acessos, etc.). */
 export function useStoredAccessProfile() {

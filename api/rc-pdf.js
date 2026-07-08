@@ -5,6 +5,10 @@ import puppeteerCore from 'puppeteer-core'
 import { PDFDocument } from 'pdf-lib'
 import { createClient } from '@supabase/supabase-js'
 import { config as dotenvConfig } from 'dotenv'
+import { aguardarImagensIcones, carregarIconesRcParaHtml } from '../src/lib/rc/rcPdfIcones.js'
+import { aplicarCarimboRcDocumento } from '../src/lib/rc/rcPdfCarimbo.js'
+import { montarNomeArquivoRc } from '../src/lib/rc/rcPdfNomeArquivo.js'
+import { buildMapaOrdemRc, ordenarLinhasRc } from '../src/lib/rc/ordenarCardsRc.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
 dotenvConfig()
@@ -58,17 +62,6 @@ const formatarTelefone = (valor) => {
 
 const textoCredenciado = (descricao) => normalizarTexto(descricao).includes('CREDENCIAD')
 
-const ordemGrupoEspecialidade = (especialidadeNome) => {
-    const nome = normalizarTexto(especialidadeNome)
-    if (nome.includes('HOSPITAL')) return 0
-    if (nome.includes('24H')) return 1
-    if (nome.includes('CLINICA')) return 2
-    if (nome.includes('CONSULT')) return 3
-    if (nome.includes('LABORAT')) return 4
-    if (nome.includes('PETSHOP') || nome.includes('PET SHOP') || nome.includes('FARMAC') || nome.includes('COMERC')) return 6
-    return 5
-}
-
 const chunk = (arr, size) => {
     const out = []
     for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
@@ -109,7 +102,7 @@ const carregarBase = async () => {
             .eq('ativo', true),
         supabase.from('cidades_credenciamento').select('id,nome'),
         supabase.from('situacoes').select('id,descricao,ativo').eq('ativo', true),
-        supabase.from('especialidades').select('id,nome,tipo'),
+        supabase.from('especialidades').select('id,nome,tipo,ordem_rc'),
         supabase.from('prestador_cidades').select('prestador_id,cidade_id,principal'),
         supabase.from('prestador_especialidades').select('prestador_id,especialidade_id,principal'),
         supabase.from('prestador_estabelecimentos').select('veterinario_id,estabelecimento_id,principal'),
@@ -201,6 +194,7 @@ const montarCards = (base, cidadesSelecionadas) => {
             cidadePrincipalNome,
             cidadesSecundarias,
             especialidadePrincipalNome,
+            especialidadePrincipalId,
             tipoEspecialidade,
             situacaoDescricao,
             telefoneEfetivo,
@@ -215,25 +209,20 @@ const montarCards = (base, cidadesSelecionadas) => {
     })
 
     const alvoNorm = cidadesSelecionadas.map((c) => normalizarTexto(c))
-    return linhas
+    const mapaOrdem = buildMapaOrdemRc(base.especialidades)
+    const filtrados = linhas
         .filter((item) => textoCredenciado(item.situacaoDescricao))
         .filter((item) => {
             const cidadesItem = [item.cidadePrincipalNome, ...item.cidadesSecundarias].map(normalizarTexto)
             return alvoNorm.some((cidade) => cidadesItem.includes(cidade))
         })
-        .sort((a, b) => {
-            const oa = ordemGrupoEspecialidade(a.especialidadePrincipalNome)
-            const ob = ordemGrupoEspecialidade(b.especialidadePrincipalNome)
-            if (oa !== ob) return oa - ob
-            const e = a.especialidadePrincipalNome.localeCompare(b.especialidadePrincipalNome, 'pt-BR', { sensitivity: 'base' })
-            if (e !== 0) return e
-            return a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })
-        })
+    return ordenarLinhasRc(filtrados, mapaOrdem)
 }
 
-const gerarHtmlCards = (cardsPorPagina, pageWidthPt, pageHeightPt) => {
+const gerarHtmlCards = (cardsPorPagina, pageWidthPt, pageHeightPt, icones) => {
     const pageWidthIn = Number(pageWidthPt) / 72
     const pageHeightIn = Number(pageHeightPt) / 72
+    const { estetoscopio, telefone: telefoneIcon } = icones
     const pages = cardsPorPagina
         .map((cards) => {
             const blocos = cards
@@ -260,8 +249,8 @@ const gerarHtmlCards = (cardsPorPagina, pageWidthPt, pageHeightPt) => {
                             <header class="card-topo">${especialidade}</header>
                             <div class="card-corpo">
                                 <h3>${nome}</h3>
-                                <p><span class="icon icon-service"></span><span>${atendimento}</span></p>
-                                <p><span class="icon icon-phone"></span><span>${telefone}</span></p>
+                                <p><img class="icon" src="${estetoscopio}" alt="" width="12" height="12" /><span>${atendimento}</span></p>
+                                <p><img class="icon" src="${telefoneIcon}" alt="" width="12" height="12" /><span>${telefone}</span></p>
                             </div>
                         </article>
                     `
@@ -294,19 +283,14 @@ const gerarHtmlCards = (cardsPorPagina, pageWidthPt, pageHeightPt) => {
               .card-topo { height: 24pt; display: flex; align-items: center; justify-content: center; background: #1c3455; color: #fff; font-weight: 700; font-size: 13pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 8pt; }
               .card-corpo { padding: 8pt 10pt 7pt; display: grid; gap: 7pt; min-height: 0; }
               .card-corpo h3 { margin: 0; text-align: center; color: #1a2e4a; font-size: 12pt; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-              .card-corpo p { margin: 0; color: #5e7188; font-size: 10pt; display: grid; grid-template-columns: 14pt 1fr; align-items: center; gap: 6pt; }
+              .card-corpo p { margin: 0; color: #5e7188; font-size: 10pt; display: grid; grid-template-columns: 12pt 1fr; align-items: start; gap: 6pt; }
               .card-corpo p span:last-child {
                 overflow-wrap: anywhere;
                 word-break: break-word;
                 white-space: normal;
                 line-height: 1.18;
               }
-              .icon { width: 12pt; height: 12pt; border-radius: 3pt; background: #b8e8f4; display: inline-block; position: relative; }
-              .icon::before, .icon::after { content: ""; position: absolute; }
-              .icon-service::before { width: 5pt; height: 5pt; border-radius: 50%; background: #fff; left: 3.5pt; top: 4pt; }
-              .icon-service::after { width: 7pt; height: 7pt; border-radius: 50%; border: 1.3pt solid #fff; left: 2.3pt; top: 2pt; opacity: .7; }
-              .icon-phone::before { width: 6pt; height: 1.4pt; background: #fff; transform: rotate(-38deg); left: 3pt; top: 5.5pt; }
-              .icon-phone::after { width: 2.5pt; height: 2.5pt; border-radius: 50%; background: #fff; left: 2.6pt; top: 3pt; box-shadow: 4.8pt 4.4pt 0 #fff; }
+              .icon { width: 12pt; height: 12pt; display: block; object-fit: contain; margin-top: 1pt; }
             </style>
           </head>
           <body>${pages}</body>
@@ -327,8 +311,13 @@ const gerarPdfBuffer = async (cidadesSelecionadas) => {
     const browser = await launchBrowser()
     let overlayBytes
     try {
+        const icones = await carregarIconesRcParaHtml(browser)
         const page = await browser.newPage()
-        await page.setContent(gerarHtmlCards(chunk(cards, 10), width, height), { waitUntil: 'load' })
+        await page.setContent(
+            gerarHtmlCards(chunk(cards, 10), width, height, icones),
+            { waitUntil: 'domcontentloaded' }
+        )
+        await aguardarImagensIcones(page)
         overlayBytes = await page.pdf({
             printBackground: true,
             width: ptParaIn(width),
@@ -356,6 +345,8 @@ const gerarPdfBuffer = async (cidadesSelecionadas) => {
         page.drawPage(overlayPage, { x: 0, y: 0, width: pw, height: ph })
     }
 
+    await aplicarCarimboRcDocumento(finalDoc, { cidades: cidadesSelecionadas })
+
     return Buffer.from(await finalDoc.save())
 }
 
@@ -373,8 +364,9 @@ export default async function handler(req, res) {
             return
         }
         const pdfBuffer = await gerarPdfBuffer(cidades)
+        const nomeArquivo = montarNomeArquivoRc(cidades)
         res.setHeader('Content-Type', 'application/pdf')
-        res.setHeader('Content-Disposition', `attachment; filename="RC_${new Date().toISOString().slice(0, 10)}.pdf"`)
+        res.setHeader('Content-Disposition', `attachment; filename="${nomeArquivo}"`)
         res.status(200).send(pdfBuffer)
     } catch (error) {
         res.status(500).json({ error: error?.message || 'Falha ao gerar RC.' })

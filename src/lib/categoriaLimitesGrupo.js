@@ -111,11 +111,16 @@ export const resolverLimiteGrupoExibicao = (categorias, mapaPorCategoriaId, cate
         return null
     }
 
-    return obterLimiteGrupoAtivo(mapaPorCategoriaId, categoriaId)
+    const limite = obterLimiteGrupoAtivo(mapaPorCategoriaId, categoriaId)
+    if (!limite || !String(limite).trim()) return null
+    return String(limite).trim()
 }
 
-export const textoCelulaLimiteGrupo = (limite, categoriaNome) =>
-    `Limite ${limite} no grupo de ${categoriaNome}`
+export const textoCelulaLimiteGrupo = (limite, categoriaNome) => {
+    const lim = String(limite ?? '').trim()
+    if (!lim) return ''
+    return `Limite ${lim} no grupo de ${categoriaNome}`
+}
 
 export const buscarCategoriaLimitesGrupo = async (supabase, opcoes = {}) => {
     let consulta = supabase

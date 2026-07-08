@@ -394,6 +394,23 @@
     text-align: left;
 }
 
+.supertabelaplanos .table_main th.supertabelaplanos_th_nome,
+.supertabelaplanos .table_main td.supertabelaplanos_td_nome {
+    text-align: left;
+    vertical-align: middle;
+}
+
+.supertabelaplanos .table_main th.supertabelaplanos_th_centro,
+.supertabelaplanos .table_main td.supertabelaplanos_td_centro {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.supertabelaplanos .table_main td.supertabelaplanos_td_centro .table_cell_input,
+.supertabelaplanos .table_main td.supertabelaplanos_td_centro .table_cell_input_text {
+    text-align: center;
+}
+
 .supertabelaplanos .table_cell_input {
     width: 100%;
     min-width: 0;

@@ -4,8 +4,10 @@ import {
     PERMISSION_KEYS,
     getStoredAccessProfile,
     hasPermission,
+    hasStoredDevTools,
     useStoredPermission,
 } from '../../../lib/accessControl'
+import { useDevToolsUi } from '../../../lib/devToolsUi'
 import { supabase } from '../../../lib/supabase'
 import { buscarEnderecoPorCep } from '../../../lib/viacepClient'
 import {
@@ -39,15 +41,22 @@ import CidadesAtendeVirtualList from './CidadesAtendeVirtualList.jsx'
 import VeterinariosVinculados from './VeterinariosVinculados.jsx'
 import CredenciamentoDevToolsPerfil from './CredenciamentoDevToolsPerfil.jsx'
 import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
+import { solicitarGeocodePrestador } from '../../../lib/credenciamento/solicitarGeocodePrestador'
+import {
+    coordenadasValidasBrasil,
+    hashEnderecoGeocode,
+    montarEnderecoGeocodeFromPrestador,
+    parseCoordenadaEntrada,
+} from '../../../lib/credenciamento/prestadorEnderecoGeocode'
 import { apenasDigitos } from '../../../lib/contratos/validarDocumentos.js'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 
 const COLS_PRESTADOR =
-    'id, nome, tipo, telefone, celular, email, cpf_cnpj, crmv, cidade_id, endereco, modalidade, especialidade_id, situacao_id, cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_pais, endereco_uf, endereco_cidade, endereco_bairro, chave_pix, tipo_pix, tipo_repasse, ativo'
+    'id, nome, tipo, telefone, celular, email, cpf_cnpj, crmv, cidade_id, endereco, modalidade, especialidade_id, situacao_id, cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_pais, endereco_uf, endereco_cidade, endereco_bairro, chave_pix, tipo_pix, tipo_repasse, ativo, latitude, longitude'
 
 const COLS_PRESTADOR_SEM_TIPO_PIX =
-    'id, nome, tipo, telefone, celular, email, cpf_cnpj, crmv, cidade_id, endereco, modalidade, especialidade_id, situacao_id, cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_pais, endereco_uf, endereco_cidade, endereco_bairro, chave_pix, tipo_repasse, ativo'
+    'id, nome, tipo, telefone, celular, email, cpf_cnpj, crmv, cidade_id, endereco, modalidade, especialidade_id, situacao_id, cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_pais, endereco_uf, endereco_cidade, endereco_bairro, chave_pix, tipo_repasse, ativo, latitude, longitude'
 
 const ORDEM_CIDADES_STORAGE_PREFIX = 'emerdog_prestador_cidades_ordem_'
 
@@ -107,6 +116,8 @@ const estadoVazio = () => ({
     tipo_repasse: '',
     modalidade: '',
     cidade_id: '',
+    latitude: '',
+    longitude: '',
 })
 
 const CredenciamentoCadastroForm = () => {
@@ -147,6 +158,9 @@ const CredenciamentoCadastroForm = () => {
     }, [])
 
     const podeDevToolPerfil = useStoredPermission(PERMISSION_KEYS.DEV_TOOLS)
+    const { ui: devToolsUi } = useDevToolsUi()
+    const mostrarCoordenadasDev =
+        hasStoredDevTools() && podeDevToolPerfil && devToolsUi.colunasCadastro?.coordenadasMapa
     const podeGerarContrato = useStoredPermission(PERMISSION_KEYS.CONTRATOS_EDIT)
 
     const nomeEspecialidadePrincipal = useMemo(() => {
@@ -253,6 +267,8 @@ const CredenciamentoCadastroForm = () => {
                 tipo_repasse: data.tipo_repasse || '',
                 modalidade: data.modalidade || '',
                 cidade_id: cidadeIdForm,
+                latitude: data.latitude != null ? String(data.latitude) : '',
+                longitude: data.longitude != null ? String(data.longitude) : '',
             })
             ultimoCepBuscadoRef.current = String(data.cep || '').replace(/\D/g, '')
 
@@ -513,6 +529,19 @@ const CredenciamentoCadastroForm = () => {
 
             const usaClinica = secaoMultiplasCidades && atendeEmClinica
 
+            let salvouCoordenadasManual = false
+            const latManual = mostrarCoordenadasDev ? parseCoordenadaEntrada(form.latitude) : null
+            const lngManual = mostrarCoordenadasDev ? parseCoordenadaEntrada(form.longitude) : null
+            if (mostrarCoordenadasDev && (form.latitude.trim() || form.longitude.trim())) {
+                if (latManual == null || lngManual == null) {
+                    throw new Error('Latitude e longitude devem ser preenchidas juntas (números válidos).')
+                }
+                if (!coordenadasValidasBrasil(latManual, lngManual)) {
+                    throw new Error('Coordenadas fora da faixa do Brasil.')
+                }
+                salvouCoordenadasManual = true
+            }
+
             const payload = {
                 nome: form.nome.trim(),
                 cpf_cnpj: normalizarCpfCnpjParaSalvar(form.cpf_cnpj),
@@ -539,6 +568,14 @@ const CredenciamentoCadastroForm = () => {
                 cidade_id: cidadePrincipalId,
                 ativo: true,
                 data_atualizacao: new Date().toISOString(),
+            }
+            if (salvouCoordenadasManual) {
+                const agoraGeo = new Date().toISOString()
+                payload.latitude = latManual
+                payload.longitude = lngManual
+                payload.geocoded_at = agoraGeo
+                payload.geocode_fonte = 'manual'
+                payload.endereco_geocode_hash = hashEnderecoGeocode(montarEnderecoGeocodeFromPrestador(form))
             }
 
             const erroColunaTipoPix = (err) =>
@@ -685,6 +722,10 @@ const CredenciamentoCadastroForm = () => {
                     }
                     throw new Error(msg)
                 }
+            }
+
+            if ((tipoSalvar === 'LOCAL' || tipoEspecialidadePrestador(esp?.tipo) === 'LOCAL') && !salvouCoordenadasManual) {
+                solicitarGeocodePrestador(pid)
             }
 
             navigate('/credenciamento/cadastro', { replace: true })
@@ -933,6 +974,32 @@ const CredenciamentoCadastroForm = () => {
                             />
                         </label>
                     </div>
+                    {mostrarCoordenadasDev && (
+                        <div className="pcad_row pcad_row_end2 credenciamento_cadastro_coordenadas_dev">
+                            <label className="pcad_field">
+                                Latitude (Dev)
+                                <input
+                                    className="credenciamento_main_input"
+                                    inputMode="decimal"
+                                    placeholder="-29.123456"
+                                    value={form.latitude}
+                                    onChange={(e) => setCampo('latitude', e.target.value)}
+                                    disabled={somenteLeitura}
+                                />
+                            </label>
+                            <label className="pcad_field">
+                                Longitude (Dev)
+                                <input
+                                    className="credenciamento_main_input"
+                                    inputMode="decimal"
+                                    placeholder="-51.123456"
+                                    value={form.longitude}
+                                    onChange={(e) => setCampo('longitude', e.target.value)}
+                                    disabled={somenteLeitura}
+                                />
+                            </label>
+                        </div>
+                    )}
                 </section>
 
                 <section className="pcad_card">

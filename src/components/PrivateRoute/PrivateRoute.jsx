@@ -5,10 +5,12 @@ import {
     normalizarProfileAcesso,
     setStoredAccessProfile,
     usuarioSomenteLeituraGlobal,
+    podeLerFerramenta,
 } from '../../lib/accessControl'
+import { LEGACY_SCREEN_TO_TOOL } from '../../lib/permissionCatalog'
 import { clearAccessState, supabase, setReadOnlyFlag } from '../../lib/supabase'
 
-const PrivateRoute = ({ children, permission, screenPermission }) => {
+const PrivateRoute = ({ children, permission, screenPermission, toolId }) => {
     const [session, setSession] = useState(undefined)
     const [profile, setProfile] = useState(undefined)
 
@@ -51,9 +53,13 @@ const PrivateRoute = ({ children, permission, screenPermission }) => {
 
     if (session === undefined) return <p>Carregando...</p>
     if (!session) return <Navigate to="/" replace />
-    if ((permission || screenPermission) && profile === undefined) return <p>Carregando...</p>
+    if ((permission || screenPermission || toolId) && profile === undefined) return <p>Carregando...</p>
     if (permission && (!profile || !hasPermission(profile, permission))) return <Navigate to="/home" replace />
     if (screenPermission && (!profile || !hasPermission(profile, screenPermission))) {
+        return <Navigate to="/home" replace />
+    }
+    const toolParaLer = toolId || (screenPermission && LEGACY_SCREEN_TO_TOOL[screenPermission])
+    if (toolParaLer && (!profile || !podeLerFerramenta(profile.permissions, toolParaLer))) {
         return <Navigate to="/home" replace />
     }
 

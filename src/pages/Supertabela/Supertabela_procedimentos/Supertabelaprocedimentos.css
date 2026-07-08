@@ -516,3 +516,57 @@
     max-width: 420px;
     margin: 0 auto;
 }
+
+body.dark-mode .supertabelaprocedimentos.is-modo-categorias .categoria_titulo {
+    color: #c8e0f0;
+}
+
+body.dark-mode .supertabelaprocedimentos_categorias_secao {
+    background: transparent;
+}
+
+body.dark-mode .supertabelaprocedimentos_tipo_limite_label {
+    color: #a8c0d4;
+}
+
+body.dark-mode .supertabelaprocedimentos_limite_grupo_inativo {
+    background: #1e2a38;
+    opacity: 0.85;
+}
+
+body.dark-mode .supertabelaprocedimentos_limite_individual_muted {
+    color: #7a9ab0;
+}
+
+body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabelaprocedimentos_categorias_input {
+    background: #1a2838;
+    border-color: #3a5068;
+    color: #e8f0f8;
+}
+
+body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabelaprocedimentos_categorias_input:focus {
+    border-color: #4a9fd4;
+    background: #1e3248;
+    box-shadow: 0 0 0 3px rgba(74, 159, 212, 0.22);
+}
+
+@media (max-width: 1023px) {
+    .supertabelaprocedimentos.is-modo-categorias .supertabelaprocedimentos_categorias_table {
+        font-size: 0.86rem;
+    }
+
+    .supertabelaprocedimentos_categorias_secao {
+        padding: 0.5rem 0.25rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .supertabelaprocedimentos_limite_tipo_switch .supertabelaprocedimentos_form_switch_label {
+        min-width: 3.2rem;
+        font-size: 0.68rem;
+    }
+
+    .supertabelaprocedimentos_th_plan {
+        font-size: 0.68rem;
+    }
+}

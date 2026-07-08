@@ -2309,13 +2309,16 @@ ou um código por linha`}
                                             <th className='table_header' onClick={() => handleOrdenarCategoria(secao.categoriaId, 'codigo')}>
                                                 Código{obterIndicadorOrdenacao(secao.categoriaId, 'codigo')}
                                             </th>
-                                            <th className='table_header' onClick={() => handleOrdenarCategoria(secao.categoriaId, 'procedimento')}>
+                                            <th
+                                                className='table_header supertabelaplanos_th_nome'
+                                                onClick={() => handleOrdenarCategoria(secao.categoriaId, 'procedimento')}
+                                            >
                                                 Nome{obterIndicadorOrdenacao(secao.categoriaId, 'procedimento')}
                                             </th>
                                             {COLUNAS_PLANO.map(({ chave, titulo }) => (
                                                 <th
                                                     key={chave}
-                                                    className='table_header'
+                                                    className='table_header supertabelaplanos_th_centro'
                                                     onClick={() => handleOrdenarCategoria(secao.categoriaId, chave)}
                                                 >
                                                     {titulo}
@@ -2331,14 +2334,14 @@ ou um código por linha`}
                                         {secao.linhas.map((linha, linhaIndex) => (
                                             <tr key={`${secao.categoriaId}-${linha.codigo}`}>
                                                 <td className='table_text_left'>{linha.codigo}</td>
-                                                <td className={`table_text_left ${obterClasseProcedimento(linha.procedimento)}`}>
+                                                <td className={`table_text_left supertabelaplanos_td_nome ${obterClasseProcedimento(linha.procedimento)}`}>
                                                     {linha.procedimento}
                                                 </td>
                                                 {COLUNAS_PLANO.map(({ chave }) => {
                                                     const cel = linha[chave]
                                                     const editavel = edicaoAtiva && cel?.planoCidadeId
                                                     return (
-                                                        <td key={chave}>
+                                                        <td key={chave} className='supertabelaplanos_td_centro'>
                                                             {editavel ? (
                                                                 <input
                                                                     className='table_cell_input'
@@ -2448,17 +2451,26 @@ ou um código por linha`}
                                             <th className='table_header' onClick={() => handleOrdenarCategoria(secao.categoriaId, 'codigo')}>
                                                 Código{obterIndicadorOrdenacao(secao.categoriaId, 'codigo')}
                                             </th>
-                                            <th className='table_header' onClick={() => handleOrdenarCategoria(secao.categoriaId, 'procedimento')}>
+                                            <th
+                                                className='table_header supertabelaplanos_th_nome'
+                                                onClick={() => handleOrdenarCategoria(secao.categoriaId, 'procedimento')}
+                                            >
                                                 Nome{obterIndicadorOrdenacao(secao.categoriaId, 'procedimento')}
                                             </th>
-                                            <th className='table_header' onClick={() => handleOrdenarCategoria(secao.categoriaId, 'limite')}>
+                                            <th
+                                                className='table_header supertabelaplanos_th_centro'
+                                                onClick={() => handleOrdenarCategoria(secao.categoriaId, 'limite')}
+                                            >
                                                 <span className='supertabelaplanos_th_stack'>
                                                     <span className='supertabelaplanos_th_main'>Limite</span>
                                                     <span className='supertabelaplanos_th_plan'>{planoDetalheNome}</span>
                                                 </span>
                                                 {obterIndicadorOrdenacao(secao.categoriaId, 'limite')}
                                             </th>
-                                            <th className='table_header' onClick={() => handleOrdenarCategoria(secao.categoriaId, 'carencia')}>
+                                            <th
+                                                className='table_header supertabelaplanos_th_centro'
+                                                onClick={() => handleOrdenarCategoria(secao.categoriaId, 'carencia')}
+                                            >
                                                 <span className='supertabelaplanos_th_stack'>
                                                     <span className='supertabelaplanos_th_main'>Carência</span>
                                                     <span className='supertabelaplanos_th_plan'>{planoDetalheNome}</span>
@@ -2485,7 +2497,7 @@ ou um código por linha`}
                                             const rowspanGrupo = linhasNoGrupo.length
 
                                             const renderCelulaLimiteIndividual = (linha, linhaIndex) => (
-                                                <td>
+                                                <td className='supertabelaplanos_td_centro'>
                                                     {edicaoAtiva && linha.planosConfigId ? (
                                                         <input
                                                             className='table_cell_input_text'
@@ -2526,7 +2538,7 @@ ou um código por linha`}
                                                 return (
                                             <tr key={`${secao.categoriaId}-${linha.codigo}-lim`}>
                                                 <td className='table_text_left'>{linha.codigo}</td>
-                                                <td className={`table_text_left ${obterClasseProcedimento(linha.procedimento)}`}>
+                                                <td className={`table_text_left supertabelaplanos_td_nome ${obterClasseProcedimento(linha.procedimento)}`}>
                                                     {linha.procedimento}
                                                 </td>
                                                 {usaLimiteGrupoSecao && isentoLimiteGrupo ? (
@@ -2541,7 +2553,7 @@ ou um código por linha`}
                                                 ) : usaLimiteGrupoSecao && indiceNoGrupo > 0 ? null : (
                                                     renderCelulaLimiteIndividual(linha, linhaIndex)
                                                 )}
-                                                <td>
+                                                <td className='supertabelaplanos_td_centro'>
                                                     {edicaoAtiva && linha.planosConfigId ? (
                                                         <input
                                                             className='table_cell_input_text'

@@ -519,7 +519,7 @@ export default function ImpressaoPlanos() {
                                                     Cód.{indicadorOrdem('codigo')}
                                                 </th>
                                                 <th
-                                                    className="table_header"
+                                                    className="table_header planos_impressao_th_nome"
                                                     onClick={() => alternarOrdenacao('nome')}
                                                 >
                                                     Nome{indicadorOrdem('nome')}
@@ -580,7 +580,7 @@ export default function ImpressaoPlanos() {
                                                     if (isentoLimiteGrupo || !usaLimiteGrupoSecao) {
                                                         celulaLimite = (
                                                             <td
-                                                                className="table_text_left planos_impressao_td_compact planos_impressao_td_limite"
+                                                                className="planos_impressao_td_compact planos_impressao_td_limite"
                                                                 title={
                                                                     linha.limiteIndividualExibicao ||
                                                                     linha.limiteExibicao
@@ -611,7 +611,7 @@ export default function ImpressaoPlanos() {
                                                     } else {
                                                         celulaLimite = (
                                                             <td
-                                                                className="table_text_left planos_impressao_td_compact planos_impressao_td_limite"
+                                                                className="planos_impressao_td_compact planos_impressao_td_limite"
                                                                 title={linha.limiteExibicao || textoGrupo}
                                                             >
                                                                 {linha.limiteExibicao || textoGrupo}

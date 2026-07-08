@@ -17,9 +17,11 @@ import Credenciamento_doc from './pages/Credenciamento/Credenciamento_doc/Creden
 import Credenciamento_main from './pages/Credenciamento/Credenciamento_main/Credenciamento_main';
 import CredenciamentoCadastroLista from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroLista';
 import CredenciamentoCadastroForm from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroForm';
+import CredenciamentoMapa from './pages/Credenciamento/Credenciamento_mapa/CredenciamentoMapa';
 import CredenciamentoQuemRealiza from './pages/Credenciamento/QuemRealiza/CredenciamentoQuemRealiza';
 import CredenciamentoFormularioConfig from './pages/Credenciamento/Formulario/CredenciamentoFormularioConfig';
 import CredenciamentoFormularioInbox from './pages/Credenciamento/Formulario/CredenciamentoFormularioInbox';
+import CredenciamentoEspecialidadesRc from './pages/Credenciamento/EspecialidadesRc/CredenciamentoEspecialidadesRc';
 import CredenciamentoFormularioPublico from './pages/Credenciamento/Formulario/CredenciamentoFormularioPublico';
 import GerenciamentoAcessos from './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos';
 import ComprasValorVenda from './pages/Compras/ValorVenda/ComprasValorVenda';
@@ -51,7 +53,7 @@ function App() {
           <Route
             path="/supertabeladoc"
             element={
-              <PrivateRoute permission="supertabela.view">
+              <PrivateRoute permission="supertabela.view" toolId="supertabela.doc">
                 <Supertabeladoc />
               </PrivateRoute>
             }
@@ -61,7 +63,7 @@ function App() {
           <Route
             path="/supertabelamain"
             element={
-              <PrivateRoute permission="supertabela.view">
+              <PrivateRoute permission="supertabela.view" toolId="supertabela.main">
                 <Supertabelamain />
               </PrivateRoute>
             }
@@ -71,7 +73,7 @@ function App() {
           <Route
             path="/supertabela/cidades"
             element={
-              <PrivateRoute permission="supertabela.view">
+              <PrivateRoute permission="supertabela.view" toolId="supertabela.cidades">
                 <Supertabelacidades />
               </PrivateRoute>
             }
@@ -81,7 +83,7 @@ function App() {
           <Route
             path="/planos/impressao"
             element={
-              <PrivateRoute permission="planos.view">
+              <PrivateRoute permission="planos.view" toolId="planos.impressao">
                 <ImpressaoPlanos />
               </PrivateRoute>
             }
@@ -95,7 +97,7 @@ function App() {
           <Route
             path="/supertabela/planos"
             element={
-              <PrivateRoute permission="supertabela.view">
+              <PrivateRoute permission="supertabela.view" toolId="supertabela.planos">
                 <Supertabelaplanos />
               </PrivateRoute>
             }
@@ -105,7 +107,7 @@ function App() {
           <Route
             path="/supertabela/procedimentos"
             element={
-              <PrivateRoute permission="supertabela.view">
+              <PrivateRoute permission="supertabela.view" toolId="supertabela.procedimentos">
                 <Supertabelaprocedimentos />
               </PrivateRoute>
             }
@@ -115,7 +117,11 @@ function App() {
           <Route
             path="/supertabela/negociacoes"
             element={
-              <PrivateRoute permission="supertabela.view" screenPermission="supertabela.negociacoes.view">
+              <PrivateRoute
+                permission="supertabela.view"
+                screenPermission="supertabela.negociacoes.view"
+                toolId="supertabela.negociacoes"
+              >
                 <Supertabelanegociacoes />
               </PrivateRoute>
             }
@@ -125,7 +131,7 @@ function App() {
           <Route
             path="/credenciamento/principal"
             element={
-              <PrivateRoute permission="credenciamento.view">
+              <PrivateRoute permission="credenciamento.view" toolId="credenciamento.processos">
                 <Credenciamento_main />
               </PrivateRoute>
             }
@@ -133,7 +139,11 @@ function App() {
           <Route
             path="/credenciamento/cadastro"
             element={
-              <PrivateRoute permission="credenciamento.view" screenPermission="credenciamento.cadastro.view">
+              <PrivateRoute
+                permission="credenciamento.view"
+                screenPermission="credenciamento.cadastro.view"
+                toolId="credenciamento.cadastro"
+              >
                 <CredenciamentoCadastroLista />
               </PrivateRoute>
             }
@@ -141,15 +151,31 @@ function App() {
           <Route
             path="/credenciamento/cadastro/:id"
             element={
-              <PrivateRoute permission="credenciamento.view" screenPermission="credenciamento.cadastro.view">
+              <PrivateRoute
+                permission="credenciamento.view"
+                screenPermission="credenciamento.cadastro.view"
+                toolId="credenciamento.cadastro"
+              >
                 <CredenciamentoCadastroForm />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/credenciamento/mapa"
+            element={
+              <PrivateRoute permission="credenciamento.view" toolId="credenciamento.mapa">
+                <CredenciamentoMapa />
               </PrivateRoute>
             }
           />
           <Route
             path="/credenciamento/quem-realiza"
             element={
-              <PrivateRoute permission="credenciamento.view" screenPermission="credenciamento.quem_realiza.view">
+              <PrivateRoute
+                permission="credenciamento.view"
+                screenPermission="credenciamento.quem_realiza.view"
+                toolId="credenciamento.quem_realiza"
+              >
                 <CredenciamentoQuemRealiza />
               </PrivateRoute>
             }
@@ -157,7 +183,7 @@ function App() {
           <Route
             path="/credenciamento/formulario"
             element={
-              <PrivateRoute permission="credenciamento.view">
+              <PrivateRoute permission="credenciamento.view" toolId="credenciamento.formulario">
                 <CredenciamentoFormularioConfig />
               </PrivateRoute>
             }
@@ -168,8 +194,17 @@ function App() {
               <PrivateRoute
                 permission="credenciamento.view"
                 screenPermission="credenciamento.formulario.inbox"
+                toolId="credenciamento.formulario_inbox"
               >
                 <CredenciamentoFormularioInbox />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/credenciamento/especialidades-rc"
+            element={
+              <PrivateRoute permission="credenciamento.view" toolId="credenciamento.especialidades_rc">
+                <CredenciamentoEspecialidadesRc />
               </PrivateRoute>
             }
           />
@@ -178,7 +213,7 @@ function App() {
           <Route
             path="/administrativo/acessos"
             element={
-              <PrivateRoute permission="access.manage">
+              <PrivateRoute permission="access.manage" toolId="admin.acessos">
                 <GerenciamentoAcessos />
               </PrivateRoute>
             }
@@ -194,7 +229,7 @@ function App() {
           <Route
             path="/compras/valor-venda"
             element={
-              <PrivateRoute permission="compras.view">
+              <PrivateRoute permission="compras.view" toolId="compras.valor_venda">
                 <ComprasValorVenda />
               </PrivateRoute>
             }
@@ -204,7 +239,7 @@ function App() {
           <Route
             path="/compras/orcamento"
             element={
-              <PrivateRoute permission="compras.view">
+              <PrivateRoute permission="compras.view" toolId="compras.orcamento">
                 <ComprasOrcamento />
               </PrivateRoute>
             }
@@ -214,7 +249,7 @@ function App() {
           <Route
             path="/contratos/gerar"
             element={
-              <PrivateRoute permission="contratos.view">
+              <PrivateRoute permission="contratos.view" toolId="contratos.gerar_pdf">
                 <ContratosEmerdog />
               </PrivateRoute>
             }
@@ -222,7 +257,7 @@ function App() {
           <Route
             path="/contratos/clicksign"
             element={
-              <PrivateRoute permission="contratos.view">
+              <PrivateRoute permission="contratos.view" toolId="contratos.clicksign">
                 <ClicksignEmerdog />
               </PrivateRoute>
             }
@@ -232,7 +267,7 @@ function App() {
           <Route
             path="/pagamentos/registro"
             element={
-              <PrivateRoute permission="pagamentos.view">
+              <PrivateRoute permission="pagamentos.view" toolId="pagamentos.registro">
                 <PagamentosRegistro />
               </PrivateRoute>
             }

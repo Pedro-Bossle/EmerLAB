@@ -1,0 +1,214 @@
+.especialidades_rc_intro {
+    max-width: 52rem;
+    margin: 0 auto 1rem;
+    text-align: center;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    color: #4a5568;
+}
+
+.especialidades_rc_toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    max-width: 100%;
+}
+
+.especialidades_rc_busca {
+    flex: 1 1 220px;
+    min-width: 0;
+    max-width: 420px;
+}
+
+.especialidades_rc_toolbar_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.especialidades_rc_table_wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.especialidades_rc_table {
+    width: 100%;
+    min-width: 520px;
+}
+
+.especialidades_rc_col_ordem {
+    width: 2.5rem;
+    text-align: center;
+}
+
+.especialidades_rc_col_drag {
+    width: 2rem;
+    text-align: center;
+}
+
+.especialidades_rc_col_grupo {
+    width: 4.5rem;
+    text-align: center;
+}
+
+.especialidades_rc_col_acoes {
+    width: 5.5rem;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.especialidades_rc_grip {
+    cursor: grab;
+    color: #8a9aab;
+    user-select: none;
+    letter-spacing: -2px;
+}
+
+.especialidades_rc_row.is-dragging {
+    opacity: 0.65;
+    background: #eef6fa;
+}
+
+.especialidades_rc_input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.especialidades_rc_btn_mini {
+    padding: 0.2rem 0.45rem;
+    min-width: 2rem;
+    margin: 0 0.1rem;
+}
+
+.especialidades_rc_muted {
+    text-align: center;
+    color: #6b7280;
+    margin: 1rem 0;
+}
+
+.especialidades_rc_sucesso {
+    text-align: center;
+    color: #0d6b3a;
+    margin: 0 0 0.75rem;
+}
+
+.especialidades_rc_btn_novo {
+    min-width: 6.5rem;
+}
+
+.especialidades_rc_novo_painel {
+    margin: 0 auto 1rem;
+    max-width: 720px;
+    padding: 0.85rem 1rem;
+    border-radius: 8px;
+    border: 1px solid #d9e6f0;
+    background: #f8fbfd;
+    box-sizing: border-box;
+}
+
+.especialidades_rc_novo_titulo {
+    margin: 0 0 0.65rem;
+    font-weight: 600;
+    text-align: center;
+    color: #1a2e4a;
+}
+
+.especialidades_rc_novo_grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem 0.75rem;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.especialidades_rc_novo_campo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1 1 200px;
+    min-width: 0;
+    max-width: 280px;
+}
+
+.especialidades_rc_novo_campo > span {
+    font-size: 0.82rem;
+    color: #5e7188;
+}
+
+.especialidades_rc_erro {
+    margin-bottom: 0.75rem;
+}
+
+body.dark-mode .especialidades_rc_intro {
+    color: #b8c4d0;
+}
+
+body.dark-mode .especialidades_rc_novo_painel {
+    background: #1a2838;
+    border-color: #3a5068;
+}
+
+body.dark-mode .especialidades_rc_novo_titulo {
+    color: #e8f0f8;
+}
+
+body.dark-mode .especialidades_rc_novo_campo > span {
+    color: #9eb4c4;
+}
+
+body.dark-mode .especialidades_rc_row.is-dragging {
+    background: #1e3a52;
+}
+
+body.dark-mode .especialidades_rc_grip {
+    color: #7a9ab0;
+}
+
+body.dark-mode .especialidades_rc_muted {
+    color: #9eb4c4;
+}
+
+body.dark-mode .especialidades_rc_sucesso {
+    color: #7dcea0;
+}
+
+body.dark-mode .especialidades_rc_table .especialidades_rc_input {
+    background: #1a2838;
+    border-color: #3a5068;
+    color: #e8f0f8;
+}
+
+@media (max-width: 1023px) {
+    .especialidades_rc_toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .especialidades_rc_busca {
+        max-width: none;
+    }
+
+    .especialidades_rc_toolbar_acoes {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 640px) {
+    .especialidades_rc_col_grupo {
+        display: none;
+    }
+
+    .especialidades_rc_table {
+        min-width: 0;
+    }
+
+    .especialidades_rc_col_acoes .credenciamento_main_action_btn {
+        font-size: 0.75rem;
+        padding: 0.15rem 0.35rem;
+    }
+}

@@ -14,7 +14,10 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "rc:pdf": "node ./scripts/rc/generate-rc-pdf.mjs"
+    "rc:pdf": "node ./scripts/rc/generate-rc-pdf.mjs",
+    "prestadores:export-enderecos": "node ./scripts/credenciamento/export-prestadores-enderecos-csv.mjs",
+    "prestadores:import-coordenadas": "node ./scripts/credenciamento/import-prestadores-coordenadas-csv.mjs",
+    "prestadores:geocode-primeira-carga": "node ./scripts/credenciamento/geocode-prestadores-primeira-carga.mjs"
   },
   "dependencies": {
     "@sparticuz/chromium": "^148.0.0",
@@ -24,10 +27,12 @@
     "exceljs": "^4.4.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
+    "leaflet": "^1.9.4",
     "pdf-lib": "^1.17.1",
     "puppeteer-core": "^24.43.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.14.0"
   },
   "devDependencies": {

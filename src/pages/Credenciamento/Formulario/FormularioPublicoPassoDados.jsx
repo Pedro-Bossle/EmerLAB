@@ -76,6 +76,12 @@ export default function FormularioPublicoPassoDados({
 
     return (
         <div className="fcred_passo_dados">
+            {tipoPerfil === 'clinica' && (
+                <p className="fcred_aviso_terceiros">
+                    Caso a clínica possua serviços de banho e tosa, loja, farmácia, recreação, hotel ou adestramento,
+                    preencha em <strong>Múltiplas especialidades</strong>.
+                </p>
+            )}
             <Bloco titulo="Identificação">
                 <div className="fcred_grid fcred_grid_2">
                     <label className="fcred_field fcred_field_doc">

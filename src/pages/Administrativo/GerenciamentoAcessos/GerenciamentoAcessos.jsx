@@ -1,18 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
     DEFAULT_INVITED_PERMISSIONS,
-    PERMISSOES,
-    PERMISSION_KEYS,
-    hasPermission,
     normalizarProfileAcesso,
+    normalizarPermissions,
     setStoredAccessProfile,
 } from '../../../lib/accessControl'
+import PermissoesCascade from './PermissoesCascade'
 import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import { supabase } from '../../../lib/supabase'
 import './GerenciamentoAcessos.css'
+import './PermissoesCascade.css'
 
-const permissoesPadraoNovoUsuario = () => ({ ...DEFAULT_INVITED_PERMISSIONS })
+const permissoesPadraoNovoUsuario = () => normalizarPermissions({ permissions: { ...DEFAULT_INVITED_PERMISSIONS } })
 
 function formatarDataLog(iso) {
     if (!iso) return '—'
@@ -151,31 +151,26 @@ const GerenciamentoAcessos = () => {
         }
     }, [abaDetalhe, edicao?.id, carregarLogs])
 
-    const alterarPermissaoConvite = (chave) => {
-        setConvite((atual) => ({
-            ...atual,
-            permissions: {
-                ...atual.permissions,
-                [chave]: !atual.permissions[chave],
-            },
-        }))
+    const alterarPermissoesConvite = (permissions) => {
+        setConvite((atual) => ({ ...atual, permissions }))
     }
 
-    const alterarPermissaoEdicao = (chave) => {
+    const alterarPermissoesEdicao = (permissions) => {
         setEdicao((atual) => {
             if (!atual) return atual
-            if (String(atual.id) === String(usuarioAtualId) && chave === PERMISSION_KEYS.ACCESS_MANAGE) {
-                return atual
-            }
-            return {
-                ...atual,
-                permissions: {
-                    ...atual.permissions,
-                    [chave]: !atual.permissions[chave],
-                },
-            }
+            return { ...atual, permissions }
         })
     }
+
+    const renderPermissoes = (permissions, onChange, usuarioId = '') => (
+        <PermissoesCascade
+            permissions={permissions}
+            onChange={onChange}
+            disabled={loading}
+            usuarioId={usuarioId}
+            usuarioAtualId={usuarioAtualId}
+        />
+    )
 
     const convidarUsuario = async (event) => {
         event.preventDefault()
@@ -278,35 +273,6 @@ const GerenciamentoAcessos = () => {
         }
     }
 
-    const renderPermissoes = (permissions, onToggle, prefixo, usuarioId = '') => (
-        <div className='gerenciamento_acessos_permissoes'>
-            {PERMISSOES.map((grupo) => (
-                <section key={`${prefixo}-${grupo.grupo}`} className='gerenciamento_acessos_permissao_grupo'>
-                    <h4>{grupo.grupo}</h4>
-                    {grupo.itens.map((permissao) => {
-                        const bloqueiaSelfAdmin =
-                            String(usuarioId) === String(usuarioAtualId) &&
-                            permissao.chave === PERMISSION_KEYS.ACCESS_MANAGE
-                        return (
-                            <label key={`${prefixo}-${permissao.chave}`} className='gerenciamento_acessos_permissao_item'>
-                                <input
-                                    type='checkbox'
-                                    checked={hasPermission(permissions, permissao.chave)}
-                                    disabled={loading || bloqueiaSelfAdmin}
-                                    onChange={() => onToggle(permissao.chave)}
-                                />
-                                <span>
-                                    <strong>{permissao.rotulo}</strong>
-                                    <small>{permissao.descricao}</small>
-                                </span>
-                            </label>
-                        )
-                    })}
-                </section>
-            ))}
-        </div>
-    )
-
     return (
         <main className='gerenciamento_acessos'>
             <header className='gerenciamento_acessos_header'>
@@ -395,7 +361,7 @@ const GerenciamentoAcessos = () => {
 
                             {abaDetalhe === 'permissoes' && (
                                 <>
-                                    {renderPermissoes(edicao.permissions, alterarPermissaoEdicao, 'edicao', edicao.id)}
+                                    {renderPermissoes(edicao.permissions, alterarPermissoesEdicao, edicao.id)}
                                     <div className='gerenciamento_acessos_acoes'>
                                         <button type='button' className='is-primary' onClick={salvarUsuario} disabled={loading}>
                                             Salvar permissões
@@ -524,7 +490,7 @@ const GerenciamentoAcessos = () => {
                                     disabled={loading}
                                 />
                             </label>
-                            {renderPermissoes(convite.permissions, alterarPermissaoConvite, 'convite')}
+                            {renderPermissoes(convite.permissions, alterarPermissoesConvite)}
                             <div className='gerenciamento_acessos_acoes'>
                                 <button type='button' onClick={() => setMostrarConvite(false)} disabled={loading}>
                                     Cancelar

@@ -1,0 +1,246 @@
+[
+  {
+    "prestadorId": 599,
+    "nome": "Clínica Veterinária Bertti e Machado",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 599,
+      "nome": "Clínica Veterinária Bertti e Machado",
+      "ufEsperada": "RS",
+      "dicasCadastro": [],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Rua Heitor Curra, 1925, Centro, Flores da Cunha, RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Rua Heitor Curra, 1925, Flores da Cunha, RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Rua Heitor Curra, Flores da Cunha, RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Rua Heitor Curra, 1925, Centro, Flores da Cunha/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Rua Heitor Curra, 1925, Centro, Flores da Cunha/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Rua Heitor Curra, 1925, Centro, Flores da Cunha, RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Rua Heitor Curra, 1925, Flores da Cunha, RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Rua Heitor Curra, Flores da Cunha, RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "8 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto)"
+    }
+  },
+  {
+    "prestadorId": 578,
+    "nome": "Clínica Veterinária CT Pet Center",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 578,
+      "nome": "Clínica Veterinária CT Pet Center",
+      "ufEsperada": "RS",
+      "dicasCadastro": [],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Rua Joana Mattioda Manfro, 201, Sagrada Família, Caxias do Sul, RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Rua Joana Mattioda Manfro, 201, Caxias do Sul, RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Rua Joana Mattioda Manfro, Caxias do Sul, RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Rua Joana Mattioda Manfro, 201, Sagrada Família, Caxias do Sul/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Rua Joana Mattioda Manfro, 201, Sagrada Família, Caxias do Sul/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Rua Joana Mattioda Manfro, 201, Sagrada Família, Caxias do Sul, RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Rua Joana Mattioda Manfro, 201, Caxias do Sul, RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Rua Joana Mattioda Manfro, Caxias do Sul, RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "8 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto)"
+    }
+  },
+  {
+    "prestadorId": 693,
+    "nome": "Crematório e Memorial Pet da Serra",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 693,
+      "nome": "Crematório e Memorial Pet da Serra",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Número do endereço vazio nos campos novos."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Estrada Olinto Carlos Toigo, Otávio Rocha, Flores da Cunha, RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Estrada Olinto Carlos Toigo, Flores da Cunha, RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Estrada Olinto Carlos Toigo, Otávio Rocha, Flores da Cunha/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Estrada Olinto Carlos Toigo, Otávio Rocha, Flores da Cunha/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Estrada Olinto Carlos Toigo, Otávio Rocha, Flores da Cunha, RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "estruturado",
+          "query": "Estrada Olinto Carlos Toigo, Flores da Cunha, RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "6 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Número do endereço vazio nos campos novos."
+    }
+  },
+  {
+    "prestadorId": 431,
+    "nome": "Hospital Veterinário PetLandia",
+    "codigo": "nominatim_nao_encontrado",
+    "erro": "Endereço não encontrado.",
+    "diagnostico": {
+      "prestadorId": 431,
+      "nome": "Hospital Veterinário PetLandia",
+      "ufEsperada": "RS",
+      "dicasCadastro": [
+        "Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+      ],
+      "tentativas": [
+        {
+          "tentativa": "legado",
+          "query": "Avenida Therezinha Pauletti Sanvitto, 430, Sanvitto, Caxias do Sul/RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Avenida Therezinha Pauletti Sanvitto, 430, Sanvitto, Caxias do Sul/RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Avenida Therezinha Pauletti Sanvitto, 430, Sanvitto, Caxias do Sul, RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Avenida Therezinha Pauletti Sanvitto, 430, Sanvitto, Caxias do Sul, RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Avenida Therezinha Pauletti Sanvitto, 430, Caxias do Sul, RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Avenida Therezinha Pauletti Sanvitto, 430, Caxias do Sul, RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Avenida Therezinha Pauletti Sanvitto, Caxias do Sul, RS",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        },
+        {
+          "tentativa": "legado",
+          "query": "Avenida Therezinha Pauletti Sanvitto, Caxias do Sul, RS, Brasil",
+          "codigo": "nominatim_nao_encontrado",
+          "detalhe": "Nominatim não retornou resultado para esta consulta."
+        }
+      ],
+      "resumo": "8 consulta(s) sem match no Nominatim (endereço ambíguo ou incompleto); Dicas cadastro: Legado usa travessão (—); na busca isso vira vírgula — confira se não quebrou o sentido."
+    }
+  }
+]

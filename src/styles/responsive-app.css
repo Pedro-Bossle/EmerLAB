@@ -29,6 +29,8 @@
     .supertabelaprocedimentos,
     .supertabelanegociacoes,
     .credenciamento_main:not(.quem_realiza),
+    .credenciamento_main.especialidades_rc,
+    .planos_impressao,
     .compras_vv,
     .compras_orc,
     .gerenciamento_acessos {
@@ -58,6 +60,7 @@
     .supertabelaprocedimentos_filters,
     .supertabelanegociacoes_filters,
     .credenciamento_main_filters,
+    .planos_impressao_filtros,
     .compras_vv_filters,
     .compras_orc_filtros_inner {
         flex-wrap: wrap !important;
@@ -126,6 +129,7 @@
     .supertabelaprocedimentos h1,
     .supertabelanegociacoes h1,
     .credenciamento_main h1,
+    .planos_impressao h1,
     .compras_vv h1,
     .pag_reg h1,
     .compras_orc h1 {

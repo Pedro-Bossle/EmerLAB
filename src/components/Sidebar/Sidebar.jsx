@@ -11,7 +11,9 @@ import {
     hasPermission,
     normalizarProfileAcesso,
     setStoredAccessProfile,
+    podeLerFerramenta,
 } from '../../lib/accessControl';
+import { getToolIdForHref } from '../../lib/permissionCatalog';
 import { clearAccessState, supabase } from '../../lib/supabase';
 
 /**
@@ -59,6 +61,7 @@ const menuItems = [
         children: [
             { label: 'Processos', href: '/credenciamento/principal', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
             { label: 'Cadastros', href: '/credenciamento/cadastro', permission: PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW },
+            { label: 'Mapa', href: '/credenciamento/mapa', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
             { label: 'Quem Realiza', href: '/credenciamento/quem-realiza', permission: PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW },
             {
                 label: 'Formulário público',
@@ -69,6 +72,11 @@ const menuItems = [
                 label: 'Inbox formulário',
                 href: '/credenciamento/formulario/entradas',
                 permission: PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_INBOX,
+            },
+            {
+                label: 'Especialidades',
+                href: '/credenciamento/especialidades-rc',
+                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
             },
             /* Documentação credenciamento — inativo por hora
             { label: 'Documentação', href: '/credenciamentodoc', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
@@ -164,10 +172,18 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
      */
     const [openMenus, setOpenMenus] = useState({})
 
+    const podeVerItemMenu = (child) => {
+        if (child.action) return true
+        const toolId = getToolIdForHref(child.href)
+        if (toolId) return podeLerFerramenta(accessProfile?.permissions, toolId)
+        if (child.permission) return hasPermission(accessProfile, child.permission)
+        return true
+    }
+
     const menuItemsVisiveis = menuItems
         .map((item) => {
             if (item.permission && !hasPermission(accessProfile, item.permission)) return null
-            const children = item.children.filter((child) => !child.permission || hasPermission(accessProfile, child.permission))
+            const children = item.children.filter((child) => podeVerItemMenu(child))
             if (children.length === 0) return null
             return { ...item, children }
         })

@@ -30,6 +30,8 @@
 @import '../pages/Credenciamento/Formulario/CredenciamentoFormulario.css';
 @import '../pages/Credenciamento/Formulario/CredenciamentoFormularioInbox.css';
 @import '../pages/Credenciamento/QuemRealiza/CredenciamentoQuemRealiza.css';
+@import '../pages/Credenciamento/EspecialidadesRc/CredenciamentoEspecialidadesRc.css';
+@import '../pages/Planos/ImpressaoPlanos/ImpressaoPlanos.css';
 
 @import '../pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos.css';
 

@@ -73,6 +73,12 @@ const ITENS_CADASTRO = [
 
     },
 
+    {
+        chave: 'coordenadasMapa',
+        rotulo: 'Latitude / longitude',
+        descricao: 'Cadastro: campos editáveis de coordenadas (mapa).',
+    },
+
 ]
 
 
