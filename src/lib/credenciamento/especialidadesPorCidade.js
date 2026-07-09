@@ -1,4 +1,9 @@
 import { avaliarViaCidadeParalela, prestadorAtendeCidadeAlvo } from '../buscarQuemRealizaPrestadores.js'
+import { tipoEspecialidadePrestador } from '../prestadorCadastroHelpers.js'
+
+export function especialidadeCatalogoEhLocal(esp) {
+    return tipoEspecialidadePrestador(esp?.tipo || '') === 'LOCAL'
+}
 
 /** IDs de especialidade do prestador (principal + secundárias em prestador_especialidades). */
 export function idsEspecialidadesPrestador(prestador, linhasPrestadorEsp = []) {
@@ -12,6 +17,17 @@ export function idsEspecialidadesPrestador(prestador, linhasPrestadorEsp = []) {
         if (eid) ids.add(eid)
     }
     return ids
+}
+
+/** Como idsEspecialidadesPrestador, restrito a especialidades com tipo LOCAL no catálogo. */
+export function idsEspecialidadesPrestadorLocal(prestador, linhasPrestadorEsp = [], mapaEspPorId) {
+    const todos = idsEspecialidadesPrestador(prestador, linhasPrestadorEsp)
+    const out = new Set()
+    for (const id of todos) {
+        const esp = mapaEspPorId?.get(Number(id))
+        if (especialidadeCatalogoEhLocal(esp)) out.add(Number(id))
+    }
+    return out
 }
 
 function mapaEspecialidadesPorPrestador(linhas) {

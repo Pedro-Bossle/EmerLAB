@@ -4,8 +4,15 @@ export const EMOJI_PADRAO_MAPA = '📍'
 
 /** Ordem: chaves mais longas primeiro no match parcial (ex.: «clinica 24h» antes de «clinica»). */
 const EMOJI_POR_ESPECIALIDADE = [
+    { chave: 'exames cardiologicos', emoji: '♥️' },
+    { chave: 'diagnostico por imagem', emoji: '🩻' },
     { chave: 'clinica 24h', emoji: '🏪' },
     { chave: 'banho e tosa', emoji: '🧽' },
+    { chave: 'cardiologista', emoji: '🫀' },
+    { chave: 'dermatologista', emoji: '😷' },
+    { chave: 'adestramento', emoji: '🦮' },
+    { chave: 'recreacao', emoji: '🧸' },
+    { chave: 'comercio', emoji: '🛍️' },
     { chave: 'consultorio', emoji: '🏠' },
     { chave: 'laboratorio', emoji: '🔬' },
     { chave: 'crematorio', emoji: '⚱️' },

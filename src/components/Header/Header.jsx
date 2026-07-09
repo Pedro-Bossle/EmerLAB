@@ -4,7 +4,7 @@ import logoNav from '../../assets/Emerdog-logo-nav.svg'
 import logoBranco from '../../assets/logo_branco.png'
 
 
-import { clearAccessState, supabase } from '../../lib/supabase' // ajuste o caminho se necessário
+import { logoutSessao } from '../../lib/authSession'
 import { Link, useNavigate } from 'react-router-dom'
 
 
@@ -27,14 +27,11 @@ const Header = ({ onNavigate }) => {
     }, [darkModeAtivo])
 
     const handleLogout = async () => {
-        const { error } = await supabase.auth.signOut()
-        if (error) {
-            alert('Erro ao sair da sessão')
-            return
-        }
-        clearAccessState()
+        await logoutSessao({
+            navigate,
+            onError: () => alert('Erro ao sair da sessão'),
+        })
         onNavigate?.()
-        navigate('/', { replace: true })
     }
 
     return (

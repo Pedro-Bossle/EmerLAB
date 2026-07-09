@@ -18,6 +18,7 @@ import Credenciamento_main from './pages/Credenciamento/Credenciamento_main/Cred
 import CredenciamentoCadastroLista from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroLista';
 import CredenciamentoCadastroForm from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroForm';
 import CredenciamentoMapa from './pages/Credenciamento/Credenciamento_mapa/CredenciamentoMapa';
+import CredenciamentoProspectosOsm from './pages/Credenciamento/Credenciamento_prospectos_osm/CredenciamentoProspectosOsm';
 import CredenciamentoImportKmz from './pages/Credenciamento/Credenciamento_import_kmz/CredenciamentoImportKmz';
 import CredenciamentoQuemRealiza from './pages/Credenciamento/QuemRealiza/CredenciamentoQuemRealiza';
 import CredenciamentoEspecialidadesCidade from './pages/Credenciamento/EspecialidadesCidade/CredenciamentoEspecialidadesCidade';
@@ -159,6 +160,14 @@ function App() {
                 toolId="credenciamento.cadastro"
               >
                 <CredenciamentoCadastroForm />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/credenciamento/prospectos-osm"
+            element={
+              <PrivateRoute permission="credenciamento.view" toolId="credenciamento.prospectos_osm">
+                <CredenciamentoProspectosOsm />
               </PrivateRoute>
             }
           />

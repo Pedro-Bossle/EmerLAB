@@ -7,14 +7,13 @@ import logoE from "../../assets/logo_E.png";
 import { Link, useNavigate } from 'react-router-dom';
 import {
     PERMISSION_KEYS,
-    getStoredAccessProfile,
     hasPermission,
-    normalizarProfileAcesso,
-    setStoredAccessProfile,
     podeLerFerramenta,
+    useStoredAccessProfile,
 } from '../../lib/accessControl';
 import { getToolIdForHref } from '../../lib/permissionCatalog';
-import { clearAccessState, supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
+import { logoutSessao } from '../../lib/authSession';
 
 /**
  * Como adicionar novos grupos:
@@ -62,6 +61,11 @@ const menuItems = [
             { label: 'Processos', href: '/credenciamento/principal', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
             { label: 'Cadastros', href: '/credenciamento/cadastro', permission: PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW },
             { label: 'Mapa', href: '/credenciamento/mapa', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
+            {
+                label: 'Prospecção',
+                href: '/credenciamento/prospectos-osm',
+                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+            },
             { label: 'Importar KMZ', href: '/credenciamento/import-kmz', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
             { label: 'Quem Realiza', href: '/credenciamento/quem-realiza', permission: PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW },
             {
@@ -167,7 +171,7 @@ const menuItems = [
 
 const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
     const navigate = useNavigate()
-    const [accessProfile, setAccessProfile] = useState(() => getStoredAccessProfile())
+    const accessProfile = useStoredAccessProfile()
     const [darkModeAtivo, setDarkModeAtivo] = useState(() => {
         if (typeof window === 'undefined') return false
         return window.localStorage.getItem('sfsc-dark-mode') === '1'
@@ -194,35 +198,6 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
             return { ...item, children }
         })
         .filter(Boolean)
-
-    useEffect(() => {
-        const carregarPerfil = async () => {
-            const { data: userData } = await supabase.auth.getUser()
-            const userId = userData?.user?.id
-            if (!userId) {
-                setAccessProfile(null)
-                return
-            }
-            let { data: profileData, error } = await supabase
-                .from('profiles')
-                .select('id, name, email, credenciamento_read_only, permissions')
-                .eq('id', userId)
-                .maybeSingle()
-            if (error && String(error.message || '').includes('email')) {
-                const fallback = await supabase
-                    .from('profiles')
-                    .select('id, name, credenciamento_read_only, permissions')
-                    .eq('id', userId)
-                    .maybeSingle()
-                profileData = fallback.data
-            }
-            if (!profileData) return
-            const profile = normalizarProfileAcesso(profileData)
-            setStoredAccessProfile(profile)
-            setAccessProfile(profile)
-        }
-        carregarPerfil()
-    }, [])
 
     // Inicializa todos fechados ao montar
     useEffect(() => {
@@ -261,13 +236,10 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
     }
 
     const handleLogout = async () => {
-        const { error } = await supabase.auth.signOut()
-        if (error) {
-            alert('Erro ao sair da sessão')
-            return
-        }
-        clearAccessState()
-        navigate('/', { replace: true })
+        await logoutSessao({
+            navigate,
+            onError: () => alert('Erro ao sair da sessão'),
+        })
     }
 
     const handleResetPassword = async () => {

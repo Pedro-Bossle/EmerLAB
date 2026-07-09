@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
-import { expandLegacyToAcl, syncLegacyFromAcl, podeLerFerramenta } from './permissionCatalog.js'
+import {
+  expandLegacyToAcl,
+  syncLegacyFromAcl,
+  completarAclFerramentasCredenciamento,
+  podeLerFerramenta,
+} from './permissionCatalog.js'
 
 export const ACCESS_PROFILE_STORAGE_KEY = 'sfsc-access-profile'
 export const ACCESS_PROFILE_CHANGE_EVENT = 'sfsc-access-profile-change'
@@ -263,7 +268,7 @@ export const normalizarPermissions = (profile = {}) => {
     if (!rawKeys.includes(filho) && perms[pai]) perms[filho] = true
   }
   delete perms[PERMISSION_KEYS.SUPERTABELA_DELETE_BY_LIST]
-  const comAcl = expandLegacyToAcl(perms)
+  const comAcl = completarAclFerramentasCredenciamento(expandLegacyToAcl(perms))
   return syncLegacyFromAcl(comAcl)
 }
 

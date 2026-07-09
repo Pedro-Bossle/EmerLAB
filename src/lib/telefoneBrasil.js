@@ -36,3 +36,17 @@ export function formatarContatoSeTelefone(texto) {
     if (d.length > 11) return t
     return formatarTelefoneBrExibicao(t)
 }
+
+/** Celular e telefone fixo para popup/listas (evita duplicar se iguais). */
+export function formatarLinhaTelefonesContato(celular, telefone) {
+    const c = String(celular || '').trim()
+    const t = String(telefone || '').trim()
+    if (!c && !t) return ''
+    if (c && t) {
+        const fc = formatarContatoSeTelefone(c)
+        const ft = formatarContatoSeTelefone(t)
+        if (fc === ft) return fc
+        return [fc, ft].filter(Boolean).join(' · ')
+    }
+    return formatarContatoSeTelefone(c || t)
+}

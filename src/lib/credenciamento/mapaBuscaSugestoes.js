@@ -1,4 +1,4 @@
-import { normalizarTextoBusca } from '../prestadorCadastroHelpers.js'
+import { normalizarTextoBusca, blobContemTermoBusca } from '../prestadorCadastroHelpers.js'
 import { sugerirPrestadoresPorNome } from '../pagamentosPrestador.js'
 
 export function formatarLocalidadeMarcador(m) {
@@ -28,7 +28,7 @@ function textoMarcadorParaBusca(m) {
 
 function marcadorCombinaBusca(m, termoNorm) {
     if (!termoNorm) return false
-    return normalizarTextoBusca(textoMarcadorParaBusca(m)).includes(termoNorm)
+    return blobContemTermoBusca(normalizarTextoBusca(textoMarcadorParaBusca(m)), termoNorm)
 }
 
 /** Índice de bairros/cidades presentes nos credenciados do mapa. */
@@ -116,7 +116,7 @@ export function sugerirLocalidadesCadastroMapa(indiceLocalidades, termoBruto, { 
     const scored = []
     for (const loc of indiceLocalidades || []) {
         const n = normalizarTextoBusca(loc.rotulo)
-        if (!n.includes(termo)) continue
+        if (!blobContemTermoBusca(n, termo)) continue
         let score = 60
         if (n === termo) score = 100
         else if (n.startsWith(termo)) score = 85

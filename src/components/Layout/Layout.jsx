@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Header from '../Header/Header'
 import Footer from '../Footer/Footer'
+import SessionSecurity from '../SessionSecurity/SessionSecurity'
 import './Layout.css'
 
 const MQ_COMPACT = '(max-width: 1023px)'
@@ -41,6 +42,7 @@ const Layout = () => {
             className={`layout1-shell${isCompact ? ' layout1-shell--compact' : ''}`}
             data-header-open={isCompact && headerOpen ? 'true' : 'false'}
         >
+            <SessionSecurity />
             {isCompact && headerOpen && (
                 <button
                     type="button"

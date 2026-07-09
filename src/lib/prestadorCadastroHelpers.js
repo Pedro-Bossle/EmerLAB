@@ -36,8 +36,26 @@ export const normalizarTextoBusca = (texto) =>
     String(texto || '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        .trim()
         .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+/** Palavras do termo já normalizado (sem acentos / pontuação). */
+export function tokensTermoBusca(termoNormalizado) {
+    return String(termoNormalizado || '')
+        .split(' ')
+        .map((t) => t.trim())
+        .filter(Boolean)
+}
+
+/** Todas as palavras do termo devem aparecer no texto normalizado (ordem livre). */
+export function blobContemTermoBusca(blobNormalizado, termoNormalizado) {
+    if (!termoNormalizado) return true
+    const tokens = tokensTermoBusca(termoNormalizado)
+    if (!tokens.length) return true
+    return tokens.every((t) => blobNormalizado.includes(t))
+}
 
 export const prestadorEhEstabelecimento = (especialidadeId) =>
     ESPECIALIDADES_ESTABELECIMENTO_IDS.has(Number(especialidadeId))
@@ -308,7 +326,7 @@ export const passaFiltroBuscaTexto = (blobNormalizado, termoBruto) => {
         consulta = norm.slice(1).trim()
     }
     if (!consulta) return true
-    const achou = blobNormalizado.includes(consulta)
+    const achou = blobContemTermoBusca(blobNormalizado, consulta)
     return negativo ? !achou : achou
 }
 
@@ -317,7 +335,7 @@ export const filtrarPorTermoBusca = (blobNormalizado, termoBruto, usarNot = fals
     if (usarNot) return passaFiltroBuscaTexto(blobNormalizado, termoBruto)
     const n = normalizarTextoBusca(termoBruto)
     if (!n) return true
-    return blobNormalizado.includes(n)
+    return blobContemTermoBusca(blobNormalizado, n)
 }
 
 /** Endereço do cadastro preenchido de forma a definir a cidade principal pelo bloco Endereço. */

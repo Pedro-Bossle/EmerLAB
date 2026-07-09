@@ -132,6 +132,14 @@ export const PERMISSION_CATALOG = [
                 href: '/credenciamento/mapa',
             },
             {
+                id: 'credenciamento.prospectos_osm',
+                label: 'Catálogo prospectos (OSM)',
+                descricao:
+                    'Locais do OpenStreetMap (veterinárias, pet shops, etc.) para prospecção de parceiros.',
+                actions: RU,
+                href: '/credenciamento/prospectos-osm',
+            },
+            {
                 id: 'credenciamento.import_kmz',
                 label: 'Importar KMZ',
                 descricao: 'Coordenadas do Google My Maps com vínculo por nome ao cadastro.',
@@ -368,6 +376,7 @@ export function expandLegacyToAcl(perms) {
     if (p[L.CREDENCIAMENTO_VIEW]) {
         setTool('credenciamento.processos', { read: true })
         setTool('credenciamento.mapa', { read: true })
+        setTool('credenciamento.prospectos_osm', { read: true })
         setTool('credenciamento.import_kmz', { read: true })
         setTool('credenciamento.especialidades_cidade', { read: true })
         setTool('credenciamento.formulario', { read: true })
@@ -388,6 +397,7 @@ export function expandLegacyToAcl(perms) {
         setTool('credenciamento.especialidades_rc', { read: true, create: true, update: true, delete: true })
         setTool('credenciamento.formulario_inbox', { read: true, update: true })
         setTool('credenciamento.import_kmz', { read: true, update: true })
+        setTool('credenciamento.prospectos_osm', { read: true, update: true })
     }
     if (p[L.CREDENCIAMENTO_FORMULARIO_CONFIG]) {
         setTool('credenciamento.formulario', { read: true, update: true })
@@ -438,6 +448,29 @@ export function expandLegacyToAcl(perms) {
     return p
 }
 
+/** Concede ACL de ferramentas novas a perfis que já tinham chaves ACL antes delas existirem. */
+export function completarAclFerramentasCredenciamento(perms) {
+    const p = { ...perms }
+    const kRead = aclKey('credenciamento.prospectos_osm', 'read')
+    const kUpd = aclKey('credenciamento.prospectos_osm', 'update')
+    if (!p[kRead]) {
+        if (
+            hasAcl(p, 'credenciamento.mapa', 'read') ||
+            hasAcl(p, 'credenciamento.processos', 'read') ||
+            hasAcl(p, 'credenciamento.import_kmz', 'read') ||
+            p[L.CREDENCIAMENTO_VIEW]
+        ) {
+            p[kRead] = true
+        }
+    }
+    if (!p[kUpd]) {
+        if (hasAcl(p, 'credenciamento.import_kmz', 'update') || p[L.CREDENCIAMENTO_EDIT]) {
+            p[kUpd] = true
+        }
+    }
+    return p
+}
+
 /** Atualiza chaves legadas a partir do ACL (rotas e código antigo). */
 export function syncLegacyFromAcl(perms) {
     const p = { ...perms }
@@ -453,6 +486,7 @@ export function syncLegacyFromAcl(perms) {
     p[L.CREDENCIAMENTO_VIEW] =
         hasAcl(p, 'credenciamento.processos', 'read') ||
         hasAcl(p, 'credenciamento.mapa', 'read') ||
+        hasAcl(p, 'credenciamento.prospectos_osm', 'read') ||
         hasAcl(p, 'credenciamento.import_kmz', 'read') ||
         hasAcl(p, 'credenciamento.especialidades_cidade', 'read') ||
         hasAcl(p, 'credenciamento.formulario', 'read') ||

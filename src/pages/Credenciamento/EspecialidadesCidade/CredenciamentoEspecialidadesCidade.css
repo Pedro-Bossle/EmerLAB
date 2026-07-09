@@ -242,37 +242,73 @@
 }
 
 body.dark-mode .cred_esp_cidade_corpo {
-    scrollbar-color: #4a5f78 #1b1f26;
+    scrollbar-color: #4a5f78 var(--bg-page);
 }
 
 body.dark-mode .cred_esp_cidade_corpo::-webkit-scrollbar-track {
-    background: #1b1f26;
+    background: var(--bg-page);
 }
 
 body.dark-mode .cred_esp_cidade_corpo::-webkit-scrollbar-thumb {
     background: #4a5f78;
-    border-color: #1b1f26;
+    border-color: var(--bg-page);
+}
+
+body.dark-mode .cred_esp_cidade_corpo > .pcad_muted,
+body.dark-mode .cred_esp_cidade_resumo {
+    color: var(--cinza-medio);
+}
+
+body.dark-mode .cred_esp_cidade_resumo strong {
+    color: var(--text-main);
 }
 
 body.dark-mode .cred_esp_cidade_card {
-    background: #1b1f26;
-    border-color: #2c3440;
+    background: var(--bg-page);
+    border-color: var(--border-soft);
 }
 
 body.dark-mode .cred_esp_cidade_card_head {
-    background: #232830;
+    background: var(--bg-surface);
+    color: var(--text-main);
 }
 
 body.dark-mode .cred_esp_cidade_card_head:hover {
-    background: #1e2b40;
+    background: #1a3350;
+}
+
+body.dark-mode .cred_esp_cidade_card_tit {
+    color: var(--text-main);
+}
+
+body.dark-mode .cred_esp_cidade_card_qtd {
+    color: var(--azul-destaque);
+}
+
+body.dark-mode .cred_esp_cidade_chevron {
+    border-right-color: var(--cinza-medio);
+    border-bottom-color: var(--cinza-medio);
 }
 
 body.dark-mode .cred_esp_cidade_bar_track {
-    background: #2c3440;
+    background: var(--border-soft);
+}
+
+body.dark-mode .cred_esp_cidade_bar_fill {
+    background: linear-gradient(90deg, var(--azul-destaque), #4a9ae8);
+}
+
+body.dark-mode .cred_esp_cidade_nomes {
+    color: var(--text-main);
+    scrollbar-color: #4a5f78 var(--bg-page);
 }
 
 body.dark-mode .cred_esp_cidade_nomes li {
-    border-bottom-color: #2c3440;
+    border-bottom-color: var(--border-soft);
+}
+
+body.dark-mode .cred_esp_cidade_nome_link:hover {
+    color: var(--azul-destaque);
 }
 
 body.dark-mode .cred_esp_cidade_tag_paralela {
@@ -281,7 +317,11 @@ body.dark-mode .cred_esp_cidade_tag_paralela {
 }
 
 body.dark-mode .cred_esp_cidade_filtros_flutuantes {
-    background: #1b1f26;
-    border-color: #2c3440;
+    background: var(--bg-surface);
+    border-color: var(--border-soft);
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+body.dark-mode .cred_esp_cidade_page > hr {
+    border-color: var(--border-soft);
 }

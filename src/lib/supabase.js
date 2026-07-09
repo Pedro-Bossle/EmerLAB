@@ -64,9 +64,43 @@ const guardedFetch = async (input, init = {}) => {
 
 assertSupabaseConfig()
 
+function limparTokensAuthLegadoLocalStorage() {
+  if (typeof window === 'undefined') return
+  try {
+    for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
+      const key = window.localStorage.key(i)
+      if (key && /^sb-.*-auth-token$/.test(key)) {
+        window.localStorage.removeItem(key)
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+limparTokensAuthLegadoLocalStorage()
+
+/** Serializa operações de auth (evita Navigator Lock / Strict Mode em paralelo). */
+let authLockChain = Promise.resolve()
+function serialAuthLock(_name, _acquireTimeout, fn) {
+    const run = authLockChain.then(() => fn())
+    authLockChain = run.then(
+        () => undefined,
+        () => undefined,
+    )
+    return run
+}
+
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   global: {
     fetch: guardedFetch,
+  },
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
+    lock: typeof window !== 'undefined' ? serialAuthLock : undefined,
   },
 })
 

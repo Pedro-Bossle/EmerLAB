@@ -28,6 +28,18 @@
     },
     "api/geocode-prestador.js": {
       "maxDuration": 30
+    },
+    "api/nominatim-search.js": {
+      "maxDuration": 15
+    },
+    "api/overpass-poi.js": {
+      "maxDuration": 25
+    },
+    "api/prospectos-osm-coletar.js": {
+      "maxDuration": 60
+    },
+    "api/prospectos-gemini-status.js": {
+      "maxDuration": 20
     }
   },
   "rewrites": [

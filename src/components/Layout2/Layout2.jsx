@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import Sidebar from '../Sidebar/Sidebar'
 import DevToolsFloating from '../DevTools/DevToolsFloating'
 import FormularioInboxBell from '../Credenciamento/FormularioInboxBell'
+import SessionSecurity from '../SessionSecurity/SessionSecurity'
 import { Outlet } from 'react-router-dom'
 import './Layout2.css'
 
@@ -55,6 +56,7 @@ const Layout2 = () => {
             className={`app-shell${isCompact ? ' app-shell--compact' : ''}`}
             data-nav-open={isCompact && openManual ? 'true' : 'false'}
         >
+            <SessionSecurity />
             {isCompact && openManual && (
                 <button
                     type="button"
