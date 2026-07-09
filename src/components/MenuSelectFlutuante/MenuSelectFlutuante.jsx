@@ -40,7 +40,7 @@ export default function MenuSelectFlutuante({
     return (
         <div className={`menu_select_flutuante pcad_field ${className}`.trim()}>
             {label ? <span className="menu_select_flutuante_label">{label}</span> : null}
-            <div ref={wrapRef} className="menu_select_flutuante_wrap row_add_suggest_wrap">
+            <div ref={wrapRef} className={`menu_select_flutuante_wrap row_add_suggest_wrap${aberto ? ' is-open' : ''}`}>
                 <button
                     type="button"
                     className="menu_select_flutuante_trigger row_add_input"

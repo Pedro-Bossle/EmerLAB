@@ -38,8 +38,15 @@
     overflow: visible;
 }
 
-.cred_esp_cidade_filtros_inner {
+.cred_esp_cidade_filtros_flutuantes.quem_realiza_filtros_center {
+    width: calc(100% - 1rem);
+    max-width: 920px;
+}
+
+.cred_esp_cidade_filtros_flutuantes .quem_realiza_row_center {
+    max-width: none;
     width: 100%;
+    justify-content: center;
 }
 
 .cred_esp_cidade_page > .quem_realiza_filtros {

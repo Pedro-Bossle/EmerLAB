@@ -12,7 +12,6 @@ import { prestadorEhCredenciado } from '../../../lib/prestadorCadastroHelpers.js
 import { agruparCredenciadosPorEspecialidadeCidade } from '../../../lib/credenciamento/especialidadesPorCidade.js'
 import { anexarLocalidadeVinculoAoCtx } from '../../../lib/prestadorLocalidadeVinculo.js'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase.js'
-import MenuSelectFlutuante from '../../../components/MenuSelectFlutuante/MenuSelectFlutuante.jsx'
 import '../Credenciamento_main/Credenciamento_main.css'
 import '../QuemRealiza/CredenciamentoQuemRealiza.css'
 import './CredenciamentoEspecialidadesCidade.css'
@@ -176,16 +175,6 @@ export default function CredenciamentoEspecialidadesCidade() {
 
     const maxTotal = useMemo(() => Math.max(1, ...grupos.map((g) => g.total)), [grupos])
 
-    const opcoesUf = useMemo(
-        () => ufsPermitidasCredenciamento.map((sigla) => ({ value: sigla, label: sigla })),
-        [ufsPermitidasCredenciamento],
-    )
-
-    const opcoesCidade = useMemo(
-        () => municipios.map((m) => ({ value: m.nome, label: m.nome })),
-        [municipios],
-    )
-
     const colunasGrupos = useMemo(() => {
         const cols = Array.from({ length: COLUNAS_ESPECIALIDADE }, () => [])
         grupos.forEach((g, i) => cols[i % COLUNAS_ESPECIALIDADE].push(g))
@@ -251,31 +240,46 @@ export default function CredenciamentoEspecialidadesCidade() {
             <h1>Credenciamento — Especialidades por cidade</h1>
             <hr />
 
-            <section className="cred_esp_cidade_filtros_flutuantes">
-                <div className="quem_realiza_row quem_realiza_row_center cred_esp_cidade_filtros_inner">
-                    <MenuSelectFlutuante
-                        label="UF"
-                        value={uf}
-                        placeholder="—"
-                        options={opcoesUf}
-                        onChange={(val) => {
-                            setUf(val)
-                            setCidadeNome('')
-                            setExpandidas({})
-                        }}
-                    />
-                    <MenuSelectFlutuante
-                        label="Cidade"
-                        value={cidadeNome}
-                        placeholder={loadingMun ? 'A carregar…' : '—'}
-                        options={opcoesCidade}
-                        disabled={!uf || loadingMun}
-                        listMaxHeight={280}
-                        onChange={(val) => {
-                            setCidadeNome(val)
-                            setExpandidas({})
-                        }}
-                    />
+            <section className="cred_esp_cidade_filtros_flutuantes quem_realiza_filtros quem_realiza_filtros_center">
+                <div className="quem_realiza_row quem_realiza_row_center">
+                    <label className="pcad_field">
+                        <span>UF</span>
+                        <select
+                            className="credenciamento_main_input"
+                            value={uf}
+                            onChange={(e) => {
+                                setUf(e.target.value)
+                                setCidadeNome('')
+                                setExpandidas({})
+                            }}
+                        >
+                            <option value="">—</option>
+                            {ufsPermitidasCredenciamento.map((sigla) => (
+                                <option key={sigla} value={sigla}>
+                                    {sigla}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className="pcad_field">
+                        <span>Cidade</span>
+                        <select
+                            className="credenciamento_main_input"
+                            value={cidadeNome}
+                            disabled={!uf || loadingMun}
+                            onChange={(e) => {
+                                setCidadeNome(e.target.value)
+                                setExpandidas({})
+                            }}
+                        >
+                            <option value="">{loadingMun ? 'A carregar…' : '—'}</option>
+                            {municipios.map((m) => (
+                                <option key={m.id} value={m.nome}>
+                                    {m.nome}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
                     <div className="quem_realiza_switch_cidades">
                         <span className="quem_realiza_switch_cidades_label">Buscar em cidades paralelas</span>
                         <button
@@ -285,7 +289,7 @@ export default function CredenciamentoEspecialidadesCidade() {
                             className={`credenciamento_switch ${buscarCidadesParalelas ? 'is-on' : 'is-off'}`}
                             disabled={!uf || !cidadeNome}
                             onClick={() => setBuscarCidadesParalelas((v) => !v)}
-                            title="Inclui veterinários com esta cidade em «Cidades que atendem»"
+                            title="Inclui veterinários que têm esta cidade em «Cidades que atendem» no cadastro (além da sede/endereço)"
                         >
                             <span className="credenciamento_switch_track">
                                 <span className="credenciamento_switch_knob" />

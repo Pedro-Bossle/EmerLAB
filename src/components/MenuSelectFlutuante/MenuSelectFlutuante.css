@@ -10,10 +10,13 @@
 .menu_select_flutuante_wrap {
     position: relative;
     width: 100%;
-    min-width: 160px;
+    min-width: 0;
     max-width: 280px;
-    z-index: 1200;
-    isolation: isolate;
+    z-index: 1;
+}
+
+.menu_select_flutuante_wrap.is-open {
+    z-index: 1300;
 }
 
 .menu_select_flutuante_trigger {

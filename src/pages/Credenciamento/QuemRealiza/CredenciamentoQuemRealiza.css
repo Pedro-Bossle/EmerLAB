@@ -95,6 +95,17 @@
 .quem_realiza_row_center .pcad_field {
     flex: 1 1 200px;
     max-width: 240px;
+    min-width: 0;
+}
+
+.quem_realiza_row_center .menu_select_flutuante {
+    flex: 1 1 180px;
+    min-width: 0;
+    max-width: 280px;
+}
+
+.quem_realiza_row_center .menu_select_flutuante_wrap {
+    max-width: 100%;
 }
 
 .quem_realiza_erro_col {

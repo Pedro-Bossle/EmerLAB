@@ -25,6 +25,8 @@ import {
     getStoredAccessProfile,
     hasPermission,
     hasStoredDevTools,
+    podeLerFerramenta,
+    useStoredAccessProfile,
     useStoredPermission,
 } from '../../../lib/accessControl'
 import { useDevToolsUi } from '../../../lib/devToolsUi'
@@ -204,6 +206,9 @@ const CredenciamentoMapa = () => {
         const profile = getStoredAccessProfile()
         return profile ? !hasPermission(profile, PERMISSION_KEYS.CREDENCIAMENTO_EDIT) : true
     }, [])
+
+    const accessProfile = useStoredAccessProfile()
+    const podeImportarKmz = podeLerFerramenta(accessProfile?.permissions, 'credenciamento.import_kmz')
 
     const podeDevToolPerfil = useStoredPermission(PERMISSION_KEYS.DEV_TOOLS)
     const { ui: devToolsUi } = useDevToolsUi()
@@ -642,11 +647,13 @@ const CredenciamentoMapa = () => {
         <div className="credenciamento_main credenciamento_mapa_page">
             <div className="credenciamento_mapa_top">
             <h1>Mapa de credenciados</h1>
-            <p className="pcad_muted credenciamento_mapa_import_link">
-                <Link to="/credenciamento/import-kmz" className="credenciamento_main_action_btn secondary">
-                    Importar coordenadas (KMZ)
-                </Link>
-            </p>
+            {podeImportarKmz && (
+                <p className="pcad_muted credenciamento_mapa_import_link">
+                    <Link to="/credenciamento/import-kmz" className="credenciamento_main_action_btn secondary">
+                        Importar coordenadas (KMZ)
+                    </Link>
+                </p>
+            )}
             <hr />
 
             {semCoordenadas.length > 0 && (
