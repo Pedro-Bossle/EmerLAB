@@ -1,6 +1,6 @@
 /**
  * Folha única de entrada — Vite inclui tudo no bundle de produção (Vercel).
- * Novas telas: adicione um @import abaixo.s
+ * Novas telas: adicione um @import abaixo.ss
  */
 
 @import '../index.css';
