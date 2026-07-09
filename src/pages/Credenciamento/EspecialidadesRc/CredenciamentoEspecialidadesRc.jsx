@@ -10,6 +10,7 @@ import {
     ordemGrupoEspecialidadeLegado,
 } from '../../../lib/rc/ordenarCardsRc.js'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
+import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoEspecialidadesRc.css'
 
@@ -208,12 +209,18 @@ const CredenciamentoEspecialidadesRc = () => {
                 Arraste as linhas ou use as setas. A ordem vale para todos os prestadores com essa especialidade principal.
             </p>
 
-            {erro ? (
-                <p className="credenciamento_main_alert especialidades_rc_erro" role="alert">
-                    {erro}
-                </p>
-            ) : null}
-            {sucesso ? <p className="especialidades_rc_sucesso">{sucesso}</p> : null}
+            <CredenciamentoMainAlert
+                message={erro}
+                onClose={() => setErro('')}
+                role="alert"
+                className="especialidades_rc_erro"
+            />
+            <CredenciamentoMainAlert
+                message={sucesso}
+                onClose={() => setSucesso('')}
+                role="status"
+                className="especialidades_rc_sucesso"
+            />
 
             <header className="especialidades_rc_toolbar">
                 <CampoBuscaComLimpar

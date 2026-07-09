@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import '../../styles/sfsc-exclusao-confirm.css'
+import { TOAST_AUTO_DISMISS_MS } from '../../lib/toastUi.js'
 
 export default function SfscExclusaoConfirmToast({
     titulo,
@@ -8,8 +9,15 @@ export default function SfscExclusaoConfirmToast({
     onCancelar,
     variante = 'danger',
     rotuloConfirmar = 'Confirmar',
+    autoDismissMs = TOAST_AUTO_DISMISS_MS,
 }) {
     const primaria = variante === 'primary'
+
+    useEffect(() => {
+        const t = window.setTimeout(() => onCancelar?.(), autoDismissMs)
+        return () => window.clearTimeout(t)
+    }, [onCancelar, autoDismissMs, titulo, mensagem])
+
     return (
         <div
             className={`sfsc_exclusao_confirm_toast${primaria ? ' sfsc_exclusao_confirm_toast--primary' : ''}`}

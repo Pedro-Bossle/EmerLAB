@@ -5,6 +5,7 @@ import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
 import { filtrarPorTermoBusca, normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
+import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
 import CidadeTabelaIbgeForm from '../../../components/Supertabela/CidadeTabelaIbgeForm.jsx'
 import GerenciarTabelasModal from '../../../components/Supertabela/GerenciarTabelasModal.jsx'
@@ -51,6 +52,8 @@ const Supertabelacidades = () => {
     const [novoNomeCidadeDuplicada, setNovoNomeCidadeDuplicada] = useState('')
     const [ordenacaoGerenciador, setOrdenacaoGerenciador] = useState({ coluna: 'nome', direcao: 'asc' })
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
+
+    useConfirmacaoExclusaoAutoDismiss(confirmacaoExclusao, setConfirmacaoExclusao)
     const [mostrarAdicionarCidade, setMostrarAdicionarCidade] = useState(false)
     const [novaCidadeUf, setNovaCidadeUf] = useState('')
     const [novaCidadeMunicipio, setNovaCidadeMunicipio] = useState('')

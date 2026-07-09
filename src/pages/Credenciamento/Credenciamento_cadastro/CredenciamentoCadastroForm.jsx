@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useSfscExclusaoConfirm } from '../../../hooks/useSfscExclusaoConfirm.jsx'
 import {
     PERMISSION_KEYS,
     getStoredAccessProfile,
     hasPermission,
     hasStoredDevTools,
+    hasStoredExclusaoPermanenteCredenciamento,
     useStoredPermission,
 } from '../../../lib/accessControl'
 import { useDevToolsUi } from '../../../lib/devToolsUi'
@@ -33,6 +35,8 @@ import {
     carregarCodigosPrestadorProcedimentos,
     sincronizarPrestadorProcedimentos,
 } from '../../../lib/prestadorProcedimentos.js'
+import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanenteCredenciamento.js'
+import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import { UFS_BRASIL, buscarMunicipiosPorUf, resolverUfPorNomeMunicipio } from '../../../lib/ibgeLocalidades.js'
 import PrestadorServicosAbas from './PrestadorServicosAbas.jsx'
 import PrestadorHonorariosContratos from './PrestadorHonorariosContratos.jsx'
@@ -123,6 +127,7 @@ const estadoVazio = () => ({
 const CredenciamentoCadastroForm = () => {
     const { id: idParam } = useParams()
     const navigate = useNavigate()
+    const { askExclusao, exclusaoToast } = useSfscExclusaoConfirm()
     const isNovo = idParam === 'novo'
     const prestadorId = isNovo ? null : Number(idParam)
 
@@ -162,6 +167,7 @@ const CredenciamentoCadastroForm = () => {
     const mostrarCoordenadasDev =
         hasStoredDevTools() && podeDevToolPerfil && devToolsUi.colunasCadastro?.coordenadasMapa
     const podeGerarContrato = useStoredPermission(PERMISSION_KEYS.CONTRATOS_EDIT)
+    const podeExclusaoPermanente = hasStoredExclusaoPermanenteCredenciamento() && !isNovo && prestadorId
 
     const nomeEspecialidadePrincipal = useMemo(() => {
         const esp = especialidades.find((e) => Number(e.id) === Number(form.especialidade_id))
@@ -736,6 +742,27 @@ const CredenciamentoCadastroForm = () => {
         }
     }
 
+    const apagarPrestadorDoBanco = () => {
+        if (!podeExclusaoPermanente || salvando) return
+        askExclusao(
+            `Apagar PERMANENTEMENTE o cadastro #${prestadorId} (${form.nome || 'sem nome'}) do banco?\n\nEsta ação não pode ser desfeita.`,
+            async () => {
+                setSalvando(true)
+                setErro('')
+                try {
+                    await excluirPrestadorPermanentemente(prestadorId)
+                    navigate('/credenciamento/cadastro', { replace: true })
+                } catch (e) {
+                    setErro(e?.message || String(e))
+                } finally {
+                    setSalvando(false)
+                }
+            },
+            'Excluir prestador do banco',
+            { rotuloConfirmar: 'Apagar permanentemente' },
+        )
+    }
+
     if (loading) {
         return (
             <div className="pcad_page">
@@ -746,15 +773,12 @@ const CredenciamentoCadastroForm = () => {
 
     return (
         <div className="credenciamento_main pcad_page pcad_form_page">
+            {exclusaoToast}
             <div className="pcad_form_top">
                 <h1>{tituloForm}</h1>
             </div>
 
-            {erro && (
-                <div className="credenciamento_main_alert" role="alert">
-                    {erro}
-                </div>
-            )}
+            <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
 
             <div className="pcad_form_layout">
                 <section className="pcad_card">
@@ -1233,6 +1257,16 @@ const CredenciamentoCadastroForm = () => {
             </div>
 
             <div className="pcad_form_footer">
+                {podeExclusaoPermanente ? (
+                    <button
+                        type="button"
+                        className="credenciamento_main_action_btn pcad_footer_btn pcad_footer_btn_apagar_bd"
+                        disabled={salvando}
+                        onClick={() => void apagarPrestadorDoBanco()}
+                    >
+                        Apagar do banco
+                    </button>
+                ) : null}
                 <button
                     type="button"
                     className="credenciamento_main_action_btn secondary pcad_footer_btn"

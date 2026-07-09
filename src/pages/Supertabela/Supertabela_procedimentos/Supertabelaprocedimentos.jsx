@@ -14,7 +14,7 @@ import {
     montarPlanosChaveDisponiveisPorCategoria,
     salvarLimiteGrupoCategoria,
 } from '../../../lib/categoriaLimitesGrupo'
-import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
+import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaprocedimentos.css'
 
@@ -86,6 +86,8 @@ const Supertabelaprocedimentos = () => {
     const [headerCompacto, setHeaderCompacto] = useState(false)
     const [ordenacaoPorCategoria, setOrdenacaoPorCategoria] = useState({})
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
+
+    useConfirmacaoExclusaoAutoDismiss(confirmacaoExclusao, setConfirmacaoExclusao)
     const [scrollTopoPorCategoria, setScrollTopoPorCategoria] = useState({})
     const [adicionarNovoAtivo, setAdicionarNovoAtivo] = useState(false)
     const [modoCategorias, setModoCategorias] = useState(false)

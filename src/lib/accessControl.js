@@ -58,7 +58,7 @@ export const PERMISSOES = [
         chave: PERMISSION_KEYS.DEV_TOOLS,
         rotulo: 'Dev Tool',
         descricao:
-            'Exibe a chave Dev (canto inferior direito) para ligar pesquisa NOT, colunas extras e exclusão por lista.',
+            'Exibe a chave Dev (canto inferior direito): pesquisa NOT, colunas extras, exclusão por lista e apagar prestadores/entradas do formulário no banco.',
       },
     ],
   },
@@ -299,6 +299,14 @@ export const podeExcluirNaSuperTabela = (profileOrPermissions) =>
 
 export const podeUsarExclusaoPorLista = (profileOrPermissions) =>
   podeExcluirNaSuperTabela(profileOrPermissions) && isDevToolsEnabled(profileOrPermissions)
+
+/** Exclusão irreversível de prestadores / entradas do formulário (Dev Tools + edição credenciamento). */
+export const podeUsarExclusaoPermanenteCredenciamento = (profileOrPermissions) =>
+  isDevToolsEnabled(profileOrPermissions) &&
+  hasPermission(profileOrPermissions, PERMISSION_KEYS.CREDENCIAMENTO_EDIT)
+
+export const hasStoredExclusaoPermanenteCredenciamento = () =>
+  podeUsarExclusaoPermanenteCredenciamento(getStoredAccessProfile())
 
 export const isDevToolsEnabled = (profileOrPermissions) =>
   hasPermission(profileOrPermissions, PERMISSION_KEYS.DEV_TOOLS)

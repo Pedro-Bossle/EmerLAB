@@ -9,6 +9,7 @@ import PermissoesCascade from './PermissoesCascade'
 import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import { supabase } from '../../../lib/supabase'
+import { useAutoDismiss } from '../../../lib/toastUi.js'
 import './GerenciamentoAcessos.css'
 import './PermissoesCascade.css'
 
@@ -29,6 +30,11 @@ const GerenciamentoAcessos = () => {
     const [mensagem, setMensagem] = useState('')
     const [erro, setErro] = useState('')
     const [busca, setBusca] = useState('')
+
+    useAutoDismiss(Boolean(mensagem || erro), () => {
+        setMensagem('')
+        setErro('')
+    })
     const [abaDetalhe, setAbaDetalhe] = useState('permissoes')
     const [mostrarConvite, setMostrarConvite] = useState(false)
     const [logs, setLogs] = useState([])

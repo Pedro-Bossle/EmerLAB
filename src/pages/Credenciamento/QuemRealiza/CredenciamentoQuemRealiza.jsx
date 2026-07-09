@@ -10,6 +10,7 @@ import {
 import { normalizarTextoBusca, filtrarPorTermoBusca, resolverCidadePrincipalNome, prestadorEhCredenciado } from '../../../lib/prestadorCadastroHelpers.js'
 import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
+import { useAutoDismiss } from '../../../lib/toastUi.js'
 import '../Credenciamento_main/Credenciamento_main.css'
 import {
     avaliarViaCidadeParalela,
@@ -18,6 +19,7 @@ import {
     pesquisarQuemRealizaNaRede,
     prestadorAtendeCidadeAlvo,
 } from '../../../lib/buscarQuemRealizaPrestadores.js'
+import { anexarLocalidadeVinculoAoCtx, resolverLocalidadeEfetivaPrestador } from '../../../lib/prestadorLocalidadeVinculo.js'
 import './CredenciamentoQuemRealiza.css'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 
@@ -68,12 +70,16 @@ export default function CredenciamentoQuemRealiza() {
     const [procedimentosCatalogo, setProcedimentosCatalogo] = useState([])
 
     const [prestadores, setPrestadores] = useState([])
+    const [todosPrestadoresAtivos, setTodosPrestadoresAtivos] = useState([])
     const [prestadorCidades, setPrestadorCidades] = useState([])
+    const [prestadorEstabelecimentos, setPrestadorEstabelecimentos] = useState([])
     const [mapaCidadesCred, setMapaCidadesCred] = useState(new Map())
     const [especialidades, setEspecialidades] = useState([])
     const [resultados, setResultados] = useState([])
     const [loading, setLoading] = useState(false)
     const [erro, setErro] = useState('')
+
+    useAutoDismiss(Boolean(erro), () => setErro(''))
     const [pesquisou, setPesquisou] = useState(false)
     const [copiandoResultados, setCopiandoResultados] = useState(false)
 
@@ -86,6 +92,7 @@ export default function CredenciamentoQuemRealiza() {
                 { data: cc },
                 { data: esps },
                 { data: situacoesData },
+                { data: peEst },
                 procPaginado,
             ] = await Promise.all([
                 supabase
@@ -104,6 +111,7 @@ export default function CredenciamentoQuemRealiza() {
                 supabase.from('cidades_credenciamento').select('id, nome'),
                 supabase.from('especialidades').select('id, nome'),
                 supabase.from('situacoes').select('id, descricao'),
+                supabase.from('prestador_estabelecimentos').select('veterinario_id, estabelecimento_id, principal'),
                 buscarTodosPaginado(() =>
                     supabase
                         .from('procedimentos')
@@ -125,8 +133,10 @@ export default function CredenciamentoQuemRealiza() {
             if (idPadrao != null) setAbaCategoria(idPadrao)
             const listaSituacoes = situacoesData || []
             const prestCred = (prest || []).filter((p) => prestadorEhCredenciado(p, listaSituacoes))
+            setTodosPrestadoresAtivos(prest || [])
             setPrestadores(prestCred)
             setPrestadorCidades(pc || [])
+            setPrestadorEstabelecimentos(peEst || [])
             setMapaCidadesCred(new Map((cc || []).map((c) => [Number(c.id), c.nome])))
             setEspecialidades(esps || [])
         }
@@ -268,24 +278,33 @@ export default function CredenciamentoQuemRealiza() {
 
     const mapaEspNome = useMemo(() => new Map(especialidades.map((e) => [Number(e.id), e.nome])), [especialidades])
 
+    const ctxFiltroCidade = useMemo(
+        () =>
+            anexarLocalidadeVinculoAoCtx(
+                {
+                    mapaCidadesCred,
+                    prestadorCidades,
+                    incluirCidadesParalelas: buscarCidadesParalelas,
+                },
+                todosPrestadoresAtivos,
+                prestadorEstabelecimentos,
+            ),
+        [mapaCidadesCred, prestadorCidades, buscarCidadesParalelas, todosPrestadoresAtivos, prestadorEstabelecimentos],
+    )
+
     const nomeCidadePrincipalPrestador = useCallback(
         (p) => {
-            const rels = prestadorCidades.filter((r) => Number(r.prestador_id) === Number(p.id))
-            return resolverCidadePrincipalNome(p, {
+            const { prestador: pLoc, prestadorIdCidades } = resolverLocalidadeEfetivaPrestador(
+                p,
+                ctxFiltroCidade.estabelecimentoPorVeterinario,
+            )
+            const rels = prestadorCidades.filter((r) => Number(r.prestador_id) === Number(prestadorIdCidades))
+            return resolverCidadePrincipalNome(pLoc, {
                 mapaCidadeNomePorId: mapaCidadesCred,
                 relacoesCidades: rels,
             })
         },
-        [mapaCidadesCred, prestadorCidades]
-    )
-
-    const ctxFiltroCidade = useMemo(
-        () => ({
-            mapaCidadesCred,
-            prestadorCidades,
-            incluirCidadesParalelas: buscarCidadesParalelas,
-        }),
-        [mapaCidadesCred, prestadorCidades, buscarCidadesParalelas],
+        [mapaCidadesCred, prestadorCidades, ctxFiltroCidade.estabelecimentoPorVeterinario],
     )
 
     const alvoCidadeFiltro = useMemo(
@@ -350,10 +369,12 @@ export default function CredenciamentoQuemRealiza() {
                 incluirCidadesParalelas: buscarCidadesParalelas,
                 prestadores,
                 prestadorCidades,
+                prestadorEstabelecimentos,
                 mapaCidadesCred,
                 especialidades,
                 mapaNomePorCodigo,
                 mapaCodigoPorProcedimentoId,
+                prestadoresParaVinculoLocalidade: todosPrestadoresAtivos,
             })
             setResultados(lista)
             setPesquisou(true)

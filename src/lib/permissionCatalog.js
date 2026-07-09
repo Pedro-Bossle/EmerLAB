@@ -132,11 +132,25 @@ export const PERMISSION_CATALOG = [
                 href: '/credenciamento/mapa',
             },
             {
+                id: 'credenciamento.import_kmz',
+                label: 'Importar KMZ',
+                descricao: 'Coordenadas do Google My Maps com vínculo por nome ao cadastro.',
+                actions: RU,
+                href: '/credenciamento/import-kmz',
+            },
+            {
                 id: 'credenciamento.quem_realiza',
                 label: 'Quem Realiza',
                 descricao: 'Busca por UF, cidade e procedimentos.',
                 actions: R,
                 href: '/credenciamento/quem-realiza',
+            },
+            {
+                id: 'credenciamento.especialidades_cidade',
+                label: 'Especialidades por cidade',
+                descricao: 'Gráfico e contagem de credenciados por especialidade na cidade.',
+                actions: R,
+                href: '/credenciamento/especialidades-cidade',
             },
             {
                 id: 'credenciamento.formulario',
@@ -354,6 +368,8 @@ export function expandLegacyToAcl(perms) {
     if (p[L.CREDENCIAMENTO_VIEW]) {
         setTool('credenciamento.processos', { read: true })
         setTool('credenciamento.mapa', { read: true })
+        setTool('credenciamento.import_kmz', { read: true })
+        setTool('credenciamento.especialidades_cidade', { read: true })
         setTool('credenciamento.formulario', { read: true })
         setTool('credenciamento.especialidades_rc', { read: true })
     }
@@ -371,6 +387,7 @@ export function expandLegacyToAcl(perms) {
         setTool('credenciamento.cadastro', { read: true, create: true, update: true, delete: true })
         setTool('credenciamento.especialidades_rc', { read: true, create: true, update: true, delete: true })
         setTool('credenciamento.formulario_inbox', { read: true, update: true })
+        setTool('credenciamento.import_kmz', { read: true, update: true })
     }
     if (p[L.CREDENCIAMENTO_FORMULARIO_CONFIG]) {
         setTool('credenciamento.formulario', { read: true, update: true })
@@ -436,6 +453,8 @@ export function syncLegacyFromAcl(perms) {
     p[L.CREDENCIAMENTO_VIEW] =
         hasAcl(p, 'credenciamento.processos', 'read') ||
         hasAcl(p, 'credenciamento.mapa', 'read') ||
+        hasAcl(p, 'credenciamento.import_kmz', 'read') ||
+        hasAcl(p, 'credenciamento.especialidades_cidade', 'read') ||
         hasAcl(p, 'credenciamento.formulario', 'read') ||
         hasAcl(p, 'credenciamento.especialidades_rc', 'read')
     p[L.CREDENCIAMENTO_CADASTRO_VIEW] = hasAcl(p, 'credenciamento.cadastro', 'read')
@@ -450,7 +469,8 @@ export function syncLegacyFromAcl(perms) {
         hasAcl(p, 'credenciamento.cadastro', 'update') ||
         hasAcl(p, 'credenciamento.cadastro', 'create') ||
         hasAcl(p, 'credenciamento.especialidades_rc', 'update') ||
-        hasAcl(p, 'credenciamento.formulario_inbox', 'update')
+        hasAcl(p, 'credenciamento.formulario_inbox', 'update') ||
+        hasAcl(p, 'credenciamento.import_kmz', 'update')
 
     p[L.PLANOS_VIEW] = hasAcl(p, 'planos.impressao', 'read')
     p[L.COMPRAS_VIEW] = anyAclInGroup(p, 'compras', 'read')

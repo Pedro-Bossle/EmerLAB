@@ -1,12 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, hasStoredDevTools, normalizarProfileAcesso, setStoredAccessProfile } from '../../../lib/accessControl'
+import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, hasStoredDevTools, hasStoredExclusaoPermanenteCredenciamento, normalizarProfileAcesso, setStoredAccessProfile } from '../../../lib/accessControl'
 import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
 import { filtrarPorTermoBusca, normalizarTextoBusca, resolverCidadePrincipalNome } from '../../../lib/prestadorCadastroHelpers'
+import {
+    montarEstabelecimentoPorVeterinarioDeListas,
+    resolverLocalidadeEfetivaPrestador,
+} from '../../../lib/prestadorLocalidadeVinculo.js'
 import { supabase } from '../../../lib/supabase'
 import './Credenciamento_main.css'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import { montarNomeArquivoRc } from '../../../lib/rc/rcPdfNomeArquivo.js'
 import { solicitarGeocodePrestador } from '../../../lib/credenciamento/solicitarGeocodePrestador'
+import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanenteCredenciamento.js'
+import { useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
+import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 
 const normalizarTexto = (texto) =>
     String(texto || '')
@@ -96,6 +103,8 @@ const Credenciamento_main = () => {
     const [paginaAtual, setPaginaAtual] = useState(1)
     const [paginaAlvoInput, setPaginaAlvoInput] = useState('1')
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
+
+    useConfirmacaoExclusaoAutoDismiss(confirmacaoExclusao, setConfirmacaoExclusao)
     const [prestadorEditandoId, setPrestadorEditandoId] = useState(null)
     const [modalRcAberto, setModalRcAberto] = useState(false)
     const [rcCidadeBusca, setRcCidadeBusca] = useState('')
@@ -126,6 +135,7 @@ const Credenciamento_main = () => {
     const [cidadesSecundariasNovas, setCidadesSecundariasNovas] = useState([])
     const { ui: devToolsUi, toggleColuna } = useDevToolsUi()
     const podeDevTool = hasStoredDevTools()
+    const podeExclusaoPermanente = hasStoredExclusaoPermanenteCredenciamento()
     const buscaNotAtiva = useBuscaNotAtiva()
     const colProc = devToolsUi.colunasProcessos
 
@@ -283,12 +293,22 @@ const Credenciamento_main = () => {
             estabelecimentosPorVeterinario.get(chave).push(item)
         })
 
+        const estabelecimentoPorVeterinario = montarEstabelecimentoPorVeterinarioDeListas(
+            prestadores,
+            prestadorEstabelecimentos,
+        )
+
         return prestadores.map((prestador) => {
-            const cidadesDoPrestador = cidadesPorPrestador.get(Number(prestador.id)) || []
+            const { prestador: pLoc, prestadorIdCidades } = resolverLocalidadeEfetivaPrestador(
+                prestador,
+                estabelecimentoPorVeterinario,
+            )
+            const cidadesDoPrestador =
+                cidadesPorPrestador.get(prestadorIdCidades) || cidadesPorPrestador.get(Number(prestador.id)) || []
             const cidadePrincipalRel = cidadesDoPrestador.find((item) => item.principal)
-            const cidadePrincipalId = Number(prestador.cidade_id || cidadePrincipalRel?.cidade_id || 0)
+            const cidadePrincipalId = Number(pLoc.cidade_id || cidadePrincipalRel?.cidade_id || 0)
             const cidadePrincipalNome =
-                resolverCidadePrincipalNome(prestador, {
+                resolverCidadePrincipalNome(pLoc, {
                     mapaCidadeNomePorId: cidadePorId,
                     relacoesCidades: cidadesDoPrestador,
                 }) || '-'
@@ -694,6 +714,26 @@ const Credenciamento_main = () => {
         abrirConfirmacaoExclusao('Deseja excluir este cadastro?', executarExclusao)
     }
 
+    const excluirPrestadorPermanente = async (prestadorId, opcoes = {}) => {
+        if (!podeExclusaoPermanente) return
+        const idNum = Number(prestadorId)
+        const executarExclusao = async () => {
+            try {
+                await excluirPrestadorPermanentemente(idNum)
+                setPrestadores((anteriores) => anteriores.filter((item) => Number(item.id) !== idNum))
+                setExpandedRowId((atual) => (Number(atual) === idNum ? null : atual))
+            } catch (e) {
+                setErro(e?.message || String(e))
+            }
+        }
+        const mensagem = `Apagar PERMANENTEMENTE o cadastro #${idNum} do banco de dados?\n\nRemove vínculos, procedimentos e a ficha. Esta ação não pode ser desfeita.`
+        if (opcoes.ignorarConfirmacao) {
+            await executarExclusao()
+            return
+        }
+        abrirConfirmacaoExclusao(mensagem, executarExclusao)
+    }
+
     const abrirModalEdicao = async (item) => {
         if (somenteLeitura) return
         const idNum = Number(item.id)
@@ -1097,18 +1137,13 @@ const Credenciamento_main = () => {
                 </div>
             </header>
 
-            {erro && (
-                <div className='credenciamento_main_alert' role='alert'>
-                    <span>{erro}</span>
-                    <button type='button' onClick={() => setErro('')}>
-                        x
-                    </button>
-                </div>
-            )}
+            <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
             {somenteLeitura && (
-                <div className='credenciamento_main_alert' role='status'>
-                    <span>Perfil com acesso somente leitura: filtros e pesquisa liberados, edição bloqueada.</span>
-                </div>
+                <CredenciamentoMainAlert
+                    message="Perfil com acesso somente leitura: filtros e pesquisa liberados, edição bloqueada."
+                    role="status"
+                    persist
+                />
             )}
 
             <div className='credenciamento_main_table_container'>
@@ -1243,6 +1278,20 @@ const Credenciamento_main = () => {
                                                     >
                                                         🗑️
                                                     </button>
+                                                    {podeExclusaoPermanente ? (
+                                                        <button
+                                                            type='button'
+                                                            className='table_delete_btn cred_delete_btn_permanent'
+                                                            onClick={(event) =>
+                                                                excluirPrestadorPermanente(item.id, {
+                                                                    ignorarConfirmacao: event.shiftKey,
+                                                                })
+                                                            }
+                                                            title='Apagar do banco permanentemente, SHIFT = sem confirmação'
+                                                        >
+                                                            ⚠️
+                                                        </button>
+                                                    ) : null}
                                                 </td>
                                             )}
                                         </tr>

@@ -13,6 +13,7 @@ import {
     atualizarConfigFormulario,
     urlPublicaFormularioCredenciamento,
 } from '../../../lib/formularioCredenciamento'
+import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 
 const AUTOSAVE_MS = 650
 
@@ -320,22 +321,8 @@ export default function CredenciamentoFormularioConfig() {
             </p>
             <hr />
 
-            {erro && (
-                <div className="credenciamento_main_alert" role="alert">
-                    <span>{erro}</span>
-                    <button type="button" onClick={() => setErro('')} aria-label="Fechar">
-                        ×
-                    </button>
-                </div>
-            )}
-            {okMsg && (
-                <div className="credenciamento_main_alert" role="status">
-                    <span>{okMsg}</span>
-                    <button type="button" onClick={() => setOkMsg('')} aria-label="Fechar">
-                        ×
-                    </button>
-                </div>
-            )}
+            <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
+            <CredenciamentoMainAlert message={okMsg} onClose={() => setOkMsg('')} role="status" />
 
             <div className="fcred_config_body">
             <section className="fcred_link_collapse fcred_config_link_box">

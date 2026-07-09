@@ -1,0 +1,329 @@
+import React, { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
+import {
+    buscarCidadeIdsFiltroPlanoCredenciados,
+    buildNomesMunicipioPermitidosPorUf,
+    carregarVinculosMunicipios,
+    filtrarMunicipiosIbgePorCredenciamento,
+    ufsDisponiveisFiltroCredenciamento,
+} from '../../../lib/cidadesSupertabelaVinculos.js'
+import { prestadorEhCredenciado } from '../../../lib/prestadorCadastroHelpers.js'
+import { agruparCredenciadosPorEspecialidadeCidade } from '../../../lib/credenciamento/especialidadesPorCidade.js'
+import { anexarLocalidadeVinculoAoCtx } from '../../../lib/prestadorLocalidadeVinculo.js'
+import { buscarTodosPaginado, supabase } from '../../../lib/supabase.js'
+import MenuSelectFlutuante from '../../../components/MenuSelectFlutuante/MenuSelectFlutuante.jsx'
+import '../Credenciamento_main/Credenciamento_main.css'
+import '../QuemRealiza/CredenciamentoQuemRealiza.css'
+import './CredenciamentoEspecialidadesCidade.css'
+
+const COLUNAS_ESPECIALIDADE = 3
+
+export default function CredenciamentoEspecialidadesCidade() {
+    const [uf, setUf] = useState('')
+    const [cidadeNome, setCidadeNome] = useState('')
+    const [buscarCidadesParalelas, setBuscarCidadesParalelas] = useState(false)
+    const [municipios, setMunicipios] = useState([])
+    const [loadingMun, setLoadingMun] = useState(false)
+    const [cidadesTabela, setCidadesTabela] = useState([])
+    const [vinculosMunicipios, setVinculosMunicipios] = useState([])
+    const [idsFiltroCidadeCred, setIdsFiltroCidadeCred] = useState(null)
+
+    const [prestadores, setPrestadores] = useState([])
+    const [todosPrestadoresAtivos, setTodosPrestadoresAtivos] = useState([])
+    const [prestadorCidades, setPrestadorCidades] = useState([])
+    const [prestadorEstabelecimentos, setPrestadorEstabelecimentos] = useState([])
+    const [prestadorEspecialidades, setPrestadorEspecialidades] = useState([])
+    const [mapaCidadesCred, setMapaCidadesCred] = useState(new Map())
+    const [especialidades, setEspecialidades] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [expandidas, setExpandidas] = useState({})
+
+    useEffect(() => {
+        const run = async () => {
+            setLoading(true)
+            try {
+                const [
+                    { data: prest },
+                    { data: pc },
+                    { data: cc },
+                    { data: esps },
+                    { data: pe },
+                    { data: sit },
+                    { data: peEst },
+                ] = await Promise.all([
+                        supabase
+                            .from('prestadores')
+                            .select(
+                                'id, nome, especialidade_id, endereco_uf, endereco_cidade, cidade_id, tipo, ativo, situacao_id',
+                            )
+                            .eq('ativo', true),
+                        supabase.from('prestador_cidades').select('prestador_id, cidade_id'),
+                        supabase.from('cidades_credenciamento').select('id, nome'),
+                        supabase.from('especialidades').select('id, nome, tipo').order('nome'),
+                        supabase.from('prestador_especialidades').select('prestador_id, especialidade_id, principal'),
+                        supabase.from('situacoes').select('id, descricao'),
+                        supabase.from('prestador_estabelecimentos').select('veterinario_id, estabelecimento_id, principal'),
+                    ])
+                const listaSituacoes = sit || []
+                setTodosPrestadoresAtivos(prest || [])
+                setPrestadores((prest || []).filter((p) => prestadorEhCredenciado(p, listaSituacoes)))
+                setPrestadorCidades(pc || [])
+                setPrestadorEstabelecimentos(peEst || [])
+                setMapaCidadesCred(new Map((cc || []).map((c) => [Number(c.id), c.nome])))
+                setEspecialidades(esps || [])
+                setPrestadorEspecialidades(pe || [])
+            } finally {
+                setLoading(false)
+            }
+        }
+        void run()
+    }, [])
+
+    useEffect(() => {
+        let cancelado = false
+        const run = async () => {
+            try {
+                const [ids, cidResp, vinculos] = await Promise.all([
+                    buscarCidadeIdsFiltroPlanoCredenciados(supabase, null, buscarTodosPaginado),
+                    supabase.from('cidades').select('id, nome, uf').order('nome', { ascending: true }),
+                    carregarVinculosMunicipios(supabase).catch(() => []),
+                ])
+                if (cancelado) return
+                setIdsFiltroCidadeCred(ids)
+                setCidadesTabela(cidResp.data || [])
+                setVinculosMunicipios(vinculos || [])
+            } catch {
+                if (!cancelado) {
+                    setIdsFiltroCidadeCred(new Set())
+                    setCidadesTabela([])
+                    setVinculosMunicipios([])
+                }
+            }
+        }
+        void run()
+        return () => {
+            cancelado = true
+        }
+    }, [])
+
+    const nomesMunicipioPermitidosPorUf = useMemo(
+        () => buildNomesMunicipioPermitidosPorUf(cidadesTabela, vinculosMunicipios, idsFiltroCidadeCred),
+        [cidadesTabela, vinculosMunicipios, idsFiltroCidadeCred],
+    )
+
+    const ufsPermitidasCredenciamento = useMemo(() => {
+        const set = ufsDisponiveisFiltroCredenciamento(cidadesTabela, idsFiltroCidadeCred)
+        return UFS_BRASIL.filter((sigla) => set.has(sigla))
+    }, [cidadesTabela, idsFiltroCidadeCred])
+
+    useEffect(() => {
+        if (!uf) {
+            setMunicipios([])
+            setCidadeNome('')
+            return
+        }
+        setLoadingMun(true)
+        buscarMunicipiosPorUf(uf)
+            .then((lista) =>
+                setMunicipios(
+                    filtrarMunicipiosIbgePorCredenciamento(lista, uf, nomesMunicipioPermitidosPorUf),
+                ),
+            )
+            .catch(() => setMunicipios([]))
+            .finally(() => setLoadingMun(false))
+    }, [uf, nomesMunicipioPermitidosPorUf])
+
+    useEffect(() => {
+        if (!cidadeNome) return
+        const ok = municipios.some((m) => m.nome === cidadeNome)
+        if (!ok) setCidadeNome('')
+    }, [cidadeNome, municipios])
+
+    const ctxCidade = useMemo(
+        () =>
+            anexarLocalidadeVinculoAoCtx(
+                {
+                    mapaCidadesCred,
+                    prestadorCidades,
+                    incluirCidadesParalelas: buscarCidadesParalelas,
+                },
+                todosPrestadoresAtivos,
+                prestadorEstabelecimentos,
+            ),
+        [mapaCidadesCred, prestadorCidades, buscarCidadesParalelas, todosPrestadoresAtivos, prestadorEstabelecimentos],
+    )
+
+    const grupos = useMemo(() => {
+        if (!cidadeNome || !uf) return []
+        return agruparCredenciadosPorEspecialidadeCidade({
+            prestadores,
+            prestadorEspecialidades,
+            especialidades,
+            cidadeAlvo: { nome: cidadeNome, uf },
+            ctx: ctxCidade,
+            incluirCidadesParalelas: buscarCidadesParalelas,
+        })
+    }, [
+        cidadeNome,
+        uf,
+        prestadores,
+        prestadorEspecialidades,
+        especialidades,
+        ctxCidade,
+        buscarCidadesParalelas,
+    ])
+
+    const maxTotal = useMemo(() => Math.max(1, ...grupos.map((g) => g.total)), [grupos])
+
+    const opcoesUf = useMemo(
+        () => ufsPermitidasCredenciamento.map((sigla) => ({ value: sigla, label: sigla })),
+        [ufsPermitidasCredenciamento],
+    )
+
+    const opcoesCidade = useMemo(
+        () => municipios.map((m) => ({ value: m.nome, label: m.nome })),
+        [municipios],
+    )
+
+    const colunasGrupos = useMemo(() => {
+        const cols = Array.from({ length: COLUNAS_ESPECIALIDADE }, () => [])
+        grupos.forEach((g, i) => cols[i % COLUNAS_ESPECIALIDADE].push(g))
+        return cols
+    }, [grupos])
+
+    const totalCredenciadosUnicos = useMemo(() => {
+        const ids = new Set()
+        for (const g of grupos) {
+            for (const it of g.itens) ids.add(Number(it.id))
+        }
+        return ids.size
+    }, [grupos])
+
+    const toggleExpandir = (espId) => {
+        setExpandidas((prev) => ({ ...prev, [espId]: !prev[espId] }))
+    }
+
+    const renderCard = (g) => {
+        const expandido = !!expandidas[g.especialidadeId]
+        const pct = Math.round((g.total / maxTotal) * 100)
+        return (
+            <article key={g.especialidadeId} className="cred_esp_cidade_card">
+                <button
+                    type="button"
+                    className="cred_esp_cidade_card_head"
+                    aria-expanded={expandido}
+                    onClick={() => toggleExpandir(g.especialidadeId)}
+                >
+                    <span
+                        className={`cred_esp_cidade_chevron ${expandido ? 'is-open' : ''}`}
+                        aria-hidden
+                    />
+                    <span className="cred_esp_cidade_card_tit">{g.nome}</span>
+                    <span className="cred_esp_cidade_card_qtd">{g.total}</span>
+                </button>
+                <div className="cred_esp_cidade_bar_track" aria-hidden>
+                    <div className="cred_esp_cidade_bar_fill" style={{ width: `${pct}%` }} />
+                </div>
+                {expandido ? (
+                    <ul className="cred_esp_cidade_nomes">
+                        {g.itens.map((it) => (
+                            <li key={`${g.especialidadeId}-${it.id}`}>
+                                <Link
+                                    to={`/credenciamento/cadastro/${it.id}`}
+                                    className="cred_esp_cidade_nome_link"
+                                >
+                                    {it.nome}
+                                </Link>
+                                {it.viaParalela ? (
+                                    <span className="cred_esp_cidade_tag_paralela">cidade paralela</span>
+                                ) : null}
+                            </li>
+                        ))}
+                    </ul>
+                ) : null}
+            </article>
+        )
+    }
+
+    return (
+        <div className="credenciamento_main cred_esp_cidade_page">
+            <h1>Credenciamento — Especialidades por cidade</h1>
+            <hr />
+
+            <section className="cred_esp_cidade_filtros_flutuantes">
+                <div className="quem_realiza_row quem_realiza_row_center cred_esp_cidade_filtros_inner">
+                    <MenuSelectFlutuante
+                        label="UF"
+                        value={uf}
+                        placeholder="—"
+                        options={opcoesUf}
+                        onChange={(val) => {
+                            setUf(val)
+                            setCidadeNome('')
+                            setExpandidas({})
+                        }}
+                    />
+                    <MenuSelectFlutuante
+                        label="Cidade"
+                        value={cidadeNome}
+                        placeholder={loadingMun ? 'A carregar…' : '—'}
+                        options={opcoesCidade}
+                        disabled={!uf || loadingMun}
+                        listMaxHeight={280}
+                        onChange={(val) => {
+                            setCidadeNome(val)
+                            setExpandidas({})
+                        }}
+                    />
+                    <div className="quem_realiza_switch_cidades">
+                        <span className="quem_realiza_switch_cidades_label">Buscar em cidades paralelas</span>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={buscarCidadesParalelas}
+                            className={`credenciamento_switch ${buscarCidadesParalelas ? 'is-on' : 'is-off'}`}
+                            disabled={!uf || !cidadeNome}
+                            onClick={() => setBuscarCidadesParalelas((v) => !v)}
+                            title="Inclui veterinários com esta cidade em «Cidades que atendem»"
+                        >
+                            <span className="credenciamento_switch_track">
+                                <span className="credenciamento_switch_knob" />
+                            </span>
+                            <span className="credenciamento_switch_label">
+                                {buscarCidadesParalelas ? 'Sim' : 'Não'}
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <div className="cred_esp_cidade_corpo">
+            {loading ? (
+                <p className="pcad_muted">A carregar credenciados…</p>
+            ) : !cidadeNome ? (
+                <p className="pcad_muted">Selecione UF e cidade para ver o gráfico.</p>
+            ) : grupos.length === 0 ? (
+                <p className="pcad_muted">
+                    Nenhum credenciado encontrado em {cidadeNome}/{uf}
+                    {buscarCidadesParalelas ? ' (com cidades paralelas).' : '.'}
+                </p>
+            ) : (
+                <>
+                    <p className="cred_esp_cidade_resumo pcad_muted">
+                        <strong>{totalCredenciadosUnicos}</strong> credenciado(s) único(s) ·{' '}
+                        <strong>{grupos.length}</strong> especialidade(s) com pelo menos um vínculo
+                    </p>
+                    <div className="cred_esp_cidade_grid">
+                        {colunasGrupos.map((coluna, idx) => (
+                            <div key={`col-esp-${idx}`} className="cred_esp_cidade_coluna">
+                                {coluna.map((g) => renderCard(g))}
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+            </div>
+        </div>
+    )
+}

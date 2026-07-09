@@ -10,8 +10,10 @@
     box-sizing: border-box;
 }
 
-/* Quem Realiza: uma única área rolável (colunas), sem scroll da página atrás da sidebar */
-.content:has(.credenciamento_main.quem_realiza) {
+/* Quem Realiza / Mapa: sem scroll da página; conteúdo interno com área rolável */
+.content:has(.credenciamento_main.quem_realiza),
+.content:has(.credenciamento_mapa_page),
+.content:has(.cred_esp_cidade_page) {
     height: 100vh;
     height: 100dvh;
     max-height: 100vh;

@@ -10,7 +10,7 @@ import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMa
 import { exportarNegociacaoParaExcel } from '../../../lib/exportNegociacaoExcel.js'
 import { carregarMapaNomesAlternativosPrestador } from '../../../lib/prestadorNomeAlternativo.js'
 import { carregarCodigosPrestadorProcedimentos } from '../../../lib/prestadorProcedimentos.js'
-import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
+import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import PrestadorVinculoBusca from './PrestadorVinculoBusca.jsx'
 import {
     buscarCidadeIdsFiltroPlanoCredenciados,
@@ -173,6 +173,8 @@ const Supertabelanegociacoes = () => {
     const [editarTipo, setEditarTipo] = useState('')
     const [editarPrestadorId, setEditarPrestadorId] = useState('')
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
+
+    useConfirmacaoExclusaoAutoDismiss(confirmacaoExclusao, setConfirmacaoExclusao)
     const [salvandoVinculoListaId, setSalvandoVinculoListaId] = useState(null)
 
     const cidadePorId = useMemo(

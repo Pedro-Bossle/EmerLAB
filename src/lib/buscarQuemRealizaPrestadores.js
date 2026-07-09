@@ -6,6 +6,7 @@ import {
 } from './prestadorCadastroHelpers.js'
 import { carregarMapaNomesAlternativosPrestador } from './prestadorNomeAlternativo.js'
 import { mapaCodigosPorPrestadorDeVinculos } from './prestadorProcedimentos.js'
+import { anexarLocalidadeVinculoAoCtx, resolverLocalidadeEfetivaPrestador } from './prestadorLocalidadeVinculo.js'
 
 const norm = (t) =>
     String(t || '')
@@ -65,12 +66,13 @@ export function prestadorEnderecoNaCidadeAlvo(p, alvo) {
 }
 
 /** Cidades que o prestador atende (tabela prestador_cidades / credenciamento). */
-export function prestadorAtendeCidadeCredenciamento(p, alvo, ctx) {
+export function prestadorAtendeCidadeCredenciamento(p, alvo, ctx, prestadorIdCidades) {
     const cidadeNome = String(alvo?.nome || '').trim()
     if (!cidadeNome) return false
     const alvoCidade = norm(cidadeNome)
     const { mapaCidadesCred, prestadorCidades } = ctx
-    const extras = (prestadorCidades || []).filter((r) => Number(r.prestador_id) === Number(p.id))
+    const pid = prestadorIdCidades != null ? Number(prestadorIdCidades) : Number(p.id)
+    const extras = (prestadorCidades || []).filter((r) => Number(r.prestador_id) === pid)
     return extras.some((rel) => {
         const nomeCred = mapaCidadesCred.get(Number(rel.cidade_id))
         return norm(nomeCred) === alvoCidade
@@ -78,14 +80,14 @@ export function prestadorAtendeCidadeCredenciamento(p, alvo, ctx) {
 }
 
 /** Cidade principal / vínculos de credenciamento (cidade_id + «Cidades que atendem»). */
-export function prestadorLocalizacaoCredenciamentoNaCidade(p, alvo, ctx) {
+export function prestadorLocalizacaoCredenciamentoNaCidade(p, alvo, ctx, prestadorIdCidades) {
     const cidadeNome = String(alvo?.nome || '').trim()
     if (!cidadeNome) return false
     const alvoCidade = norm(cidadeNome)
     const { mapaCidadesCred } = ctx
     const cidPrincipal = mapaCidadesCred.get(Number(p.cidade_id))
     if (norm(cidPrincipal) === alvoCidade) return true
-    return prestadorAtendeCidadeCredenciamento(p, alvo, ctx)
+    return prestadorAtendeCidadeCredenciamento(p, alvo, ctx, prestadorIdCidades)
 }
 
 /**
@@ -94,12 +96,16 @@ export function prestadorLocalizacaoCredenciamentoNaCidade(p, alvo, ctx) {
  * - Clínica/estabelecimento: endereço ou cidade de credenciamento (sede + cidades que atende).
  */
 export function prestadorAtendeCidadeAlvo(p, alvo, ctx) {
-    if (prestadorEnderecoNaCidadeAlvo(p, alvo)) return true
+    const { prestador: pLoc, prestadorIdCidades } = resolverLocalidadeEfetivaPrestador(
+        p,
+        ctx.estabelecimentoPorVeterinario,
+    )
+    if (prestadorEnderecoNaCidadeAlvo(pLoc, alvo)) return true
     if (prestadorEhEstabelecimento(p.especialidade_id)) {
-        return prestadorLocalizacaoCredenciamentoNaCidade(p, alvo, ctx)
+        return prestadorLocalizacaoCredenciamentoNaCidade(pLoc, alvo, ctx, prestadorIdCidades)
     }
     if (!ctx.incluirCidadesParalelas) return false
-    return prestadorAtendeCidadeCredenciamento(p, alvo, ctx)
+    return prestadorAtendeCidadeCredenciamento(pLoc, alvo, ctx, prestadorIdCidades)
 }
 
 export function prestadorAtendeAlgumaCidadeAlvo(p, cidadesAlvo, ctx) {
@@ -169,12 +175,16 @@ function montarLinhaResultadoQuemRealiza(p, codigos, porPrestador, ctx) {
         })
         .sort((a, b) => a.nomeBase.localeCompare(b.nomeBase, 'pt-BR', { sensitivity: 'base' }))
     const tel = [p.celular, p.telefone].map((t) => String(t || '').trim()).find(Boolean) || '—'
-    const rels = prestadorCidades.filter((r) => Number(r.prestador_id) === Number(p.id))
-    const cidadePrincipal = resolverCidadePrincipalNome(p, {
+    const { prestador: pLoc, prestadorIdCidades } = resolverLocalidadeEfetivaPrestador(
+        p,
+        ctx.estabelecimentoPorVeterinario,
+    )
+    const rels = prestadorCidades.filter((r) => Number(r.prestador_id) === Number(prestadorIdCidades))
+    const cidadePrincipal = resolverCidadePrincipalNome(pLoc, {
         mapaCidadeNomePorId: mapaCidadesCred,
         relacoesCidades: rels,
     })
-    const filtroCtx = { mapaCidadesCred, prestadorCidades, incluirCidadesParalelas }
+    const filtroCtx = { mapaCidadesCred, prestadorCidades, incluirCidadesParalelas, estabelecimentoPorVeterinario: ctx.estabelecimentoPorVeterinario }
     const viaCidadeParalela = avaliarViaCidadeParalela(p, cidadesAlvo, filtroCtx)
     return {
         id: p.id,
@@ -220,6 +230,8 @@ export async function pesquisarQuemRealizaNaRede(supabase, opcoes) {
         mapaNomePorCodigo = new Map(),
         mapaCodigoPorProcedimentoId = new Map(),
         filtrarSomenteVeterinarios = false,
+        prestadorEstabelecimentos = [],
+        prestadoresParaVinculoLocalidade = null,
     } = opcoes
 
     const codigos = [...new Set(codigosProcedimento.map(normCodigoProcedimento).filter(Boolean))]
@@ -227,7 +239,12 @@ export async function pesquisarQuemRealizaNaRede(supabase, opcoes) {
     if (!codigos.length || !cidades.length) return []
 
     const mapaEsp = new Map((especialidades || []).map((e) => [Number(e.id), e.nome]))
-    const ctxFiltro = { mapaCidadesCred, prestadorCidades, incluirCidadesParalelas }
+    const baseVinculo = prestadoresParaVinculoLocalidade || prestadores
+    const ctxFiltro = anexarLocalidadeVinculoAoCtx(
+        { mapaCidadesCred, prestadorCidades, incluirCidadesParalelas },
+        baseVinculo,
+        prestadorEstabelecimentos,
+    )
 
     const todosIds = (prestadores || []).map((p) => Number(p.id)).filter(Boolean)
     if (!todosIds.length) return []
@@ -259,6 +276,7 @@ export async function pesquisarQuemRealizaNaRede(supabase, opcoes) {
         cidadesAlvo: cidades,
         incluirCidadesParalelas,
         mapaAltPorPrestadorId,
+        estabelecimentoPorVeterinario: ctxFiltro.estabelecimentoPorVeterinario,
     }
 
     const resultadoPorId = new Map()
@@ -282,6 +300,7 @@ export async function carregarDadosCredenciamentoQuemRealiza(supabase, opcoes = 
         { data: esps },
         { data: procs },
         { data: situacoes },
+        { data: peEst },
     ] = await Promise.all([
         supabase
             .from('prestadores')
@@ -294,6 +313,7 @@ export async function carregarDadosCredenciamentoQuemRealiza(supabase, opcoes = 
         supabase.from('especialidades').select('id, nome'),
         supabase.from('procedimentos').select('id, codigo, nome'),
         supabase.from('situacoes').select('id, descricao'),
+        supabase.from('prestador_estabelecimentos').select('veterinario_id, estabelecimento_id, principal'),
     ])
     const mapaNomePorCodigo = new Map()
     const mapaCodigoPorProcedimentoId = new Map()
@@ -312,6 +332,7 @@ export async function carregarDadosCredenciamentoQuemRealiza(supabase, opcoes = 
         prestadores: listaPrest,
         todosPrestadores: prestCredenciados,
         prestadorCidades: pc || [],
+        prestadorEstabelecimentos: peEst || [],
         mapaCidadesCred: new Map((cc || []).map((c) => [Number(c.id), c.nome])),
         especialidades: esps || [],
         mapaNomePorCodigo,
@@ -342,12 +363,14 @@ export async function buscarPrestadoresQuemRealiza(supabase, opcoes = {}) {
     let mapaNomePorCodigo = dadosCredenciamento?.mapaNomePorCodigo
     let mapaCodigoPorProcedimentoId = dadosCredenciamento?.mapaCodigoPorProcedimentoId
     let todosPrestadores = dadosCredenciamento?.todosPrestadores
+    let prestadorEstabelecimentos = dadosCredenciamento?.prestadorEstabelecimentos
 
     if (!prestadores) {
         const pack = await carregarDadosCredenciamentoQuemRealiza(supabase, { somenteVeterinarios: false })
         prestadores = pack.prestadores
         todosPrestadores = pack.todosPrestadores
         prestadorCidades = pack.prestadorCidades
+        prestadorEstabelecimentos = pack.prestadorEstabelecimentos
         mapaCidadesCred = pack.mapaCidadesCred
         especialidades = pack.especialidades
         mapaNomePorCodigo = pack.mapaNomePorCodigo
@@ -355,6 +378,7 @@ export async function buscarPrestadoresQuemRealiza(supabase, opcoes = {}) {
     }
 
     const basePrestadores = somenteVeterinarios ? prestadores : todosPrestadores || prestadores
+    const todosParaVinculo = todosPrestadores || prestadores || []
 
     return pesquisarQuemRealizaNaRede(supabase, {
         codigosProcedimento: codigos,
@@ -362,10 +386,12 @@ export async function buscarPrestadoresQuemRealiza(supabase, opcoes = {}) {
         incluirCidadesParalelas,
         prestadores: basePrestadores,
         prestadorCidades,
+        prestadorEstabelecimentos,
         mapaCidadesCred,
         especialidades,
         mapaNomePorCodigo,
         mapaCodigoPorProcedimentoId,
         filtrarSomenteVeterinarios: somenteVeterinarios,
+        prestadoresParaVinculoLocalidade: todosParaVinculo,
     })
 }

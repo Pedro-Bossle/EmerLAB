@@ -1,0 +1,171 @@
+.cred_import_kmz_header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.cred_import_kmz_header h1 {
+    margin: 0;
+    flex: 1;
+}
+
+.cred_import_kmz_lead {
+    max-width: 720px;
+    margin-bottom: 16px;
+}
+
+.cred_import_kmz_upload {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.cred_import_kmz_file_label {
+    cursor: pointer;
+    margin: 0;
+}
+
+.cred_import_kmz_resumo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.cred_import_kmz_kpi {
+    background: #f4f7fb;
+    border: 1px solid #d8e1ec;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 14px;
+}
+
+.cred_import_kmz_kpi_ok {
+    border-color: #a8d5b5;
+    background: #eef9f1;
+}
+
+.cred_import_kmz_kpi_warn {
+    border-color: #e7c88a;
+    background: #fff7e6;
+}
+
+.cred_import_kmz_table_wrap {
+    overflow: auto;
+    border: 1px solid #d8e1ec;
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.cred_import_kmz_table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.cred_import_kmz_table th,
+.cred_import_kmz_table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #e8edf3;
+    vertical-align: top;
+}
+
+.cred_import_kmz_col_remover {
+    width: 40px;
+    text-align: center;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.cred_import_kmz_remover_btn {
+    border: 1px solid #d8e1ec;
+    background: #fff;
+    color: #5a7085;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0;
+}
+
+.cred_import_kmz_remover_btn:hover:not(:disabled) {
+    background: #fff0f0;
+    border-color: #e8a8a8;
+    color: #c0392b;
+}
+
+.cred_import_kmz_remover_btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.cred_import_kmz_table th {
+    background: #f8fafc;
+    font-weight: 600;
+}
+
+.cred_import_kmz_table tr.is-invalido {
+    background: #fdf6f6;
+}
+
+.cred_import_kmz_table tr.is-auto {
+    background: #f6fcf8;
+}
+
+.cred_import_kmz_badge {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: #e8edf3;
+}
+
+.cred_import_kmz_badge[data-tipo='auto'] {
+    background: #d4edda;
+    color: #1e5631;
+}
+
+.cred_import_kmz_badge[data-tipo='revisar'] {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.cred_import_kmz_badge[data-tipo='invalido'] {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.cred_import_kmz_motivo {
+    display: block;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.cred_import_kmz_vinculo {
+    min-width: 220px;
+}
+
+.cred_import_kmz_vinculo .prestador_vinculo_busca {
+    margin-top: 6px;
+}
+
+.cred_import_kmz_select {
+    width: 100%;
+    max-width: 280px;
+    margin-bottom: 4px;
+}
+
+.cred_import_kmz_acoes {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}

@@ -242,6 +242,7 @@ export default function PrestadorVinculoBusca({
                   <div
                       className='row_add_suggest_list is-portal prestador_vinculo_busca_portal'
                       role='listbox'
+                      onMouseDown={(event) => event.preventDefault()}
                       style={{
                           position: 'fixed',
                           top: `${popupStyle.top}px`,

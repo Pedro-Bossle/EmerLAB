@@ -34,7 +34,7 @@ import {
     normalizarMunicipioChave,
     salvarVinculosDaCidade,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
-import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
+import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaplanos.css'
 
@@ -130,6 +130,8 @@ const Supertabelaplanos = () => {
     const [ordenacaoPorCategoria, setOrdenacaoPorCategoria] = useState({})
     const [edicoesLocais, setEdicoesLocais] = useState({})
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
+
+    useConfirmacaoExclusaoAutoDismiss(confirmacaoExclusao, setConfirmacaoExclusao)
 
     const [codigosInicializacaoPlanos, setCodigosInicializacaoPlanos] = useState('')
     const [adicaoMassaAtiva, setAdicaoMassaAtiva] = useState(false)

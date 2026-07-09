@@ -66,6 +66,16 @@
     margin: 0;
 }
 
+.fcred_inbox_busca {
+    padding: 0 0.25rem 0.5rem;
+    flex-shrink: 0;
+}
+
+.fcred_inbox_busca_input {
+    width: 100%;
+    margin: 0;
+}
+
 .fcred_inbox_ul {
     list-style: none;
     margin: 0;
@@ -250,6 +260,25 @@
 .fcred_inbox_btn_descartar {
     color: #b3261e !important;
     border-color: #e8b4b0 !important;
+}
+
+.fcred_inbox_dev_excluir {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed #e8b4b0;
+}
+
+.fcred_inbox_btn_apagar_bd {
+    width: auto;
+    min-width: 0;
+    color: #b3261e !important;
+    border-color: #c62828 !important;
+    background: #fff5f5 !important;
+}
+
+.fcred_inbox_dev_excluir_hint {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
 }
 
 .fcred_inbox_readonly {

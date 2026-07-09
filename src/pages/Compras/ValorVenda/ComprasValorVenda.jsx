@@ -12,6 +12,7 @@ import { filtrarPorTermoBusca, normalizarTextoBusca as normalizarTextoBuscaDev }
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
+import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import './ComprasValorVenda.css'
 
 const normalizarTexto = (texto) =>
@@ -57,6 +58,8 @@ const ComprasValorVenda = () => {
     const [formValor, setFormValor] = useState('')
 
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
+
+    useConfirmacaoExclusaoAutoDismiss(confirmacaoExclusao, setConfirmacaoExclusao)
 
     const [adicaoMassaAtiva, setAdicaoMassaAtiva] = useState(false)
     const [massaTexto, setMassaTexto] = useState('')
@@ -178,7 +181,7 @@ const ComprasValorVenda = () => {
 
     useEffect(() => {
         if (!aviso) return
-        const t = setTimeout(() => setAviso(''), 12000)
+        const t = setTimeout(() => setAviso(''), TOAST_AUTO_DISMISS_MS)
         return () => clearTimeout(t)
     }, [aviso])
 

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSfscExclusaoConfirm } from '../../../hooks/useSfscExclusaoConfirm.jsx'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
+import { PERMISSION_KEYS, hasStoredPermission, hasStoredExclusaoPermanenteCredenciamento } from '../../../lib/accessControl'
 import { getReadOnlyFlag, buscarTodosPaginado, supabase } from '../../../lib/supabase'
 import { sugerirPrestadoresPorNome } from '../../../lib/pagamentosPrestador.js'
 import PrestadorVinculoBusca from '../../Supertabela/Supertabela_negociacoes/PrestadorVinculoBusca.jsx'
@@ -15,6 +15,7 @@ import {
     listarEntradasFormulario,
     obterEntradaFormulario,
     rotuloTipoPerfil,
+    excluirEntradaFormularioPermanentemente,
 } from '../../../lib/formularioCredenciamento'
 import {
     TIPOS_CHAVE_PIX,
@@ -24,7 +25,11 @@ import {
     formatarCrmvEntrada,
     formatarTelefoneEntrada,
     inferirTipoPixDaChave,
+    filtrarPorTermoBusca,
+    normalizarTextoBusca,
 } from '../../../lib/prestadorCadastroHelpers'
+import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
+import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 
 const FILTROS = [
     { id: 'abertas', label: 'Pendentes e em análise', status: ['pendente', 'em_analise'] },
@@ -69,6 +74,7 @@ export default function CredenciamentoFormularioInbox() {
     const [searchParams, setSearchParams] = useSearchParams()
     const somenteLeitura =
         getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.CREDENCIAMENTO_EDIT)
+    const podeExclusaoPermanente = hasStoredExclusaoPermanenteCredenciamento()
 
     const filtroId = searchParams.get('filtro') || 'abertas'
     const entradaIdParam = searchParams.get('id')
@@ -91,6 +97,7 @@ export default function CredenciamentoFormularioInbox() {
     const [prestadorExistenteId, setPrestadorExistenteId] = useState(null)
     const [prestadores, setPrestadores] = useState([])
     const [prestadorVinculoManualId, setPrestadorVinculoManualId] = useState('')
+    const [buscaLista, setBuscaLista] = useState('')
 
     const rotuloPrestador = useCallback((item) => item?.nome || '', [])
 
@@ -255,7 +262,37 @@ export default function CredenciamentoFormularioInbox() {
             return next
         })
         setSelecionada(null)
+        setBuscaLista('')
     }
+
+    const termoBuscaLista = useMemo(() => normalizarTextoBusca(buscaLista), [buscaLista])
+
+    const listaFiltrada = useMemo(() => {
+        if (!termoBuscaLista) return lista
+        return lista.filter((e) => {
+            const pl = e.payload || {}
+            const end = pl.endereco || {}
+            const blob = normalizarTextoBusca(
+                [
+                    pl.nome,
+                    e.cpf_cnpj,
+                    formatarCpfCnpjEntrada(e.cpf_cnpj),
+                    pl.email,
+                    pl.telefone,
+                    pl.celular,
+                    pl.crmv,
+                    end.cidade,
+                    end.uf,
+                    end.logradouro,
+                    rotuloTipoPerfil(e.tipo_perfil),
+                    rotuloStatus(e.status),
+                ]
+                    .filter(Boolean)
+                    .join(' '),
+            )
+            return filtrarPorTermoBusca(blob, termoBuscaLista, false)
+        })
+    }, [lista, termoBuscaLista])
 
     const recarregarTudo = async () => {
         await carregarLista()
@@ -295,6 +332,38 @@ export default function CredenciamentoFormularioInbox() {
                 }
             },
             'Descartar entrada',
+        )
+    }
+
+    const excluirEntradaPermanente = () => {
+        const idEntrada = selecionada?.id ?? entradaIdParam
+        if (!idEntrada || !podeExclusaoPermanente) return
+        askExclusao(
+            'Apagar PERMANENTEMENTE esta entrada do banco de dados? Não há como desfazer.',
+            async () => {
+                setAcaoLoading(true)
+                setOkMsg('')
+                setErro('')
+                try {
+                    const idNorm = String(idEntrada).trim()
+                    await excluirEntradaFormularioPermanentemente(idEntrada)
+                    setLista((prev) => prev.filter((e) => String(e.id).trim() !== idNorm))
+                    setOkMsg('Entrada removida permanentemente.')
+                    setSearchParams((prev) => {
+                        const next = new URLSearchParams(prev)
+                        next.delete('id')
+                        return next
+                    })
+                    setSelecionada(null)
+                    await carregarLista()
+                } catch (e) {
+                    setErro(e?.message || String(e))
+                } finally {
+                    setAcaoLoading(false)
+                }
+            },
+            'Excluir permanentemente',
+            { variante: 'danger', rotuloConfirmar: 'Apagar do banco' },
         )
     }
 
@@ -383,22 +452,8 @@ export default function CredenciamentoFormularioInbox() {
             </p>
             <hr />
 
-            {erro && (
-                <div className="credenciamento_main_alert" role="alert">
-                    <span>{erro}</span>
-                    <button type="button" onClick={() => setErro('')} aria-label="Fechar">
-                        ×
-                    </button>
-                </div>
-            )}
-            {okMsg && (
-                <div className="credenciamento_main_alert" role="status">
-                    <span>{okMsg}</span>
-                    <button type="button" onClick={() => setOkMsg('')} aria-label="Fechar">
-                        ×
-                    </button>
-                </div>
-            )}
+            <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
+            <CredenciamentoMainAlert message={okMsg} onClose={() => setOkMsg('')} role="status" />
 
             <header className="credenciamento_main_header">
                 <h2 className="credenciamento_cadastro_filters_title">Filtrar entradas</h2>
@@ -426,14 +481,33 @@ export default function CredenciamentoFormularioInbox() {
                 <aside className="fcred_paginas fcred_inbox_lista" aria-label="Lista de entradas">
                     <div className="fcred_paginas_head">
                         <h2>Entradas</h2>
-                        <span className="pcad_muted">{loading ? '…' : lista.length}</span>
+                        <span className="pcad_muted">
+                            {loading
+                                ? '…'
+                                : termoBuscaLista
+                                  ? `${listaFiltrada.length} / ${lista.length}`
+                                  : lista.length}
+                        </span>
+                    </div>
+                    <div className="fcred_inbox_busca">
+                        <CampoBuscaComLimpar
+                            className="credenciamento_main_input fcred_inbox_busca_input"
+                            placeholder="Nome, CPF/CNPJ, e-mail, cidade…"
+                            value={buscaLista}
+                            disabled={loading}
+                            aria-label="Buscar entradas"
+                            onChange={(e) => setBuscaLista(e.target.value)}
+                        />
                     </div>
                     {loading && <p className="pcad_muted fcred_inbox_pad">Carregando…</p>}
                     {!loading && lista.length === 0 && (
                         <p className="pcad_muted fcred_inbox_pad">Nenhuma entrada neste filtro.</p>
                     )}
+                    {!loading && lista.length > 0 && listaFiltrada.length === 0 && (
+                        <p className="pcad_muted fcred_inbox_pad">Nenhuma entrada corresponde à busca.</p>
+                    )}
                     <ul className="fcred_inbox_ul">
-                        {lista.map((e) => {
+                        {listaFiltrada.map((e) => {
                             const pl = e.payload || {}
                             const ativo = String(selecionada?.id) === String(e.id)
                             return (
@@ -715,6 +789,21 @@ export default function CredenciamentoFormularioInbox() {
                                     </>
                                 )}
                             </div>
+                            {podeExclusaoPermanente && (
+                                <div className="fcred_inbox_dev_excluir">
+                                    <button
+                                        type="button"
+                                        className="credenciamento_main_action_btn fcred_inbox_btn_apagar_bd"
+                                        disabled={acaoLoading}
+                                        onClick={() => void excluirEntradaPermanente()}
+                                    >
+                                        Apagar entrada do banco
+                                    </button>
+                                    <p className="pcad_muted fcred_inbox_dev_excluir_hint">
+                                        Remove o registro de forma irreversível (diferente de «Descartar»).
+                                    </p>
+                                </div>
+                            )}
                             {somenteLeitura && (
                                 <p className="pcad_muted fcred_inbox_readonly">
                                     Modo somente leitura: não é possível converter ou alterar status.

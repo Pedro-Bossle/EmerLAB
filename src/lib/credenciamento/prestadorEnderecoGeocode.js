@@ -244,6 +244,21 @@ export function filtrarPrestadoresParaMapaEndereco(
     })
 }
 
+/** Credenciados LOCAL ativos — base para vínculo por nome no import KMZ (não exige endereço). */
+export function filtrarPrestadoresParaImportCoordenadas(
+    prestadores,
+    especialidades,
+    { apenasLocal = true, apenasCredenciados = true, situacoes = [] } = {},
+) {
+    const mapa = especialidadePorIdMap(especialidades)
+    return (prestadores || []).filter((p) => {
+        if (p.ativo === false) return false
+        if (apenasCredenciados && !prestadorEhCredenciado(p, situacoes)) return false
+        if (apenasLocal && !prestadorEhTipoLocal(p, mapa)) return false
+        return Boolean(String(p.nome || '').trim())
+    })
+}
+
 export function parseCoordenadaEntrada(valor) {
     const s = String(valor ?? '')
         .trim()
@@ -269,6 +284,37 @@ export async function atualizarCoordenadasPrestadorManual(supabase, prestadorId,
             longitude: lo,
             geocoded_at: agora,
             geocode_fonte: 'manual',
+            endereco_geocode_hash: hash || null,
+            data_atualizacao: agora,
+        })
+        .eq('id', Number(prestadorId))
+    if (error) throw new Error(error.message)
+    return { latitude: la, longitude: lo }
+}
+
+/** Coordenadas vindas de import KMZ (ex.: Google My Maps). */
+export async function atualizarCoordenadasPrestadorImport(
+    supabase,
+    prestadorId,
+    lat,
+    lng,
+    prestadorParaHash = {},
+    { geocodeFonte = 'import_mymaps' } = {},
+) {
+    const la = parseCoordenadaEntrada(lat)
+    const lo = parseCoordenadaEntrada(lng)
+    if (!coordenadasValidasBrasil(la, lo)) {
+        throw new Error('Coordenadas inválidas para o Brasil.')
+    }
+    const agora = new Date().toISOString()
+    const hash = hashEnderecoGeocode(montarEnderecoGeocodeFromPrestador(prestadorParaHash))
+    const { error } = await supabase
+        .from('prestadores')
+        .update({
+            latitude: la,
+            longitude: lo,
+            geocoded_at: agora,
+            geocode_fonte: geocodeFonte,
             endereco_geocode_hash: hash || null,
             data_atualizacao: agora,
         })

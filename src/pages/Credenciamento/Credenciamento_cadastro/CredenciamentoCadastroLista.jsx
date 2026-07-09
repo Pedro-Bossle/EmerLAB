@@ -16,9 +16,12 @@ import {
     prestadorEhEstabelecimento,
 } from '../../../lib/prestadorCadastroHelpers'
 import {
-    filtrarPrestadoresParaMapaEndereco,
-} from '../../../lib/credenciamento/prestadorEnderecoGeocode'
+    montarEstabelecimentoPorVeterinarioDeListas,
+    resolverLocalidadeEfetivaPrestador,
+} from '../../../lib/prestadorLocalidadeVinculo.js'
+import { useAutoDismiss } from '../../../lib/toastUi.js'
 import CopiarCodigosProcedimentosBtn from './CopiarCodigosProcedimentosBtn.jsx'
+import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
@@ -64,8 +67,8 @@ const CredenciamentoCadastroLista = () => {
     const [qtdProcedimentosPorPrestador, setQtdProcedimentosPorPrestador] = useState(() => new Map())
     const [labsMassaBusy, setLabsMassaBusy] = useState(false)
     const [feedbackLabsMassa, setFeedbackLabsMassa] = useState('')
-    const [geoBusy, setGeoBusy] = useState(false)
-    const [feedbackGeo, setFeedbackGeo] = useState('')
+
+    useAutoDismiss(Boolean(feedbackLabsMassa), () => setFeedbackLabsMassa(''))
 
     const { ui: devToolsUi } = useDevToolsUi()
     const podeDevTool = hasStoredDevTools()
@@ -106,64 +109,6 @@ const CredenciamentoCadastroLista = () => {
             setErro(e?.message || String(e))
         } finally {
             setLabsMassaBusy(false)
-        }
-    }
-
-    const geocodificarCredenciadosNoSistema = async () => {
-        if (somenteLeitura || geoBusy) return
-        const candidatos = filtrarPrestadoresParaMapaEndereco(prestadores, especialidades, {
-            apenasLocal: true,
-            apenasCredenciados: true,
-            situacoes,
-        })
-        if (!candidatos.length) {
-            setFeedbackGeo('Nenhum credenciado LOCAL com endereço para geocodificar.')
-            return
-        }
-        const ok = window.confirm(
-            `Geocodificar ${candidatos.length} prestador(es) credenciado(s) LOCAL agora?\n\n` +
-                'O processo usa Nominatim e pode levar alguns minutos.',
-        )
-        if (!ok) return
-        setGeoBusy(true)
-        setFeedbackGeo('')
-        setErro('')
-        let atualizados = 0
-        let ignorados = 0
-        let falhas = 0
-        try {
-            for (let i = 0; i < candidatos.length; i += 1) {
-                const p = candidatos[i]
-                setFeedbackGeo(`Geocodificando ${i + 1}/${candidatos.length}: ${p.nome || `#${p.id}`}`)
-                try {
-                    const resp = await fetch('/api/geocode-prestador', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prestadorId: Number(p.id), forcar: false }),
-                    })
-                    const body = await resp.json().catch(() => ({}))
-                    if (!resp.ok || body?.ok === false) {
-                        falhas += 1
-                    } else if (body?.skipped) {
-                        ignorados += 1
-                    } else {
-                        atualizados += 1
-                    }
-                } catch {
-                    falhas += 1
-                }
-                if (i < candidatos.length - 1) {
-                    await new Promise((resolve) => setTimeout(resolve, 1100))
-                }
-            }
-            setFeedbackGeo(
-                `Geocodificação concluída: ${atualizados} atualizado(s), ${ignorados} sem alteração e ${falhas} falha(s).`,
-            )
-            await carregar()
-        } catch (e) {
-            setErro(e?.message || String(e))
-        } finally {
-            setGeoBusy(false)
         }
     }
 
@@ -294,6 +239,11 @@ const CredenciamentoCadastroLista = () => {
     const situacaoPorId = useMemo(() => new Map(situacoes.map((s) => [Number(s.id), s])), [situacoes])
     const especialidadePorId = useMemo(() => new Map(especialidades.map((e) => [Number(e.id), e])), [especialidades])
 
+    const estabelecimentoPorVeterinario = useMemo(
+        () => montarEstabelecimentoPorVeterinarioDeListas(prestadores, prestadorEstabelecimentos),
+        [prestadores, prestadorEstabelecimentos],
+    )
+
     const linhas = useMemo(() => {
         const cidadesPorPrestador = new Map()
         prestadorCidades.forEach((rel) => {
@@ -308,8 +258,12 @@ const CredenciamentoCadastroLista = () => {
         })
         return (prestadores || []).map((p) => {
             const pid = Number(p.id)
-            const rels = cidadesPorPrestador.get(pid) || []
-            const cidadeNome = resolverCidadePrincipalNome(p, {
+            const { prestador: pLoc, prestadorIdCidades } = resolverLocalidadeEfetivaPrestador(
+                p,
+                estabelecimentoPorVeterinario,
+            )
+            const rels = cidadesPorPrestador.get(prestadorIdCidades) || cidadesPorPrestador.get(pid) || []
+            const cidadeNome = resolverCidadePrincipalNome(pLoc, {
                 mapaCidadeNomePorId: cidadePorId,
                 relacoesCidades: rels,
             })
@@ -340,6 +294,7 @@ const CredenciamentoCadastroLista = () => {
         prestadores,
         prestadorCidades,
         prestadorEstabelecimentos,
+        estabelecimentoPorVeterinario,
         cidadePorId,
         situacaoPorId,
         especialidadePorId,
@@ -491,23 +446,6 @@ const CredenciamentoCadastroLista = () => {
                                     </select>
                                 </div>
                                 <div className="credenciamento_main_filter_item credenciamento_cadastro_filters_action">
-                                    <button
-                                        type="button"
-                                        className="credenciamento_main_action_btn secondary"
-                                        onClick={() => void geocodificarCredenciadosNoSistema()}
-                                        disabled={somenteLeitura || geoBusy}
-                                        title="Geocodifica credenciados do tipo LOCAL direto no sistema"
-                                    >
-                                        {geoBusy ? 'Geocodificando...' : 'Geocodificar credenciados'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="credenciamento_main_action_btn secondary"
-                                        onClick={() => navigate('/credenciamento/mapa')}
-                                        title="Abre mapa com pins de credenciados LOCAL"
-                                    >
-                                        Abrir mapa
-                                    </button>
                                     {!somenteLeitura && (
                                         <button
                                             type="button"
@@ -542,22 +480,7 @@ const CredenciamentoCadastroLista = () => {
                 </div>
             )}
 
-            {erro && (
-                <div className="credenciamento_main_alert" role="alert">
-                    <span>{erro}</span>
-                    <button type="button" onClick={() => setErro('')}>
-                        x
-                    </button>
-                </div>
-            )}
-            {feedbackGeo && (
-                <div className="credenciamento_main_alert" role="status">
-                    <span>{feedbackGeo}</span>
-                    <button type="button" onClick={() => setFeedbackGeo('')}>
-                        x
-                    </button>
-                </div>
-            )}
+            <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
 
             <div className="credenciamento_main_table_container">
                 {loading ? (

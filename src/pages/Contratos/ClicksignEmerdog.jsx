@@ -67,6 +67,7 @@ import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl.js
 import './ContratosEmerdog.css'
 import './ClicksignEmerdog.css'
 import { TOAST_AUTO_DISMISS_MS, abrirUrlDownload, formatarDataPtBr } from './contratosUi.js'
+import { useConfirmacaoExclusaoAutoDismiss } from '../../lib/toastUi.js'
 
 const PDF_MAX_BYTES = 12 * 1024 * 1024
 const STORAGE_FLUXO_EID = 'emerdog_cs_fluxo_eid'
@@ -267,6 +268,8 @@ export default function ClicksignEmerdog() {
 
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
 
+    useConfirmacaoExclusaoAutoDismiss(confirmacaoExclusao, setConfirmacaoExclusao)
+
     const fluxoEidRef = useRef('')
     const montarEdicaoEnvelopeIdRef = useRef('')
     const fluxoImportPdfRef = useRef(null)
@@ -362,7 +365,6 @@ export default function ClicksignEmerdog() {
 
     useEffect(() => {
         if (!toast) return undefined
-        if (toast.variant === 'confirm') return undefined
         const t = setTimeout(() => setToast(null), TOAST_AUTO_DISMISS_MS)
         return () => clearTimeout(t)
     }, [toast])

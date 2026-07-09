@@ -18,7 +18,9 @@ import Credenciamento_main from './pages/Credenciamento/Credenciamento_main/Cred
 import CredenciamentoCadastroLista from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroLista';
 import CredenciamentoCadastroForm from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroForm';
 import CredenciamentoMapa from './pages/Credenciamento/Credenciamento_mapa/CredenciamentoMapa';
+import CredenciamentoImportKmz from './pages/Credenciamento/Credenciamento_import_kmz/CredenciamentoImportKmz';
 import CredenciamentoQuemRealiza from './pages/Credenciamento/QuemRealiza/CredenciamentoQuemRealiza';
+import CredenciamentoEspecialidadesCidade from './pages/Credenciamento/EspecialidadesCidade/CredenciamentoEspecialidadesCidade';
 import CredenciamentoFormularioConfig from './pages/Credenciamento/Formulario/CredenciamentoFormularioConfig';
 import CredenciamentoFormularioInbox from './pages/Credenciamento/Formulario/CredenciamentoFormularioInbox';
 import CredenciamentoEspecialidadesRc from './pages/Credenciamento/EspecialidadesRc/CredenciamentoEspecialidadesRc';
@@ -169,6 +171,14 @@ function App() {
             }
           />
           <Route
+            path="/credenciamento/import-kmz"
+            element={
+              <PrivateRoute permission="credenciamento.view" toolId="credenciamento.import_kmz">
+                <CredenciamentoImportKmz />
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/credenciamento/quem-realiza"
             element={
               <PrivateRoute
@@ -177,6 +187,14 @@ function App() {
                 toolId="credenciamento.quem_realiza"
               >
                 <CredenciamentoQuemRealiza />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/credenciamento/especialidades-cidade"
+            element={
+              <PrivateRoute permission="credenciamento.view" toolId="credenciamento.especialidades_cidade">
+                <CredenciamentoEspecialidadesCidade />
               </PrivateRoute>
             }
           />

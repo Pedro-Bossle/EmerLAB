@@ -525,6 +525,35 @@ export async function atualizarStatusEntradaFormulario(id, status, extras = {}) 
     emitirMudancaEntradasFormulario()
 }
 
+/** Apaga a linha do inbox (irreversível). Uso restrito a Dev Tools no cliente. */
+export async function excluirEntradaFormularioPermanentemente(id) {
+    const idRef = id == null ? '' : String(id).trim()
+    if (!idRef) throw new Error('Entrada inválida.')
+
+    const tentarDelete = async (valor) => {
+        const { data, error } = await supabase
+            .from('formulario_cred_entradas')
+            .delete()
+            .eq('id', valor)
+            .select('id')
+        return { data, error }
+    }
+
+    let { data, error } = await tentarDelete(idRef)
+    if (!error && (!data || data.length === 0) && /^\d+$/.test(idRef)) {
+        const retry = await tentarDelete(Number(idRef))
+        data = retry.data
+        error = retry.error
+    }
+    if (error) throw new Error(error.message)
+    if (!data?.length) {
+        throw new Error(
+            'Nenhuma entrada foi removida. No Supabase, confira a política RLS de DELETE em formulario_cred_entradas (script scripts/sql/formulario_cred_entradas_delete_rls.sql).',
+        )
+    }
+    emitirMudancaEntradasFormulario()
+}
+
 function normalizarBuscaEsp(nome) {
     return String(nome || '')
         .normalize('NFD')
