@@ -1,0 +1,65 @@
+/**
+ * Proxy mapas OSM unificado (limite Hobby Vercel: menos Serverless Functions).
+ * GET /api/nominatim-search?...  ou  GET /api/overpass-poi?...
+ * (rewrites em vercel.json mantêm URLs antigas)
+ */
+import { nominatimSearchJson, normalizarParamsNominatim } from '../src/lib/credenciamento/nominatimUpstream.js'
+import { overpassPoisNaArea } from '../src/lib/credenciamento/overpassUpstream.js'
+
+function rotaOverpass(pathname) {
+    return String(pathname || '').includes('overpass-poi')
+}
+
+async function handleNominatim(req, res) {
+    const url = new URL(req.url || '/', 'http://localhost')
+    const params = {}
+    for (const [k, v] of url.searchParams.entries()) {
+        params[k] = v
+    }
+    const normalizado = normalizarParamsNominatim(params)
+    const r = await nominatimSearchJson(normalizado)
+    if (!r.ok) {
+        const status = r.status === 429 ? 429 : r.status && r.status >= 400 ? r.status : 502
+        res.status(status).json({
+            error: r.erro || 'Falha na consulta Nominatim.',
+            codigo: r.codigo || undefined,
+        })
+        return
+    }
+    res.setHeader('Cache-Control', 'private, max-age=300')
+    res.status(200).json(r.data)
+}
+
+async function handleOverpass(req, res) {
+    const url = new URL(req.url || '/', 'http://localhost')
+    const r = await overpassPoisNaArea({
+        south: url.searchParams.get('south'),
+        west: url.searchParams.get('west'),
+        north: url.searchParams.get('north'),
+        east: url.searchParams.get('east'),
+        categoria: url.searchParams.get('categoria') || '',
+    })
+    if (!r.ok) {
+        const status = r.status === 429 ? 429 : r.status && r.status >= 400 ? r.status : 502
+        res.status(status).json({
+            error: r.erro || 'Falha na consulta Overpass.',
+            codigo: r.codigo || undefined,
+        })
+        return
+    }
+    res.setHeader('Cache-Control', 'private, max-age=300')
+    res.status(200).json({ itens: r.itens || [] })
+}
+
+export default async function handler(req, res) {
+    if (req.method !== 'GET') {
+        res.status(405).json({ error: 'Método não permitido.' })
+        return
+    }
+    const pathname = new URL(req.url || '/', 'http://localhost').pathname
+    if (rotaOverpass(pathname)) {
+        await handleOverpass(req, res)
+        return
+    }
+    await handleNominatim(req, res)
+}

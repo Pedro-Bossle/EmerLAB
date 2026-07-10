@@ -1,20 +1,11 @@
 /**
  * Proxy seguro para a API 3.0 (Envelope) da Clicksign — JSON:API.
- * Variáveis: CLICKSIGN_ACCESS_TOKEN (obrigatório), CLICKSIGN_API_BASE (opcional).
- * Base padrão: https://sandbox.clicksign.com/api/v3
- *
- * Rotas locais: qualquer método em /api/clicksign/* → upstream {CLICKSIGN_API_BASE}/*
- * Ex.: GET /api/clicksign/envelopes → GET {base}/envelopes
- *
- * Autenticação: cabeçalho Authorization com o Access Token (sem prefixo Bearer), conforme documentação.
- * Accept/Content-Type: application/vnd.api+json
+ * Usado por api/clicksign-catchall.js e dev (não é Serverless Function).
  */
-
 const DEFAULT_BASE = 'https://sandbox.clicksign.com/api/v3'
 
 const normBase = (b) => String(b || DEFAULT_BASE).replace(/\/$/, '')
 
-/** Evita path traversal e limita a prefixos da API pública de envelope / webhooks. */
 function isPathAllowed(subPath) {
     const raw = subPath.split('?')[0] || ''
     if (!raw || raw.includes('..')) return false
@@ -43,7 +34,6 @@ function setResponseStatus(res, code) {
     res.statusCode = code
 }
 
-/** Compatível com Node `res` e com o adaptador do Vite (`status` + `json` + `end`). */
 function sendRawResponse(res, status, contentType, body) {
     setResponseStatus(res, status)
     res.setHeader('Content-Type', contentType)
@@ -56,7 +46,7 @@ function sendRawResponse(res, status, contentType, body) {
     }
 }
 
-export default async function handler(req, res) {
+export default async function clicksignProxyHandler(req, res) {
     const token = (process.env.CLICKSIGN_ACCESS_TOKEN || process.env.CLICKSIGN_TOKEN || '').trim()
     if (!token) {
         res.status(503).json({
@@ -72,7 +62,9 @@ export default async function handler(req, res) {
     const search = u.search || ''
 
     if (!isPathAllowed(subPath)) {
-        res.status(403).json({ error: 'Caminho não permitido neste proxy. Use prefixos /envelopes, /webhooks, /templates ou /batch.' })
+        res.status(403).json({
+            error: 'Caminho não permitido neste proxy. Use prefixos /envelopes, /webhooks, /templates ou /batch.',
+        })
         return
     }
 
@@ -105,10 +97,7 @@ export default async function handler(req, res) {
         const upstream = await fetch(upstreamUrl, fetchOpts)
         const text = await upstream.text()
         const ct = (upstream.headers.get('content-type') || '').toLowerCase()
-        const pareceJson =
-            !text.length ||
-            ct.includes('json') ||
-            ct.includes('application/vnd.api')
+        const pareceJson = !text.length || ct.includes('json') || ct.includes('application/vnd.api')
         if (!pareceJson && text.length > 0) {
             sendRawResponse(res, upstream.status, ct || 'text/plain; charset=utf-8', text)
             return

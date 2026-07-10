@@ -4,12 +4,8 @@
   "framework": "vite",
   "functions": {
     "api/rc-pdf.js": {
-      "memory": 1024,
       "maxDuration": 60,
       "includeFiles": "{src/assets/rc/**,src/lib/rc/**,src/lib/impressaoPlanos/montserratPdfFonts.js}"
-    },
-    "api/clicksign/[...path].js": {
-      "maxDuration": 30
     },
     "api/clicksign-catchall.js": {
       "maxDuration": 30
@@ -29,23 +25,32 @@
     "api/geocode-prestador.js": {
       "maxDuration": 30
     },
-    "api/nominatim-search.js": {
-      "maxDuration": 15
-    },
-    "api/overpass-poi.js": {
+    "api/map-osm.js": {
       "maxDuration": 25
     },
     "api/prospectos-osm-coletar.js": {
       "maxDuration": 60
     },
-    "api/prospectos-gemini-status.js": {
-      "maxDuration": 20
+    "api/cep-lookup.js": {
+      "maxDuration": 15
     }
   },
   "rewrites": [
     {
       "source": "/api/clicksign/:path*",
       "destination": "/api/clicksign-catchall?path=:path*"
+    },
+    {
+      "source": "/api/nominatim-search",
+      "destination": "/api/map-osm"
+    },
+    {
+      "source": "/api/overpass-poi",
+      "destination": "/api/map-osm"
+    },
+    {
+      "source": "/api/prospectos-gemini-status",
+      "destination": "/api/prospectos-osm-coletar"
     },
     {
       "source": "/(.*)",

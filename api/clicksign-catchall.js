@@ -2,7 +2,7 @@
  * Vercel: todas as rotas /api/clicksign/* (via rewrite em vercel.json).
  * Reconstrói req.url para o proxy (pathname /api/clicksign/...).
  */
-import clicksignProxy from './clicksign-proxy.js'
+import clicksignProxy from '../src/lib/clicksign/clicksignProxyHandler.js'
 
 function pathFromQuery(req) {
     const q = req.query?.path

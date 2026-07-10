@@ -4,11 +4,9 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import consultaCnpjHandler from './api/consulta-cnpj.js'
 import cepLookupHandler from './api/cep-lookup.js'
-import nominatimSearchHandler from './api/nominatim-search.js'
-import overpassPoiHandler from './api/overpass-poi.js'
+import mapOsmHandler from './api/map-osm.js'
 import prospectosOsmColetarHandler from './api/prospectos-osm-coletar.js'
-import prospectosGeminiStatusHandler from './api/prospectos-gemini-status.js'
-import clicksignProxyHandler from './api/clicksign-proxy.js'
+import clicksignProxyHandler from './src/lib/clicksign/clicksignProxyHandler.js'
 import clicksignDownloadHandler from './api/clicksign-download.js'
 import adminUsersHandler from './api/admin-users.js'
 
@@ -28,16 +26,16 @@ function carregarEnvParaProcesso(envDir, mode) {
     if (base) process.env.CLICKSIGN_API_BASE = base
 }
 
-/** Em dev, atende /api/nominatim-search no Vite (proxy OSM). */
-function nominatimSearchDevPlugin() {
+/** Em dev, atende /api/nominatim-search e /api/overpass-poi (handler unificado map-osm). */
+function mapOsmDevPlugin() {
     return {
-        name: 'nominatim-search-dev',
+        name: 'map-osm-dev',
         enforce: 'pre',
         configureServer(server) {
             carregarEnvParaProcesso(server.config.envDir, server.config.mode)
             server.middlewares.use(async (req, res, next) => {
                 const url = req.url || ''
-                if (!url.startsWith('/api/nominatim-search')) {
+                if (!url.startsWith('/api/nominatim-search') && !url.startsWith('/api/overpass-poi')) {
                     next()
                     return
                 }
@@ -61,12 +59,15 @@ function nominatimSearchDevPlugin() {
                     },
                 }
                 try {
-                    await nominatimSearchHandler(reqLike, resLike)
+                    await mapOsmHandler(reqLike, resLike)
                 } catch (e) {
                     res.statusCode = 502
                     res.setHeader('Content-Type', 'application/json; charset=utf-8')
                     res.end(
-                        JSON.stringify({ error: e?.message || 'Falha na consulta Nominatim.', codigo: 'proxy_error' }),
+                        JSON.stringify({
+                            error: e?.message || 'Falha na consulta OSM (Nominatim/Overpass).',
+                            codigo: 'proxy_error',
+                        }),
                     )
                 }
             })
@@ -74,51 +75,7 @@ function nominatimSearchDevPlugin() {
     }
 }
 
-/** Em dev, atende /api/overpass-poi no Vite. */
-function overpassPoiDevPlugin() {
-    return {
-        name: 'overpass-poi-dev',
-        enforce: 'pre',
-        configureServer(server) {
-            carregarEnvParaProcesso(server.config.envDir, server.config.mode)
-            server.middlewares.use(async (req, res, next) => {
-                const url = req.url || ''
-                if (!url.startsWith('/api/overpass-poi')) {
-                    next()
-                    return
-                }
-                const reqLike = { method: req.method || 'GET', url, headers: req.headers || {} }
-                const resLike = {
-                    statusCode: 200,
-                    setHeader(name, value) {
-                        res.setHeader(name, value)
-                    },
-                    status(code) {
-                        this.statusCode = code
-                        res.statusCode = code
-                        return this
-                    },
-                    json(payload) {
-                        if (!res.getHeader('Content-Type')) {
-                            res.setHeader('Content-Type', 'application/json; charset=utf-8')
-                        }
-                        res.statusCode = this.statusCode
-                        res.end(JSON.stringify(payload))
-                    },
-                }
-                try {
-                    await overpassPoiHandler(reqLike, resLike)
-                } catch (e) {
-                    res.statusCode = 502
-                    res.setHeader('Content-Type', 'application/json; charset=utf-8')
-                    res.end(JSON.stringify({ error: e?.message || 'Falha na consulta Overpass.' }))
-                }
-            })
-        },
-    }
-}
-
-/** Em dev, POST /api/prospectos-osm-coletar */
+/** Em dev, POST /api/prospectos-osm-coletar e GET /api/prospectos-gemini-status */
 function prospectosOsmColetarDevPlugin() {
     return {
         name: 'prospectos-osm-coletar-dev',
@@ -127,21 +84,27 @@ function prospectosOsmColetarDevPlugin() {
             carregarEnvParaProcesso(server.config.envDir, server.config.mode)
             server.middlewares.use(async (req, res, next) => {
                 const url = req.url || ''
-                if (!url.startsWith('/api/prospectos-osm-coletar')) {
+                if (
+                    !url.startsWith('/api/prospectos-osm-coletar') &&
+                    !url.startsWith('/api/prospectos-gemini-status')
+                ) {
                     next()
                     return
                 }
-                const chunks = []
-                for await (const ch of req) chunks.push(ch)
-                const raw = Buffer.concat(chunks).toString('utf8')
+                const method = req.method || (url.startsWith('/api/prospectos-gemini-status') ? 'GET' : 'POST')
                 let body = {}
-                try {
-                    if (raw.trim()) body = JSON.parse(raw)
-                } catch {
-                    body = {}
+                if (method !== 'GET' && method !== 'HEAD') {
+                    const chunks = []
+                    for await (const ch of req) chunks.push(ch)
+                    const raw = Buffer.concat(chunks).toString('utf8')
+                    try {
+                        if (raw.trim()) body = JSON.parse(raw)
+                    } catch {
+                        body = {}
+                    }
                 }
                 const reqLike = {
-                    method: req.method || 'POST',
+                    method,
                     url,
                     headers: req.headers || {},
                     body,
@@ -170,50 +133,6 @@ function prospectosOsmColetarDevPlugin() {
                     res.statusCode = 502
                     res.setHeader('Content-Type', 'application/json; charset=utf-8')
                     res.end(JSON.stringify({ error: e?.message || 'Falha na coleta.' }))
-                }
-            })
-        },
-    }
-}
-
-/** Em dev, GET /api/prospectos-gemini-status */
-function prospectosGeminiStatusDevPlugin() {
-    return {
-        name: 'prospectos-gemini-status-dev',
-        enforce: 'pre',
-        configureServer(server) {
-            carregarEnvParaProcesso(server.config.envDir, server.config.mode)
-            server.middlewares.use(async (req, res, next) => {
-                const url = req.url || ''
-                if (!url.startsWith('/api/prospectos-gemini-status')) {
-                    next()
-                    return
-                }
-                const reqLike = { method: req.method || 'GET', url, headers: req.headers || {} }
-                const resLike = {
-                    statusCode: 200,
-                    setHeader(name, value) {
-                        res.setHeader(name, value)
-                    },
-                    status(code) {
-                        this.statusCode = code
-                        res.statusCode = code
-                        return this
-                    },
-                    json(payload) {
-                        if (!res.getHeader('Content-Type')) {
-                            res.setHeader('Content-Type', 'application/json; charset=utf-8')
-                        }
-                        res.statusCode = this.statusCode
-                        res.end(JSON.stringify(payload))
-                    },
-                }
-                try {
-                    await prospectosGeminiStatusHandler(reqLike, resLike)
-                } catch (e) {
-                    res.statusCode = 502
-                    res.setHeader('Content-Type', 'application/json; charset=utf-8')
-                    res.end(JSON.stringify({ error: e?.message || 'Falha ao verificar Gemini.' }))
                 }
             })
         },
@@ -492,10 +411,8 @@ export default defineConfig(({ command, mode }) => {
         plugins: [
             command === 'serve' ? consultaCnpjDevPlugin() : null,
             command === 'serve' ? cepLookupDevPlugin() : null,
-            command === 'serve' ? nominatimSearchDevPlugin() : null,
-            command === 'serve' ? overpassPoiDevPlugin() : null,
+            command === 'serve' ? mapOsmDevPlugin() : null,
             command === 'serve' ? prospectosOsmColetarDevPlugin() : null,
-            command === 'serve' ? prospectosGeminiStatusDevPlugin() : null,
             command === 'serve' ? adminUsersDevPlugin() : null,
             command === 'serve' ? clicksignDevPlugin() : null,
             react(),

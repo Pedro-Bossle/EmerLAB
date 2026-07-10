@@ -6,7 +6,7 @@ import adminUsersHandler from '../api/admin-users.js'
 import rcPdfHandler from '../api/rc-pdf.js'
 import consultaCnpjHandler from '../api/consulta-cnpj.js'
 import geocodePrestadorHandler from '../api/geocode-prestador.js'
-import clicksignProxyHandler from '../api/clicksign-proxy.js'
+import clicksignProxyHandler from '../src/lib/clicksign/clicksignProxyHandler.js'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 dotenv.config({ path: path.join(root, '.env') })
