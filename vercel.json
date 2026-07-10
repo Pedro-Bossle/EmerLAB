@@ -42,15 +42,15 @@
     },
     {
       "source": "/api/nominatim-search",
-      "destination": "/api/map-osm"
+      "destination": "/api/map-osm?_route=nominatim"
     },
     {
       "source": "/api/overpass-poi",
-      "destination": "/api/map-osm"
+      "destination": "/api/map-osm?_route=overpass"
     },
     {
       "source": "/api/prospectos-gemini-status",
-      "destination": "/api/prospectos-osm-coletar"
+      "destination": "/api/prospectos-osm-coletar?_route=gemini-status"
     },
     {
       "source": "/(.*)",

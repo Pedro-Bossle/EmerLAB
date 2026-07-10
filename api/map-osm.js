@@ -1,21 +1,14 @@
 /**
  * Proxy mapas OSM unificado (limite Hobby Vercel: menos Serverless Functions).
  * GET /api/nominatim-search?...  ou  GET /api/overpass-poi?...
- * (rewrites em vercel.json mantêm URLs antigas)
+ * (rewrites em vercel.json mantêm URLs antigas + ?_route=…)
  */
 import { nominatimSearchJson, normalizarParamsNominatim } from '../src/lib/credenciamento/nominatimUpstream.js'
 import { overpassPoisNaArea } from '../src/lib/credenciamento/overpassUpstream.js'
-
-function rotaOverpass(pathname) {
-    return String(pathname || '').includes('overpass-poi')
-}
+import { isOverpassOsmRequest, queryParamsSemRota } from '../src/lib/api/vercelUnifiedRoute.js'
 
 async function handleNominatim(req, res) {
-    const url = new URL(req.url || '/', 'http://localhost')
-    const params = {}
-    for (const [k, v] of url.searchParams.entries()) {
-        params[k] = v
-    }
+    const params = queryParamsSemRota(req)
     const normalizado = normalizarParamsNominatim(params)
     const r = await nominatimSearchJson(normalizado)
     if (!r.ok) {
@@ -52,12 +45,15 @@ async function handleOverpass(req, res) {
 }
 
 export default async function handler(req, res) {
-    if (req.method !== 'GET') {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
         res.status(405).json({ error: 'Método não permitido.' })
         return
     }
-    const pathname = new URL(req.url || '/', 'http://localhost').pathname
-    if (rotaOverpass(pathname)) {
+    if (req.method === 'HEAD') {
+        res.status(200).end()
+        return
+    }
+    if (isOverpassOsmRequest(req)) {
         await handleOverpass(req, res)
         return
     }
