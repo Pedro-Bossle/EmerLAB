@@ -78,6 +78,41 @@ export function msRestantesDescanso(ateIso) {
 }
 
 /**
+ * Texto para o usuário: quando o Gemini deve voltar (rate limit / pausa curta).
+ * @param {string} [ateIso]
+ * @param {{ quotaExceeded?: boolean }} [opts]
+ * @returns {{ linha: string, titulo: string, temPrevisao: boolean }}
+ */
+export function previsaoRetornoGemini(ateIso, opts = {}) {
+    if (opts.quotaExceeded) {
+        return {
+            temPrevisao: false,
+            linha: 'Sem previsão (cota do plano)',
+            titulo:
+                'A API Gemini indicou cota esgotada no plano. Não há horário garantido de retorno — use OpenStreetMap ou tente mais tarde (duplo clique no quadrinho).',
+        }
+    }
+    const ms = msRestantesDescanso(ateIso)
+    if (!ateIso || ms <= 0) {
+        return {
+            temPrevisao: false,
+            linha: '',
+            titulo: 'Gemini disponível para tentativa na próxima coleta.',
+        }
+    }
+    const quando = new Date(ateIso)
+    const hora = quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    const data = quando.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    const seg = Math.ceil(ms / 1000)
+    const linha = seg >= 3600 ? `≈ ${formatarTimerDescansoGemini(seg)} · ${hora}` : `≈ ${formatarTimerDescansoGeminiLive(ms)} · ${hora}`
+    return {
+        temPrevisao: true,
+        linha: `volta ~${hora} (${data})`,
+        titulo: `Previsão de liberação: ${data} às ${hora} (em ${formatarTimerDescansoGemini(seg)}).`,
+    }
+}
+
+/**
  * @param {string} [erroOriginal]
  * @param {number} [retryAfterSec]
  * @returns {{ retryAfterSec?: number, geminiDescansoAte?: string }}

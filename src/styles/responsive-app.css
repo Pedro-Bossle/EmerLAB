@@ -17,6 +17,16 @@
         height: auto;
         max-height: none;
         overflow: visible;
+        margin-left: 0.5rem !important;
+        margin-right: 0.5rem !important;
+        margin-bottom: 1.25rem;
+        box-sizing: border-box;
+        max-width: 100%;
+    }
+
+    .credenciamento_main.quem_realiza > hr {
+        margin-left: 0.75rem !important;
+        margin-right: 0.75rem !important;
     }
 
     .credenciamento_main.quem_realiza .quem_realiza_split {

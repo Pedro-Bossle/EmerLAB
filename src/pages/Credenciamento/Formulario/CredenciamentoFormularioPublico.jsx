@@ -23,6 +23,11 @@ import {
     normalizarEmailParaSalvar,
 } from '../../../lib/prestadorCadastroHelpers'
 import FormularioPublicoPassoDados from './FormularioPublicoPassoDados.jsx'
+import { responsaveisParaPayload } from '../../../lib/prestadorVeterinarioCadastro.js'
+import {
+    validarCertificadosConclusaoObrigatorios,
+    validarResponsaveisObrigatorios,
+} from '../../../lib/prestadorVeterinarioValidacao.js'
 
 /** Reativar quando o fluxo de comércio/petshop estiver liberado no formulário público. */
 const FORMULARIO_PUBLICO_COMERCIO_ATIVO = false
@@ -83,6 +88,9 @@ export default function CredenciamentoFormularioPublico() {
     const [crmv, setCrmv] = useState('')
     const [cidadesAtende, setCidadesAtende] = useState([])
     const [vetsPendentes, setVetsPendentes] = useState([])
+    const [certificadosPendentes, setCertificadosPendentes] = useState([])
+    const [responsaveis, setResponsaveis] = useState([])
+    const [erroCertificados, setErroCertificados] = useState('')
     const [especialidades, setEspecialidades] = useState([])
     const [especialidadePrincipalId, setEspecialidadePrincipalId] = useState('')
     const [especialidadesSecundariasIds, setEspecialidadesSecundariasIds] = useState([])
@@ -155,6 +163,9 @@ export default function CredenciamentoFormularioPublico() {
             setVerificandoDoc(false)
         }
     }, [passo])
+
+    const perfilComCertificadosResponsaveis =
+        tipoPerfil === 'volante' || tipoPerfil === 'clinica'
 
     useEffect(() => {
         const run = async () => {
@@ -285,6 +296,22 @@ export default function CredenciamentoFormularioPublico() {
         setCep(`${digits.slice(0, 5)}-${digits.slice(5)}`)
     }
 
+    const validarCertificadosResponsaveis = () => {
+        const errCert = validarCertificadosConclusaoObrigatorios({ pendentes: certificadosPendentes })
+        if (errCert) {
+            setErroCertificados(errCert)
+            setErro(errCert)
+            return false
+        }
+        setErroCertificados('')
+        const errResp = validarResponsaveisObrigatorios(responsaveis)
+        if (errResp) {
+            setErro(errResp)
+            return false
+        }
+        return true
+    }
+
     const avancar = async () => {
         setErro('')
         if (passo === 0) {
@@ -342,6 +369,9 @@ export default function CredenciamentoFormularioPublico() {
                     }
                 }
             }
+            if (perfilComCertificadosResponsaveis && !validarCertificadosResponsaveis()) {
+                return
+            }
             if (!documentoCpfCnpjEstaCompleto(cpfCnpj)) {
                 setErro('Informe um CPF ou CNPJ válido e completo.')
                 return
@@ -381,6 +411,10 @@ export default function CredenciamentoFormularioPublico() {
         setEnviando(true)
         setErro('')
         try {
+            if (perfilComCertificadosResponsaveis && !validarCertificadosResponsaveis()) {
+                setEnviando(false)
+                return
+            }
             const ok = await verificarDocumentoParaEnvioFormulario(cpfCnpj)
             if (!ok.ok) throw new Error(ok.erro)
             if (ok.modo) setDocModo(ok.modo)
@@ -408,6 +442,9 @@ export default function CredenciamentoFormularioPublico() {
                     uf: c.uf,
                 }))
             }
+            if (perfilComCertificadosResponsaveis) {
+                payload.responsaveis = responsaveisParaPayload(responsaveis)
+            }
             if (tipoPerfil === 'clinica') {
                 payload.vetsPendentes = vetsPendentes.map((v) => ({
                     nome: String(v.nome || '').trim(),
@@ -423,6 +460,9 @@ export default function CredenciamentoFormularioPublico() {
                 cpfCnpj,
                 tipoPerfil,
                 payload,
+                certificadosFiles: perfilComCertificadosResponsaveis
+                    ? certificadosPendentes.map((p) => p.file).filter(Boolean)
+                    : [],
             })
             setEnviado(true)
         } catch (e) {
@@ -474,6 +514,8 @@ export default function CredenciamentoFormularioPublico() {
                                         setCrmv('')
                                         setCidadesAtende([])
                                         setVetsPendentes([])
+                                        setCertificadosPendentes([])
+                                        setResponsaveis([])
                                         setEspecialidadePrincipalId('')
                                         setEspecialidadesSecundariasIds([])
                                         setTipoPix('')
@@ -533,6 +575,12 @@ export default function CredenciamentoFormularioPublico() {
                         onCidadesAtendeChange={setCidadesAtende}
                         vetsPendentes={vetsPendentes}
                         onVetsPendentesChange={setVetsPendentes}
+                        certificadosPendentes={certificadosPendentes}
+                        onCertificadosPendentesChange={setCertificadosPendentes}
+                        responsaveis={responsaveis}
+                        onResponsaveisChange={setResponsaveis}
+                        erroCertificados={erroCertificados}
+                        onErroCertificados={setErroCertificados}
                     />
                 )}
 

@@ -137,6 +137,33 @@ function MapaAjustarBounds({ alvo }) {
     return null
 }
 
+function MapaRedimensionar({ dep }) {
+    const map = useMap()
+    useEffect(() => {
+        const t1 = window.setTimeout(() => map.invalidateSize(), 0)
+        const t2 = window.setTimeout(() => map.invalidateSize(), 350)
+        return () => {
+            window.clearTimeout(t1)
+            window.clearTimeout(t2)
+        }
+    }, [dep, map])
+    return null
+}
+
+function useMatchMedia(query) {
+    const [matches, setMatches] = useState(
+        () => typeof window !== 'undefined' && window.matchMedia(query).matches,
+    )
+    useEffect(() => {
+        const mq = window.matchMedia(query)
+        const onChange = () => setMatches(mq.matches)
+        onChange()
+        mq.addEventListener('change', onChange)
+        return () => mq.removeEventListener('change', onChange)
+    }, [query])
+    return matches
+}
+
 function textoMarcadorParaBusca(m) {
     return [
         m.nome,
@@ -327,6 +354,8 @@ const CredenciamentoMapa = () => {
     }, [])
     const buscaMapaInicialRef = useRef(true)
     const [buscaFocada, setBuscaFocada] = useState(false)
+    const layoutMobile = useMatchMedia('(max-width: 980px)')
+    const [mobileAba, setMobileAba] = useState('mapa')
     const [sugestoesNominatim, setSugestoesNominatim] = useState([])
     const buscaWrapRef = useRef(null)
 
@@ -657,10 +686,12 @@ const CredenciamentoMapa = () => {
         if (coordenadaValida(la, lo)) {
             setFlyAlvo({ lat: la, lng: lo, zoom: 15, seq: Date.now() })
         }
+        setMobileAba('mapa')
     }
 
     const irParaCredenciadoNoMapa = (it, especialidadeLegendaId) => {
         if (!coordenadaValida(it.lat, it.lng)) return
+        setMobileAba('mapa')
         setMarcadorDestaqueId(it.id)
         const espExibir =
             especialidadeLegendaId != null && it.especialidadeIds?.has(Number(especialidadeLegendaId))
@@ -672,6 +703,7 @@ const CredenciamentoMapa = () => {
 
     const irParaPinBuscaNoMapa = (pin) => {
         if (!coordenadaValida(pin.lat, pin.lng)) return
+        setMobileAba('mapa')
         setMarcadorDestaqueId(null)
         setFlyAlvo({ lat: pin.lat, lng: pin.lng, zoom: 16, seq: Date.now() })
     }
@@ -690,6 +722,7 @@ const CredenciamentoMapa = () => {
     const executarBuscaGeocodeNoMapa = useCallback(() => {
         const b = String(buscaLegenda || '').trim()
         if (!b) return
+        setMobileAba('mapa')
         setBuscaGeocodeSubmetida(b)
         setBuscaFocada(false)
         setSugestoesNominatim([])
@@ -727,11 +760,13 @@ const CredenciamentoMapa = () => {
                 },
             ])
             setFlyAlvo({ lat, lng, zoom: 14, seq: Date.now() })
+            setMobileAba('mapa')
             return
         }
         if (coordenadasValidasBrasil(lat, lng)) {
             setPinsBuscaTemp([])
             setFlyAlvo({ lat, lng, zoom: 12, seq: Date.now() })
+            setMobileAba('mapa')
         }
     }
 
@@ -1013,8 +1048,43 @@ const CredenciamentoMapa = () => {
             </div>
             </div>
 
-            <div className="credenciamento_mapa_layout">
-                <aside className="credenciamento_mapa_legenda">
+            <div className="credenciamento_mapa_mobile_tabs" role="tablist" aria-label="Alternar mapa e especialidades">
+                <button
+                    type="button"
+                    role="tab"
+                    id="cred_mapa_tab_mapa"
+                    aria-selected={mobileAba === 'mapa'}
+                    aria-controls="cred_mapa_panel_mapa"
+                    className={mobileAba === 'mapa' ? 'is-ativo' : ''}
+                    onClick={() => setMobileAba('mapa')}
+                >
+                    Mapa
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    id="cred_mapa_tab_lista"
+                    aria-selected={mobileAba === 'lista'}
+                    aria-controls="cred_mapa_panel_lista"
+                    className={mobileAba === 'lista' ? 'is-ativo' : ''}
+                    onClick={() => setMobileAba('lista')}
+                >
+                    Especialidades
+                </button>
+            </div>
+
+            <div
+                className={`credenciamento_mapa_layout${
+                    layoutMobile ? ` credenciamento_mapa_layout--mobile-${mobileAba}` : ''
+                }`}
+            >
+                <aside
+                    className="credenciamento_mapa_legenda"
+                    id="cred_mapa_panel_lista"
+                    role="tabpanel"
+                    aria-labelledby="cred_mapa_tab_lista"
+                    hidden={layoutMobile && mobileAba !== 'lista' ? true : undefined}
+                >
                     <div className="credenciamento_mapa_legenda_titulo">
                         <h3>Especialidades</h3>
                         {especialidadesFiltradas.length > 0 ? (
@@ -1372,7 +1442,13 @@ const CredenciamentoMapa = () => {
                     )}
                 </aside>
 
-                <section className="credenciamento_mapa_container">
+                <section
+                    className="credenciamento_mapa_container"
+                    id="cred_mapa_panel_mapa"
+                    role="tabpanel"
+                    aria-labelledby="cred_mapa_tab_mapa"
+                    hidden={layoutMobile && mobileAba !== 'mapa' ? true : undefined}
+                >
                     {loading ? (
                         <p>Carregando mapa...</p>
                     ) : (
@@ -1382,6 +1458,7 @@ const CredenciamentoMapa = () => {
                             scrollWheelZoom
                             className="credenciamento_mapa_leaflet"
                         >
+                            <MapaRedimensionar dep={layoutMobile ? mobileAba : 'desktop'} />
                             <TileLayer
                                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                                 url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"

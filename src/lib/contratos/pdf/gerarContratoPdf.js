@@ -35,24 +35,27 @@ export async function carregarLogoPdfEmerdog() {
     return logoCache
 }
 
-function slugArquivo(s) {
-    return String(s || 'Contratada')
-        .normalize('NFD')
-        .replace(/\p{M}+/gu, '')
-        .replace(/[^a-zA-Z0-9]+/g, '_')
-        .replace(/^_|_$/g, '')
-        .slice(0, 80)
+export function sanitizarNomeArquivoPdf(nome) {
+    return String(nome || '')
+        .replace(/[/\\:*?"<>|]/g, '-')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 120)
+}
+
+/** Nome / razão social da contratada para título e arquivo. */
+export function nomeRazaoSocialContrato(tipo, d) {
+    if (tipo === 'volantes') {
+        const base = d?.docTipo === 'cnpj' ? d?.razaoSocial : d?.nomeCompleto
+        return String(base || d?.razaoSocial || d?.nomeCompleto || 'Contratada').trim()
+    }
+    return String(d?.razaoSocial || d?.nomeCompleto || 'Contratada').trim()
 }
 
 /** @param {'clinicas'|'volantes'|'parceria'} tipo */
 export function nomeArquivoContrato(tipo, d) {
-    const data = new Date().toISOString().slice(0, 10)
-    if (tipo === 'clinicas') return `Contrato_Clinica_${slugArquivo(d.razaoSocial)}_${data}.pdf`
-    if (tipo === 'volantes') {
-        const base = d.docTipo === 'cnpj' ? d.razaoSocial : d.nomeCompleto
-        return `Contrato_Volante_${slugArquivo(base)}_${data}.pdf`
-    }
-    return `Contrato_Parceria_${slugArquivo(d.razaoSocial)}_${data}.pdf`
+    const nome = sanitizarNomeArquivoPdf(nomeRazaoSocialContrato(tipo, d)) || 'Contratada'
+    return `Minuta Contratual - ${nome}.pdf`
 }
 
 function aplicarRodapePaginas(doc) {

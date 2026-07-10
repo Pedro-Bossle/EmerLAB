@@ -91,6 +91,21 @@
     z-index: 440;
 }
 
+/* Leaflet usa z-index ~1000 nos +/-; fica abaixo da gaveta (420) e do FAB (430) */
+@media (max-width: 1023px) {
+    .content--compact .leaflet-top,
+    .content--compact .leaflet-bottom,
+    .content--compact .leaflet-control-container {
+        z-index: 300 !important;
+    }
+
+    .app-shell--compact[data-nav-open='true'] .content .leaflet-top,
+    .app-shell--compact[data-nav-open='true'] .content .leaflet-bottom,
+    .app-shell--compact[data-nav-open='true'] .content .leaflet-control-container {
+        pointer-events: none;
+    }
+}
+
 body.dark-mode .layout2_nav_fab {
     background: linear-gradient(180deg, #1a334d 0%, #142a40 100%);
     border-color: #4d7aa0;

@@ -16,6 +16,8 @@ function fallbackOsmHabilitado() {
     return v !== '0' && v !== 'false' && v !== 'no'
 }
 
+export { fallbackOsmHabilitado }
+
 function anexarDescansoGemini(resultado, gem) {
     const descanso = descansoGeminiParaResposta(gem)
     if (!descanso.geminiDescansoAte) return resultado
@@ -47,8 +49,7 @@ export async function coletarProspectosCidade(supabaseAdmin, opts) {
         if (gem.ok) {
             return { ...gem, fonte: 'gemini', modoColeta: fonte }
         }
-        const podeFallback =
-            fallbackOsmHabilitado() && (fonte === 'auto' || Boolean(gem.quotaExceeded))
+        const podeFallback = fallbackOsmHabilitado() && fonte !== 'osm'
         if (podeFallback) {
             const osm = await coletarProspectosOsmCidade(supabaseAdmin, opts)
             if (!osm.ok) return anexarDescansoGemini(osm, gem)

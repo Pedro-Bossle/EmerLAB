@@ -1,17 +1,17 @@
 /**
  * Prospectos OSM — uma function Vercel:
  * GET  /api/prospectos-gemini-status (rewrite) — ping Gemini
- * POST /api/prospectos-osm-coletar — coleta cidade
+ * POST /api/prospectos-osm-coletar — coleta (async por etapas: start + step)
  */
 import path from 'node:path'
 
 import { createClient } from '@supabase/supabase-js'
 import { config as dotenvConfig } from 'dotenv'
 
-import { coletarProspectosCidade } from '../src/lib/credenciamento/prospectosColeta.js'
-import { descansoGeminiParaResposta } from '../src/lib/credenciamento/geminiDescanso.js'
+import { descansoGeminiParaResposta, previsaoRetornoGemini } from '../src/lib/credenciamento/geminiDescanso.js'
 import { geminiVerificarDisponibilidade } from '../src/lib/credenciamento/geminiUpstream.js'
 import { isGeminiStatusRequest } from '../src/lib/api/vercelUnifiedRoute.js'
+import { executarPassoJobColeta, iniciarJobColeta } from '../src/lib/credenciamento/prospectosColetaJob.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
 dotenvConfig()
@@ -32,6 +32,20 @@ async function readJsonBody(req) {
     return JSON.parse(raw)
 }
 
+function anexarCamposGeminiResposta(payload, descanso, quotaExceeded) {
+    const ate = descanso.geminiDescansoAte || null
+    const prev = previsaoRetornoGemini(ate, { quotaExceeded })
+    return {
+        ...payload,
+        geminiDescansoAte: ate,
+        geminiRetryAfterSec: descanso.geminiRetryAfterSec ?? null,
+        geminiIndisponivelPorCota: Boolean(quotaExceeded),
+        geminiQuotaPausa: Boolean(descanso.geminiQuotaPausa),
+        geminiPrevisaoLinha: prev.linha || null,
+        geminiPrevisaoTitulo: prev.titulo || null,
+    }
+}
+
 async function handleGeminiStatus(res) {
     const r = await geminiVerificarDisponibilidade()
     const descanso = r.disponivel
@@ -43,53 +57,98 @@ async function handleGeminiStatus(res) {
               geminiDescansoAte: r.geminiDescansoAte,
           })
 
-    res.status(200).json({
-        configurado: Boolean(r.configurado),
-        disponivel: Boolean(r.disponivel),
-        quotaExceeded: Boolean(r.quotaExceeded),
-        modelo: r.modelo || null,
-        erro: r.erro || null,
-        geminiDescansoAte: descanso.geminiDescansoAte || null,
-        geminiRetryAfterSec: descanso.geminiRetryAfterSec ?? null,
-        geminiIndisponivelPorCota: Boolean(r.quotaExceeded),
-        verificadoEm: new Date().toISOString(),
-    })
+    res.status(200).json(
+        anexarCamposGeminiResposta(
+            {
+                configurado: Boolean(r.configurado),
+                disponivel: Boolean(r.disponivel),
+                quotaExceeded: Boolean(r.quotaExceeded),
+                modeloInvalido: Boolean(r.modeloInvalido),
+                chaveFormatoInvalido: Boolean(r.chaveFormatoInvalido),
+                codigoErro: r.codigoErro || null,
+                httpStatus: r.httpStatus ?? null,
+                modelo: r.modelo || null,
+                modeloEfetivo: r.modeloEfetivo || null,
+                erro: r.erro || null,
+                verificadoEm: new Date().toISOString(),
+            },
+            descanso,
+            r.quotaExceeded,
+        ),
+    )
 }
 
-async function handleColeta(req, res) {
-    const body = await readJsonBody(req)
+async function handleColetaStep(body, res) {
+    const jobId = String(body.jobId || '').trim()
+    if (!jobId) {
+        res.status(400).json({ error: 'Informe jobId.' })
+        return
+    }
+    const r = await executarPassoJobColeta(supabaseAdmin(), jobId)
+    const base = {
+        jobId: r.jobId,
+        status: r.status,
+        async: true,
+        progresso: r.progresso,
+        passoAtual: r.passoAtual,
+        passosTotais: r.passosTotais,
+        inseridos: r.inseridos,
+    }
+    if (r.resultado && typeof r.resultado === 'object') {
+        Object.assign(base, r.resultado)
+    }
+    if (r.status === 'failed') {
+        res.status(502).json({ ...base, error: r.erro || r.resultado?.erro || 'Falha na coleta.' })
+        return
+    }
+    if (r.status === 'done') {
+        res.status(200).json({ ok: true, ...base })
+        return
+    }
+    res.status(200).json({ ok: true, ...base })
+}
+
+async function handleColetaStart(body, res) {
     const cidade = String(body.cidade || '').trim()
     const uf = String(body.uf || '').trim()
     if (!cidade) {
         res.status(400).json({ error: 'Informe cidade.' })
         return
     }
-
-    const fonte = body.fonte
-    const omitirGemini = Boolean(body.omitirGemini)
-    const r = await coletarProspectosCidade(supabaseAdmin(), { cidade, uf, fonte, omitirGemini })
-    if (!r.ok) {
-        res.status(502).json({
-            error: r.erro || 'Falha na coleta.',
-            geminiDescansoAte: r.geminiDescansoAte || null,
-            geminiRetryAfterSec: r.geminiRetryAfterSec ?? null,
-            geminiQuotaPausa: Boolean(r.geminiQuotaPausa),
-        })
+    const start = await iniciarJobColeta(supabaseAdmin(), {
+        cidade,
+        uf,
+        fonte: body.fonte,
+        omitirGemini: Boolean(body.omitirGemini),
+        categorias: body.categorias,
+    })
+    if (!start.ok) {
+        res.status(502).json({ error: start.erro || 'Não foi possível iniciar a coleta.' })
         return
     }
-    res.status(200).json({
+    res.status(202).json({
         ok: true,
-        inseridos: r.inseridos,
-        fonte: r.fonte || 'osm',
-        modoColeta: r.modoColeta || null,
-        aviso: r.aviso || '',
-        fallbackDeGemini: Boolean(r.fallbackDeGemini),
-        coletaDiretaOsm: Boolean(r.coletaDiretaOsm),
-        geminiIndisponivelPorCota: Boolean(r.geminiIndisponivelPorCota),
-        geminiDescansoAte: r.geminiDescansoAte || null,
-        geminiRetryAfterSec: r.geminiRetryAfterSec ?? null,
-        geminiQuotaPausa: Boolean(r.geminiQuotaPausa),
+        async: true,
+        jobId: start.jobId,
+        status: start.status,
+        progresso: start.progresso,
+        passoAtual: start.passoAtual,
+        passosTotais: start.passosTotais,
     })
+}
+
+async function handleColeta(req, res) {
+    const body = await readJsonBody(req)
+    const action = String(body.action || 'start').trim().toLowerCase()
+    if (action === 'step') {
+        await handleColetaStep(body, res)
+        return
+    }
+    if (action === 'start') {
+        await handleColetaStart(body, res)
+        return
+    }
+    res.status(400).json({ error: 'Ação inválida. Use action: start ou step.' })
 }
 
 export default async function handler(req, res) {

@@ -485,3 +485,157 @@ body.dark-mode .quem_realiza_proc_alt {
     font-weight: 500;
     color: #5d7b92;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Mobile / tablet — Quem Realiza                                             */
+/* -------------------------------------------------------------------------- */
+@media (max-width: 1023px) {
+    .credenciamento_main.quem_realiza {
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+        padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+        padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+        padding-bottom: max(4.5rem, calc(env(safe-area-inset-bottom, 0px) + 3.5rem));
+    }
+
+    .credenciamento_main.quem_realiza > hr {
+        margin-left: 0.25rem;
+        margin-right: 0.25rem;
+    }
+
+    .quem_realiza_filtros_center {
+        margin-bottom: 0.85rem;
+        padding: 0 0.15rem;
+    }
+
+    .quem_realiza_row_center {
+        flex-direction: column;
+        align-items: stretch;
+        max-width: 100%;
+        gap: 0.65rem;
+    }
+
+    .quem_realiza_row_center .pcad_field {
+        flex: 1 1 100%;
+        max-width: none;
+        width: 100%;
+    }
+
+    .quem_realiza_switch_cidades {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        gap: 0.5rem 0.75rem;
+        padding-top: 0.15rem;
+    }
+
+    .quem_realiza_switch_cidades_label {
+        text-align: left;
+        max-width: none;
+        flex: 1 1 12rem;
+        font-size: 0.85rem;
+    }
+
+    .quem_realiza_split {
+        gap: 1.35rem;
+        overflow: visible;
+    }
+
+    .quem_realiza_col h2 {
+        font-size: 1.05rem;
+        margin-bottom: 0.55rem;
+    }
+
+    .quem_realiza_tabs {
+        gap: 0.5rem 0.45rem;
+        margin-bottom: 0.85rem;
+        padding: 0.1rem 0;
+    }
+
+    .quem_realiza_tab {
+        padding: 0.42rem 0.7rem;
+        font-size: 0.78rem;
+        line-height: 1.25;
+    }
+
+    .quem_realiza_busca {
+        gap: 0.45rem;
+    }
+
+    .quem_realiza_busca .quem_realiza_lupa,
+    .quem_realiza_busca .quem_realiza_limpar_proc {
+        flex: 1 1 calc(50% - 0.25rem);
+        min-width: 0;
+        justify-content: center;
+    }
+
+    .quem_realiza_proc_list {
+        min-height: 140px;
+        max-height: min(40vh, 340px);
+        padding: 0.55rem 0.6rem;
+    }
+
+    .quem_realiza_resultados_head {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.55rem;
+        margin-bottom: 0.65rem;
+    }
+
+    .quem_realiza_copiar_resultados {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .quem_realiza_cards {
+        padding-right: 0;
+        gap: 0.75rem;
+        overflow: visible;
+        max-height: none;
+    }
+
+    .quem_realiza_card {
+        padding: 0.85rem 0.85rem 0.9rem;
+        padding-right: max(0.85rem, env(safe-area-inset-right, 0px));
+    }
+
+    .quem_realiza_card:has(.quem_realiza_card_badge) {
+        padding-top: 2rem;
+    }
+
+    .quem_realiza_card_badge {
+        top: 0.55rem;
+        left: 0.75rem;
+        right: auto;
+        max-width: calc(100% - 1.5rem);
+    }
+
+    .quem_realiza_card_meta {
+        grid-template-columns: 1fr;
+        gap: 0.45rem;
+    }
+
+    .quem_realiza_card_procs {
+        padding-left: 1rem;
+        padding-right: 0.15rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .credenciamento_main.quem_realiza > h1 {
+        font-size: 1.05rem;
+        line-height: 1.35;
+        margin-bottom: 0.4rem;
+    }
+
+    .quem_realiza_tab {
+        flex: 0 1 auto;
+        max-width: 100%;
+    }
+
+    .quem_realiza_proc_item {
+        padding: 0.45rem 0.15rem;
+    }
+}

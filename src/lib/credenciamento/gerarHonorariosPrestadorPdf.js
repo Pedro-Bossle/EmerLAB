@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { carregarLogoPdfEmerdog } from '../contratos/pdf/gerarContratoPdf.js'
+import { carregarLogoPdfEmerdog, sanitizarNomeArquivoPdf } from '../contratos/pdf/gerarContratoPdf.js'
 
 const MM_MARGIN = 14
 const PAGE_W = 210
@@ -46,14 +46,18 @@ export async function gerarHonorariosPrestadorPdf(opts) {
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(14)
-    doc.text('Honorários de Procedimento', MM_MARGIN, y)
+    const tituloHonorarios = `Honorários de Repasse - ${nome}`
+    doc.text(tituloHonorarios, MM_MARGIN, y, { maxWidth: PAGE_W - MM_MARGIN * 2 })
     y += 7
 
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
-    const linhaPrestador = cidade ? `${nome} - ${cidade}` : nome
-    doc.text(linhaPrestador, MM_MARGIN, y)
-    y += 8
+    if (cidade) {
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(10)
+        doc.text(cidade, MM_MARGIN, y)
+        y += 8
+    } else {
+        y += 2
+    }
 
     for (const cat of opts.categorias || []) {
         const linhas = (cat.linhas || []).filter((l) => l.checked !== false)
@@ -119,18 +123,16 @@ export async function gerarHonorariosPrestadorPdf(opts) {
     return doc.output('blob')
 }
 
+export function nomeArquivoHonorariosRepasse(nomeBase) {
+    const nome = sanitizarNomeArquivoPdf(String(nomeBase || '').trim() || 'Prestador')
+    return `Honorários de Repasse - ${nome}.pdf`
+}
+
 export function downloadHonorariosPdf(blob, nomeBase) {
-    const slug = String(nomeBase || 'honorarios')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9]+/g, '_')
-        .replace(/^_|_$/g, '')
-        .slice(0, 60)
-    const data = new Date().toISOString().slice(0, 10)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `Honorarios_${slug || 'prestador'}_${data}.pdf`
+    a.download = nomeArquivoHonorariosRepasse(nomeBase)
     a.click()
     URL.revokeObjectURL(url)
 }

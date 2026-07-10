@@ -17,14 +17,6 @@ import {
 } from '../../../lib/credenciamento/prospectosOsmRepo.js'
 import { exportarProspectosOsmParaExcel } from '../../../lib/credenciamento/exportProspectosOsmExcel.js'
 import { prospectoIndicaAtendimento24h } from '../../../lib/credenciamento/prospectosOsmHorario.js'
-import {
-    GEMINI_COTA_ESGOTADA_LS_KEY,
-    GEMINI_DESCANSO_LS_KEY,
-    descansoAteFromRetrySec,
-    formatarTimerDescansoGeminiLive,
-    msRestantesDescanso,
-    segundosRestantesDescanso,
-} from '../../../lib/credenciamento/geminiDescanso.js'
 import { formatarEnderecoLinhaTabela } from '../../../lib/credenciamento/prospectosOsmQualidade.js'
 import { formatarLinhaTelefonesContato } from '../../../lib/telefoneBrasil.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
@@ -39,21 +31,6 @@ const TODAS_CATEGORIAS_IDS = PROSPECTOS_OSM_CATEGORIAS.map((c) => c.id)
 const SPLIT_STORAGE_KEY = 'sfsc-prospectos-osm-split-pct'
 const SPLIT_MIN = 28
 const SPLIT_MAX = 72
-
-function lerGeminiCotaInicial() {
-    if (typeof window === 'undefined') return false
-    return window.localStorage.getItem(GEMINI_COTA_ESGOTADA_LS_KEY) === '1'
-}
-
-function lerGeminiDescansoInicial() {
-    if (typeof window === 'undefined') return ''
-    const ate = window.localStorage.getItem(GEMINI_DESCANSO_LS_KEY) || ''
-    if (!ate || segundosRestantesDescanso(ate) <= 0) {
-        window.localStorage.removeItem(GEMINI_DESCANSO_LS_KEY)
-        return ''
-    }
-    return ate
-}
 
 function lerSplitInicial() {
     if (typeof window === 'undefined') return 50
@@ -103,13 +80,11 @@ const CredenciamentoProspectosOsm = () => {
     const [itens, setItens] = useState([])
     const [loading, setLoading] = useState(false)
     const [coletando, setColetando] = useState(false)
+    const [coletaPasso, setColetaPasso] = useState(0)
+    const [coletaPassosTotais, setColetaPassosTotais] = useState(1)
     const [exportando, setExportando] = useState(false)
     const [erro, setErro] = useState('')
     const [feedback, setFeedback] = useState('')
-    const [geminiDescansoAte, setGeminiDescansoAte] = useState(lerGeminiDescansoInicial)
-    const [geminiCotaEsgotada, setGeminiCotaEsgotada] = useState(lerGeminiCotaInicial)
-    const [geminiChecando, setGeminiChecando] = useState(false)
-    const [geminiDescansoTick, setGeminiDescansoTick] = useState(0)
     const [destaqueId, setDestaqueId] = useState(null)
     const [mostrarMapa, setMostrarMapa] = useState(true)
     const [splitListaPct, setSplitListaPct] = useState(lerSplitInicial)
@@ -123,128 +98,24 @@ const CredenciamentoProspectosOsm = () => {
         splitPctRef.current = splitListaPct
     }, [splitListaPct])
 
-    useEffect(() => {
-        const id = window.setInterval(() => setGeminiDescansoTick((n) => n + 1), 100)
-        return () => window.clearInterval(id)
+    const coletaProgressoPct = useMemo(() => {
+        if (!coletando) return 0
+        const total = Math.max(1, coletaPassosTotais)
+        const passo = Math.max(0, coletaPasso)
+        if (passo >= total) return 100
+        return Math.min(99, Math.round((passo / total) * 100))
+    }, [coletando, coletaPasso, coletaPassosTotais])
+
+    const sincronizarProgressoColeta = useCallback((body) => {
+        const total = Number(body.passosTotais)
+        const passo = Number(body.passoAtual)
+        if (Number.isFinite(total) && total > 0) setColetaPassosTotais(total)
+        if (body.status === 'done') {
+            setColetaPasso(Number.isFinite(total) && total > 0 ? total : Math.max(0, passo))
+            return
+        }
+        if (Number.isFinite(passo) && passo >= 0) setColetaPasso(passo)
     }, [])
-
-    const geminiMsRestantes = useMemo(
-        () => msRestantesDescanso(geminiDescansoAte),
-        [geminiDescansoAte, geminiDescansoTick],
-    )
-
-    const geminiEmDescanso = geminiMsRestantes > 0 && !geminiCotaEsgotada
-
-    const marcarGeminiCotaEsgotada = useCallback((ativo) => {
-        setGeminiCotaEsgotada(ativo)
-        if (typeof window === 'undefined') return
-        if (ativo) {
-            window.localStorage.setItem(GEMINI_COTA_ESGOTADA_LS_KEY, '1')
-            setGeminiDescansoAte('')
-            window.localStorage.removeItem(GEMINI_DESCANSO_LS_KEY)
-        } else {
-            window.localStorage.removeItem(GEMINI_COTA_ESGOTADA_LS_KEY)
-        }
-    }, [])
-
-    const geminiWidgetEstado = useMemo(() => {
-        if (geminiChecando) return 'checando'
-        if (geminiEmDescanso) return 'pausa'
-        if (geminiCotaEsgotada) return 'sem-cota'
-        return 'pronto'
-    }, [geminiChecando, geminiEmDescanso, geminiCotaEsgotada])
-
-    const verificarGeminiLive = useCallback(async () => {
-        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
-        setGeminiChecando(true)
-        try {
-            const resp = await fetch('/api/prospectos-gemini-status', {
-                headers: { Accept: 'application/json' },
-            })
-            const body = await resp.json().catch(() => ({}))
-            if (!resp.ok) return
-            if (body.disponivel) {
-                marcarGeminiCotaEsgotada(false)
-                setGeminiDescansoAte('')
-                if (typeof window !== 'undefined') {
-                    window.localStorage.removeItem(GEMINI_DESCANSO_LS_KEY)
-                }
-                return
-            }
-            if (body.geminiIndisponivelPorCota || body.quotaExceeded) {
-                marcarGeminiCotaEsgotada(true)
-            }
-            if (body.geminiDescansoAte || body.geminiRetryAfterSec) {
-                let ate = body.geminiDescansoAte ? String(body.geminiDescansoAte) : ''
-                if (!ate && body.geminiRetryAfterSec) {
-                    ate = descansoAteFromRetrySec(body.geminiRetryAfterSec)
-                }
-                if (ate && segundosRestantesDescanso(ate) > 0 && !body.geminiIndisponivelPorCota) {
-                    setGeminiDescansoAte(ate)
-                    if (typeof window !== 'undefined') {
-                        window.localStorage.setItem(GEMINI_DESCANSO_LS_KEY, ate)
-                    }
-                }
-            }
-        } catch {
-            /* rede / dev sem API */
-        } finally {
-            setGeminiChecando(false)
-        }
-    }, [marcarGeminiCotaEsgotada])
-
-    useEffect(() => {
-        void verificarGeminiLive()
-        const id = window.setInterval(() => void verificarGeminiLive(), 90_000)
-        const onVis = () => {
-            if (document.visibilityState === 'visible') void verificarGeminiLive()
-        }
-        document.addEventListener('visibilitychange', onVis)
-        return () => {
-            window.clearInterval(id)
-            document.removeEventListener('visibilitychange', onVis)
-        }
-    }, [verificarGeminiLive])
-
-    const aplicarEstadoGeminiResposta = useCallback(
-        (body) => {
-            if (body.fonte === 'gemini' && !body.fallbackDeGemini) {
-                marcarGeminiCotaEsgotada(false)
-                setGeminiDescansoAte('')
-                if (typeof window !== 'undefined') {
-                    window.localStorage.removeItem(GEMINI_DESCANSO_LS_KEY)
-                }
-                return
-            }
-            if (body.geminiIndisponivelPorCota || body.geminiQuotaPausa) {
-                marcarGeminiCotaEsgotada(true)
-                return
-            }
-            if (body.geminiDescansoAte || body.geminiRetryAfterSec) {
-                let ate = body.geminiDescansoAte ? String(body.geminiDescansoAte) : ''
-                if (!ate && body.geminiRetryAfterSec) {
-                    ate = descansoAteFromRetrySec(body.geminiRetryAfterSec)
-                }
-                if (ate && segundosRestantesDescanso(ate) > 0) {
-                    setGeminiDescansoAte(ate)
-                    if (typeof window !== 'undefined') {
-                        window.localStorage.setItem(GEMINI_DESCANSO_LS_KEY, ate)
-                    }
-                }
-            }
-        },
-        [marcarGeminiCotaEsgotada],
-    )
-
-    useEffect(() => {
-        if (!geminiDescansoAte) return
-        if (segundosRestantesDescanso(geminiDescansoAte) <= 0) {
-            setGeminiDescansoAte('')
-            if (typeof window !== 'undefined') {
-                window.localStorage.removeItem(GEMINI_DESCANSO_LS_KEY)
-            }
-        }
-    }, [geminiDescansoAte, geminiDescansoTick])
 
     useEffect(() => {
         const onMove = (e) => {
@@ -408,28 +279,15 @@ const CredenciamentoProspectosOsm = () => {
             return
         }
         setColetando(true)
+        setColetaPasso(0)
+        setColetaPassosTotais(1)
         setErro('')
-        setFeedback(
-            geminiCotaEsgotada
-                ? 'Coleta em andamento (modo auto: OpenStreetMap — Gemini sem cota)…'
-                : 'Coleta em andamento (modo auto: Gemini → OpenStreetMap se necessário; pode levar 1–4 min)…',
-        )
+        setFeedback('Coleta em andamento (Gemini, com fallback OSM se necessário)…')
         const ctrl = new AbortController()
         const timeoutId = setTimeout(() => ctrl.abort(), 6 * 60 * 1000)
-        try {
-            const resp = await fetch('/api/prospectos-osm-coletar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                body: JSON.stringify({
-                    cidade: c,
-                    uf: String(uf || '').trim(),
-                    omitirGemini: geminiCotaEsgotada,
-                }),
-                signal: ctrl.signal,
-            })
-            const body = await resp.json().catch(() => ({}))
-            aplicarEstadoGeminiResposta(body)
-            if (!resp.ok) throw new Error(body.error || `HTTP ${resp.status}`)
+        const headers = { 'Content-Type': 'application/json', Accept: 'application/json' }
+
+        const montarMsgSucesso = (body) => {
             let msg = `${body.inseridos ?? 0} local(is) atualizado(s).`
             if (body.coletaDiretaOsm) {
                 msg += ' Modo auto: coleta via OpenStreetMap (Gemini sem cota no plano).'
@@ -441,7 +299,52 @@ const CredenciamentoProspectosOsm = () => {
                 msg += ' Coleta via OpenStreetMap.'
             }
             if (body.aviso) msg += ` ${body.aviso}`
-            setFeedback(msg)
+            return msg
+        }
+
+        try {
+            const respStart = await fetch('/api/prospectos-osm-coletar', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    action: 'start',
+                    cidade: c,
+                    uf: String(uf || '').trim(),
+                    fonte: 'auto',
+                }),
+                signal: ctrl.signal,
+            })
+            const startBody = await respStart.json().catch(() => ({}))
+            if (!respStart.ok) throw new Error(startBody.error || `HTTP ${respStart.status}`)
+            const jobId = startBody.jobId
+            if (!jobId) throw new Error('Resposta sem jobId.')
+
+            sincronizarProgressoColeta(startBody)
+
+            let body = startBody
+            let guard = 0
+            const maxPassos = (startBody.passosTotais || 8) + 4
+            while (body.status !== 'done' && body.status !== 'failed' && guard < maxPassos) {
+                guard += 1
+                if (body.progresso) setFeedback(String(body.progresso))
+                const respStep = await fetch('/api/prospectos-osm-coletar', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ action: 'step', jobId }),
+                    signal: ctrl.signal,
+                })
+                body = await respStep.json().catch(() => ({}))
+                sincronizarProgressoColeta(body)
+                if (body.progresso) setFeedback(String(body.progresso))
+                if (body.status === 'failed' || (!respStep.ok && body.status !== 'running')) {
+                    throw new Error(body.error || body.erro || `HTTP ${respStep.status}`)
+                }
+            }
+            if (body.status !== 'done') {
+                throw new Error('Coleta não concluiu. Tente novamente.')
+            }
+            sincronizarProgressoColeta({ ...body, status: 'done' })
+            setFeedback(montarMsgSucesso(body))
             await carregar()
         } catch (e) {
             if (e?.name === 'AbortError') {
@@ -455,6 +358,8 @@ const CredenciamentoProspectosOsm = () => {
         } finally {
             clearTimeout(timeoutId)
             setColetando(false)
+            setColetaPasso(0)
+            setColetaPassosTotais(1)
         }
     }
 
@@ -595,57 +500,30 @@ const CredenciamentoProspectosOsm = () => {
                             {podeEditar ? (
                                 <button
                                     type="button"
-                                    className="credenciamento_main_action_btn cred_prospectos_osm_btn_prospectar"
+                                    className={`credenciamento_main_action_btn cred_prospectos_osm_btn_prospectar${coletando ? ' is-coletando' : ''}`}
                                     disabled={coletando || !cidade.trim()}
                                     onClick={() => void coletarCidade()}
+                                    aria-busy={coletando}
                                 >
-                                    {coletando ? 'Prospectando…' : 'Prospectar'}
+                                    {coletando ? (
+                                        <>
+                                            <span
+                                                className="cred_prospectos_osm_btn_prospectar_fill"
+                                                style={{ width: `${coletaProgressoPct}%` }}
+                                                aria-hidden
+                                            />
+                                            <span className="cred_prospectos_osm_btn_prospectar_label">
+                                                Prospectando… {coletaProgressoPct}%
+                                            </span>
+                                        </>
+                                    ) : (
+                                        'Prospectar'
+                                    )}
                                 </button>
                             ) : null}
                         </div>
                     </div>
                 </section>
-
-                <aside
-                    className={`cred_prospectos_osm_gemini_descanso_live is-${geminiWidgetEstado}`}
-                    role="timer"
-                    aria-live="polite"
-                    title={
-                        geminiWidgetEstado === 'sem-cota'
-                            ? 'Cota Gemini esgotada. Prospectar usa OSM. Duplo clique para tentar Gemini de novo.'
-                            : undefined
-                    }
-                    onDoubleClick={() => {
-                        if (geminiWidgetEstado === 'sem-cota') marcarGeminiCotaEsgotada(false)
-                    }}
-                    aria-label={
-                        geminiWidgetEstado === 'pausa'
-                            ? `Gemini em descanso, ${formatarTimerDescansoGeminiLive(geminiMsRestantes)} restantes`
-                            : geminiWidgetEstado === 'sem-cota'
-                              ? 'Gemini sem cota; coleta via OpenStreetMap'
-                              : 'Gemini pronto para tentativa na coleta'
-                    }
-                >
-                    <span className="cred_prospectos_osm_gemini_descanso_live_titulo">Gemini</span>
-                    <span className="cred_prospectos_osm_gemini_descanso_live_sub">
-                        {geminiWidgetEstado === 'checando'
-                            ? 'verificando'
-                            : geminiWidgetEstado === 'pausa'
-                              ? 'descanso'
-                              : geminiWidgetEstado === 'sem-cota'
-                                ? 'sem cota'
-                                : 'pronto'}
-                    </span>
-                    <span className="cred_prospectos_osm_gemini_descanso_live_valor" key={geminiDescansoTick}>
-                        {geminiWidgetEstado === 'checando'
-                            ? '…'
-                            : geminiWidgetEstado === 'pausa'
-                              ? formatarTimerDescansoGeminiLive(geminiMsRestantes)
-                              : geminiWidgetEstado === 'sem-cota'
-                                ? 'OSM'
-                                : '—'}
-                    </span>
-                </aside>
                 </div>
 
                 <div className="cred_prospectos_osm_header">

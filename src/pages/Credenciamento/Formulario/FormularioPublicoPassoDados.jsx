@@ -62,6 +62,12 @@ export default function FormularioPublicoPassoDados({
     onCidadesAtendeChange,
     vetsPendentes,
     onVetsPendentesChange,
+    certificadosPendentes,
+    onCertificadosPendentesChange,
+    responsaveis,
+    onResponsaveisChange,
+    erroCertificados,
+    onErroCertificados,
 }) {
     const mostrarCrmv = tipoPerfil === 'volante' || tipoPerfil === 'clinica'
     const placeholderOutrasEsp = placeholderOutrasEspecialidadesPublico(tipoPerfil)
@@ -353,6 +359,12 @@ export default function FormularioPublicoPassoDados({
                 onCidadesAtendeChange={onCidadesAtendeChange}
                 vetsPendentes={vetsPendentes}
                 onVetsPendentesChange={onVetsPendentesChange}
+                certificadosPendentes={certificadosPendentes}
+                onCertificadosPendentesChange={onCertificadosPendentesChange}
+                responsaveis={responsaveis}
+                onResponsaveisChange={onResponsaveisChange}
+                erroCertificados={erroCertificados}
+                onErroCertificados={onErroCertificados}
             />
         </div>
     )

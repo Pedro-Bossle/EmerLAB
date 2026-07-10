@@ -677,6 +677,13 @@
     color: #1e3148;
 }
 
+.fcred_bloco_nested {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px dashed #d8e4ee;
+    border-bottom: none;
+}
+
 .fcred_bloco_lead {
     margin: -0.35rem 0 0.75rem;
 }
@@ -879,6 +886,14 @@
     flex-direction: column;
     gap: 0.25rem;
     font-size: 0.88rem;
+    text-align: left;
+    align-items: stretch;
+}
+
+.fcred_field > span {
+    font-weight: 600;
+    color: #35556d;
+    text-align: left;
 }
 
 .fcred_field input,

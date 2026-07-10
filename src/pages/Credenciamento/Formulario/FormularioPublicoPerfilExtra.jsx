@@ -7,6 +7,8 @@ import {
     montarEspecialidadesIdsFormulario,
 } from '../../../lib/formularioPublicoEspecialidades'
 import MultiEspecialidadesInput from '../Credenciamento_cadastro/MultiEspecialidadesInput.jsx'
+import PrestadorCertificadosConclusaoInput from '../Credenciamento_cadastro/PrestadorCertificadosConclusaoInput.jsx'
+import PrestadorResponsaveisInput from '../Credenciamento_cadastro/PrestadorResponsaveisInput.jsx'
 
 const PLACEHOLDER_CRMV = 'PF/PJ - 123456 - UF'
 
@@ -20,6 +22,12 @@ export default function FormularioPublicoPerfilExtra({
     onCidadesAtendeChange,
     vetsPendentes,
     onVetsPendentesChange,
+    certificadosPendentes,
+    onCertificadosPendentesChange,
+    responsaveis,
+    onResponsaveisChange,
+    erroCertificados,
+    onErroCertificados,
 }) {
     const [ufAtende, setUfAtende] = useState('SP')
     const [municipioIbgeId, setMunicipioIbgeId] = useState('')
@@ -305,6 +313,40 @@ export default function FormularioPublicoPerfilExtra({
                         <p className="fcred_public_muted">Opcional: inclua um ou mais veterinários.</p>
                     )}
                 </section>
+            )}
+
+            {(isVolante || isClinica) && (
+                <>
+                    <section className="fcred_bloco">
+                        <h2 className="fcred_bloco_tit">Certificado de conclusão de curso *</h2>
+                        <p className="fcred_public_muted fcred_bloco_lead">
+                            Anexe foto ou PDF do certificado (obrigatório; até 5 arquivos).
+                        </p>
+                        <PrestadorCertificadosConclusaoInput
+                            modo="staging"
+                            variant="public"
+                            mostrarHint={false}
+                            somenteLeitura={false}
+                            salvos={[]}
+                            pendentes={certificadosPendentes || []}
+                            onChangePendentes={onCertificadosPendentesChange}
+                            onErro={onErroCertificados}
+                        />
+                        {erroCertificados && (
+                            <p className="fcred_public_erro fcred_perfil_erro">{erroCertificados}</p>
+                        )}
+                    </section>
+                    <section className="fcred_bloco">
+                        <h2 className="fcred_bloco_tit">Responsável(is) *</h2>
+                        <PrestadorResponsaveisInput
+                            variant="public"
+                            mostrarLead={false}
+                            lista={responsaveis}
+                            onChange={onResponsaveisChange}
+                            somenteLeitura={false}
+                        />
+                    </section>
+                </>
             )}
 
             {erroLocal && <p className="fcred_public_erro fcred_perfil_erro">{erroLocal}</p>}

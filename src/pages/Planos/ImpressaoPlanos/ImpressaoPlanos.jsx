@@ -23,6 +23,42 @@ import './ImpressaoPlanos.css'
 import CelulaRealizadores, { obterClasseProcedimento } from './CelulaRealizadores.jsx'
 import { procedimentoIsentoLimiteGrupo } from '../../../lib/categoriaLimitesGrupo.js'
 
+function limiteExibicaoLinhaMobile(linha, ctx) {
+    const {
+        isentoLimiteGrupo,
+        usaLimiteGrupoSecao,
+        textoGrupo,
+        podeMesclarLimiteGrupo,
+        indiceNoGrupo,
+    } = ctx
+    if (isentoLimiteGrupo || !usaLimiteGrupoSecao) {
+        return linha.limiteIndividualExibicao || linha.limiteExibicao || ''
+    }
+    if (podeMesclarLimiteGrupo && indiceNoGrupo >= 0) {
+        return textoGrupo || linha.limiteExibicao || ''
+    }
+    return linha.limiteExibicao || textoGrupo || ''
+}
+
+function metaMobileLinha(linha, ctx) {
+    const lim = limiteExibicaoLinhaMobile(linha, ctx)
+    return [linha.diferenca, lim, linha.carenciaExibicao].filter(Boolean).join(' · ')
+}
+
+function useMatchMedia(query) {
+    const [matches, setMatches] = useState(
+        () => typeof window !== 'undefined' && window.matchMedia(query).matches,
+    )
+    useEffect(() => {
+        const mq = window.matchMedia(query)
+        const onChange = () => setMatches(mq.matches)
+        onChange()
+        mq.addEventListener('change', onChange)
+        return () => mq.removeEventListener('change', onChange)
+    }, [query])
+    return matches
+}
+
 export default function ImpressaoPlanos() {
     const [planos, setPlanos] = useState([])
     const [cidades, setCidades] = useState([])
@@ -45,6 +81,7 @@ export default function ImpressaoPlanos() {
     const [categorias, setCategorias] = useState([])
     const [ordenColuna, setOrdenColuna] = useState('codigo')
     const [ordenDir, setOrdenDir] = useState('asc')
+    const tabelaMobile = useMatchMedia('(max-width: 1023px)')
 
     useEffect(() => {
         const run = async () => {
@@ -472,31 +509,40 @@ export default function ImpressaoPlanos() {
                                                 onClick={() => marcarComPrestadoresCategoria(cat.id)}
                                                 title="Marca apenas procedimentos com pelo menos um realizador na região"
                                             >
-                                                Com prestadores
+                                                <span className="planos_impressao_btn_txt_full">Com prestadores</span>
+                                                <span className="planos_impressao_btn_txt_short">Com prest.</span>
                                             </button>
                                             <button
                                                 type="button"
                                                 className="planos_impressao_btn_secao planos_impressao_btn_secao_marcar"
                                                 onClick={() => toggleTodasCategoria(cat.id, true)}
                                             >
-                                                Marcar todos
+                                                <span className="planos_impressao_btn_txt_full">Marcar todos</span>
+                                                <span className="planos_impressao_btn_txt_short">Marcar</span>
                                             </button>
                                             <button
                                                 type="button"
                                                 className="planos_impressao_btn_secao planos_impressao_btn_secao_desmarcar"
                                                 onClick={() => toggleTodasCategoria(cat.id, false)}
                                             >
-                                                Desmarcar todos
+                                                <span className="planos_impressao_btn_txt_full">Desmarcar todos</span>
+                                                <span className="planos_impressao_btn_txt_short">Limpar</span>
                                             </button>
                                         </div>
                                     </div>
                                     <div className="planos_impressao_table_wrap">
-                                    <table className="table_main planos_impressao_table_main">
+                                    <table
+                                        className={`table_main planos_impressao_table_main${
+                                            tabelaMobile ? ' is-layout-mobile' : ''
+                                        }`}
+                                    >
                                         <colgroup>
                                             <col className="planos_impressao_col_check" />
                                             <col className="planos_impressao_col_codigo" />
                                             <col className="planos_impressao_col_nome" />
-                                            <col className="planos_impressao_col_realiz" />
+                                            {!tabelaMobile ? (
+                                                <col className="planos_impressao_col_realiz" />
+                                            ) : null}
                                             <col className="planos_impressao_col_dif" />
                                             <col className="planos_impressao_col_limite" />
                                             <col className="planos_impressao_col_carencia" />
@@ -524,15 +570,17 @@ export default function ImpressaoPlanos() {
                                                 >
                                                     Nome{indicadorOrdem('nome')}
                                                 </th>
+                                                {!tabelaMobile ? (
+                                                    <th
+                                                        className="table_header planos_impressao_th_compact planos_impressao_th_realiz"
+                                                        onClick={() => alternarOrdenacao('realizadores')}
+                                                        title="Realizadores"
+                                                    >
+                                                        Real.{indicadorOrdem('realizadores')}
+                                                    </th>
+                                                ) : null}
                                                 <th
-                                                    className="table_header planos_impressao_th_compact planos_impressao_th_realiz"
-                                                    onClick={() => alternarOrdenacao('realizadores')}
-                                                    title="Realizadores"
-                                                >
-                                                    Real.{indicadorOrdem('realizadores')}
-                                                </th>
-                                                <th
-                                                    className="table_header planos_impressao_th_compact"
+                                                    className="table_header planos_impressao_th_compact planos_impressao_th_extra planos_impressao_th_dif"
                                                     onClick={() => alternarOrdenacao('diferenca')}
                                                     title={rotuloDiferenca}
                                                 >
@@ -542,13 +590,13 @@ export default function ImpressaoPlanos() {
                                                     </span>
                                                 </th>
                                                 <th
-                                                    className="table_header planos_impressao_th_compact"
+                                                    className="table_header planos_impressao_th_compact planos_impressao_th_extra planos_impressao_th_limite"
                                                     onClick={() => alternarOrdenacao('limite')}
                                                 >
                                                     Lim.{indicadorOrdem('limite')}
                                                 </th>
                                                 <th
-                                                    className="table_header planos_impressao_th_compact"
+                                                    className="table_header planos_impressao_th_compact planos_impressao_th_extra planos_impressao_th_carencia"
                                                     onClick={() => alternarOrdenacao('carencia')}
                                                 >
                                                     Car.{indicadorOrdem('carencia')}
@@ -567,7 +615,10 @@ export default function ImpressaoPlanos() {
                                                     : []
                                                 const rowspanGrupo = linhasNoGrupo.length
                                                 const podeMesclarLimiteGrupo =
-                                                    ordenColuna === 'codigo' && usaLimiteGrupoSecao && rowspanGrupo > 0
+                                                    !tabelaMobile &&
+                                                    ordenColuna === 'codigo' &&
+                                                    usaLimiteGrupoSecao &&
+                                                    rowspanGrupo > 0
                                                 const textoGrupo = cat.textoLimiteGrupo || ''
 
                                                 return linhasSecao.map((linha) => {
@@ -577,10 +628,33 @@ export default function ImpressaoPlanos() {
                                                     )
 
                                                     let celulaLimite = null
-                                                    if (isentoLimiteGrupo || !usaLimiteGrupoSecao) {
+                                                    const ctxLimiteMobile = {
+                                                        isentoLimiteGrupo,
+                                                        usaLimiteGrupoSecao,
+                                                        textoGrupo,
+                                                        podeMesclarLimiteGrupo,
+                                                        indiceNoGrupo,
+                                                    }
+                                                    const metaMobile = metaMobileLinha(linha, ctxLimiteMobile)
+                                                    if (tabelaMobile) {
+                                                        const limText =
+                                                            isentoLimiteGrupo || !usaLimiteGrupoSecao
+                                                                ? linha.limiteIndividualExibicao ||
+                                                                  linha.limiteExibicao ||
+                                                                  ''
+                                                                : linha.limiteExibicao || textoGrupo || ''
                                                         celulaLimite = (
                                                             <td
                                                                 className="planos_impressao_td_compact planos_impressao_td_limite"
+                                                                title={limText}
+                                                            >
+                                                                {limText}
+                                                            </td>
+                                                        )
+                                                    } else if (isentoLimiteGrupo || !usaLimiteGrupoSecao) {
+                                                        celulaLimite = (
+                                                            <td
+                                                                className="planos_impressao_td_compact planos_impressao_td_limite planos_impressao_td_extra"
                                                                 title={
                                                                     linha.limiteIndividualExibicao ||
                                                                     linha.limiteExibicao
@@ -597,7 +671,7 @@ export default function ImpressaoPlanos() {
                                                         celulaLimite = (
                                                             <td
                                                                 rowSpan={rowspanGrupo}
-                                                                className="supertabelaplanos_limite_grupo_cell planos_impressao_td_limite_grupo"
+                                                                className="supertabelaplanos_limite_grupo_cell planos_impressao_td_limite_grupo planos_impressao_td_extra"
                                                                 title={textoGrupo}
                                                             >
                                                                 {textoGrupo}
@@ -611,7 +685,7 @@ export default function ImpressaoPlanos() {
                                                     } else {
                                                         celulaLimite = (
                                                             <td
-                                                                className="planos_impressao_td_compact planos_impressao_td_limite"
+                                                                className="planos_impressao_td_compact planos_impressao_td_limite planos_impressao_td_extra"
                                                                 title={linha.limiteExibicao || textoGrupo}
                                                             >
                                                                 {linha.limiteExibicao || textoGrupo}
@@ -640,21 +714,40 @@ export default function ImpressaoPlanos() {
                                                             <td
                                                                 className={`table_text_left planos_impressao_td_nome ${obterClasseProcedimento(linha.nome)}`}
                                                             >
-                                                                {linha.nome}
+                                                                <div className="planos_impressao_nome_cel">
+                                                                    <span className="planos_impressao_nome_txt">
+                                                                        {linha.nome}
+                                                                    </span>
+                                                                    {Number(linha.realizadores || 0) > 0 ? (
+                                                                        <span
+                                                                            className="planos_impressao_mobile_realiz"
+                                                                            title={(linha.realizadoresNomes || []).join(', ')}
+                                                                        >
+                                                                            {linha.realizadores} realiz.
+                                                                        </span>
+                                                                    ) : null}
+                                                                    {metaMobile ? (
+                                                                        <span className="planos_impressao_mobile_meta">
+                                                                            {metaMobile}
+                                                                        </span>
+                                                                    ) : null}
+                                                                </div>
                                                             </td>
-                                                            <CelulaRealizadores
-                                                                contagem={linha.realizadores}
-                                                                nomes={linha.realizadoresNomes}
-                                                            />
+                                                            {!tabelaMobile ? (
+                                                                <CelulaRealizadores
+                                                                    contagem={linha.realizadores}
+                                                                    nomes={linha.realizadoresNomes}
+                                                                />
+                                                            ) : null}
                                                             <td
-                                                                className="planos_impressao_td_compact planos_impressao_td_dif"
+                                                                className="planos_impressao_td_compact planos_impressao_td_dif planos_impressao_td_extra"
                                                                 title={linha.diferenca}
                                                             >
                                                                 {linha.diferenca}
                                                             </td>
                                                             {celulaLimite}
                                                             <td
-                                                                className="planos_impressao_td_compact planos_impressao_td_carencia"
+                                                                className="planos_impressao_td_compact planos_impressao_td_carencia planos_impressao_td_extra"
                                                                 title={linha.carenciaExibicao}
                                                             >
                                                                 {linha.carenciaExibicao}

@@ -121,6 +121,7 @@
 
 .planos_impressao_td_dif {
     font-size: 0.8rem;
+    white-space: nowrap;
 }
 
 .planos_impressao_td_codigo {
@@ -429,20 +430,425 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
 }
 
 @media (max-width: 1023px) {
+    .credenciamento_main.planos_impressao {
+        padding: 0.35rem max(0.65rem, env(safe-area-inset-right))
+            1.25rem max(0.65rem, env(safe-area-inset-left));
+    }
+
+    .credenciamento_main.planos_impressao > h1 {
+        font-size: 1.2rem;
+        padding-right: 2.75rem;
+        text-align: left;
+        margin: 0.2rem 0 0.55rem;
+    }
+
+    .credenciamento_main.planos_impressao > hr {
+        margin: 0 0 0.75rem;
+    }
+
+    .planos_impressao_filtros_center {
+        margin-bottom: 0;
+        padding: 0.85rem 0.75rem;
+        background: #fff;
+        border: 1px solid #e2e9f1;
+        border-radius: 10px;
+        box-sizing: border-box;
+    }
+
     .planos_impressao_filtros_center .planos_impressao_row_center {
         flex-direction: column;
         align-items: stretch;
         width: 100%;
+        max-width: none;
+        gap: 0.7rem;
     }
 
     .planos_impressao_filtros_center .pcad_field {
         width: 100%;
         max-width: none;
+        flex: 1 1 auto;
+        gap: 0.45rem;
+        margin: 0;
+    }
+
+    .planos_impressao_filtros_center .pcad_field > span {
+        font-size: 0.82rem;
+        line-height: 1.2;
+    }
+
+    .planos_impressao_filtros_center .credenciamento_main_input,
+    .planos_impressao_filtros_center .credenciamento_main_select {
+        min-height: 44px;
+        width: 100%;
+        padding: 0.5rem 0.65rem;
+        box-sizing: border-box;
+    }
+
+    .planos_impressao_switch_cidades {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        gap: 0.75rem;
+        padding: 0.65rem 0 0;
+        margin-top: 0.1rem;
+        border-top: 1px solid #eef2f7;
+    }
+
+    .planos_impressao_switch_label {
+        text-align: left;
+        font-size: 0.82rem;
+        flex: 1 1 auto;
+        padding-right: 0.25rem;
+    }
+
+    .planos_impressao_btn_carregar {
+        width: 100%;
+        min-height: 44px;
+        margin-top: 0.25rem;
+        padding: 0.62rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .planos_impressao_hint {
+        text-align: left;
+        font-size: 0.78rem;
+        line-height: 1.4;
+        margin: 0.7rem 0 0.8rem;
+        padding: 0 0.15rem;
+    }
+
+    .planos_impressao_erro {
+        margin: 0 0 0.75rem;
+        padding: 0 0.15rem;
+        text-align: left;
     }
 
     .planos_impressao_toolbar {
+        position: sticky;
+        top: calc(52px + env(safe-area-inset-top));
+        z-index: 28;
         flex-direction: column;
         align-items: stretch;
+        gap: 0.65rem;
+        max-width: none;
+        width: 100%;
+        margin-bottom: 0.85rem;
+        padding: 0.75rem;
+        box-sizing: border-box;
+        border-radius: 10px;
+        border: 1px solid #e2e9f1;
+        background: #fff;
+    }
+
+    .planos_impressao_toolbar .campo_busca_limpar {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .planos_impressao_toolbar .credenciamento_main_input {
+        min-height: 44px;
+        padding: 0.5rem 0.65rem;
+        box-sizing: border-box;
+    }
+
+    .planos_impressao_btn_pdf {
+        width: 100%;
+        min-height: 44px;
+        padding: 0.62rem 1rem;
+        font-weight: 600;
+        background: #e8f1ff;
+        border-color: #9bb8e8;
+        color: #1a3d5c;
+    }
+
+    .planos_impressao_secao_head {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.45rem;
+    }
+
+    .planos_impressao_conteudo .categoria_titulo {
+        font-size: 1.05rem;
+        line-height: 1.25;
+    }
+
+    .planos_impressao_secao_acoes {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.35rem;
+        width: 100%;
+    }
+
+    .planos_impressao_btn_secao {
+        width: 100%;
+        padding: 0.45rem 0.35rem;
+        font-size: 0.72rem;
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .planos_impressao_btn_txt_short {
+        display: none;
+    }
+
+    .planos_impressao_conteudo.supertabelaplanos .categoria_secao {
+        padding: 8px 6px;
+    }
+
+    .planos_impressao_table_wrap {
+        overflow-x: auto;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: #9ab4cf #eef3f9;
+        border-radius: 8px;
+        border: 1px solid #e2e9f1;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .planos_impressao_table_main.is-layout-mobile {
+        width: 30rem !important;
+        min-width: 30rem !important;
+        max-width: 30rem !important;
+        table-layout: fixed !important;
+        border-collapse: collapse;
+    }
+
+    .planos_impressao_table_main.is-layout-mobile col.planos_impressao_col_check {
+        width: 2rem;
+    }
+
+    .planos_impressao_table_main.is-layout-mobile col.planos_impressao_col_codigo {
+        width: 4.5rem;
+    }
+
+    .planos_impressao_table_main.is-layout-mobile col.planos_impressao_col_nome {
+        width: 9.5rem;
+    }
+
+    .planos_impressao_table_main.is-layout-mobile col.planos_impressao_col_dif {
+        width: 4.25rem;
+    }
+
+    .planos_impressao_table_main.is-layout-mobile col.planos_impressao_col_limite {
+        width: 5.5rem;
+    }
+
+    .planos_impressao_table_main.is-layout-mobile col.planos_impressao_col_carencia {
+        width: 4.25rem;
+    }
+
+    .planos_impressao_table_main.is-layout-mobile .planos_impressao_mobile_realiz {
+        display: inline-block !important;
+        margin-top: 0.22rem;
+        padding: 0.1rem 0.45rem;
+        border-radius: 999px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: #1a5c3a;
+        background: #e6f5ec;
+        border: 1px solid #9cd4b0;
+        white-space: nowrap;
+    }
+
+    .planos_impressao_table_main.is-layout-mobile .planos_impressao_td_dif,
+    .planos_impressao_table_main.is-layout-mobile .planos_impressao_td_carencia {
+        white-space: nowrap;
+        font-size: 0.72rem;
+        text-align: center;
+    }
+
+    .planos_impressao_table_main.is-layout-mobile .planos_impressao_td_limite {
+        font-size: 0.72rem;
+        line-height: 1.2;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        text-align: center;
+    }
+
+    .planos_impressao_table_main.is-layout-mobile thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f4f8fc;
+        box-shadow: 0 1px 0 #d8e1ec;
+    }
+}
+
+@media (max-width: 640px) {
+    .planos_impressao_btn_txt_full {
+        display: none;
+    }
+
+    .planos_impressao_btn_txt_short {
+        display: inline;
+    }
+
+    .planos_impressao_secao_acoes {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .planos_impressao_secao_acoes .planos_impressao_btn_secao_prestadores {
+        grid-column: 1 / -1;
+    }
+
+    .planos_impressao_table_wrap {
+        border: 1px solid #e2e9f1;
+        border-radius: 8px;
+    }
+
+    .planos_impressao_col_check {
+        width: 2rem !important;
+    }
+
+    .planos_impressao_col_codigo {
+        width: 4.5rem !important;
+    }
+
+    .planos_impressao_col_nome {
+        width: 9.5rem !important;
+    }
+
+    .planos_impressao_col_realiz {
+        width: 0 !important;
+        padding: 0 !important;
+    }
+
+    .planos_impressao_col_dif {
+        width: 4.25rem !important;
+    }
+
+    .planos_impressao_col_limite {
+        width: 5.5rem !important;
+    }
+
+    .planos_impressao_col_carencia {
+        width: 4.25rem !important;
+    }
+
+    .planos_impressao_mobile_meta {
+        display: none !important;
+    }
+
+    .planos_impressao_td_limite,
+    .planos_impressao_table_main .planos_impressao_td_limite_grupo {
+        font-size: 0.72rem;
+        line-height: 1.2;
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+
+    .planos_impressao_td_codigo {
+        font-size: 0.68rem;
+        line-height: 1.2;
+        vertical-align: top;
+        padding-top: 7px;
+    }
+
+    .planos_impressao_td_nome {
+        vertical-align: top;
+        padding-top: 6px;
+    }
+
+    .planos_impressao_td_check {
+        vertical-align: top;
+        padding-top: 8px;
+    }
+
+    .planos_impressao_table_main th,
+    .planos_impressao_table_main td {
+        font-size: 0.76rem;
+        padding: 5px 3px;
+    }
+
+    .planos_impressao_table_main th.planos_impressao_th_nome {
+        text-align: left;
+    }
+}
+
+.planos_impressao_mobile_meta {
+    display: none;
+}
+
+@media (min-width: 1024px) {
+    .planos_impressao_mobile_realiz {
+        display: none !important;
+    }
+}
+
+@media (max-width: 1023px) {
+    .planos_impressao_conteudo .planos_impressao_table_main:not(.is-layout-mobile) {
+        min-width: 520px;
+    }
+
+    .planos_impressao_mobile_realiz {
+        display: inline-block;
+    }
+}
+
+.planos_impressao_nome_cel {
+    display: block;
+    min-width: 0;
+}
+
+.planos_impressao_nome_txt {
+    display: block;
+    line-height: 1.25;
+}
+
+@media (max-width: 1023px) {
+    body.dark-mode .planos_impressao_toolbar {
+        background: var(--bg-surface, #152232);
+        border-color: var(--border-soft, #2a3d52);
+    }
+
+    body.dark-mode .planos_impressao_filtros_center {
+        background: var(--bg-surface, #152232);
+        border-color: var(--border-soft, #2a3d52);
+    }
+
+    body.dark-mode .planos_impressao_switch_cidades {
+        border-top-color: var(--border-soft, #2a3d52);
+    }
+
+    body.dark-mode .planos_impressao_table_main.is-layout-mobile thead th {
+        background: var(--bg-surface, #152232);
+        box-shadow: 0 1px 0 var(--border-soft, #2a3d52);
+    }
+
+    body.dark-mode .planos_impressao_table_main.is-layout-mobile .planos_impressao_mobile_realiz {
+        color: #b8e8c8;
+        background: #1a3d2e;
+        border-color: #3a7a52;
+    }
+
+    body.dark-mode .planos_impressao_table_main thead th {
+        background: var(--bg-surface, #152232);
+        box-shadow: 0 1px 0 var(--border-soft, #2a3d52);
+    }
+
+    body.dark-mode .planos_impressao_btn_pdf {
+        background: #1a3350;
+        border-color: #3a6a8a;
+        color: #c8e8f8;
+    }
+
+    body.dark-mode .planos_impressao_table_wrap {
+        border-color: var(--border-soft, #2a3d52);
+    }
+
+    body.dark-mode .planos_impressao_mobile_realiz {
+        color: #b8e8c8;
+        background: #1a3d2e;
+        border-color: #3a7a52;
+    }
+
+    body.dark-mode .planos_impressao_mobile_meta {
+        color: var(--text-muted, #a8b8c8);
     }
 }
 
@@ -467,34 +873,5 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
 
     .planos_impressao_th_check {
         font-size: 0.65rem;
-    }
-}
-
-@media (max-width: 640px) {
-    .planos_impressao_col_realiz {
-        width: 0 !important;
-    }
-
-    .planos_impressao_th_realiz,
-    .planos_impressao_td_realizadores {
-        display: none;
-    }
-
-    .planos_impressao_col_nome {
-        width: 50%;
-    }
-
-    .planos_impressao_col_limite {
-        width: 14%;
-    }
-
-    .planos_impressao_col_carencia {
-        width: 20%;
-    }
-
-    .planos_impressao_table_main th,
-    .planos_impressao_table_main td {
-        font-size: 0.74rem;
-        padding: 4px 2px;
     }
 }

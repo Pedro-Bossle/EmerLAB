@@ -29,6 +29,7 @@ import {
     normalizarEmailParaSalvar,
     montarEnderecoUmaLinha,
     tipoEspecialidadePrestador,
+    prestadorEhEstabelecimento,
 } from '../../../lib/prestadorCadastroHelpers'
 import ClinicasAtendeInput from './ClinicasAtendeInput.jsx'
 import {
@@ -44,6 +45,18 @@ import MultiEspecialidadesInput from './MultiEspecialidadesInput.jsx'
 import CidadesAtendeVirtualList from './CidadesAtendeVirtualList.jsx'
 import VeterinariosVinculados from './VeterinariosVinculados.jsx'
 import CredenciamentoDevToolsPerfil from './CredenciamentoDevToolsPerfil.jsx'
+import PrestadorCertificadosConclusaoInput from './PrestadorCertificadosConclusaoInput.jsx'
+import PrestadorResponsaveisInput, { responsaveisFromDbRows } from './PrestadorResponsaveisInput.jsx'
+import {
+    carregarCertificadosConclusaoPrestador,
+    carregarResponsaveisPrestador,
+    sincronizarCertificadosConclusaoPrestador,
+    sincronizarResponsaveisPrestador,
+} from '../../../lib/prestadorVeterinarioCadastro.js'
+import {
+    validarCertificadosConclusaoObrigatorios,
+    validarResponsaveisObrigatorios,
+} from '../../../lib/prestadorVeterinarioValidacao.js'
 import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
 import { solicitarGeocodePrestador } from '../../../lib/credenciamento/solicitarGeocodePrestador'
 import {
@@ -154,6 +167,10 @@ const CredenciamentoCadastroForm = () => {
     const [cepLoading, setCepLoading] = useState(false)
     const [secaoMultiplasCidades, setSecaoMultiplasCidades] = useState(false)
     const [secaoVetsVinculados, setSecaoVetsVinculados] = useState(false)
+    const [certificadosSalvos, setCertificadosSalvos] = useState([])
+    const [certificadosPendentes, setCertificadosPendentes] = useState([])
+    const [certificadosRemoverIds, setCertificadosRemoverIds] = useState([])
+    const [responsaveis, setResponsaveis] = useState([])
     const ultimoCepBuscadoRef = useRef('')
     const mapaNomeAlternativoRef = useRef(new Map())
 
@@ -175,6 +192,11 @@ const CredenciamentoCadastroForm = () => {
     }, [especialidades, form.especialidade_id])
 
     const mostrarAtendeClinica = secaoMultiplasCidades
+
+    const mostrarCamposVeterinario = useMemo(() => {
+        if (!form.especialidade_id) return false
+        return !prestadorEhEstabelecimento(form.especialidade_id)
+    }, [form.especialidade_id])
 
     const estabelecimentosSelecionadosDados = useMemo(
         () =>
@@ -350,6 +372,24 @@ const CredenciamentoCadastroForm = () => {
                 .select('laboratorio_id')
                 .eq('prestador_id', prestadorId)
             setLaboratoriosSolicitacaoIds((labsSol || []).map((r) => Number(r.laboratorio_id)))
+
+            try {
+                const [certs, resp] = await Promise.all([
+                    carregarCertificadosConclusaoPrestador(prestadorId),
+                    carregarResponsaveisPrestador(prestadorId),
+                ])
+                setCertificadosSalvos(certs)
+                setCertificadosPendentes([])
+                setCertificadosRemoverIds([])
+                setResponsaveis(responsaveisFromDbRows(resp))
+            } catch (errVet) {
+                setCertificadosSalvos([])
+                setResponsaveis([])
+                const msgV = errVet?.message || String(errVet)
+                if (!String(msgV).toLowerCase().includes('does not exist')) {
+                    setErro((prev) => (prev ? `${prev}\n${msgV}` : msgV))
+                }
+            }
         } finally {
             setLoading(false)
         }
@@ -518,6 +558,22 @@ const CredenciamentoCadastroForm = () => {
         if (secaoMultiplasCidades && atendeEmClinica && !modalidadeAutoClinica.trim()) {
             setErro('Selecione a clínica/local para preencher a modalidade.')
             return
+        }
+        if (mostrarCamposVeterinario) {
+            const errCert = validarCertificadosConclusaoObrigatorios({
+                salvos: certificadosSalvos,
+                pendentes: certificadosPendentes,
+                removerIds: certificadosRemoverIds,
+            })
+            if (errCert) {
+                setErro(errCert)
+                return
+            }
+            const errResp = validarResponsaveisObrigatorios(responsaveis)
+            if (errResp) {
+                setErro(errResp)
+                return
+            }
         }
 
         setSalvando(true)
@@ -730,6 +786,21 @@ const CredenciamentoCadastroForm = () => {
                 }
             }
 
+            if (mostrarCamposVeterinario) {
+                await sincronizarResponsaveisPrestador(pid, responsaveis)
+
+                const novosCertFiles = certificadosPendentes.map((p) => p.file).filter(Boolean)
+                if (novosCertFiles.length || certificadosRemoverIds.length) {
+                    await sincronizarCertificadosConclusaoPrestador(pid, {
+                        novos: novosCertFiles,
+                        removerIds: certificadosRemoverIds,
+                    })
+                }
+                setCertificadosSalvos(await carregarCertificadosConclusaoPrestador(pid))
+                setCertificadosPendentes([])
+                setCertificadosRemoverIds([])
+            }
+
             if ((tipoSalvar === 'LOCAL' || tipoEspecialidadePrestador(esp?.tipo) === 'LOCAL') && !salvouCoordenadasManual) {
                 solicitarGeocodePrestador(pid)
             }
@@ -915,6 +986,35 @@ const CredenciamentoCadastroForm = () => {
                         />
                     </div>
                 </section>
+
+                {mostrarCamposVeterinario && (
+                    <>
+                        <section className="pcad_card">
+                            <h2>Certificado de conclusão de curso *</h2>
+                            <PrestadorCertificadosConclusaoInput
+                                modo="prestador"
+                                somenteLeitura={somenteLeitura}
+                                salvos={certificadosSalvos.filter(
+                                    (c) => !certificadosRemoverIds.includes(Number(c.id)),
+                                )}
+                                pendentes={certificadosPendentes}
+                                onChangePendentes={setCertificadosPendentes}
+                                onRemoverSalvo={(id) =>
+                                    setCertificadosRemoverIds((prev) => [...new Set([...prev, Number(id)])])
+                                }
+                                onErro={setErro}
+                            />
+                        </section>
+                        <section className="pcad_card">
+                            <h2>Responsável(is) *</h2>
+                            <PrestadorResponsaveisInput
+                                lista={responsaveis}
+                                onChange={setResponsaveis}
+                                somenteLeitura={somenteLeitura}
+                            />
+                        </section>
+                    </>
+                )}
 
                 <section className="pcad_card">
                     <h2>Endereço</h2>

@@ -57,97 +57,6 @@ body.dark-mode .cred_prospectos_osm_page .cred_prospectos_osm_top {
     margin: 0;
 }
 
-/* Quadradinho à direita do painel de filtros — mesma altura do retângulo */
-.cred_prospectos_osm_filtros_bar .cred_prospectos_osm_gemini_descanso_live {
-    flex: 0 0 auto;
-    align-self: stretch;
-    width: auto;
-    aspect-ratio: 1 / 1;
-    height: auto;
-    min-width: 4.75rem;
-    max-width: 6.25rem;
-    padding: 0.35rem 0.4rem;
-    border-radius: 10px;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.08rem;
-    text-align: center;
-    position: relative;
-    z-index: 31;
-    box-shadow: none;
-    border: 1px solid #d8e1ec;
-}
-
-.cred_prospectos_osm_gemini_descanso_live_titulo {
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    line-height: 1.1;
-}
-
-.cred_prospectos_osm_gemini_descanso_live_sub {
-    font-size: 0.68rem;
-    opacity: 0.85;
-    line-height: 1.1;
-}
-
-.cred_prospectos_osm_gemini_descanso_live_valor {
-    font-variant-numeric: tabular-nums;
-    font-weight: 700;
-    font-size: clamp(0.85rem, 2.2vw, 1.05rem);
-    line-height: 1.15;
-    margin-top: 0.1rem;
-    min-width: 0;
-}
-
-.cred_prospectos_osm_gemini_descanso_live.is-checando {
-    background: #f0f4f8;
-    border-color: #b8c9dc;
-    color: #3d5166;
-}
-
-.cred_prospectos_osm_gemini_descanso_live.is-sem-cota {
-    background: #fff0eb;
-    border-color: #e8a090;
-    color: #7a2e1a;
-    cursor: help;
-}
-
-.cred_prospectos_osm_gemini_descanso_live.is-pronto {
-    background: #eef8f0;
-    border-color: #9fd4a8;
-    color: #1f5c2e;
-}
-
-.cred_prospectos_osm_gemini_descanso_live.is-pausa {
-    background: #fff8e6;
-    border-color: #e8c96a;
-    color: #5c4a12;
-}
-
-body.dark-mode .cred_prospectos_osm_gemini_descanso_live.is-sem-cota {
-    background: rgba(232, 160, 144, 0.14);
-    border-color: rgba(232, 160, 144, 0.45);
-    color: #f5d4cc;
-}
-
-body.dark-mode .cred_prospectos_osm_gemini_descanso_live.is-pronto {
-    background: rgba(120, 200, 140, 0.12);
-    border-color: rgba(120, 200, 140, 0.4);
-    color: #c8ebd0;
-}
-
-body.dark-mode .cred_prospectos_osm_gemini_descanso_live.is-pausa {
-    background: rgba(232, 201, 106, 0.14);
-    border-color: rgba(232, 201, 106, 0.45);
-    color: #f0e6c8;
-    box-shadow: none;
-}
-
 .cred_prospectos_osm_filtros_flutuantes {
     flex-shrink: 0;
     max-width: none;
@@ -276,6 +185,38 @@ body.dark-mode .cred_prospectos_osm_gemini_descanso_live.is-pausa {
 .cred_prospectos_osm_btn_prospectar {
     white-space: nowrap;
     height: 30px;
+}
+
+.cred_prospectos_osm_btn_prospectar {
+    position: relative;
+    overflow: hidden;
+    min-width: 9.5rem;
+    isolation: isolate;
+}
+
+.cred_prospectos_osm_btn_prospectar.is-coletando {
+    color: #fff;
+}
+
+.cred_prospectos_osm_btn_prospectar_fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0;
+    background: rgba(255, 255, 255, 0.28);
+    border-right: 1px solid rgba(255, 255, 255, 0.35);
+    transition: width 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.cred_prospectos_osm_btn_prospectar_label {
+    position: relative;
+    z-index: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+body.dark-mode .cred_prospectos_osm_btn_prospectar.is-coletando .cred_prospectos_osm_btn_prospectar_fill {
+    background: rgba(255, 255, 255, 0.22);
 }
 
 .cred_prospectos_osm_header {
@@ -500,24 +441,6 @@ body.cred_prospectos_osm_arrastando_split {
     .cred_prospectos_osm_filtros_bar {
         flex-direction: column;
         align-items: stretch;
-    }
-
-    .cred_prospectos_osm_filtros_bar .cred_prospectos_osm_gemini_descanso_live {
-        flex-direction: row;
-        flex-wrap: nowrap;
-        aspect-ratio: auto;
-        width: 100%;
-        max-width: none;
-        min-height: 2.75rem;
-        min-width: 0;
-        padding: 0.4rem 0.65rem;
-        gap: 0.35rem 0.5rem;
-        justify-content: center;
-    }
-
-    .cred_prospectos_osm_gemini_descanso_live_valor {
-        margin-top: 0;
-        margin-left: 0.35rem;
     }
 
     .cred_prospectos_osm_filtro_linha1 {

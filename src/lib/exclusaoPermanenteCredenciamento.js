@@ -35,6 +35,8 @@ export async function excluirPrestadorPermanentemente(prestadorId) {
     await apagarLinhas('prestador_procedimentos', 'prestador_id', pid)
     await apagarLinhas('prestador_cidades', 'prestador_id', pid)
     await apagarLinhas('prestador_especialidades', 'prestador_id', pid)
+    await apagarLinhas('prestador_certificados_conclusao', 'prestador_id', pid)
+    await apagarLinhas('prestador_responsaveis', 'prestador_id', pid)
 
     const { error: errPag } = await supabase.from('pagamentos_registros').delete().eq('prestador_id', pid)
     if (errPag && !/relation|does not exist/i.test(errPag.message || '')) {

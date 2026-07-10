@@ -15,13 +15,17 @@ export default function CelulaRealizadores({ contagem, nomes }) {
     const n = Number(contagem) || 0
 
     if (!n) {
-        return <td className="planos_impressao_td_realizadores planos_impressao_td_compact">0</td>
+        return (
+            <td className="planos_impressao_td_realizadores planos_impressao_td_compact planos_impressao_td_extra">
+                0
+            </td>
+        )
     }
 
     const hint = lista.length ? lista.join(', ') : undefined
 
     return (
-        <td className="planos_impressao_td_realizadores planos_impressao_td_compact">
+        <td className="planos_impressao_td_realizadores planos_impressao_td_compact planos_impressao_td_extra">
             <span className="planos_impressao_realizadores" title={hint}>
                 {n}
             </span>

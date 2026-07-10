@@ -304,7 +304,7 @@ export default function PrestadorHonorariosContratos({
                         onClick={(e) => e.stopPropagation()}
                     >
                         <header className="pcad_modal_head">
-                            <h3 id="pcad-honorarios-titulo">Honorários — pré-visualização</h3>
+                            <h3 id="pcad-honorarios-titulo">Honorários de Repasse — pré-visualização</h3>
                             <button type="button" className="pcad_modal_close" onClick={() => setModalAberto(false)} aria-label="Fechar">
                                 ×
                             </button>

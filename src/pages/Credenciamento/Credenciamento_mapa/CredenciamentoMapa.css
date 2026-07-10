@@ -737,12 +737,149 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
     height: 100% !important;
 }
 
+/* Leaflet: z-index alto por defeito; contido na página (filtros / gaveta mobile) */
+.credenciamento_mapa_page .credenciamento_mapa_layout .leaflet-container {
+    z-index: 0;
+}
+
+.credenciamento_mapa_page .credenciamento_mapa_layout .leaflet-pane {
+    z-index: 1 !important;
+}
+
+.credenciamento_mapa_page .credenciamento_mapa_layout .leaflet-top,
+.credenciamento_mapa_page .credenciamento_mapa_layout .leaflet-bottom {
+    z-index: 2 !important;
+}
+
 @media (max-width: 980px) {
-    .credenciamento_mapa_layout {
-        grid-template-columns: 1fr;
+    .credenciamento_mapa_page.credenciamento_main {
+        margin: 0 0.5rem 0.75rem;
+        padding-bottom: 0.25rem;
     }
+
+    .credenciamento_mapa_page h1 {
+        font-size: 1.2rem;
+        margin-bottom: 4px;
+        padding-right: 2.25rem;
+    }
+
+    .credenciamento_mapa_page hr {
+        margin: 6px 0 8px;
+    }
+
+    .credenciamento_mapa_header {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+
+    .credenciamento_mapa_kpi {
+        padding: 6px 8px;
+        font-size: 0.82rem;
+        border-radius: 8px;
+    }
+
     .credenciamento_mapa_filtro {
+        grid-column: 1 / -1;
         margin-left: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .credenciamento_mapa_filtro .credenciamento_main_select {
+        width: 100%;
+        min-height: 40px;
+    }
+
+    .credenciamento_mapa_mobile_tabs {
+        display: flex;
+        gap: 6px;
+        margin: 0 0 8px;
+        padding: 4px;
+        border-radius: 10px;
+        background: #e8eef5;
+        border: 1px solid #d8e1ec;
+        flex-shrink: 0;
+    }
+
+    .credenciamento_mapa_mobile_tabs button {
+        flex: 1 1 50%;
+        margin: 0;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        cursor: pointer;
+        background: transparent;
+        color: #4a6278;
+        min-height: 40px;
+    }
+
+    .credenciamento_mapa_mobile_tabs button.is-ativo {
+        background: #fff;
+        color: #1f4b82;
+        box-shadow: 0 1px 4px rgba(30, 49, 72, 0.12);
+    }
+
+    .credenciamento_mapa_layout {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        gap: 0;
+    }
+
+    .credenciamento_mapa_layout--mobile-mapa .credenciamento_mapa_legenda,
+    .credenciamento_mapa_layout--mobile-lista .credenciamento_mapa_container {
+        display: none !important;
+    }
+
+    .credenciamento_mapa_layout--mobile-mapa .credenciamento_mapa_container,
+    .credenciamento_mapa_layout--mobile-lista .credenciamento_mapa_legenda {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .credenciamento_mapa_layout--mobile-mapa .credenciamento_mapa_container {
+        min-height: min(72dvh, calc(100dvh - 220px));
+    }
+
+    .credenciamento_mapa_layout--mobile-lista .credenciamento_mapa_legenda {
+        max-height: min(78dvh, calc(100dvh - 200px));
+    }
+
+    .credenciamento_mapa_legenda {
+        border-radius: 10px;
+        padding: 8px;
+    }
+
+    .credenciamento_mapa_legenda_item {
+        padding: 2px 2px 2px 6px;
+    }
+
+    .credenciamento_mapa_legenda_corpo {
+        padding: 8px 4px;
+    }
+
+    .credenciamento_mapa_sugestoes {
+        max-height: min(240px, 38dvh);
+    }
+}
+
+.credenciamento_mapa_mobile_tabs {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    .credenciamento_mapa_header {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -778,6 +915,21 @@ body.dark-mode .credenciamento_mapa_pois_item_btn span {
 
 body.dark-mode .credenciamento_mapa_pois_legenda {
     border-bottom-color: var(--border-soft);
+}
+
+body.dark-mode .credenciamento_mapa_mobile_tabs {
+    background: var(--bg-page);
+    border-color: var(--border-soft);
+}
+
+body.dark-mode .credenciamento_mapa_mobile_tabs button {
+    color: var(--text-muted, #a8b8c8);
+}
+
+body.dark-mode .credenciamento_mapa_mobile_tabs button.is-ativo {
+    background: var(--bg-surface);
+    color: var(--text-main);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
 body.dark-mode .credenciamento_mapa_legenda {

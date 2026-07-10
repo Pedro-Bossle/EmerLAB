@@ -9,6 +9,11 @@ import {
 import { obterOuCriarCidadeCredenciamento as obterOuCriarCidadeCredenciamentoDb } from './cidadesCredenciamento.js'
 import { sincronizarPrestadorProcedimentos } from './prestadorProcedimentos.js'
 import { especialidadePermitidaParaPerfil } from './formularioPublicoEspecialidades.js'
+import {
+    promoverCertificadosFormularioParaPrestador,
+    promoverResponsaveisFormularioParaPrestador,
+    uploadCertificadosConclusaoFormulario,
+} from './prestadorVeterinarioCadastro.js'
 
 export const FORMULARIO_CRED_SLUG_PADRAO = 'parceiros'
 
@@ -432,7 +437,7 @@ export async function carregarProcedimentosPublicadosFormulario(categoriaIds) {
     return (data || []).filter((p) => !CODIGOS_BLOQUEADOS_FORMULARIO.has(normCod(p.codigo)))
 }
 
-export async function enviarEntradaFormularioCredenciamento({ cpfCnpj, tipoPerfil, payload }) {
+export async function enviarEntradaFormularioCredenciamento({ cpfCnpj, tipoPerfil, payload, certificadosFiles = [] }) {
     const check = await verificarDocumentoParaEnvioFormulario(cpfCnpj)
     if (!check.ok) throw new Error(check.erro)
 
@@ -440,6 +445,17 @@ export async function enviarEntradaFormularioCredenciamento({ cpfCnpj, tipoPerfi
     if (check.modo === 'atualizacao' && check.prestadorId) {
         payloadFinal.atualizacao_credenciado = true
         payloadFinal.prestador_id_sugerido = check.prestadorId
+    }
+
+    if (certificadosFiles?.length) {
+        const loteId =
+            typeof crypto !== 'undefined' && crypto.randomUUID
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+        payloadFinal.certificadosConclusao = await uploadCertificadosConclusaoFormulario(
+            loteId,
+            certificadosFiles,
+        )
     }
 
     const { error } = await supabase.from('formulario_cred_entradas').insert({
@@ -804,6 +820,11 @@ export async function converterEntradaFormularioEmPrestador(entradaId) {
         await sincronizarPrestadorProcedimentos(prestadorId, codigos)
     }
 
+    if (tipoPerfil === 'volante' || tipoPerfil === 'clinica') {
+        await promoverResponsaveisFormularioParaPrestador(prestadorId, payload.responsaveis)
+        await promoverCertificadosFormularioParaPrestador(prestadorId, payload.certificadosConclusao)
+    }
+
     await atualizarStatusEntradaFormulario(entradaId, 'convertido', { prestador_id: prestadorId })
 
     return prestadorId
@@ -963,6 +984,11 @@ export async function aplicarEntradaFormularioEmPrestadorExistente(entradaId, pr
     const codigos = [...new Set((payload.procedimentos || []).map((c) => normCod(c)).filter(Boolean))]
     if (codigos.length) {
         await sincronizarPrestadorProcedimentos(prestadorId, codigos)
+    }
+
+    if (tipoPerfil === 'volante' || tipoPerfil === 'clinica') {
+        await promoverResponsaveisFormularioParaPrestador(prestadorId, payload.responsaveis)
+        await promoverCertificadosFormularioParaPrestador(prestadorId, payload.certificadosConclusao)
     }
 
     await atualizarStatusEntradaFormulario(entradaId, 'convertido', { prestador_id: prestadorId })

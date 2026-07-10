@@ -1,0 +1,230 @@
+/* Certificado + responsáveis (cadastro interno e formulário público) */
+
+.pcad_row3 {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.1fr) minmax(0, 0.85fr);
+    align-items: end;
+}
+
+@media (max-width: 900px) {
+    .pcad_row3 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.pcad_responsaveis {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.pcad_responsaveis > .pcad_muted,
+.vet_resp_lead {
+    margin: 0 0 0.25rem;
+    text-align: left;
+    line-height: 1.45;
+}
+
+.pcad_responsavel_card .pcad_field > span {
+    font-weight: 600;
+    color: #35556d;
+}
+
+.pcad_responsavel_card .pcad_field {
+    min-width: 0;
+}
+
+.vet_resp_grid {
+    margin-bottom: 0;
+}
+
+.pcad_responsavel_card {
+    padding: 0.85rem 1rem;
+    border: 1px solid #dce8f2;
+    border-radius: 10px;
+    background: #f8fbfe;
+}
+
+.pcad_responsavel_head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.65rem;
+}
+
+.pcad_responsavel_tit {
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #35556d;
+}
+
+.pcad_responsavel_rem {
+    border: none;
+    background: none;
+    color: #2d6a9f;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.15rem 0.35rem;
+}
+
+.pcad_responsavel_rem:hover {
+    text-decoration: underline;
+}
+
+.pcad_responsaveis_add {
+    align-self: flex-start;
+    margin-top: 0.15rem;
+}
+
+.pcad_cert_conclusao {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.65rem;
+}
+
+.pcad_cert_conclusao_hint {
+    margin: 0;
+    text-align: left;
+    line-height: 1.45;
+}
+
+.pcad_cert_lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.pcad_cert_lista li {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid #dce8f2;
+    border-radius: 8px;
+    background: #fff;
+    margin-bottom: 0.45rem;
+}
+
+.pcad_cert_lista li:last-child {
+    margin-bottom: 0;
+}
+
+.pcad_cert_link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #2d6a9f;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    font-weight: 500;
+}
+
+.pcad_cert_thumb {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.pcad_cert_pdf_badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: #eef3f8;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #35556d;
+    flex-shrink: 0;
+}
+
+.pcad_cert_nome {
+    flex: 1;
+    font-size: 0.88rem;
+    word-break: break-word;
+    text-align: left;
+}
+
+.pcad_cert_rem {
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 1.25rem;
+    line-height: 1;
+    padding: 0.15rem 0.35rem;
+    flex-shrink: 0;
+}
+
+.pcad_cert_rem:hover {
+    color: #9b2c2c;
+}
+
+.pcad_cert_input_hidden {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.pcad_cert_add_btn {
+    margin-top: 0.15rem;
+}
+
+.pcad_cert_vazio {
+    width: 100%;
+    padding: 1rem;
+    border: 1px dashed #b9cfde;
+    border-radius: 10px;
+    background: #fafcfe;
+    color: #5a7085;
+    font-size: 0.88rem;
+    text-align: left;
+    line-height: 1.45;
+}
+
+/* Formulário público */
+.fcred_passo_volante_docs {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.fcred_passo_volante_docs .fcred_bloco {
+    padding: 1rem 1.1rem 1.1rem;
+    border: 1px solid #d8e8f4;
+    border-radius: 12px;
+    background: #fafcfe;
+    border-bottom: 1px solid #d8e8f4;
+}
+
+.fcred_passo_volante_docs .fcred_bloco_tit {
+    margin-bottom: 0.35rem;
+}
+
+.fcred_passo_volante_docs .fcred_bloco_lead {
+    margin: 0 0 0.85rem;
+    font-size: 0.88rem;
+}
+
+.fcred_passo_volante_docs .pcad_responsavel_card {
+    background: #fff;
+}
+
+.fcred_passo_volante_docs .pcad_responsaveis_add .fcred_btn {
+    width: auto;
+}
+
+.fcred_passo_volante_docs .pcad_cert_add_btn.fcred_btn {
+    width: auto;
+}
