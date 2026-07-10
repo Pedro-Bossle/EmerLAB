@@ -54,8 +54,7 @@ import {
     sincronizarResponsaveisPrestador,
 } from '../../../lib/prestadorVeterinarioCadastro.js'
 import {
-    validarCertificadosConclusaoObrigatorios,
-    validarResponsaveisObrigatorios,
+    validarResponsaveisCompletosSeInformados,
 } from '../../../lib/prestadorVeterinarioValidacao.js'
 import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
 import { solicitarGeocodePrestador } from '../../../lib/credenciamento/solicitarGeocodePrestador'
@@ -560,16 +559,7 @@ const CredenciamentoCadastroForm = () => {
             return
         }
         if (mostrarCamposVeterinario) {
-            const errCert = validarCertificadosConclusaoObrigatorios({
-                salvos: certificadosSalvos,
-                pendentes: certificadosPendentes,
-                removerIds: certificadosRemoverIds,
-            })
-            if (errCert) {
-                setErro(errCert)
-                return
-            }
-            const errResp = validarResponsaveisObrigatorios(responsaveis)
+            const errResp = validarResponsaveisCompletosSeInformados(responsaveis)
             if (errResp) {
                 setErro(errResp)
                 return
@@ -990,7 +980,7 @@ const CredenciamentoCadastroForm = () => {
                 {mostrarCamposVeterinario && (
                     <>
                         <section className="pcad_card">
-                            <h2>Certificado de conclusão de curso *</h2>
+                            <h2>Certificado de conclusão de curso</h2>
                             <PrestadorCertificadosConclusaoInput
                                 modo="prestador"
                                 somenteLeitura={somenteLeitura}
@@ -1006,7 +996,7 @@ const CredenciamentoCadastroForm = () => {
                             />
                         </section>
                         <section className="pcad_card">
-                            <h2>Responsável(is) *</h2>
+                            <h2>Responsável(is)</h2>
                             <PrestadorResponsaveisInput
                                 lista={responsaveis}
                                 onChange={setResponsaveis}
