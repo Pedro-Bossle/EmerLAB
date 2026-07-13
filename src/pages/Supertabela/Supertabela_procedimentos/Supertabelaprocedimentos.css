@@ -14,6 +14,110 @@
     border: 1px solid var(--azul-claro);
 }
 
+.supertabelaprocedimentos_catalogo_modo {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.4rem;
+    margin: 0 0 0.85rem;
+}
+
+.supertabelaprocedimentos_catalogo_modo_btn {
+    border: 1px solid #94a3b8;
+    background: #fff;
+    color: #0a5d96;
+    padding: 0.4rem 0.95rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.supertabelaprocedimentos_catalogo_modo_btn:hover {
+    background: #f1f5f9;
+}
+
+.supertabelaprocedimentos_catalogo_modo_btn.is-on {
+    background: #0a5d96;
+    color: #fff;
+    border-color: #0a5d96;
+}
+
+.supertabela_beneficios {
+    width: 100%;
+    text-align: left;
+}
+
+.supertabela_beneficios_grupos {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    margin-top: 0.35rem;
+}
+
+.supertabela_beneficios_secao {
+    margin: 0 !important;
+    padding-bottom: 0.25rem;
+}
+
+.supertabela_beneficios_secao .categoria_titulo {
+    margin-bottom: 0.55rem !important;
+}
+
+.supertabela_beneficios_table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.supertabela_beneficios_novo_grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.supertabela_beneficios_input_ordem {
+    max-width: 4.5rem;
+    text-align: center;
+}
+
+.supertabela_beneficios tr.is-inativo {
+    opacity: 0.55;
+}
+
+.supertabela_beneficios .supertabelaprocedimentos_form_switch {
+    margin: 0 auto;
+}
+
+.supertabela_beneficios_row_nova td {
+    background: rgba(10, 93, 150, 0.04);
+    vertical-align: middle;
+}
+
+.supertabela_beneficios_row_nova .supertabela_beneficios_grupo_fix {
+    font-size: 0.84rem;
+    color: #6a8499;
+}
+
+.supertabela_beneficios_add_btn {
+    min-width: 2.35rem;
+    height: 2.1rem;
+    padding: 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn {
+    background: #1e293b;
+    color: #93c5fd;
+    border-color: #64748b;
+}
+
+body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
+    background: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+}
+
 .supertabelaprocedimentos.is-modo-categorias hr {
     margin: 10px 1.5em;
 }

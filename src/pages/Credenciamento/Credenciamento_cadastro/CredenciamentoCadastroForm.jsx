@@ -53,6 +53,7 @@ import {
     sincronizarCertificadosConclusaoPrestador,
     sincronizarResponsaveisPrestador,
 } from '../../../lib/prestadorVeterinarioCadastro.js'
+import { sincronizarBeneficiosPrestador } from '../../../lib/credenciamento/prestadorBeneficios.js'
 import {
     validarResponsaveisCompletosSeInformados,
 } from '../../../lib/prestadorVeterinarioValidacao.js'
@@ -172,6 +173,7 @@ const CredenciamentoCadastroForm = () => {
     const [responsaveis, setResponsaveis] = useState([])
     const ultimoCepBuscadoRef = useRef('')
     const mapaNomeAlternativoRef = useRef(new Map())
+    const pacoteBeneficiosRef = useRef({ itens: [], observacoes: '' })
 
     const somenteLeitura = useMemo(() => {
         const profile = getStoredAccessProfile()
@@ -791,6 +793,15 @@ const CredenciamentoCadastroForm = () => {
                 setCertificadosRemoverIds([])
             }
 
+            try {
+                await sincronizarBeneficiosPrestador(pid, pacoteBeneficiosRef.current || { itens: [], observacoes: '' })
+            } catch (eBeneficios) {
+                const msg = String(eBeneficios?.message || '')
+                if (!/beneficios_catalogo|prestador_beneficios|schema cache|does not exist/i.test(msg)) {
+                    throw eBeneficios
+                }
+            }
+
             if ((tipoSalvar === 'LOCAL' || tipoEspecialidadePrestador(esp?.tipo) === 'LOCAL') && !salvouCoordenadasManual) {
                 solicitarGeocodePrestador(pid)
             }
@@ -1200,6 +1211,13 @@ const CredenciamentoCadastroForm = () => {
                         }}
                         laboratoriosSelecionadosInicial={laboratoriosSolicitacaoIds}
                         onChangeLaboratorios={setLaboratoriosSolicitacaoIds}
+                        prestadorNome={form.nome}
+                        cidadeNome={form.endereco_cidade}
+                        onErroBeneficios={setErro}
+                        onPacoteBeneficiosChange={(pacote) => {
+                            pacoteBeneficiosRef.current = pacote
+                        }}
+                        descontosDisabled={somenteLeitura || isNovo}
                         barraAcoes={
                             <PrestadorHonorariosContratos
                                 prestadorId={prestadorId}

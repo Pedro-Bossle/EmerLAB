@@ -77,12 +77,14 @@
 .pcad_responsaveis_add {
     align-self: flex-start;
     margin-top: 0.15rem;
+    height: 34px;
+    padding: 0 12px;
 }
 
 .pcad_cert_conclusao {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 0.65rem;
 }
 
@@ -90,6 +92,51 @@
     margin: 0;
     text-align: left;
     line-height: 1.45;
+}
+
+.pcad_cert_dropzone {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 1.5px dashed #9bbcd4;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #fbfdff 0%, #f2f7fb 100%);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pcad_cert_dropzone.is-empty {
+    min-height: 140px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.pcad_cert_dropzone.is-dragover {
+    border-color: #3d8f5c;
+    border-style: solid;
+    background: #eef8f1;
+    box-shadow: inset 0 0 0 2px rgba(61, 143, 92, 0.2);
+}
+
+.pcad_cert_dropzone_msg {
+    margin: 0;
+    color: #4a657a;
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.4;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.pcad_cert_dropzone_msg span {
+    font-weight: 500;
+    font-size: 0.82rem;
+    color: #6a8499;
 }
 
 .pcad_cert_lista {
@@ -178,7 +225,14 @@
 }
 
 .pcad_cert_add_btn {
+    align-self: center;
     margin-top: 0.15rem;
+    height: 34px;
+    padding: 0 12px;
+}
+
+.pcad_cert_dropzone:not(.is-empty) .pcad_cert_add_btn {
+    align-self: flex-start;
 }
 
 .pcad_cert_vazio {
@@ -227,4 +281,25 @@
 
 .fcred_passo_volante_docs .pcad_cert_add_btn.fcred_btn {
     width: auto;
+}
+
+body.dark-mode .pcad_cert_dropzone {
+    background: #1a2a38;
+    border-color: #3d5a6e;
+}
+
+body.dark-mode .pcad_cert_dropzone.is-dragover {
+    background: #243545;
+    border-color: #6aa3c7;
+}
+
+body.dark-mode .pcad_cert_dropzone_msg,
+body.dark-mode .pcad_cert_dropzone_msg span {
+    color: #a8c4d8;
+}
+
+body.dark-mode .pcad_cert_lista li {
+    background: #243545;
+    border-color: #3d5a6e;
+    color: #e8f2f8;
 }

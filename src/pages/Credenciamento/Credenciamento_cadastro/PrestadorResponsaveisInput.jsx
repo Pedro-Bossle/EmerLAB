@@ -42,7 +42,7 @@ export default function PrestadorResponsaveisInput({
 
     const btnAddClass = isPublic
         ? 'fcred_btn secondary pcad_responsaveis_add'
-        : 'credenciamento_main_btn secondary pcad_responsaveis_add'
+        : 'credenciamento_main_action_btn secondary pcad_responsaveis_add'
 
     return (
         <div className="pcad_responsaveis">

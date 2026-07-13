@@ -170,6 +170,47 @@
     font-size: 1.1rem;
 }
 
+.quem_realiza_modo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.quem_realiza_modo_btn {
+    border: 1px solid #94a3b8;
+    background: #fff;
+    color: #0a5d96;
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.quem_realiza_modo_btn:hover {
+    background: #f1f5f9;
+}
+
+.quem_realiza_modo_btn.is-on {
+    background: #0a5d96;
+    color: #fff;
+    border-color: #0a5d96;
+}
+
+body.dark-mode .quem_realiza_modo_btn {
+    background: #1e293b;
+    color: #93c5fd;
+    border-color: #64748b;
+}
+
+body.dark-mode .quem_realiza_modo_btn.is-on {
+    background: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+}
+
 .quem_realiza_tabs {
     display: flex;
     flex-wrap: wrap;

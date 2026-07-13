@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { carregarLinhasHonorariosPrestador } from '../../../lib/credenciamento/carregarLinhasHonorariosPrestador.js'
 import {
-    downloadHonorariosPdf,
-    gerarHonorariosPrestadorPdf,
-} from '../../../lib/credenciamento/gerarHonorariosPrestadorPdf.js'
+    downloadImpressaoHonorariosPdf,
+    gerarImpressaoHonorariosPdf,
+} from '../../../lib/impressaoHonorarios/gerarImpressaoHonorariosPdf.js'
 import {
     buildPayloadContratoFromPrestadorForm,
     tipoPdfContratoFromModelo,
@@ -160,14 +160,34 @@ export default function PrestadorHonorariosContratos({
         setGerandoPdf(true)
         setErro('')
         try {
-            const blob = await gerarHonorariosPrestadorPdf({
+            const secoes = categoriasOrdenadas.map((cat) => ({
+                categoriaId: cat.id,
+                categoriaNome: cat.nome,
+                linhas: (cat.linhas || []).map((l) => ({
+                    codigo: l.codigo,
+                    nome: l.nome,
+                    procedimento: l.nome,
+                    porteP: l.porteP ?? l.P,
+                    porteM: l.porteM ?? l.M,
+                    porteG: l.porteG ?? l.G,
+                    P: l.P,
+                    M: l.M,
+                    G: l.G,
+                    checked: l.checked,
+                })),
+            }))
+            const cidadeNome =
+                String(cidadeTabelaLabel || '')
+                    .replace(/^Supertabela\s*—\s*Cidades:\s*/i, '')
+                    .replace(/\s*\(P\s*\/\s*M\s*\/\s*G\)\s*$/i, '')
+                    .trim() ||
+                String(form?.endereco_cidade || '').trim()
+            const blob = await gerarImpressaoHonorariosPdf({
+                secoes,
+                cidadeNome,
                 prestadorNome,
-                prestadorId,
-                fonte,
-                cidadeTabelaLabel,
-                categorias: categoriasOrdenadas,
             })
-            downloadHonorariosPdf(blob, prestadorNome)
+            downloadImpressaoHonorariosPdf(blob, prestadorNome || cidadeNome)
         } catch (e) {
             setErro(e?.message || 'Falha ao gerar PDF.')
         } finally {

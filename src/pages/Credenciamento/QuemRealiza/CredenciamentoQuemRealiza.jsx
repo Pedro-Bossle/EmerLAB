@@ -16,10 +16,16 @@ import {
     avaliarViaCidadeParalela,
     formatarResultadosQuemRealizaParaClipboard,
     mapaCodigoProcedimentoIdDeCatalogo,
+    pesquisarQuemOfereceDescontos,
     pesquisarQuemRealizaNaRede,
     prestadorAtendeCidadeAlvo,
 } from '../../../lib/buscarQuemRealizaPrestadores.js'
 import { anexarLocalidadeVinculoAoCtx, resolverLocalidadeEfetivaPrestador } from '../../../lib/prestadorLocalidadeVinculo.js'
+import {
+    carregarCatalogoBeneficios,
+    gruposDoCatalogo,
+    nomeGrupoBeneficioVisivel,
+} from '../../../lib/credenciamento/prestadorBeneficios.js'
 import './CredenciamentoQuemRealiza.css'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 
@@ -82,6 +88,13 @@ export default function CredenciamentoQuemRealiza() {
     useAutoDismiss(Boolean(erro), () => setErro(''))
     const [pesquisou, setPesquisou] = useState(false)
     const [copiandoResultados, setCopiandoResultados] = useState(false)
+    /** @type {['servicos'|'descontos', Function]} */
+    const [modoBusca, setModoBusca] = useState('servicos')
+    const [catalogoBeneficios, setCatalogoBeneficios] = useState([])
+    const [abaGrupoDesconto, setAbaGrupoDesconto] = useState('')
+    const [beneficioIdsSelecionados, setBeneficioIdsSelecionados] = useState(() => new Set())
+    const [buscaBeneficio, setBuscaBeneficio] = useState('')
+    const modoDescontos = modoBusca === 'descontos'
 
     useEffect(() => {
         const run = async () => {
@@ -139,6 +152,14 @@ export default function CredenciamentoQuemRealiza() {
             setPrestadorEstabelecimentos(peEst || [])
             setMapaCidadesCred(new Map((cc || []).map((c) => [Number(c.id), c.nome])))
             setEspecialidades(esps || [])
+            try {
+                const catBenef = await carregarCatalogoBeneficios()
+                setCatalogoBeneficios(catBenef)
+                const gs = gruposDoCatalogo(catBenef)
+                if (gs[0]) setAbaGrupoDesconto(gs[0].codigo)
+            } catch {
+                setCatalogoBeneficios([])
+            }
         }
         void run()
     }, [])
@@ -331,7 +352,75 @@ export default function CredenciamentoQuemRealiza() {
         })
     }
 
+    const gruposBeneficioQr = useMemo(() => gruposDoCatalogo(catalogoBeneficios), [catalogoBeneficios])
+
+    const benefCombinaTermo = useCallback((b, termoRaw) => {
+        const termo = String(termoRaw || '')
+            .normalize('NFD')
+            .replace(/\p{M}/gu, '')
+            .toLowerCase()
+            .replace(/\s+/g, ' ')
+            .trim()
+        if (!termo) return true
+        const blob = [b.codigo, b.nome, b.grupo_codigo, b.grupo_nome]
+            .map((x) =>
+                String(x || '')
+                    .normalize('NFD')
+                    .replace(/\p{M}/gu, '')
+                    .toLowerCase(),
+            )
+            .join(' ')
+        return termo.split(/\s+/).filter(Boolean).every((t) => blob.includes(t))
+    }, [])
+
+    const beneficiosAba = useMemo(() => {
+        const q = String(buscaBeneficio || '').trim()
+        if (q) return catalogoBeneficios.filter((b) => benefCombinaTermo(b, buscaBeneficio))
+        if (!abaGrupoDesconto) return catalogoBeneficios
+        return catalogoBeneficios.filter((b) => b.grupo_codigo === abaGrupoDesconto)
+    }, [catalogoBeneficios, abaGrupoDesconto, buscaBeneficio, benefCombinaTermo])
+
+    const resolverBeneficioIdsParaPesquisa = useCallback(() => {
+        const out = new Set([...beneficioIdsSelecionados])
+        const bruto = String(buscaBeneficio || '').trim()
+        if (bruto) {
+            catalogoBeneficios.forEach((b) => {
+                if (!benefCombinaTermo(b, buscaBeneficio)) return
+                out.add(Number(b.id))
+            })
+        }
+        return [...out].filter((id) => Number.isFinite(id) && id > 0)
+    }, [beneficioIdsSelecionados, buscaBeneficio, catalogoBeneficios, benefCombinaTermo])
+
+    const toggleBeneficioId = (id) => {
+        const n = Number(id)
+        if (!Number.isFinite(n)) return
+        setBeneficioIdsSelecionados((prev) => {
+            const next = new Set(prev)
+            if (next.has(n)) next.delete(n)
+            else next.add(n)
+            return next
+        })
+    }
+
+    const limparFiltrosDescontos = () => {
+        setBeneficioIdsSelecionados(new Set())
+        setBuscaBeneficio('')
+        setResultados([])
+        setPesquisou(false)
+        setErro('')
+    }
+
+    const trocarModoBusca = (modo) => {
+        setModoBusca(modo)
+        setResultados([])
+        setPesquisou(false)
+        setErro('')
+    }
+
     const temFiltroProcedimentos = codigosSelecionados.size > 0 || Boolean(String(buscaProc || '').trim())
+    const temFiltroDescontos =
+        beneficioIdsSelecionados.size > 0 || Boolean(String(buscaBeneficio || '').trim())
 
     const limparFiltrosProcedimentos = () => {
         setCodigosSelecionados(new Set())
@@ -356,31 +445,57 @@ export default function CredenciamentoQuemRealiza() {
             setErro('Selecione UF e cidade.')
             return
         }
-        const codigos = resolverCodigosParaPesquisa()
-        if (!codigos.length) {
-            setErro('Marque procedimentos na lista ou digite na busca (ex.: consulta simples) e clique em Pesquisar.')
-            return
-        }
         setLoading(true)
         try {
-            const lista = await pesquisarQuemRealizaNaRede(supabase, {
-                codigosProcedimento: codigos,
-                cidadesAlvo: [{ nome: cidadeNome, uf }],
-                incluirCidadesParalelas: buscarCidadesParalelas,
-                prestadores,
-                prestadorCidades,
-                prestadorEstabelecimentos,
-                mapaCidadesCred,
-                especialidades,
-                mapaNomePorCodigo,
-                mapaCodigoPorProcedimentoId,
-                prestadoresParaVinculoLocalidade: todosPrestadoresAtivos,
-            })
+            let lista
+            if (modoDescontos) {
+                const beneficioIds = resolverBeneficioIdsParaPesquisa()
+                if (!beneficioIds.length) {
+                    setErro('Marque tipos de desconto na lista ou digite na busca e clique em Pesquisar.')
+                    setLoading(false)
+                    return
+                }
+                lista = await pesquisarQuemOfereceDescontos(supabase, {
+                    beneficioIds,
+                    cidadesAlvo: [{ nome: cidadeNome, uf }],
+                    incluirCidadesParalelas: buscarCidadesParalelas,
+                    prestadores,
+                    prestadorCidades,
+                    prestadorEstabelecimentos,
+                    mapaCidadesCred,
+                    especialidades,
+                    catalogoBeneficios,
+                    prestadoresParaVinculoLocalidade: todosPrestadoresAtivos,
+                })
+            } else {
+                const codigos = resolverCodigosParaPesquisa()
+                if (!codigos.length) {
+                    setErro(
+                        'Marque procedimentos na lista ou digite na busca (ex.: consulta simples) e clique em Pesquisar.',
+                    )
+                    setLoading(false)
+                    return
+                }
+                lista = await pesquisarQuemRealizaNaRede(supabase, {
+                    codigosProcedimento: codigos,
+                    cidadesAlvo: [{ nome: cidadeNome, uf }],
+                    incluirCidadesParalelas: buscarCidadesParalelas,
+                    prestadores,
+                    prestadorCidades,
+                    prestadorEstabelecimentos,
+                    mapaCidadesCred,
+                    especialidades,
+                    mapaNomePorCodigo,
+                    mapaCodigoPorProcedimentoId,
+                    prestadoresParaVinculoLocalidade: todosPrestadoresAtivos,
+                })
+            }
             setResultados(lista)
             setPesquisou(true)
         } catch (e) {
             setErro(e?.message || String(e))
             setResultados([])
+            setPesquisou(true)
         } finally {
             setLoading(false)
         }
@@ -390,7 +505,7 @@ export default function CredenciamentoQuemRealiza() {
         if (!resultados.length || copiandoResultados) return
         setCopiandoResultados(true)
         try {
-            const texto = formatarResultadosQuemRealizaParaClipboard(resultados)
+            const texto = formatarResultadosQuemRealizaParaClipboard(resultados, { modo: modoBusca })
             await navigator.clipboard.writeText(texto)
         } catch (e) {
             setErro(e?.message || 'Não foi possível copiar os resultados.')
@@ -457,131 +572,266 @@ export default function CredenciamentoQuemRealiza() {
 
             <div className="quem_realiza_split">
                 <section className="quem_realiza_proc quem_realiza_col">
-                    <h2>Procedimentos</h2>
-                    <p className="quem_realiza_cat_label">Categorias</p>
-                    {categorias.length === 0 ? (
-                        <p className="pcad_muted">A carregar categorias…</p>
-                    ) : (
-                        <div className="quem_realiza_tabs" role="tablist" aria-label="Categorias de procedimento">
-                            {categorias.map((cat) => (
-                                <button
-                                    key={cat.id}
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={Number(abaCategoria) === Number(cat.id)}
-                                    className={`quem_realiza_tab ${Number(abaCategoria) === Number(cat.id) ? 'is-on' : ''}`}
-                                    onClick={() => {
-                                        setAbaCategoria(Number(cat.id))
-                                        setBuscaProc('')
-                                    }}
-                                >
-                                    {cat.nome}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                    <div className="quem_realiza_busca">
-                        <div className="quem_realiza_busca_input_wrap" ref={buscaProcRef}>
-                            <CampoBuscaComLimpar
-                                className="credenciamento_main_input"
-                                placeholder="Buscar em todas as categorias (código, nome ou categoria)"
-                                value={buscaProc}
-                                onChange={(e) => setBuscaProc(e.target.value)}
-                                onFocus={() => {
-                                    if (sugestoesProcedimento.length > 0) setSugestoesAbertas(true)
-                                }}
-                                onBlur={() => {
-                                    setTimeout(() => setSugestoesAbertas(false), 180)
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        e.preventDefault()
-                                        setSugestoesAbertas(false)
-                                        void executarPesquisa()
-                                    }
-                                    if (e.key === 'Escape') setSugestoesAbertas(false)
-                                }}
-                                autoComplete="off"
-                            />
-                            {sugestoesAbertas && sugestoesProcedimento.length > 0 && (
-                                <ul className="quem_realiza_sugestoes" role="listbox">
-                                    {sugestoesProcedimento.map((p) => {
-                                        const cod = normCodigo(p.codigo)
-                                        const catNome = mapaCategoriaNome.get(Number(p.categoria_id)) || '—'
-                                        const jaSel = codigosSelecionados.has(cod)
-                                        return (
-                                            <li key={p.id}>
-                                                <button
-                                                    type="button"
-                                                    onMouseDown={(ev) => ev.preventDefault()}
-                                                    onClick={() => escolherSugestaoProcedimento(p)}
-                                                >
-                                                    <span className="quem_realiza_sug_linha">
-                                                        <strong>{p.codigo}</strong> — {p.nome}
-                                                    </span>
-                                                    <span className="quem_realiza_sug_cat">
-                                                        {catNome}
-                                                        {jaSel ? ' · selecionado' : ''}
-                                                    </span>
-                                                </button>
-                                            </li>
-                                        )
-                                    })}
-                                </ul>
+                    <div className="quem_realiza_modo" role="tablist" aria-label="Tipo de pesquisa">
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={!modoDescontos}
+                            className={`quem_realiza_modo_btn ${!modoDescontos ? 'is-on' : ''}`}
+                            onClick={() => trocarModoBusca('servicos')}
+                        >
+                            Serviços
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={modoDescontos}
+                            className={`quem_realiza_modo_btn ${modoDescontos ? 'is-on' : ''}`}
+                            onClick={() => trocarModoBusca('descontos')}
+                        >
+                            Descontos
+                        </button>
+                    </div>
+
+                    {modoDescontos ? (
+                        <>
+                            <h2>Descontos</h2>
+                            <p className="quem_realiza_cat_label">Grupos</p>
+                            {gruposBeneficioQr.length === 0 ? (
+                                <p className="pcad_muted">A carregar grupos…</p>
+                            ) : (
+                                <div className="quem_realiza_tabs" role="tablist" aria-label="Grupos de desconto">
+                                    {gruposBeneficioQr.map((g) => (
+                                        <button
+                                            key={g.codigo}
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={abaGrupoDesconto === g.codigo}
+                                            className={`quem_realiza_tab ${abaGrupoDesconto === g.codigo ? 'is-on' : ''}`}
+                                            onClick={() => {
+                                                setAbaGrupoDesconto(g.codigo)
+                                                setBuscaBeneficio('')
+                                            }}
+                                        >
+                                            {g.nome || g.codigo}
+                                        </button>
+                                    ))}
+                                </div>
                             )}
-                        </div>
-                        <button
-                            type="button"
-                            className="credenciamento_main_action_btn quem_realiza_lupa"
-                            title="Pesquisar prestadores"
-                            disabled={loading}
-                            onClick={() => void executarPesquisa()}
-                        >
-                            🔍 Pesquisar
-                        </button>
-                        <button
-                            type="button"
-                            className="credenciamento_main_action_btn secondary quem_realiza_limpar_proc"
-                            title="Desmarcar procedimentos e limpar o campo de busca"
-                            disabled={!temFiltroProcedimentos}
-                            onClick={limparFiltrosProcedimentos}
-                        >
-                            Limpar filtros
-                        </button>
-                    </div>
-                    {erro && <p className="pcad_erro quem_realiza_erro_col">{erro}</p>}
-                    {buscaEmTodasCategorias && (
-                        <p className="pcad_muted quem_realiza_busca_hint">
-                            Exibindo procedimentos de <strong>todas as categorias</strong> que correspondem à busca.
-                        </p>
+                            <div className="quem_realiza_busca">
+                                <div className="quem_realiza_busca_input_wrap">
+                                    <CampoBuscaComLimpar
+                                        className="credenciamento_main_input"
+                                        placeholder="Buscar em todos os grupos (código ou tipo)"
+                                        value={buscaBeneficio}
+                                        onChange={(e) => setBuscaBeneficio(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault()
+                                                void executarPesquisa()
+                                            }
+                                        }}
+                                        autoComplete="off"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    className="credenciamento_main_action_btn quem_realiza_lupa"
+                                    title="Pesquisar parceiros"
+                                    disabled={loading}
+                                    onClick={() => void executarPesquisa()}
+                                >
+                                    🔍 Pesquisar
+                                </button>
+                                <button
+                                    type="button"
+                                    className="credenciamento_main_action_btn secondary quem_realiza_limpar_proc"
+                                    title="Desmarcar descontos e limpar a busca"
+                                    disabled={!temFiltroDescontos}
+                                    onClick={limparFiltrosDescontos}
+                                >
+                                    Limpar filtros
+                                </button>
+                            </div>
+                            {erro && <p className="pcad_erro quem_realiza_erro_col">{erro}</p>}
+                            {Boolean(String(buscaBeneficio || '').trim()) && (
+                                <p className="pcad_muted quem_realiza_busca_hint">
+                                    Exibindo tipos de <strong>todos os grupos</strong> que correspondem à busca.
+                                </p>
+                            )}
+                            <div className="quem_realiza_proc_list">
+                                {beneficiosAba.length === 0 && (
+                                    <p className="pcad_muted quem_realiza_lista_vazia">
+                                        {buscaBeneficio.trim()
+                                            ? 'Nenhum tipo de desconto encontrado para este termo.'
+                                            : 'Nenhum tipo neste grupo.'}
+                                    </p>
+                                )}
+                                {beneficiosAba.map((b) => {
+                                    const id = Number(b.id)
+                                    const marcado = beneficioIdsSelecionados.has(id)
+                                    return (
+                                        <label
+                                            key={b.id}
+                                            className={`quem_realiza_proc_item ${marcado ? 'is-on' : ''}`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={marcado}
+                                                onChange={() => toggleBeneficioId(id)}
+                                            />
+                                            <span className="quem_realiza_proc_item_texto">
+                                                <span>
+                                                    <strong>{b.codigo}</strong> — {b.nome}
+                                                </span>
+                                                {Boolean(String(buscaBeneficio || '').trim()) && b.grupo_nome && (
+                                                    <small className="quem_realiza_proc_cat">
+                                                        {nomeGrupoBeneficioVisivel(b.grupo_nome)}
+                                                    </small>
+                                                )}
+                                            </span>
+                                        </label>
+                                    )
+                                })}
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <h2>Procedimentos</h2>
+                            <p className="quem_realiza_cat_label">Categorias</p>
+                            {categorias.length === 0 ? (
+                                <p className="pcad_muted">A carregar categorias…</p>
+                            ) : (
+                                <div className="quem_realiza_tabs" role="tablist" aria-label="Categorias de procedimento">
+                                    {categorias.map((cat) => (
+                                        <button
+                                            key={cat.id}
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={Number(abaCategoria) === Number(cat.id)}
+                                            className={`quem_realiza_tab ${Number(abaCategoria) === Number(cat.id) ? 'is-on' : ''}`}
+                                            onClick={() => {
+                                                setAbaCategoria(Number(cat.id))
+                                                setBuscaProc('')
+                                            }}
+                                        >
+                                            {cat.nome}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="quem_realiza_busca">
+                                <div className="quem_realiza_busca_input_wrap" ref={buscaProcRef}>
+                                    <CampoBuscaComLimpar
+                                        className="credenciamento_main_input"
+                                        placeholder="Buscar em todas as categorias (código, nome ou categoria)"
+                                        value={buscaProc}
+                                        onChange={(e) => setBuscaProc(e.target.value)}
+                                        onFocus={() => {
+                                            if (sugestoesProcedimento.length > 0) setSugestoesAbertas(true)
+                                        }}
+                                        onBlur={() => {
+                                            setTimeout(() => setSugestoesAbertas(false), 180)
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault()
+                                                setSugestoesAbertas(false)
+                                                void executarPesquisa()
+                                            }
+                                            if (e.key === 'Escape') setSugestoesAbertas(false)
+                                        }}
+                                        autoComplete="off"
+                                    />
+                                    {sugestoesAbertas && sugestoesProcedimento.length > 0 && (
+                                        <ul className="quem_realiza_sugestoes" role="listbox">
+                                            {sugestoesProcedimento.map((p) => {
+                                                const cod = normCodigo(p.codigo)
+                                                const catNome = mapaCategoriaNome.get(Number(p.categoria_id)) || '—'
+                                                const jaSel = codigosSelecionados.has(cod)
+                                                return (
+                                                    <li key={p.id}>
+                                                        <button
+                                                            type="button"
+                                                            onMouseDown={(ev) => ev.preventDefault()}
+                                                            onClick={() => escolherSugestaoProcedimento(p)}
+                                                        >
+                                                            <span className="quem_realiza_sug_linha">
+                                                                <strong>{p.codigo}</strong> — {p.nome}
+                                                            </span>
+                                                            <span className="quem_realiza_sug_cat">
+                                                                {catNome}
+                                                                {jaSel ? ' · selecionado' : ''}
+                                                            </span>
+                                                        </button>
+                                                    </li>
+                                                )
+                                            })}
+                                        </ul>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    className="credenciamento_main_action_btn quem_realiza_lupa"
+                                    title="Pesquisar prestadores"
+                                    disabled={loading}
+                                    onClick={() => void executarPesquisa()}
+                                >
+                                    🔍 Pesquisar
+                                </button>
+                                <button
+                                    type="button"
+                                    className="credenciamento_main_action_btn secondary quem_realiza_limpar_proc"
+                                    title="Desmarcar procedimentos e limpar o campo de busca"
+                                    disabled={!temFiltroProcedimentos}
+                                    onClick={limparFiltrosProcedimentos}
+                                >
+                                    Limpar filtros
+                                </button>
+                            </div>
+                            {erro && <p className="pcad_erro quem_realiza_erro_col">{erro}</p>}
+                            {buscaEmTodasCategorias && (
+                                <p className="pcad_muted quem_realiza_busca_hint">
+                                    Exibindo procedimentos de <strong>todas as categorias</strong> que correspondem à
+                                    busca.
+                                </p>
+                            )}
+                            <div className="quem_realiza_proc_list">
+                                {procedimentosFiltrados.length === 0 && (
+                                    <p className="pcad_muted quem_realiza_lista_vazia">
+                                        {buscaProc.trim()
+                                            ? 'Nenhum procedimento encontrado em nenhuma categoria para este termo.'
+                                            : 'Nenhum procedimento nesta categoria.'}
+                                    </p>
+                                )}
+                                {procedimentosFiltrados.map((p) => {
+                                    const cod = normCodigo(p.codigo)
+                                    const marcado = codigosSelecionados.has(cod)
+                                    const catNome = mapaCategoriaNome.get(Number(p.categoria_id))
+                                    return (
+                                        <label
+                                            key={p.id}
+                                            className={`quem_realiza_proc_item ${marcado ? 'is-on' : ''}`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={marcado}
+                                                onChange={() => toggleCodigo(cod)}
+                                            />
+                                            <span className="quem_realiza_proc_item_texto">
+                                                <span>
+                                                    <strong>{p.codigo}</strong> — {p.nome}
+                                                </span>
+                                                {buscaEmTodasCategorias && catNome && (
+                                                    <small className="quem_realiza_proc_cat">{catNome}</small>
+                                                )}
+                                            </span>
+                                        </label>
+                                    )
+                                })}
+                            </div>
+                        </>
                     )}
-                    <div className="quem_realiza_proc_list">
-                        {procedimentosFiltrados.length === 0 && (
-                            <p className="pcad_muted quem_realiza_lista_vazia">
-                                {buscaProc.trim()
-                                    ? 'Nenhum procedimento encontrado em nenhuma categoria para este termo.'
-                                    : 'Nenhum procedimento nesta categoria.'}
-                            </p>
-                        )}
-                        {procedimentosFiltrados.map((p) => {
-                            const cod = normCodigo(p.codigo)
-                            const marcado = codigosSelecionados.has(cod)
-                            const catNome = mapaCategoriaNome.get(Number(p.categoria_id))
-                            return (
-                                <label key={p.id} className={`quem_realiza_proc_item ${marcado ? 'is-on' : ''}`}>
-                                    <input type="checkbox" checked={marcado} onChange={() => toggleCodigo(cod)} />
-                                    <span className="quem_realiza_proc_item_texto">
-                                        <span>
-                                            <strong>{p.codigo}</strong> — {p.nome}
-                                        </span>
-                                        {buscaEmTodasCategorias && catNome && (
-                                            <small className="quem_realiza_proc_cat">{catNome}</small>
-                                        )}
-                                    </span>
-                                </label>
-                            )
-                        })}
-                    </div>
                 </section>
 
                 <section className="quem_realiza_resultados quem_realiza_col">
@@ -593,7 +843,11 @@ export default function CredenciamentoQuemRealiza() {
                                 className="credenciamento_main_action_btn secondary quem_realiza_copiar_resultados"
                                 disabled={copiandoResultados}
                                 onClick={() => void copiarResultados()}
-                                title="Copiar: prestador - especialidade - telefone, depois procedimentos (um bloco por linha)"
+                                title={
+                                    modoDescontos
+                                        ? 'Copiar: parceiro - especialidade - telefone, depois grupo — tipo — %'
+                                        : 'Copiar: prestador - especialidade - telefone, depois procedimentos (um bloco por linha)'
+                                }
                             >
                                 {copiandoResultados ? 'Copiando…' : 'Copiar resultados'}
                             </button>
@@ -602,7 +856,17 @@ export default function CredenciamentoQuemRealiza() {
                     {loading && <p className="pcad_muted">A pesquisar…</p>}
                     {!loading && pesquisou && resultados.length === 0 && (
                         <p className="pcad_muted">
-                            Nenhum prestador <strong>credenciado</strong> encontrado que realize algum dos procedimentos selecionados nesta cidade
+                            {modoDescontos ? (
+                                <>
+                                    Nenhum parceiro <strong>credenciado</strong> encontrado que ofereça algum dos
+                                    descontos selecionados nesta cidade
+                                </>
+                            ) : (
+                                <>
+                                    Nenhum prestador <strong>credenciado</strong> encontrado que realize algum dos
+                                    procedimentos selecionados nesta cidade
+                                </>
+                            )}
                             {buscarCidadesParalelas
                                 ? ' (endereço ou «Cidades que atendem»).'
                                 : ' (somente cidade do endereço do cadastro). Ative «Buscar em cidades paralelas» para incluir quem atende na cidade sem endereço aqui.'}
@@ -634,19 +898,31 @@ export default function CredenciamentoQuemRealiza() {
                                             <span className="quem_realiza_card_value">{r.telefone}</span>
                                         </div>
                                     </div>
-                                    <ul className="quem_realiza_card_procs">
-                                        {r.procedimentos.map((proc) => (
-                                            <li key={`${r.id}-${proc.nomeBase}-${proc.nomeAlt || ''}`}>
-                                                <span className="quem_realiza_proc_base">{proc.nomeBase}</span>
-                                                {proc.nomeAlt ? (
-                                                    <>
-                                                        {' — '}
-                                                        <span className="quem_realiza_proc_alt">{proc.nomeAlt}</span>
-                                                    </>
-                                                ) : null}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                    {modoDescontos ? (
+                                        <ul className="quem_realiza_card_procs">
+                                            {(r.beneficios || []).map((b) => (
+                                                <li key={`${r.id}-${b.codigo}-${b.tipoNome}`}>
+                                                    <span className="quem_realiza_proc_base">
+                                                        {[b.grupoNome, b.tipoNome, b.faixa].filter(Boolean).join(' — ')}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <ul className="quem_realiza_card_procs">
+                                            {r.procedimentos.map((proc) => (
+                                                <li key={`${r.id}-${proc.nomeBase}-${proc.nomeAlt || ''}`}>
+                                                    <span className="quem_realiza_proc_base">{proc.nomeBase}</span>
+                                                    {proc.nomeAlt ? (
+                                                        <>
+                                                            {' — '}
+                                                            <span className="quem_realiza_proc_alt">{proc.nomeAlt}</span>
+                                                        </>
+                                                    ) : null}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
                                 </article>
                             ))}
                         </div>

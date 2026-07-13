@@ -1,0 +1,152 @@
+.pcad_beneficios {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.pcad_beneficios.is-embutido {
+    padding-top: 0.15rem;
+}
+
+.pcad_beneficios_oculto {
+    display: none;
+}
+
+.pcad_beneficios_head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.pcad_beneficios_head .pcad_muted {
+    margin: 0;
+    flex: 1;
+    min-width: 200px;
+}
+
+.pcad_beneficios_form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem;
+    overflow: visible;
+}
+
+.pcad_beneficios_campo_grupo,
+.pcad_beneficios_campo_tipo {
+    flex: 1 1 200px;
+    min-width: 160px;
+    max-width: 320px;
+}
+
+.pcad_beneficios_pct_clip {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+    min-width: 0;
+    overflow: visible;
+}
+
+.pcad_beneficios_pct {
+    flex: 0 0 5.5rem;
+    min-width: 5.5rem;
+    max-width: 5.5rem;
+    margin: 0;
+}
+
+.pcad_beneficios_pct span {
+    display: block;
+    white-space: nowrap;
+    overflow: visible;
+}
+
+.pcad_beneficios_pct input {
+    text-align: right;
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.pcad_beneficios_add {
+    flex: 0 0 2.75rem;
+    width: 2.75rem;
+    min-width: 2.75rem;
+    height: 2.35rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    line-height: 1;
+    font-weight: 700;
+    align-self: flex-end;
+}
+
+.pcad_beneficios_lista {
+    list-style: none;
+    margin: 0;
+    padding: 0.35rem;
+    border: 1px solid #dce8f2;
+    border-radius: 10px;
+    background: #fafcfe;
+    max-height: 280px;
+    overflow: auto;
+}
+
+.pcad_beneficios_lista li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0.65rem;
+    border-bottom: 1px solid #e8eef4;
+    font-size: 0.9rem;
+    color: #15364f;
+}
+
+.pcad_beneficios_lista li:last-child {
+    border-bottom: none;
+}
+
+.pcad_beneficios_lista_vazia {
+    border-bottom: none !important;
+    justify-content: center !important;
+}
+
+.pcad_beneficios_obs textarea {
+    resize: vertical;
+    min-height: 96px;
+}
+
+@media (max-width: 700px) {
+    .pcad_beneficios_campo_grupo,
+    .pcad_beneficios_campo_tipo {
+        max-width: none;
+        flex: 1 1 100%;
+    }
+
+    .pcad_beneficios_pct_clip {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .pcad_beneficios_pct {
+        flex: 1 1 calc(50% - 2rem);
+        max-width: none;
+        min-width: 5rem;
+    }
+}
+
+body.dark-mode .pcad_beneficios_lista {
+    background: #1a2a38;
+    border-color: #3d5a6e;
+}
+
+body.dark-mode .pcad_beneficios_lista li {
+    color: #e8f2f8;
+    border-bottom-color: #3d5a6e;
+}

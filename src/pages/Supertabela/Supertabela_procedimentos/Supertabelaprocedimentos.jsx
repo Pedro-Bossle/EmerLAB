@@ -26,6 +26,7 @@ import {
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaprocedimentos.css'
+import SupertabelaBeneficiosCatalogo from './SupertabelaBeneficiosCatalogo.jsx'
 
 const normalizarTextoBusca = (texto) =>
     String(texto || '')
@@ -62,6 +63,9 @@ const Supertabelaprocedimentos = () => {
     const [scrollTopoPorCategoria, setScrollTopoPorCategoria] = useState({})
     const [adicionarNovoAtivo, setAdicionarNovoAtivo] = useState(false)
     const [modoCategorias, setModoCategorias] = useState(false)
+    /** 'procedimentos' | 'descontos' — switch no estilo Quem Realiza */
+    const [modoCatalogo, setModoCatalogo] = useState('procedimentos')
+    const modoDescontos = modoCatalogo === 'descontos'
     const [limitesGrupoRows, setLimitesGrupoRows] = useState([])
     const [edicoesLimiteGrupo, setEdicoesLimiteGrupo] = useState({})
     const [edicoesNomeCategoria, setEdicoesNomeCategoria] = useState({})
@@ -924,9 +928,36 @@ const Supertabelaprocedimentos = () => {
     }, [categorias])
 
     return (
-        <div className={`supertabelaprocedimentos ${modoCategorias ? 'is-modo-categorias' : ''}`}>
+        <div
+            className={`supertabelaprocedimentos ${modoCategorias && !modoDescontos ? 'is-modo-categorias' : ''}`}
+        >
             <h1>Supertabela - Procedimentos</h1>
             <hr />
+
+            <div className="supertabelaprocedimentos_catalogo_modo" role="tablist" aria-label="Catálogo">
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={!modoDescontos}
+                    className={`supertabelaprocedimentos_catalogo_modo_btn ${!modoDescontos ? 'is-on' : ''}`}
+                    onClick={() => setModoCatalogo('procedimentos')}
+                >
+                    Procedimentos
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={modoDescontos}
+                    className={`supertabelaprocedimentos_catalogo_modo_btn ${modoDescontos ? 'is-on' : ''}`}
+                    onClick={() => {
+                        setModoCatalogo('descontos')
+                        setModoCategorias(false)
+                    }}
+                >
+                    Descontos
+                </button>
+            </div>
+
             <header className={`supertabelaprocedimentos_header ${headerCompacto ? 'is-compact' : ''}`}>
                 <h2>Filtros</h2>
                 <div className='supertabelaprocedimentos_filters'>
@@ -936,15 +967,18 @@ const Supertabelaprocedimentos = () => {
                             type='text'
                             className='supertabelaprocedimentos_input'
                             placeholder={
-                                modoCategorias
-                                    ? 'ID, nome da categoria ou quantidade de procedimentos'
-                                    : 'Código, procedimento, plano base ou categoria'
+                                modoDescontos
+                                    ? 'Código, tipo ou grupo de desconto'
+                                    : modoCategorias
+                                      ? 'ID, nome da categoria ou quantidade de procedimentos'
+                                      : 'Código, procedimento, plano base ou categoria'
                             }
                             value={termoBusca}
                             onChange={(event) => setTermoBusca(event.target.value)}
                         />
                     </div>
 
+                    {!modoDescontos ? (
                     <div className='supertabelaprocedimentos_filter_item supertabelaprocedimentos_filter_mode'>
                         <p className='supertabelaprocedimentos_filter_mode_label'>Visualização</p>
                         <div
@@ -972,6 +1006,7 @@ const Supertabelaprocedimentos = () => {
                             </button>
                         </div>
                     </div>
+                    ) : null}
 
                     {!somenteLeitura && (
                         <label className='supertabelaprocedimentos_edit_wrap'>
@@ -990,13 +1025,13 @@ const Supertabelaprocedimentos = () => {
                                 type='checkbox'
                                 checked={adicionarNovoAtivo}
                                 onChange={(event) => setAdicionarNovoAtivo(event.target.checked)}
-                                disabled={modoCategorias}
+                                disabled={!modoDescontos && modoCategorias}
                             />
                             <span>Adicionar novo</span>
                         </label>
                     )}
 
-                    {!somenteLeitura && modoCategorias && (
+                    {!somenteLeitura && modoCategorias && !modoDescontos && (
                         <label className='supertabelaprocedimentos_edit_wrap'>
                             <input
                                 type='checkbox'
@@ -1008,7 +1043,7 @@ const Supertabelaprocedimentos = () => {
                     )}
                 </div>
 
-                {adicionarCategoriaAtivo && modoCategorias && (
+                {adicionarCategoriaAtivo && modoCategorias && !modoDescontos && (
                     <div className='supertabelaprocedimentos_massa_wrap'>
                         <p>Adicionar categoria</p>
                         <div className='supertabelaprocedimentos_massa_form'>
@@ -1033,7 +1068,7 @@ const Supertabelaprocedimentos = () => {
                     </div>
                 )}
 
-                {adicionarNovoAtivo && !modoCategorias && (
+                {adicionarNovoAtivo && !modoCategorias && !modoDescontos && (
                     <div className='supertabelaprocedimentos_massa_wrap'>
                         <p>Adicionar novo procedimento</p>
                         <div className='supertabelaprocedimentos_massa_form'>
@@ -1155,10 +1190,18 @@ const Supertabelaprocedimentos = () => {
 
             <div
                 className={`supertabelaprocedimentos_table_container ${
-                    modoCategorias ? 'is-categorias-full' : ''
+                    modoCategorias && !modoDescontos ? 'is-categorias-full' : ''
                 }`}
             >
-                {loading ? (
+                {modoDescontos ? (
+                    <SupertabelaBeneficiosCatalogo
+                        somenteLeitura={somenteLeitura}
+                        edicaoAtiva={edicaoAtiva}
+                        adicionarNovoAtivo={adicionarNovoAtivo}
+                        termoBusca={termoBusca}
+                        onErro={mostrarErroToast}
+                    />
+                ) : loading ? (
                     <p>Carregando...</p>
                 ) : modoCategorias ? (
                     linhasTabelaCategorias.length === 0 ? (

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import {
     MAX_CERTIFICADOS_CONCLUSAO,
     certificadoConclusaoArquivoValido,
@@ -18,12 +18,13 @@ export default function PrestadorCertificadosConclusaoInput({
     mostrarHint = true,
 }) {
     const inputRef = useRef(null)
+    const [arrastando, setArrastando] = useState(false)
     const total = (salvos?.length || 0) + (pendentes?.length || 0)
     const podeAdicionar = !somenteLeitura && total < MAX_CERTIFICADOS_CONCLUSAO
     const isPublic = variant === 'public'
     const btnClass = isPublic
         ? 'fcred_btn secondary pcad_cert_add_btn'
-        : 'credenciamento_main_btn secondary pcad_cert_add_btn'
+        : 'credenciamento_main_action_btn secondary pcad_cert_add_btn'
 
     const adicionarArquivos = (fileList) => {
         const files = [...(fileList || [])]
@@ -66,6 +67,27 @@ export default function PrestadorCertificadosConclusaoInput({
         }
     }
 
+    const onDragOver = (e) => {
+        if (!podeAdicionar) return
+        e.preventDefault()
+        e.stopPropagation()
+        setArrastando(true)
+    }
+
+    const onDragLeave = (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setArrastando(false)
+    }
+
+    const onDrop = (e) => {
+        if (!podeAdicionar) return
+        e.preventDefault()
+        e.stopPropagation()
+        setArrastando(false)
+        adicionarArquivos(e.dataTransfer?.files)
+    }
+
     const listaVazia = total === 0
 
     return (
@@ -73,55 +95,28 @@ export default function PrestadorCertificadosConclusaoInput({
             {mostrarHint && (
                 <p className={isPublic ? 'fcred_public_muted pcad_cert_conclusao_hint' : 'pcad_muted pcad_cert_conclusao_hint'}>
                     Obrigatório: envie foto ou PDF do certificado (até {MAX_CERTIFICADOS_CONCLUSAO} arquivos, 15 MB
-                    cada).
+                    cada). Arraste os arquivos para a área abaixo ou use o botão.
                 </p>
             )}
-            {listaVazia && !somenteLeitura && (
-                <p className="pcad_cert_vazio">Nenhum arquivo anexado. Use o botão abaixo para selecionar foto ou PDF.</p>
-            )}
-            {!listaVazia && (
-                <ul className="pcad_cert_lista">
-                    {(salvos || []).map((row) => (
-                        <li key={`salvo-${row.id}`}>
-                            <button type="button" className="pcad_cert_link" onClick={() => void abrirSalvo(row)}>
-                                {row.nome_arquivo || 'Certificado'}
-                            </button>
-                            {!somenteLeitura && (
-                                <button
-                                    type="button"
-                                    className="pcad_cert_rem"
-                                    aria-label="Remover certificado"
-                                    onClick={() => onRemoverSalvo?.(row.id)}
-                                >
-                                    ×
-                                </button>
-                            )}
-                        </li>
-                    ))}
-                    {(pendentes || []).map((p) => (
-                        <li key={p.key}>
-                            {p.previewUrl ? (
-                                <img src={p.previewUrl} alt="" className="pcad_cert_thumb" />
-                            ) : (
-                                <span className="pcad_cert_pdf_badge">PDF</span>
-                            )}
-                            <span className="pcad_cert_nome">{p.nome}</span>
-                            {!somenteLeitura && (
-                                <button
-                                    type="button"
-                                    className="pcad_cert_rem"
-                                    aria-label="Remover arquivo"
-                                    onClick={() => removerPendente(p.key)}
-                                >
-                                    ×
-                                </button>
-                            )}
-                        </li>
-                    ))}
-                </ul>
-            )}
-            {podeAdicionar && (
-                <>
+
+            {podeAdicionar ? (
+                <div
+                    className={`pcad_cert_dropzone${arrastando ? ' is-dragover' : ''}${listaVazia ? ' is-empty' : ''}`}
+                    onDragEnter={onDragOver}
+                    onDragOver={onDragOver}
+                    onDragLeave={onDragLeave}
+                    onDrop={onDrop}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            inputRef.current?.click()
+                        }
+                    }}
+                    onClick={() => inputRef.current?.click()}
+                    aria-label="Área para enviar certificados"
+                >
                     <input
                         ref={inputRef}
                         type="file"
@@ -132,10 +127,91 @@ export default function PrestadorCertificadosConclusaoInput({
                             adicionarArquivos(e.target.files)
                             e.target.value = ''
                         }}
+                        onClick={(e) => e.stopPropagation()}
                     />
-                    <button type="button" className={btnClass} onClick={() => inputRef.current?.click()}>
+                    {listaVazia ? (
+                        <p className="pcad_cert_dropzone_msg">
+                            Arraste PDFs ou fotos do certificado para cá
+                            <span>ou clique para selecionar</span>
+                        </p>
+                    ) : (
+                        <ul className="pcad_cert_lista" onClick={(e) => e.stopPropagation()}>
+                            {(salvos || []).map((row) => (
+                                <li key={`salvo-${row.id}`}>
+                                    <button type="button" className="pcad_cert_link" onClick={() => void abrirSalvo(row)}>
+                                        {row.nome_arquivo || 'Certificado'}
+                                    </button>
+                                    {!somenteLeitura && (
+                                        <button
+                                            type="button"
+                                            className="pcad_cert_rem"
+                                            aria-label="Remover certificado"
+                                            onClick={() => onRemoverSalvo?.(row.id)}
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </li>
+                            ))}
+                            {(pendentes || []).map((p) => (
+                                <li key={p.key}>
+                                    {p.previewUrl ? (
+                                        <img src={p.previewUrl} alt="" className="pcad_cert_thumb" />
+                                    ) : (
+                                        <span className="pcad_cert_pdf_badge">PDF</span>
+                                    )}
+                                    <span className="pcad_cert_nome">{p.nome}</span>
+                                    {!somenteLeitura && (
+                                        <button
+                                            type="button"
+                                            className="pcad_cert_rem"
+                                            aria-label="Remover arquivo"
+                                            onClick={() => removerPendente(p.key)}
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    <button
+                        type="button"
+                        className={btnClass}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            inputRef.current?.click()
+                        }}
+                    >
                         Adicionar arquivo
                     </button>
+                </div>
+            ) : (
+                <>
+                    {listaVazia && somenteLeitura && (
+                        <p className="pcad_cert_vazio">Nenhum certificado anexado.</p>
+                    )}
+                    {!listaVazia && (
+                        <ul className="pcad_cert_lista">
+                            {(salvos || []).map((row) => (
+                                <li key={`salvo-${row.id}`}>
+                                    <button type="button" className="pcad_cert_link" onClick={() => void abrirSalvo(row)}>
+                                        {row.nome_arquivo || 'Certificado'}
+                                    </button>
+                                </li>
+                            ))}
+                            {(pendentes || []).map((p) => (
+                                <li key={p.key}>
+                                    {p.previewUrl ? (
+                                        <img src={p.previewUrl} alt="" className="pcad_cert_thumb" />
+                                    ) : (
+                                        <span className="pcad_cert_pdf_badge">PDF</span>
+                                    )}
+                                    <span className="pcad_cert_nome">{p.nome}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </>
             )}
         </div>

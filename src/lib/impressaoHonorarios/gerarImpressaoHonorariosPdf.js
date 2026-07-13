@@ -51,8 +51,14 @@ function sanitizarTextoPdf(texto) {
 
 function formatarValorPorte(valor) {
     if (valor === '' || valor == null) return '—'
+    if (typeof valor === 'string') {
+        const t = valor.trim()
+        if (!t || t === '—') return '—'
+        // Já formatado (ex.: "12,50")
+        if (/^\d{1,3}(\.\d{3})*,\d{2}$/.test(t) || /^\d+,\d{2}$/.test(t)) return t
+    }
     const n = Number(valor)
-    if (!Number.isFinite(n)) return '—'
+    if (!Number.isFinite(n)) return String(valor)
     return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
@@ -326,7 +332,16 @@ function encaixarTextoLargura(texto, font, size, larguraMax) {
     return cortado.length < bruto.length ? `${cortado}${sufixo}` : cortado
 }
 
-function desenharCarimboPagina(page, fonts, width, cidadeNome) {
+function montarTextoCarimboEsquerda({ nome, cidadeNome } = {}) {
+    const partes = []
+    const n = sanitizarTextoPdf(nome)
+    const c = sanitizarTextoPdf(cidadeNome)
+    if (n) partes.push(n)
+    if (c) partes.push(c)
+    return partes.join(' · ')
+}
+
+function desenharCarimboPagina(page, fonts, width, carimboEsquerda) {
     const stamp = formatarCarimboDataHora()
     const font = fonts.regular
     const stampW = font.widthOfTextAtSize(stamp, FONT_SIZE_STAMP)
@@ -341,11 +356,11 @@ function desenharCarimboPagina(page, fonts, width, cidadeNome) {
         color: COR_STAMP,
     })
 
-    const cidade = sanitizarTextoPdf(cidadeNome)
-    if (!cidade) return
+    const textoEsq = sanitizarTextoPdf(carimboEsquerda)
+    if (!textoEsq) return
 
     const larguraDisponivel = Math.max(0, stampX - MARGIN_X - GAP_CARIMBO)
-    const exibir = encaixarTextoLargura(cidade, font, FONT_SIZE_STAMP, larguraDisponivel)
+    const exibir = encaixarTextoLargura(textoEsq, font, FONT_SIZE_STAMP, larguraDisponivel)
     if (!exibir) return
 
     page.drawText(exibir, {
@@ -444,7 +459,13 @@ function renderizarUmaPagina(page, fonts, width, height, secoes, cursor, iconeEs
 }
 
 /**
- * @param {{ secoes: object[], cidadeNome?: string, pdfUrl?: string }} opts
+ * @param {{
+ *   secoes: object[],
+ *   cidadeNome?: string,
+ *   prestadorNome?: string,
+ *   carimboEsquerda?: string,
+ *   pdfUrl?: string,
+ * }} opts
  */
 export async function gerarImpressaoHonorariosPdf(opts) {
     const pdfUrl = opts.pdfUrl || urlHonorariosPdf
@@ -463,7 +484,12 @@ export async function gerarImpressaoHonorariosPdf(opts) {
 
     const refPage = templateDoc.getPage(TEMPLATE_PAGE_INDEX)
     const { width, height } = refPage.getSize()
-    const cidadeNome = String(opts.cidadeNome || '').trim()
+    const carimboEsq =
+        String(opts.carimboEsquerda || '').trim() ||
+        montarTextoCarimboEsquerda({
+            nome: opts.prestadorNome,
+            cidadeNome: opts.cidadeNome,
+        })
 
     const finalDoc = await PDFDocument.create()
     const fonts = await embedMontserratNoPdf(finalDoc)
@@ -483,7 +509,7 @@ export async function gerarImpressaoHonorariosPdf(opts) {
         const [tpl] = await finalDoc.copyPages(templateDoc, [TEMPLATE_PAGE_INDEX])
         const page = finalDoc.addPage(tpl)
         cursor = renderizarUmaPagina(page, fonts, width, height, secoes, cursor, iconeEstetoscopio)
-        desenharCarimboPagina(page, fonts, width, cidadeNome)
+        desenharCarimboPagina(page, fonts, width, carimboEsq)
         const depois = `${cursor.secaoIdx}-${cursor.linhaIdx}`
         if (!cursor.done && depois === antes) {
             cursor.linhaIdx += 1
@@ -497,14 +523,18 @@ export async function gerarImpressaoHonorariosPdf(opts) {
     return new Blob([await finalDoc.save()], { type: 'application/pdf' })
 }
 
-export function downloadImpressaoHonorariosPdf(blob, cidadeNome) {
+export function downloadImpressaoHonorariosPdf(blob, nomeArquivoBase) {
     const limpar = (s) =>
         String(s || '')
             .replace(/[\\/:*?"<>|]/g, ' ')
             .replace(/\s+/g, ' ')
             .trim()
-    const cidade = limpar(cidadeNome)
-    const nome = cidade ? `Honorários - ${cidade}.pdf` : 'Honorários.pdf'
+    const base = limpar(nomeArquivoBase)
+    const nome = base
+        ? base.toLowerCase().endsWith('.pdf')
+            ? base
+            : `Honorários - ${base}.pdf`
+        : 'Honorários.pdf'
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

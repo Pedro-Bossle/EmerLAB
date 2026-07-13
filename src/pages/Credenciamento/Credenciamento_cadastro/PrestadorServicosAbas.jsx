@@ -8,12 +8,16 @@ import {
     salvarNomeAlternativoPrestadorProcedimento,
 } from '../../../lib/prestadorNomeAlternativo.js'
 import { listarLaboratoriosIdsPorCidadeDoPrestador } from '../../../lib/vincularLaboratoriosPorCidadeTabela.js'
+import PrestadorBeneficiosDescontos from '../../../components/Credenciamento/PrestadorBeneficiosDescontos.jsx'
 
 const CATEGORIA_SERVICO_MIN = 3
 const CATEGORIA_SERVICO_MAX = 25
+/** Aba sintética ao lado das categorias de procedimento. */
+export const ABA_SERVICOS_DESCONTOS = '__descontos__'
 
 /**
  * Abas por categoria; carrega procedimentos só da aba ativa.
+ * Inclui chip «Descontos» no final (formulário Grupo/Tipo/%).
  */
 export default function PrestadorServicosAbas({
     prestadorId,
@@ -24,6 +28,11 @@ export default function PrestadorServicosAbas({
     onChangeLaboratorios,
     onMapaNomeAlternativoChange,
     barraAcoes,
+    prestadorNome,
+    cidadeNome,
+    onErroBeneficios,
+    onPacoteBeneficiosChange,
+    descontosDisabled,
 }) {
     const [categorias, setCategorias] = useState([])
     const [abaAtiva, setAbaAtiva] = useState(null)
@@ -51,6 +60,12 @@ export default function PrestadorServicosAbas({
     const [nomesAlternativos, setNomesAlternativos] = useState(() => new Map())
     const [salvandoNomeAlt, setSalvandoNomeAlt] = useState(null)
     const [copiandoNomes, setCopiandoNomes] = useState(false)
+    const [beneficiosImpressao, setBeneficiosImpressao] = useState({
+        disabled: true,
+        gerando: false,
+        total: 0,
+    })
+    const imprimirBeneficiosRef = useRef(null)
 
     const codigoNorm = (cod) =>
         String(cod || '')
@@ -127,7 +142,13 @@ export default function PrestadorServicosAbas({
     }, [])
 
     useEffect(() => {
-        if (!abaAtiva) return
+        if (!abaAtiva || abaAtiva === ABA_SERVICOS_DESCONTOS) {
+            if (abaAtiva === ABA_SERVICOS_DESCONTOS) {
+                setProcedimentosAba([])
+                setLoading(false)
+            }
+            return
+        }
         const run = async () => {
             setLoading(true)
             setErro('')
@@ -149,6 +170,8 @@ export default function PrestadorServicosAbas({
         }
         void run()
     }, [abaAtiva])
+
+    const modoDescontos = abaAtiva === ABA_SERVICOS_DESCONTOS
 
     const categoriaAtiva = useMemo(
         () => categorias.find((c) => Number(c.id) === Number(abaAtiva)),
@@ -573,106 +596,183 @@ export default function PrestadorServicosAbas({
                         key={cat.id}
                         type="button"
                         role="tab"
+                        aria-selected={Number(abaAtiva) === Number(cat.id)}
                         className={`pcad_servicos_tab ${Number(abaAtiva) === Number(cat.id) ? 'is-active' : ''}`}
                         onClick={() => setAbaAtiva(Number(cat.id))}
                     >
                         {cat.nome}
                     </button>
                 ))}
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={modoDescontos}
+                    className={`pcad_servicos_tab ${modoDescontos ? 'is-active' : ''}`}
+                    onClick={() => setAbaAtiva(ABA_SERVICOS_DESCONTOS)}
+                >
+                    Descontos
+                </button>
             </div>
             {erro && <p className="pcad_erro pcad_servicos_erro">{erro}</p>}
 
-            <div className="pcad_servicos_toolbar">
-                <div className="pcad_servicos_count_row">
-                    <span className="pcad_servicos_count">
-                        {selecionados.size} procedimento(s) selecionado(s) no total
-                    </span>
-                    <button
-                        type="button"
-                        className="pcad_servicos_copy_btn"
-                        disabled={selecionados.size === 0 || copiandoNomes}
-                        title="Copiar nomes dos procedimentos marcados (por categoria)"
-                        aria-label="Copiar nomes dos procedimentos marcados para a área de transferência"
-                        onClick={() => void copiarNomesProcedimentosSelecionados()}
-                    >
-                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path
-                                fill="currentColor"
-                                d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
-                            />
-                        </svg>
-                    </button>
+            {modoDescontos ? (
+                <div className="pcad_servicos_toolbar">
+                    <div className="pcad_servicos_count_row">
+                        <span className="pcad_servicos_count">
+                            {beneficiosImpressao.total} benefício(s) incluído(s)
+                        </span>
+                    </div>
+                    <div className="pcad_honorarios_bar">
+                        <button
+                            type="button"
+                            className="credenciamento_main_action_btn secondary"
+                            disabled={beneficiosImpressao.disabled}
+                            title={
+                                beneficiosImpressao.total === 0
+                                    ? 'Adicione ao menos um desconto para imprimir'
+                                    : undefined
+                            }
+                            onClick={() => void imprimirBeneficiosRef.current?.()}
+                        >
+                            {beneficiosImpressao.gerando ? 'Gerando PDF…' : 'Imprimir benefícios'}
+                        </button>
+                    </div>
                 </div>
-                {barraAcoes}
+            ) : null}
+
+            <div className={modoDescontos ? undefined : 'pcad_beneficios_oculto'} hidden={!modoDescontos}>
+                <PrestadorBeneficiosDescontos
+                    embutido
+                    prestadorId={prestadorId}
+                    prestadorNome={prestadorNome}
+                    cidadeNome={cidadeNome}
+                    somenteLeitura={somenteLeitura}
+                    disabled={descontosDisabled || somenteLeitura}
+                    onErro={onErroBeneficios}
+                    onPacoteChange={onPacoteBeneficiosChange}
+                    onControleImpressao={({ imprimir, disabled, gerando, total }) => {
+                        imprimirBeneficiosRef.current = imprimir
+                        setBeneficiosImpressao((prev) => {
+                            if (
+                                prev.disabled === disabled &&
+                                prev.gerando === gerando &&
+                                prev.total === total
+                            ) {
+                                return prev
+                            }
+                            return { disabled, gerando, total }
+                        })
+                    }}
+                />
             </div>
-            <div className="pcad_servicos_panel">
-                {loading && (
-                    <div className="pcad_servicos_loading" aria-live="polite">
-                        <span className="pcad_muted">Atualizando…</span>
-                    </div>
-                )}
-                {procedimentosAba.length > 0 && (
-                    <div className="pcad_servicos_sort_bar" role="group" aria-label="Ordenar lista">
-                        <span className="pcad_servicos_sort_lbl">Ordenar:</span>
-                        <button type="button" className="pcad_servicos_sort_btn" onClick={() => alternarOrdenacao('checked')}>
-                            Marcados{indicadorOrdem('checked')}
-                        </button>
-                        <button type="button" className="pcad_servicos_sort_btn" onClick={() => alternarOrdenacao('codigo')}>
-                            Código{indicadorOrdem('codigo')}
-                        </button>
-                        <button type="button" className="pcad_servicos_sort_btn" onClick={() => alternarOrdenacao('nome')}>
-                            Nome{indicadorOrdem('nome')}
-                        </button>
-                    </div>
-                )}
-                <div className={`pcad_servicos_lista${loading ? ' is-loading' : ''}`} role="tabpanel">
-                    {!loading && procedimentosAba.length === 0 && (
-                        <p className="pcad_muted pcad_servicos_vazio">Nenhum procedimento nesta categoria.</p>
-                    )}
-                    {procedimentosOrdenados.map((p, linhaIndex) => (
-                        <div key={p.codigo} className="pcad_servicos_item">
-                            <label
-                                className={`pcad_servicos_item_sel${somenteLeitura || loading ? ' is-disabled' : ''}`}
+
+            {!modoDescontos ? (
+                <>
+                    <div className="pcad_servicos_toolbar">
+                        <div className="pcad_servicos_count_row">
+                            <span className="pcad_servicos_count">
+                                {selecionados.size} procedimento(s) selecionado(s) no total
+                            </span>
+                            <button
+                                type="button"
+                                className="pcad_servicos_copy_btn"
+                                disabled={selecionados.size === 0 || copiandoNomes}
+                                title="Copiar nomes dos procedimentos marcados (por categoria)"
+                                aria-label="Copiar nomes dos procedimentos marcados para a área de transferência"
+                                onClick={() => void copiarNomesProcedimentosSelecionados()}
                             >
-                                <input
-                                    type="checkbox"
-                                    checked={selecionados.has(String(p.codigo))}
-                                    disabled={somenteLeitura || loading}
-                                    onChange={() => toggle(p.codigo)}
-                                />
-                                <span className="pcad_servicos_item_titulo">
-                                    <strong>{p.codigo}</strong> — {p.nome}
-                                </span>
-                            </label>
-                            <input
-                                ref={(el) => {
-                                    if (el) nomeAltInputRefs.current.set(String(p.codigo), el)
-                                    else nomeAltInputRefs.current.delete(String(p.codigo))
-                                }}
-                                type="text"
-                                className="credenciamento_main_input pcad_servicos_nome_alt"
-                                placeholder="Nome alternativo"
-                                value={obterNomeAlt(p.codigo)}
-                                disabled={somenteLeitura || loading}
-                                title={
-                                    salvandoNomeAlt === codigoNorm(p.codigo)
-                                        ? 'A guardar…'
-                                        : 'Tab: linha seguinte · Cole uma coluna do Excel (Enter entre linhas)'
-                                }
-                                onChange={(e) => atualizarNomeAltLocal(p.codigo, e.target.value)}
-                                onBlur={(e) => void persistirNomeAlt(p.codigo, e.target.value)}
-                                onPaste={(e) => processarColagemNomeAltVertical(e, linhaIndex)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Tab') {
-                                        e.preventDefault()
-                                        focarNomeAltLinha(linhaIndex, e.shiftKey)
-                                    }
-                                }}
-                            />
+                                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path
+                                        fill="currentColor"
+                                        d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                                    />
+                                </svg>
+                            </button>
                         </div>
-                    ))}
-                </div>
-            </div>
+                        {barraAcoes}
+                    </div>
+                    <div className="pcad_servicos_panel">
+                        {loading && (
+                            <div className="pcad_servicos_loading" aria-live="polite">
+                                <span className="pcad_muted">Atualizando…</span>
+                            </div>
+                        )}
+                        {procedimentosAba.length > 0 && (
+                            <div className="pcad_servicos_sort_bar" role="group" aria-label="Ordenar lista">
+                                <span className="pcad_servicos_sort_lbl">Ordenar:</span>
+                                <button
+                                    type="button"
+                                    className="pcad_servicos_sort_btn"
+                                    onClick={() => alternarOrdenacao('checked')}
+                                >
+                                    Marcados{indicadorOrdem('checked')}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="pcad_servicos_sort_btn"
+                                    onClick={() => alternarOrdenacao('codigo')}
+                                >
+                                    Código{indicadorOrdem('codigo')}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="pcad_servicos_sort_btn"
+                                    onClick={() => alternarOrdenacao('nome')}
+                                >
+                                    Nome{indicadorOrdem('nome')}
+                                </button>
+                            </div>
+                        )}
+                        <div className={`pcad_servicos_lista${loading ? ' is-loading' : ''}`} role="tabpanel">
+                            {!loading && procedimentosAba.length === 0 && (
+                                <p className="pcad_muted pcad_servicos_vazio">Nenhum procedimento nesta categoria.</p>
+                            )}
+                            {procedimentosOrdenados.map((p, linhaIndex) => (
+                                <div key={p.codigo} className="pcad_servicos_item">
+                                    <label
+                                        className={`pcad_servicos_item_sel${somenteLeitura || loading ? ' is-disabled' : ''}`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selecionados.has(String(p.codigo))}
+                                            disabled={somenteLeitura || loading}
+                                            onChange={() => toggle(p.codigo)}
+                                        />
+                                        <span className="pcad_servicos_item_titulo">
+                                            <strong>{p.codigo}</strong> — {p.nome}
+                                        </span>
+                                    </label>
+                                    <input
+                                        ref={(el) => {
+                                            if (el) nomeAltInputRefs.current.set(String(p.codigo), el)
+                                            else nomeAltInputRefs.current.delete(String(p.codigo))
+                                        }}
+                                        type="text"
+                                        className="credenciamento_main_input pcad_servicos_nome_alt"
+                                        placeholder="Nome alternativo"
+                                        value={obterNomeAlt(p.codigo)}
+                                        disabled={somenteLeitura || loading}
+                                        title={
+                                            salvandoNomeAlt === codigoNorm(p.codigo)
+                                                ? 'A guardar…'
+                                                : 'Tab: linha seguinte · Cole uma coluna do Excel (Enter entre linhas)'
+                                        }
+                                        onChange={(e) => atualizarNomeAltLocal(p.codigo, e.target.value)}
+                                        onBlur={(e) => void persistirNomeAlt(p.codigo, e.target.value)}
+                                        onPaste={(e) => processarColagemNomeAltVertical(e, linhaIndex)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Tab') {
+                                                e.preventDefault()
+                                                focarNomeAltLinha(linhaIndex, e.shiftKey)
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </>
+            ) : null}
         </div>
     )
 }

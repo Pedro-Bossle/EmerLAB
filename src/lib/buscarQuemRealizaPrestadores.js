@@ -7,6 +7,7 @@ import {
 import { carregarMapaNomesAlternativosPrestador } from './prestadorNomeAlternativo.js'
 import { mapaCodigosPorPrestadorDeVinculos } from './prestadorProcedimentos.js'
 import { anexarLocalidadeVinculoAoCtx, resolverLocalidadeEfetivaPrestador } from './prestadorLocalidadeVinculo.js'
+import { formatarFaixaPercentual, nomeGrupoBeneficioVisivel } from './credenciamento/prestadorBeneficios.js'
 
 const norm = (t) =>
     String(t || '')
@@ -27,12 +28,24 @@ function formatarNomeProcedimentoQuemRealiza(proc) {
 }
 
 /** Texto para copiar resultados do Quem Realiza (bloco por prestador). */
-export function formatarResultadosQuemRealizaParaClipboard(resultados) {
+export function formatarResultadosQuemRealizaParaClipboard(resultados, opcoes = {}) {
+    const modo = opcoes.modo === 'descontos' ? 'descontos' : 'servicos'
     const blocos = (resultados || []).map((r) => {
         const nome = String(r.nome || '').trim() || '—'
         const esp = String(r.especialidade || '').trim() || '—'
         const tel = String(r.telefone || '').trim() || '—'
         const linhaPrestador = `${nome} - ${esp} - ${tel}`
+        if (modo === 'descontos') {
+            const bens = (r.beneficios || [])
+                .map((b) => {
+                    const grupo = String(b.grupoNome || '').trim()
+                    const tipo = String(b.tipoNome || b.codigo || '').trim()
+                    const faixa = String(b.faixa || '').trim()
+                    return [grupo, tipo, faixa].filter(Boolean).join(' — ')
+                })
+                .filter(Boolean)
+            return `${linhaPrestador}\n${bens.length ? bens.join(', ') : '—'}`
+        }
         const procs = (r.procedimentos || []).map(formatarNomeProcedimentoQuemRealiza).filter(Boolean)
         const linhaProcs = procs.length ? procs.join(', ') : '—'
         return `${linhaPrestador}\n${linhaProcs}`
@@ -288,6 +301,112 @@ export async function pesquisarQuemRealizaNaRede(supabase, opcoes) {
     return [...resultadoPorId.values()].sort((a, b) =>
         a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }),
     )
+}
+
+/**
+ * Prestadores que oferecem algum dos benefícios de desconto (prestador_beneficios.incluir).
+ * @returns {Promise<Array<{ id, nome, especialidade, telefone, beneficios: Array<{grupoNome, tipoNome, codigo, faixa}>, viaCidadeParalela, cidadePrincipal }>>}
+ */
+export async function pesquisarQuemOfereceDescontos(supabase, opcoes) {
+    const {
+        beneficioIds = [],
+        cidadesAlvo = [],
+        incluirCidadesParalelas = true,
+        prestadores = [],
+        prestadorCidades = [],
+        mapaCidadesCred = new Map(),
+        especialidades = [],
+        catalogoBeneficios = [],
+        prestadorEstabelecimentos = [],
+        prestadoresParaVinculoLocalidade = null,
+    } = opcoes
+
+    const ids = [...new Set((beneficioIds || []).map(Number).filter(Boolean))]
+    const cidades = (cidadesAlvo || []).filter((c) => String(c?.nome || '').trim())
+    if (!ids.length || !cidades.length) return []
+
+    const mapaEsp = new Map((especialidades || []).map((e) => [Number(e.id), e.nome]))
+    const mapaCat = new Map((catalogoBeneficios || []).map((c) => [Number(c.id), c]))
+    const baseVinculo = prestadoresParaVinculoLocalidade || prestadores
+    const ctxFiltro = anexarLocalidadeVinculoAoCtx(
+        { mapaCidadesCred, prestadorCidades, incluirCidadesParalelas },
+        baseVinculo,
+        prestadorEstabelecimentos,
+    )
+
+    const todosIds = (prestadores || []).map((p) => Number(p.id)).filter(Boolean)
+    if (!todosIds.length) return []
+
+    const vinculos = []
+    const chunk = 80
+    for (let i = 0; i < todosIds.length; i += chunk) {
+        const lote = todosIds.slice(i, i + chunk)
+        const { data, error } = await supabase
+            .from('prestador_beneficios')
+            .select('prestador_id, beneficio_id, percentual, percentual_max, incluir')
+            .in('prestador_id', lote)
+            .eq('incluir', true)
+            .in('beneficio_id', ids)
+        if (error) throw new Error(error.message)
+        vinculos.push(...(data || []))
+    }
+
+    /** @type {Map<number, Array>} */
+    const porPrestador = new Map()
+    for (const row of vinculos) {
+        const pid = Number(row.prestador_id)
+        if (!porPrestador.has(pid)) porPrestador.set(pid, [])
+        porPrestador.get(pid).push(row)
+    }
+
+    const candidatos = (prestadores || []).filter((p) => {
+        if (!porPrestador.has(Number(p.id))) return false
+        return prestadorAtendeAlgumaCidadeAlvo(p, cidades, ctxFiltro)
+    })
+
+    return candidatos
+        .map((p) => {
+            const rows = porPrestador.get(Number(p.id)) || []
+            const beneficios = rows
+                .map((row) => {
+                    const cat = mapaCat.get(Number(row.beneficio_id))
+                    if (!cat) return null
+                    return {
+                        grupoNome: nomeGrupoBeneficioVisivel(cat.grupo_nome || cat.grupo_codigo || '') || cat.grupo_nome || '',
+                        tipoNome: cat.nome || '',
+                        codigo: cat.codigo || '',
+                        faixa: formatarFaixaPercentual(row.percentual, row.percentual_max ?? row.percentual),
+                    }
+                })
+                .filter(Boolean)
+                .sort((a, b) =>
+                    `${a.grupoNome}${a.codigo}`.localeCompare(`${b.grupoNome}${b.codigo}`, 'pt-BR', {
+                        sensitivity: 'base',
+                    }),
+                )
+
+            const tel = [p.celular, p.telefone].map((t) => String(t || '').trim()).find(Boolean) || '—'
+            const { prestador: pLoc, prestadorIdCidades } = resolverLocalidadeEfetivaPrestador(
+                p,
+                ctxFiltro.estabelecimentoPorVeterinario,
+            )
+            const rels = prestadorCidades.filter((r) => Number(r.prestador_id) === Number(prestadorIdCidades))
+            const cidadePrincipal = resolverCidadePrincipalNome(pLoc, {
+                mapaCidadeNomePorId: mapaCidadesCred,
+                relacoesCidades: rels,
+            })
+            return {
+                id: p.id,
+                nome: p.nome,
+                especialidade: mapaEsp.get(Number(p.especialidade_id)) || '—',
+                telefone: tel,
+                procedimentos: [],
+                beneficios,
+                viaCidadeParalela: avaliarViaCidadeParalela(p, cidades, ctxFiltro),
+                cidadePrincipal,
+            }
+        })
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
 }
 
 /** Cache em memória para reutilizar em telas (ex.: orçamento). */
