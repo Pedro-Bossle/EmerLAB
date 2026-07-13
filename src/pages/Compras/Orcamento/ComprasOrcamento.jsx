@@ -12,6 +12,7 @@ import { escolherValorVendaParaContexto } from "../../../lib/comprasEscolherValo
 
 import {
   listarPlanoIdsDoSelecionadoParaCima,
+  filtrarPlanosParaSelecaoGeral,
   mapearPlanos,
   nomePlanoPorId,
 } from "../../../lib/planosHierarquia";
@@ -263,7 +264,10 @@ const ComprasOrcamento = () => {
       } else setVendas(vendasData || []);
 
       if (planResp.error) mensagens.push(`Planos: ${planResp.error.message}`);
-      else setPlanos(planResp.data || []);
+      else {
+        const lista = planResp.data || [];
+        setPlanos(filtrarPlanosParaSelecaoGeral(lista, mapearPlanos(lista)));
+      }
 
       if (cidResp.error) mensagens.push(`Cidades: ${cidResp.error.message}`);
       else setCidades(cidResp.data || []);

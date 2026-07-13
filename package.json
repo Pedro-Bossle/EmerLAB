@@ -18,7 +18,9 @@
     "prestadores:export-enderecos": "node ./scripts/credenciamento/export-prestadores-enderecos-csv.mjs",
     "prestadores:import-coordenadas": "node ./scripts/credenciamento/import-prestadores-coordenadas-csv.mjs",
     "prestadores:geocode-primeira-carga": "node ./scripts/credenciamento/geocode-prestadores-primeira-carga.mjs",
-    "prospectos:coletar-osm": "node ./scripts/credenciamento/coletar-prospectos-osm.mjs"
+    "prospectos:coletar-osm": "node ./scripts/credenciamento/coletar-prospectos-osm.mjs",
+    "supabase:secrets": "npx supabase secrets set --env-file supabase/env.secrets",
+    "supabase:deploy-functions": "npx supabase functions deploy"
   },
   "dependencies": {
     "@sparticuz/chromium": "^148.0.0",

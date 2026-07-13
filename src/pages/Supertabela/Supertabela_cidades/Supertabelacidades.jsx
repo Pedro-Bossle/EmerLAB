@@ -20,6 +20,7 @@ import {
     salvarVinculosDaCidade,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
 import { exportarTabelaCidadeParaExcel } from '../../../lib/exportNegociacaoExcel.js'
+import SupertabelaMenuFlutuante from '../../../components/Supertabela/SupertabelaMenuFlutuante.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelacidades.css'
@@ -47,6 +48,7 @@ const Supertabelacidades = () => {
 
     const [mostrarGerenciarModal, setMostrarGerenciarModal] = useState(false)
     const [exportandoExcelCidadeId, setExportandoExcelCidadeId] = useState(null)
+    const [exportandoExcelTela, setExportandoExcelTela] = useState(false)
     const [repassesResumo, setRepassesResumo] = useState([])
     const [cidadeDuplicarOrigem, setCidadeDuplicarOrigem] = useState(null)
     const [novoNomeCidadeDuplicada, setNovoNomeCidadeDuplicada] = useState('')
@@ -738,6 +740,32 @@ const Supertabelacidades = () => {
             mostrarErroToast(`Erro ao exportar Excel: ${error.message}`)
         } finally {
             setExportandoExcelCidadeId(null)
+        }
+    }
+
+    const cidadeSelecionada = useMemo(
+        () => cidades.find((c) => String(c.id) === String(cidadeId)) || null,
+        [cidades, cidadeId],
+    )
+
+    const baixarExcelTelaCidades = async () => {
+        if (!cidadeId) {
+            mostrarErroToast('Selecione uma cidade para exportar.')
+            return
+        }
+        if (!secoesPorCategoria.length) {
+            mostrarErroToast('Não há procedimentos na tela para exportar (verifique filtros e busca).')
+            return
+        }
+        setExportandoExcelTela(true)
+        try {
+            await exportarTabelaCidadeParaExcel(secoesPorCategoria, {
+                nomeArquivoBase: `cidade-${cidadeSelecionada?.nome || cidadeId}`,
+            })
+        } catch (error) {
+            mostrarErroToast(`Erro ao exportar Excel: ${error.message}`)
+        } finally {
+            setExportandoExcelTela(false)
         }
     }
 
@@ -1673,6 +1701,20 @@ ou um código por linha`}
                     ))
                 )}
             </div>
+            <SupertabelaMenuFlutuante
+                itens={[
+                    {
+                        id: 'excel',
+                        rotulo: 'Exportar Excel (.xlsx)',
+                        rotuloCarregando: 'Gerando Excel…',
+                        icone: '📊',
+                        carregando: exportandoExcelTela,
+                        disabled: !cidadeId || loading,
+                        onClick: () => void baixarExcelTelaCidades(),
+                    },
+                ]}
+                ariaLabel='Ações da Super Tabela — Cidades'
+            />
         </div>
     )
 }

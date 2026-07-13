@@ -1,3 +1,4 @@
+import { mapearPlanos, planoIdEhApenasLoja } from './planosHierarquia.js'
 import { normalizarTextoBusca } from './prestadorCadastroHelpers.js'
 
 export const normalizarMunicipioChave = (nome) => normalizarTextoBusca(nome)
@@ -263,10 +264,19 @@ export function listarOpcoesMunicipioImpressaoPlanos(cidades, vinculos, municipi
     )
 }
 
-/** Cidades com repasse na supertabela ∩ cidades do plano (quando há plano). */
+/**
+ * Cidades com repasse na supertabela ∩ cidades do plano (quando há plano).
+ * Plano «Apenas loja» não entra em filtros de credenciamento/supertabela.
+ */
 export async function buscarCidadeIdsFiltroPlanoCredenciados(supabase, planoId, buscarTodosPaginado) {
+    let pid = planoId != null && planoId !== '' ? Number(planoId) : 0
+    if (pid) {
+        const { data: planosRows } = await supabase.from('planos').select('id, nome')
+        const mapa = mapearPlanos(planosRows || [])
+        if (planoIdEhApenasLoja(pid, mapa)) pid = 0
+    }
     const comRepasse = await buscarCidadeIdsTabelaComRepasses(supabase, buscarTodosPaginado)
-    const doPlano = await buscarCidadeIdsTabelaPorPlano(supabase, planoId, buscarTodosPaginado)
+    const doPlano = pid ? await buscarCidadeIdsTabelaPorPlano(supabase, pid, buscarTodosPaginado) : new Set()
     if (!doPlano.size) return comRepasse
     const out = new Set()
     doPlano.forEach((id) => {

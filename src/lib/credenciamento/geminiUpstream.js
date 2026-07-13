@@ -7,7 +7,7 @@ import { extrairGeminiRetrySegundos, metaDescansoGemini } from './geminiDescanso
 const GEMINI_FETCH_TIMEOUT_MS = 120_000
 
 /** Padrão alinhado à POC (antes: gemini-2.0-flash) e ao AI Studio atual. */
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash-001'
 
 /** Modelo da primeira POC no código legado — use em GEMINI_MODEL se quiser reproduzir exatamente. */
 export const GEMINI_MODEL_POC_LEGADO = 'gemini-2.0-flash-001'

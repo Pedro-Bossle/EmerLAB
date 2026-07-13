@@ -16,6 +16,7 @@ import {
     atualizarStatusProspectoOsm,
 } from '../../../lib/credenciamento/prospectosOsmRepo.js'
 import { exportarProspectosOsmParaExcel } from '../../../lib/credenciamento/exportProspectosOsmExcel.js'
+import { postServerApiJson } from '../../../lib/api/serverBackend.js'
 import { prospectoIndicaAtendimento24h } from '../../../lib/credenciamento/prospectosOsmHorario.js'
 import { formatarEnderecoLinhaTabela } from '../../../lib/credenciamento/prospectosOsmQualidade.js'
 import { formatarLinhaTelefonesContato } from '../../../lib/telefoneBrasil.js'
@@ -103,7 +104,15 @@ const CredenciamentoProspectosOsm = () => {
         const total = Math.max(1, coletaPassosTotais)
         const passo = Math.max(0, coletaPasso)
         if (passo >= total) return 100
-        return Math.min(99, Math.round((passo / total) * 100))
+        return Math.min(100, Math.round((passo / total) * 100))
+    }, [coletando, coletaPasso, coletaPassosTotais])
+
+    const coletaProgressoPassoLabel = useMemo(() => {
+        if (!coletando) return ''
+        const total = Math.max(1, coletaPassosTotais)
+        const passo = Math.min(Math.max(0, coletaPasso), total)
+        const atual = passo >= total ? total : Math.max(1, passo + 1)
+        return `Etapa ${atual} de ${total}`
     }, [coletando, coletaPasso, coletaPassosTotais])
 
     const sincronizarProgressoColeta = useCallback((body) => {
@@ -285,7 +294,6 @@ const CredenciamentoProspectosOsm = () => {
         setFeedback('Coleta em andamento (Gemini, com fallback OSM se necessário)…')
         const ctrl = new AbortController()
         const timeoutId = setTimeout(() => ctrl.abort(), 6 * 60 * 1000)
-        const headers = { 'Content-Type': 'application/json', Accept: 'application/json' }
 
         const montarMsgSucesso = (body) => {
             let msg = `${body.inseridos ?? 0} local(is) atualizado(s).`
@@ -303,17 +311,16 @@ const CredenciamentoProspectosOsm = () => {
         }
 
         try {
-            const respStart = await fetch('/api/prospectos-osm-coletar', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
+            const respStart = await postServerApiJson(
+                'prospectos-osm-coletar',
+                {
                     action: 'start',
                     cidade: c,
                     uf: String(uf || '').trim(),
                     fonte: 'auto',
-                }),
-                signal: ctrl.signal,
-            })
+                },
+                { signal: ctrl.signal },
+            )
             const startBody = await respStart.json().catch(() => ({}))
             if (!respStart.ok) throw new Error(startBody.error || `HTTP ${respStart.status}`)
             const jobId = startBody.jobId
@@ -327,12 +334,11 @@ const CredenciamentoProspectosOsm = () => {
             while (body.status !== 'done' && body.status !== 'failed' && guard < maxPassos) {
                 guard += 1
                 if (body.progresso) setFeedback(String(body.progresso))
-                const respStep = await fetch('/api/prospectos-osm-coletar', {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({ action: 'step', jobId }),
-                    signal: ctrl.signal,
-                })
+                const respStep = await postServerApiJson(
+                    'prospectos-osm-coletar',
+                    { action: 'step', jobId },
+                    { signal: ctrl.signal },
+                )
                 body = await respStep.json().catch(() => ({}))
                 sincronizarProgressoColeta(body)
                 if (body.progresso) setFeedback(String(body.progresso))
@@ -498,28 +504,44 @@ const CredenciamentoProspectosOsm = () => {
                         </label>
                         <div className="cred_prospectos_osm_linha2_acoes">
                             {podeEditar ? (
-                                <button
-                                    type="button"
-                                    className={`credenciamento_main_action_btn cred_prospectos_osm_btn_prospectar${coletando ? ' is-coletando' : ''}`}
-                                    disabled={coletando || !cidade.trim()}
-                                    onClick={() => void coletarCidade()}
-                                    aria-busy={coletando}
+                                <div
+                                    className={`cred_prospectos_osm_prospectar_wrap${coletando ? ' is-coletando' : ''}`}
                                 >
+                                    <button
+                                        type="button"
+                                        className={`credenciamento_main_action_btn cred_prospectos_osm_btn_prospectar${coletando ? ' is-coletando' : ''}`}
+                                        disabled={coletando || !cidade.trim()}
+                                        onClick={() => void coletarCidade()}
+                                        aria-busy={coletando}
+                                    >
+                                        {coletando ? 'Prospectando…' : 'Prospectar'}
+                                    </button>
                                     {coletando ? (
-                                        <>
-                                            <span
-                                                className="cred_prospectos_osm_btn_prospectar_fill"
-                                                style={{ width: `${coletaProgressoPct}%` }}
-                                                aria-hidden
-                                            />
-                                            <span className="cred_prospectos_osm_btn_prospectar_label">
-                                                Prospectando… {coletaProgressoPct}%
-                                            </span>
-                                        </>
-                                    ) : (
-                                        'Prospectar'
-                                    )}
-                                </button>
+                                        <div
+                                            className="cred_prospectos_osm_coleta_progress"
+                                            role="progressbar"
+                                            aria-valuemin={0}
+                                            aria-valuemax={100}
+                                            aria-valuenow={coletaProgressoPct}
+                                            aria-label={`Progresso da coleta: ${coletaProgressoPct}%`}
+                                        >
+                                            <div className="cred_prospectos_osm_coleta_progress_head">
+                                                <span className="cred_prospectos_osm_coleta_progress_etapa">
+                                                    {coletaProgressoPassoLabel}
+                                                </span>
+                                                <span className="cred_prospectos_osm_coleta_progress_pct">
+                                                    {coletaProgressoPct}%
+                                                </span>
+                                            </div>
+                                            <div className="cred_prospectos_osm_coleta_progress_track">
+                                                <div
+                                                    className="cred_prospectos_osm_coleta_progress_fill"
+                                                    style={{ width: `${coletaProgressoPct}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
                             ) : null}
                         </div>
                     </div>

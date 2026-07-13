@@ -9,7 +9,13 @@ import {
     resolverLimiteGrupoExibicao,
     textoCelulaLimiteGrupo,
 } from '../categoriaLimitesGrupo.js'
-import { mapearPlanos, obterChavePlanoPorId, ORDEM_PLANOS, procedimentoPertenceAoPlanoSelecionado } from '../planosHierarquia.js'
+import {
+    mapearPlanos,
+    obterChavePlanoPorId,
+    ORDEM_PLANOS,
+    procedimentoPertenceAoPlanoSelecionado,
+    procedimentoPlanoBaseApenasLoja,
+} from '../planosHierarquia.js'
 import { resolverUrlPdfPlano } from './mapearPlanoPdfAsset.js'
 import { formatarDiferencaPlano, formatarTextoCampoPlano } from './formatarCamposPlano.js'
 import { expandirLinhasNomeAlternativo } from './expandirLinhasNomeAlternativo.js'
@@ -133,8 +139,10 @@ export async function carregarLinhasImpressaoPlanos(opcoes) {
 
     if (errProc) throw new Error(`Erro ao carregar procedimentos: ${errProc.message}`)
 
-    const procedimentosElegiveis = (procedimentosData || []).filter((p) =>
-        procedimentoPertenceAoPlanoSelecionado(p.plano_base_id, planoId, mapaPlanos),
+    const procedimentosElegiveis = (procedimentosData || []).filter(
+        (p) =>
+            !procedimentoPlanoBaseApenasLoja(p.plano_base_id, mapaPlanos) &&
+            procedimentoPertenceAoPlanoSelecionado(p.plano_base_id, planoId, mapaPlanos),
     )
 
     if (!procedimentosElegiveis.length) {

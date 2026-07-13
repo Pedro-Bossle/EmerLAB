@@ -1,4 +1,5 @@
 import { apenasDigitos } from './validarDocumentos.js'
+import { buildServerApiUrl, serverApiAuthHeaders } from '../api/serverBackend.js'
 
 const TTL_MS_PADRAO = 3 * 24 * 60 * 60 * 1000
 const cacheMemoria = new Map()
@@ -65,7 +66,8 @@ export async function buscarDadosCNPJ(cnpj, opcoes = {}) {
     }
 
     const promessa = (async () => {
-        const res = await fetch(`${ROTA_CONSULTA_CNPJ}?cnpj=${encodeURIComponent(digits)}`)
+        const url = buildServerApiUrl('consulta-cnpj', { cnpj: digits })
+        const res = await fetch(url, { headers: { Accept: 'application/json', ...serverApiAuthHeaders() } })
         const data = await res.json().catch(() => ({}))
         if (!res.ok) {
             throw new Error(data?.error || 'CNPJ não encontrado ou erro na API.')

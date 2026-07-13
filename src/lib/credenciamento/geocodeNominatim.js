@@ -8,6 +8,10 @@
 
 
 
+import { buildServerApiUrl, serverApiAuthHeaders } from '../api/serverBackend.js'
+
+
+
 function cidadeDeEnderecoNominatim(addr = {}) {
 
     return addr.city || addr.town || addr.municipality || addr.village || addr.county || ''
@@ -198,13 +202,11 @@ async function executarBuscaNominatim(params) {
 
     if (typeof window !== 'undefined') {
 
-        const url = new URL('/api/nominatim-search', window.location.origin)
-
+        const qp = {}
         for (const [k, v] of Object.entries(query)) {
-
-            url.searchParams.set(k, v)
-
+            qp[k] = v
         }
+        const url = new URL(buildServerApiUrl('nominatim-search', qp))
 
         let resp
 
@@ -212,7 +214,7 @@ async function executarBuscaNominatim(params) {
 
             resp = await fetch(url.toString(), {
 
-                headers: { Accept: 'application/json' },
+                headers: { Accept: 'application/json', ...serverApiAuthHeaders() },
 
             })
 

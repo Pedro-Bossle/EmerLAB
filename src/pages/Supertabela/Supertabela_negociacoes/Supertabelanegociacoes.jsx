@@ -18,6 +18,7 @@ import {
     cidadeExibicaoNegociacaoPrestador,
     resolverCidadeIdTabelaNegociacao,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
+import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planosHierarquia.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelanegociacoes.css'
 
@@ -464,14 +465,27 @@ const Supertabelanegociacoes = () => {
             setEspecialidadesPrestador(especialidadesData || [])
             setMapaCidadesCred(mapaCred)
             setSuportaPrestadorId(temPrestadorId)
-            setPlanos(planosData || [])
+            setPlanos(
+                filtrarPlanosParaSelecaoGeral(planosData || [], mapearPlanos(planosData || [])),
+            )
             setPortes(portesData || [])
             setCategorias(categoriasData || [])
             setProcedimentos(procedimentosData || [])
             setNegociacoes(negociacoesLista)
             setSuportaTipo(temTipo)
 
-            if ((planosData || []).length > 0) setPlanoId((anterior) => anterior || String(planosData[0].id))
+            const planosFiltro = filtrarPlanosParaSelecaoGeral(
+                planosData || [],
+                mapearPlanos(planosData || []),
+            )
+            if (planosFiltro.length > 0) {
+                setPlanoId((anterior) => {
+                    if (anterior && planosFiltro.some((p) => String(p.id) === String(anterior))) {
+                        return anterior
+                    }
+                    return String(planosFiltro[0].id)
+                })
+            }
             if ((portesData || []).length > 0) setPorteSelecionado((anterior) => anterior || String(portesData[0].id))
             if (cidadesLista.length > 0) setNovoCidadeId((anterior) => anterior || String(cidadesLista[0].id))
         } catch (error) {

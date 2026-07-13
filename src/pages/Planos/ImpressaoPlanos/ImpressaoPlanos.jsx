@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase.js'
-import { mapearPlanos } from '../../../lib/planosHierarquia.js'
+import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planosHierarquia.js'
 import {
     buscarCidadeIdsFiltroPlanoCredenciados,
     carregarVinculosMunicipios,
@@ -90,7 +90,8 @@ export default function ImpressaoPlanos() {
                 supabase.from('cidades').select('id, nome, uf').order('nome', { ascending: true }),
                 carregarVinculosMunicipios(supabase).catch(() => []),
             ])
-            setPlanos(planosData || [])
+            const listaPlanos = planosData || []
+            setPlanos(filtrarPlanosParaSelecaoGeral(listaPlanos, mapearPlanos(listaPlanos)))
             setCidades(cidadesData || [])
             setVinculosMunicipios(vinculos || [])
         }

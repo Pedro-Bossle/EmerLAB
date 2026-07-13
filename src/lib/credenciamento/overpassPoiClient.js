@@ -1,6 +1,7 @@
 /**
- * Cliente Overpass via /api/overpass-poi (browser) ou módulo upstream (Node).
+ * Cliente Overpass via Edge /api/overpass-poi (browser) ou módulo upstream (Node).
  */
+import { buildServerApiUrl, serverApiAuthHeaders } from '../api/serverBackend.js'
 
 export async function buscarPoisOverpassNaArea(bounds, categoriaId) {
     const categoria = String(categoriaId || '').trim()
@@ -10,15 +11,20 @@ export async function buscarPoisOverpassNaArea(bounds, categoriaId) {
     }
 
     if (typeof window !== 'undefined') {
-        const url = new URL('/api/overpass-poi', window.location.origin)
-        url.searchParams.set('south', String(south))
-        url.searchParams.set('west', String(west))
-        url.searchParams.set('north', String(north))
-        url.searchParams.set('east', String(east))
-        url.searchParams.set('categoria', categoria)
+        const url = new URL(
+            buildServerApiUrl('overpass-poi', {
+                south: String(south),
+                west: String(west),
+                north: String(north),
+                east: String(east),
+                categoria,
+            }),
+        )
         let resp
         try {
-            resp = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
+            resp = await fetch(url.toString(), {
+                headers: { Accept: 'application/json', ...serverApiAuthHeaders() },
+            })
         } catch (e) {
             return { ok: false, erro: e?.message || 'Falha na rede.', itens: [] }
         }

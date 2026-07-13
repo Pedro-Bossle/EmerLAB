@@ -14,24 +14,18 @@ import {
     montarPlanosChaveDisponiveisPorCategoria,
     salvarLimiteGrupoCategoria,
 } from '../../../lib/categoriaLimitesGrupo'
+import {
+    CHAVE_PLANO_APENAS_LOJA,
+    ORDEM_PLANOS,
+    ORDEM_PLANOS_BASE_PROCEDIMENTOS,
+    ROTULO_PLANO,
+    mapearPlanos,
+    obterChavePlanoPorId,
+    obterPlanoIdsPermitidosDesdeChaveBase,
+} from '../../../lib/planosHierarquia.js'
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaprocedimentos.css'
-
-const ORDEM_PLANOS = ['basico', 'classico', 'avancado', 'ultra']
-const ROTULO_PLANO = {
-    basico: 'Básico',
-    classico: 'Clássico',
-    avancado: 'Avançado',
-    ultra: 'Ultra',
-}
-
-const normalizarNome = (texto) =>
-    String(texto || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .trim()
-        .toUpperCase()
 
 const normalizarTextoBusca = (texto) =>
     String(texto || '')
@@ -44,29 +38,6 @@ const normalizarCodigo = (codigo) =>
     String(codigo || '')
         .trim()
         .toUpperCase()
-
-const mapearPlanos = (planos) => {
-    const resultado = { basico: null, classico: null, avancado: null, ultra: null }
-    const usados = new Set()
-
-    const buscar = (chave, matcher) => {
-        const encontrado = (planos || []).find((plano) => {
-            if (usados.has(plano.id)) return false
-            return matcher(normalizarNome(plano.nome))
-        })
-        if (encontrado) {
-            usados.add(encontrado.id)
-            resultado[chave] = { id: Number(encontrado.id), nome: encontrado.nome }
-        }
-    }
-
-    buscar('basico', (nome) => nome.includes('BASICO') || nome.includes('BASIC'))
-    buscar('classico', (nome) => nome.includes('CLASSICO'))
-    buscar('avancado', (nome) => nome.includes('AVANCADO'))
-    buscar('ultra', (nome) => nome.includes('ULTRA'))
-
-    return resultado
-}
 
 const Supertabelaprocedimentos = () => {
     const ALTURA_LINHA_TABELA = 42
@@ -150,11 +121,7 @@ const Supertabelaprocedimentos = () => {
         return 'ultra'
     }
 
-    const obterChavePlanoPorId = (planoId, mapaPlanosLocal) => {
-        const idNumerico = Number(planoId)
-        if (!idNumerico) return null
-        return ORDEM_PLANOS.find((chave) => Number(mapaPlanosLocal[chave]?.id) === idNumerico) || null
-    }
+    const obterChavePlanoPorIdLocal = (planoId, mapaPlanosLocal) => obterChavePlanoPorId(planoId, mapaPlanosLocal)
 
     const carregarBase = useCallback(async () => {
         try {
@@ -199,7 +166,7 @@ const Supertabelaprocedimentos = () => {
             const listaPlanos = planosData || []
             const listaProcedimentos = procedimentosData || []
             const mapaPlanosLocal = mapearPlanos(listaPlanos)
-            const idsPlanosMapeados = ORDEM_PLANOS
+            const idsPlanosMapeados = ORDEM_PLANOS_BASE_PROCEDIMENTOS
                 .map((chave) => mapaPlanosLocal[chave]?.id)
                 .filter(Boolean)
                 .map((id) => Number(id))
@@ -218,7 +185,7 @@ const Supertabelaprocedimentos = () => {
             const linhasMontadas = listaProcedimentos.map((item) => {
                 const codigo = String(item.codigo || '').toUpperCase()
                 const quantidadePlanos = mapaQuantidadePlanosPorProcedimento.get(codigo)?.size || 1
-                const chavePorPlanoBase = obterChavePlanoPorId(item.plano_base_id, mapaPlanosLocal)
+                const chavePorPlanoBase = obterChavePlanoPorIdLocal(item.plano_base_id, mapaPlanosLocal)
                 return {
                     rowId: `proc-${codigo}`,
                     codigo,
@@ -697,20 +664,19 @@ const Supertabelaprocedimentos = () => {
 
     const atualizarPlanoBaseProcedimento = async (linha, novaChavePlanoBase) => {
         const chaveAnterior = linha.planoBaseChave
-        const indiceBase = ORDEM_PLANOS.indexOf(novaChavePlanoBase)
-        if (indiceBase < 0) return
+        if (!ORDEM_PLANOS_BASE_PROCEDIMENTOS.includes(novaChavePlanoBase)) return
         const planoBaseId = Number(mapaPlanos[novaChavePlanoBase]?.id || 0)
         const planoBaseAnteriorId = Number(mapaPlanos[chaveAnterior]?.id || 0)
         if (!planoBaseId) {
-            mostrarErroToast('Não foi possível mapear o plano base selecionado.')
+            mostrarErroToast(
+                novaChavePlanoBase === CHAVE_PLANO_APENAS_LOJA
+                    ? 'Plano «Apenas loja» não encontrado na tabela de planos. Cadastre um plano com esse nome.'
+                    : 'Não foi possível mapear o plano base selecionado.',
+            )
             return
         }
 
-        const planoIdsPermitidos = ORDEM_PLANOS
-            .slice(indiceBase)
-            .map((chave) => mapaPlanos[chave]?.id)
-            .filter(Boolean)
-            .map((id) => Number(id))
+        const planoIdsPermitidos = obterPlanoIdsPermitidosDesdeChaveBase(novaChavePlanoBase, mapaPlanos)
 
         if (planoIdsPermitidos.length === 0) {
             mostrarErroToast('Não foi possível mapear os planos para aplicar o plano base.')
@@ -1122,7 +1088,7 @@ const Supertabelaprocedimentos = () => {
                                         }))
                                     }
                                 >
-                                    {ORDEM_PLANOS.map((chavePlano) => (
+                                    {ORDEM_PLANOS_BASE_PROCEDIMENTOS.map((chavePlano) => (
                                         <option key={`novo-plano-${chavePlano}`} value={chavePlano}>
                                             {ROTULO_PLANO[chavePlano]}
                                         </option>
@@ -1435,7 +1401,7 @@ const Supertabelaprocedimentos = () => {
                                                         atualizarPlanoBaseProcedimento(linha, event.target.value)
                                                     }
                                                 >
-                                                    {ORDEM_PLANOS.map((chavePlano) => (
+                                                    {ORDEM_PLANOS_BASE_PROCEDIMENTOS.map((chavePlano) => (
                                                         <option key={`${linha.codigo}-${chavePlano}`} value={chavePlano}>
                                                             {ROTULO_PLANO[chavePlano]}
                                                         </option>

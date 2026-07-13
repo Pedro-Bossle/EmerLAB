@@ -1,0 +1,43 @@
+# Emerdog SFSC — Supabase local / deploy (Edge Functions)
+# Docs: https://supabase.com/docs/guides/functions
+
+project_id = "emerdog-sfsc"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[functions]
+# Secrets: supabase secrets set --env-file supabase/.env.secrets
+# Deploy: supabase functions deploy <nome>
+
+[functions.cep-lookup]
+verify_jwt = false
+
+[functions.consulta-cnpj]
+verify_jwt = false
+
+[functions.map-osm]
+verify_jwt = false
+
+[functions.geocode-prestador]
+verify_jwt = true
+
+[functions.prospectos-coletar]
+verify_jwt = true

@@ -16,6 +16,7 @@ import {
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 import { calcularJanelaVirtualTabela, criarHandlerScrollVirtualTabela } from '../../../lib/tabelaVirtualScroll.js'
+import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planosHierarquia.js'
 
 const Supertabelamain = () => {
     const ALTURA_LINHA_TABELA = 42
@@ -175,7 +176,10 @@ const Supertabelamain = () => {
             }
 
             const cidadesLista = cidadesData || []
-            const planosLista = planosData || []
+            const planosLista = filtrarPlanosParaSelecaoGeral(
+                planosData || [],
+                mapearPlanos(planosData || []),
+            )
             const portesLista = portesData || []
 
             const idsFiltro = await buscarCidadeIdsFiltroPlanoCredenciados(

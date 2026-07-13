@@ -187,36 +187,117 @@ body.dark-mode .cred_prospectos_osm_page .cred_prospectos_osm_top {
     height: 30px;
 }
 
+.cred_prospectos_osm_prospectar_wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    min-width: 11.5rem;
+}
+
 .cred_prospectos_osm_btn_prospectar {
-    position: relative;
-    overflow: hidden;
-    min-width: 9.5rem;
-    isolation: isolate;
+    width: 100%;
+    min-width: 11.5rem;
 }
 
 .cred_prospectos_osm_btn_prospectar.is-coletando {
+    border-color: #0678b8;
+    background: #0a7dca;
+    color: #fff;
+    cursor: wait;
+    box-shadow: 0 0 0 2px rgba(10, 125, 202, 0.25);
+}
+
+.cred_prospectos_osm_coleta_progress {
+    padding: 6px 8px 7px;
+    background: #e8f2fa;
+    border: 1px solid #9ec4de;
+    border-radius: 8px;
+    box-shadow: inset 0 1px 2px rgba(30, 49, 72, 0.06);
+}
+
+.cred_prospectos_osm_coleta_progress_head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #1a4a6e;
+    line-height: 1.2;
+}
+
+.cred_prospectos_osm_coleta_progress_etapa {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cred_prospectos_osm_coleta_progress_pct {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    color: #0a5d96;
+}
+
+.cred_prospectos_osm_coleta_progress_track {
+    height: 10px;
+    border-radius: 999px;
+    background: #c5d9e8;
+    overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(30, 49, 72, 0.12);
+}
+
+.cred_prospectos_osm_coleta_progress_fill {
+    height: 100%;
+    min-width: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #0a7dca 0%, #12a36e 100%);
+    transition: width 0.45s ease-out;
+    box-shadow: 0 0 8px rgba(10, 125, 202, 0.35);
+}
+
+.cred_prospectos_osm_prospectar_wrap.is-coletando .cred_prospectos_osm_coleta_progress_fill {
+    animation: cred_prospectos_osm_progress_pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes cred_prospectos_osm_progress_pulse {
+    0%,
+    100% {
+        filter: brightness(1);
+    }
+    50% {
+        filter: brightness(1.08);
+    }
+}
+
+body.dark-mode .cred_prospectos_osm_btn_prospectar.is-coletando {
+    background: #1a8fd4;
+    border-color: #4eb0e8;
     color: #fff;
 }
 
-.cred_prospectos_osm_btn_prospectar_fill {
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 0;
-    background: rgba(255, 255, 255, 0.28);
-    border-right: 1px solid rgba(255, 255, 255, 0.35);
-    transition: width 0.35s ease;
-    pointer-events: none;
-    z-index: 0;
+body.dark-mode .cred_prospectos_osm_coleta_progress {
+    background: rgba(15, 35, 52, 0.85);
+    border-color: #3d5f7a;
 }
 
-.cred_prospectos_osm_btn_prospectar_label {
-    position: relative;
-    z-index: 1;
-    font-variant-numeric: tabular-nums;
+body.dark-mode .cred_prospectos_osm_coleta_progress_head {
+    color: #b8d4eb;
 }
 
-body.dark-mode .cred_prospectos_osm_btn_prospectar.is-coletando .cred_prospectos_osm_btn_prospectar_fill {
-    background: rgba(255, 255, 255, 0.22);
+body.dark-mode .cred_prospectos_osm_coleta_progress_pct {
+    color: #7ec8f5;
+}
+
+body.dark-mode .cred_prospectos_osm_coleta_progress_track {
+    background: #1e3344;
+}
+
+body.dark-mode .cred_prospectos_osm_coleta_progress_fill {
+    background: linear-gradient(90deg, #2a9fd9 0%, #2ec492 100%);
+    box-shadow: 0 0 10px rgba(42, 159, 217, 0.45);
 }
 
 .cred_prospectos_osm_header {

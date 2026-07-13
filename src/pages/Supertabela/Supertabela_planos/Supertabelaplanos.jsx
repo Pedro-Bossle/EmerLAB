@@ -34,6 +34,12 @@ import {
     normalizarMunicipioChave,
     salvarVinculosDaCidade,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
+import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planosHierarquia.js'
+import {
+    exportarTabelaPlanosDiferencasParaExcel,
+    exportarTabelaPlanosLimitesParaExcel,
+} from '../../../lib/exportSupertabelaExcel.js'
+import SupertabelaMenuFlutuante from '../../../components/Supertabela/SupertabelaMenuFlutuante.jsx'
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaplanos.css'
@@ -136,6 +142,7 @@ const Supertabelaplanos = () => {
     const [codigosInicializacaoPlanos, setCodigosInicializacaoPlanos] = useState('')
     const [adicaoMassaAtiva, setAdicaoMassaAtiva] = useState(false)
     const [progressoMassa, setProgressoMassa] = useState({ ativo: false, atual: 0, total: 0, label: '' })
+    const [exportandoExcelTela, setExportandoExcelTela] = useState(false)
 
     const [mostrarExclusaoListaModal, setMostrarExclusaoListaModal] = useState(false)
     const [codigosManterLista, setCodigosManterLista] = useState('')
@@ -301,7 +308,11 @@ const Supertabelaplanos = () => {
             const listaCidades = cidadesData || []
             setCidades(listaCidades)
             setMunicipiosVinculos(vinculos)
-            setPlanos(planosData || [])
+            const listaPlanos = filtrarPlanosParaSelecaoGeral(
+                planosData || [],
+                mapearPlanos(planosData || []),
+            )
+            setPlanos(listaPlanos)
             setCategorias(
                 (categoriasData || []).map((item) => ({
                     ...item,
@@ -330,12 +341,14 @@ const Supertabelaplanos = () => {
                 }
             }
 
-            const listaPlanos = planosData || []
             if (!cidadeId && opcoes.length > 0) {
                 setCidadeId(String(opcoes[0].cidadeId))
             }
             if (listaPlanos.length > 0) {
-                setPlanoDetalheId((prev) => prev || String(listaPlanos[0].id))
+                setPlanoDetalheId((prev) => {
+                    if (prev && listaPlanos.some((p) => String(p.id) === String(prev))) return prev
+                    return String(listaPlanos[0].id)
+                })
             }
         } catch (error) {
             setErroDetalhe(`Falha ao carregar dados base: ${error.message}`)
@@ -1100,6 +1113,37 @@ const Supertabelaplanos = () => {
         }
         return secoes
     }, [categorias, linhasFiltradas, ordenacaoPorCategoria, modoLimitacoes])
+
+    const baixarExcelTelaPlanos = async () => {
+        if (!cidadeId) {
+            mostrarErroToast('Selecione uma cidade para exportar.')
+            return
+        }
+        if (modoLimitacoes && !planoDetalheId) {
+            mostrarErroToast('Selecione um plano para exportar limites e carências.')
+            return
+        }
+        if (!secoesPorCategoria.length) {
+            mostrarErroToast('Não há procedimentos na tela para exportar (verifique filtros e busca).')
+            return
+        }
+        const cidadeSlug = cidadeSelecionada?.nome || cidadeId
+        const nomeBase = modoLimitacoes
+            ? `planos-limites-${cidadeSlug}-${planoDetalheNome}`
+            : `planos-diferencas-${cidadeSlug}`
+        setExportandoExcelTela(true)
+        try {
+            if (modoLimitacoes) {
+                await exportarTabelaPlanosLimitesParaExcel(secoesPorCategoria, nomeBase)
+            } else {
+                await exportarTabelaPlanosDiferencasParaExcel(secoesPorCategoria, nomeBase)
+            }
+        } catch (error) {
+            mostrarErroToast(`Erro ao exportar Excel: ${error.message}`)
+        } finally {
+            setExportandoExcelTela(false)
+        }
+    }
 
     const obterClasseProcedimento = (texto) => {
         const tamanho = String(texto || '').length
@@ -2658,6 +2702,20 @@ ou um código por linha`}
                     )
                 )}
             </div>
+            <SupertabelaMenuFlutuante
+                itens={[
+                    {
+                        id: 'excel',
+                        rotulo: 'Exportar Excel (.xlsx)',
+                        rotuloCarregando: 'Gerando Excel…',
+                        icone: '📊',
+                        carregando: exportandoExcelTela,
+                        disabled: !cidadeId || loading,
+                        onClick: () => void baixarExcelTelaPlanos(),
+                    },
+                ]}
+                ariaLabel='Ações da Super Tabela — Planos'
+            />
         </div>
     )
 }
