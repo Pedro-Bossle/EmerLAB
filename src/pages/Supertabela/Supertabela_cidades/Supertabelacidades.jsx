@@ -20,7 +20,7 @@ import {
     salvarVinculosDaCidade,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
 import { exportarTabelaCidadeParaExcel } from '../../../lib/exportNegociacaoExcel.js'
-import SupertabelaMenuFlutuante from '../../../components/Supertabela/SupertabelaMenuFlutuante.jsx'
+import ModalImpressaoHonorariosCidade from '../../../components/Supertabela/ModalImpressaoHonorariosCidade.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelacidades.css'
@@ -49,6 +49,7 @@ const Supertabelacidades = () => {
     const [mostrarGerenciarModal, setMostrarGerenciarModal] = useState(false)
     const [exportandoExcelCidadeId, setExportandoExcelCidadeId] = useState(null)
     const [exportandoExcelTela, setExportandoExcelTela] = useState(false)
+    const [modalPdfHonorariosAberto, setModalPdfHonorariosAberto] = useState(false)
     const [repassesResumo, setRepassesResumo] = useState([])
     const [cidadeDuplicarOrigem, setCidadeDuplicarOrigem] = useState(null)
     const [novoNomeCidadeDuplicada, setNovoNomeCidadeDuplicada] = useState('')
@@ -769,6 +770,18 @@ const Supertabelacidades = () => {
         }
     }
 
+    const abrirModalPdfHonorarios = () => {
+        if (!cidadeId) {
+            mostrarErroToast('Selecione uma cidade para exportar.')
+            return
+        }
+        if (!secoesPorCategoria.length) {
+            mostrarErroToast('Não há procedimentos na tela para exportar (verifique filtros e busca).')
+            return
+        }
+        setModalPdfHonorariosAberto(true)
+    }
+
     const cidadesGerenciaveis = useMemo(() => {
         const mapaProcedimentosAtivos = new Map()
 
@@ -1409,6 +1422,25 @@ const Supertabelacidades = () => {
                             <span>Adição em massa</span>
                         </label>
                     )}
+
+                    <button
+                        type='button'
+                        className='supertabelacidades_action_btn'
+                        disabled={!cidadeId || loading || exportandoExcelTela}
+                        onClick={() => void baixarExcelTelaCidades()}
+                    >
+                        <span className='ico'>📊</span>{' '}
+                        {exportandoExcelTela ? 'Gerando Excel…' : 'Exportar Excel'}
+                    </button>
+
+                    <button
+                        type='button'
+                        className='supertabelacidades_action_btn'
+                        disabled={!cidadeId || loading || exportandoExcelTela}
+                        onClick={abrirModalPdfHonorarios}
+                    >
+                        <span className='ico'>📄</span> Exportar PDF
+                    </button>
                 </div>
 
                 {adicaoMassaAtiva && (
@@ -1701,19 +1733,13 @@ ou um código por linha`}
                     ))
                 )}
             </div>
-            <SupertabelaMenuFlutuante
-                itens={[
-                    {
-                        id: 'excel',
-                        rotulo: 'Exportar Excel (.xlsx)',
-                        rotuloCarregando: 'Gerando Excel…',
-                        icone: '📊',
-                        carregando: exportandoExcelTela,
-                        disabled: !cidadeId || loading,
-                        onClick: () => void baixarExcelTelaCidades(),
-                    },
-                ]}
-                ariaLabel='Ações da Super Tabela — Cidades'
+
+            <ModalImpressaoHonorariosCidade
+                aberto={modalPdfHonorariosAberto}
+                onClose={() => setModalPdfHonorariosAberto(false)}
+                cidadeNome={cidadeSelecionada?.nome || ''}
+                secoes={secoesPorCategoria}
+                onErro={(mensagem) => mostrarErroToast(mensagem)}
             />
         </div>
     )

@@ -1,0 +1,194 @@
+.sih_modal_backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+    background: rgba(18, 32, 48, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+}
+
+.sih_modal {
+    width: min(920px, 100%);
+    max-height: min(88vh, 860px);
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    border: 1px solid #b9d4c8;
+    background: #fff;
+    box-shadow: 0 16px 40px rgba(30, 49, 72, 0.28);
+    overflow: hidden;
+}
+
+.sih_modal_head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px 8px;
+    border-bottom: 1px solid #e4eef5;
+}
+
+.sih_modal_head h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #15364f;
+}
+
+.sih_modal_close {
+    border: none;
+    background: transparent;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    color: #5a7388;
+    padding: 2px 6px;
+}
+
+.sih_modal_sub {
+    margin: 0;
+    padding: 8px 18px 0;
+    color: #5a7388;
+    font-size: 0.88rem;
+}
+
+.sih_modal_vazio {
+    margin: 16px 18px;
+    color: #5a7388;
+}
+
+.sih_honorarios_scroll {
+    flex: 1;
+    overflow: auto;
+    padding: 12px 18px;
+}
+
+.sih_honorarios_cat {
+    margin-bottom: 1.25rem;
+}
+
+.sih_honorarios_cat h4 {
+    margin: 0 0 8px;
+    font-size: 0.95rem;
+    color: #1e4d7a;
+}
+
+.sih_honorarios_table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.sih_honorarios_table th,
+.sih_honorarios_table td {
+    border: 1px solid #dce8f2;
+    padding: 6px 8px;
+    text-align: left;
+}
+
+.sih_honorarios_table th {
+    background: #f0f6fb;
+}
+
+.sih_honorarios_th_sort {
+    white-space: nowrap;
+}
+
+.sih_honorarios_th_sort button {
+    border: none;
+    background: transparent;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+    color: inherit;
+}
+
+.sih_honorarios_link {
+    border: none;
+    background: transparent;
+    font-size: 0.72rem;
+    color: #0a74bb;
+    cursor: pointer;
+    padding: 0 2px;
+    font-weight: 600;
+}
+
+.sih_modal_foot {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding: 12px 18px 16px;
+    border-top: 1px solid #e4eef5;
+}
+
+.sih_btn_primario,
+.sih_btn_secundario {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.88rem;
+    cursor: pointer;
+}
+
+.sih_btn_primario {
+    border: 1px solid #2f7a4f;
+    background: #3d8f5c;
+    color: #fff;
+}
+
+.sih_btn_primario:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.sih_btn_secundario {
+    border: 1px solid #b8d3e5;
+    background: #f4f8fb;
+    color: #15364f;
+}
+
+body.dark-mode .sih_modal {
+    background: #1a2a38;
+    border-color: #3d5a6e;
+}
+
+body.dark-mode .sih_modal_head,
+body.dark-mode .sih_modal_foot {
+    border-color: #3d5a6e;
+}
+
+body.dark-mode .sih_modal_head h3,
+body.dark-mode .sih_btn_secundario {
+    color: #e8f2f8;
+}
+
+body.dark-mode .sih_modal_sub,
+body.dark-mode .sih_modal_vazio {
+    color: #a8c4d8;
+}
+
+body.dark-mode .sih_honorarios_cat h4 {
+    color: #9ec8ef;
+}
+
+body.dark-mode .sih_honorarios_table th,
+body.dark-mode .sih_honorarios_table td {
+    border-color: #3d5a6e;
+    color: #e8f2f8;
+}
+
+body.dark-mode .sih_honorarios_table th {
+    background: #243545;
+}
+
+body.dark-mode .sih_honorarios_th_sort button,
+body.dark-mode .sih_honorarios_link {
+    color: #9ec8ef;
+}
+
+body.dark-mode .sih_btn_secundario {
+    background: #243545;
+    border-color: #3d5a6e;
+}

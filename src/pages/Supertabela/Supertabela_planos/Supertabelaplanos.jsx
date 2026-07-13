@@ -39,7 +39,6 @@ import {
     exportarTabelaPlanosDiferencasParaExcel,
     exportarTabelaPlanosLimitesParaExcel,
 } from '../../../lib/exportSupertabelaExcel.js'
-import SupertabelaMenuFlutuante from '../../../components/Supertabela/SupertabelaMenuFlutuante.jsx'
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaplanos.css'
@@ -1994,6 +1993,16 @@ const Supertabelaplanos = () => {
                         </button>
                     )}
 
+                    <button
+                        type='button'
+                        className='supertabelaplanos_action_btn'
+                        disabled={!cidadeId || loading || exportandoExcelTela}
+                        onClick={() => void baixarExcelTelaPlanos()}
+                    >
+                        <span className='supertabelaplanos_action_btn_ico'>📊</span>{' '}
+                        {exportandoExcelTela ? 'Gerando Excel…' : 'Exportar Excel'}
+                    </button>
+
                     <div className='supertabelaplanos_filter_item supertabelaplanos_filter_mode'>
                         <p className='supertabelaplanos_filter_mode_label'>Visualização</p>
                         <div className='supertabelaplanos_mode_rail' role='group' aria-label='Tipo de visualização da tabela'>
@@ -2702,20 +2711,6 @@ ou um código por linha`}
                     )
                 )}
             </div>
-            <SupertabelaMenuFlutuante
-                itens={[
-                    {
-                        id: 'excel',
-                        rotulo: 'Exportar Excel (.xlsx)',
-                        rotuloCarregando: 'Gerando Excel…',
-                        icone: '📊',
-                        carregando: exportandoExcelTela,
-                        disabled: !cidadeId || loading,
-                        onClick: () => void baixarExcelTelaPlanos(),
-                    },
-                ]}
-                ariaLabel='Ações da Super Tabela — Planos'
-            />
         </div>
     )
 }

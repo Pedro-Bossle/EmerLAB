@@ -1,17 +1,14 @@
 import { rgb } from 'pdf-lib'
 import { embedMontserratNoPdf } from '../impressaoPlanos/montserratPdfFonts.js'
+import { formatarCarimboDataHora } from '../pdf/formatarCarimboEmissao.js'
+
+export { formatarCarimboDataHora }
 
 /** Mesmas constantes de posição/estilo do PDF de planos (`gerarImpressaoPlanosPdf.js`). */
 const MARGIN_X = 42
 const FONT_SIZE_STAMP = 7
 const COR_STAMP = rgb(0.72, 0.72, 0.72)
 const GAP_CARIMBO = 12
-
-export function formatarCarimboDataHora() {
-    const d = new Date()
-    const p = (n) => String(n).padStart(2, '0')
-    return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`
-}
 
 /** Lista de cidades selecionadas no gerador, separadas por vírgula. */
 export function formatarCidadesContempladasRc(cidades = []) {
