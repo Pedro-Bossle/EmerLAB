@@ -1422,3 +1422,99 @@
         font-size: 0.82rem;
     }
 }
+
+.supertabelacidades_nome_com_flag {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.supertabelacidades_flag_loja {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    line-height: 1.3;
+    color: #6b4a12;
+    background: #fff3d6;
+    border: 1px solid #e6c96a;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.supertabelacidades_th_centro,
+.supertabelacidades_td_centro {
+    text-align: center;
+}
+
+.supertabelacidades_td_prestadores {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--azul-escuro);
+    text-align: center;
+}
+
+.supertabelacidades_sugestoes_rede {
+    margin: 1.75rem auto 1.25rem;
+    max-width: 1416px;
+    width: 100%;
+    text-align: left;
+    box-sizing: border-box;
+}
+
+.supertabelacidades_sugestoes_rede_head {
+    margin-bottom: 0.65rem;
+}
+
+.supertabelacidades_sugestoes_rede_head .categoria_titulo {
+    margin-bottom: 0.35rem;
+}
+
+.supertabelacidades_sugestoes_rede_hint {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.4;
+    color: #5a7a94;
+}
+
+.supertabelacidades_sugestoes_rede_hint code {
+    font-size: 0.8rem;
+}
+
+.supertabelacidades_sugestoes_rede_vazio {
+    margin: 0.5rem 0 0;
+    font-size: 0.88rem;
+    color: #6a8499;
+}
+
+.supertabelacidades_sugestoes_add_btn {
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--azul-destaque);
+    background: var(--azul-destaque);
+    color: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.supertabelacidades_sugestoes_add_btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+body.dark-mode .supertabelacidades_td_prestadores {
+    color: var(--azul-claro);
+}
+
+body.dark-mode .supertabelacidades_sugestoes_rede_hint,
+body.dark-mode .supertabelacidades_sugestoes_rede_vazio {
+    color: #9ab0c4;
+}

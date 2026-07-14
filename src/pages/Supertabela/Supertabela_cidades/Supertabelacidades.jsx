@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
-import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
+import { PERMISSION_KEYS, hasStoredDevTools, hasStoredPermission } from '../../../lib/accessControl'
+import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
 import { normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
 import { filtrarLinhaSupertabelaPorBusca, partesValoresLinhaSupertabela } from '../../../lib/supertabelaBuscaValores.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
@@ -20,6 +20,16 @@ import {
     normalizarMunicipioChave,
     salvarVinculosDaCidade,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
+import {
+    CHAVE_PLANO_APENAS_LOJA,
+    mapearPlanos,
+    procedimentoPlanoBaseApenasLoja,
+    ROTULO_PLANO,
+} from '../../../lib/planosHierarquia.js'
+import {
+    carregarContagemESugestoesRealizadoresPlanos,
+    montarCidadesAlvoTabelaPlanos,
+} from '../../../lib/impressaoPlanos/contagemRealizadoresPlanosDev.js'
 import { exportarTabelaCidadeParaExcel } from '../../../lib/exportNegociacaoExcel.js'
 import ModalImpressaoHonorariosCidade from '../../../components/Supertabela/ModalImpressaoHonorariosCidade.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
@@ -28,6 +38,10 @@ import './Supertabelacidades.css'
 
 const Supertabelacidades = () => {
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
+    const { ui: devToolsUi } = useDevToolsUi()
+    const buscaNotAtiva = useBuscaNotAtiva()
+    const mostrarContagemRealizadores =
+        hasStoredDevTools() && !!devToolsUi.contagemRealizadoresPlanos
     const [cidades, setCidades] = useState([])
     const [municipiosVinculos, setMunicipiosVinculos] = useState([])
     const [suportaVinculosMunicipios, setSuportaVinculosMunicipios] = useState(true)
@@ -36,6 +50,7 @@ const Supertabelacidades = () => {
     const [categorias, setCategorias] = useState([])
     const [portes, setPortes] = useState([])
     const [procedimentos, setProcedimentos] = useState([])
+    const [planosTodos, setPlanosTodos] = useState([])
     const [linhas, setLinhas] = useState([])
 
     const [cidadeId, setCidadeId] = useState('')
@@ -45,7 +60,12 @@ const Supertabelacidades = () => {
     const [erroDetalhe, setErroDetalhe] = useState('')
     const [headerCompacto, setHeaderCompacto] = useState(false)
     const [ordenacaoPorCategoria, setOrdenacaoPorCategoria] = useState({})
-    const buscaNotAtiva = useBuscaNotAtiva()
+    const [contagemRealizadoresPorCodigo, setContagemRealizadoresPorCodigo] = useState(() => new Map())
+    const [nomesRealizadoresPorCodigo, setNomesRealizadoresPorCodigo] = useState(() => new Map())
+    const [sugestoesRealizadores, setSugestoesRealizadores] = useState([])
+    const [carregandoContagemRealizadores, setCarregandoContagemRealizadores] = useState(false)
+    const [adicionandoSugestaoCodigo, setAdicionandoSugestaoCodigo] = useState('')
+    const [valoresEdicaoSugestoes, setValoresEdicaoSugestoes] = useState({})
 
     const [mostrarGerenciarModal, setMostrarGerenciarModal] = useState(false)
     const [exportandoExcelCidadeId, setExportandoExcelCidadeId] = useState(null)
@@ -146,6 +166,7 @@ const Supertabelacidades = () => {
                 { data: categoriasData, error: errCategorias },
                 { data: portesData, error: errPortes },
                 { data: procedimentosData, error: errProcedimentos },
+                { data: planosData, error: errPlanos },
             ] = await Promise.all([
                 supabase.from('cidades').select('id, nome, uf').order('nome', { ascending: true }),
                 supabase.from('categorias').select('id, nome').gte('id', 3).lte('id', 25).order('id', { ascending: true }),
@@ -153,9 +174,10 @@ const Supertabelacidades = () => {
                 buscarTodosPaginado(() =>
                     supabase
                         .from('procedimentos')
-                        .select('codigo, nome, categoria_id')
+                        .select('codigo, nome, categoria_id, plano_base_id')
                         .order('codigo', { ascending: true })
                 ),
+                supabase.from('planos').select('id, nome').order('id'),
             ])
 
             let vinculos = []
@@ -171,8 +193,14 @@ const Supertabelacidades = () => {
                 }
             }
 
-            if (errCidades || errCategorias || errPortes || errProcedimentos) {
-                const detalhes = [errCidades?.message, errCategorias?.message, errPortes?.message, errProcedimentos?.message]
+            if (errCidades || errCategorias || errPortes || errProcedimentos || errPlanos) {
+                const detalhes = [
+                    errCidades?.message,
+                    errCategorias?.message,
+                    errPortes?.message,
+                    errProcedimentos?.message,
+                    errPlanos?.message,
+                ]
                     .filter(Boolean)
                     .join(' | ')
                 setErroDetalhe(`Erro ao carregar dados base: ${detalhes}`)
@@ -185,6 +213,7 @@ const Supertabelacidades = () => {
             setCategorias(categoriasData || [])
             setPortes(portesData || [])
             setProcedimentos(procedimentosData || [])
+            setPlanosTodos(planosData || [])
 
             const idsFiltro = await buscarCidadeIdsFiltroPlanoCredenciados(
                 supabase,
@@ -233,17 +262,23 @@ const Supertabelacidades = () => {
             const codigos = [...new Set(repasses.map((item) => String(item.procedimento_id)))]
             const { data: procedimentosData, error: errProcedimentos } = await supabase
                 .from('procedimentos')
-                .select('codigo, nome, categoria_id')
+                .select('codigo, nome, categoria_id, plano_base_id')
                 .in('codigo', codigos)
 
             if (errProcedimentos) {
                 throw new Error(errProcedimentos.message)
             }
 
+            const mapaPlanosCompletoLocal = mapearPlanos(planosTodos)
             const mapaProcedimentos = new Map(
                 (procedimentosData || []).map((item) => [
                     String(item.codigo),
-                    { nome: String(item.nome), categoriaId: item.categoria_id },
+                    {
+                        nome: String(item.nome),
+                        categoriaId: item.categoria_id,
+                        planoBaseId: item.plano_base_id,
+                        apenasLoja: procedimentoPlanoBaseApenasLoja(item.plano_base_id, mapaPlanosCompletoLocal),
+                    },
                 ]),
             )
 
@@ -262,22 +297,27 @@ const Supertabelacidades = () => {
             const porteIdM = obterPorteIdPorLetra('M')
             const porteIdG = obterPorteIdPorLetra('G')
 
-            return [...mapaRepasses.entries()].map(([codigo, valoresPorPorte]) => ({
-                codigo,
-                procedimento: mapaProcedimentos.get(codigo)?.nome || codigo,
-                categoriaId: mapaProcedimentos.get(codigo)?.categoriaId || null,
-                porteP: porteIdP ? Number(valoresPorPorte[porteIdP]?.valor || 0) : 0,
-                porteM: porteIdM ? Number(valoresPorPorte[porteIdM]?.valor || 0) : 0,
-                porteG: porteIdG ? Number(valoresPorPorte[porteIdG]?.valor || 0) : 0,
-                repasseIdP: porteIdP ? valoresPorPorte[porteIdP]?.repasseId || null : null,
-                repasseIdM: porteIdM ? valoresPorPorte[porteIdM]?.repasseId || null : null,
-                repasseIdG: porteIdG ? valoresPorPorte[porteIdG]?.repasseId || null : null,
-                porteIdP,
-                porteIdM,
-                porteIdG,
-            }))
+            return [...mapaRepasses.entries()].map(([codigo, valoresPorPorte]) => {
+                const meta = mapaProcedimentos.get(codigo) || {}
+                return {
+                    codigo,
+                    procedimento: meta.nome || codigo,
+                    categoriaId: meta.categoriaId || null,
+                    planoBaseId: meta.planoBaseId || null,
+                    apenasLoja: !!meta.apenasLoja,
+                    porteP: porteIdP ? Number(valoresPorPorte[porteIdP]?.valor || 0) : 0,
+                    porteM: porteIdM ? Number(valoresPorPorte[porteIdM]?.valor || 0) : 0,
+                    porteG: porteIdG ? Number(valoresPorPorte[porteIdG]?.valor || 0) : 0,
+                    repasseIdP: porteIdP ? valoresPorPorte[porteIdP]?.repasseId || null : null,
+                    repasseIdM: porteIdM ? valoresPorPorte[porteIdM]?.repasseId || null : null,
+                    repasseIdG: porteIdG ? valoresPorPorte[porteIdG]?.repasseId || null : null,
+                    porteIdP,
+                    porteIdM,
+                    porteIdG,
+                }
+            })
         },
-        [portes],
+        [portes, planosTodos],
     )
 
     const buscarTabelaCidade = useCallback(async () => {
@@ -311,6 +351,8 @@ const Supertabelacidades = () => {
         })
     }, [linhas, termoBusca, categorias, buscaNotAtiva])
 
+    const mapaPlanosCompleto = useMemo(() => mapearPlanos(planosTodos), [planosTodos])
+
     const handleOrdenarCategoria = (categoriaId, coluna) => {
         setOrdenacaoPorCategoria((anterior) => {
             const atual = anterior[categoriaId] || { coluna: 'codigo', direcao: 'asc' }
@@ -334,8 +376,14 @@ const Supertabelacidades = () => {
         const fator = atual.direcao === 'asc' ? 1 : -1
 
         resultado.sort((a, b) => {
-            const valorA = a[atual.coluna]
-            const valorB = b[atual.coluna]
+            let valorA = a[atual.coluna]
+            let valorB = b[atual.coluna]
+            if (atual.coluna === 'prestadores') {
+                const codA = String(a.codigo || '').trim().toUpperCase()
+                const codB = String(b.codigo || '').trim().toUpperCase()
+                valorA = Number(contagemRealizadoresPorCodigo.get(codA) || 0)
+                valorB = Number(contagemRealizadoresPorCodigo.get(codB) || 0)
+            }
             if (typeof valorA === 'number' && typeof valorB === 'number') {
                 return (valorA - valorB) * fator
             }
@@ -357,12 +405,12 @@ const Supertabelacidades = () => {
                     ),
                 }))
                 .filter((secao) => secao.linhas.length > 0),
-        [categorias, ordenacaoPorCategoria],
+        [categorias, ordenacaoPorCategoria, contagemRealizadoresPorCodigo],
     )
 
     const secoesPorCategoria = useMemo(
         () => montarSecoesExportDeLinhas(linhasFiltradas),
-        [linhasFiltradas, montarSecoesExportDeLinhas],
+        [linhasFiltradas, montarSecoesExportDeLinhas, contagemRealizadoresPorCodigo, ordenacaoPorCategoria],
     )
 
     const totalProcedimentosPorCategoria = useMemo(() => {
@@ -607,7 +655,17 @@ const Supertabelacidades = () => {
                                 setNovoProcedimentoSelecionadoCodigo(item.codigo)
                             }}
                         >
-                            <span>{item.nome}</span>
+                            <span className='supertabelacidades_nome_com_flag'>
+                                {item.nome}
+                                {procedimentoPlanoBaseApenasLoja(item.plano_base_id, mapaPlanosCompleto) ? (
+                                    <span
+                                        className='supertabelacidades_flag_loja'
+                                        title={ROTULO_PLANO[CHAVE_PLANO_APENAS_LOJA]}
+                                    >
+                                        Loja
+                                    </span>
+                                ) : null}
+                            </span>
                             <small>{item.codigo}</small>
                         </button>
                     ))
@@ -700,6 +758,8 @@ const Supertabelacidades = () => {
                     codigo: codigoNormalizado,
                     procedimento: String(encontrado.nome || codigoNormalizado),
                     categoriaId: encontrado.categoria_id,
+                    planoBaseId: encontrado.plano_base_id != null ? Number(encontrado.plano_base_id) : null,
+                    apenasLoja: procedimentoPlanoBaseApenasLoja(encontrado.plano_base_id, mapaPlanosCompleto),
                     porteP: porteIdP ? Number(mapaPorPorte.get(String(porteIdP))?.valor || 0) : 0,
                     porteM: porteIdM ? Number(mapaPorPorte.get(String(porteIdM))?.valor || 0) : 0,
                     porteG: porteIdG ? Number(mapaPorPorte.get(String(porteIdG))?.valor || 0) : 0,
@@ -753,6 +813,161 @@ const Supertabelacidades = () => {
         () => cidades.find((c) => String(c.id) === String(cidadeId)) || null,
         [cidades, cidadeId],
     )
+
+    const vinculosDaCidadeSelecionada = useMemo(() => {
+        const cid = Number(cidadeId)
+        if (!cid) return []
+        return (municipiosVinculos || []).filter((v) => Number(v.cidade_id) === cid)
+    }, [municipiosVinculos, cidadeId])
+
+    const codigosNaTabelaCidade = useMemo(
+        () => [...new Set(linhas.map((l) => String(l.codigo || '').trim().toUpperCase()).filter(Boolean))],
+        [linhas],
+    )
+
+    useEffect(() => {
+        if (!mostrarContagemRealizadores || !cidadeId || !cidadeSelecionada) {
+            setContagemRealizadoresPorCodigo(new Map())
+            setNomesRealizadoresPorCodigo(new Map())
+            setSugestoesRealizadores([])
+            setCarregandoContagemRealizadores(false)
+            return undefined
+        }
+
+        let cancelado = false
+        const run = async () => {
+            setCarregandoContagemRealizadores(true)
+            try {
+                const cidadesAlvo = montarCidadesAlvoTabelaPlanos(
+                    cidadeSelecionada,
+                    vinculosDaCidadeSelecionada,
+                )
+                const { contagemPorCodigo, nomesPorCodigo, sugestoes } =
+                    await carregarContagemESugestoesRealizadoresPlanos(supabase, {
+                        cidadesAlvo,
+                        incluirCidadesParalelas: true,
+                        codigosNaTabela: codigosNaTabelaCidade,
+                    })
+                if (cancelado) return
+                setContagemRealizadoresPorCodigo(contagemPorCodigo)
+                setNomesRealizadoresPorCodigo(nomesPorCodigo)
+                setSugestoesRealizadores(sugestoes)
+            } catch (error) {
+                if (cancelado) return
+                setContagemRealizadoresPorCodigo(new Map())
+                setNomesRealizadoresPorCodigo(new Map())
+                setSugestoesRealizadores([])
+                setErroDetalhe(`Falha ao contar realizadores: ${error?.message || 'erro desconhecido'}`)
+            } finally {
+                if (!cancelado) setCarregandoContagemRealizadores(false)
+            }
+        }
+        void run()
+        return () => {
+            cancelado = true
+        }
+    }, [
+        mostrarContagemRealizadores,
+        cidadeId,
+        cidadeSelecionada,
+        vinculosDaCidadeSelecionada,
+        codigosNaTabelaCidade,
+    ])
+
+    const qtdPrestadoresCodigo = (codigo) => {
+        const cod = String(codigo || '').trim().toUpperCase()
+        return Number(contagemRealizadoresPorCodigo.get(cod) || 0)
+    }
+
+    const nomesPrestadoresCodigo = (codigo) => {
+        const cod = String(codigo || '').trim().toUpperCase()
+        return nomesRealizadoresPorCodigo.get(cod) || []
+    }
+
+    const renderCelulaPrestadores = (codigo, qtdOverride = null, nomesOverride = null) => {
+        const qtd = qtdOverride != null ? Number(qtdOverride) : qtdPrestadoresCodigo(codigo)
+        const nomes = nomesOverride || nomesPrestadoresCodigo(codigo)
+        if (carregandoContagemRealizadores && qtdOverride == null) {
+            return (
+                <td className='supertabelacidades_td_centro supertabelacidades_td_prestadores'>…</td>
+            )
+        }
+        if (!qtd) {
+            return <td className='supertabelacidades_td_centro supertabelacidades_td_prestadores'>0</td>
+        }
+        return (
+            <td className='supertabelacidades_td_centro supertabelacidades_td_prestadores'>
+                <span title={(nomes || []).join(', ')}>{qtd}</span>
+            </td>
+        )
+    }
+
+    const adicionarSugestaoNaTabela = async (item) => {
+        const codigoNormalizado = String(item?.codigo || '').trim().toUpperCase()
+        if (!codigoNormalizado || somenteLeitura || !cidadeId) return
+
+        const paresPorte = [
+            { letra: 'P', campo: 'porteP' },
+            { letra: 'M', campo: 'porteM' },
+            { letra: 'G', campo: 'porteG' },
+        ]
+        const drafts = valoresEdicaoSugestoes[codigoNormalizado] || {}
+        const payload = []
+        for (const { letra, campo } of paresPorte) {
+            const porteId = obterPorteIdPorLetra(letra)
+            if (!porteId) continue
+            const bruto = drafts[campo]
+            let valor = 0
+            if (bruto != null && String(bruto).trim() !== '') {
+                valor = normalizarNumeroEntrada(bruto)
+                if (Number.isNaN(valor)) {
+                    mostrarErroToast(`Valor inválido em Porte ${letra} para ${codigoNormalizado}.`)
+                    return
+                }
+            }
+            payload.push({
+                cidade_id: Number(cidadeId),
+                procedimento_id: codigoNormalizado,
+                porte_id: Number(porteId),
+                valor,
+            })
+        }
+        if (payload.length === 0) {
+            mostrarErroToast('Portes P/M/G não encontrados para criação do procedimento.')
+            return
+        }
+
+        setAdicionandoSugestaoCodigo(codigoNormalizado)
+        try {
+            const { error } = await supabase
+                .from('repasses')
+                .upsert(payload, { onConflict: 'procedimento_id,cidade_id,porte_id' })
+            if (error) {
+                mostrarErroToast(`Erro ao adicionar procedimento: ${error.message}`)
+                return
+            }
+            setValoresEdicaoSugestoes((anterior) => {
+                const proximo = { ...anterior }
+                delete proximo[codigoNormalizado]
+                return proximo
+            })
+            await buscarTabelaCidade()
+        } finally {
+            setAdicionandoSugestaoCodigo('')
+        }
+    }
+
+    const atualizarValorEdicaoSugestao = (codigo, campo, valor) => {
+        const codigoNormalizado = String(codigo || '').trim().toUpperCase()
+        if (!codigoNormalizado) return
+        setValoresEdicaoSugestoes((anterior) => ({
+            ...anterior,
+            [codigoNormalizado]: {
+                ...(anterior[codigoNormalizado] || {}),
+                [campo]: valor,
+            },
+        }))
+    }
 
     const baixarExcelTelaCidades = async () => {
         if (!cidadeId) {
@@ -1583,7 +1798,18 @@ ou um código por linha`}
                             <table className='table_main'>
                                 <colgroup>
                                     <col style={{ width: '11%' }} />
-                                    <col style={{ width: somenteLeitura ? '44%' : '36%' }} />
+                                    <col
+                                        style={{
+                                            width: mostrarContagemRealizadores
+                                                ? somenteLeitura
+                                                    ? '36%'
+                                                    : '30%'
+                                                : somenteLeitura
+                                                  ? '44%'
+                                                  : '36%',
+                                        }}
+                                    />
+                                    {mostrarContagemRealizadores && <col style={{ width: '8%' }} />}
                                     <col style={{ width: '15%' }} />
                                     <col style={{ width: '15%' }} />
                                     <col style={{ width: '15%' }} />
@@ -1597,6 +1823,18 @@ ou um código por linha`}
                                         <th className='table_header' onClick={() => handleOrdenarCategoria(secao.categoriaId, 'procedimento')}>
                                             Procedimento{obterIndicadorOrdenacao(secao.categoriaId, 'procedimento')}
                                         </th>
+                                        {mostrarContagemRealizadores && (
+                                            <th
+                                                className='table_header supertabelacidades_th_centro'
+                                                onClick={() =>
+                                                    handleOrdenarCategoria(secao.categoriaId, 'prestadores')
+                                                }
+                                                title='Credenciados na região (inclui cidades paralelas), mesmo critério da impressão de planos'
+                                            >
+                                                Prestadores
+                                                {obterIndicadorOrdenacao(secao.categoriaId, 'prestadores')}
+                                            </th>
+                                        )}
                                         <th className='table_header' onClick={() => handleOrdenarCategoria(secao.categoriaId, 'porteP')}>
                                             Porte P{obterIndicadorOrdenacao(secao.categoriaId, 'porteP')}
                                         </th>
@@ -1613,7 +1851,21 @@ ou um código por linha`}
                                     {secao.linhas.map((linha, linhaIndex) => (
                                         <tr key={`${secao.categoriaId}-${linha.codigo}`}>
                                             <td className='table_text_left'>{linha.codigo}</td>
-                                            <td className='table_text_left'>{linha.procedimento}</td>
+                                            <td className='table_text_left'>
+                                                <span className='supertabelacidades_nome_com_flag'>
+                                                    {linha.procedimento}
+                                                    {linha.apenasLoja ? (
+                                                        <span
+                                                            className='supertabelacidades_flag_loja'
+                                                            title={ROTULO_PLANO[CHAVE_PLANO_APENAS_LOJA]}
+                                                        >
+                                                            Loja
+                                                        </span>
+                                                    ) : null}
+                                                </span>
+                                            </td>
+                                            {mostrarContagemRealizadores &&
+                                                renderCelulaPrestadores(linha.codigo)}
                                             <td>
                                                 {edicaoAtiva ? (
                                                     <input
@@ -1678,7 +1930,12 @@ ou um código por linha`}
                                         </tr>
                                     ))}
                                     <tr className='row_add_line'>
-                                        <td colSpan={somenteLeitura ? 5 : 6}>
+                                        <td
+                                            colSpan={
+                                                (somenteLeitura ? 5 : 6) +
+                                                (mostrarContagemRealizadores ? 1 : 0)
+                                            }
+                                        >
                                             {categoriaEmInclusao === secao.categoriaId ? (
                                                 <div className='row_add_inline'>
                                                     <div
@@ -1737,6 +1994,180 @@ ou um código por linha`}
                         </section>
                     ))
                 )}
+
+                {mostrarContagemRealizadores && !loading && cidadeId ? (
+                    <section className='supertabelacidades_sugestoes_rede' aria-live='polite'>
+                        <div className='supertabelacidades_sugestoes_rede_head'>
+                            <h2 className='categoria_titulo'>Sugestões — com realizador, fora da tabela</h2>
+                            <p className='supertabelacidades_sugestoes_rede_hint'>
+                                Procedimentos no perfil de credenciados da região (cidade + paralelas), no mesmo critério
+                                da impressão de planos, que ainda não estão em <code>repasses</code> desta cidade.
+                                Com a edição ativa, informe os valores de porte antes de clicar em Adicionar (vazio = 0).
+                                {carregandoContagemRealizadores ? ' A carregar contagens…' : ''}
+                            </p>
+                        </div>
+                        {!carregandoContagemRealizadores && sugestoesRealizadores.length === 0 ? (
+                            <p className='supertabelacidades_sugestoes_rede_vazio'>
+                                Nenhuma sugestão para a cidade atual.
+                            </p>
+                        ) : (
+                            <table className='table_main'>
+                                <colgroup>
+                                    <col style={{ width: '12%' }} />
+                                    <col style={{ width: somenteLeitura ? '40%' : '32%' }} />
+                                    <col style={{ width: '10%' }} />
+                                    <col style={{ width: '12%' }} />
+                                    <col style={{ width: '12%' }} />
+                                    <col style={{ width: '12%' }} />
+                                    {!somenteLeitura && <col style={{ width: '10%' }} />}
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th className='table_header table_header_no_sort'>Código</th>
+                                        <th className='table_header table_header_no_sort'>Nome</th>
+                                        <th className='table_header table_header_no_sort supertabelacidades_th_centro'>
+                                            Prestadores
+                                        </th>
+                                        <th className='table_header table_header_no_sort'>Porte P</th>
+                                        <th className='table_header table_header_no_sort'>Porte M</th>
+                                        <th className='table_header table_header_no_sort'>Porte G</th>
+                                        {!somenteLeitura && (
+                                            <th className='table_header table_header_no_sort'>Ação</th>
+                                        )}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sugestoesRealizadores.map((item) => (
+                                        <tr key={`sug-rede-${item.codigo}`}>
+                                            <td className='table_text_left'>{item.codigo}</td>
+                                            <td className='table_text_left'>
+                                                <span className='supertabelacidades_nome_com_flag'>
+                                                    {item.nome}
+                                                    {procedimentoPlanoBaseApenasLoja(
+                                                        item.planoBaseId,
+                                                        mapaPlanosCompleto,
+                                                    ) ? (
+                                                        <span
+                                                            className='supertabelacidades_flag_loja'
+                                                            title={ROTULO_PLANO[CHAVE_PLANO_APENAS_LOJA]}
+                                                        >
+                                                            Loja
+                                                        </span>
+                                                    ) : null}
+                                                </span>
+                                            </td>
+                                            {renderCelulaPrestadores(
+                                                item.codigo,
+                                                item.prestadores,
+                                                item.nomesPrestadores,
+                                            )}
+                                            <td className='supertabelacidades_td_centro'>
+                                                {edicaoAtiva ? (
+                                                    <input
+                                                        className='table_cell_input'
+                                                        type='number'
+                                                        step='0.01'
+                                                        value={
+                                                            valoresEdicaoSugestoes[
+                                                                String(item.codigo || '')
+                                                                    .trim()
+                                                                    .toUpperCase()
+                                                            ]?.porteP ?? ''
+                                                        }
+                                                        onChange={(event) =>
+                                                            atualizarValorEdicaoSugestao(
+                                                                item.codigo,
+                                                                'porteP',
+                                                                event.target.value,
+                                                            )
+                                                        }
+                                                        placeholder='0'
+                                                    />
+                                                ) : (
+                                                    <span className='table_cell_readonly'>—</span>
+                                                )}
+                                            </td>
+                                            <td className='supertabelacidades_td_centro'>
+                                                {edicaoAtiva ? (
+                                                    <input
+                                                        className='table_cell_input'
+                                                        type='number'
+                                                        step='0.01'
+                                                        value={
+                                                            valoresEdicaoSugestoes[
+                                                                String(item.codigo || '')
+                                                                    .trim()
+                                                                    .toUpperCase()
+                                                            ]?.porteM ?? ''
+                                                        }
+                                                        onChange={(event) =>
+                                                            atualizarValorEdicaoSugestao(
+                                                                item.codigo,
+                                                                'porteM',
+                                                                event.target.value,
+                                                            )
+                                                        }
+                                                        placeholder='0'
+                                                    />
+                                                ) : (
+                                                    <span className='table_cell_readonly'>—</span>
+                                                )}
+                                            </td>
+                                            <td className='supertabelacidades_td_centro'>
+                                                {edicaoAtiva ? (
+                                                    <input
+                                                        className='table_cell_input'
+                                                        type='number'
+                                                        step='0.01'
+                                                        value={
+                                                            valoresEdicaoSugestoes[
+                                                                String(item.codigo || '')
+                                                                    .trim()
+                                                                    .toUpperCase()
+                                                            ]?.porteG ?? ''
+                                                        }
+                                                        onChange={(event) =>
+                                                            atualizarValorEdicaoSugestao(
+                                                                item.codigo,
+                                                                'porteG',
+                                                                event.target.value,
+                                                            )
+                                                        }
+                                                        placeholder='0'
+                                                    />
+                                                ) : (
+                                                    <span className='table_cell_readonly'>—</span>
+                                                )}
+                                            </td>
+                                            {!somenteLeitura && (
+                                                <td className='supertabelacidades_td_centro'>
+                                                    <button
+                                                        type='button'
+                                                        className='supertabelacidades_sugestoes_add_btn'
+                                                        disabled={Boolean(adicionandoSugestaoCodigo)}
+                                                        onClick={() => void adicionarSugestaoNaTabela(item)}
+                                                        title={
+                                                            edicaoAtiva
+                                                                ? 'Incluir com os valores informados (vazio = 0)'
+                                                                : 'Incluir procedimento na tabela desta cidade'
+                                                        }
+                                                    >
+                                                        {adicionandoSugestaoCodigo ===
+                                                        String(item.codigo || '')
+                                                            .trim()
+                                                            .toUpperCase()
+                                                            ? '…'
+                                                            : 'Adicionar'}
+                                                    </button>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </section>
+                ) : null}
             </div>
 
             <ModalImpressaoHonorariosCidade

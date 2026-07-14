@@ -43,7 +43,7 @@ const ITENS_GLOBAIS = [
         rotulo: 'Prestadores por procedimento',
 
         descricao:
-            'Super-Tabela › Planos (diferenças): coluna com quantos realizam o procedimento (cidade + paralelas) e sugestões no fim da página.',
+            'Super-Tabela › Planos (diferenças) e › Cidades: coluna com quantos realizam o procedimento (cidade + paralelas) e sugestões no fim da página.',
 
     },
 

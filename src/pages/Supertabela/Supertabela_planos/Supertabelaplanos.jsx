@@ -149,6 +149,7 @@ const Supertabelaplanos = () => {
     const [sugestoesRealizadores, setSugestoesRealizadores] = useState([])
     const [carregandoContagemRealizadores, setCarregandoContagemRealizadores] = useState(false)
     const [adicionandoSugestaoCodigo, setAdicionandoSugestaoCodigo] = useState('')
+    const [valoresEdicaoSugestoes, setValoresEdicaoSugestoes] = useState({})
 
     const [loading, setLoading] = useState(false)
     const [erroDetalhe, setErroDetalhe] = useState('')
@@ -642,17 +643,27 @@ const Supertabelaplanos = () => {
         const procedimentoMeta = procedimentos.find((item) => String(item.codigo).toUpperCase() === String(codigoNormalizado).toUpperCase())
         const planosPermitidos = new Set(obterPlanoIdsPermitidos(procedimentoMeta?.plano_base_id, mapaPlanosCompleto))
         const candidatos = []
-        COLUNAS_PLANO.forEach(({ chave }) => {
+        for (const { chave } of COLUNAS_PLANO) {
             const meta = mapaPlanosCol[chave]
-            if (!meta?.id) return
-            if (!planosPermitidos.has(Number(meta.id))) return
+            if (!meta?.id) continue
+            if (!planosPermitidos.has(Number(meta.id))) continue
+            let diferenca = 0
+            const bruto = opcoes.valoresPorChave?.[chave]
+            if (bruto != null && String(bruto).trim() !== '') {
+                const num = normalizarNumeroEntrada(bruto)
+                if (Number.isNaN(num)) {
+                    reportarErro(`Valor inválido em ${chave} para ${codigoNormalizado}.`)
+                    return { status: 'erro', mensagem: 'Valor inválido.' }
+                }
+                diferenca = num
+            }
             candidatos.push({
                 cidade_id: Number(cidadeId),
                 plano_id: Number(meta.id),
                 procedimento_cod: codigoNormalizado,
-                diferenca: 0,
+                diferenca,
             })
-        })
+        }
 
         if (candidatos.length === 0) {
             reportarErro('Nenhum plano mapeado (Básico, Clássico, Avançado, Ultra).')
@@ -849,7 +860,17 @@ const Supertabelaplanos = () => {
                                 setNovoProcedimentoSelecionadoCodigo(item.codigo)
                             }}
                         >
-                            <span>{item.nome}</span>
+                            <span className='supertabelaplanos_nome_com_flag'>
+                                {item.nome}
+                                {procedimentoPlanoBaseApenasLoja(item.plano_base_id, mapaPlanosCompleto) ? (
+                                    <span
+                                        className='supertabelaplanos_flag_loja'
+                                        title={ROTULO_PLANO[CHAVE_PLANO_APENAS_LOJA]}
+                                    >
+                                        Loja
+                                    </span>
+                                ) : null}
+                            </span>
                             <small>{item.codigo}</small>
                         </button>
                     ))
@@ -1259,10 +1280,31 @@ const Supertabelaplanos = () => {
         if (!codigoNormalizado || somenteLeitura) return
         setAdicionandoSugestaoCodigo(codigoNormalizado)
         try {
-            await inserirPlanosCidadeParaCodigo(codigoNormalizado)
+            const resultado = await inserirPlanosCidadeParaCodigo(codigoNormalizado, {
+                valoresPorChave: valoresEdicaoSugestoes[codigoNormalizado] || {},
+            })
+            if (resultado?.status === 'ok') {
+                setValoresEdicaoSugestoes((anterior) => {
+                    const proximo = { ...anterior }
+                    delete proximo[codigoNormalizado]
+                    return proximo
+                })
+            }
         } finally {
             setAdicionandoSugestaoCodigo('')
         }
+    }
+
+    const atualizarValorEdicaoSugestao = (codigo, chave, valor) => {
+        const codigoNormalizado = String(codigo || '').trim().toUpperCase()
+        if (!codigoNormalizado) return
+        setValoresEdicaoSugestoes((anterior) => ({
+            ...anterior,
+            [codigoNormalizado]: {
+                ...(anterior[codigoNormalizado] || {}),
+                [chave]: valor,
+            },
+        }))
     }
 
     const baixarExcelTelaPlanos = async () => {
@@ -2927,6 +2969,7 @@ ou um código por linha`}
                             <p className='supertabelaplanos_sugestoes_rede_hint'>
                                 Procedimentos no perfil de credenciados da região (cidade + paralelas), no mesmo critério
                                 da impressão de planos, que ainda não estão em <code>planos_cidade</code> desta cidade.
+                                Com a edição ativa, informe os valores antes de clicar em Adicionar (vazio = 0).
                                 {carregandoContagemRealizadores ? ' A carregar contagens…' : ''}
                             </p>
                         </div>
@@ -2969,27 +3012,84 @@ ou um código por linha`}
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {sugestoesRealizadores.map((item) => (
+                                    {sugestoesRealizadores.map((item) => {
+                                        const codigoNorm = String(item.codigo || '')
+                                            .trim()
+                                            .toUpperCase()
+                                        const procedimentoMeta = procedimentos.find(
+                                            (p) =>
+                                                String(p.codigo || '')
+                                                    .trim()
+                                                    .toUpperCase() === codigoNorm,
+                                        )
+                                        const planosPermitidosSug = new Set(
+                                            obterPlanoIdsPermitidos(
+                                                procedimentoMeta?.plano_base_id ?? item.planoBaseId,
+                                                mapaPlanosCompleto,
+                                            ),
+                                        )
+                                        const mapaPlanosColSug = mapearPlanosPorChave(planos)
+                                        return (
                                         <tr key={`sug-rede-${item.codigo}`}>
                                             <td className='table_text_left'>{item.codigo}</td>
                                             <td
                                                 className={`table_text_left supertabelaplanos_td_nome ${obterClasseProcedimento(item.nome)}`}
                                             >
-                                                {item.nome}
+                                                <span className='supertabelaplanos_nome_com_flag'>
+                                                    {item.nome}
+                                                    {procedimentoPlanoBaseApenasLoja(
+                                                        item.planoBaseId,
+                                                        mapaPlanosCompleto,
+                                                    ) ? (
+                                                        <span
+                                                            className='supertabelaplanos_flag_loja'
+                                                            title={ROTULO_PLANO[CHAVE_PLANO_APENAS_LOJA]}
+                                                        >
+                                                            Loja
+                                                        </span>
+                                                    ) : null}
+                                                </span>
                                             </td>
                                             {renderCelulaPrestadores(
                                                 item.codigo,
                                                 item.prestadores,
                                                 item.nomesPrestadores,
                                             )}
-                                            {COLUNAS_PLANO.map(({ chave }) => (
-                                                <td
-                                                    key={`sug-${item.codigo}-${chave}`}
-                                                    className='supertabelaplanos_td_centro'
-                                                >
-                                                    <span className='table_cell_readonly'>—</span>
-                                                </td>
-                                            ))}
+                                            {COLUNAS_PLANO.map(({ chave }) => {
+                                                const metaPlano = mapaPlanosColSug[chave]
+                                                const permitido =
+                                                    metaPlano?.id != null &&
+                                                    planosPermitidosSug.has(Number(metaPlano.id))
+                                                return (
+                                                    <td
+                                                        key={`sug-${item.codigo}-${chave}`}
+                                                        className='supertabelaplanos_td_centro'
+                                                    >
+                                                        {edicaoAtiva && permitido ? (
+                                                            <input
+                                                                className='table_cell_input'
+                                                                type='number'
+                                                                step='0.01'
+                                                                value={
+                                                                    valoresEdicaoSugestoes[codigoNorm]?.[
+                                                                        chave
+                                                                    ] ?? ''
+                                                                }
+                                                                onChange={(e) =>
+                                                                    atualizarValorEdicaoSugestao(
+                                                                        item.codigo,
+                                                                        chave,
+                                                                        e.target.value,
+                                                                    )
+                                                                }
+                                                                placeholder='0'
+                                                            />
+                                                        ) : (
+                                                            <span className='table_cell_readonly'>—</span>
+                                                        )}
+                                                    </td>
+                                                )
+                                            })}
                                             {!somenteLeitura && (
                                                 <td className='supertabelaplanos_td_centro'>
                                                     <button
@@ -2997,7 +3097,11 @@ ou um código por linha`}
                                                         className='supertabelaplanos_sugestoes_add_btn'
                                                         disabled={Boolean(adicionandoSugestaoCodigo)}
                                                         onClick={() => void adicionarSugestaoNaTabela(item.codigo)}
-                                                        title='Incluir procedimento na tabela desta cidade'
+                                                        title={
+                                                            edicaoAtiva
+                                                                ? 'Incluir com os valores informados (vazio = 0)'
+                                                                : 'Incluir procedimento na tabela desta cidade'
+                                                        }
                                                     >
                                                         {adicionandoSugestaoCodigo === item.codigo
                                                             ? '…'
@@ -3006,7 +3110,8 @@ ou um código por linha`}
                                                 </td>
                                             )}
                                         </tr>
-                                    ))}
+                                        )
+                                    })}
                                 </tbody>
                             </table>
                         )}
