@@ -105,7 +105,9 @@ function medirAlturaLinha(linha, fonts, colProcW) {
 function montarSecoesImpressao(categorias) {
     const secoes = []
     for (const cat of categorias || []) {
-        const linhasMarcadas = (cat.linhas || []).filter((l) => l.checked !== false)
+        const linhasMarcadas = (cat.linhas || []).filter(
+            (l) => l.checked !== false && !l.apenasLoja && l.selecionavel !== false,
+        )
         if (!linhasMarcadas.length) continue
 
         // Só mescla se houver valor de limite de grupo preenchido; senão célula individual ("—").

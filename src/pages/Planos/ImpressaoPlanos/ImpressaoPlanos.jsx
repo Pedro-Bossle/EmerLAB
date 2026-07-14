@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase.js'
-import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planosHierarquia.js'
+import { filtrarPlanosParaSelecaoGeral, mapearPlanos, CHAVE_PLANO_APENAS_LOJA, ROTULO_PLANO } from '../../../lib/planosHierarquia.js'
 import {
     buscarCidadeIdsFiltroPlanoCredenciados,
     carregarVinculosMunicipios,
@@ -61,6 +61,7 @@ function useMatchMedia(query) {
 
 export default function ImpressaoPlanos() {
     const [planos, setPlanos] = useState([])
+    const [planosTodos, setPlanosTodos] = useState([])
     const [cidades, setCidades] = useState([])
     const [cidadeIdsPermitidos, setCidadeIdsPermitidos] = useState(null)
     const [vinculosMunicipios, setVinculosMunicipios] = useState([])
@@ -91,6 +92,7 @@ export default function ImpressaoPlanos() {
                 carregarVinculosMunicipios(supabase).catch(() => []),
             ])
             const listaPlanos = planosData || []
+            setPlanosTodos(listaPlanos)
             setPlanos(filtrarPlanosParaSelecaoGeral(listaPlanos, mapearPlanos(listaPlanos)))
             setCidades(cidadesData || [])
             setVinculosMunicipios(vinculos || [])
@@ -184,7 +186,7 @@ export default function ImpressaoPlanos() {
                 municipioNome,
                 planoId,
                 incluirCidadesParalelas,
-                planosLista: planos,
+                planosLista: planosTodos.length ? planosTodos : planos,
             })
             setMeta({
                 pdfUrl: res.pdfUrl,
@@ -197,7 +199,7 @@ export default function ImpressaoPlanos() {
         } finally {
             setCarregando(false)
         }
-    }, [cidadeTabelaId, municipioNome, planoId, incluirCidadesParalelas, planos])
+    }, [cidadeTabelaId, municipioNome, planoId, incluirCidadesParalelas, planos, planosTodos])
 
     const toggleLinha = (categoriaId, linhaKey) => {
         setCategorias((prev) =>
@@ -205,9 +207,11 @@ export default function ImpressaoPlanos() {
                 if (Number(cat.id) !== Number(categoriaId)) return cat
                 return {
                     ...cat,
-                    linhas: (cat.linhas || []).map((l) =>
-                        l.linhaKey === linhaKey ? { ...l, checked: !l.checked } : l,
-                    ),
+                    linhas: (cat.linhas || []).map((l) => {
+                        if (l.linhaKey !== linhaKey) return l
+                        if (l.apenasLoja || l.selecionavel === false) return { ...l, checked: false }
+                        return { ...l, checked: !l.checked }
+                    }),
                 }
             }),
         )
@@ -219,7 +223,10 @@ export default function ImpressaoPlanos() {
                 if (Number(cat.id) !== Number(categoriaId)) return cat
                 return {
                     ...cat,
-                    linhas: (cat.linhas || []).map((l) => ({ ...l, checked: marcar })),
+                    linhas: (cat.linhas || []).map((l) => ({
+                        ...l,
+                        checked: l.apenasLoja || l.selecionavel === false ? false : marcar,
+                    })),
                 }
             }),
         )
@@ -233,7 +240,10 @@ export default function ImpressaoPlanos() {
                     ...cat,
                     linhas: (cat.linhas || []).map((l) => ({
                         ...l,
-                        checked: Number(l.realizadores || 0) > 0,
+                        checked:
+                            l.apenasLoja || l.selecionavel === false
+                                ? false
+                                : Number(l.realizadores || 0) > 0,
                     })),
                 }
             }),
@@ -250,6 +260,7 @@ export default function ImpressaoPlanos() {
                         [
                             l.codigo,
                             l.nome,
+                            l.apenasLoja ? `${ROTULO_PLANO[CHAVE_PLANO_APENAS_LOJA]} loja` : '',
                             l.diferenca,
                             l.limiteExibicao,
                             l.carenciaExibicao,
@@ -365,7 +376,11 @@ export default function ImpressaoPlanos() {
     const totalMarcados = useMemo(
         () =>
             categorias.reduce(
-                (acc, c) => acc + (c.linhas || []).filter((l) => l.checked !== false).length,
+                (acc, c) =>
+                    acc +
+                    (c.linhas || []).filter(
+                        (l) => l.checked !== false && !l.apenasLoja && l.selecionavel !== false,
+                    ).length,
                 0,
             ),
         [categorias],
@@ -699,11 +714,25 @@ export default function ImpressaoPlanos() {
                                                             <td className="planos_impressao_td_check">
                                                                 <input
                                                                     type="checkbox"
-                                                                    checked={linha.checked !== false}
+                                                                    checked={
+                                                                        linha.apenasLoja
+                                                                            ? false
+                                                                            : linha.checked !== false
+                                                                    }
+                                                                    disabled={Boolean(linha.apenasLoja) || linha.selecionavel === false}
                                                                     onChange={() =>
                                                                         toggleLinha(cat.id, linha.linhaKey)
                                                                     }
-                                                                    aria-label={`Selecionar ${linha.codigo} ${linha.nome}`}
+                                                                    title={
+                                                                        linha.apenasLoja
+                                                                            ? 'Procedimento apenas loja — não entra na impressão'
+                                                                            : undefined
+                                                                    }
+                                                                    aria-label={
+                                                                        linha.apenasLoja
+                                                                            ? `${linha.codigo} ${linha.nome} (apenas loja, não selecionável)`
+                                                                            : `Selecionar ${linha.codigo} ${linha.nome}`
+                                                                    }
                                                                 />
                                                             </td>
                                                             <td
@@ -716,8 +745,16 @@ export default function ImpressaoPlanos() {
                                                                 className={`table_text_left planos_impressao_td_nome ${obterClasseProcedimento(linha.nome)}`}
                                                             >
                                                                 <div className="planos_impressao_nome_cel">
-                                                                    <span className="planos_impressao_nome_txt">
+                                                                    <span className="planos_impressao_nome_txt supertabelaplanos_nome_com_flag">
                                                                         {linha.nome}
+                                                                        {linha.apenasLoja ? (
+                                                                            <span
+                                                                                className="supertabelaplanos_flag_loja"
+                                                                                title={ROTULO_PLANO[CHAVE_PLANO_APENAS_LOJA]}
+                                                                            >
+                                                                                Loja
+                                                                            </span>
+                                                                        ) : null}
                                                                     </span>
                                                                     {Number(linha.realizadores || 0) > 0 ? (
                                                                         <span

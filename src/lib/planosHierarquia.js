@@ -156,7 +156,7 @@ export const filtrarPlanosParaSelecaoGeral = (planosLista, mapaPlanosLocal) => {
     return (planosLista || []).filter((p) => Number(p.id) !== idLoja)
 }
 
-/** Procedimentos com plano base «Apenas loja» não entram em Planos > Impressão (tela nem PDF). */
+/** Procedimentos com plano base «Apenas loja»: aparecem na impressão com flag, sem seleção/PDF. */
 export const procedimentoPlanoBaseApenasLoja = (planoBaseId, mapaPlanosLocal) =>
     obterChavePlanoPorId(planoBaseId, mapaPlanosLocal) === CHAVE_PLANO_APENAS_LOJA
 

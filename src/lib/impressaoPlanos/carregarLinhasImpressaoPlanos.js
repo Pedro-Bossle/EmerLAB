@@ -139,11 +139,10 @@ export async function carregarLinhasImpressaoPlanos(opcoes) {
 
     if (errProc) throw new Error(`Erro ao carregar procedimentos: ${errProc.message}`)
 
-    const procedimentosElegiveis = (procedimentosData || []).filter(
-        (p) =>
-            !procedimentoPlanoBaseApenasLoja(p.plano_base_id, mapaPlanos) &&
-            procedimentoPertenceAoPlanoSelecionado(p.plano_base_id, planoId, mapaPlanos),
-    )
+    const procedimentosElegiveis = (procedimentosData || []).filter((p) => {
+        if (procedimentoPlanoBaseApenasLoja(p.plano_base_id, mapaPlanos)) return true
+        return procedimentoPertenceAoPlanoSelecionado(p.plano_base_id, planoId, mapaPlanos)
+    })
 
     if (!procedimentosElegiveis.length) {
         throw new Error('Não há procedimentos elegíveis para este plano e cidade.')
@@ -235,7 +234,8 @@ export async function carregarLinhasImpressaoPlanos(opcoes) {
         )
 
         const contagemTotalCodigo = contagemPorCodigo.get(cod) || 0
-        const checkedDefault = contagemTotalCodigo >= MIN_REALIZADORES_PRE_MARCAR
+        const apenasLoja = procedimentoPlanoBaseApenasLoja(proc.plano_base_id, mapaPlanos)
+        const checkedDefault = apenasLoja ? false : contagemTotalCodigo >= MIN_REALIZADORES_PRE_MARCAR
         const pidsRegiao = [...(prestadoresPorCodigo.get(cod) || [])]
 
         expansoes.forEach((exp) => {
@@ -255,6 +255,8 @@ export async function carregarLinhasImpressaoPlanos(opcoes) {
                 ...metaBase,
                 linhaKey: exp.linhaKey,
                 nome: exp.nome,
+                apenasLoja,
+                selecionavel: !apenasLoja,
                 realizadores: pidsLinha.length,
                 realizadoresNomes,
                 checked: checkedDefault,

@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 import './Supertabelamain.css'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
 import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
-import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
+import { normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
+import { filtrarLinhaSupertabelaPorBusca, partesValoresLinhaSupertabela } from '../../../lib/supertabelaBuscaValores.js'
 import {
     buscarTodosPlanosCidadeCompat,
     consultarPlanoCidadeUnicoCompat,
@@ -357,9 +358,11 @@ const Supertabelamain = () => {
         return linhas.filter((linha) => {
             const categoriaNome = categorias.find((categoria) => Number(categoria.id) === Number(linha.categoriaId))?.nome || ''
             const blob = normalizarTextoBusca(
-                [linha.codigo, linha.procedimento, linha.parceiro, categoriaNome].filter(Boolean).join(' '),
+                [linha.codigo, linha.procedimento, linha.parceiro, categoriaNome, ...partesValoresLinhaSupertabela(linha)]
+                    .filter(Boolean)
+                    .join(' '),
             )
-            return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
+            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBusca, buscaNotAtiva)
         })
     }, [linhas, termoBusca, categorias, buscaNotAtiva])
 
@@ -876,7 +879,7 @@ const Supertabelamain = () => {
                         <input
                             className='supertabelamain_filters_input_text'
                             type="text"
-                            placeholder='Código, procedimento ou categoria'
+                            placeholder='Código, procedimento, categoria ou valor'
                             value={termoBusca}
                             onChange={(event) => setTermoBusca(event.target.value)}
                         />

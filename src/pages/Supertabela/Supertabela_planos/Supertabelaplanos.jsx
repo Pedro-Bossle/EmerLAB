@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PERMISSION_KEYS, hasStoredDevTools, hasStoredPermission } from '../../../lib/accessControl'
 import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
-import { filtrarPorTermoBusca, normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
+import { normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
+import { filtrarLinhaSupertabelaPorBusca, partesValoresLinhaSupertabela } from '../../../lib/supertabelaBuscaValores.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
@@ -34,7 +35,15 @@ import {
     normalizarMunicipioChave,
     salvarVinculosDaCidade,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
-import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planosHierarquia.js'
+import {
+    filtrarPlanosParaSelecaoGeral,
+    mapearPlanos,
+    obterPlanoIdsPermitidosDesdeBase,
+    ORDEM_PLANOS as ORDEM_PLANOS_HIERARQUIA,
+    procedimentoPlanoBaseApenasLoja,
+    ROTULO_PLANO,
+    CHAVE_PLANO_APENAS_LOJA,
+} from '../../../lib/planosHierarquia.js'
 import {
     exportarTabelaPlanosDiferencasParaExcel,
     exportarTabelaPlanosLimitesParaExcel,
@@ -91,14 +100,14 @@ const obterChavePlanoPorId = (planoId, mapaPlanos) => {
     return ORDEM_PLANOS.find((chave) => Number(mapaPlanos[chave]?.id) === idNumerico) || null
 }
 
-const obterPlanoIdsPermitidos = (planoBaseId, mapaPlanos) => {
-    const chaveBase = obterChavePlanoPorId(planoBaseId, mapaPlanos) || 'basico'
-    const indiceBase = ORDEM_PLANOS.indexOf(chaveBase)
-    return ORDEM_PLANOS
-        .slice(indiceBase < 0 ? 0 : indiceBase)
-        .map((chave) => mapaPlanos[chave]?.id)
-        .filter(Boolean)
-        .map((id) => Number(id))
+/** IDs de planos_cidade (Básico→Ultra) para o procedimento. «Apenas loja» também edita diferenças nestas colunas. */
+const obterPlanoIdsPermitidos = (planoBaseId, mapaPlanosCompleto) => {
+    if (procedimentoPlanoBaseApenasLoja(planoBaseId, mapaPlanosCompleto)) {
+        return ORDEM_PLANOS_HIERARQUIA.map((chave) => mapaPlanosCompleto[chave]?.id)
+            .filter(Boolean)
+            .map((id) => Number(id))
+    }
+    return obterPlanoIdsPermitidosDesdeBase(planoBaseId, mapaPlanosCompleto)
 }
 
 const Supertabelaplanos = () => {
@@ -116,6 +125,7 @@ const Supertabelaplanos = () => {
     const [valorFiltroCidade, setValorFiltroCidade] = useState('')
     const [cidadeIdsFiltroPlano, setCidadeIdsFiltroPlano] = useState(null)
     const [planos, setPlanos] = useState([])
+    const [planosTodos, setPlanosTodos] = useState([])
     const [categorias, setCategorias] = useState([])
     const [procedimentos, setProcedimentos] = useState([])
 
@@ -175,6 +185,7 @@ const Supertabelaplanos = () => {
     }, [planos, planoDetalheId])
 
     const mapaPlanosPorChave = useMemo(() => mapearPlanosPorChave(planos), [planos])
+    const mapaPlanosCompleto = useMemo(() => mapearPlanos(planosTodos), [planosTodos])
 
     const chavePlanoDetalhe = useMemo(
         () => obterChavePlanoPorId(planoDetalheId, mapaPlanosPorChave),
@@ -307,10 +318,12 @@ const Supertabelaplanos = () => {
             const listaCidades = cidadesData || []
             setCidades(listaCidades)
             setMunicipiosVinculos(vinculos)
+            const listaPlanosCompleta = planosData || []
             const listaPlanos = filtrarPlanosParaSelecaoGeral(
-                planosData || [],
-                mapearPlanos(planosData || []),
+                listaPlanosCompleta,
+                mapearPlanos(listaPlanosCompleta),
             )
+            setPlanosTodos(listaPlanosCompleta)
             setPlanos(listaPlanos)
             setCategorias(
                 (categoriasData || []).map((item) => ({
@@ -424,7 +437,7 @@ const Supertabelaplanos = () => {
             const payloadComplemento = []
             mapaProc.forEach((meta, cod) => {
                 const planosExistentes = planosPorCodigo.get(cod) || new Set()
-                obterPlanoIdsPermitidos(meta.planoBaseId, mapaPlanos).forEach((planoId) => {
+                obterPlanoIdsPermitidos(meta.planoBaseId, mapaPlanosCompleto).forEach((planoId) => {
                     if (planosExistentes.has(Number(planoId))) return
                     payloadComplemento.push({
                         cidade_id: Number(cidadeId),
@@ -454,11 +467,13 @@ const Supertabelaplanos = () => {
             for (const item of planosCidadeCompletos) {
                 const cod = String(item.procedimento_cod)
                 if (!mapaLinhas.has(cod)) {
-                    const meta = mapaProc.get(cod) || { nome: cod, categoriaId: null }
+                    const meta = mapaProc.get(cod) || { nome: cod, categoriaId: null, planoBaseId: null }
                     mapaLinhas.set(cod, {
                         codigo: cod,
                         procedimento: meta.nome,
                         categoriaId: meta.categoriaId,
+                        planoBaseId: meta.planoBaseId,
+                        apenasLoja: procedimentoPlanoBaseApenasLoja(meta.planoBaseId, mapaPlanosCompleto),
                         basico: null,
                         classico: null,
                         avancado: null,
@@ -486,7 +501,7 @@ const Supertabelaplanos = () => {
         } finally {
             setLoading(false)
         }
-    }, [buscarPlanosCidadePorCidade, cidadeId, planos, somenteLeitura])
+    }, [buscarPlanosCidadePorCidade, cidadeId, planos, mapaPlanosCompleto, somenteLeitura, contextoPlanosCidade])
 
     const buscarLinhasLimitacoes = useCallback(async () => {
         if (!planoDetalheId || planos.length === 0) {
@@ -532,7 +547,7 @@ const Supertabelaplanos = () => {
 
             const { data: procedimentosData, error: errProc } = await supabase
                 .from('procedimentos')
-                .select('id, codigo, nome, categoria_id')
+                .select('id, codigo, nome, categoria_id, plano_base_id')
                 .in('codigo', codigos)
 
             if (errProc) {
@@ -548,18 +563,26 @@ const Supertabelaplanos = () => {
                         nome: String(item.nome),
                         categoriaId: item.categoria_id,
                         procedimentoId: item.id != null ? Number(item.id) : null,
+                        planoBaseId: item.plano_base_id,
                     },
                 ])
             )
 
             const linhas = listaCfg.map((row) => {
                 const cod = String(row.procedimento)
-                const meta = mapaProc.get(cod) || { nome: cod, categoriaId: null, procedimentoId: null }
+                const meta = mapaProc.get(cod) || {
+                    nome: cod,
+                    categoriaId: null,
+                    procedimentoId: null,
+                    planoBaseId: null,
+                }
                 return {
                     codigo: cod,
                     procedimento: meta.nome,
                     categoriaId: meta.categoriaId,
                     procedimentoId: meta.procedimentoId,
+                    planoBaseId: meta.planoBaseId,
+                    apenasLoja: procedimentoPlanoBaseApenasLoja(meta.planoBaseId, mapaPlanosCompleto),
                     planosConfigId: row.id,
                     limite: row.limite != null ? String(row.limite) : '',
                     carencia: row.carencia != null ? String(row.carencia) : '',
@@ -580,7 +603,7 @@ const Supertabelaplanos = () => {
         } finally {
             setLoading(false)
         }
-    }, [planoDetalheId, planos])
+    }, [planoDetalheId, planos, mapaPlanosCompleto])
 
     const inserirPlanosCidadeParaCodigo = async (codigoNormalizado, opcoes = {}) => {
         const reportarErro = (mensagem) => {
@@ -594,7 +617,7 @@ const Supertabelaplanos = () => {
 
         const mapaPlanosCol = mapearPlanosPorChave(planos)
         const procedimentoMeta = procedimentos.find((item) => String(item.codigo).toUpperCase() === String(codigoNormalizado).toUpperCase())
-        const planosPermitidos = new Set(obterPlanoIdsPermitidos(procedimentoMeta?.plano_base_id, mapaPlanosCol))
+        const planosPermitidos = new Set(obterPlanoIdsPermitidos(procedimentoMeta?.plano_base_id, mapaPlanosCompleto))
         const candidatos = []
         COLUNAS_PLANO.forEach(({ chave }) => {
             const meta = mapaPlanosCol[chave]
@@ -694,7 +717,13 @@ const Supertabelaplanos = () => {
 
         return linhasAtivas.filter((linha) => {
             const categoriaNome = categorias.find((c) => Number(c.id) === Number(linha.categoriaId))?.nome || ''
-            const partes = [linha.codigo, linha.procedimento, categoriaNome]
+            const partes = [
+                linha.codigo,
+                linha.procedimento,
+                categoriaNome,
+                linha.apenasLoja ? `${ROTULO_PLANO[CHAVE_PLANO_APENAS_LOJA]} loja` : '',
+                ...partesValoresLinhaSupertabela(linha),
+            ]
             if (modoLimitacoes) {
                 partes.push(linha.limite, linha.carencia)
                 const limiteGrupo = resolverLimiteGrupoExibicao(
@@ -708,7 +737,7 @@ const Supertabelaplanos = () => {
                 }
             }
             const blob = normalizarTextoBuscaDev(partes.filter(Boolean).join(' '))
-            return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
+            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBusca, buscaNotAtiva)
         })
     }, [linhasAtivas, termoBusca, categorias, modoLimitacoes, buscaNotAtiva, limitesGrupoPorCategoriaId, contextoLimiteGrupoPlano])
 
@@ -1915,8 +1944,8 @@ const Supertabelaplanos = () => {
                             className='supertabelaplanos_input'
                             placeholder={
                                 modoLimitacoes
-                                    ? 'Código, procedimento, categoria, limite ou carência'
-                                    : 'Código, procedimento ou categoria'
+                                    ? 'Código, procedimento, categoria, limite, carência ou valor'
+                                    : 'Código, procedimento, categoria ou valor'
                             }
                             value={termoBusca}
                             onChange={(e) => setTermoBusca(e.target.value)}
@@ -2390,7 +2419,17 @@ ou um código por linha`}
                                             <tr key={`${secao.categoriaId}-${linha.codigo}`}>
                                                 <td className='table_text_left'>{linha.codigo}</td>
                                                 <td className={`table_text_left supertabelaplanos_td_nome ${obterClasseProcedimento(linha.procedimento)}`}>
-                                                    {linha.procedimento}
+                                                    <span className='supertabelaplanos_nome_com_flag'>
+                                                        {linha.procedimento}
+                                                        {linha.apenasLoja ? (
+                                                            <span
+                                                                className='supertabelaplanos_flag_loja'
+                                                                title={ROTULO_PLANO[CHAVE_PLANO_APENAS_LOJA]}
+                                                            >
+                                                                Loja
+                                                            </span>
+                                                        ) : null}
+                                                    </span>
                                                 </td>
                                                 {COLUNAS_PLANO.map(({ chave }) => {
                                                     const cel = linha[chave]
@@ -2594,7 +2633,17 @@ ou um código por linha`}
                                             <tr key={`${secao.categoriaId}-${linha.codigo}-lim`}>
                                                 <td className='table_text_left'>{linha.codigo}</td>
                                                 <td className={`table_text_left supertabelaplanos_td_nome ${obterClasseProcedimento(linha.procedimento)}`}>
-                                                    {linha.procedimento}
+                                                    <span className='supertabelaplanos_nome_com_flag'>
+                                                        {linha.procedimento}
+                                                        {linha.apenasLoja ? (
+                                                            <span
+                                                                className='supertabelaplanos_flag_loja'
+                                                                title={ROTULO_PLANO[CHAVE_PLANO_APENAS_LOJA]}
+                                                            >
+                                                                Loja
+                                                            </span>
+                                                        ) : null}
+                                                    </span>
                                                 </td>
                                                 {usaLimiteGrupoSecao && isentoLimiteGrupo ? (
                                                     renderCelulaLimiteIndividual(linha, linhaIndex)

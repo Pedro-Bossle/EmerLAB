@@ -2,6 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
 import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
 import { filtrarPorTermoBusca, normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
+import {
+    filtrarLinhaSupertabelaPorBusca,
+    partesTextoValoresParaBusca,
+    partesValoresLinhaSupertabela,
+} from '../../../lib/supertabelaBuscaValores.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { calcularJanelaVirtualTabela, criarHandlerScrollVirtualTabela } from '../../../lib/tabelaVirtualScroll.js'
@@ -228,11 +233,12 @@ const Supertabelaprocedimentos = () => {
                     categoriaNome,
                     planoNome,
                     linha.publicadoFormulario ? 'formulario sim' : 'formulario nao',
+                    ...partesValoresLinhaSupertabela(linha),
                 ]
                     .filter(Boolean)
                     .join(' '),
             )
-            return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
+            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBusca, buscaNotAtiva)
         })
     }, [linhas, termoBusca, categorias, buscaNotAtiva])
 
@@ -305,7 +311,18 @@ const Supertabelaprocedimentos = () => {
         if (termo || buscaNotAtiva) {
             lista = lista.filter((linha) => {
                 const blob = normalizarTextoBuscaDev(
-                    [linha.categoriaId, linha.nome, linha.quantidadeProcedimentos].join(' ')
+                    [
+                        linha.categoriaId,
+                        linha.nome,
+                        linha.quantidadeProcedimentos,
+                        ...partesTextoValoresParaBusca(
+                            linha.quantidadeProcedimentos,
+                            linha.limitesGrupo?.basico,
+                            linha.limitesGrupo?.classico,
+                            linha.limitesGrupo?.avancado,
+                            linha.limitesGrupo?.ultra,
+                        ),
+                    ].join(' '),
                 )
                 return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
             })
@@ -968,10 +985,10 @@ const Supertabelaprocedimentos = () => {
                             className='supertabelaprocedimentos_input'
                             placeholder={
                                 modoDescontos
-                                    ? 'Código, tipo ou grupo de desconto'
+                                    ? 'Código, tipo, grupo ou valor'
                                     : modoCategorias
-                                      ? 'ID, nome da categoria ou quantidade de procedimentos'
-                                      : 'Código, procedimento, plano base ou categoria'
+                                      ? 'ID, nome, quantidade ou limite'
+                                      : 'Código, procedimento, plano base, categoria ou valor'
                             }
                             value={termoBusca}
                             onChange={(event) => setTermoBusca(event.target.value)}

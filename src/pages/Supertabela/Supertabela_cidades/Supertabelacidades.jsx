@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
 import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
-import { filtrarPorTermoBusca, normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
+import { normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
+import { filtrarLinhaSupertabelaPorBusca, partesValoresLinhaSupertabela } from '../../../lib/supertabelaBuscaValores.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
@@ -301,8 +302,12 @@ const Supertabelacidades = () => {
         if (!termoBusca.trim() && !buscaNotAtiva) return linhas
         return linhas.filter((linha) => {
             const categoriaNome = categorias.find((categoria) => Number(categoria.id) === Number(linha.categoriaId))?.nome || ''
-            const blob = normalizarTextoBuscaDev([linha.codigo, linha.procedimento, categoriaNome].filter(Boolean).join(' '))
-            return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
+            const blob = normalizarTextoBuscaDev(
+                [linha.codigo, linha.procedimento, categoriaNome, ...partesValoresLinhaSupertabela(linha)]
+                    .filter(Boolean)
+                    .join(' '),
+            )
+            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBusca, buscaNotAtiva)
         })
     }, [linhas, termoBusca, categorias, buscaNotAtiva])
 
@@ -1361,7 +1366,7 @@ const Supertabelacidades = () => {
                         <CampoBuscaComLimpar
                             className='supertabelacidades_input'
                             inputClassName='supertabelacidades_input'
-                            placeholder='Código, procedimento ou categoria'
+                            placeholder='Código, procedimento, categoria ou valor'
                             value={termoBusca}
                             onChange={(event) => setTermoBusca(event.target.value)}
                         />

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { PERMISSION_KEYS, hasStoredDevTools, hasStoredPermission } from '../../../lib/accessControl'
 import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
+import { filtrarLinhaSupertabelaPorBusca, partesValoresLinhaSupertabela } from '../../../lib/supertabelaBuscaValores.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { calcularJanelaVirtualTabela, criarHandlerScrollVirtualTabela } from '../../../lib/tabelaVirtualScroll.js'
@@ -714,9 +715,17 @@ const Supertabelanegociacoes = () => {
         return linhasDetalheComCustos.filter((linha) => {
             const categoriaNome = categorias.find((categoria) => Number(categoria.id) === Number(linha.categoriaId))?.nome || ''
             const blob = normalizarTextoBusca(
-                [linha.codigo, linha.procedimento, linha.nomeAlternativo, categoriaNome].filter(Boolean).join(' '),
+                [
+                    linha.codigo,
+                    linha.procedimento,
+                    linha.nomeAlternativo,
+                    categoriaNome,
+                    ...partesValoresLinhaSupertabela(linha),
+                ]
+                    .filter(Boolean)
+                    .join(' '),
             )
-            return filtrarPorTermoBusca(blob, termoBuscaDetalhe, buscaNotAtiva)
+            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBuscaDetalhe, buscaNotAtiva)
         })
     }, [linhasDetalheComCustos, termoBuscaDetalhe, categorias, buscaNotAtiva])
 
@@ -1551,7 +1560,7 @@ const Supertabelanegociacoes = () => {
                             <input
                                 type='text'
                                 className='supertabelanegociacoes_input'
-                                placeholder='Código, procedimento ou categoria'
+                                placeholder='Código, procedimento, categoria ou valor'
                                 value={termoBuscaDetalhe}
                                 onChange={(event) => setTermoBuscaDetalhe(event.target.value)}
                             />

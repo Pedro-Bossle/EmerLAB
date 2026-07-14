@@ -4,6 +4,7 @@ import {
     gruposDoCatalogo,
     nomeGrupoBeneficioVisivel,
 } from '../../../lib/credenciamento/prestadorBeneficios.js'
+import { partesTextoValoresParaBusca } from '../../../lib/supertabelaBuscaValores.js'
 
 const normCod = (c) => String(c || '').trim().toUpperCase()
 
@@ -90,7 +91,7 @@ export default function SupertabelaBeneficiosCatalogo({
         if (!q) return linhas
         const tokens = q.split(/\s+/).filter(Boolean)
         return linhas.filter((l) => {
-            const blob = [l.codigo, l.nome, l.grupo_codigo, l.grupo_nome]
+            const blob = [l.codigo, l.nome, l.grupo_codigo, l.grupo_nome, ...partesTextoValoresParaBusca(l.ordem)]
                 .map((x) =>
                     String(x || '')
                         .normalize('NFD')
