@@ -36,6 +36,17 @@ const ITENS_GLOBAIS = [
 
     },
 
+    {
+
+        chave: 'contagemRealizadoresPlanos',
+
+        rotulo: 'Prestadores por procedimento',
+
+        descricao:
+            'Super-Tabela › Planos (diferenças): coluna com quantos realizam o procedimento (cidade + paralelas) e sugestões no fim da página.',
+
+    },
+
 ]
 
 
@@ -147,6 +158,7 @@ export default function DevToolsFloating() {
     const algumAtivo =
         ui.buscaNot ||
         ui.exclusaoMassa ||
+        ui.contagemRealizadoresPlanos ||
         Object.values(ui.colunasProcessos || {}).some(Boolean) ||
         Object.values(colCad).some(Boolean) ||
         colNeg.vinculoPrestadorLista !== DEFAULT_COLUNAS_NEGOCIACOES.vinculoPrestadorLista

@@ -48,6 +48,10 @@ import {
     exportarTabelaPlanosDiferencasParaExcel,
     exportarTabelaPlanosLimitesParaExcel,
 } from '../../../lib/exportSupertabelaExcel.js'
+import {
+    carregarContagemESugestoesRealizadoresPlanos,
+    montarCidadesAlvoTabelaPlanos,
+} from '../../../lib/impressaoPlanos/contagemRealizadoresPlanosDev.js'
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaplanos.css'
@@ -134,10 +138,17 @@ const Supertabelaplanos = () => {
     const [edicaoAtiva, setEdicaoAtiva] = useState(false)
     const [modoLimitacoes, setModoLimitacoes] = useState(false)
     const [planoDetalheId, setPlanoDetalheId] = useState('')
+    const mostrarContagemRealizadores =
+        hasStoredDevTools() && !!devToolsUi.contagemRealizadoresPlanos && !modoLimitacoes
 
     const [linhasDiferencas, setLinhasDiferencas] = useState([])
     const [linhasLimitacoes, setLinhasLimitacoes] = useState([])
     const [limitesGrupoPorCategoriaId, setLimitesGrupoPorCategoriaId] = useState(() => new Map())
+    const [contagemRealizadoresPorCodigo, setContagemRealizadoresPorCodigo] = useState(() => new Map())
+    const [nomesRealizadoresPorCodigo, setNomesRealizadoresPorCodigo] = useState(() => new Map())
+    const [sugestoesRealizadores, setSugestoesRealizadores] = useState([])
+    const [carregandoContagemRealizadores, setCarregandoContagemRealizadores] = useState(false)
+    const [adicionandoSugestaoCodigo, setAdicionandoSugestaoCodigo] = useState('')
 
     const [loading, setLoading] = useState(false)
     const [erroDetalhe, setErroDetalhe] = useState('')
@@ -177,6 +188,18 @@ const Supertabelaplanos = () => {
     const cidadeSelecionada = useMemo(
         () => cidades.find((c) => String(c.id) === String(cidadeId)) || null,
         [cidades, cidadeId]
+    )
+
+    const vinculosDaCidadeSelecionada = useMemo(() => {
+        const cid = Number(cidadeId)
+        if (!cid) return []
+        return (municipiosVinculos || []).filter((v) => Number(v.cidade_id) === cid)
+    }, [municipiosVinculos, cidadeId])
+
+    const codigosNaTabelaDiferencas = useMemo(
+        () =>
+            [...new Set(linhasDiferencas.map((l) => String(l.codigo || '').trim().toUpperCase()).filter(Boolean))],
+        [linhasDiferencas],
     )
 
     const planoDetalheNome = useMemo(() => {
@@ -1082,6 +1105,10 @@ const Supertabelaplanos = () => {
 
     const valorOrdenavelDif = (linha, coluna) => {
         if (coluna === 'codigo' || coluna === 'procedimento') return linha[coluna]
+        if (coluna === 'prestadores') {
+            const cod = String(linha.codigo || '').trim().toUpperCase()
+            return Number(contagemRealizadoresPorCodigo.get(cod) || 0)
+        }
         const cel = linha[coluna]
         if (cel && typeof cel === 'object' && 'valor' in cel) return Number(cel.valor || 0)
         return Number.NEGATIVE_INFINITY
@@ -1098,9 +1125,12 @@ const Supertabelaplanos = () => {
             if (modoLimitacoes) {
                 valorA = a[atual.coluna]
                 valorB = b[atual.coluna]
+            } else if (atual.coluna === 'codigo' || atual.coluna === 'procedimento') {
+                valorA = a[atual.coluna]
+                valorB = b[atual.coluna]
             } else {
-                valorA = atual.coluna === 'codigo' || atual.coluna === 'procedimento' ? a[atual.coluna] : valorOrdenavelDif(a, atual.coluna)
-                valorB = atual.coluna === 'codigo' || atual.coluna === 'procedimento' ? b[atual.coluna] : valorOrdenavelDif(b, atual.coluna)
+                valorA = valorOrdenavelDif(a, atual.coluna)
+                valorB = valorOrdenavelDif(b, atual.coluna)
             }
 
             if (typeof valorA === 'number' && typeof valorB === 'number') {
@@ -1140,7 +1170,100 @@ const Supertabelaplanos = () => {
             })
         }
         return secoes
-    }, [categorias, linhasFiltradas, ordenacaoPorCategoria, modoLimitacoes])
+    }, [categorias, linhasFiltradas, ordenacaoPorCategoria, modoLimitacoes, contagemRealizadoresPorCodigo])
+
+    useEffect(() => {
+        if (!mostrarContagemRealizadores || !cidadeId || !cidadeSelecionada) {
+            setContagemRealizadoresPorCodigo(new Map())
+            setNomesRealizadoresPorCodigo(new Map())
+            setSugestoesRealizadores([])
+            setCarregandoContagemRealizadores(false)
+            return undefined
+        }
+
+        let cancelado = false
+        const run = async () => {
+            setCarregandoContagemRealizadores(true)
+            try {
+                const cidadesAlvo = montarCidadesAlvoTabelaPlanos(
+                    cidadeSelecionada,
+                    vinculosDaCidadeSelecionada,
+                )
+                const { contagemPorCodigo, nomesPorCodigo, sugestoes } =
+                    await carregarContagemESugestoesRealizadoresPlanos(supabase, {
+                        cidadesAlvo,
+                        incluirCidadesParalelas: true,
+                        codigosNaTabela: codigosNaTabelaDiferencas,
+                    })
+                if (cancelado) return
+                setContagemRealizadoresPorCodigo(contagemPorCodigo)
+                setNomesRealizadoresPorCodigo(nomesPorCodigo)
+                setSugestoesRealizadores(sugestoes)
+            } catch (error) {
+                if (cancelado) return
+                setContagemRealizadoresPorCodigo(new Map())
+                setNomesRealizadoresPorCodigo(new Map())
+                setSugestoesRealizadores([])
+                mostrarErroToast(
+                    `Falha ao contar realizadores: ${error?.message || 'erro desconhecido'}`,
+                )
+            } finally {
+                if (!cancelado) setCarregandoContagemRealizadores(false)
+            }
+        }
+        void run()
+        return () => {
+            cancelado = true
+        }
+    }, [
+        mostrarContagemRealizadores,
+        cidadeId,
+        cidadeSelecionada,
+        vinculosDaCidadeSelecionada,
+        codigosNaTabelaDiferencas,
+    ])
+
+    const qtdPrestadoresCodigo = (codigo) => {
+        const cod = String(codigo || '').trim().toUpperCase()
+        return Number(contagemRealizadoresPorCodigo.get(cod) || 0)
+    }
+
+    const nomesPrestadoresCodigo = (codigo) => {
+        const cod = String(codigo || '').trim().toUpperCase()
+        return nomesRealizadoresPorCodigo.get(cod) || []
+    }
+
+    const renderCelulaPrestadores = (codigo, qtdOverride = null, nomesOverride = null) => {
+        const qtd = qtdOverride != null ? Number(qtdOverride) : qtdPrestadoresCodigo(codigo)
+        const nomes = nomesOverride || nomesPrestadoresCodigo(codigo)
+        if (carregandoContagemRealizadores && qtdOverride == null) {
+            return (
+                <td className='supertabelaplanos_td_centro supertabelaplanos_td_prestadores'>…</td>
+            )
+        }
+        if (!qtd) {
+            return (
+                <td className='supertabelaplanos_td_centro supertabelaplanos_td_prestadores'>0</td>
+            )
+        }
+        const hint = (nomes || []).join(', ')
+        return (
+            <td className='supertabelaplanos_td_centro supertabelaplanos_td_prestadores'>
+                <span title={hint}>{qtd}</span>
+            </td>
+        )
+    }
+
+    const adicionarSugestaoNaTabela = async (codigo) => {
+        const codigoNormalizado = String(codigo || '').trim().toUpperCase()
+        if (!codigoNormalizado || somenteLeitura) return
+        setAdicionandoSugestaoCodigo(codigoNormalizado)
+        try {
+            await inserirPlanosCidadeParaCodigo(codigoNormalizado)
+        } finally {
+            setAdicionandoSugestaoCodigo('')
+        }
+    }
 
     const baixarExcelTelaPlanos = async () => {
         if (!cidadeId) {
@@ -2380,15 +2503,26 @@ ou um código por linha`}
                             {!modoLimitacoes ? (
                                 <table className='table_main'>
                                     <colgroup>
-                                        <col className='supertabelaplanos_col_codigo' style={{ width: '11%' }} />
+                                        <col className='supertabelaplanos_col_codigo' style={{ width: '10%' }} />
                                         <col
                                             className='supertabelaplanos_col_nome'
-                                            style={{ width: somenteLeitura ? '43%' : '35%' }}
+                                            style={{
+                                                width: mostrarContagemRealizadores
+                                                    ? somenteLeitura
+                                                        ? '34%'
+                                                        : '28%'
+                                                    : somenteLeitura
+                                                      ? '43%'
+                                                      : '35%',
+                                            }}
                                         />
-                                        <col className='supertabelaplanos_col_plano' style={{ width: '12%' }} />
-                                        <col className='supertabelaplanos_col_plano' style={{ width: '12%' }} />
-                                        <col className='supertabelaplanos_col_plano' style={{ width: '12%' }} />
-                                        <col className='supertabelaplanos_col_plano' style={{ width: '12%' }} />
+                                        {mostrarContagemRealizadores && (
+                                            <col className='supertabelaplanos_col_prestadores' style={{ width: '8%' }} />
+                                        )}
+                                        <col className='supertabelaplanos_col_plano' style={{ width: '11%' }} />
+                                        <col className='supertabelaplanos_col_plano' style={{ width: '11%' }} />
+                                        <col className='supertabelaplanos_col_plano' style={{ width: '11%' }} />
+                                        <col className='supertabelaplanos_col_plano' style={{ width: '11%' }} />
                                         {!somenteLeitura && (
                                             <col className='supertabelaplanos_col_acao' style={{ width: '6%' }} />
                                         )}
@@ -2404,6 +2538,18 @@ ou um código por linha`}
                                             >
                                                 Nome{obterIndicadorOrdenacao(secao.categoriaId, 'procedimento')}
                                             </th>
+                                            {mostrarContagemRealizadores && (
+                                                <th
+                                                    className='table_header supertabelaplanos_th_centro'
+                                                    onClick={() =>
+                                                        handleOrdenarCategoria(secao.categoriaId, 'prestadores')
+                                                    }
+                                                    title='Credenciados na região (inclui cidades paralelas), mesmo critério da impressão de planos'
+                                                >
+                                                    Prestadores
+                                                    {obterIndicadorOrdenacao(secao.categoriaId, 'prestadores')}
+                                                </th>
+                                            )}
                                             {COLUNAS_PLANO.map(({ chave, titulo }) => (
                                                 <th
                                                     key={chave}
@@ -2436,6 +2582,8 @@ ou um código por linha`}
                                                         ) : null}
                                                     </span>
                                                 </td>
+                                                {mostrarContagemRealizadores &&
+                                                    renderCelulaPrestadores(linha.codigo)}
                                                 {COLUNAS_PLANO.map(({ chave }) => {
                                                     const cel = linha[chave]
                                                     const editavel = edicaoAtiva && cel?.planoCidadeId
@@ -2480,7 +2628,11 @@ ou um código por linha`}
                                             </tr>
                                         ))}
                                         <tr className='row_add_line'>
-                                            <td colSpan={somenteLeitura ? 6 : 7}>
+                                            <td
+                                                colSpan={
+                                                    (somenteLeitura ? 6 : 7) + (mostrarContagemRealizadores ? 1 : 0)
+                                                }
+                                            >
                                                 {categoriaEmInclusao === secao.categoriaId ? (
                                                     <div className='row_add_inline'>
                                                         <div
@@ -2766,6 +2918,99 @@ ou um código por linha`}
                             ))}
                         </div>
                     )
+                )}
+
+                {mostrarContagemRealizadores && !loading && (
+                    <section className='supertabelaplanos_sugestoes_rede' aria-live='polite'>
+                        <div className='supertabelaplanos_sugestoes_rede_head'>
+                            <h2 className='categoria_titulo'>Sugestões — com realizador, fora da tabela</h2>
+                            <p className='supertabelaplanos_sugestoes_rede_hint'>
+                                Procedimentos no perfil de credenciados da região (cidade + paralelas), no mesmo critério
+                                da impressão de planos, que ainda não estão em <code>planos_cidade</code> desta cidade.
+                                {carregandoContagemRealizadores ? ' A carregar contagens…' : ''}
+                            </p>
+                        </div>
+                        {!carregandoContagemRealizadores && sugestoesRealizadores.length === 0 ? (
+                            <p className='supertabelaplanos_sugestoes_rede_vazio'>
+                                Nenhuma sugestão para a cidade atual.
+                            </p>
+                        ) : (
+                            <table className='table_main'>
+                                <colgroup>
+                                    <col style={{ width: '12%' }} />
+                                    <col style={{ width: somenteLeitura ? '40%' : '32%' }} />
+                                    <col style={{ width: '10%' }} />
+                                    <col style={{ width: '10%' }} />
+                                    <col style={{ width: '10%' }} />
+                                    <col style={{ width: '10%' }} />
+                                    <col style={{ width: '10%' }} />
+                                    {!somenteLeitura && <col style={{ width: '8%' }} />}
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th className='table_header table_header_no_sort'>Código</th>
+                                        <th className='table_header table_header_no_sort supertabelaplanos_th_nome'>
+                                            Nome
+                                        </th>
+                                        <th className='table_header table_header_no_sort supertabelaplanos_th_centro'>
+                                            Prestadores
+                                        </th>
+                                        {COLUNAS_PLANO.map(({ chave, titulo }) => (
+                                            <th
+                                                key={`sug-${chave}`}
+                                                className='table_header table_header_no_sort supertabelaplanos_th_centro'
+                                            >
+                                                {titulo}
+                                            </th>
+                                        ))}
+                                        {!somenteLeitura && (
+                                            <th className='table_header table_header_no_sort'>Ação</th>
+                                        )}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sugestoesRealizadores.map((item) => (
+                                        <tr key={`sug-rede-${item.codigo}`}>
+                                            <td className='table_text_left'>{item.codigo}</td>
+                                            <td
+                                                className={`table_text_left supertabelaplanos_td_nome ${obterClasseProcedimento(item.nome)}`}
+                                            >
+                                                {item.nome}
+                                            </td>
+                                            {renderCelulaPrestadores(
+                                                item.codigo,
+                                                item.prestadores,
+                                                item.nomesPrestadores,
+                                            )}
+                                            {COLUNAS_PLANO.map(({ chave }) => (
+                                                <td
+                                                    key={`sug-${item.codigo}-${chave}`}
+                                                    className='supertabelaplanos_td_centro'
+                                                >
+                                                    <span className='table_cell_readonly'>—</span>
+                                                </td>
+                                            ))}
+                                            {!somenteLeitura && (
+                                                <td className='supertabelaplanos_td_centro'>
+                                                    <button
+                                                        type='button'
+                                                        className='supertabelaplanos_sugestoes_add_btn'
+                                                        disabled={Boolean(adicionandoSugestaoCodigo)}
+                                                        onClick={() => void adicionarSugestaoNaTabela(item.codigo)}
+                                                        title='Incluir procedimento na tabela desta cidade'
+                                                    >
+                                                        {adicionandoSugestaoCodigo === item.codigo
+                                                            ? '…'
+                                                            : 'Adicionar'}
+                                                    </button>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </section>
                 )}
             </div>
         </div>
