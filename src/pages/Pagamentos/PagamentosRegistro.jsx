@@ -1573,70 +1573,113 @@ export default function PagamentosRegistro() {
                     </div>
 
                     <ul className="pag_reg_cards" aria-label="Registros (mobile)">
-                        {linhasFiltradas.map((row, idx) => (
-                            <li
-                                key={`card-${row.id}`}
-                                className={`pag_reg_card${row.pago ? ' pag_reg_card--pago' : ''}`}
-                            >
-                                <div className="pag_reg_card_head">
-                                    <span>{rotuloMesAnoCurto(row.mes, row.ano)}</span>
-                                    <strong>{formatarValorMonetarioBr(row.valor)}</strong>
-                                </div>
-                                <PrestadorVinculoBusca
-                                    prestadores={prestadores}
-                                    prestadorId={row.prestadorId}
-                                    rotuloFn={rotuloPrestador}
-                                    onChange={(p) => void aoSelecionarPrestador(row.id, p)}
-                                    disabled={!podeEditar}
-                                    placeholder="Prestador…"
-                                />
-                                <p className="pag_reg_card_meta">
-                                    {rotuloTipoRepasse(row.tipoRepasse)} · {row.chavePix || '—'}
-                                </p>
-                                <div className="pag_reg_card_checks">
-                                    <label>
-                                        <input
-                                            type="checkbox"
-                                            checked={row.resposta}
-                                            disabled={!podeEditar}
-                                            onChange={() => void aoToggleCheck(row.id, 'resposta')}
-                                        />
-                                        Resposta
-                                    </label>
-                                    <label>
-                                        <input
-                                            type="checkbox"
-                                            checked={row.pago}
-                                            disabled={!podeEditar}
-                                            onChange={() => void aoToggleCheck(row.id, 'pago')}
-                                        />
-                                        Pago
-                                    </label>
-                                </div>
-                                <input
-                                    className="pag_reg_input_obs"
-                                    type="text"
-                                    disabled={!podeEditar}
-                                    value={row.obs}
-                                    onChange={(e) => aoAlterarCampo(row.id, { obs: e.target.value })}
-                                    onBlur={() => aoBlurCampo(row.id)}
-                                    placeholder="Obs"
-                                />
-                                <input
-                                    className="pag_reg_input_valor"
-                                    type="text"
-                                    disabled={!podeEditar}
-                                    value={row.valor != null ? formatarValorMonetarioBr(row.valor) : ''}
-                                    onChange={(e) =>
-                                        aoAlterarCampo(row.id, {
-                                            valor: normalizarValorMonetarioEntrada(e.target.value),
-                                        })
-                                    }
-                                    onBlur={() => aoBlurCampo(row.id)}
-                                    onPaste={(e) => void processarColagemValor(e, idx)}
-                                />
+                        {linhasFiltradas.length === 0 ? (
+                            <li className="pag_reg_card pag_reg_card--empty">
+                                Nenhum registro no intervalo De–Até selecionado.
                             </li>
-                        ))}
+                        ) : (
+                            linhasFiltradas.map((row, idx) => (
+                                <li
+                                    key={`card-${row.id}`}
+                                    className={[
+                                        'pag_reg_card',
+                                        row.pago ? 'pag_reg_card--pago' : '',
+                                        salvandoId === row.id ? 'is-saving' : '',
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' ')}
+                                >
+                                    <div className="pag_reg_card_head">
+                                        <span className="pag_reg_card_comp">
+                                            {rotuloMesAnoCurto(row.mes, row.ano)}
+                                        </span>
+                                        <span className="pag_reg_card_tipo">
+                                            {rotuloTipoRepasse(row.tipoRepasse)}
+                                        </span>
+                                        {podeEditar && (
+                                            <button
+                                                type="button"
+                                                className="table_delete_btn"
+                                                title="Excluir (Shift+clique: sem confirmação)"
+                                                aria-label="Excluir registro"
+                                                onClick={(event) =>
+                                                    void excluirLinha(row.id, {
+                                                        ignorarConfirmacao: event.shiftKey,
+                                                    })
+                                                }
+                                            >
+                                                🗑️
+                                            </button>
+                                        )}
+                                    </div>
+                                    <label className="pag_reg_card_field">
+                                        <span>Prestador</span>
+                                        <PrestadorVinculoBusca
+                                            prestadores={prestadores}
+                                            prestadorId={row.prestadorId}
+                                            rotuloFn={rotuloPrestador}
+                                            titleValor={row.prestadorNome || undefined}
+                                            onChange={(p) => void aoSelecionarPrestador(row.id, p)}
+                                            disabled={!podeEditar}
+                                            placeholder="Prestador…"
+                                        />
+                                    </label>
+                                    <p className="pag_reg_card_meta pag_reg_card_pix" title={row.chavePix || ''}>
+                                        <span className="pag_reg_card_field_label">PIX</span>
+                                        {row.chavePix || '—'}
+                                    </p>
+                                    <label className="pag_reg_card_field">
+                                        <span>Valor</span>
+                                        <input
+                                            className="pag_reg_input_valor"
+                                            type="text"
+                                            inputMode="decimal"
+                                            disabled={!podeEditar}
+                                            value={row.valor != null ? formatarValorMonetarioBr(row.valor) : ''}
+                                            onChange={(e) =>
+                                                aoAlterarCampo(row.id, {
+                                                    valor: normalizarValorMonetarioEntrada(e.target.value),
+                                                })
+                                            }
+                                            onBlur={() => aoBlurCampo(row.id)}
+                                            onPaste={(e) => void processarColagemValor(e, idx)}
+                                        />
+                                    </label>
+                                    <div className="pag_reg_card_checks">
+                                        <label>
+                                            <input
+                                                type="checkbox"
+                                                checked={row.resposta}
+                                                disabled={!podeEditar}
+                                                onChange={() => void aoToggleCheck(row.id, 'resposta')}
+                                            />
+                                            Resposta
+                                        </label>
+                                        <label>
+                                            <input
+                                                type="checkbox"
+                                                checked={row.pago}
+                                                disabled={!podeEditar}
+                                                onChange={() => void aoToggleCheck(row.id, 'pago')}
+                                            />
+                                            Pago
+                                        </label>
+                                    </div>
+                                    <label className="pag_reg_card_field">
+                                        <span>Obs</span>
+                                        <input
+                                            className="pag_reg_input_obs"
+                                            type="text"
+                                            disabled={!podeEditar}
+                                            value={row.obs}
+                                            onChange={(e) => aoAlterarCampo(row.id, { obs: e.target.value })}
+                                            onBlur={() => aoBlurCampo(row.id)}
+                                            placeholder="Observações"
+                                        />
+                                    </label>
+                                </li>
+                            ))
+                        )}
                     </ul>
                 </>
             )}

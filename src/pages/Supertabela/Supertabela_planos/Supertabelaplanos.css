@@ -467,16 +467,39 @@
     text-align: left;
 }
 
+.supertabelaplanos .table_main {
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.supertabelaplanos .table_main th,
+.supertabelaplanos .table_main td {
+    padding: 8px 10px;
+    vertical-align: middle;
+}
+
+.supertabelaplanos .table_main th.table_header {
+    padding: 9px 10px;
+}
+
 .supertabelaplanos .table_main th.supertabelaplanos_th_nome,
 .supertabelaplanos .table_main td.supertabelaplanos_td_nome {
     text-align: left;
     vertical-align: middle;
+    padding-left: 12px;
+    padding-right: 12px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .supertabelaplanos .table_main th.supertabelaplanos_th_centro,
 .supertabelaplanos .table_main td.supertabelaplanos_td_centro {
     text-align: center;
     vertical-align: middle;
+    padding-left: 8px;
+    padding-right: 8px;
+    white-space: nowrap;
 }
 
 .supertabelaplanos .table_main td.supertabelaplanos_td_centro .table_cell_input,
@@ -484,11 +507,18 @@
     text-align: center;
 }
 
+.supertabelaplanos .table_main td.table_text_left:first-child,
+.supertabelaplanos .table_main th.table_header:first-child {
+    padding-left: 12px;
+    padding-right: 8px;
+    white-space: nowrap;
+}
+
 .supertabelaplanos .table_cell_input {
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    padding: 4px 6px;
+    padding: 5px 6px;
     border-radius: 6px;
     border: 1px solid #8ab9d8;
     font-family: inherit;
@@ -496,9 +526,9 @@
 
 .supertabelaplanos .table_cell_input_text {
     width: 100%;
-    min-width: 120px;
+    min-width: 0;
     box-sizing: border-box;
-    padding: 4px 6px;
+    padding: 5px 6px;
     border-radius: 6px;
     border: 1px solid #8ab9d8;
     font-family: inherit;
@@ -508,6 +538,12 @@
     color: #5a6d7d;
     font-style: italic;
     padding: 4px 2px;
+    display: inline-block;
+    min-width: 2.5rem;
+}
+
+.supertabelaplanos .table_delete_btn {
+    margin: 0 auto;
 }
 
 .supertabelaplanos_th_stack {
@@ -1324,7 +1360,7 @@
 .supertabelaplanos .row_add_suggest_wrap {
     position: relative;
     width: min(560px, 100%);
-    z-index: 1200;
+    z-index: 1;
     isolation: isolate;
 }
 
@@ -1350,7 +1386,7 @@
 .supertabelaplanos .row_add_suggest_list.is-portal {
     position: fixed;
     right: auto;
-    z-index: 3000;
+    z-index: 405;
 }
 
 .supertabelaplanos .row_add_suggest_item {
@@ -1564,3 +1600,295 @@
     white-space: nowrap;
     flex-shrink: 0;
 }
+
+/* ——— Mobile / tablet (Tabela de Valores · Planos) ——— */
+@media (max-width: 1023px) {
+    .supertabelaplanos {
+        margin: 0 max(0.5rem, env(safe-area-inset-right)) 1rem max(0.5rem, env(safe-area-inset-left));
+        text-align: left;
+    }
+
+    .supertabelaplanos h1 {
+        font-size: 1.1rem;
+        margin: 0.2rem 0 0.05rem;
+    }
+
+    .supertabelaplanos hr {
+        margin: 6px 0.25rem;
+    }
+
+    .supertabelaplanos_header {
+        padding: 0;
+    }
+
+    .supertabelaplanos_header h2,
+    .supertabelaplanos_header.is-compact h2 {
+        display: none;
+    }
+
+    .supertabelaplanos_filters {
+        display: flex;
+        flex-wrap: wrap;
+        flex-direction: row;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 0.28rem;
+        padding: 0.4em 0.45em;
+        margin: 0.15em 0;
+        width: 100%;
+        max-width: none;
+        box-sizing: border-box;
+        text-align: left;
+        border-radius: 10px;
+        overflow: visible;
+    }
+
+    .supertabelaplanos_header.is-compact .supertabelaplanos_filters {
+        margin: 0.15em 0;
+        padding: 0.4em 0.45em;
+    }
+
+    .supertabelaplanos_filter_busca {
+        order: 1;
+        flex: 1 1 100%;
+        max-width: none;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .supertabelaplanos_filter_item:not(.supertabelaplanos_filter_busca):not(.supertabelaplanos_filter_mode) {
+        order: 2;
+        flex: 1 1 100%;
+        max-width: none;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .supertabelaplanos_edit_wrap {
+        order: 3;
+        flex: 1 1 calc(50% - 0.14rem);
+        width: auto;
+        min-width: 0;
+        height: 30px;
+        min-height: 30px;
+        padding: 0 6px;
+        font-size: 0.72rem;
+        white-space: nowrap;
+        justify-content: flex-start;
+        box-sizing: border-box;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .supertabelaplanos_action_btn {
+        order: 4;
+        flex: 1 1 calc(50% - 0.14rem);
+        width: auto;
+        min-width: 0;
+        height: 30px;
+        min-height: 30px;
+        padding: 0 6px;
+        font-size: 0.7rem;
+        gap: 3px;
+        white-space: nowrap;
+        justify-content: center;
+        box-sizing: border-box;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .supertabelaplanos_filter_mode {
+        order: 5;
+        flex: 1 1 100%;
+        max-width: none;
+        width: 100%;
+        min-width: 0;
+        align-items: stretch;
+    }
+
+    .supertabelaplanos_filter_plano_wrap,
+    .supertabelaplanos_filter_plano_wrap.is-visible {
+        order: 6;
+        flex: 1 1 100%;
+        width: 100%;
+        max-width: none;
+    }
+
+    .supertabelaplanos_filter_item p,
+    .supertabelaplanos_filter_busca p,
+    .supertabelaplanos_filter_mode_label {
+        font-size: 0.65rem;
+        margin: 0 0 1px 0;
+        line-height: 1.1;
+        opacity: 0.85;
+    }
+
+    .supertabelaplanos_filter_mode_label {
+        display: none;
+    }
+
+    .supertabelaplanos_input,
+    .supertabelaplanos_select {
+        max-width: none;
+        width: 100%;
+        min-width: 0;
+        height: 30px;
+        min-height: 30px;
+        padding: 2px 8px;
+        font-size: 0.78rem;
+        box-sizing: border-box;
+    }
+
+    .supertabelaplanos_filter_busca .supertabelaplanos_input {
+        min-width: 0;
+        max-width: none;
+    }
+
+    .supertabelaplanos_mode_rail {
+        max-width: none;
+        width: 100%;
+        min-height: 30px;
+        padding: 2px;
+    }
+
+    .supertabelaplanos_header.is-compact .supertabelaplanos_mode_rail {
+        max-width: none;
+        width: 100%;
+        min-height: 30px;
+    }
+
+    .supertabelaplanos_mode_btn {
+        font-size: 0.68rem;
+        padding: 3px 4px;
+        line-height: 1.15;
+    }
+
+    .supertabelaplanos_action_btn_ico {
+        font-size: 0.75rem;
+    }
+
+    .supertabelaplanos .categoria_titulo {
+        font-size: clamp(0.88rem, 0.55rem + 2.8vw, 1.05rem);
+        line-height: 1.2;
+        font-weight: 700;
+        margin: 0 0 2px 0;
+        text-wrap: balance;
+        overflow-wrap: anywhere;
+    }
+
+    .supertabelaplanos .categoria_header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+
+    .supertabelaplanos .categoria_secao {
+        padding: 8px 6px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .supertabelaplanos_table_stage {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .supertabelaplanos_table_stage .table_main,
+    .supertabelaplanos .categoria_secao .table_main {
+        min-width: 820px;
+        font-size: 0.84rem;
+    }
+
+    .supertabelaplanos .table_main th,
+    .supertabelaplanos .table_main td {
+        padding: 7px 8px;
+    }
+
+    .supertabelaplanos .table_main th.supertabelaplanos_th_nome,
+    .supertabelaplanos .table_main td.supertabelaplanos_td_nome {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .supertabelaplanos .table_main th.supertabelaplanos_th_centro,
+    .supertabelaplanos .table_main td.supertabelaplanos_td_centro {
+        padding-left: 6px;
+        padding-right: 6px;
+    }
+
+    .supertabelaplanos .table_main col.supertabelaplanos_col_codigo {
+        width: 6.5rem;
+    }
+
+    .supertabelaplanos .table_main col.supertabelaplanos_col_nome {
+        width: 14rem;
+    }
+
+    .supertabelaplanos .table_main col.supertabelaplanos_col_plano {
+        width: 5.75rem;
+    }
+
+    .supertabelaplanos .table_main col.supertabelaplanos_col_limite {
+        width: 8rem;
+    }
+
+    .supertabelaplanos .table_main col.supertabelaplanos_col_carencia {
+        width: 7.5rem;
+    }
+
+    .supertabelaplanos .table_main col.supertabelaplanos_col_acao {
+        width: 3.5rem;
+    }
+
+    .supertabelaplanos .row_add_input {
+        min-width: 0;
+        width: 100%;
+        max-width: none;
+        box-sizing: border-box;
+    }
+
+    .supertabelaplanos .row_add_inline {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .cidade_tabela_ibge_form_row {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .supertabelaplanos h1 {
+        font-size: 1.05rem;
+        margin: 0.15rem 0 0;
+    }
+
+    .supertabelaplanos .categoria_titulo {
+        font-size: clamp(0.8rem, 0.5rem + 2.6vw, 0.95rem);
+        line-height: 1.15;
+    }
+
+    .supertabelaplanos_filters {
+        gap: 0.22rem;
+        padding: 0.32em 0.38em;
+    }
+
+    .supertabelaplanos_mode_btn {
+        font-size: 0.64rem;
+        padding: 2px 3px;
+    }
+
+    .supertabelaplanos_table_stage .table_main,
+    .supertabelaplanos .categoria_secao .table_main {
+        font-size: 0.8rem;
+        min-width: 760px;
+    }
+
+    .supertabelaplanos .table_main th,
+    .supertabelaplanos .table_main td {
+        padding: 6px 7px;
+    }
+}
+

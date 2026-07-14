@@ -93,30 +93,24 @@
 }
 
 .cred_esp_cidade_grid {
-    display: flex;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
     max-width: 1180px;
     margin: 0 auto;
-}
-
-.cred_esp_cidade_coluna {
-    flex: 1 1 0;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 @media (max-width: 960px) {
     .cred_esp_cidade_grid {
-        flex-direction: column;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 620px) {
     .cred_esp_cidade_grid {
-        flex-direction: column;
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
@@ -324,4 +318,175 @@ body.dark-mode .cred_esp_cidade_filtros_flutuantes {
 
 body.dark-mode .cred_esp_cidade_page > hr {
     border-color: var(--border-soft);
+}
+
+/* ——— Mobile / tablet ——— */
+@media (max-width: 1023px) {
+    .credenciamento_main.cred_esp_cidade_page {
+        margin: 0;
+        padding: 0.35rem max(0.55rem, env(safe-area-inset-right)) max(4.5rem, calc(env(safe-area-inset-bottom, 0px) + 3.5rem)) max(0.55rem, env(safe-area-inset-left));
+    }
+
+    .cred_esp_cidade_page > h1 {
+        font-size: clamp(1rem, 0.7rem + 2.4vw, 1.25rem);
+        line-height: 1.25;
+        margin: 0.2rem 0 0.35rem;
+        text-wrap: balance;
+        padding: 0 0.25rem;
+    }
+
+    .cred_esp_cidade_page > hr {
+        margin: 0.35rem 0.15rem 0.55rem;
+    }
+
+    .cred_esp_cidade_filtros_flutuantes,
+    .cred_esp_cidade_filtros_flutuantes.quem_realiza_filtros_center {
+        width: 100%;
+        max-width: 100%;
+        margin: 0 0 0.65rem;
+        padding: 0.55em 0.6em;
+        box-shadow: 0 1px 6px rgba(30, 49, 72, 0.08);
+    }
+
+    .cred_esp_cidade_filtros_flutuantes .quem_realiza_row_center {
+        display: grid;
+        grid-template-columns: minmax(0, 5.5rem) minmax(0, 1fr);
+        align-items: end;
+        gap: 0.45rem 0.5rem;
+        max-width: none;
+        width: 100%;
+    }
+
+    .cred_esp_cidade_filtros_flutuantes .quem_realiza_row_center .pcad_field {
+        flex: none;
+        max-width: none;
+        width: 100%;
+        min-width: 0;
+        margin: 0;
+    }
+
+    .cred_esp_cidade_filtros_flutuantes .quem_realiza_row_center .pcad_field span {
+        font-size: 0.72rem;
+        margin-bottom: 2px;
+    }
+
+    .cred_esp_cidade_filtros_flutuantes .quem_realiza_row_center .credenciamento_main_input {
+        width: 100%;
+        min-width: 0;
+        height: 34px;
+        min-height: 34px;
+        padding: 4px 8px;
+        font-size: 0.82rem;
+        box-sizing: border-box;
+    }
+
+    .cred_esp_cidade_filtros_flutuantes .quem_realiza_switch_cidades {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        gap: 0.5rem;
+        padding-top: 0.1rem;
+    }
+
+    .cred_esp_cidade_filtros_flutuantes .quem_realiza_switch_cidades_label {
+        text-align: left;
+        max-width: none;
+        flex: 1 1 auto;
+        font-size: 0.78rem;
+        line-height: 1.25;
+    }
+
+    .cred_esp_cidade_corpo {
+        padding: 0 0 0.35rem;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .cred_esp_cidade_resumo {
+        margin: 0 0 10px;
+        font-size: 0.82rem;
+        line-height: 1.35;
+        text-wrap: balance;
+    }
+
+    .cred_esp_cidade_grid {
+        gap: 10px;
+    }
+
+    .cred_esp_cidade_card_head {
+        padding: 9px 10px;
+        gap: 8px;
+        min-height: 44px;
+        box-sizing: border-box;
+    }
+
+    .cred_esp_cidade_card_tit {
+        font-size: 0.86rem;
+        overflow-wrap: anywhere;
+    }
+
+    .cred_esp_cidade_card_qtd {
+        font-size: 1.05rem;
+        min-width: 1.75ch;
+    }
+
+    .cred_esp_cidade_nomes {
+        max-height: min(40vh, 260px);
+        padding: 8px 10px 10px;
+    }
+
+    .cred_esp_cidade_nomes li {
+        font-size: 0.82rem;
+        padding: 6px 0;
+        gap: 6px;
+    }
+
+    .cred_esp_cidade_tag_paralela {
+        font-size: 0.62rem;
+    }
+
+    .cred_esp_cidade_corpo > .pcad_muted {
+        padding: 1rem 0.35rem;
+        font-size: 0.88rem;
+        text-wrap: balance;
+    }
+}
+
+@media (max-width: 640px) {
+    .cred_esp_cidade_page > h1 {
+        font-size: clamp(0.92rem, 0.55rem + 3vw, 1.1rem);
+        line-height: 1.2;
+    }
+
+    .cred_esp_cidade_filtros_flutuantes,
+    .cred_esp_cidade_filtros_flutuantes.quem_realiza_filtros_center {
+        padding: 0.42em 0.48em;
+        border-radius: 10px;
+    }
+
+    .cred_esp_cidade_filtros_flutuantes .quem_realiza_row_center {
+        gap: 0.35rem 0.4rem;
+    }
+
+    .cred_esp_cidade_grid {
+        gap: 8px;
+    }
+
+    .cred_esp_cidade_card {
+        border-radius: 10px;
+    }
+
+    .cred_esp_cidade_card_head {
+        padding: 8px 9px;
+    }
+
+    .cred_esp_cidade_card_tit {
+        font-size: 0.82rem;
+    }
+
+    .cred_esp_cidade_card_qtd {
+        font-size: 1rem;
+    }
 }

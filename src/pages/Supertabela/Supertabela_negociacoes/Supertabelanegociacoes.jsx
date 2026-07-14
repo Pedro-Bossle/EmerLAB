@@ -224,13 +224,13 @@ const Supertabelanegociacoes = () => {
         const c = mostrarCustos
         let w
         if (c && na) {
-            w = { cod: '9%', nom: '22%', nalt: '12%', p: '9%', diff: '10%', custo: '10%', acao: '10%' }
+            w = { cod: '9%', nom: '22%', nalt: '11%', p: '10%', diff: '10%', custo: '10%', acao: '8%' }
         } else if (c && !na) {
-            w = { cod: '11%', nom: '31%', p: '11%', diff: '12%', custo: '12%', acao: '12%' }
+            w = { cod: '10%', nom: '25%', p: '11%', diff: '12%', custo: '12%', acao: '8%' }
         } else if (!c && na) {
-            w = { cod: '11%', nom: '34%', nalt: '13%', p: '10%', acao: '12%' }
+            w = { cod: '11%', nom: '32%', nalt: '14%', p: '11%', acao: '10%' }
         } else {
-            w = { cod: '12%', nom: '48%', p: '11%', acao: '12%' }
+            w = { cod: '12%', nom: '44%', p: '12%', acao: '8%' }
         }
         if (somenteLeitura) {
             const acaoNum = parseFloat(w.acao || '0')
@@ -1918,10 +1918,10 @@ ou um código por linha`}
                                     <col
                                         style={{
                                             width: mostrarColunaVinculoLista
-                                                ? '24%'
+                                                ? '22%'
                                                 : somenteLeitura
-                                                  ? '40%'
-                                                  : '34%',
+                                                  ? '38%'
+                                                  : '32%',
                                         }}
                                     />
                                     <col style={{ width: '14%' }} />
@@ -1930,12 +1930,12 @@ ou um código por linha`}
                                             width: mostrarColunaVinculoLista
                                                 ? '18%'
                                                 : somenteLeitura
-                                                  ? '46%'
-                                                  : '40%',
+                                                  ? '48%'
+                                                  : '46%',
                                         }}
                                     />
                                     {mostrarColunaVinculoLista && (
-                                        <col style={{ width: somenteLeitura ? '44%' : '36%' }} />
+                                        <col style={{ width: somenteLeitura ? '46%' : '38%' }} />
                                     )}
                                     {!somenteLeitura && <col style={{ width: '8%' }} />}
                                 </colgroup>

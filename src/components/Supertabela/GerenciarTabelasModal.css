@@ -118,3 +118,15 @@
     width: max-content;
     max-width: 100%;
 }
+
+@media (max-width: 640px) {
+    .manager_table_wrap_inset {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .manager_icon_btn {
+        min-width: 40px;
+        min-height: 40px;
+    }
+}
+

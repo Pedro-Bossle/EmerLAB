@@ -252,8 +252,48 @@ body.dark-mode .supertabelamain_header {
 
 .table_text_left {
     text-align: left;
-    padding-left: 8px;
     font-weight: 500;
+}
+
+.supertabelamain .table_main {
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.supertabelamain .table_main th,
+.supertabelamain .table_main td {
+    padding: 8px 10px;
+    vertical-align: middle;
+}
+
+.supertabelamain .table_main th.table_header {
+    padding: 9px 10px;
+}
+
+.supertabelamain .table_main td.table_text_left:first-child,
+.supertabelamain .table_main th.table_header:first-child {
+    padding-left: 12px;
+    padding-right: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.supertabelamain .table_main td.table_text_left:nth-child(2),
+.supertabelamain .table_main th.table_header:nth-child(2) {
+    padding-left: 12px;
+    padding-right: 12px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.supertabelamain .table_main td:nth-child(n + 3),
+.supertabelamain .table_main th.table_header:nth-child(n + 3) {
+    text-align: center;
+    white-space: nowrap;
+    padding-left: 8px;
+    padding-right: 8px;
 }
 
 .table_text_proc {
@@ -274,13 +314,14 @@ body.dark-mode .supertabelamain_header {
 
 .table_cell_input {
     width: 100%;
-    min-width: 72px;
-    padding: 4px 6px;
+    min-width: 0;
+    padding: 5px 6px;
     border-radius: 6px;
     border: 1px solid #b9cfde;
     background: #ffffff;
     text-align: right;
     font-size: 0.86rem;
+    box-sizing: border-box;
 }
 
 .table_custo_negativo {
@@ -302,3 +343,184 @@ supertabelamain_filters_select_select
 table_container
 table_main
 */
+
+/* ——— Mobile / tablet (Tabela de Valores) ——— */
+@media (max-width: 1023px) {
+    .supertabelamain {
+        margin: 0 max(0.65rem, env(safe-area-inset-right)) 1.25rem max(0.65rem, env(safe-area-inset-left));
+        text-align: left;
+    }
+
+    .supertabelamain hr {
+        margin: 8px 0.35rem;
+    }
+
+    .supertabelamain_header {
+        padding: 2px 0 4px;
+        top: 0;
+    }
+
+    .supertabelamain_header h2 {
+        display: none;
+    }
+
+    .supertabelamain_filters {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        flex-direction: unset;
+        align-items: end;
+        justify-content: stretch;
+        overflow-x: visible;
+        max-width: none;
+        margin: 0.25em 0;
+        padding: 0.5em 0.55em;
+        gap: 0.4rem 0.5rem;
+        text-align: left;
+    }
+
+    .supertabelamain_header .supertabelamain_filters {
+        margin: 0.25em 0;
+        padding: 0.5em 0.55em;
+        box-shadow: 0 2px 10px rgba(30, 49, 72, 0.1);
+    }
+
+    .supertabelamain_filters_input {
+        grid-column: 1 / -1;
+        width: 100%;
+        gap: 2px;
+    }
+
+    .supertabelamain_filters_select {
+        width: 100%;
+        min-width: 0;
+        gap: 2px;
+    }
+
+    .supertabelamain_filters_input p,
+    .supertabelamain_filters_select p {
+        font-size: 0.72rem;
+    }
+
+    .supertabelamain_filters_input_text,
+    .supertabelamain_filters_select_select {
+        width: 100%;
+        min-width: 0;
+        height: 34px;
+        min-height: 34px;
+        padding: 4px 8px;
+        font-size: 0.82rem;
+        box-sizing: border-box;
+    }
+
+    .supertabelamain_filters_checkbox_wrap {
+        grid-column: 1 / -1;
+        width: 100%;
+        min-width: 0;
+        height: 34px;
+        min-height: 34px;
+        white-space: normal;
+        justify-content: flex-start;
+        font-size: 0.78rem;
+        box-sizing: border-box;
+    }
+
+    .supertabelamain_filters_input_button {
+        margin-left: 0;
+        width: 100%;
+        height: 34px;
+        min-height: 34px;
+    }
+
+    .categoria_secao {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 8px 6px;
+        gap: 4px;
+    }
+
+    .categoria_titulo {
+        font-size: clamp(0.88rem, 0.55rem + 2.8vw, 1.05rem);
+        line-height: 1.2;
+        font-weight: 700;
+        margin: 0 0 2px 0;
+        text-wrap: balance;
+        overflow-wrap: anywhere;
+        hyphens: auto;
+    }
+
+    .table_container .table_main,
+    .categoria_secao .table_main {
+        min-width: 900px;
+        font-size: 0.84rem;
+    }
+
+    .supertabelamain .table_main th,
+    .supertabelamain .table_main td {
+        padding: 8px 10px;
+    }
+
+    .supertabelamain .table_main col.supertabelamain_col_codigo {
+        width: 6.75rem !important;
+    }
+
+    .supertabelamain .table_main col.supertabelamain_col_nome {
+        width: 13rem !important;
+    }
+
+    .supertabelamain .table_main col.supertabelamain_col_valor {
+        width: 6.25rem !important;
+    }
+
+    .table_main_virtual_body {
+        overflow-x: visible;
+        min-width: 900px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table_text_proc {
+        white-space: normal;
+    }
+
+    .supertabelamain_alert {
+        left: 12px;
+        right: 12px;
+        max-width: none;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+}
+
+@media (max-width: 640px) {
+    .supertabelamain h1 {
+        font-size: 1.2rem;
+        margin: 0.35rem 0 0.15rem;
+    }
+
+    .supertabelamain_filters {
+        padding: 0.45em 0.5em;
+        gap: 0.35rem 0.4rem;
+    }
+
+    .categoria_titulo {
+        font-size: clamp(0.8rem, 0.5rem + 2.6vw, 0.95rem);
+        line-height: 1.15;
+    }
+
+    .categoria_secao .table_main,
+    .table_container .table_main {
+        min-width: 900px;
+        font-size: 0.82rem;
+    }
+
+    .supertabelamain .table_main col.supertabelamain_col_codigo {
+        width: 6.5rem !important;
+    }
+
+    .supertabelamain .table_main col.supertabelamain_col_nome {
+        width: 12rem !important;
+    }
+
+    .supertabelamain .table_main col.supertabelamain_col_valor {
+        width: 6rem !important;
+    }
+}

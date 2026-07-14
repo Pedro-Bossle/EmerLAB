@@ -994,13 +994,13 @@ const Supertabelamain = () => {
                                     <>
                                         <table className='table_main table_main_virtual_header'>
                                             <colgroup>
-                                                <col style={{ width: '12%' }} />
-                                                <col style={{ width: '34%' }} />
-                                                <col style={{ width: '10.8%' }} />
-                                                <col style={{ width: '10.8%' }} />
-                                                <col style={{ width: '10.8%' }} />
-                                                <col style={{ width: '10.8%' }} />
-                                                <col style={{ width: '10.8%' }} />
+                                                <col className='supertabelamain_col_codigo' style={{ width: '11%' }} />
+                                                <col className='supertabelamain_col_nome' style={{ width: '33%' }} />
+                                                <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
+                                                <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
+                                                <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
+                                                <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
+                                                <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
                                             </colgroup>
                                             <thead>
                                                 <tr>
@@ -1025,13 +1025,13 @@ const Supertabelamain = () => {
                                         >
                                             <table className='table_main table_main_virtual_rows'>
                                                 <colgroup>
-                                                    <col style={{ width: '12%' }} />
-                                                    <col style={{ width: '34%' }} />
-                                                    <col style={{ width: '10.8%' }} />
-                                                    <col style={{ width: '10.8%' }} />
-                                                    <col style={{ width: '10.8%' }} />
-                                                    <col style={{ width: '10.8%' }} />
-                                                    <col style={{ width: '10.8%' }} />
+                                                    <col className='supertabelamain_col_codigo' style={{ width: '11%' }} />
+                                                    <col className='supertabelamain_col_nome' style={{ width: '33%' }} />
+                                                    <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
+                                                    <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
+                                                    <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
+                                                    <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
+                                                    <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
                                                 </colgroup>
                                                 <tbody>
                                                     {alturaEspacadorTopo > 0 && (
@@ -1127,13 +1127,13 @@ const Supertabelamain = () => {
                                 ) : (
                                     <table className='table_main'>
                                         <colgroup>
-                                            <col style={{ width: '12%' }} />
-                                            <col style={{ width: '34%' }} />
-                                            <col style={{ width: '10.8%' }} />
-                                            <col style={{ width: '10.8%' }} />
-                                            <col style={{ width: '10.8%' }} />
-                                            <col style={{ width: '10.8%' }} />
-                                            <col style={{ width: '10.8%' }} />
+                                            <col className='supertabelamain_col_codigo' style={{ width: '11%' }} />
+                                            <col className='supertabelamain_col_nome' style={{ width: '33%' }} />
+                                            <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
+                                            <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
+                                            <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
+                                            <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
+                                            <col className='supertabelamain_col_valor' style={{ width: '11.2%' }} />
                                         </colgroup>
                                         <thead>
                                             <tr>

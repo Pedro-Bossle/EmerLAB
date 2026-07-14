@@ -192,3 +192,36 @@ body.dark-mode .sih_btn_secundario {
     background: #243545;
     border-color: #3d5a6e;
 }
+
+@media (max-width: 640px) {
+    .sih_modal_backdrop {
+        padding: 8px;
+        align-items: flex-start;
+    }
+
+    .sih_modal {
+        width: 100%;
+        max-width: 100%;
+        max-height: calc(100vh - 16px);
+    }
+
+    .sih_honorarios_scroll {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .sih_honorarios_table {
+        min-width: 480px;
+    }
+
+    .sih_modal_foot {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .sih_modal_foot .sih_btn_primario,
+    .sih_modal_foot .sih_btn_secundario {
+        flex: 1 1 100%;
+        min-height: 40px;
+    }
+}
+

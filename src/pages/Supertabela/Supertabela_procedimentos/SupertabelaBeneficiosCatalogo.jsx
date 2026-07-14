@@ -323,10 +323,10 @@ export default function SupertabelaBeneficiosCatalogo({
                                 }`}
                             >
                                 <colgroup>
-                                    <col style={{ width: '14%' }} />
-                                    <col style={{ width: '36%' }} />
-                                    <col style={{ width: '26%' }} />
-                                    <col style={{ width: '10%' }} />
+                                    <col style={{ width: '12%' }} />
+                                    <col style={{ width: '38%' }} />
+                                    <col style={{ width: '24%' }} />
+                                    <col style={{ width: '12%' }} />
                                     <col style={{ width: '14%' }} />
                                 </colgroup>
                                 <thead>

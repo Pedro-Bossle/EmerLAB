@@ -457,7 +457,7 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
 .row_add_suggest_wrap {
     position: relative;
     width: min(560px, 100%);
-    z-index: 1200;
+    z-index: 1;
     isolation: isolate;
 }
 
@@ -483,7 +483,7 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
 .row_add_suggest_list.is-portal {
     position: fixed;
     right: auto;
-    z-index: 3000;
+    z-index: 405;
 }
 
 .row_add_suggest_item {

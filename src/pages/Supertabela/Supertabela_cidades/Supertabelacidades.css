@@ -351,19 +351,51 @@
 
 .table_text_left {
     text-align: left;
-    padding-left: 8px;
+    padding-left: 10px;
+    padding-right: 8px;
     font-weight: 500;
+}
+
+.supertabelacidades .table_main {
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.supertabelacidades .table_main th,
+.supertabelacidades .table_main td {
+    padding: 8px 10px;
+    vertical-align: middle;
+}
+
+.supertabelacidades .table_main th.table_header {
+    padding: 9px 10px;
+}
+
+.supertabelacidades .table_main td.table_text_left:first-child,
+.supertabelacidades .table_main th.table_header:first-child {
+    padding-left: 12px;
+    white-space: nowrap;
+}
+
+.supertabelacidades .table_main td:nth-child(n + 3),
+.supertabelacidades .table_main th:nth-child(n + 3) {
+    text-align: center;
+    padding-left: 8px;
+    padding-right: 8px;
+    white-space: nowrap;
 }
 
 .table_cell_input {
     width: 100%;
-    min-width: 72px;
-    padding: 4px 6px;
+    min-width: 0;
+    padding: 5px 6px;
     border-radius: 6px;
     border: 1px solid #b9cfde;
     background: #ffffff;
     text-align: right;
     font-size: 0.86rem;
+    box-sizing: border-box;
 }
 
 .row_add_line {
@@ -404,7 +436,7 @@
 .row_add_suggest_wrap {
     position: relative;
     width: min(560px, 100%);
-    z-index: 1200;
+    z-index: 1;
     isolation: isolate;
 }
 
@@ -430,7 +462,8 @@
 .row_add_suggest_list.is-portal {
     position: fixed;
     right: auto;
-    z-index: 3000;
+    /* Abaixo do backdrop/sidebar mobile (410/420) e do FAB (430) */
+    z-index: 405;
 }
 
 .row_add_suggest_item {
@@ -1203,4 +1236,189 @@
     padding: 8px 12px;
     font-weight: 700;
     cursor: pointer;
+}
+
+/* ——— Mobile / tablet (Tabela de Valores · Cidades) ——— */
+@media (max-width: 1023px) {
+    .supertabelacidades {
+        margin: 0 max(0.5rem, env(safe-area-inset-right)) 1rem max(0.5rem, env(safe-area-inset-left));
+        text-align: left;
+    }
+
+    .supertabelacidades h1 {
+        font-size: 1.15rem;
+        margin: 0.25rem 0 0.1rem;
+    }
+
+    .supertabelacidades hr {
+        margin: 6px 0.25rem;
+    }
+
+    .supertabelacidades_header {
+        padding: 0;
+    }
+
+    .supertabelacidades_header h2,
+    .supertabelacidades_header.is-compact h2 {
+        display: none;
+    }
+
+    .supertabelacidades_filters {
+        display: flex;
+        flex-wrap: wrap;
+        flex-direction: row;
+        align-items: stretch;
+        justify-content: flex-start;
+        overflow-x: visible;
+        max-width: none;
+        gap: 0.28rem;
+        padding: 0.4em 0.45em;
+        margin: 0.15em 0;
+        text-align: left;
+        border-radius: 10px;
+    }
+
+    .supertabelacidades_header.is-compact .supertabelacidades_filters {
+        margin: 0.15em 0;
+        padding: 0.4em 0.45em;
+    }
+
+    .supertabelacidades_filter_busca {
+        order: 1;
+        flex: 1 1 100%;
+        width: 100%;
+        gap: 1px;
+    }
+
+    .supertabelacidades_filter_item:not(.supertabelacidades_filter_busca) {
+        order: 2;
+        flex: 1 1 100%;
+        width: 100%;
+        gap: 1px;
+    }
+
+    .supertabelacidades_edit_wrap {
+        order: 3;
+        flex: 1 1 calc(50% - 0.14rem);
+        width: auto;
+        min-width: 0;
+        max-width: none;
+        white-space: nowrap;
+        height: 30px;
+        min-height: 30px;
+        padding: 0 6px;
+        font-size: 0.72rem;
+        box-sizing: border-box;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .supertabelacidades_filters .supertabelacidades_action_btn {
+        order: 4;
+        flex: 1 1 calc(50% - 0.14rem);
+        width: auto;
+        min-width: 0;
+        height: 30px;
+        min-height: 30px;
+        padding: 0 6px;
+        white-space: nowrap;
+        justify-content: center;
+        font-size: 0.7rem;
+        gap: 3px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .supertabelacidades_filter_item p {
+        font-size: 0.65rem;
+        margin: 0;
+        line-height: 1.1;
+        opacity: 0.85;
+    }
+
+    .supertabelacidades_input,
+    .supertabelacidades_select {
+        width: 100%;
+        min-width: 0;
+        height: 30px;
+        min-height: 30px;
+        padding: 2px 8px;
+        font-size: 0.78rem;
+        box-sizing: border-box;
+    }
+
+    .supertabelacidades_filters .supertabelacidades_action_btn .ico {
+        font-size: 0.75rem;
+    }
+
+    .supertabelacidades .categoria_header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+
+    .supertabelacidades .categoria_titulo {
+        font-size: clamp(0.88rem, 0.55rem + 2.8vw, 1.05rem);
+        line-height: 1.2;
+        font-weight: 700;
+        margin: 0 0 2px 0;
+        text-wrap: balance;
+        overflow-wrap: anywhere;
+    }
+
+    .supertabelacidades .categoria_secao {
+        padding: 8px 6px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .supertabelacidades .categoria_secao .table_main {
+        min-width: 760px;
+        font-size: 0.84rem;
+    }
+
+    .supertabelacidades .table_main th,
+    .supertabelacidades .table_main td {
+        padding: 7px 8px;
+    }
+
+    .supertabelacidades .row_add_input {
+        min-width: 0;
+        width: 100%;
+        max-width: none;
+        box-sizing: border-box;
+    }
+
+    .supertabelacidades .row_add_inline {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .cidade_tabela_ibge_form_row {
+        grid-template-columns: 1fr;
+    }
+
+    .cidade_tabela_field_label_grow {
+        grid-column: auto;
+    }
+}
+
+@media (max-width: 640px) {
+    .supertabelacidades h1 {
+        font-size: 1.1rem;
+        margin: 0.2rem 0 0;
+    }
+
+    .supertabelacidades .categoria_titulo {
+        font-size: clamp(0.8rem, 0.5rem + 2.6vw, 0.95rem);
+        line-height: 1.15;
+    }
+
+    .supertabelacidades_filters {
+        gap: 0.22rem;
+        padding: 0.32em 0.38em;
+    }
+
+    .supertabelacidades .categoria_secao .table_main {
+        font-size: 0.82rem;
+    }
 }

@@ -213,6 +213,14 @@
         color 0.15s ease;
 }
 
+.planos_impressao_btn_txt_full {
+    display: inline;
+}
+
+.planos_impressao_btn_txt_short {
+    display: none;
+}
+
 .planos_impressao_btn_secao_marcar {
     color: #0d4a72;
     background: #e3f2fb;
@@ -571,8 +579,11 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
     }
 
     .planos_impressao_conteudo .categoria_titulo {
-        font-size: 1.05rem;
-        line-height: 1.25;
+        font-size: clamp(0.88rem, 0.55rem + 2.8vw, 1.05rem);
+        line-height: 1.2;
+        font-weight: 700;
+        text-wrap: balance;
+        overflow-wrap: anywhere;
     }
 
     .planos_impressao_secao_acoes {

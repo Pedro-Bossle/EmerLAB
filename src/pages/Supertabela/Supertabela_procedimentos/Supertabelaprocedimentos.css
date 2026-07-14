@@ -70,6 +70,16 @@
     table-layout: fixed;
 }
 
+.supertabela_beneficios_table th,
+.supertabela_beneficios_table td {
+    padding: 8px 10px;
+    vertical-align: middle;
+}
+
+.supertabela_beneficios_table th.table_header {
+    padding: 9px 10px;
+}
+
 .supertabela_beneficios_novo_grid {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
@@ -282,6 +292,31 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
 
 .supertabelaprocedimentos .table_text_left {
     text-align: left;
+    padding-left: 10px;
+    padding-right: 8px;
+    font-weight: 500;
+}
+
+.supertabelaprocedimentos .table_main {
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.supertabelaprocedimentos .table_main th,
+.supertabelaprocedimentos .table_main td {
+    padding: 8px 10px;
+    vertical-align: middle;
+}
+
+.supertabelaprocedimentos .table_main th.table_header {
+    padding: 9px 10px;
+}
+
+.supertabelaprocedimentos .table_main td.table_text_left:first-child,
+.supertabelaprocedimentos .table_main th.table_header:first-child {
+    padding-left: 12px;
+    white-space: nowrap;
 }
 
 .supertabelaprocedimentos_cell_select {
@@ -520,10 +555,20 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
     table-layout: fixed;
 }
 
+.supertabelaprocedimentos_categorias_table th,
+.supertabelaprocedimentos_categorias_table td {
+    padding: 8px 10px;
+    vertical-align: middle;
+}
+
+.supertabelaprocedimentos_categorias_table th.table_header {
+    padding: 9px 10px;
+}
+
 .supertabelaprocedimentos_categorias_table .supertabelaprocedimentos_col_center {
     text-align: center;
-    padding-left: 4px;
-    padding-right: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
 }
 
 .supertabelaprocedimentos_categorias_table.is-editing .supertabelaprocedimentos_categorias_input {
@@ -655,16 +700,155 @@ body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabel
 }
 
 @media (max-width: 1023px) {
+    .supertabelaprocedimentos {
+        margin: 0 max(0.65rem, env(safe-area-inset-right)) 1.25rem max(0.65rem, env(safe-area-inset-left));
+        text-align: left;
+    }
+
+    .supertabelaprocedimentos hr {
+        margin: 10px 0.5rem;
+    }
+
+    .supertabelaprocedimentos_header h2,
+    .supertabelaprocedimentos_header.is-compact h2 {
+        display: none;
+    }
+
+    .supertabelaprocedimentos_filters {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        flex-direction: unset;
+        align-items: end;
+        max-width: none;
+        gap: 0.4rem 0.5rem;
+        padding: 0.5em 0.55em;
+        margin: 0.25em 0;
+        text-align: left;
+    }
+
+    .supertabelaprocedimentos_filter_busca,
+    .supertabelaprocedimentos_filters > .supertabelaprocedimentos_filter_item:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .supertabelaprocedimentos_filters p {
+        font-size: 0.72rem;
+        margin-bottom: 2px;
+    }
+
+    .supertabelaprocedimentos_input {
+        min-width: 0;
+        width: 100%;
+        height: 34px;
+        min-height: 34px;
+        font-size: 0.82rem;
+        box-sizing: border-box;
+    }
+
+    .supertabelaprocedimentos_filter_mode,
+    .supertabelaprocedimentos_mode_rail {
+        min-width: 0;
+        width: 100%;
+        max-width: none;
+        grid-column: 1 / -1;
+        min-height: 34px;
+    }
+
+    .supertabelaprocedimentos_edit_wrap {
+        width: 100%;
+        justify-content: flex-start;
+        white-space: normal;
+        min-height: 34px;
+        grid-column: 1 / -1;
+        font-size: 0.78rem;
+    }
+
+    .supertabelaprocedimentos_catalogo_modo {
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        grid-column: 1 / -1;
+    }
+
+    .supertabelaprocedimentos_catalogo_modo_btn {
+        flex: 1 1 140px;
+        min-height: 34px;
+    }
+
+    .supertabelaprocedimentos_action_btn {
+        width: 100%;
+        min-height: 34px;
+        white-space: normal;
+        justify-content: center;
+        font-size: 0.78rem;
+        box-sizing: border-box;
+    }
+
+    .supertabelaprocedimentos .categoria_titulo {
+        font-size: clamp(0.88rem, 0.55rem + 2.8vw, 1.05rem);
+        line-height: 1.2;
+        font-weight: 700;
+        margin: 0 0 2px 0;
+        text-wrap: balance;
+        overflow-wrap: anywhere;
+    }
+
+    .supertabelaprocedimentos .categoria_secao {
+        padding: 8px 6px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .supertabelaprocedimentos .categoria_secao .table_main,
+    .supertabela_beneficios_table {
+        min-width: 760px;
+        font-size: 0.84rem;
+    }
+
+    .supertabela_beneficios_table {
+        table-layout: fixed;
+    }
+
+    .supertabelaprocedimentos .table_main th,
+    .supertabelaprocedimentos .table_main td,
+    .supertabela_beneficios_table th,
+    .supertabela_beneficios_table td {
+        padding: 7px 8px;
+    }
+
+    .supertabelaprocedimentos_massa_form,
+    .supertabelaprocedimentos_novo_grid {
+        width: 100%;
+    }
+
+    .supertabelaprocedimentos_alert {
+        left: 12px;
+        right: 12px;
+        min-width: 0;
+        max-width: none;
+        box-sizing: border-box;
+    }
+
     .supertabelaprocedimentos.is-modo-categorias .supertabelaprocedimentos_categorias_table {
         font-size: 0.86rem;
     }
 
     .supertabelaprocedimentos_categorias_secao {
         padding: 0.5rem 0.25rem;
+        -webkit-overflow-scrolling: touch;
     }
 }
 
 @media (max-width: 640px) {
+    .supertabelaprocedimentos h1 {
+        font-size: 1.2rem;
+        margin: 0.35rem 0 0.15rem;
+    }
+
+    .supertabelaprocedimentos .categoria_titulo {
+        font-size: clamp(0.8rem, 0.5rem + 2.6vw, 0.95rem);
+        line-height: 1.15;
+    }
+
     .supertabelaprocedimentos_limite_tipo_switch .supertabelaprocedimentos_form_switch_label {
         min-width: 3.2rem;
         font-size: 0.68rem;
@@ -672,5 +856,10 @@ body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabel
 
     .supertabelaprocedimentos_th_plan {
         font-size: 0.68rem;
+    }
+
+    .supertabelaprocedimentos .categoria_secao .table_main,
+    .supertabela_beneficios_table {
+        font-size: 0.82rem;
     }
 }

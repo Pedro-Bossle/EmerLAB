@@ -2380,13 +2380,18 @@ ou um código por linha`}
                             {!modoLimitacoes ? (
                                 <table className='table_main'>
                                     <colgroup>
-                                        <col style={{ width: '14%' }} />
-                                        <col style={{ width: somenteLeitura ? '53%' : '42%' }} />
-                                        <col style={{ width: '11%' }} />
-                                        <col style={{ width: '11%' }} />
-                                        <col style={{ width: '11%' }} />
-                                        <col style={{ width: '11%' }} />
-                                        {!somenteLeitura && <col style={{ width: '11%' }} />}
+                                        <col className='supertabelaplanos_col_codigo' style={{ width: '11%' }} />
+                                        <col
+                                            className='supertabelaplanos_col_nome'
+                                            style={{ width: somenteLeitura ? '43%' : '35%' }}
+                                        />
+                                        <col className='supertabelaplanos_col_plano' style={{ width: '12%' }} />
+                                        <col className='supertabelaplanos_col_plano' style={{ width: '12%' }} />
+                                        <col className='supertabelaplanos_col_plano' style={{ width: '12%' }} />
+                                        <col className='supertabelaplanos_col_plano' style={{ width: '12%' }} />
+                                        {!somenteLeitura && (
+                                            <col className='supertabelaplanos_col_acao' style={{ width: '6%' }} />
+                                        )}
                                     </colgroup>
                                     <thead>
                                         <tr>
@@ -2525,8 +2530,7 @@ ou um código por linha`}
                                                     >
                                                         ＋ Adicionar procedimento nesta categoria
                                                     </button>
-                                                ) : null
-                                                }
+                                                ) : null}
                                             </td>
                                         </tr>
                                     </tbody>
@@ -2534,11 +2538,16 @@ ou um código por linha`}
                             ) : (
                                 <table className='table_main'>
                                     <colgroup>
-                                        <col style={{ width: '13%' }} />
-                                        <col style={{ width: somenteLeitura ? '54%' : '43%' }} />
-                                        <col style={{ width: '18%' }} />
-                                        <col style={{ width: '15%' }} />
-                                        {!somenteLeitura && <col style={{ width: '11%' }} />}
+                                        <col className='supertabelaplanos_col_codigo' style={{ width: '12%' }} />
+                                        <col
+                                            className='supertabelaplanos_col_nome'
+                                            style={{ width: somenteLeitura ? '42%' : '34%' }}
+                                        />
+                                        <col className='supertabelaplanos_col_limite' style={{ width: '22%' }} />
+                                        <col className='supertabelaplanos_col_carencia' style={{ width: '20%' }} />
+                                        {!somenteLeitura && (
+                                            <col className='supertabelaplanos_col_acao' style={{ width: '8%' }} />
+                                        )}
                                     </colgroup>
                                     <thead>
                                         <tr>
@@ -2747,8 +2756,7 @@ ou um código por linha`}
                                                     >
                                                         ＋ Adicionar procedimento nesta categoria
                                                     </button>
-                                                ) : null
-                                                }
+                                                ) : null}
                                             </td>
                                         </tr>
                                     </tbody>
@@ -2764,4 +2772,5 @@ ou um código por linha`}
     )
 }
 
+export { Supertabelaplanos }
 export default Supertabelaplanos

@@ -306,6 +306,35 @@ body.supertabelanegociacoes_no_bounce {
     margin: 0 0 4px 0;
 }
 
+.supertabelanegociacoes .table_main {
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.supertabelanegociacoes .table_main th,
+.supertabelanegociacoes .table_main td {
+    padding: 8px 10px;
+    vertical-align: middle;
+}
+
+.supertabelanegociacoes .table_main th.table_header {
+    padding: 9px 10px;
+}
+
+.supertabelanegociacoes .table_main td.table_text_left:first-child,
+.supertabelanegociacoes .table_main th.table_header:first-child {
+    padding-left: 12px;
+    white-space: nowrap;
+}
+
+.supertabelanegociacoes .table_text_left {
+    text-align: left;
+    padding-left: 10px;
+    padding-right: 8px;
+    font-weight: 500;
+}
+
 .supertabelanegociacoes .table_main_virtual_header {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
@@ -438,7 +467,7 @@ body.supertabelanegociacoes_no_bounce {
 .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     position: fixed;
     right: auto;
-    z-index: 3000;
+    z-index: 405;
 }
 
 .supertabelanegociacoes .row_add_suggest_item {
@@ -746,4 +775,173 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
 .supertabelanegociacoes_pill_switch:active .supertabelanegociacoes_pill_track {
     filter: brightness(0.97);
 }
+
+/* ——— Mobile / tablet (Tabela de Valores · Negociações) ——— */
+@media (max-width: 1023px) {
+    .supertabelanegociacoes {
+        margin: 0 max(0.65rem, env(safe-area-inset-right)) 1.25rem max(0.65rem, env(safe-area-inset-left));
+        text-align: left;
+    }
+
+    .supertabelanegociacoes hr {
+        margin: 10px 0.5rem;
+    }
+
+    .supertabelanegociacoes_header h2,
+    .supertabelanegociacoes_header.is-compact h2 {
+        display: none;
+    }
+
+    .supertabelanegociacoes_filters {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        flex-direction: unset;
+        align-items: end;
+        max-width: none;
+        gap: 0.4rem 0.5rem;
+        padding: 0.5em 0.55em;
+        margin: 0.25em 0;
+        text-align: left;
+    }
+
+    .supertabelanegociacoes_filters > * {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .supertabelanegociacoes_filter_busca,
+    .supertabelanegociacoes_back_btn {
+        grid-column: 1 / -1;
+    }
+
+    .supertabelanegociacoes_filters p {
+        font-size: 0.72rem;
+        margin-bottom: 2px;
+    }
+
+    .supertabelanegociacoes_filter_break {
+        display: none;
+    }
+
+    .supertabelanegociacoes_input,
+    .supertabelanegociacoes_select {
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
+        height: 34px;
+        min-height: 34px;
+        font-size: 0.82rem;
+    }
+
+    .supertabelanegociacoes_filter_busca .supertabelanegociacoes_input {
+        min-width: 0;
+    }
+
+    .supertabelanegociacoes_action_btn,
+    .supertabelanegociacoes_back_btn,
+    .supertabelanegociacoes_edit_wrap {
+        width: 100%;
+        justify-content: center;
+        white-space: normal;
+        min-height: 34px;
+        font-size: 0.78rem;
+        box-sizing: border-box;
+    }
+
+    .supertabelanegociacoes_filter_pill {
+        width: 100%;
+        grid-column: 1 / -1;
+    }
+
+    .supertabelanegociacoes_pill_switch {
+        width: 100%;
+        justify-content: space-between;
+        box-sizing: border-box;
+        min-height: 34px;
+    }
+
+    .supertabelanegociacoes_form_box {
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+    }
+
+    .supertabelanegociacoes_form_actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .supertabelanegociacoes_form_actions .supertabelanegociacoes_action_btn {
+        width: 100%;
+    }
+
+    .supertabelanegociacoes .categoria_secao {
+        padding: 8px 6px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .supertabelanegociacoes .categoria_titulo {
+        font-size: clamp(0.88rem, 0.55rem + 2.8vw, 1.05rem);
+        line-height: 1.2;
+        font-weight: 700;
+        margin: 0 0 2px 0;
+        text-wrap: balance;
+        overflow-wrap: anywhere;
+    }
+
+    .supertabelanegociacoes .table_main_virtual_body {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .supertabelanegociacoes .categoria_secao .table_main {
+        min-width: 860px;
+        font-size: 0.84rem;
+    }
+
+    .supertabelanegociacoes .table_main th,
+    .supertabelanegociacoes .table_main td {
+        padding: 7px 8px;
+    }
+
+    .supertabelanegociacoes_lista_vinculo_cell {
+        min-width: 8rem;
+        max-width: none;
+    }
+
+    .supertabelanegociacoes_paginacao,
+    .supertabelanegociacoes_paginacao_controles {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .supertabelanegociacoes_paginacao_controles button,
+    .supertabelanegociacoes_paginacao select {
+        min-width: 0;
+        min-height: 40px;
+    }
+}
+
+@media (max-width: 640px) {
+    .supertabelanegociacoes h1 {
+        font-size: 1.2rem;
+        margin: 0.35rem 0 0.15rem;
+    }
+
+    .supertabelanegociacoes .categoria_titulo {
+        font-size: clamp(0.8rem, 0.5rem + 2.6vw, 0.95rem);
+        line-height: 1.15;
+    }
+
+    .supertabelanegociacoes_form_grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .supertabelanegociacoes .categoria_secao .table_main {
+        font-size: 0.82rem;
+        min-width: 780px;
+    }
+}
+
 

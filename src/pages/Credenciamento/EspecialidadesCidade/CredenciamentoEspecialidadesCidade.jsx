@@ -16,8 +16,6 @@ import '../Credenciamento_main/Credenciamento_main.css'
 import '../QuemRealiza/CredenciamentoQuemRealiza.css'
 import './CredenciamentoEspecialidadesCidade.css'
 
-const COLUNAS_ESPECIALIDADE = 3
-
 export default function CredenciamentoEspecialidadesCidade() {
     const [uf, setUf] = useState('')
     const [cidadeNome, setCidadeNome] = useState('')
@@ -175,12 +173,6 @@ export default function CredenciamentoEspecialidadesCidade() {
 
     const maxTotal = useMemo(() => Math.max(1, ...grupos.map((g) => g.total)), [grupos])
 
-    const colunasGrupos = useMemo(() => {
-        const cols = Array.from({ length: COLUNAS_ESPECIALIDADE }, () => [])
-        grupos.forEach((g, i) => cols[i % COLUNAS_ESPECIALIDADE].push(g))
-        return cols
-    }, [grupos])
-
     const totalCredenciadosUnicos = useMemo(() => {
         const ids = new Set()
         for (const g of grupos) {
@@ -319,11 +311,7 @@ export default function CredenciamentoEspecialidadesCidade() {
                         <strong>{grupos.length}</strong> especialidade(s) com pelo menos um vínculo
                     </p>
                     <div className="cred_esp_cidade_grid">
-                        {colunasGrupos.map((coluna, idx) => (
-                            <div key={`col-esp-${idx}`} className="cred_esp_cidade_coluna">
-                                {coluna.map((g) => renderCard(g))}
-                            </div>
-                        ))}
+                        {grupos.map((g) => renderCard(g))}
                     </div>
                 </>
             )}

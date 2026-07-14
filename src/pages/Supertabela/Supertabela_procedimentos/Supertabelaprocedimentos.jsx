@@ -1232,12 +1232,12 @@ const Supertabelaprocedimentos = () => {
                                 }`}
                             >
                                 <colgroup>
-                                    <col style={{ width: '4%' }} />
-                                    <col style={{ width: '35%' }} />
-                                    <col style={{ width: '9%' }} />
-                                    <col style={{ width: '12%' }} />
+                                    <col style={{ width: '5%' }} />
+                                    <col style={{ width: '28%' }} />
+                                    <col style={{ width: '10%' }} />
+                                    <col style={{ width: '13%' }} />
                                     {ORDEM_PLANOS.map((chave) => (
-                                        <col key={`col-lim-${chave}`} style={{ width: '10%' }} />
+                                        <col key={`col-lim-${chave}`} style={{ width: '11%' }} />
                                     ))}
                                 </colgroup>
                                 <thead>
@@ -1417,8 +1417,8 @@ const Supertabelaprocedimentos = () => {
                                 const linhasVisiveis = secao.linhas.slice(indiceInicial, indiceFinal)
                                 const colSpanProc = somenteLeitura ? 5 : 6
                                 const colProcWidths = somenteLeitura
-                                    ? ['10%', '36%', '14%', '16%', '12%']
-                                    : ['10%', '30%', '13%', '15%', '12%', '8%']
+                                    ? ['11%', '38%', '15%', '18%', '18%']
+                                    : ['11%', '32%', '14%', '16%', '14%', '8%']
 
                                 const renderLinha = (linha) => (
                                     <tr key={linha.rowId}>

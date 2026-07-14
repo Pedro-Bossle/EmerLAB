@@ -1582,12 +1582,12 @@ ou um código por linha`}
                             </div>
                             <table className='table_main'>
                                 <colgroup>
-                                    <col style={{ width: '14%' }} />
-                                    <col style={{ width: somenteLeitura ? '53%' : '42%' }} />
                                     <col style={{ width: '11%' }} />
-                                    <col style={{ width: '11%' }} />
-                                    <col style={{ width: '11%' }} />
-                                    {!somenteLeitura && <col style={{ width: '11%' }} />}
+                                    <col style={{ width: somenteLeitura ? '44%' : '36%' }} />
+                                    <col style={{ width: '15%' }} />
+                                    <col style={{ width: '15%' }} />
+                                    <col style={{ width: '15%' }} />
+                                    {!somenteLeitura && <col style={{ width: '8%' }} />}
                                 </colgroup>
                                 <thead>
                                     <tr>
