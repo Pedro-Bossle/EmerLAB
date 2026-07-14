@@ -53,6 +53,20 @@ function sanitizarTextoPdf(texto) {
         .trim()
 }
 
+/** Sanitiza OBS mantendo quebras de linha do textarea. */
+function sanitizarObservacoesPdf(texto) {
+    return String(texto ?? '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/https?:\/\/\S+/gi, '')
+        .replace(/www\.\S+/gi, '')
+        .replace(/[^\S\n]+/g, ' ')
+        .replace(/ +\n/g, '\n')
+        .replace(/\n +/g, '\n')
+        .replace(/^\n+/, '')
+        .replace(/\n+$/, '')
+}
+
 function formatarPercentual(valor) {
     const n = Number(valor)
     if (!Number.isFinite(n)) return '—'
@@ -88,6 +102,35 @@ function quebrarTexto(texto, font, size, larguraMax) {
         }
     }
     if (atual) linhas.push(atual)
+    return linhas
+}
+
+/** Quebra por largura respeitando Enter do campo OBS (linhas vazias = parágrafo). */
+function quebrarTextoObservacoes(texto, font, size, larguraMax) {
+    const bruto = sanitizarObservacoesPdf(texto)
+    if (!bruto) return []
+    const paragrafos = bruto.split('\n')
+    const linhas = []
+    for (const paragrafo of paragrafos) {
+        const trecho = String(paragrafo || '').trimEnd()
+        if (!trecho) {
+            linhas.push('')
+            continue
+        }
+        const palavras = trecho.split(/\s+/).filter(Boolean)
+        let atual = ''
+        for (const palavra of palavras) {
+            const teste = atual ? `${atual} ${palavra}` : palavra
+            if (font.widthOfTextAtSize(teste, size) <= larguraMax) {
+                atual = teste
+            } else {
+                if (atual) linhas.push(atual)
+                atual = palavra
+            }
+        }
+        if (atual) linhas.push(atual)
+    }
+    while (linhas.length && linhas[linhas.length - 1] === '') linhas.pop()
     return linhas
 }
 
@@ -197,7 +240,7 @@ function desenharBarraTituloGrupo(page, fonts, x, yTop, innerW) {
 
 function medirBlocoInformacoes(texto, fonts, innerW) {
     const corpo = fontCorpo(fonts)
-    const linhas = quebrarTexto(texto, corpo, FONT_SIZE_BODY, innerW - OBS_PADDING * 2)
+    const linhas = quebrarTextoObservacoes(texto, corpo, FONT_SIZE_BODY, innerW - OBS_PADDING * 2)
     const hTexto = Math.max(INFO_MIN_BODY, Math.max(1, linhas.length) * LINE_LEADING + 8)
     return INFO_SEP_GAP + 1 + INFO_TITLE_GAP + FONT_SIZE_INFO + INFO_TITLE_GAP + hTexto + OBS_PADDING
 }
@@ -223,7 +266,7 @@ function desenharFundoCardBranco(page, yTop, yBottom, innerW) {
 function desenharInformacoes(page, fonts, layout, yTop, texto) {
     const { innerW } = layout
     const corpo = fontCorpo(fonts)
-    const linhas = quebrarTexto(texto, corpo, FONT_SIZE_BODY, innerW - OBS_PADDING * 2)
+    const linhas = quebrarTextoObservacoes(texto, corpo, FONT_SIZE_BODY, innerW - OBS_PADDING * 2)
     const hTexto = Math.max(INFO_MIN_BODY, Math.max(1, linhas.length) * LINE_LEADING + 8)
     const cardH = INFO_SEP_GAP + 1 + INFO_TITLE_GAP + FONT_SIZE_INFO + INFO_TITLE_GAP + hTexto + OBS_PADDING
     const yBottom = yTop - cardH
@@ -251,13 +294,15 @@ function desenharInformacoes(page, fonts, layout, yTop, texto) {
     let yTxt = titY - INFO_TITLE_GAP - FONT_SIZE_BODY
     if (linhas.length) {
         linhas.forEach((ln, i) => {
-            page.drawText(ln, {
-                x: MARGIN_X + OBS_PADDING,
-                y: yTxt - i * LINE_LEADING,
-                size: FONT_SIZE_BODY,
-                font: corpo,
-                color: COR_TEXTO,
-            })
+            if (ln) {
+                page.drawText(ln, {
+                    x: MARGIN_X + OBS_PADDING,
+                    y: yTxt - i * LINE_LEADING,
+                    size: FONT_SIZE_BODY,
+                    font: corpo,
+                    color: COR_TEXTO,
+                })
+            }
         })
     }
 
@@ -425,7 +470,7 @@ export async function gerarImpressaoDescontosPdf(opts) {
         .filter(Boolean)
         .join(' · ')
 
-    const obs = sanitizarTextoPdf(opts.observacoes)
+    const obs = sanitizarObservacoesPdf(opts.observacoes)
     const hInfo = medirBlocoInformacoes(obs, fonts, layout.innerW)
     let linhaIdx = 0
     let zebra = 0
