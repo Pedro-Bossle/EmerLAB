@@ -149,7 +149,7 @@ export default function ModalImpressaoHonorariosCidade({ aberto, onClose, cidade
                     })),
                 })),
             })
-            downloadImpressaoHonorariosPdf(blob, cidadeSelecionada?.nome || 'Cidade')
+            downloadImpressaoHonorariosPdf(blob, cidadeNome || 'Cidade')
             onClose?.()
         } catch (error) {
             onErro?.(error?.message || 'Falha ao gerar PDF.')
