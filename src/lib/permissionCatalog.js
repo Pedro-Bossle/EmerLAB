@@ -140,13 +140,6 @@ export const PERMISSION_CATALOG = [
                 href: '/credenciamento/prospectos-osm',
             },
             {
-                id: 'credenciamento.import_kmz',
-                label: 'Importar KMZ',
-                descricao: 'Coordenadas do Google My Maps com vínculo por nome ao cadastro.',
-                actions: RU,
-                href: '/credenciamento/import-kmz',
-            },
-            {
                 id: 'credenciamento.quem_realiza',
                 label: 'Quem Realiza',
                 descricao: 'Busca por UF, cidade e procedimentos.',
@@ -180,12 +173,40 @@ export const PERMISSION_CATALOG = [
                 actions: RU,
                 href: '/credenciamento/formulario/entradas',
             },
+        ],
+    },
+    {
+        id: 'configuracoes',
+        label: 'Configurações',
+        tools: [
+            {
+                id: 'credenciamento.import_kmz',
+                label: 'Importar KMZ',
+                descricao: 'Coordenadas do Google My Maps com vínculo por nome ao cadastro.',
+                actions: RU,
+                href: '/credenciamento/import-kmz',
+            },
             {
                 id: 'credenciamento.especialidades_rc',
                 label: 'Especialidades (RC)',
                 descricao: 'Ordem e cadastro de especialidades no PDF da RC.',
                 actions: RCUD,
                 href: '/credenciamento/especialidades-rc',
+            },
+            {
+                id: 'configuracoes.importar_credenciados',
+                label: 'Importar Credenciados',
+                descricao:
+                    'Upload de Excel (credenciado × procedimento) para revisar e vincular ao perfil.',
+                actions: RU,
+                href: '/configuracoes/importar-credenciados',
+            },
+            {
+                id: 'configuracoes.exportar_credenciados',
+                label: 'Exportar Credenciados',
+                descricao: 'Exportar Excel dos prestadores com status credenciado e procedimentos.',
+                actions: R,
+                href: '/configuracoes/exportar-credenciados',
             },
         ],
     },
@@ -381,6 +402,8 @@ export function expandLegacyToAcl(perms) {
         setTool('credenciamento.especialidades_cidade', { read: true })
         setTool('credenciamento.formulario', { read: true })
         setTool('credenciamento.especialidades_rc', { read: true })
+        setTool('configuracoes.importar_credenciados', { read: true })
+        setTool('configuracoes.exportar_credenciados', { read: true })
     }
     if (p[L.CREDENCIAMENTO_CADASTRO_VIEW]) {
         setTool('credenciamento.cadastro', { read: true })
@@ -398,6 +421,7 @@ export function expandLegacyToAcl(perms) {
         setTool('credenciamento.formulario_inbox', { read: true, update: true })
         setTool('credenciamento.import_kmz', { read: true, update: true })
         setTool('credenciamento.prospectos_osm', { read: true, update: true })
+        setTool('configuracoes.importar_credenciados', { read: true, update: true })
     }
     if (p[L.CREDENCIAMENTO_FORMULARIO_CONFIG]) {
         setTool('credenciamento.formulario', { read: true, update: true })
@@ -490,7 +514,9 @@ export function syncLegacyFromAcl(perms) {
         hasAcl(p, 'credenciamento.import_kmz', 'read') ||
         hasAcl(p, 'credenciamento.especialidades_cidade', 'read') ||
         hasAcl(p, 'credenciamento.formulario', 'read') ||
-        hasAcl(p, 'credenciamento.especialidades_rc', 'read')
+        hasAcl(p, 'credenciamento.especialidades_rc', 'read') ||
+        hasAcl(p, 'configuracoes.importar_credenciados', 'read') ||
+        hasAcl(p, 'configuracoes.exportar_credenciados', 'read')
     p[L.CREDENCIAMENTO_CADASTRO_VIEW] = hasAcl(p, 'credenciamento.cadastro', 'read')
     p[L.CREDENCIAMENTO_QUEM_REALIZA_VIEW] = hasAcl(p, 'credenciamento.quem_realiza', 'read')
     p[L.CREDENCIAMENTO_FORMULARIO_INBOX] = hasAcl(p, 'credenciamento.formulario_inbox', 'read')
@@ -504,7 +530,8 @@ export function syncLegacyFromAcl(perms) {
         hasAcl(p, 'credenciamento.cadastro', 'create') ||
         hasAcl(p, 'credenciamento.especialidades_rc', 'update') ||
         hasAcl(p, 'credenciamento.formulario_inbox', 'update') ||
-        hasAcl(p, 'credenciamento.import_kmz', 'update')
+        hasAcl(p, 'credenciamento.import_kmz', 'update') ||
+        hasAcl(p, 'configuracoes.importar_credenciados', 'update')
 
     p[L.PLANOS_VIEW] = hasAcl(p, 'planos.impressao', 'read')
     p[L.COMPRAS_VIEW] = anyAclInGroup(p, 'compras', 'read')

@@ -1,0 +1,26 @@
+.config_export_cred_header h1 {
+    margin: 0 0 8px;
+}
+
+.config_export_cred_lead {
+    max-width: 720px;
+    line-height: 1.45;
+    margin-bottom: 1rem;
+}
+
+.config_export_cred_acoes {
+    margin-bottom: 1.25rem;
+}
+
+.config_export_cred_cols {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: #5a7a94;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    max-width: 640px;
+}
+
+body.dark-mode .config_export_cred_cols {
+    color: #9ab0c4;
+}

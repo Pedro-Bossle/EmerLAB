@@ -1,0 +1,345 @@
+.config_import_cred_header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.config_import_cred_header h1 {
+    margin: 0;
+}
+
+.config_import_cred_lead {
+    max-width: 760px;
+    margin-bottom: 16px;
+    line-height: 1.45;
+}
+
+.config_import_cred_upload {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.config_import_cred_file_label {
+    cursor: pointer;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+}
+
+.config_import_cred_nome_arq {
+    font-size: 0.9rem;
+    color: #4a657a;
+}
+
+.config_import_cred_resumo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.config_import_cred_kpi {
+    background: #f4f7fb;
+    border: 1px solid #d5e0ea;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.config_import_cred_kpi.ok {
+    background: #e8f6ee;
+    border-color: #b7dfc5;
+    color: #1f6b3d;
+}
+
+.config_import_cred_kpi.warn {
+    background: #fff8e8;
+    border-color: #f0dca0;
+    color: #7a5b12;
+}
+
+.config_import_cred_kpi.err {
+    background: #fdeeee;
+    border-color: #efc1c1;
+    color: #8a2f2f;
+}
+
+.config_import_cred_kpi_orfao {
+    cursor: pointer;
+    background: #fff3d6;
+    border: 1px solid #f0dca0;
+    color: #7a5b12;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.config_import_cred_kpi_orfao:hover {
+    border-color: #d4b45a;
+}
+
+.config_import_cred_table_wrap {
+    overflow: auto;
+    max-width: 100%;
+    margin-bottom: 1.5rem;
+    border: 1px solid #d5e0ea;
+    border-radius: 10px;
+}
+
+.config_import_cred_table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.config_import_cred_table th,
+.config_import_cred_table td {
+    border-bottom: 1px solid #e4ecf3;
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.config_import_cred_table th {
+    background: #f4f7fb;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.config_import_cred_table tbody tr.is-no-perfil,
+.config_import_cred_table tbody tr.st-ja_vinculado {
+    background: #eaf8ef;
+}
+
+.config_import_cred_table tbody tr.is-no-perfil td,
+.config_import_cred_table tbody tr.st-ja_vinculado td {
+    border-bottom-color: #cfe8d8;
+}
+
+.config_import_cred_badge {
+    display: inline-flex;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: #eef3f8;
+    color: #3a556b;
+}
+
+.config_import_cred_badge.st-ja_vinculado {
+    background: #1f6b3d;
+    color: #fff;
+}
+
+.config_import_cred_badge.st-fora_perfil {
+    background: #fff3d6;
+    color: #7a5b12;
+}
+
+.config_import_cred_badge.st-revisar_credenciado,
+.config_import_cred_badge.st-revisar_procedimento {
+    background: #e8f0ff;
+    color: #2a4d8f;
+}
+
+.config_import_cred_badge.st-sem_credenciado,
+.config_import_cred_badge.st-sem_procedimento {
+    background: #fdeeee;
+    color: #8a2f2f;
+}
+
+.config_import_cred_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.config_import_cred_match {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 220px;
+}
+
+.config_import_cred_match .prestador_vinculo_busca.row_add_suggest_wrap {
+    position: relative;
+    width: 100%;
+    z-index: 1;
+}
+
+.config_import_cred_match .prestador_vinculo_busca_input,
+.config_import_cred_match .row_add_input {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 34px;
+    padding: 6px 10px;
+    border: 1px solid #9fc7e1;
+    border-radius: 8px;
+    font: inherit;
+    background: #fff;
+}
+
+.config_import_cred_match .prestador_vinculo_busca_input:focus {
+    outline: none;
+    border-color: var(--azul-destaque, #1f7ec2);
+    box-shadow: 0 0 0 2px rgba(31, 126, 194, 0.15);
+}
+
+body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
+    position: fixed;
+    z-index: 405;
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid #9fc7e1;
+    border-radius: 10px;
+    background: #f4fbff;
+    box-shadow: 0 8px 20px rgba(30, 49, 72, 0.18);
+    box-sizing: border-box;
+}
+
+body > .prestador_vinculo_busca_portal .row_add_suggest_item {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 0;
+    border-bottom: 1px solid #dcecf7;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    color: #15364f;
+    font: inherit;
+}
+
+body > .prestador_vinculo_busca_portal .row_add_suggest_item:hover,
+body > .prestador_vinculo_busca_portal .row_add_suggest_item.is-active {
+    background: #dff0fb;
+}
+
+body > .prestador_vinculo_busca_portal .row_add_suggest_item span {
+    font-size: 0.88rem;
+}
+
+body > .prestador_vinculo_busca_portal .row_add_suggest_item small {
+    color: #5a7a94;
+    font-size: 0.75rem;
+}
+
+body > .prestador_vinculo_busca_portal .row_add_suggest_empty {
+    padding: 10px;
+    color: #5a7a94;
+    font-size: 0.85rem;
+}
+
+.config_import_cred_sugestoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.config_import_cred_sug_btn {
+    font: inherit;
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid #c5d5e4;
+    background: #fff;
+    cursor: pointer;
+}
+
+.config_import_cred_sug_btn:hover {
+    border-color: var(--azul-destaque, #1f7ec2);
+    color: var(--azul-destaque, #1f7ec2);
+}
+
+.config_import_cred_orfaos {
+    margin-top: 1.5rem;
+}
+
+.config_import_cred_orfaos h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1.1rem;
+}
+
+.config_import_cred_orfaos p {
+    margin: 0 0 0.75rem;
+    color: #5a7a94;
+    font-size: 0.88rem;
+}
+
+.config_import_cred_opcoes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.85rem 1.25rem;
+    margin: 0 0 0.75rem;
+}
+
+.config_import_cred_opcao {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.config_import_cred_opcao input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--azul-destaque, #1f7ec2);
+}
+
+.config_import_cred_paginacao {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    margin: 0.5rem 0 0.75rem;
+    font-size: 0.86rem;
+    color: #4a657a;
+}
+
+.config_import_cred_paginacao_btns {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.config_import_cred_pagina_num {
+    padding: 0 0.35rem;
+    font-weight: 600;
+}
+
+.muted {
+    color: #7a8fa3;
+}
+
+body.dark-mode .config_import_cred_kpi {
+    background: #1c2733;
+    border-color: #334556;
+    color: #d5e0ea;
+}
+
+body.dark-mode .config_import_cred_table_wrap {
+    border-color: #334556;
+}
+
+body.dark-mode .config_import_cred_table th {
+    background: #1c2733;
+}
+
+body.dark-mode .config_import_cred_table th,
+body.dark-mode .config_import_cred_table td {
+    border-color: #334556;
+}

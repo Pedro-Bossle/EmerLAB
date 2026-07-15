@@ -139,13 +139,9 @@ export default function PrestadorVinculoBusca({
 
 
     const escolher = (p) => {
-
         onChange(p)
-
-        setTexto(p && rotuloFn ? rotuloFn(p) : '')
-
+        setTexto(p ? (rotuloFn ? rotuloFn(p) : String(p.nome || '')) : '')
         setAberto(false)
-
     }
 
 

@@ -66,7 +66,6 @@ const menuItems = [
                 href: '/credenciamento/prospectos-osm',
                 permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
             },
-            { label: 'Importar KMZ', href: '/credenciamento/import-kmz', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
             { label: 'Quem Realiza', href: '/credenciamento/quem-realiza', permission: PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW },
             {
                 label: 'Especialidades por cidade',
@@ -83,17 +82,13 @@ const menuItems = [
                 href: '/credenciamento/formulario/entradas',
                 permission: PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_INBOX,
             },
-            {
-                label: 'Especialidades',
-                href: '/credenciamento/especialidades-rc',
-                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
-            },
             /* Documentação credenciamento — inativo por hora
             { label: 'Documentação', href: '/credenciamentodoc', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
             */
 
         ],
     },
+    
     {
         id: 'planos',
         label: 'Planos',
@@ -128,37 +123,28 @@ const menuItems = [
             { label: 'Registro', href: '/pagamentos/registro', permission: PERMISSION_KEYS.PAGAMENTOS_VIEW },
         ],
     },
-    /*{
-        id: 'formulario',
-        label: 'Formulário',
+    {
+        id: 'configuracoes',
+        label: 'Configurações',
         children: [
-            { label: 'Respostas', href: '/formulario/respostas' },
-            { label: 'Editor', href: '/formulario/Editor' },
-            { label: 'Preencher', href: '/formulario/preencher' },
-            { label: 'Documentação', href: '#' },
-
+            { label: 'Importar KMZ', href: '/credenciamento/import-kmz', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
+            {
+                label: 'Especialidades (RC)',
+                href: '/credenciamento/especialidades-rc',
+                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+            },
+            {
+                label: 'Importar Credenciados',
+                href: '/configuracoes/importar-credenciados',
+                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+            },
+            {
+                label: 'Exportar Credenciados',
+                href: '/configuracoes/exportar-credenciados',
+                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+            },
         ],
     },
-    {
-        id: 'planos',
-        label: 'Planos',
-        children: [
-            { label: 'Editor', href: '/editor' },
-            { label: 'Publico', href: '/planos/publico' },
-            { label: 'Documentação', href: '#' },
-
-        ],
-    },
-    {
-        id: 'emercast',
-        label: 'Emer-Cast',
-        children: [
-            { label: 'Visualizar', href: '/emercast/visualizar' },
-            { label: 'Publico', href: '/emercast/Publico' },
-            { label: 'Documentação', href: '#' },
-
-        ],
-    },*/
     {
         id: 'sair',
         label: 'Sair',

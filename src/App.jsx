@@ -26,6 +26,8 @@ import CredenciamentoFormularioConfig from './pages/Credenciamento/Formulario/Cr
 import CredenciamentoFormularioInbox from './pages/Credenciamento/Formulario/CredenciamentoFormularioInbox';
 import CredenciamentoEspecialidadesRc from './pages/Credenciamento/EspecialidadesRc/CredenciamentoEspecialidadesRc';
 import CredenciamentoFormularioPublico from './pages/Credenciamento/Formulario/CredenciamentoFormularioPublico';
+import ConfigImportarCredenciados from './pages/Configuracoes/ImportarCredenciados/ConfigImportarCredenciados';
+import ConfigExportarCredenciados from './pages/Configuracoes/ExportarCredenciados/ConfigExportarCredenciados';
 import GerenciamentoAcessos from './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos';
 import ComprasValorVenda from './pages/Compras/ValorVenda/ComprasValorVenda';
 import ComprasOrcamento from './pages/Compras/Orcamento/ComprasOrcamento';
@@ -232,6 +234,28 @@ function App() {
             element={
               <PrivateRoute permission="credenciamento.view" toolId="credenciamento.especialidades_rc">
                 <CredenciamentoEspecialidadesRc />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/configuracoes/importar-credenciados"
+            element={
+              <PrivateRoute
+                permission="credenciamento.view"
+                toolId="configuracoes.importar_credenciados"
+              >
+                <ConfigImportarCredenciados />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/configuracoes/exportar-credenciados"
+            element={
+              <PrivateRoute
+                permission="credenciamento.view"
+                toolId="configuracoes.exportar_credenciados"
+              >
+                <ConfigExportarCredenciados />
               </PrivateRoute>
             }
           />
