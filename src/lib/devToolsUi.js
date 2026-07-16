@@ -16,7 +16,6 @@ export const DEFAULT_COLUNAS_CADASTRO = {
     procs: false,
     copiarCodigosProcs: false,
     ocultarVetsClinica: false,
-    coordenadasMapa: false,
 }
 
 export const DEFAULT_COLUNAS_NEGOCIACOES = {
@@ -27,7 +26,6 @@ export const DEFAULT_COLUNAS_NEGOCIACOES = {
 const DEFAULT_UI = {
     buscaNot: false,
     exclusaoMassa: false,
-    contagemRealizadoresPlanos: false,
     colunasProcessos: { ...DEFAULT_COLUNAS_PROCESSOS },
     colunasCadastro: { ...DEFAULT_COLUNAS_CADASTRO },
     colunasNegociacoes: { ...DEFAULT_COLUNAS_NEGOCIACOES },
@@ -51,7 +49,6 @@ function normalizarColunasCadastro(raw) {
         base.procs = !!raw.procs
         base.copiarCodigosProcs = !!raw.copiarCodigosProcs
         base.ocultarVetsClinica = !!(raw.ocultarVetsClinica ?? raw.ocultarVets)
-        base.coordenadasMapa = !!raw.coordenadasMapa
     }
     return base
 }
@@ -91,7 +88,6 @@ export function lerDevToolsUi() {
             return {
                 buscaNot: !!parsed.buscaNot,
                 exclusaoMassa: !!parsed.exclusaoMassa,
-                contagemRealizadoresPlanos: !!parsed.contagemRealizadoresPlanos,
                 colunasProcessos: { pdf: true, site: true, mapa: true },
                 colunasCadastro: { perfil: true, crmv: true, procs: true, ocultarVetsClinica: false },
                 colunasNegociacoes: { vinculoPrestadorLista: true },
@@ -100,7 +96,6 @@ export function lerDevToolsUi() {
         return {
             buscaNot: !!parsed.buscaNot,
             exclusaoMassa: !!parsed.exclusaoMassa,
-            contagemRealizadoresPlanos: !!parsed.contagemRealizadoresPlanos,
             colunasProcessos: normalizarColunasProcessos(parsed.colunasProcessos),
             colunasCadastro: normalizarColunasCadastro(parsed.colunasCadastro),
             colunasNegociacoes: normalizarColunasNegociacoes(parsed.colunasNegociacoes),
@@ -204,7 +199,7 @@ export function useBuscaNotAtiva() {
 
 export function devToolsAlgumRecursoAtivo(ui) {
     const u = ui || lerDevToolsUi()
-    if (u.buscaNot || u.exclusaoMassa || u.contagemRealizadoresPlanos) return true
+    if (u.buscaNot || u.exclusaoMassa) return true
     if (Object.values(u.colunasProcessos || {}).some(Boolean)) return true
     if (Object.values(u.colunasCadastro || {}).some(Boolean)) return true
     if (Object.values(u.colunasNegociacoes || {}).some(Boolean)) return true
