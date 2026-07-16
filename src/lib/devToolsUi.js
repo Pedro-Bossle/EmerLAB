@@ -16,6 +16,7 @@ export const DEFAULT_COLUNAS_CADASTRO = {
     procs: false,
     copiarCodigosProcs: false,
     ocultarVetsClinica: false,
+    coordenadasMapa: false,
 }
 
 export const DEFAULT_COLUNAS_NEGOCIACOES = {
@@ -26,6 +27,7 @@ export const DEFAULT_COLUNAS_NEGOCIACOES = {
 const DEFAULT_UI = {
     buscaNot: false,
     exclusaoMassa: false,
+    contagemRealizadoresPlanos: false,
     colunasProcessos: { ...DEFAULT_COLUNAS_PROCESSOS },
     colunasCadastro: { ...DEFAULT_COLUNAS_CADASTRO },
     colunasNegociacoes: { ...DEFAULT_COLUNAS_NEGOCIACOES },
@@ -49,6 +51,7 @@ function normalizarColunasCadastro(raw) {
         base.procs = !!raw.procs
         base.copiarCodigosProcs = !!raw.copiarCodigosProcs
         base.ocultarVetsClinica = !!(raw.ocultarVetsClinica ?? raw.ocultarVets)
+        base.coordenadasMapa = !!raw.coordenadasMapa
     }
     return base
 }
@@ -64,49 +67,52 @@ function normalizarColunasNegociacoes(raw) {
     return base
 }
 
+function estadoUiPadrao() {
+    return {
+        ...DEFAULT_UI,
+        colunasProcessos: { ...DEFAULT_COLUNAS_PROCESSOS },
+        colunasCadastro: { ...DEFAULT_COLUNAS_CADASTRO },
+        colunasNegociacoes: { ...DEFAULT_COLUNAS_NEGOCIACOES },
+    }
+}
+
 export function lerDevToolsUi() {
     if (typeof window === 'undefined') {
-        return {
-            ...DEFAULT_UI,
-            colunasProcessos: { ...DEFAULT_COLUNAS_PROCESSOS },
-            colunasCadastro: { ...DEFAULT_COLUNAS_CADASTRO },
-            colunasNegociacoes: { ...DEFAULT_COLUNAS_NEGOCIACOES },
-        }
+        return estadoUiPadrao()
     }
     try {
         const raw = window.localStorage.getItem(DEV_TOOLS_UI_STORAGE_KEY)
         if (!raw) {
-            return {
-                ...DEFAULT_UI,
-                colunasProcessos: { ...DEFAULT_COLUNAS_PROCESSOS },
-                colunasCadastro: { ...DEFAULT_COLUNAS_CADASTRO },
-                colunasNegociacoes: { ...DEFAULT_COLUNAS_NEGOCIACOES },
-            }
+            return estadoUiPadrao()
         }
         const parsed = JSON.parse(raw)
         if (parsed.colunasExtras === true) {
             return {
                 buscaNot: !!parsed.buscaNot,
                 exclusaoMassa: !!parsed.exclusaoMassa,
+                contagemRealizadoresPlanos: !!parsed.contagemRealizadoresPlanos,
                 colunasProcessos: { pdf: true, site: true, mapa: true },
-                colunasCadastro: { perfil: true, crmv: true, procs: true, ocultarVetsClinica: false },
+                colunasCadastro: {
+                    perfil: true,
+                    crmv: true,
+                    procs: true,
+                    copiarCodigosProcs: false,
+                    ocultarVetsClinica: false,
+                    coordenadasMapa: false,
+                },
                 colunasNegociacoes: { vinculoPrestadorLista: true },
             }
         }
         return {
             buscaNot: !!parsed.buscaNot,
             exclusaoMassa: !!parsed.exclusaoMassa,
+            contagemRealizadoresPlanos: !!parsed.contagemRealizadoresPlanos,
             colunasProcessos: normalizarColunasProcessos(parsed.colunasProcessos),
             colunasCadastro: normalizarColunasCadastro(parsed.colunasCadastro),
             colunasNegociacoes: normalizarColunasNegociacoes(parsed.colunasNegociacoes),
         }
     } catch {
-        return {
-            ...DEFAULT_UI,
-            colunasProcessos: { ...DEFAULT_COLUNAS_PROCESSOS },
-            colunasCadastro: { ...DEFAULT_COLUNAS_CADASTRO },
-            colunasNegociacoes: { ...DEFAULT_COLUNAS_NEGOCIACOES },
-        }
+        return estadoUiPadrao()
     }
 }
 
@@ -199,7 +205,7 @@ export function useBuscaNotAtiva() {
 
 export function devToolsAlgumRecursoAtivo(ui) {
     const u = ui || lerDevToolsUi()
-    if (u.buscaNot || u.exclusaoMassa) return true
+    if (u.buscaNot || u.exclusaoMassa || u.contagemRealizadoresPlanos) return true
     if (Object.values(u.colunasProcessos || {}).some(Boolean)) return true
     if (Object.values(u.colunasCadastro || {}).some(Boolean)) return true
     if (Object.values(u.colunasNegociacoes || {}).some(Boolean)) return true
