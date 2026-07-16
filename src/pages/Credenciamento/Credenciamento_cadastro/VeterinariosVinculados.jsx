@@ -149,6 +149,7 @@ export default function VeterinariosVinculados({
                 ativo: true,
                 data_cadastro: new Date().toISOString(),
                 data_atualizacao: new Date().toISOString(),
+                ...(credId ? { credenciado_em: new Date().toISOString() } : {}),
             }
 
             const { data: ins, error } = await supabase.from('prestadores').insert(payload).select('id, nome, especialidade_id, crmv').single()

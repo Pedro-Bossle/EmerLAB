@@ -204,6 +204,24 @@ export const descricaoSituacaoPrestador = (prestador, situacoes) => {
 export const prestadorEhCredenciado = (prestador, situacoes) =>
     situacaoDescricaoEhCredenciado(descricaoSituacaoPrestador(prestador, situacoes))
 
+/**
+ * Se a situação está mudando para Credenciado (e antes não era),
+ * devolve `{ credenciado_em: ISO }`. Caso contrário `{}`.
+ * O trigger no banco também cobre isso; o app envia para refletir na UI imediatamente.
+ */
+export const patchCredenciadoEmSeTransicao = (situacaoIdAnterior, situacaoIdNova, situacoes) => {
+    const era = situacaoDescricaoEhCredenciado(
+        (situacoes || []).find((s) => Number(s.id) === Number(situacaoIdAnterior))?.descricao,
+    )
+    const sera = situacaoDescricaoEhCredenciado(
+        (situacoes || []).find((s) => Number(s.id) === Number(situacaoIdNova))?.descricao,
+    )
+    if (sera && !era) {
+        return { credenciado_em: new Date().toISOString() }
+    }
+    return {}
+}
+
 /** Situação «Preenchendo formulário(s)» ou equivalente. */
 export const acharSituacaoPreenchendoFormularioId = (situacoes) => {
     const hit = (situacoes || []).find((s) => {
@@ -309,34 +327,98 @@ export const listarPendenciasCompletudePerfil = (prestador, opcoes = {}) => {
 }
 
 /**
- * Filtro de texto com prefixo NOT (ex.: «NOT Caxias» exclui quem contém Caxias no blob).
- * Sem prefixo, comportamento de inclusão usual.
+ * Sintaxe avançada de busca (sem tip na UI):
+ * - texto normal: todas as palavras (AND)
+ * - (a, b, c): OR entre itens
+ * - !y ou NOT y: exclui quem contém y
+ * - !(a, b) ou NOT (a, b): exclui quem contém qualquer item
+ * Cláusulas separadas por espaço fora de parênteses combinam com AND.
  */
+export function parseClausulasBuscaAvancada(termoBruto) {
+    const s = String(termoBruto || '').trim()
+    if (!s) return []
+    const clausulas = []
+    let i = 0
+    while (i < s.length) {
+        while (i < s.length && /\s/.test(s[i])) i += 1
+        if (i >= s.length) break
+
+        let neg = false
+        const restoLower = s.slice(i).toLowerCase()
+        if (restoLower.startsWith('not ') || restoLower === 'not') {
+            neg = true
+            i += 3
+            while (i < s.length && /\s/.test(s[i])) i += 1
+        } else if (s[i] === '!') {
+            neg = true
+            i += 1
+            while (i < s.length && /\s/.test(s[i])) i += 1
+        }
+
+        if (i >= s.length) break
+
+        if (s[i] === '(') {
+            const end = s.indexOf(')', i)
+            if (end === -1) {
+                const norm = normalizarTextoBusca(s.slice(i))
+                if (norm) clausulas.push({ neg, tipo: 'and', texto: norm })
+                break
+            }
+            const alts = s
+                .slice(i + 1, end)
+                .split(',')
+                .map((p) => normalizarTextoBusca(p))
+                .filter(Boolean)
+            if (alts.length) clausulas.push({ neg, tipo: 'or', textos: alts })
+            i = end + 1
+            continue
+        }
+
+        let j = i
+        while (j < s.length) {
+            if (s[j] === '(') break
+            if (s[j] === '!' && (j === i || /\s/.test(s[j - 1]))) break
+            if (/\s/.test(s[j])) {
+                const after = s.slice(j)
+                if (/^\s+not(?:\s+|\(|$)/i.test(after) || /^\s+!/.test(after) || /^\s+\(/.test(after)) {
+                    break
+                }
+            }
+            j += 1
+        }
+        const pedaco = s.slice(i, j).trim()
+        const norm = normalizarTextoBusca(pedaco)
+        if (norm) clausulas.push({ neg, tipo: 'and', texto: norm })
+        i = j
+    }
+    return clausulas
+}
+
+function avaliaClausulaBusca(blobNormalizado, clausula) {
+    let ok = false
+    if (clausula.tipo === 'or') {
+        ok = (clausula.textos || []).some((t) => blobContemTermoBusca(blobNormalizado, t))
+    } else {
+        ok = blobContemTermoBusca(blobNormalizado, clausula.texto || '')
+    }
+    return clausula.neg ? !ok : ok
+}
+
+/** Filtro de texto com sintaxe avançada (!, NOT, (a,b,c)). */
 export const passaFiltroBuscaTexto = (blobNormalizado, termoBruto) => {
     const bruto = String(termoBruto || '').trim()
     if (!bruto) return true
-    const norm = normalizarTextoBusca(bruto)
-    let negativo = false
-    let consulta = norm
-    if (norm.startsWith('not ')) {
-        negativo = true
-        consulta = norm.slice(4).trim()
-    } else if (norm.startsWith('!')) {
-        negativo = true
-        consulta = norm.slice(1).trim()
-    }
-    if (!consulta) return true
-    const achou = blobContemTermoBusca(blobNormalizado, consulta)
-    return negativo ? !achou : achou
+    const clausulas = parseClausulasBuscaAvancada(bruto)
+    if (!clausulas.length) return true
+    return clausulas.every((c) => avaliaClausulaBusca(blobNormalizado, c))
 }
 
-/** Filtro de lista: com `usarNot`, aceita NOT/!; senão, inclusão simples. */
-export const filtrarPorTermoBusca = (blobNormalizado, termoBruto, usarNot = false) => {
-    if (usarNot) return passaFiltroBuscaTexto(blobNormalizado, termoBruto)
-    const n = normalizarTextoBusca(termoBruto)
-    if (!n) return true
-    return blobContemTermoBusca(blobNormalizado, n)
-}
+/**
+ * Filtro de lista com sintaxe avançada sempre ativa.
+ * O 3º argumento é ignorado (compatibilidade com call sites antigos do Dev Tool).
+ */
+export const filtrarPorTermoBusca = (blobNormalizado, termoBruto, _usarNot = false) =>
+    passaFiltroBuscaTexto(blobNormalizado, termoBruto)
 
 /** Endereço do cadastro preenchido de forma a definir a cidade principal pelo bloco Endereço. */
 export const enderecoCadastroCompleto = (prestador) => {

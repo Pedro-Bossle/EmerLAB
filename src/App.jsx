@@ -29,6 +29,7 @@ import CredenciamentoFormularioPublico from './pages/Credenciamento/Formulario/C
 import ConfigImportarCredenciados from './pages/Configuracoes/ImportarCredenciados/ConfigImportarCredenciados';
 import ConfigExportarCredenciados from './pages/Configuracoes/ExportarCredenciados/ConfigExportarCredenciados';
 import GerenciamentoAcessos from './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos';
+import AdminAuditoria from './pages/Administrativo/Auditoria/AdminAuditoria';
 import ComprasValorVenda from './pages/Compras/ValorVenda/ComprasValorVenda';
 import ComprasOrcamento from './pages/Compras/Orcamento/ComprasOrcamento';
 import ContratosEmerdog from './pages/Contratos/ContratosEmerdog';
@@ -267,6 +268,14 @@ function App() {
             element={
               <PrivateRoute permission="access.manage" toolId="admin.acessos">
                 <GerenciamentoAcessos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/administrativo/auditoria"
+            element={
+              <PrivateRoute permission="access.manage" toolId="admin.auditoria">
+                <AdminAuditoria />
               </PrivateRoute>
             }
           />

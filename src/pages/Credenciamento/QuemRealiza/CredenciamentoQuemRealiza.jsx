@@ -5,10 +5,8 @@ import {
     buildNomesMunicipioPermitidosPorUf,
     carregarVinculosMunicipios,
     filtrarMunicipiosIbgePorCredenciamento,
-    ufsDisponiveisFiltroCredenciamento,
-} from '../../../lib/cidadesSupertabelaVinculos.js'
+    ufsDisponiveisFiltroCredenciamento } from '../../../lib/cidadesSupertabelaVinculos.js'
 import { normalizarTextoBusca, filtrarPorTermoBusca, prestadorEhCredenciado } from '../../../lib/prestadorCadastroHelpers.js'
-import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
 import '../Credenciamento_main/Credenciamento_main.css'
@@ -16,13 +14,11 @@ import {
     formatarResultadosQuemRealizaParaClipboard,
     mapaCodigoProcedimentoIdDeCatalogo,
     pesquisarQuemOfereceDescontos,
-    pesquisarQuemRealizaNaRede,
-} from '../../../lib/buscarQuemRealizaPrestadores.js'
+    pesquisarQuemRealizaNaRede } from '../../../lib/buscarQuemRealizaPrestadores.js'
 import {
     carregarCatalogoBeneficios,
     gruposDoCatalogo,
-    nomeGrupoBeneficioVisivel,
-} from '../../../lib/credenciamento/prestadorBeneficios.js'
+    nomeGrupoBeneficioVisivel } from '../../../lib/credenciamento/prestadorBeneficios.js'
 import './CredenciamentoQuemRealiza.css'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 
@@ -52,7 +48,6 @@ function idCategoriaPadrao(lista) {
 }
 
 export default function CredenciamentoQuemRealiza() {
-    const buscaNotAtiva = useBuscaNotAtiva()
     const [uf, setUf] = useState('')
     const [cidadeNome, setCidadeNome] = useState('')
     const [buscarCidadesParalelas, setBuscarCidadesParalelas] = useState(false)
@@ -265,18 +260,19 @@ export default function CredenciamentoQuemRealiza() {
         (p, termoBruto) => {
             const cat = normalizarTextoBusca(mapaCategoriaNome.get(Number(p.categoria_id)) || '')
             const blob = normalizarTextoBusca([p.codigo, p.nome, cat].filter(Boolean).join(' '))
-            return filtrarPorTermoBusca(blob, termoBruto, buscaNotAtiva)
+            return filtrarPorTermoBusca(blob, termoBruto)
         },
-        [mapaCategoriaNome, buscaNotAtiva],
+        [mapaCategoriaNome],
     )
 
     const sugestoesProcedimento = useMemo(() => {
         const bruto = String(buscaProc || '').trim()
         const q = normalizarTextoBusca(buscaProc)
-        if (!buscaNotAtiva && (!q || q.length < 2)) return []
-        if (buscaNotAtiva && !bruto) return []
+        const sintaxeAvancada = /^[!(\s]|not\s/i.test(bruto)
+        if (!bruto) return []
+        if (!sintaxeAvancada && (!q || q.length < 2)) return []
         return procedimentosCatalogo.filter((p) => procedimentoCombinaTermo(p, buscaProc)).slice(0, 18)
-    }, [buscaProc, procedimentosCatalogo, procedimentoCombinaTermo, buscaNotAtiva])
+    }, [buscaProc, procedimentosCatalogo, procedimentoCombinaTermo])
 
     const procedimentosFiltrados = useMemo(() => {
         const bruto = String(buscaProc || '').trim()
@@ -440,8 +436,7 @@ export default function CredenciamentoQuemRealiza() {
                     mapaCidadesCred,
                     especialidades,
                     catalogoBeneficios,
-                    prestadoresParaVinculoLocalidade: todosPrestadoresAtivos,
-                })
+                    prestadoresParaVinculoLocalidade: todosPrestadoresAtivos })
             } else {
                 const codigos = resolverCodigosParaPesquisa()
                 if (!codigos.length) {
@@ -462,8 +457,7 @@ export default function CredenciamentoQuemRealiza() {
                     especialidades,
                     mapaNomePorCodigo,
                     mapaCodigoPorProcedimentoId,
-                    prestadoresParaVinculoLocalidade: todosPrestadoresAtivos,
-                })
+                    prestadoresParaVinculoLocalidade: todosPrestadoresAtivos })
             }
             setResultados(lista)
             setPesquisou(true)

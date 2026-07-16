@@ -161,7 +161,9 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
     gap: 8px;
     padding: 0.7em 0.9em;
     margin: 0.75em auto;
-    max-width: 1200px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     background: #f8fbfd;
     border: 1px solid #d7e8f2;
     border-radius: 12px;
@@ -172,13 +174,20 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
     font-size: 0.82rem;
 }
 
+.supertabelaprocedimentos_filter_busca {
+    flex: 1 1 280px;
+    min-width: 200px;
+}
+
 .supertabelaprocedimentos_input {
     height: 34px;
     padding: 6px 10px;
     border-radius: 7px;
     border: 1px solid var(--azul-destaque);
     background: #fff;
-    min-width: 300px;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
     font-size: 0.88rem;
     font-family: inherit;
 }

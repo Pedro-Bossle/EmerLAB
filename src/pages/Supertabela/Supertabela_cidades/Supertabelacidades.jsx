@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PERMISSION_KEYS, hasStoredDevTools, hasStoredPermission } from '../../../lib/accessControl'
-import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
+import { useDevToolsUi } from '../../../lib/devToolsUi'
 import { normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
 import { filtrarLinhaSupertabelaPorBusca, partesValoresLinhaSupertabela } from '../../../lib/supertabelaBuscaValores.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
@@ -18,18 +18,15 @@ import {
     isMissingVinculosTableError,
     municipiosPorCidadeId,
     normalizarMunicipioChave,
-    salvarVinculosDaCidade,
-} from '../../../lib/cidadesSupertabelaVinculos.js'
+    salvarVinculosDaCidade } from '../../../lib/cidadesSupertabelaVinculos.js'
 import {
     CHAVE_PLANO_APENAS_LOJA,
     mapearPlanos,
     procedimentoPlanoBaseApenasLoja,
-    ROTULO_PLANO,
-} from '../../../lib/planosHierarquia.js'
+    ROTULO_PLANO } from '../../../lib/planosHierarquia.js'
 import {
     carregarContagemESugestoesRealizadoresPlanos,
-    montarCidadesAlvoContagemPrestadores,
-} from '../../../lib/impressaoPlanos/contagemRealizadoresPlanosDev.js'
+    montarCidadesAlvoContagemPrestadores } from '../../../lib/impressaoPlanos/contagemRealizadoresPlanosDev.js'
 import { exportarTabelaCidadeParaExcel } from '../../../lib/exportNegociacaoExcel.js'
 import ModalImpressaoHonorariosCidade from '../../../components/Supertabela/ModalImpressaoHonorariosCidade.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
@@ -39,7 +36,6 @@ import './Supertabelacidades.css'
 const Supertabelacidades = () => {
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
     const { ui: devToolsUi } = useDevToolsUi()
-    const buscaNotAtiva = useBuscaNotAtiva()
     const mostrarContagemRealizadores =
         hasStoredDevTools() && !!devToolsUi.contagemRealizadoresPlanos
     const [cidades, setCidades] = useState([])
@@ -277,8 +273,7 @@ const Supertabelacidades = () => {
                         nome: String(item.nome),
                         categoriaId: item.categoria_id,
                         planoBaseId: item.plano_base_id,
-                        apenasLoja: procedimentoPlanoBaseApenasLoja(item.plano_base_id, mapaPlanosCompletoLocal),
-                    },
+                        apenasLoja: procedimentoPlanoBaseApenasLoja(item.plano_base_id, mapaPlanosCompletoLocal) },
                 ]),
             )
 
@@ -289,8 +284,7 @@ const Supertabelacidades = () => {
                 if (!mapaRepasses.has(codigo)) mapaRepasses.set(codigo, {})
                 mapaRepasses.get(codigo)[porteId] = {
                     repasseId: item.id,
-                    valor: Number(item.valor || 0),
-                }
+                    valor: Number(item.valor || 0) }
             })
 
             const porteIdP = obterPorteIdPorLetra('P')
@@ -313,8 +307,7 @@ const Supertabelacidades = () => {
                     repasseIdG: porteIdG ? valoresPorPorte[porteIdG]?.repasseId || null : null,
                     porteIdP,
                     porteIdM,
-                    porteIdG,
-                }
+                    porteIdG }
             })
         },
         [portes, planosTodos],
@@ -339,7 +332,7 @@ const Supertabelacidades = () => {
     }, [cidadeId, portes, carregarLinhasRepassesParaCidadeId])
 
     const linhasFiltradas = useMemo(() => {
-        if (!termoBusca.trim() && !buscaNotAtiva) return linhas
+        if (!termoBusca.trim()) return linhas
         return linhas.filter((linha) => {
             const categoriaNome = categorias.find((categoria) => Number(categoria.id) === Number(linha.categoriaId))?.nome || ''
             const blob = normalizarTextoBuscaDev(
@@ -347,9 +340,9 @@ const Supertabelacidades = () => {
                     .filter(Boolean)
                     .join(' '),
             )
-            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBusca, buscaNotAtiva)
+            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBusca)
         })
-    }, [linhas, termoBusca, categorias, buscaNotAtiva])
+    }, [linhas, termoBusca, categorias])
 
     const mapaPlanosCompleto = useMemo(() => mapearPlanos(planosTodos), [planosTodos])
 
@@ -402,8 +395,7 @@ const Supertabelacidades = () => {
                     linhas: ordenarLinhas(
                         linhasLista.filter((linha) => Number(linha.categoriaId) === Number(categoria.id)),
                         categoria.id,
-                    ),
-                }))
+                    ) }))
                 .filter((secao) => secao.linhas.length > 0),
         [categorias, ordenacaoPorCategoria, contagemRealizadoresPorCodigo],
     )
@@ -431,8 +423,7 @@ const Supertabelacidades = () => {
                 linha.codigo === codigo
                     ? {
                         ...linha,
-                        [campo]: valor === '' ? '' : Number(valor),
-                    }
+                        [campo]: valor === '' ? '' : Number(valor) }
                     : linha
             )
         )
@@ -442,8 +433,7 @@ const Supertabelacidades = () => {
         const metaPorCampo = {
             porteP: { porteId: linha.porteIdP, repasseId: linha.repasseIdP },
             porteM: { porteId: linha.porteIdM, repasseId: linha.repasseIdM },
-            porteG: { porteId: linha.porteIdG, repasseId: linha.repasseIdG },
-        }
+            porteG: { porteId: linha.porteIdG, repasseId: linha.repasseIdG } }
         const meta = metaPorCampo[campo]
         if (!meta?.porteId) return
 
@@ -465,8 +455,7 @@ const Supertabelacidades = () => {
                 cidade_id: Number(cidadeId),
                 procedimento_id: linha.codigo,
                 porte_id: Number(meta.porteId),
-                valor,
-            })
+                valor })
             .select('id')
             .single()
 
@@ -530,8 +519,7 @@ const Supertabelacidades = () => {
 
                 const linhaAtualizada = {
                     ...linhaTabela,
-                    [campoDestino]: valorNumerico,
-                }
+                    [campoDestino]: valorNumerico }
                 await salvarRepasse(linhaAtualizada, campoDestino)
             }
         }
@@ -610,8 +598,7 @@ const Supertabelacidades = () => {
         setPopupSugestoesStyle({
             top: rect.bottom + 4,
             left: rect.left,
-            width: rect.width,
-        })
+            width: rect.width })
     }, [])
 
     useEffect(() => {
@@ -638,8 +625,7 @@ const Supertabelacidades = () => {
                     position: 'fixed',
                     top: `${popupSugestoesStyle.top}px`,
                     left: `${popupSugestoesStyle.left}px`,
-                    width: `${popupSugestoesStyle.width}px`,
-                }}
+                    width: `${popupSugestoesStyle.width}px` }}
             >
                 {sugestoesFiltradasInclusao.length === 0 ? (
                     <div className='row_add_suggest_empty'>Nenhum procedimento disponível</div>
@@ -717,8 +703,7 @@ const Supertabelacidades = () => {
             cidade_id: Number(cidadeId),
             procedimento_id: codigoNormalizado,
             porte_id: Number(porteId),
-            valor: 0,
-        }))
+            valor: 0 }))
 
         const { data: repassesCriados, error } = await supabase
             .from('repasses')
@@ -745,8 +730,7 @@ const Supertabelacidades = () => {
                     porteG: porteIdG ? Number(mapaPorPorte.get(String(porteIdG))?.valor ?? atual.porteG ?? 0) : atual.porteG,
                     repasseIdP: porteIdP ? mapaPorPorte.get(String(porteIdP))?.id ?? atual.repasseIdP : atual.repasseIdP,
                     repasseIdM: porteIdM ? mapaPorPorte.get(String(porteIdM))?.id ?? atual.repasseIdM : atual.repasseIdM,
-                    repasseIdG: porteIdG ? mapaPorPorte.get(String(porteIdG))?.id ?? atual.repasseIdG : atual.repasseIdG,
-                }
+                    repasseIdG: porteIdG ? mapaPorPorte.get(String(porteIdG))?.id ?? atual.repasseIdG : atual.repasseIdG }
                 const copia = [...anteriores]
                 copia[idx] = atualizado
                 return copia
@@ -768,8 +752,7 @@ const Supertabelacidades = () => {
                     repasseIdG: porteIdG ? mapaPorPorte.get(String(porteIdG))?.id || null : null,
                     porteIdP,
                     porteIdM,
-                    porteIdG,
-                },
+                    porteIdG },
             ]
         })
 
@@ -800,8 +783,7 @@ const Supertabelacidades = () => {
                 return
             }
             await exportarTabelaCidadeParaExcel(secoes, {
-                nomeArquivoBase: `cidade-${cidade.nome || cidade.id}`,
-            })
+                nomeArquivoBase: `cidade-${cidade.nome || cidade.id}` })
         } catch (error) {
             mostrarErroToast(`Erro ao exportar Excel: ${error.message}`)
         } finally {
@@ -846,8 +828,7 @@ const Supertabelacidades = () => {
                     await carregarContagemESugestoesRealizadoresPlanos(supabase, {
                         cidadesAlvo,
                         incluirCidadesParalelas: true,
-                        codigosNaTabela: codigosNaTabelaCidade,
-                    })
+                        codigosNaTabela: codigosNaTabelaCidade })
                 if (cancelado) return
                 setContagemRealizadoresPorCodigo(contagemPorCodigo)
                 setNomesRealizadoresPorCodigo(nomesPorCodigo)
@@ -929,8 +910,7 @@ const Supertabelacidades = () => {
                 cidade_id: Number(cidadeId),
                 procedimento_id: codigoNormalizado,
                 porte_id: Number(porteId),
-                valor,
-            })
+                valor })
         }
         if (payload.length === 0) {
             mostrarErroToast('Portes P/M/G não encontrados para criação do procedimento.')
@@ -964,9 +944,7 @@ const Supertabelacidades = () => {
             ...anterior,
             [codigoNormalizado]: {
                 ...(anterior[codigoNormalizado] || {}),
-                [campo]: valor,
-            },
-        }))
+                [campo]: valor } }))
     }
 
     const baixarExcelTelaCidades = async () => {
@@ -981,8 +959,7 @@ const Supertabelacidades = () => {
         setExportandoExcelTela(true)
         try {
             await exportarTabelaCidadeParaExcel(secoesPorCategoria, {
-                nomeArquivoBase: `cidade-${cidadeSelecionada?.nome || cidadeId}`,
-            })
+                nomeArquivoBase: `cidade-${cidadeSelecionada?.nome || cidadeId}` })
         } catch (error) {
             mostrarErroToast(`Erro ao exportar Excel: ${error.message}`)
         } finally {
@@ -1019,8 +996,7 @@ const Supertabelacidades = () => {
         return cidades
             .map((cidade) => ({
                 ...mapCidadeParaGerenciador(cidade),
-                procedimentosAtivos: mapaProcedimentosAtivos.get(Number(cidade.id))?.size || 0,
-            }))
+                procedimentosAtivos: mapaProcedimentosAtivos.get(Number(cidade.id))?.size || 0 }))
             .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'))
     }, [cidades, repassesResumo])
 
@@ -1434,14 +1410,12 @@ const Supertabelacidades = () => {
                         cidade_id: Number(cidadeId),
                         procedimento_id: codigo,
                         porte_id: Number(porteId),
-                        valor: 0,
-                    }))
+                        valor: 0 }))
                 )
 
                 const { error: errInsert } = await supabase.from('repasses').upsert(payload, {
                     onConflict: 'procedimento_id,cidade_id,porte_id',
-                    ignoreDuplicates: true,
-                })
+                    ignoreDuplicates: true })
                 if (errInsert) {
                     mensagemErro = errInsert.message
                 } else {
@@ -1480,8 +1454,7 @@ const Supertabelacidades = () => {
                 .insert(
                     payloadCidadeComUf({
                         nome: nomeCidade,
-                        uf: cidadeDuplicarOrigem.uf,
-                    }),
+                        uf: cidadeDuplicarOrigem.uf }),
                 )
                 .select('id')
                 .single()
@@ -1512,8 +1485,7 @@ const Supertabelacidades = () => {
                 cidade_id: cidadeNova.id,
                 procedimento_id: item.procedimento_id,
                 porte_id: item.porte_id,
-                valor: item.valor,
-            }))
+                valor: item.valor }))
 
             if (payload.length > 0) {
                 const { error: errInsert } = await supabase
@@ -1806,8 +1778,7 @@ ou um código por linha`}
                                                     : '30%'
                                                 : somenteLeitura
                                                   ? '44%'
-                                                  : '36%',
-                                        }}
+                                                  : '36%' }}
                                     />
                                     {mostrarContagemRealizadores && <col style={{ width: '8%' }} />}
                                     <col style={{ width: '15%' }} />
@@ -1918,8 +1889,7 @@ ou um código por linha`}
                                                         className='table_delete_btn'
                                                         onClick={(event) =>
                                                             excluirProcedimento(linha, {
-                                                                ignorarConfirmacao: event.shiftKey,
-                                                            })
+                                                                ignorarConfirmacao: event.shiftKey })
                                                         }
                                                         title='Excluir proc., SHIFT = Excluir Rápido'
                                                     >

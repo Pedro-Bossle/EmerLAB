@@ -1,27 +1,81 @@
-.config_import_cred_header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
-}
-
-.config_import_cred_header h1 {
-    margin: 0;
+.config_import_cred {
+    text-align: center;
 }
 
 .config_import_cred_lead {
-    max-width: 760px;
-    margin-bottom: 16px;
+    max-width: 640px;
+    margin: 0 auto 1.1rem;
     line-height: 1.45;
+    color: #4a657a;
+    font-size: 0.95rem;
 }
 
-.config_import_cred_upload {
+.config_import_cred_drop {
+    max-width: 640px;
+    width: calc(100% - 1.5em);
+    margin: 0 auto 1.35rem;
+    box-sizing: border-box;
+    padding: 1.4rem 1.25rem;
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
+    gap: 0.85rem;
+    background: #f8fbfd;
+    border: 1.5px dashed #b7d0e0;
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(30, 49, 72, 0.08);
+    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.config_import_cred_drop.is-drag {
+    border-color: var(--azul-destaque, #1f7ec2);
+    background: #eef7fd;
+    box-shadow: 0 0 0 3px rgba(31, 126, 194, 0.12);
+}
+
+.config_import_cred_drop.is-busy {
+    opacity: 0.72;
+}
+
+.config_import_cred_drop_icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 999px;
+    background: #e5f2fa;
+    color: var(--azul-escuro);
+}
+
+.config_import_cred_drop.is-drag .config_import_cred_drop_icon {
+    background: #d3ebf8;
+    color: var(--azul-destaque, #1f7ec2);
+}
+
+.config_import_cred_drop_copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    max-width: 28rem;
+}
+
+.config_import_cred_drop_copy strong {
+    font-size: 1.05rem;
+    color: var(--cinza-escuro);
+}
+
+.config_import_cred_drop_copy span {
+    font-size: 0.86rem;
+    color: #5a7a94;
+    line-height: 1.4;
+}
+
+.config_import_cred_drop_copy em {
+    font-style: normal;
+    font-weight: 600;
+    color: var(--azul-escuro);
 }
 
 .config_import_cred_file_label {
@@ -32,13 +86,16 @@
 }
 
 .config_import_cred_nome_arq {
-    font-size: 0.9rem;
-    color: #4a657a;
+    margin-top: 0.2rem;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--azul-escuro);
 }
 
 .config_import_cred_resumo {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     gap: 8px;
     margin-bottom: 12px;
 }
@@ -90,6 +147,7 @@
     margin-bottom: 1.5rem;
     border: 1px solid #d5e0ea;
     border-radius: 10px;
+    text-align: left;
 }
 
 .config_import_cred_table {
@@ -262,6 +320,7 @@ body > .prestador_vinculo_busca_portal .row_add_suggest_empty {
 
 .config_import_cred_orfaos {
     margin-top: 1.5rem;
+    text-align: left;
 }
 
 .config_import_cred_orfaos h2 {
@@ -279,6 +338,7 @@ body > .prestador_vinculo_busca_portal .row_add_suggest_empty {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
     gap: 0.85rem 1.25rem;
     margin: 0 0 0.75rem;
 }
@@ -323,6 +383,33 @@ body > .prestador_vinculo_busca_portal .row_add_suggest_empty {
 
 .muted {
     color: #7a8fa3;
+}
+
+body.dark-mode .config_import_cred_lead,
+body.dark-mode .config_import_cred_drop_copy span {
+    color: #9ab0c4;
+}
+
+body.dark-mode .config_import_cred_drop {
+    background: #122536;
+    border-color: #355372;
+    box-shadow: none;
+}
+
+body.dark-mode .config_import_cred_drop.is-drag {
+    background: #163044;
+    border-color: var(--azul-claro);
+}
+
+body.dark-mode .config_import_cred_drop_icon {
+    background: #1a3348;
+    color: var(--azul-claro);
+}
+
+body.dark-mode .config_import_cred_drop_copy strong,
+body.dark-mode .config_import_cred_drop_copy em,
+body.dark-mode .config_import_cred_nome_arq {
+    color: var(--text-main);
 }
 
 body.dark-mode .config_import_cred_kpi {

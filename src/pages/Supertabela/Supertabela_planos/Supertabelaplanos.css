@@ -88,13 +88,15 @@
 }
 
 .supertabelaplanos_filter_busca {
-    flex: 0 1 220px;
-    max-width: 280px;
+    flex: 1 1 260px;
+    min-width: 180px;
+    max-width: none;
 }
 
 .supertabelaplanos_filter_busca .supertabelaplanos_input {
-    min-width: 160px;
+    min-width: 0;
     max-width: none;
+    width: 100%;
 }
 
 .supertabelaplanos_action_btn {
@@ -246,19 +248,14 @@
 }
 
 @media (max-width: 1360px) {
-    .supertabelaplanos_filter_busca {
-        flex: 0 1 150px;
-        max-width: 170px;
-    }
-
-    .supertabelaplanos_filter_busca .supertabelaplanos_input {
-        min-width: 0;
-    }
-
     .supertabelaplanos_input,
     .supertabelaplanos_select {
         max-width: 150px;
         font-size: 0.82rem;
+    }
+
+    .supertabelaplanos_filter_busca .supertabelaplanos_input {
+        max-width: none;
     }
 
     .supertabelaplanos_filter_mode {

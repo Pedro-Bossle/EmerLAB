@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { registrarEventoAuthAuditoria } from '../../lib/auditoriaLogs.js'
 import './Login.css'
 
 const Login = () => {
@@ -28,6 +29,7 @@ const Login = () => {
       return
     }
 
+    void registrarEventoAuthAuditoria('LOGIN')
     navigate('/home')
   }
 

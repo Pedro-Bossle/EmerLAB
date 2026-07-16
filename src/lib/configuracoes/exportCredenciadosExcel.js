@@ -11,25 +11,34 @@ import {
 } from '../prestadorLocalidadeVinculo.js'
 import { buscarTodosPaginado, supabase } from '../supabase.js'
 
-const CABECALHOS = [
-    'ID',
-    'NOME',
-    'Telefone',
-    'Celular',
-    'Especialidade Primária',
-    'Especialidades Secundárias',
-    'Modalidade',
-    'Endereço',
-    'Cidade Principal',
-    'Codigo de Procedimentos',
-    'Procedimentos',
-    'Categoria do Procedimento',
-    'Descontos Grupo',
-    'Desconto Tipo',
-    'Desconto porcentagem',
-    'Cidades que Atendem',
-    'Veterinários Vinculados',
+export const CAMPOS_EXPORT_CREDENCIADOS = [
+    { chave: 'id', cabecalho: 'ID', largura: 8, grupo: 'Identificação' },
+    { chave: 'nome', cabecalho: 'NOME', largura: 32, grupo: 'Identificação' },
+    { chave: 'telefone', cabecalho: 'Telefone', largura: 14, grupo: 'Contato' },
+    { chave: 'celular', cabecalho: 'Celular', largura: 14, grupo: 'Contato' },
+    { chave: 'especialidadePrimaria', cabecalho: 'Especialidade Primária', largura: 22, grupo: 'Perfil' },
+    { chave: 'especialidadesSecundarias', cabecalho: 'Especialidades Secundárias', largura: 28, grupo: 'Perfil' },
+    { chave: 'modalidade', cabecalho: 'Modalidade', largura: 14, grupo: 'Perfil' },
+    { chave: 'endereco', cabecalho: 'Endereço', largura: 40, grupo: 'Localidade' },
+    { chave: 'cidadePrincipal', cabecalho: 'Cidade Principal', largura: 18, grupo: 'Localidade' },
+    { chave: 'codigoProcedimento', cabecalho: 'Codigo de Procedimentos', largura: 16, grupo: 'Procedimentos' },
+    { chave: 'procedimento', cabecalho: 'Procedimentos', largura: 36, grupo: 'Procedimentos' },
+    { chave: 'categoriaProcedimento', cabecalho: 'Categoria do Procedimento', largura: 22, grupo: 'Procedimentos' },
+    { chave: 'descontosGrupo', cabecalho: 'Descontos Grupo', largura: 22, grupo: 'Descontos' },
+    { chave: 'descontoTipo', cabecalho: 'Desconto Tipo', largura: 24, grupo: 'Descontos' },
+    { chave: 'descontoPorcentagem', cabecalho: 'Desconto porcentagem', largura: 16, grupo: 'Descontos' },
+    { chave: 'cidadesQueAtendem', cabecalho: 'Cidades que Atendem', largura: 28, grupo: 'Vínculos' },
+    { chave: 'veterinariosVinculados', cabecalho: 'Veterinários Vinculados', largura: 28, grupo: 'Vínculos' },
+    { chave: 'credenciadoEm', cabecalho: 'Credenciado em', largura: 14, grupo: 'Identificação' },
 ]
+
+export const CHAVES_CAMPOS_EXPORT_CREDENCIADOS = CAMPOS_EXPORT_CREDENCIADOS.map((c) => c.chave)
+
+export function normalizarCamposExportCredenciados(camposSelecionados) {
+    const permitidos = new Set(CHAVES_CAMPOS_EXPORT_CREDENCIADOS)
+    const selecionados = (camposSelecionados || []).filter((chave) => permitidos.has(chave))
+    return selecionados.length ? selecionados : [...CHAVES_CAMPOS_EXPORT_CREDENCIADOS]
+}
 
 function sanitizarNomeArquivo(nome) {
     return String(nome || 'credenciados')
@@ -66,7 +75,7 @@ export async function carregarLinhasExportCredenciados() {
             supabase
                 .from('prestadores')
                 .select(
-                    'id, nome, tipo, telefone, celular, especialidade_id, modalidade, endereco, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, cidade_id, situacao_id, ativo',
+                    'id, nome, tipo, telefone, celular, especialidade_id, modalidade, endereco, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, cidade_id, situacao_id, credenciado_em, ativo',
                 )
                 .eq('ativo', true)
                 .order('nome', { ascending: true }),
@@ -273,6 +282,12 @@ export async function carregarLinhasExportCredenciados() {
             descontoPorcentagem: descontosPct,
             cidadesQueAtendem: cidadesAtendem,
             veterinariosVinculados: vinculos,
+            credenciadoEm: (() => {
+                if (!p.credenciado_em) return ''
+                const d = new Date(p.credenciado_em)
+                if (Number.isNaN(d.getTime())) return String(p.credenciado_em)
+                return d.toLocaleDateString('pt-BR')
+            })(),
         }
 
         if (!codigos.length) {
@@ -304,6 +319,11 @@ export async function exportarCredenciadosParaExcel(opcoes = {}) {
     if (!linhas.length) {
         return { ok: false, erro: 'Nenhum credenciado encontrado para exportar.' }
     }
+    const camposSelecionados = normalizarCamposExportCredenciados(opcoes.campos)
+    const campos = CAMPOS_EXPORT_CREDENCIADOS.filter((c) => camposSelecionados.includes(c.chave))
+    if (!campos.length) {
+        return { ok: false, erro: 'Selecione pelo menos um campo para exportar.' }
+    }
 
     const { default: ExcelJS } = await import('exceljs')
     const workbook = new ExcelJS.Workbook()
@@ -311,36 +331,17 @@ export async function exportarCredenciadosParaExcel(opcoes = {}) {
         views: [{ state: 'frozen', ySplit: 1 }],
     })
 
-    ws.addRow(CABECALHOS)
+    ws.addRow(campos.map((c) => c.cabecalho))
     const header = ws.getRow(1)
     header.font = { bold: true }
     header.alignment = { vertical: 'middle', wrapText: true }
 
     for (const row of linhas) {
-        ws.addRow([
-            row.id,
-            row.nome,
-            row.telefone,
-            row.celular,
-            row.especialidadePrimaria,
-            row.especialidadesSecundarias,
-            row.modalidade,
-            row.endereco,
-            row.cidadePrincipal,
-            row.codigoProcedimento,
-            row.procedimento,
-            row.categoriaProcedimento,
-            row.descontosGrupo,
-            row.descontoTipo,
-            row.descontoPorcentagem,
-            row.cidadesQueAtendem,
-            row.veterinariosVinculados,
-        ])
+        ws.addRow(campos.map((c) => row[c.chave] ?? ''))
     }
 
-    const widths = [8, 32, 14, 14, 22, 28, 14, 40, 18, 16, 36, 22, 22, 24, 16, 28, 28]
-    widths.forEach((w, i) => {
-        ws.getColumn(i + 1).width = w
+    campos.forEach((campo, i) => {
+        ws.getColumn(i + 1).width = campo.largura
     })
 
     const buffer = await workbook.xlsx.writeBuffer()

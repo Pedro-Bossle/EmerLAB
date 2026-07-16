@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PERMISSION_KEYS, hasStoredDevTools, hasStoredPermission } from '../../../lib/accessControl'
-import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
+import { useDevToolsUi } from '../../../lib/devToolsUi'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import { filtrarLinhaSupertabelaPorBusca, partesValoresLinhaSupertabela } from '../../../lib/supertabelaBuscaValores.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
@@ -17,8 +17,7 @@ import {
     buscarCidadeIdsFiltroPlanoCredenciados,
     carregarVinculosMunicipios,
     cidadeExibicaoNegociacaoPrestador,
-    resolverCidadeIdTabelaNegociacao,
-} from '../../../lib/cidadesSupertabelaVinculos.js'
+    resolverCidadeIdTabelaNegociacao } from '../../../lib/cidadesSupertabelaVinculos.js'
 import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planosHierarquia.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelanegociacoes.css'
@@ -33,8 +32,7 @@ const ROTULO_PLANO = {
     basico: 'Básico',
     classico: 'Clássico',
     avancado: 'Avançado',
-    ultra: 'Ultra',
-}
+    ultra: 'Ultra' }
 
 const normalizarPlanoNome = (nome) =>
     String(nome || '')
@@ -111,7 +109,6 @@ const normalizarNumeroEntrada = (valorTexto) => {
 
 const Supertabelanegociacoes = () => {
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
-    const buscaNotAtiva = useBuscaNotAtiva()
     const { ui: devToolsUi } = useDevToolsUi()
     const podeDevToolNeg = hasStoredDevTools()
     const mostrarColunaVinculoLista =
@@ -151,8 +148,7 @@ const Supertabelanegociacoes = () => {
     const [ordenacaoPorCategoria, setOrdenacaoPorCategoria] = useState({})
     const [ordenacaoListaNegociacoes, setOrdenacaoListaNegociacoes] = useState({
         coluna: 'nome',
-        direcao: 'asc',
-    })
+        direcao: 'asc' })
     const [itensPorPaginaLista, setItensPorPaginaLista] = useState(20)
     const [paginaAtualLista, setPaginaAtualLista] = useState(1)
     const [categoriaEmInclusao, setCategoriaEmInclusao] = useState(null)
@@ -191,8 +187,7 @@ const Supertabelanegociacoes = () => {
                 veterinarioCidadeId,
                 cidades,
                 vinculos: municipiosVinculos,
-                mapaCred: mapaCidadesCred,
-            }),
+                mapaCred: mapaCidadesCred }),
         [cidades, municipiosVinculos, mapaCidadesCred],
     )
 
@@ -372,8 +367,7 @@ const Supertabelanegociacoes = () => {
                         .order('nome', { ascending: true })
                     veterinariosData = (tentativaSemTipo.data || []).map((item) => ({
                         ...item,
-                        tipo: '-',
-                    }))
+                        tipo: '-' }))
                     veterinariosError = tentativaSemTipo.error
                     temTipo = false
                 }
@@ -431,8 +425,7 @@ const Supertabelanegociacoes = () => {
                     veterinarioCidadeId: item.cidade_id,
                     cidades: cidadesLista,
                     vinculos,
-                    mapaCred,
-                })
+                    mapaCred })
                 const exibicaoPrestador = cidadeExibicaoNegociacaoPrestador(prestador, mapaCred)
                 const cidadeNome =
                     exibicaoPrestador ||
@@ -449,8 +442,7 @@ const Supertabelanegociacoes = () => {
                     tipo: item.tipo || '-',
                     prestadorId: item.prestador_id != null ? Number(item.prestador_id) : null,
                     prestadorVinculoNome: rotuloPrestadorLista(prestador),
-                    procedimentosAtivos: mapaProcedimentosAtivos.get(Number(item.id))?.size || 0,
-                }
+                    procedimentosAtivos: mapaProcedimentosAtivos.get(Number(item.id))?.size || 0 }
             })
 
             const idsFiltro = await buscarCidadeIdsFiltroPlanoCredenciados(
@@ -526,8 +518,7 @@ const Supertabelanegociacoes = () => {
                         codigo: String(item.codigo),
                         nome: String(item.nome),
                         categoriaId: item.categoria_id,
-                        planoBaseId: item.plano_base_id != null ? Number(item.plano_base_id) : null,
-                    },
+                        planoBaseId: item.plano_base_id != null ? Number(item.plano_base_id) : null },
                 ])
             )
             const mapaProcedimentosPorCodigo = new Map(
@@ -564,8 +555,7 @@ const Supertabelanegociacoes = () => {
                         negociacaoIdG: null,
                         porteIdP,
                         porteIdM,
-                        porteIdG,
-                    })
+                        porteIdG })
                 }
                 const linha = mapaLinhas.get(procedimentoDbId)
                 if (item.nome_alternativo != null) {
@@ -630,8 +620,7 @@ const Supertabelanegociacoes = () => {
         ;(data || []).forEach((item) => {
             mapaResultado[String(item.procedimento_cod)] = {
                 planoCidadeId: item.id,
-                diferenca: Number(item.diferenca || 0),
-            }
+                diferenca: Number(item.diferenca || 0) }
         })
 
         setDiferencasPorCodigo(mapaResultado)
@@ -667,20 +656,19 @@ const Supertabelanegociacoes = () => {
                 planoCidadeId: metaDif?.planoCidadeId || null,
                 diferenca,
                 custo: Number(valorSelecionado || 0) - Number(diferenca || 0),
-                mensagemPlanoAcima,
-            }
+                mensagemPlanoAcima }
         })
     }, [detalheBase, diferencasPorCodigo, porteSelecionado, planoId, planos, mapaPlanosHierarquia])
 
     const negociacoesFiltradas = useMemo(() => {
-        if (!termoBuscaLista.trim() && !buscaNotAtiva) return negociacoes
+        if (!termoBuscaLista.trim()) return negociacoes
         return negociacoes.filter((item) => {
             const blob = normalizarTextoBusca(
                 [item.nome, item.cidadeNome, item.tipo, item.prestadorVinculoNome].filter(Boolean).join(' '),
             )
-            return filtrarPorTermoBusca(blob, termoBuscaLista, buscaNotAtiva)
+            return filtrarPorTermoBusca(blob, termoBuscaLista)
         })
-    }, [negociacoes, termoBuscaLista, buscaNotAtiva])
+    }, [negociacoes, termoBuscaLista])
 
     const negociacoesListaOrdenada = useMemo(() => {
         const resultado = [...negociacoesFiltradas]
@@ -711,7 +699,7 @@ const Supertabelanegociacoes = () => {
     }, [negociacoesListaOrdenada, paginaAtualLista, itensPorPaginaLista])
 
     const linhasDetalheFiltradas = useMemo(() => {
-        if (!termoBuscaDetalhe.trim() && !buscaNotAtiva) return linhasDetalheComCustos
+        if (!termoBuscaDetalhe.trim()) return linhasDetalheComCustos
         return linhasDetalheComCustos.filter((linha) => {
             const categoriaNome = categorias.find((categoria) => Number(categoria.id) === Number(linha.categoriaId))?.nome || ''
             const blob = normalizarTextoBusca(
@@ -725,9 +713,9 @@ const Supertabelanegociacoes = () => {
                     .filter(Boolean)
                     .join(' '),
             )
-            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBuscaDetalhe, buscaNotAtiva)
+            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBuscaDetalhe)
         })
-    }, [linhasDetalheComCustos, termoBuscaDetalhe, categorias, buscaNotAtiva])
+    }, [linhasDetalheComCustos, termoBuscaDetalhe, categorias])
 
     const handleOrdenarListaNegociacoes = (coluna) => {
         setOrdenacaoListaNegociacoes((anterior) => {
@@ -735,8 +723,7 @@ const Supertabelanegociacoes = () => {
                 anterior.coluna === coluna
                     ? {
                           coluna,
-                          direcao: anterior.direcao === 'asc' ? 'desc' : 'asc',
-                      }
+                          direcao: anterior.direcao === 'asc' ? 'desc' : 'asc' }
                     : { coluna, direcao: 'asc' }
             return proxima
         })
@@ -761,14 +748,12 @@ const Supertabelanegociacoes = () => {
                 atual.coluna === coluna
                     ? {
                           coluna,
-                          direcao: atual.direcao === 'asc' ? 'desc' : 'asc',
-                      }
+                          direcao: atual.direcao === 'asc' ? 'desc' : 'asc' }
                     : { coluna, direcao: 'asc' }
 
             return {
                 ...anterior,
-                [categoriaId]: proxima,
-            }
+                [categoriaId]: proxima }
         })
     }
 
@@ -807,8 +792,7 @@ const Supertabelanegociacoes = () => {
                 linhas: ordenarLinhas(
                     linhasDetalheFiltradas.filter((linha) => Number(linha.categoriaId) === Number(categoria.id)),
                     categoria.id
-                ),
-            }))
+                ) }))
             .filter((secao) => secao.linhas.length > 0)
     }, [categorias, linhasDetalheFiltradas, ordenacaoPorCategoria])
 
@@ -834,8 +818,7 @@ const Supertabelanegociacoes = () => {
         const metaPorCampo = {
             porteP: { id: linha.negociacaoIdP, porteId: linha.porteIdP },
             porteM: { id: linha.negociacaoIdM, porteId: linha.porteIdM },
-            porteG: { id: linha.negociacaoIdG, porteId: linha.porteIdG },
-        }
+            porteG: { id: linha.negociacaoIdG, porteId: linha.porteIdG } }
         const meta = metaPorCampo[campo]
         if (!meta?.porteId) {
             mostrarErroToast('Porte não identificado para salvar negociação.')
@@ -856,8 +839,7 @@ const Supertabelanegociacoes = () => {
                     procedimento_id: Number(linha.procedimentoDbId),
                     porte_id: Number(meta.porteId),
                     valor: valorNumerico,
-                    nome_alternativo: linha.nomeAlternativo?.trim() ? String(linha.nomeAlternativo).trim() : null,
-                })
+                    nome_alternativo: linha.nomeAlternativo?.trim() ? String(linha.nomeAlternativo).trim() : null })
                 .select('id')
                 .single()
             novoRegistroId = data?.id || null
@@ -877,8 +859,7 @@ const Supertabelanegociacoes = () => {
                     [campo]: valorNumerico,
                     ...(campo === 'porteP' ? { negociacaoIdP: novoRegistroId } : {}),
                     ...(campo === 'porteM' ? { negociacaoIdM: novoRegistroId } : {}),
-                    ...(campo === 'porteG' ? { negociacaoIdG: novoRegistroId } : {}),
-                }
+                    ...(campo === 'porteG' ? { negociacaoIdG: novoRegistroId } : {}) }
             })
         )
         return true
@@ -1007,8 +988,7 @@ const Supertabelanegociacoes = () => {
         setPopupSugestoesStyle({
             top: rect.bottom + 4,
             left: rect.left,
-            width: rect.width,
-        })
+            width: rect.width })
     }, [])
 
     useEffect(() => {
@@ -1035,8 +1015,7 @@ const Supertabelanegociacoes = () => {
                     position: 'fixed',
                     top: `${popupSugestoesStyle.top}px`,
                     left: `${popupSugestoesStyle.left}px`,
-                    width: `${popupSugestoesStyle.width}px`,
-                }}
+                    width: `${popupSugestoesStyle.width}px` }}
             >
                 {sugestoesFiltradasInclusao.length === 0 ? (
                     <div className='row_add_suggest_empty'>Nenhum procedimento disponível</div>
@@ -1083,13 +1062,11 @@ const Supertabelanegociacoes = () => {
             procedimento_id: Number(procedimentoItem.id),
             porte_id: Number(porteId),
             valor: 0,
-            nome_alternativo: null,
-        }))
+            nome_alternativo: null }))
 
         const { error } = await supabase.from('negociacoes_vet').upsert(payload, {
             onConflict: 'veterinario_id,procedimento_id,porte_id',
-            ignoreDuplicates: true,
-        })
+            ignoreDuplicates: true })
         if (error) {
             const msg = String(error.message || '')
             if (msg.toLowerCase().includes('duplicate') || msg.includes('23505')) {
@@ -1183,8 +1160,7 @@ const Supertabelanegociacoes = () => {
                 }
                 const resultado = await inserirProcedimentoNaNegociacao(candidato, {
                     silencioso: true,
-                    semRecarregar: true,
-                })
+                    semRecarregar: true })
                 if (resultado.status === 'ok') totalInseridos += 1
                 else if (resultado.status === 'ja_existia') totalIgnorados += 1
                 else errosDetalhados.push(`${candidato.codigo}: ${resultado.mensagem || 'erro desconhecido'}`)
@@ -1227,8 +1203,7 @@ const Supertabelanegociacoes = () => {
             const r = await inserirProcedimentoNaNegociacao(proc, {
                 silencioso: true,
                 semRecarregar: true,
-                veterinarioId: vid,
-            })
+                veterinarioId: vid })
             if (r.status === 'ok') inseridos += 1
         }
         return inseridos
@@ -1255,8 +1230,7 @@ const Supertabelanegociacoes = () => {
         try {
             let payload = {
                 nome,
-                cidade_id: cidadeIdNum,
-            }
+                cidade_id: cidadeIdNum }
             if (suportaTipo) payload = { ...payload, tipo: String(novoTipo || '').trim() || '-' }
             if (suportaPrestadorId && prestadorSel) payload = { ...payload, prestador_id: Number(prestadorSel.id) }
 
@@ -1399,8 +1373,7 @@ const Supertabelanegociacoes = () => {
         try {
             let payload = {
                 nome,
-                cidade_id: cidadeIdSalvar,
-            }
+                cidade_id: cidadeIdSalvar }
             if (suportaTipo) payload = { ...payload, tipo: String(editarTipo || '').trim() || '-' }
             if (suportaPrestadorId) {
                 payload.prestador_id = editarPrestadorId ? Number(editarPrestadorId) : null
@@ -1921,8 +1894,7 @@ ou um código por linha`}
                                                 ? '22%'
                                                 : somenteLeitura
                                                   ? '38%'
-                                                  : '32%',
-                                        }}
+                                                  : '32%' }}
                                     />
                                     <col style={{ width: '14%' }} />
                                     <col
@@ -1931,8 +1903,7 @@ ou um código por linha`}
                                                 ? '18%'
                                                 : somenteLeitura
                                                   ? '48%'
-                                                  : '46%',
-                                        }}
+                                                  : '46%' }}
                                     />
                                     {mostrarColunaVinculoLista && (
                                         <col style={{ width: somenteLeitura ? '46%' : '38%' }} />
@@ -2127,8 +2098,7 @@ ou um código por linha`}
                                 totalLinhas: totalLinhasSecao,
                                 alturaLinha: ALTURA_LINHA_TABELA,
                                 alturaVisivel: alturaVisivelCorpo,
-                                overscan: LINHAS_OVERSCAN,
-                            })
+                                overscan: LINHAS_OVERSCAN })
                             const { indiceInicial, indiceFinal, alturaEspacadorTopo, alturaEspacadorBase } =
                                 janelaVirtual
                             const linhasVisiveis = secao.linhas.slice(indiceInicial, indiceFinal)
@@ -2248,8 +2218,7 @@ ou um código por linha`}
                                                 className='table_delete_btn'
                                                 onClick={(event) =>
                                                     excluirLinhaProcedimentoNegociacao(linha, {
-                                                        ignorarConfirmacao: event.shiftKey,
-                                                    })
+                                                        ignorarConfirmacao: event.shiftKey })
                                                 }
                                                 title='Excluir procedimento, SHIFT = Excluir rápido'
                                             >
@@ -2391,8 +2360,7 @@ ou um código por linha`}
                                                 style={{ maxHeight: `${Math.max(alturaVisivelCorpo, ALTURA_LINHA_TABELA)}px` }}
                                                 onScroll={criarHandlerScrollVirtualTabela({
                                                     categoriaId: secao.categoriaId,
-                                                    setScrollTopoPorCategoria,
-                                                })}
+                                                    setScrollTopoPorCategoria })}
                                             >
                                                 <table className='table_main table_main_virtual_rows'>
                                                     <colgroup>

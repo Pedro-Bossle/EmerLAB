@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../lib/prestadorCadastroHelpers.js'
-import { useBuscaNotAtiva } from '../../lib/devToolsUi'
 import {
     PAPEIS_SIGNATARIO_CLICKSIGN,
     clicksignRequest,
@@ -44,24 +43,20 @@ import {
     nomeEnvelopeDoArquivoPdf,
     payloadEnvelopeRascunho,
     payloadRequisitoQualificacao,
-    payloadSignatario,
-} from '../../lib/clicksign/clicksignClient.js'
+    payloadSignatario } from '../../lib/clicksign/clicksignClient.js'
 import {
     enviarLembreteSignatario,
-    payloadAtualizarSignatario,
-} from '../../lib/clicksign/clicksignSignatarioOps.js'
+    payloadAtualizarSignatario } from '../../lib/clicksign/clicksignSignatarioOps.js'
 import {
     alternarFavoritoAgenda,
     atualizarContatoAgendaPorId,
     carregarAgendaSignatarios,
     removerContatoAgendaPorId,
-    upsertContatoAgenda,
-} from '../../lib/clicksign/agendaSignatarios.js'
+    upsertContatoAgenda } from '../../lib/clicksign/agendaSignatarios.js'
 import {
     carregarNotificacoes,
     limparTodasNotificacoesContratos,
-    sincronizarNotificacoesClicksign,
-} from '../../lib/clicksign/clicksignNotificacoes.js'
+    sincronizarNotificacoesClicksign } from '../../lib/clicksign/clicksignNotificacoes.js'
 import { maskTelefoneBr } from '../../lib/telefoneBrasil.js'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl.js'
 import './ContratosEmerdog.css'
@@ -93,37 +88,31 @@ const SECOES_PAINEL = {
         status: 'running',
         emptyEnvelope: 'Envelopes em processo serão exibidos aqui',
         emptyDoc: 'Documentos em processo serão exibidos aqui',
-        icon: 'clock',
-    },
+        icon: 'clock' },
     closed: {
         titulo: 'Finalizados',
         status: 'closed',
         emptyEnvelope: 'Envelopes finalizados serão exibidos aqui',
         emptyDoc: 'Documentos finalizados serão exibidos aqui',
-        icon: 'check',
-    },
+        icon: 'check' },
     canceled: {
         titulo: 'Cancelados',
         status: 'canceled',
         emptyEnvelope: 'Envelopes cancelados serão exibidos aqui',
         emptyDoc: 'Documentos cancelados serão exibidos aqui',
-        icon: 'x',
-    },
+        icon: 'x' },
     draft: {
         titulo: 'Rascunhos',
         status: 'draft',
         emptyEnvelope: 'Rascunhos serão exibidos aqui',
         emptyDoc: 'Documentos em rascunho serão exibidos aqui',
-        icon: 'draft',
-    },
+        icon: 'draft' },
     all: {
         titulo: 'Todos os envelopes',
         status: '',
         emptyEnvelope: 'Nenhum envelope encontrado.',
         emptyDoc: 'Documentos serão exibidos aqui',
-        icon: 'doc',
-    },
-}
+        icon: 'doc' } }
 
 function IconeSecaoPainel({ tipo }) {
     if (tipo === 'clock') {
@@ -183,7 +172,6 @@ function IconeOlho({ visivel }) {
 }
 
 export default function ClicksignEmerdog() {
-    const buscaNotAtiva = useBuscaNotAtiva()
     const [tab, setTab] = useState('envelopes')
     const [toast, setToast] = useState(null)
     const [loading, setLoading] = useState(false)
@@ -242,8 +230,7 @@ export default function ClicksignEmerdog() {
         email: '',
         phone: '',
         nome: '',
-        saveAgenda: true,
-    })
+        saveAgenda: true })
     /** Dados após «Avançar» (novo ou agenda), antes de escolher qualificação. */
     const [signPending, setSignPending] = useState(null)
     const [signModalAgendaTab, setSignModalAgendaTab] = useState('todos')
@@ -331,8 +318,7 @@ export default function ClicksignEmerdog() {
             email: '',
             phone: '',
             nome: '',
-            saveAgenda: true,
-        })
+            saveAgenda: true })
         try {
             sessionStorage.removeItem(STORAGE_FLUXO_EID)
         } catch {
@@ -349,8 +335,7 @@ export default function ClicksignEmerdog() {
                 body: null,
                 onConfirm: opts.onConfirm || null,
                 confirmLabel: opts.confirmLabel || 'Confirmar',
-                cancelLabel: opts.cancelLabel || 'Cancelar',
-            })
+                cancelLabel: opts.cancelLabel || 'Cancelar' })
             return
         }
         setToast({
@@ -359,8 +344,7 @@ export default function ClicksignEmerdog() {
             body: String(body || '').trim() || '—',
             onConfirm: opts.onConfirm || null,
             confirmLabel: opts.confirmLabel || 'Confirmar',
-            cancelLabel: opts.cancelLabel || 'Cancelar',
-        })
+            cancelLabel: opts.cancelLabel || 'Cancelar' })
     }, [])
 
     useEffect(() => {
@@ -423,14 +407,12 @@ export default function ClicksignEmerdog() {
                         typeof res.meta?.record_count === 'number'
                             ? res.meta.record_count
                             : res.rows.length,
-                    loaded_count: res.rows.length,
-                })
+                    loaded_count: res.rows.length })
                 setListPath(
                     montarPathListagemEnvelopes({
                         pageNumber: 1,
                         pageSize: 50,
-                        filterStatus: opts.filterStatus || '',
-                    }),
+                        filterStatus: opts.filterStatus || '' }),
                 )
             } finally {
                 setLoading(false)
@@ -445,8 +427,7 @@ export default function ClicksignEmerdog() {
         const path = montarPathListagemEnvelopes({
             pageNumber: 1,
             pageSize: 50,
-            filterCreated: intervalo,
-        })
+            filterCreated: intervalo })
         const { ok, data } = await csRequest('GET', path)
         setMesLoading(false)
         if (!ok) {
@@ -494,8 +475,7 @@ export default function ClicksignEmerdog() {
                                 name: a.name ?? a.title ?? '—',
                                 status: 'draft',
                                 created: a.created ?? a.created_at ?? '',
-                                updated: a.modified ?? a.updated_at ?? '',
-                            },
+                                updated: a.modified ?? a.updated_at ?? '' },
                             ...rows,
                         ]
                     }
@@ -519,8 +499,7 @@ export default function ClicksignEmerdog() {
                         id,
                         name: r.name,
                         status: r.status,
-                        docCount,
-                    }
+                        docCount }
                 }),
             )
             setContinuarItens(itens.filter((x) => x.id))
@@ -566,16 +545,14 @@ export default function ClicksignEmerdog() {
                         pageNumber: 1,
                         pageSize: 1,
                         filterStatus: 'closed',
-                        filterCreated: intervalo30,
-                    }),
+                        filterCreated: intervalo30 }),
                 ),
                 contarEnvelopesPath(
                     montarPathListagemEnvelopes({
                         pageNumber: 1,
                         pageSize: 1,
                         filterStatus: 'canceled',
-                        filterCreated: intervalo30,
-                    }),
+                        filterCreated: intervalo30 }),
                 ),
             ])
             setContagens({ running, recusas: 0, closed30, canceled30 })
@@ -737,8 +714,7 @@ export default function ClicksignEmerdog() {
                 }
                 await carregarLista()
                 await carregarUsoMes()
-            },
-        })
+            } })
     }
 
     const fecharDetalheModal = useCallback(() => {
@@ -785,8 +761,7 @@ export default function ClicksignEmerdog() {
                 email: raw.email || '',
                 phone: raw.phone || '',
                 nome: raw.name || '',
-                saveAgenda: false,
-            })
+                saveAgenda: false })
             setSignModal('novo')
             fecharDetalheModal()
             setTab('montar')
@@ -802,8 +777,7 @@ export default function ClicksignEmerdog() {
             email: raw.email || '',
             phone: raw.phone || '',
             nome: raw.name || '',
-            saveAgenda: false,
-        })
+            saveAgenda: false })
         setSignModal('novo')
     }
 
@@ -818,8 +792,7 @@ export default function ClicksignEmerdog() {
             email: '',
             phone: '',
             nome: '',
-            saveAgenda: true,
-        })
+            saveAgenda: true })
         setSignModal('novo')
         if (statusDetalheEnvelope === 'draft') {
             fecharDetalheModal()
@@ -882,8 +855,7 @@ export default function ClicksignEmerdog() {
                 arr.map((item) => ({
                     id: item?.id ?? '',
                     tipo: item?.type ?? '—',
-                    resumo: JSON.stringify(item?.attributes || {}).slice(0, 120),
-                })),
+                    resumo: JSON.stringify(item?.attributes || {}).slice(0, 120) })),
             )
         }
     }
@@ -1294,8 +1266,7 @@ export default function ClicksignEmerdog() {
                     name: nomeTrim,
                     email,
                     phone,
-                    channel: ch,
-                })
+                    channel: ch })
                 const pr = await csRequest(
                     'PATCH',
                     `/envelopes/${encodeURIComponent(eid)}/signers/${encodeURIComponent(replaceId)}`,
@@ -1331,8 +1302,7 @@ export default function ClicksignEmerdog() {
                 name: nomeTrim,
                 email,
                 phone,
-                channel: ch,
-            })
+                channel: ch })
             const { ok, status, data } = await csRequest('POST', `/envelopes/${encodeURIComponent(eid)}/signers`, body)
             if (!ok) {
                 setFluxoBusy(false)
@@ -1384,8 +1354,7 @@ export default function ClicksignEmerdog() {
                         const reqBody = payloadRequisitoQualificacao(eid, {
                             documentId: docId,
                             signerId,
-                            role: papelUsar,
-                        })
+                            role: papelUsar })
                         const rq = await csRequest(
                             'POST',
                             `/envelopes/${encodeURIComponent(eid)}/requirements`,
@@ -1408,8 +1377,7 @@ export default function ClicksignEmerdog() {
                         const authBody = payloadRequisitoAutenticacao(eid, {
                             documentId: docId,
                             signerId,
-                            auth: authMetodo,
-                        })
+                            auth: authMetodo })
                         const ra = await csRequest(
                             'POST',
                             `/envelopes/${encodeURIComponent(eid)}/requirements`,
@@ -1446,8 +1414,7 @@ export default function ClicksignEmerdog() {
                         email: String(email || '').trim(),
                         phone: maskTelefoneBr(phone || ''),
                         channel: ch,
-                        papel: papelUsar,
-                    }),
+                        papel: papelUsar }),
                 )
             }
             setFluxoPapel(papelUsar)
@@ -1480,8 +1447,7 @@ export default function ClicksignEmerdog() {
         try {
             const { docs: docsAtivos, sigs: sigsAtivos } = (await refreshFluxoListas(eid)) || {
                 docs: [],
-                sigs: [],
-            }
+                sigs: [] }
             const needReq = Math.max(0, docsAtivos.length) * Math.max(0, sigsAtivos.length)
             if (needReq > 0) {
                 const reqsAtual = await obterRequisitosEnvelope(csRequest, eid)
@@ -1579,12 +1545,12 @@ export default function ClicksignEmerdog() {
 
     const rowsFiltradasNome = useMemo(() => {
         const termo = filtroNomeDebounced
-        if (!termo.trim() && !buscaNotAtiva) return rows
+        if (!termo.trim()) return rows
         return rows.filter((r) => {
             const blob = normalizarTextoBusca([r.name, r.id].filter(Boolean).join(' '))
-            return filtrarPorTermoBusca(blob, termo, buscaNotAtiva)
+            return filtrarPorTermoBusca(blob, termo)
         })
-    }, [rows, filtroNomeDebounced, buscaNotAtiva])
+    }, [rows, filtroNomeDebounced])
 
     const rowsOrdenadas = useMemo(() => {
         const list = [...rowsFiltradasNome]
@@ -2101,8 +2067,7 @@ export default function ClicksignEmerdog() {
                                                                         onClick={(e) => {
                                                                             setEnvelopeMenuId('')
                                                                             void excluirEnvelope(r.id, r.name, {
-                                                                                ignorarConfirmacao: e.shiftKey,
-                                                                            })
+                                                                                ignorarConfirmacao: e.shiftKey })
                                                                         }}
                                                                     >
                                                                         Excluir rascunho
@@ -2329,8 +2294,7 @@ export default function ClicksignEmerdog() {
                                                         email: fluxoSignEmail,
                                                         phone: fluxoPhone,
                                                         nome: fluxoSignNome,
-                                                        saveAgenda: true,
-                                                    })
+                                                        saveAgenda: true })
                                                     setSignModal('novo')
                                                 }}
                                             >
@@ -2433,8 +2397,7 @@ export default function ClicksignEmerdog() {
                                                             email: em && em !== '—' ? em : '',
                                                             phone: maskTelefoneBr(ph),
                                                             nome: String(s.name || '').trim(),
-                                                            saveAgenda: false,
-                                                        })
+                                                            saveAgenda: false })
                                                         setSignModal('novo')
                                                     }}
                                                 >
@@ -2508,8 +2471,7 @@ export default function ClicksignEmerdog() {
                                                     setSignDraft((d) => ({
                                                         ...d,
                                                         channel: ch,
-                                                        phone: ch === 'email' ? '' : d.phone,
-                                                    }))
+                                                        phone: ch === 'email' ? '' : d.phone }))
                                                 }}
                                             >
                                                 <option value="email">E-mail</option>
@@ -2620,8 +2582,7 @@ export default function ClicksignEmerdog() {
                                                 phone: chAv === 'whatsapp' ? signDraft.phone : '',
                                                 channel: chAv,
                                                 gravarNaAgenda: signDraft.saveAgenda,
-                                                source: 'novo',
-                                            })
+                                                source: 'novo' })
                                             setSignQualPapel(normalizarPapelQualificacao(fluxoPapel))
                                             setSignModal('qual')
                                         }}
@@ -2733,8 +2694,7 @@ export default function ClicksignEmerdog() {
                                                                         email: String(c.email || '').trim(),
                                                                         phone: maskTelefoneBr(c.phone || ''),
                                                                         nome: String(c.name || '').trim(),
-                                                                        saveAgenda: true,
-                                                                    })
+                                                                        saveAgenda: true })
                                                                     setSignQualPapel(normalizarPapelQualificacao(c.papel))
                                                                     setSignModal('agenda_edit')
                                                                 }}
@@ -2770,8 +2730,7 @@ export default function ClicksignEmerdog() {
                                                                                 }
                                                                                 setAgendaSigs(removerContatoAgendaPorId(localId))
                                                                                 pushToast('success', 'Agenda', 'Contacto removido.')
-                                                                            },
-                                                                        },
+                                                                            } },
                                                                     )
                                                                 }}
                                                             >
@@ -2868,8 +2827,7 @@ export default function ClicksignEmerdog() {
                                                     setSignDraft((d) => ({
                                                         ...d,
                                                         channel: ch,
-                                                        phone: ch === 'email' ? '' : d.phone,
-                                                    }))
+                                                        phone: ch === 'email' ? '' : d.phone }))
                                                 }}
                                             >
                                                 <option value="email">E-mail</option>
@@ -2978,8 +2936,7 @@ export default function ClicksignEmerdog() {
                                                     email: signDraft.email.trim(),
                                                     phone: signDraft.phone,
                                                     channel: chEd,
-                                                    papel: normalizarPapelQualificacao(signQualPapel),
-                                                }),
+                                                    papel: normalizarPapelQualificacao(signQualPapel) }),
                                             )
                                             pushToast('info', 'Agenda', 'Contacto atualizado.')
                                             setSignAgendaEditId(null)
@@ -3031,8 +2988,7 @@ export default function ClicksignEmerdog() {
                                                                     onChange={(e) =>
                                                                         setAgendaQualPorId((m) => ({
                                                                             ...m,
-                                                                            [localId]: e.target.value,
-                                                                        }))
+                                                                            [localId]: e.target.value }))
                                                                     }
                                                                     aria-label={`Qualificação de ${c.name}`}
                                                                 >
@@ -3079,8 +3035,7 @@ export default function ClicksignEmerdog() {
                                                     phone: maskTelefoneBr(c.phone || ''),
                                                     channel: canalAg,
                                                     papel,
-                                                    gravarNaAgenda: true,
-                                                })
+                                                    gravarNaAgenda: true })
                                                 if (ok) okCount += 1
                                                 else break
                                             }
@@ -3155,8 +3110,7 @@ export default function ClicksignEmerdog() {
                                             setSignModal(signPending.source === 'novo' ? 'novo' : 'agenda')
                                             setSignDraft((d) => ({
                                                 ...d,
-                                                channel: canalSignatario(signPending.channel),
-                                            }))
+                                                channel: canalSignatario(signPending.channel) }))
                                             setSignPending(null)
                                         }}
                                     >
@@ -3176,8 +3130,7 @@ export default function ClicksignEmerdog() {
                                                 phone: signPending.phone,
                                                 channel: signPending.channel,
                                                 papel: signQualPapel,
-                                                gravarNaAgenda: signPending.gravarNaAgenda,
-                                            })
+                                                gravarNaAgenda: signPending.gravarNaAgenda })
                                             if (ok) fecharSignModal()
                                         }}
                                     >

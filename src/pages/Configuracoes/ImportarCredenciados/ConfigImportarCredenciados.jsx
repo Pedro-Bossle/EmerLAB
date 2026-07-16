@@ -70,7 +70,9 @@ const ConfigImportarCredenciados = () => {
     const [paginaOrfaos, setPaginaOrfaos] = useState(1)
     const [somenteForaDoPerfil, setSomenteForaDoPerfil] = useState(false)
     const [vinculandoLote, setVinculandoLote] = useState(false)
+    const [arrastandoArquivo, setArrastandoArquivo] = useState(false)
     const orfaosRef = useRef(null)
+    const inputArquivoRef = useRef(null)
 
     const chaveOrfao = (prestadorId, codigo) =>
         `${Number(prestadorId)}|${String(codigo || '').trim().toUpperCase()}`
@@ -138,10 +140,13 @@ const ConfigImportarCredenciados = () => {
         return carregado
     }
 
-    const onArquivo = async (event) => {
-        const file = event.target.files?.[0]
-        event.target.value = ''
+    const processarArquivo = async (file) => {
         if (!file) return
+        const nome = String(file.name || '').toLowerCase()
+        if (!nome.endsWith('.xlsx') && !nome.endsWith('.xls')) {
+            setErro('Selecione um arquivo Excel (.xlsx ou .xls).')
+            return
+        }
         setProcessando(true)
         setErro('')
         setFeedback('')
@@ -209,6 +214,21 @@ const ConfigImportarCredenciados = () => {
         } finally {
             setProcessando(false)
         }
+    }
+
+    const onArquivo = (event) => {
+        const file = event.target.files?.[0]
+        event.target.value = ''
+        void processarArquivo(file)
+    }
+
+    const onDropArquivo = (event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        setArrastandoArquivo(false)
+        if (loading || processando) return
+        const file = event.dataTransfer?.files?.[0]
+        void processarArquivo(file)
     }
 
     const contarOrfaosNoMapa = (prestadorId, mapa, linhasAtuais) => {
@@ -538,16 +558,13 @@ const ConfigImportarCredenciados = () => {
     }
 
     return (
-        <div className='credenciamento_main_page config_import_cred'>
-            <div className='config_import_cred_header'>
-                <h1>Importar Credenciados</h1>
-            </div>
+        <div className='credenciamento_main config_import_cred'>
+            <h1>Importar Credenciados</h1>
+            <hr />
+
             <p className='config_import_cred_lead'>
-                Envie um Excel com as colunas <strong>Nome do Credenciado</strong>,{' '}
-                <strong>Procedimento</strong> e <strong>Procedimento Código</strong>. O sistema
-                compara com o cadastro (nome semelhante, como em Pagamentos) e mostra se o
-                procedimento já está no perfil do veterinário. A lista é paginada (100 por página).
-                <strong> Remover da lista</strong> só tira a linha desta revisão — não altera o perfil.
+                Compare uma planilha com o perfil dos veterinários: o sistema cruza nome e código do
+                procedimento e mostra o que já está no perfil, o que falta e o que precisa revisar.
             </p>
 
             {erro ? (
@@ -561,21 +578,63 @@ const ConfigImportarCredenciados = () => {
                 />
             ) : null}
 
-            <div className='config_import_cred_upload'>
+            <div
+                className={`config_import_cred_drop${arrastandoArquivo ? ' is-drag' : ''}${loading || processando ? ' is-busy' : ''}`}
+                onDragEnter={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (!loading && !processando) setArrastandoArquivo(true)
+                }}
+                onDragOver={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                }}
+                onDragLeave={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (e.currentTarget === e.target) setArrastandoArquivo(false)
+                }}
+                onDrop={onDropArquivo}
+            >
+                <div className='config_import_cred_drop_icon' aria-hidden>
+                    <svg width='36' height='36' viewBox='0 0 24 24' fill='none'>
+                        <path
+                            d='M12 3v10m0 0l3.5-3.5M12 13L8.5 9.5M4 17.5V19a2 2 0 002 2h12a2 2 0 002-2v-1.5'
+                            stroke='currentColor'
+                            strokeWidth='1.75'
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                        />
+                    </svg>
+                </div>
+                <div className='config_import_cred_drop_copy'>
+                    <strong>
+                        {processando
+                            ? 'Processando planilha…'
+                            : loading
+                              ? 'Carregando cadastros…'
+                              : 'Arraste o Excel aqui'}
+                    </strong>
+                    <span>
+                        Colunas: <em>Nome do Credenciado</em>, <em>Procedimento</em> e{' '}
+                        <em>Procedimento Código</em>
+                    </span>
+                    {nomeArquivo ? (
+                        <span className='config_import_cred_nome_arq'>{nomeArquivo}</span>
+                    ) : null}
+                </div>
                 <label className='credenciamento_main_action_btn config_import_cred_file_label'>
-                    {processando ? 'Processando…' : 'Selecionar Excel'}
+                    {processando ? 'Aguarde…' : 'Selecionar arquivo'}
                     <input
+                        ref={inputArquivoRef}
                         type='file'
                         accept='.xlsx,.xls'
                         hidden
                         disabled={loading || processando}
-                        onChange={(e) => void onArquivo(e)}
+                        onChange={onArquivo}
                     />
                 </label>
-                {nomeArquivo ? <span className='config_import_cred_nome_arq'>{nomeArquivo}</span> : null}
             </div>
-
-            {loading ? <p>Carregando cadastros…</p> : null}
 
             {linhas.length > 0 ? (
                 <>

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { hasStoredDevTools } from './accessControl.js'
 
 export const DEV_TOOLS_UI_STORAGE_KEY = 'emerdog_dev_tools_ui'
 export const DEV_TOOLS_UI_CHANGE_EVENT = 'emerdog-dev-tools-ui-change'
@@ -25,7 +24,6 @@ export const DEFAULT_COLUNAS_NEGOCIACOES = {
 }
 
 const DEFAULT_UI = {
-    buscaNot: false,
     exclusaoMassa: false,
     contagemRealizadoresPlanos: false,
     colunasProcessos: { ...DEFAULT_COLUNAS_PROCESSOS },
@@ -88,7 +86,6 @@ export function lerDevToolsUi() {
         const parsed = JSON.parse(raw)
         if (parsed.colunasExtras === true) {
             return {
-                buscaNot: !!parsed.buscaNot,
                 exclusaoMassa: !!parsed.exclusaoMassa,
                 contagemRealizadoresPlanos: !!parsed.contagemRealizadoresPlanos,
                 colunasProcessos: { pdf: true, site: true, mapa: true },
@@ -104,7 +101,6 @@ export function lerDevToolsUi() {
             }
         }
         return {
-            buscaNot: !!parsed.buscaNot,
             exclusaoMassa: !!parsed.exclusaoMassa,
             contagemRealizadoresPlanos: !!parsed.contagemRealizadoresPlanos,
             colunasProcessos: normalizarColunasProcessos(parsed.colunasProcessos),
@@ -198,14 +194,9 @@ export function useDevToolsUi() {
     return { ui, patch, toggle, toggleColuna }
 }
 
-export function useBuscaNotAtiva() {
-    const { ui } = useDevToolsUi()
-    return hasStoredDevTools() && ui.buscaNot
-}
-
 export function devToolsAlgumRecursoAtivo(ui) {
     const u = ui || lerDevToolsUi()
-    if (u.buscaNot || u.exclusaoMassa || u.contagemRealizadoresPlanos) return true
+    if (u.exclusaoMassa || u.contagemRealizadoresPlanos) return true
     if (Object.values(u.colunasProcessos || {}).some(Boolean)) return true
     if (Object.values(u.colunasCadastro || {}).some(Boolean)) return true
     if (Object.values(u.colunasNegociacoes || {}).some(Boolean)) return true

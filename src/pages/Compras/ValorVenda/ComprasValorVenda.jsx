@@ -5,9 +5,7 @@ import {
     hasPermission,
     hasStoredPermission,
     normalizarProfileAcesso,
-    setStoredAccessProfile,
-} from '../../../lib/accessControl'
-import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
+    setStoredAccessProfile } from '../../../lib/accessControl'
 import { filtrarPorTermoBusca, normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
@@ -38,7 +36,6 @@ const CHAVE_OUTROS = 'outros'
 
 const ComprasValorVenda = () => {
     const [somenteLeitura, setSomenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.COMPRAS_EDIT))
-    const buscaNotAtiva = useBuscaNotAtiva()
     const [loading, setLoading] = useState(false)
     const [erro, setErro] = useState('')
     const [aviso, setAviso] = useState('')
@@ -194,14 +191,13 @@ const ComprasValorVenda = () => {
                 ...row,
                 procedimentoNome: p?.nome || row.cod_procedimento,
                 categoriaId,
-                categoriaNome: cat?.nome || '',
-            }
+                categoriaNome: cat?.nome || '' }
         })
     }, [vendasLojinha, mapaProcByCod, categorias])
 
     const linhasFiltradas = useMemo(() => {
         let base = linhasMontadas
-        if (!termoBusca.trim() && !buscaNotAtiva) return base
+        if (!termoBusca.trim()) return base
 
         return base.filter((row) => {
             const blob = normalizarTextoBuscaDev(
@@ -209,9 +205,9 @@ const ComprasValorVenda = () => {
                     .filter(Boolean)
                     .join(' '),
             )
-            return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
+            return filtrarPorTermoBusca(blob, termoBusca)
         })
-    }, [linhasMontadas, termoBusca, buscaNotAtiva])
+    }, [linhasMontadas, termoBusca])
 
     const totalProcedimentosPorCategoria = useMemo(() => {
         const mapa = new Map()
@@ -257,8 +253,7 @@ const ComprasValorVenda = () => {
                     categoriaId,
                     categoriaChave: chave,
                     categoriaNome: categoria.nome,
-                    linhas: ordenarLinhas(linhasCat, chave),
-                }
+                    linhas: ordenarLinhas(linhasCat, chave) }
             })
             .filter((secao) => secao.linhas.length > 0)
 
@@ -271,8 +266,7 @@ const ComprasValorVenda = () => {
                 categoriaId: CHAVE_OUTROS,
                 categoriaChave: CHAVE_OUTROS,
                 categoriaNome: 'Outros',
-                linhas: ordenarLinhas(linhasOutros, CHAVE_OUTROS),
-            })
+                linhas: ordenarLinhas(linhasOutros, CHAVE_OUTROS) })
         }
         return secoes
     }, [categorias, linhasFiltradas, ordenarLinhas, idsCategoriasLista])
@@ -361,8 +355,7 @@ const ComprasValorVenda = () => {
             cod_procedimento: cod,
             valor_venda: valorNum,
             uf: null,
-            cidade_id: null,
-        }
+            cidade_id: null }
 
         const candidato = { cod_procedimento: cod }
         const duplicado = vendasLojinha.some((v) => mesmaChaveLojinha(v, candidato))
@@ -406,8 +399,7 @@ const ComprasValorVenda = () => {
         }
         setConfirmacaoExclusao({
             mensagem: `Excluir o valor de venda do procedimento ${row.cod_procedimento}?`,
-            onConfirmar: executar,
-        })
+            onConfirmar: executar })
     }
 
     const aplicarMassa = async () => {
@@ -441,8 +433,7 @@ const ComprasValorVenda = () => {
                     cod_procedimento: codigo,
                     valor_venda: 0,
                     uf: null,
-                    cidade_id: null,
-                }
+                    cidade_id: null }
                 const existente = vendasLojinha.find((v) => mesmaChaveLojinha(v, candidato))
                 if (existente) {
                     jaExistiam += 1
@@ -450,8 +441,7 @@ const ComprasValorVenda = () => {
                 }
                 const { error } = await supabase.from('servico_valor_venda').upsert(candidato, {
                     onConflict: 'cod_procedimento',
-                    ignoreDuplicates: true,
-                })
+                    ignoreDuplicates: true })
                 if (error) erros.push(`${codigo}: ${error.message}`)
                 else inseridos += 1
             }
@@ -512,8 +502,7 @@ const ComprasValorVenda = () => {
         setPopupSugestoesStyle({
             top: rect.bottom + 4,
             left: rect.left,
-            width: rect.width,
-        })
+            width: rect.width })
     }, [])
 
     useEffect(() => {
@@ -540,8 +529,7 @@ const ComprasValorVenda = () => {
                     position: 'fixed',
                     top: `${popupSugestoesStyle.top}px`,
                     left: `${popupSugestoesStyle.left}px`,
-                    width: `${popupSugestoesStyle.width}px`,
-                }}
+                    width: `${popupSugestoesStyle.width}px` }}
             >
                 {sugestoesFiltradasInclusao.length === 0 ? (
                     <div className='row_add_suggest_empty'>Nenhum procedimento disponível</div>
@@ -609,12 +597,10 @@ const ComprasValorVenda = () => {
                     cod_procedimento: encontrado.codigo,
                     valor_venda: 0,
                     uf: null,
-                    cidade_id: null,
-                },
+                    cidade_id: null },
                 {
                     onConflict: 'cod_procedimento',
-                    ignoreDuplicates: true,
-                }
+                    ignoreDuplicates: true }
             )
             if (error) {
                 mostrarAviso(`Erro ao adicionar procedimento: ${error.message}`)

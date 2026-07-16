@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, hasStoredDevTools, hasStoredExclusaoPermanenteCredenciamento, normalizarProfileAcesso, setStoredAccessProfile } from '../../../lib/accessControl'
-import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
-import { filtrarPorTermoBusca, normalizarTextoBusca, resolverCidadePrincipalNome } from '../../../lib/prestadorCadastroHelpers'
+import { useDevToolsUi } from '../../../lib/devToolsUi'
+import { filtrarPorTermoBusca, normalizarTextoBusca, patchCredenciadoEmSeTransicao, resolverCidadePrincipalNome } from '../../../lib/prestadorCadastroHelpers'
 import {
     montarEstabelecimentoPorVeterinarioDeListas,
-    resolverLocalidadeEfetivaPrestador,
-} from '../../../lib/prestadorLocalidadeVinculo.js'
+    resolverLocalidadeEfetivaPrestador } from '../../../lib/prestadorLocalidadeVinculo.js'
 import { supabase } from '../../../lib/supabase'
 import './Credenciamento_main.css'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
@@ -136,7 +135,6 @@ const Credenciamento_main = () => {
     const { ui: devToolsUi, toggleColuna } = useDevToolsUi()
     const podeDevTool = hasStoredDevTools()
     const podeExclusaoPermanente = hasStoredExclusaoPermanenteCredenciamento()
-    const buscaNotAtiva = useBuscaNotAtiva()
     const colProc = devToolsUi.colunasProcessos
 
     const mostrarColunaPdf = podeDevTool && colProc.pdf
@@ -310,8 +308,7 @@ const Credenciamento_main = () => {
             const cidadePrincipalNome =
                 resolverCidadePrincipalNome(pLoc, {
                     mapaCidadeNomePorId: cidadePorId,
-                    relacoesCidades: cidadesDoPrestador,
-                }) || '-'
+                    relacoesCidades: cidadesDoPrestador }) || '-'
             const cidadesSecundarias = cidadesDoPrestador
                 .filter((item) => !item.principal && Number(item.cidade_id) !== cidadePrincipalId)
                 .map((item) => cidadePorId.get(Number(item.cidade_id))?.nome)
@@ -352,8 +349,7 @@ const Credenciamento_main = () => {
                 modalidadeEfetiva: possuiVinculoClinica ? modalidadeVinculada || prestador.modalidade || '' : prestador.modalidade || '',
                 possuiVinculoClinica,
                 diaRef,
-                chaveMes,
-            }
+                chaveMes }
         })
     }, [prestadores, prestadorCidades, prestadorEspecialidades, prestadorEstabelecimentos, cidadePorId, especialidadePorId, situacaoPorId])
 
@@ -406,8 +402,8 @@ const Credenciamento_main = () => {
                     .filter(Boolean)
                     .join(' '),
             )
-            if (!filtrarPorTermoBusca(pilhaBusca, termoBusca1, buscaNotAtiva)) return false
-            if (!filtrarPorTermoBusca(pilhaBusca, termoBusca2, buscaNotAtiva)) return false
+            if (!filtrarPorTermoBusca(pilhaBusca, termoBusca1)) return false
+            if (!filtrarPorTermoBusca(pilhaBusca, termoBusca2)) return false
             if (filtroSituacao && String(item.situacao_id) !== String(filtroSituacao)) return false
             if (!passaTriBool(filtroPdf, item.tem_pdf)) return false
             if (!passaTriBool(filtroSite, item.no_site)) return false
@@ -424,7 +420,6 @@ const Credenciamento_main = () => {
         filtroSite,
         filtroMapa,
         filtroDia,
-        buscaNotAtiva,
     ])
 
     const temFiltroAtivo = useMemo(
@@ -668,16 +663,23 @@ const Credenciamento_main = () => {
 
     const atualizarCampoPrestador = async (prestadorId, campos) => {
         if (somenteLeitura) return
+        const idNum = Number(prestadorId)
+        const atual = prestadores.find((p) => Number(p.id) === idNum)
+        const patchExtra =
+            campos.situacao_id !== undefined
+                ? patchCredenciadoEmSeTransicao(atual?.situacao_id, campos.situacao_id, situacoes)
+                : {}
+        const payload = { ...campos, ...patchExtra, data_atualizacao: new Date().toISOString() }
         const { error } = await supabase
             .from('prestadores')
-            .update({ ...campos, data_atualizacao: new Date().toISOString() })
-            .eq('id', Number(prestadorId))
+            .update(payload)
+            .eq('id', idNum)
         if (error) {
             setErro(`Falha ao atualizar registro: ${error.message}`)
             return
         }
         setPrestadores((anteriores) =>
-            anteriores.map((item) => (Number(item.id) === Number(prestadorId) ? { ...item, ...campos, data_atualizacao: new Date().toISOString() } : item))
+            anteriores.map((item) => (Number(item.id) === idNum ? { ...item, ...payload } : item))
         )
     }
 
@@ -834,6 +836,13 @@ const Credenciamento_main = () => {
                 no_site: !!novoSite,
                 no_mapa: !!novoMapa,
                 data_atualizacao: new Date().toISOString(),
+                ...(emEdicao
+                    ? patchCredenciadoEmSeTransicao(
+                          prestadores.find((p) => Number(p.id) === Number(prestadorEditandoId))?.situacao_id,
+                          novaSituacaoId,
+                          situacoes,
+                      )
+                    : patchCredenciadoEmSeTransicao(null, novaSituacaoId, situacoes)),
             }
             if (novoAtendeEmClinica) payload.telefone = null
             let prestadorId = Number(prestadorEditandoId || 0)
@@ -871,21 +880,18 @@ const Credenciamento_main = () => {
             if (cidadesPayload.length) {
                 await supabase.from('prestador_cidades').upsert(cidadesPayload, {
                     onConflict: 'prestador_id,cidade_id',
-                    ignoreDuplicates: true,
-                })
+                    ignoreDuplicates: true })
             }
 
             const payloadEspecialidades = [{
                 prestador_id: prestadorId,
                 especialidade_id: Number(novaEspecialidadePrincipalId),
-                principal: true,
-            }]
+                principal: true }]
             if (especialidadesSecundariasSelecionadas.length) {
                 const payloadEspecialidadesSec = especialidadesSecundariasSelecionadas.map((especialidadeId) => ({
                     prestador_id: prestadorId,
                     especialidade_id: Number(especialidadeId),
-                    principal: false,
-                }))
+                    principal: false }))
                 payloadEspecialidades.push(...payloadEspecialidadesSec)
             }
             await supabase.from('prestador_especialidades').insert(payloadEspecialidades)
@@ -897,8 +903,7 @@ const Credenciamento_main = () => {
                         ? estabelecimentosSelecionados.map((estabelecimentoId, idx) => ({
                             veterinario_id: prestadorId,
                             estabelecimento_id: Number(estabelecimentoId),
-                            principal: idx === 0,
-                        }))
+                            principal: idx === 0 }))
                         : []
                     if (payloadEstabelecimentos.length) {
                         await supabase.from('prestador_estabelecimentos').insert(payloadEstabelecimentos)
@@ -909,8 +914,7 @@ const Credenciamento_main = () => {
                     ? estabelecimentosSelecionados.map((estabelecimentoId, idx) => ({
                         veterinario_id: prestadorId,
                         estabelecimento_id: Number(estabelecimentoId),
-                        principal: idx === 0,
-                    }))
+                        principal: idx === 0 }))
                     : []
                 if (payloadEstabelecimentos.length) {
                     await supabase.from('prestador_estabelecimentos').insert(payloadEstabelecimentos)
@@ -978,8 +982,7 @@ const Credenciamento_main = () => {
             const response = await fetch('/api/rc-pdf', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cidades: rcCidadesSelecionadas }),
-            })
+                body: JSON.stringify({ cidades: rcCidadesSelecionadas }) })
             const erroJson = await response.clone().json().catch(() => null)
             if (!response.ok) {
                 if (response.status === 404) {
@@ -1211,8 +1214,7 @@ const Credenciamento_main = () => {
                                                     disabled={somenteLeitura}
                                                     onChange={(e) =>
                                                         atualizarCampoPrestador(item.id, {
-                                                            situacao_id: e.target.value ? Number(e.target.value) : null,
-                                                        })
+                                                            situacao_id: e.target.value ? Number(e.target.value) : null })
                                                     }
                                                 >
                                                     <option value=''>-</option>
@@ -1284,8 +1286,7 @@ const Credenciamento_main = () => {
                                                             className='table_delete_btn cred_delete_btn_permanent'
                                                             onClick={(event) =>
                                                                 excluirPrestadorPermanente(item.id, {
-                                                                    ignorarConfirmacao: event.shiftKey,
-                                                                })
+                                                                    ignorarConfirmacao: event.shiftKey })
                                                             }
                                                             title='Apagar do banco permanentemente, SHIFT = sem confirmação'
                                                         >

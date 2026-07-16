@@ -18,16 +18,6 @@ const ITENS_GLOBAIS = [
 
     {
 
-        chave: 'buscaNot',
-
-        rotulo: 'Pesquisa NOT',
-
-        descricao: 'Em todas as buscas de listas: NOT termo ou !termo exclui quem contém o texto.',
-
-    },
-
-    {
-
         chave: 'exclusaoMassa',
 
         rotulo: 'Exclusão por lista',
@@ -156,7 +146,6 @@ export default function DevToolsFloating() {
     const colNeg = ui.colunasNegociacoes || {}
 
     const algumAtivo =
-        ui.buscaNot ||
         ui.exclusaoMassa ||
         ui.contagemRealizadoresPlanos ||
         Object.values(ui.colunasProcessos || {}).some(Boolean) ||

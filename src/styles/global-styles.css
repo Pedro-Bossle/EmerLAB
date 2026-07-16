@@ -34,12 +34,16 @@
 @import '../pages/Planos/ImpressaoPlanos/ImpressaoPlanos.css';
 
 @import '../pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos.css';
+@import '../pages/Administrativo/Auditoria/AdminAuditoria.css';
 
 @import '../pages/Compras/ValorVenda/ComprasValorVenda.css';
 @import '../pages/Compras/Orcamento/ComprasOrcamento.css';
 
 @import '../pages/Pagamentos/PagamentosRegistro.css';
 @import '../pages/Pagamentos/PagamentosResumo.css';
+
+@import '../pages/Configuracoes/ExportarCredenciados/ConfigExportarCredenciados.css';
+@import '../pages/Configuracoes/ImportarCredenciados/ConfigImportarCredenciados.css';
 
 @import '../pages/Contratos/ContratosEmerdog.css';
 @import '../pages/Contratos/ClicksignEmerdog.css';

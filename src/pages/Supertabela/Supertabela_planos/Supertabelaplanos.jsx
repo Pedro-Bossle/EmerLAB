@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PERMISSION_KEYS, hasStoredDevTools, hasStoredPermission } from '../../../lib/accessControl'
-import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
+import { useDevToolsUi } from '../../../lib/devToolsUi'
 import { normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
 import { filtrarLinhaSupertabelaPorBusca, partesValoresLinhaSupertabela } from '../../../lib/supertabelaBuscaValores.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
@@ -12,8 +12,7 @@ import {
     consultarPlanosCidadeExistentesCompat,
     contextoPlanosCidadeFromCidades,
     excluirPlanosCidadeCompat,
-    upsertPlanosCidadeCompat,
-} from '../../../lib/planosCidadeCompat'
+    upsertPlanosCidadeCompat } from '../../../lib/planosCidadeCompat'
 import { inserirPlanoConfigSeNaoExiste } from '../../../lib/planosConfigCompat'
 import {
     buscarCategoriaLimitesGrupo,
@@ -21,8 +20,7 @@ import {
     montarPlanosChaveDisponiveisPorCategoria,
     procedimentoIsentoLimiteGrupo,
     resolverLimiteGrupoExibicao,
-    textoCelulaLimiteGrupo,
-} from '../../../lib/categoriaLimitesGrupo'
+    textoCelulaLimiteGrupo } from '../../../lib/categoriaLimitesGrupo'
 import CidadeTabelaIbgeForm from '../../../components/Supertabela/CidadeTabelaIbgeForm.jsx'
 import GerenciarTabelasModal from '../../../components/Supertabela/GerenciarTabelasModal.jsx'
 import { mapCidadeParaGerenciador, payloadCidadeComUf } from '../../../lib/cidadesSupertabelaHelpers.js'
@@ -33,8 +31,7 @@ import {
     isMissingVinculosTableError,
     municipiosPorCidadeId,
     normalizarMunicipioChave,
-    salvarVinculosDaCidade,
-} from '../../../lib/cidadesSupertabelaVinculos.js'
+    salvarVinculosDaCidade } from '../../../lib/cidadesSupertabelaVinculos.js'
 import {
     filtrarPlanosParaSelecaoGeral,
     mapearPlanos,
@@ -42,16 +39,13 @@ import {
     ORDEM_PLANOS as ORDEM_PLANOS_HIERARQUIA,
     procedimentoPlanoBaseApenasLoja,
     ROTULO_PLANO,
-    CHAVE_PLANO_APENAS_LOJA,
-} from '../../../lib/planosHierarquia.js'
+    CHAVE_PLANO_APENAS_LOJA } from '../../../lib/planosHierarquia.js'
 import {
     exportarTabelaPlanosDiferencasParaExcel,
-    exportarTabelaPlanosLimitesParaExcel,
-} from '../../../lib/exportSupertabelaExcel.js'
+    exportarTabelaPlanosLimitesParaExcel } from '../../../lib/exportSupertabelaExcel.js'
 import {
     carregarContagemESugestoesRealizadoresPlanos,
-    montarCidadesAlvoContagemPrestadores,
-} from '../../../lib/impressaoPlanos/contagemRealizadoresPlanosDev.js'
+    montarCidadesAlvoContagemPrestadores } from '../../../lib/impressaoPlanos/contagemRealizadoresPlanosDev.js'
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaplanos.css'
@@ -117,7 +111,6 @@ const obterPlanoIdsPermitidos = (planoBaseId, mapaPlanosCompleto) => {
 const Supertabelaplanos = () => {
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
     const { ui: devToolsUi } = useDevToolsUi()
-    const buscaNotAtiva = useBuscaNotAtiva()
     const podeExclusaoPorLista =
         !getReadOnlyFlag() &&
         hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT) &&
@@ -231,8 +224,7 @@ const Supertabelaplanos = () => {
         () => ({
             planosChaveDisponiveisPorCategoria,
             chavePlano: chavePlanoDetalhe,
-            mapaPlanosPorChave,
-        }),
+            mapaPlanosPorChave }),
         [planosChaveDisponiveisPorCategoria, chavePlanoDetalhe, mapaPlanosPorChave]
     )
 
@@ -255,15 +247,13 @@ const Supertabelaplanos = () => {
             totalColados: setManter.size,
             aExcluir,
             aManter,
-            naoEncontradosNaTabela,
-        }
+            naoEncontradosNaTabela }
     }, [codigosManterLista, linhasDiferencas])
 
     const formatarMoeda = (valor) =>
         new Intl.NumberFormat('pt-BR', {
             style: 'currency',
-            currency: 'BRL',
-        }).format(Number(valor || 0))
+            currency: 'BRL' }).format(Number(valor || 0))
 
     const mostrarErroToast = (mensagem) => {
         setErroDetalhe('')
@@ -352,8 +342,7 @@ const Supertabelaplanos = () => {
             setCategorias(
                 (categoriasData || []).map((item) => ({
                     ...item,
-                    usa_limite_grupo: Boolean(item.usa_limite_grupo),
-                }))
+                    usa_limite_grupo: Boolean(item.usa_limite_grupo) }))
             )
             setProcedimentos(procedimentosData || [])
 
@@ -467,8 +456,7 @@ const Supertabelaplanos = () => {
                         cidade_id: Number(cidadeId),
                         plano_id: Number(planoId),
                         procedimento_cod: cod,
-                        diferenca: 0,
-                    })
+                        diferenca: 0 })
                 })
             })
 
@@ -501,8 +489,7 @@ const Supertabelaplanos = () => {
                         basico: null,
                         classico: null,
                         avancado: null,
-                        ultra: null,
-                    })
+                        ultra: null })
                 }
                 const linha = mapaLinhas.get(cod)
                 const pid = Number(item.plano_id)
@@ -512,8 +499,7 @@ const Supertabelaplanos = () => {
                     if (metaPlano && Number(metaPlano.id) === pid) {
                         linha[chave] = {
                             planoCidadeId: item.id,
-                            valor: Number(item.diferenca || 0),
-                        }
+                            valor: Number(item.diferenca || 0) }
                     }
                 })
             }
@@ -587,8 +573,7 @@ const Supertabelaplanos = () => {
                         nome: String(item.nome),
                         categoriaId: item.categoria_id,
                         procedimentoId: item.id != null ? Number(item.id) : null,
-                        planoBaseId: item.plano_base_id,
-                    },
+                        planoBaseId: item.plano_base_id },
                 ])
             )
 
@@ -598,8 +583,7 @@ const Supertabelaplanos = () => {
                     nome: cod,
                     categoriaId: null,
                     procedimentoId: null,
-                    planoBaseId: null,
-                }
+                    planoBaseId: null }
                 return {
                     codigo: cod,
                     procedimento: meta.nome,
@@ -609,8 +593,7 @@ const Supertabelaplanos = () => {
                     apenasLoja: procedimentoPlanoBaseApenasLoja(meta.planoBaseId, mapaPlanosCompleto),
                     planosConfigId: row.id,
                     limite: row.limite != null ? String(row.limite) : '',
-                    carencia: row.carencia != null ? String(row.carencia) : '',
-                }
+                    carencia: row.carencia != null ? String(row.carencia) : '' }
             })
 
             linhas.sort((a, b) => {
@@ -661,8 +644,7 @@ const Supertabelaplanos = () => {
                 cidade_id: Number(cidadeId),
                 plano_id: Number(meta.id),
                 procedimento_cod: codigoNormalizado,
-                diferenca,
-            })
+                diferenca })
         }
 
         if (candidatos.length === 0) {
@@ -718,8 +700,7 @@ const Supertabelaplanos = () => {
 
         const resultadoCfg = await inserirPlanoConfigSeNaoExiste(supabase, {
             planoId: planoDetalheId,
-            procedimento: codigoNormalizado,
-        })
+            procedimento: codigoNormalizado })
 
         if (resultadoCfg.status === 'ja_existia') {
             reportarErro('Este procedimento já possui registro para o plano selecionado.')
@@ -747,7 +728,7 @@ const Supertabelaplanos = () => {
     const linhasAtivas = modoLimitacoes ? linhasLimitacoes : linhasDiferencas
 
     const linhasFiltradas = useMemo(() => {
-        if (!termoBusca.trim() && !buscaNotAtiva) return linhasAtivas
+        if (!termoBusca.trim()) return linhasAtivas
 
         return linhasAtivas.filter((linha) => {
             const categoriaNome = categorias.find((c) => Number(c.id) === Number(linha.categoriaId))?.nome || ''
@@ -771,9 +752,9 @@ const Supertabelaplanos = () => {
                 }
             }
             const blob = normalizarTextoBuscaDev(partes.filter(Boolean).join(' '))
-            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBusca, buscaNotAtiva)
+            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBusca)
         })
-    }, [linhasAtivas, termoBusca, categorias, modoLimitacoes, buscaNotAtiva, limitesGrupoPorCategoriaId, contextoLimiteGrupoPlano])
+    }, [linhasAtivas, termoBusca, categorias, modoLimitacoes, limitesGrupoPorCategoriaId, contextoLimiteGrupoPlano])
 
     const obterSugestoesProcedimentos = (categoriaId) => {
         const lista = modoLimitacoes ? linhasLimitacoes : linhasDiferencas
@@ -812,8 +793,7 @@ const Supertabelaplanos = () => {
         setPopupSugestoesStyle({
             top: rect.bottom + 4,
             left: rect.left,
-            width: rect.width,
-        })
+            width: rect.width })
     }, [])
 
     useEffect(() => {
@@ -840,8 +820,7 @@ const Supertabelaplanos = () => {
                     position: 'fixed',
                     top: `${popupSugestoesStyle.top}px`,
                     left: `${popupSugestoesStyle.left}px`,
-                    width: `${popupSugestoesStyle.width}px`,
-                }}
+                    width: `${popupSugestoesStyle.width}px` }}
             >
                 {sugestoesFiltradasInclusao.length === 0 ? (
                     <div className='row_add_suggest_empty'>Nenhum procedimento disponível</div>
@@ -966,8 +945,7 @@ const Supertabelaplanos = () => {
                 ativo: true,
                 atual: codigosNaoEncontrados.length,
                 total: codigos.length,
-                label: 'Inserindo procedimentos...',
-            })
+                label: 'Inserindo procedimentos...' })
             let totalInseridos = 0
             let totalIgnorados = 0
             const errosDetalhados = []
@@ -984,16 +962,14 @@ const Supertabelaplanos = () => {
                     ativo: true,
                     atual: codigosNaoEncontrados.length + i + 1,
                     total: codigos.length,
-                    label: `Processando ${i + 1} de ${codigosValidos.length} código(s) válido(s)...`,
-                })
+                    label: `Processando ${i + 1} de ${codigosValidos.length} código(s) válido(s)...` })
             }
 
             setProgressoMassa({
                 ativo: true,
                 atual: codigos.length,
                 total: codigos.length,
-                label: 'Atualizando tabela...',
-            })
+                label: 'Atualizando tabela...' })
             if (modoLimitacoes) {
                 await buscarLinhasLimitacoes()
             } else {
@@ -1062,8 +1038,7 @@ const Supertabelaplanos = () => {
             ativo: true,
             atual: 0,
             total: codigosParaExcluir.length,
-            label: 'Excluindo procedimentos fora da lista...',
-        })
+            label: 'Excluindo procedimentos fora da lista...' })
 
         try {
             const TAMANHO_LOTE = 200
@@ -1085,8 +1060,7 @@ const Supertabelaplanos = () => {
                     ativo: true,
                     atual: Math.min(totalExcluidos, codigosParaExcluir.length),
                     total: codigosParaExcluir.length,
-                    label: `Excluindo lote ${Math.ceil((inicio + TAMANHO_LOTE) / TAMANHO_LOTE)} de ${Math.ceil(codigosParaExcluir.length / TAMANHO_LOTE)}...`,
-                })
+                    label: `Excluindo lote ${Math.ceil((inicio + TAMANHO_LOTE) / TAMANHO_LOTE)} de ${Math.ceil(codigosParaExcluir.length / TAMANHO_LOTE)}...` })
             }
 
             fecharExclusaoListaModal()
@@ -1094,8 +1068,7 @@ const Supertabelaplanos = () => {
                 ativo: true,
                 atual: codigosParaExcluir.length,
                 total: codigosParaExcluir.length,
-                label: 'Atualizando tabela...',
-            })
+                label: 'Atualizando tabela...' })
             await buscarLinhasDiferencas()
             mostrarErroToast(`Exclusão concluída — ${totalExcluidos} procedimento(s) removido(s) da região.`)
         } catch (error) {
@@ -1173,8 +1146,7 @@ const Supertabelaplanos = () => {
                 linhas: ordenarLinhas(
                     linhasFiltradas.filter((linha) => Number(linha.categoriaId) === Number(categoria.id)),
                     categoria.id
-                ),
-            }))
+                ) }))
             .filter((secao) => secao.linhas.length > 0)
 
         const outrosLinhas = linhasFiltradas.filter(
@@ -1187,8 +1159,7 @@ const Supertabelaplanos = () => {
             secoes.push({
                 categoriaId: 'outros',
                 categoriaNome: 'Outros',
-                linhas: ordenarLinhas(outrosLinhas, 'outros'),
-            })
+                linhas: ordenarLinhas(outrosLinhas, 'outros') })
         }
         return secoes
     }, [categorias, linhasFiltradas, ordenacaoPorCategoria, modoLimitacoes, contagemRealizadoresPorCodigo])
@@ -1214,8 +1185,7 @@ const Supertabelaplanos = () => {
                     await carregarContagemESugestoesRealizadoresPlanos(supabase, {
                         cidadesAlvo,
                         incluirCidadesParalelas: true,
-                        codigosNaTabela: codigosNaTabelaDiferencas,
-                    })
+                        codigosNaTabela: codigosNaTabelaDiferencas })
                 if (cancelado) return
                 setContagemRealizadoresPorCodigo(contagemPorCodigo)
                 setNomesRealizadoresPorCodigo(nomesPorCodigo)
@@ -1281,8 +1251,7 @@ const Supertabelaplanos = () => {
         setAdicionandoSugestaoCodigo(codigoNormalizado)
         try {
             const resultado = await inserirPlanosCidadeParaCodigo(codigoNormalizado, {
-                valoresPorChave: valoresEdicaoSugestoes[codigoNormalizado] || {},
-            })
+                valoresPorChave: valoresEdicaoSugestoes[codigoNormalizado] || {} })
             if (resultado?.status === 'ok') {
                 setValoresEdicaoSugestoes((anterior) => {
                     const proximo = { ...anterior }
@@ -1302,9 +1271,7 @@ const Supertabelaplanos = () => {
             ...anterior,
             [codigoNormalizado]: {
                 ...(anterior[codigoNormalizado] || {}),
-                [chave]: valor,
-            },
-        }))
+                [chave]: valor } }))
     }
 
     const baixarExcelTelaPlanos = async () => {
@@ -2007,8 +1974,7 @@ const Supertabelaplanos = () => {
                 .insert(
                     payloadCidadeComUf({
                         nome: nomeCidade,
-                        uf: cidadeDuplicarOrigem.uf,
-                    }),
+                        uf: cidadeDuplicarOrigem.uf }),
                 )
                 .select('id')
                 .single()
@@ -2037,8 +2003,7 @@ const Supertabelaplanos = () => {
                 cidade_id: cidadeNova.id,
                 procedimento_id: item.procedimento_id,
                 porte_id: item.porte_id,
-                valor: item.valor,
-            }))
+                valor: item.valor }))
 
             if (payload.length > 0) {
                 const { error: errInsert } = await supabase
@@ -2555,8 +2520,7 @@ ou um código por linha`}
                                                         : '28%'
                                                     : somenteLeitura
                                                       ? '43%'
-                                                      : '35%',
-                                            }}
+                                                      : '35%' }}
                                         />
                                         {mostrarContagemRealizadores && (
                                             <col className='supertabelaplanos_col_prestadores' style={{ width: '8%' }} />
@@ -2658,8 +2622,7 @@ ou um código por linha`}
                                                             className='table_delete_btn'
                                                             onClick={(event) =>
                                                                 excluirProcedimentoCidadePlanos(linha, {
-                                                                    ignorarConfirmacao: event.shiftKey,
-                                                                })
+                                                                    ignorarConfirmacao: event.shiftKey })
                                                             }
                                                             title='Excluir proc., SHIFT = Excluir rápido'
                                                         >
@@ -2886,8 +2849,7 @@ ou um código por linha`}
                                                             className='table_delete_btn'
                                                             onClick={(event) =>
                                                                 excluirPlanoConfigRow(linha, {
-                                                                    ignorarConfirmacao: event.shiftKey,
-                                                                })
+                                                                    ignorarConfirmacao: event.shiftKey })
                                                             }
                                                             title='Excluir registro, SHIFT = Excluir rápido'
                                                         >

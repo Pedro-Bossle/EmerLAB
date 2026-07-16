@@ -3,10 +3,8 @@ import {
     DEFAULT_INVITED_PERMISSIONS,
     normalizarProfileAcesso,
     normalizarPermissions,
-    setStoredAccessProfile,
-} from '../../../lib/accessControl'
+    setStoredAccessProfile } from '../../../lib/accessControl'
 import PermissoesCascade from './PermissoesCascade'
-import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import { supabase } from '../../../lib/supabase'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
@@ -43,10 +41,8 @@ const GerenciamentoAcessos = () => {
     const [convite, setConvite] = useState({
         name: '',
         email: '',
-        permissions: permissoesPadraoNovoUsuario(),
-    })
+        permissions: permissoesPadraoNovoUsuario() })
     const [edicao, setEdicao] = useState(null)
-    const buscaNotAtiva = useBuscaNotAtiva()
 
     const usuarioSelecionado = useMemo(
         () => usuarios.find((usuario) => String(usuario.id) === String(usuarioSelecionadoId)) || null,
@@ -55,12 +51,12 @@ const GerenciamentoAcessos = () => {
 
     const usuariosFiltrados = useMemo(() => {
         const termo = busca
-        if (!String(termo || '').trim() && !buscaNotAtiva) return usuarios
+        if (!String(termo || '').trim()) return usuarios
         return usuarios.filter((usuario) => {
             const blob = normalizarTextoBusca(`${usuario.name || ''} ${usuario.email || ''}`)
-            return filtrarPorTermoBusca(blob, termo, buscaNotAtiva)
+            return filtrarPorTermoBusca(blob, termo)
         })
-    }, [busca, usuarios, buscaNotAtiva])
+    }, [busca, usuarios])
 
     const chamarAdminUsers = async (payload) => {
         const { data } = await supabase.auth.getSession()
@@ -71,13 +67,10 @@ const GerenciamentoAcessos = () => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-            },
+                Authorization: `Bearer ${token}` },
             body: JSON.stringify({
                 ...payload,
-                redirectTo: window.location.origin,
-            }),
-        })
+                redirectTo: window.location.origin }) })
 
         const json = await resp.json().catch(() => ({}))
         if (!resp.ok || json?.ok === false) {
@@ -147,8 +140,7 @@ const GerenciamentoAcessos = () => {
             id: usuarioSelecionado.id,
             name: usuarioSelecionado.name || '',
             email: usuarioSelecionado.email || '',
-            permissions: { ...usuarioSelecionado.permissions },
-        })
+            permissions: { ...usuarioSelecionado.permissions } })
     }, [usuarioSelecionado])
 
     useEffect(() => {
@@ -186,8 +178,7 @@ const GerenciamentoAcessos = () => {
                 action: 'invite',
                 name: convite.name,
                 email: convite.email,
-                permissions: convite.permissions,
-            })
+                permissions: convite.permissions })
             const profile = normalizarProfileAcesso(json.profile)
             setUsuarios((atuais) => {
                 const semDuplicado = atuais.filter((item) => String(item.id) !== String(profile.id))
@@ -214,8 +205,7 @@ const GerenciamentoAcessos = () => {
                 userId: edicao.id,
                 name: edicao.name,
                 email: edicao.email,
-                permissions: edicao.permissions,
-            })
+                permissions: edicao.permissions })
             const profile = normalizarProfileAcesso(json.profile)
             setUsuarios((atuais) => atuais.map((item) => (String(item.id) === String(profile.id) ? profile : item)))
             if (String(profile.id) === String(usuarioAtualId)) setStoredAccessProfile(profile)

@@ -51,7 +51,9 @@ body.supertabelanegociacoes_no_bounce {
     text-align: center;
     padding: 0.7em 0.9em;
     margin: 0.75em auto;
-    max-width: 1320px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     background: #f8fbfd;
     border: 1px solid #d7e8f2;
     border-radius: 12px;
@@ -60,6 +62,17 @@ body.supertabelanegociacoes_no_bounce {
 
 .supertabelanegociacoes_filters > * {
     flex: 0 1 auto;
+}
+
+.supertabelanegociacoes_filter_busca {
+    flex: 1 1 280px;
+    min-width: 200px;
+}
+
+.supertabelanegociacoes_filter_busca .supertabelanegociacoes_input {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .supertabelanegociacoes_filter_break {
@@ -94,10 +107,6 @@ body.supertabelanegociacoes_no_bounce {
     min-width: 180px;
     font-size: 0.88rem;
     font-family: inherit;
-}
-
-.supertabelanegociacoes_filter_busca .supertabelanegociacoes_input {
-    min-width: 280px;
 }
 
 .supertabelanegociacoes_action_btn,

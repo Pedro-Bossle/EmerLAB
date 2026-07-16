@@ -320,18 +320,32 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
 
                 <div className='sidebar_footer'>
                     {hasPermission(accessProfile, PERMISSION_KEYS.ACCESS_MANAGE) && (
-                        <button
-                            type='button'
-                            className='sidebar_admin_btn'
-                            onClick={() => {
-                                navigate('/administrativo/acessos')
-                                onAfterNavigate?.()
-                            }}
-                            title='Gerenciamento de acessos'
-                        >
-                            <span className='sidebar_admin_icon' aria-hidden>🛡️</span>
-                            <span className='sidebar_admin_text'>Admin</span>
-                        </button>
+                        <>
+                            <button
+                                type='button'
+                                className='sidebar_admin_btn'
+                                onClick={() => {
+                                    navigate('/administrativo/auditoria')
+                                    onAfterNavigate?.()
+                                }}
+                                title='Auditoria de alterações'
+                            >
+                                <span className='sidebar_admin_icon' aria-hidden>📋</span>
+                                <span className='sidebar_admin_text'>Auditoria</span>
+                            </button>
+                            <button
+                                type='button'
+                                className='sidebar_admin_btn'
+                                onClick={() => {
+                                    navigate('/administrativo/acessos')
+                                    onAfterNavigate?.()
+                                }}
+                                title='Gerenciamento de acessos'
+                            >
+                                <span className='sidebar_admin_icon' aria-hidden>🛡️</span>
+                                <span className='sidebar_admin_text'>Admin</span>
+                            </button>
+                        </>
                     )}
 
                     <button onClick={onToggleManual} className="toggle_btn" title={isPinned ? 'Desafixar sidebar' : 'Fixar sidebar'}>

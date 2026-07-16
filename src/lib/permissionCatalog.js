@@ -295,9 +295,16 @@ export const PERMISSION_CATALOG = [
                 href: '/administrativo/acessos',
             },
             {
+                id: 'admin.auditoria',
+                label: 'Auditoria',
+                descricao: 'Logs imutáveis de alterações no sistema.',
+                actions: R,
+                href: '/administrativo/auditoria',
+            },
+            {
                 id: 'admin.dev_tools',
                 label: 'Ferramentas Dev',
-                descricao: 'Pesquisa NOT, colunas extras e exclusão por lista.',
+                descricao: 'Colunas extras e exclusão por lista.',
                 actions: R,
             },
         ],
@@ -465,6 +472,7 @@ export function expandLegacyToAcl(perms) {
     }
     if (p[L.ACCESS_MANAGE]) {
         setTool('admin.acessos', { read: true, create: true, update: true, delete: true })
+        setTool('admin.auditoria', { read: true })
     }
     if (p[L.DEV_TOOLS]) {
         setTool('admin.dev_tools', { read: true })
@@ -505,6 +513,12 @@ export function completarAclFerramentasCredenciamento(perms) {
     if (!p[kResumo]) {
         if (hasAcl(p, 'pagamentos.registro', 'read') || p[L.PAGAMENTOS_VIEW]) {
             p[kResumo] = true
+        }
+    }
+    const kAud = aclKey('admin.auditoria', 'read')
+    if (!p[kAud]) {
+        if (hasAcl(p, 'admin.acessos', 'read') || p[L.ACCESS_MANAGE]) {
+            p[kAud] = true
         }
     }
     return p
@@ -621,6 +635,7 @@ export const LEGACY_SCREEN_TO_TOOL = {
     'credenciamento.quem_realiza.view': 'credenciamento.quem_realiza',
     'credenciamento.formulario.inbox': 'credenciamento.formulario_inbox',
     'access.manage': 'admin.acessos',
+    'admin.auditoria': 'admin.auditoria',
 }
 
 export function podeLerFerramenta(permissions, toolId) {

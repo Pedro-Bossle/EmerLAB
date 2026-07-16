@@ -149,13 +149,40 @@ const registrarAuditoria = async (supabase, entrada) => {
         details: entrada.details && typeof entrada.details === 'object' ? entrada.details : {},
     }
     const { error } = await supabase.from('access_audit_log').insert(payload)
-    if (!error) return
-    const msg = String(error.message || '')
-    if (msg.includes('access_audit_log') || msg.includes('does not exist') || msg.includes('schema cache')) {
-        console.warn('[admin-users] Tabela access_audit_log indisponível — execute a migration em supabase/migrations.')
-        return
+    if (error) {
+        const msg = String(error.message || '')
+        if (msg.includes('access_audit_log') || msg.includes('does not exist') || msg.includes('schema cache')) {
+            console.warn('[admin-users] Tabela access_audit_log indisponível — execute a migration em supabase/migrations.')
+        } else {
+            console.warn('[admin-users] Falha ao registrar auditoria:', msg)
+        }
     }
-    console.warn('[admin-users] Falha ao registrar auditoria:', msg)
+
+    // Espelho no audit_logs unificado (se existir)
+    const acao =
+        entrada.action === 'update_profile' && entrada.details?.permissionsBefore
+            ? 'PERMISSION_CHANGE'
+            : String(entrada.action || 'UPDATE').toUpperCase()
+    const { error: err2 } = await supabase.from('audit_logs').insert({
+        data_hora: new Date().toISOString(),
+        usuario_id: entrada.actorUserId || null,
+        usuario_nome: entrada.actorName || null,
+        acao,
+        tabela: 'profiles',
+        registro_id: entrada.targetUserId || null,
+        valor_antigo: entrada.details?.permissionsBefore
+            ? { permissions: entrada.details.permissionsBefore, name: entrada.details.nameBefore }
+            : null,
+        valor_novo: {
+            summary: entrada.summary || null,
+            permissions: entrada.details?.permissionsAfter || entrada.details?.permissions || null,
+            action: entrada.action,
+        },
+        severidade: acao === 'PERMISSION_CHANGE' || acao === 'DELETE_USER' ? 'critical' : 'warning',
+    })
+    if (err2 && !/audit_logs|does not exist|schema cache/i.test(String(err2.message || ''))) {
+        console.warn('[admin-users] Falha ao espelhar em audit_logs:', err2.message)
+    }
 }
 
 const validarAdmin = async (supabase, req) => {

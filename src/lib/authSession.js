@@ -1,5 +1,6 @@
 import { clearAccessState, supabase, setReadOnlyFlag } from './supabase'
 import { normalizarProfileAcesso, setStoredAccessProfile, usuarioSomenteLeituraGlobal } from './accessControl'
+import { registrarEventoAuthAuditoria } from './auditoriaLogs.js'
 
 /** Última atividade (compartilhada entre abas via localStorage). */
 export const SESSION_LAST_ACTIVITY_KEY = 'sfsc-last-activity'
@@ -132,6 +133,7 @@ export async function logoutSessao(opts = {}) {
   if (logoutEmAndamento) return
   logoutEmAndamento = true
   try {
+    await registrarEventoAuthAuditoria('LOGOUT')
     const { error } = await supabase.auth.signOut()
     if (error) {
       onError?.(error.message || 'Erro ao sair da sessão')

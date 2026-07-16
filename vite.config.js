@@ -9,6 +9,7 @@ import prospectosOsmColetarHandler from './api/prospectos-osm-coletar.js'
 import clicksignProxyHandler from './src/lib/clicksign/clicksignProxyHandler.js'
 import clicksignDownloadHandler from './api/clicksign-download.js'
 import adminUsersHandler from './api/admin-users.js'
+import auditLogsHandler from './api/audit-logs.js'
 
 /** Mesma ordem de prioridade aproximada do Vite para ficheiros .env (envDir = raiz do projeto). */
 function carregarEnvParaProcesso(envDir, mode) {
@@ -290,6 +291,67 @@ function adminUsersDevPlugin() {
     }
 }
 
+/** Em dev, atende /api/audit-logs no Vite. */
+function auditLogsDevPlugin() {
+    return {
+        name: 'audit-logs-dev',
+        enforce: 'pre',
+        configureServer(server) {
+            carregarEnvParaProcesso(server.config.envDir, server.config.mode)
+            server.middlewares.use(async (req, res, next) => {
+                const url = req.url || ''
+                if (!url.startsWith('/api/audit-logs')) {
+                    next()
+                    return
+                }
+                const method = req.method || 'POST'
+                let body = {}
+                if (method !== 'GET' && method !== 'HEAD') {
+                    const chunks = []
+                    try {
+                        for await (const ch of req) chunks.push(ch)
+                        const raw = Buffer.concat(chunks).toString('utf8')
+                        if (raw.trim()) body = JSON.parse(raw)
+                    } catch {
+                        body = {}
+                    }
+                }
+                const reqLike = {
+                    method,
+                    url,
+                    headers: req.headers || {},
+                    body,
+                }
+                const resLike = {
+                    statusCode: 200,
+                    setHeader(name, value) {
+                        res.setHeader(name, value)
+                    },
+                    status(code) {
+                        this.statusCode = code
+                        res.statusCode = code
+                        return this
+                    },
+                    json(payload) {
+                        if (!res.getHeader('Content-Type')) {
+                            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                        }
+                        res.statusCode = this.statusCode
+                        res.end(JSON.stringify(payload))
+                    },
+                }
+                try {
+                    await auditLogsHandler(reqLike, resLike)
+                } catch (e) {
+                    res.statusCode = 502
+                    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                    res.end(JSON.stringify({ error: e?.message || 'Falha na API audit-logs.' }))
+                }
+            })
+        },
+    }
+}
+
 function clicksignDevPlugin() {
     return {
         name: 'clicksign-proxy-dev',
@@ -414,6 +476,7 @@ export default defineConfig(({ command, mode }) => {
             command === 'serve' ? mapOsmDevPlugin() : null,
             command === 'serve' ? prospectosOsmColetarDevPlugin() : null,
             command === 'serve' ? adminUsersDevPlugin() : null,
+            command === 'serve' ? auditLogsDevPlugin() : null,
             command === 'serve' ? clicksignDevPlugin() : null,
             react(),
         ].filter(Boolean),

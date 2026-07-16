@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, hasStoredDevTools } from '../../../lib/accessControl'
-import { useBuscaNotAtiva, useDevToolsUi } from '../../../lib/devToolsUi'
+import { useDevToolsUi } from '../../../lib/devToolsUi'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
 import { contarProcedimentosDistintosPorPrestador } from '../../../lib/prestadorProcedimentos'
 import { aplicarVinculosLaboratoriosPorCidadeEmMassa } from '../../../lib/vincularLaboratoriosPorCidadeTabela.js'
@@ -13,12 +13,10 @@ import {
     listarPendenciasCompletudePerfil,
     normalizarTextoBusca,
     resolverCidadePrincipalNome,
-    prestadorEhEstabelecimento,
-} from '../../../lib/prestadorCadastroHelpers'
+    prestadorEhEstabelecimento } from '../../../lib/prestadorCadastroHelpers'
 import {
     montarEstabelecimentoPorVeterinarioDeListas,
-    resolverLocalidadeEfetivaPrestador,
-} from '../../../lib/prestadorLocalidadeVinculo.js'
+    resolverLocalidadeEfetivaPrestador } from '../../../lib/prestadorLocalidadeVinculo.js'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
 import CopiarCodigosProcedimentosBtn from './CopiarCodigosProcedimentosBtn.jsx'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
@@ -72,7 +70,6 @@ const CredenciamentoCadastroLista = () => {
 
     const { ui: devToolsUi } = useDevToolsUi()
     const podeDevTool = hasStoredDevTools()
-    const buscaNotAtiva = useBuscaNotAtiva()
     const colCad = devToolsUi.colunasCadastro
     const mostrarColunaPerfil = podeDevTool && colCad.perfil
     const mostrarColunaCrmv = podeDevTool && colCad.crmv
@@ -99,8 +96,7 @@ const CredenciamentoCadastroLista = () => {
         try {
             const stats = await aplicarVinculosLaboratoriosPorCidadeEmMassa(supabase, {
                 apenasAtivos: true,
-                substituir: false,
-            })
+                substituir: false })
             setFeedbackLabsMassa(
                 `Concluído: ${stats.prestadoresComVinculo} prestador(es) com lab(s); ${stats.totalPares} par(es); ` +
                     `${stats.prestadoresSemCidadeTabela} sem cidade-tabela; ${stats.prestadoresSemLabNaRegiao} sem lab na região.`,
@@ -216,8 +212,7 @@ const CredenciamentoCadastroLista = () => {
                 itensPorPagina,
                 paginaAtual,
                 ordenarColuna,
-                ordenarDir,
-            })
+                ordenarDir })
         )
     }, [
         termoBusca1,
@@ -283,16 +278,13 @@ const CredenciamentoCadastroLista = () => {
             const rels = cidadesPorPrestador.get(prestadorIdCidades) || cidadesPorPrestador.get(pid) || []
             const cidadeNome = resolverCidadePrincipalNome(pLoc, {
                 mapaCidadeNomePorId: cidadePorId,
-                relacoesCidades: rels,
-            })
+                relacoesCidades: rels })
             const espObj = especialidadePorId.get(Number(p.especialidade_id))
             const tipoLabel = espObj?.nome || '—'
             const perfilCompletoPct = calcularPercentualCompletudePerfil(p, {
-                temVinculoClinica: temVinculoClinicaPorVet.get(pid) === true,
-            })
+                temVinculoClinica: temVinculoClinicaPorVet.get(pid) === true })
             const pendenciasPerfil = listarPendenciasCompletudePerfil(p, {
-                temVinculoClinica: temVinculoClinicaPorVet.get(pid) === true,
-            })
+                temVinculoClinica: temVinculoClinicaPorVet.get(pid) === true })
             const ehEstab = prestadorEhEstabelecimento(p.especialidade_id)
             return {
                 id: p.id,
@@ -305,8 +297,7 @@ const CredenciamentoCadastroLista = () => {
                 ehEstabelecimento: ehEstab,
                 perfilCompletoPct,
                 pendenciasPerfil,
-                qtdProcedimentos: qtdProcedimentosPorPrestador.get(pid) ?? null,
-            }
+                qtdProcedimentos: qtdProcedimentosPorPrestador.get(pid) ?? null }
         })
     }, [
         prestadores,
@@ -326,8 +317,8 @@ const CredenciamentoCadastroLista = () => {
             if (ocultarVetsClinica && idsVetsVinculadosClinica.has(Number(l.id))) return false
             if (filtroSituacao && Number(l.situacaoId) !== Number(filtroSituacao)) return false
             const blob = normalizarTextoBusca(`${l.nome} ${l.cidadeNome} ${l.tipoLabel} ${l.situacao} ${l.crmv}`)
-            if (!filtrarPorTermoBusca(blob, b1, buscaNotAtiva)) return false
-            if (!filtrarPorTermoBusca(blob, b2, buscaNotAtiva)) return false
+            if (!filtrarPorTermoBusca(blob, b1)) return false
+            if (!filtrarPorTermoBusca(blob, b2)) return false
             return true
         })
     }, [
@@ -335,7 +326,6 @@ const CredenciamentoCadastroLista = () => {
         termoBusca1,
         termoBusca2,
         filtroSituacao,
-        buscaNotAtiva,
         ocultarVetsClinica,
         idsVetsVinculadosClinica,
     ])
@@ -388,8 +378,7 @@ const CredenciamentoCadastroLista = () => {
             return (
                 fator *
                 String(a[chave] ?? '').localeCompare(String(b[chave] ?? ''), 'pt-BR', {
-                    sensitivity: 'base',
-                })
+                    sensitivity: 'base' })
             )
         })
         return lista
@@ -428,11 +417,7 @@ const CredenciamentoCadastroLista = () => {
                                     <p>Busca</p>
                                     <CampoBuscaComLimpar
                                         className="credenciamento_main_input"
-                                        placeholder={
-                                            buscaNotAtiva
-                                                ? 'Nome, cidade… ou NOT Caxias'
-                                                : 'Nome, cidade, tipo…'
-                                        }
+                                        placeholder="Nome, cidade, tipo…"
                                         value={termoBusca1}
                                         onChange={(e) => setTermoBusca1(e.target.value)}
                                     />
@@ -441,9 +426,7 @@ const CredenciamentoCadastroLista = () => {
                                     <p>Refinar busca</p>
                                     <CampoBuscaComLimpar
                                         className="credenciamento_main_input"
-                                        placeholder={
-                                            buscaNotAtiva ? 'Refinar (NOT …)' : 'Refinar busca (2º critério)'
-                                        }
+                                        placeholder="Refinar busca (2º critério)"
                                         value={termoBusca2}
                                         onChange={(e) => setTermoBusca2(e.target.value)}
                                     />

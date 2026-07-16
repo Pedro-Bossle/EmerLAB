@@ -1,26 +1,184 @@
-.config_export_cred_header h1 {
-    margin: 0 0 8px;
+.config_export_cred {
+    text-align: center;
 }
 
 .config_export_cred_lead {
-    max-width: 720px;
+    max-width: 640px;
+    margin: 0 auto 1.1rem;
     line-height: 1.45;
-    margin-bottom: 1rem;
+    color: #4a657a;
+    font-size: 0.95rem;
+}
+
+.config_export_cred_painel {
+    max-width: 720px;
+    width: calc(100% - 1.5em);
+    margin: 0 auto 1.35rem;
+    box-sizing: border-box;
+    padding: 0.85em 1em;
+    background: #f8fbfd;
+    border: 1px solid #d7e8f2;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(30, 49, 72, 0.1);
+}
+
+.config_export_cred_painel_inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.85rem 1rem;
+}
+
+.config_export_cred_painel_info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    text-align: left;
+}
+
+.config_export_cred_painel_kicker {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--azul-escuro);
+}
+
+.config_export_cred_painel_info strong {
+    font-size: 1rem;
+    color: var(--cinza-escuro);
 }
 
 .config_export_cred_acoes {
-    margin-bottom: 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
 }
 
-.config_export_cred_cols {
+.config_export_cred_campos {
+    max-width: 980px;
+    width: calc(100% - 1.5em);
+    margin: 0 auto;
+    box-sizing: border-box;
+    padding: 1rem;
+    border: 1px solid #d7e8f2;
+    border-radius: 12px;
+    background: #f8fbfd;
+    text-align: left;
+}
+
+.config_export_cred_campos_head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.85rem;
+}
+
+.config_export_cred_campos_head h2 {
     margin: 0;
-    padding-left: 1.2rem;
-    color: #5a7a94;
-    font-size: 0.9rem;
-    line-height: 1.5;
-    max-width: 640px;
+    color: var(--azul-escuro);
+    font-size: 1.1rem;
 }
 
-body.dark-mode .config_export_cred_cols {
+.config_export_cred_campos_head span {
+    font-size: 0.9rem;
+    color: #5a7a94;
+    font-weight: 600;
+}
+
+.config_export_cred_grupos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 0.85rem;
+}
+
+.config_export_cred_grupo {
+    margin: 0;
+    padding: 0.75rem;
+    border: 1px solid #dce9f1;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.config_export_cred_grupo legend {
+    padding: 0 0.3rem;
+    color: var(--azul-escuro);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.config_export_cred_checks {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.config_export_cred_check {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--cinza-escuro);
+    font-size: 0.9rem;
+    line-height: 1.25;
+    cursor: pointer;
+}
+
+.config_export_cred_check input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--azul-destaque);
+    flex: 0 0 auto;
+}
+
+body.dark-mode .config_export_cred_lead {
     color: #9ab0c4;
+}
+
+body.dark-mode .config_export_cred_painel,
+body.dark-mode .config_export_cred_campos {
+    background: #122536;
+    border-color: #355372;
+    box-shadow: none;
+}
+
+body.dark-mode .config_export_cred_painel_kicker,
+body.dark-mode .config_export_cred_campos_head h2,
+body.dark-mode .config_export_cred_grupo legend {
+    color: var(--azul-claro);
+}
+
+body.dark-mode .config_export_cred_painel_info strong,
+body.dark-mode .config_export_cred_check {
+    color: var(--text-main);
+}
+
+body.dark-mode .config_export_cred_campos_head span {
+    color: #9ab0c4;
+}
+
+body.dark-mode .config_export_cred_grupo {
+    background: #0f1e2e;
+    border-color: #355372;
+}
+
+@media (max-width: 640px) {
+    .config_export_cred_painel_inner {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .config_export_cred_painel_info {
+        align-items: center;
+        text-align: center;
+    }
+
+    .config_export_cred_acoes .credenciamento_main_action_btn {
+        flex: 1 1 auto;
+    }
 }

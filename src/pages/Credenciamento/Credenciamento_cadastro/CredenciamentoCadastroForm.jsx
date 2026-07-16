@@ -16,6 +16,7 @@ import {
     TIPOS_REPASSE,
     TIPOS_CHAVE_PIX,
     acharSituacaoCredenciadoId,
+    patchCredenciadoEmSeTransicao,
     formatarCpfCnpjEntrada,
     formatarChavePixEntrada,
     inferirTipoPixDaChave,
@@ -148,6 +149,7 @@ const CredenciamentoCadastroForm = () => {
     const [salvando, setSalvando] = useState(false)
     const [erro, setErro] = useState('')
     const [form, setForm] = useState(estadoVazio)
+    const [situacaoIdInicial, setSituacaoIdInicial] = useState('')
     const [cidades, setCidades] = useState([])
     const [situacoes, setSituacoes] = useState([])
     const [especialidades, setEspecialidades] = useState([])
@@ -299,6 +301,7 @@ const CredenciamentoCadastroForm = () => {
                 latitude: data.latitude != null ? String(data.latitude) : '',
                 longitude: data.longitude != null ? String(data.longitude) : '',
             })
+            setSituacaoIdInicial(data.situacao_id != null ? String(data.situacao_id) : '')
             ultimoCepBuscadoRef.current = String(data.cep || '').replace(/\D/g, '')
 
             const { data: pcs } = await supabase.from('prestador_cidades').select('cidade_id, principal').eq('prestador_id', prestadorId)
@@ -622,6 +625,11 @@ const CredenciamentoCadastroForm = () => {
                 cidade_id: cidadePrincipalId,
                 ativo: true,
                 data_atualizacao: new Date().toISOString(),
+                ...patchCredenciadoEmSeTransicao(
+                    isNovo ? null : situacaoIdInicial,
+                    form.situacao_id,
+                    situacoes,
+                ),
             }
             if (salvouCoordenadasManual) {
                 const agoraGeo = new Date().toISOString()

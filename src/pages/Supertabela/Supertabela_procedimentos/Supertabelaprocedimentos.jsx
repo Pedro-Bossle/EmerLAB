@@ -1,12 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
-import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
 import { filtrarPorTermoBusca, normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
 import {
     filtrarLinhaSupertabelaPorBusca,
     partesTextoValoresParaBusca,
-    partesValoresLinhaSupertabela,
-} from '../../../lib/supertabelaBuscaValores.js'
+    partesValoresLinhaSupertabela } from '../../../lib/supertabelaBuscaValores.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { calcularJanelaVirtualTabela, criarHandlerScrollVirtualTabela } from '../../../lib/tabelaVirtualScroll.js'
@@ -17,8 +15,7 @@ import {
     isMissingCategoriaLimitesGrupoTable,
     montarLimitesGrupoPorCategoriaEChavePlano,
     montarPlanosChaveDisponiveisPorCategoria,
-    salvarLimiteGrupoCategoria,
-} from '../../../lib/categoriaLimitesGrupo'
+    salvarLimiteGrupoCategoria } from '../../../lib/categoriaLimitesGrupo'
 import {
     CHAVE_PLANO_APENAS_LOJA,
     ORDEM_PLANOS,
@@ -26,8 +23,7 @@ import {
     ROTULO_PLANO,
     mapearPlanos,
     obterChavePlanoPorId,
-    obterPlanoIdsPermitidosDesdeChaveBase,
-} from '../../../lib/planosHierarquia.js'
+    obterPlanoIdsPermitidosDesdeChaveBase } from '../../../lib/planosHierarquia.js'
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaprocedimentos.css'
@@ -50,7 +46,6 @@ const Supertabelaprocedimentos = () => {
     const MAX_LINHAS_VISIVEIS = 10
     const LINHAS_OVERSCAN = 6
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
-    const buscaNotAtiva = useBuscaNotAtiva()
 
     const [planos, setPlanos] = useState([])
     const [categorias, setCategorias] = useState([])
@@ -81,8 +76,7 @@ const Supertabelaprocedimentos = () => {
         codigo: '',
         nome: '',
         categoriaId: '',
-        planoBaseChave: 'basico',
-    })
+        planoBaseChave: 'basico' })
 
     const mapaPlanos = useMemo(() => mapearPlanos(planos), [planos])
 
@@ -202,16 +196,14 @@ const Supertabelaprocedimentos = () => {
                     procedimento: String(item.nome || codigo),
                     categoriaId: item.categoria_id != null ? Number(item.categoria_id) : null,
                     planoBaseChave: chavePorPlanoBase || planoBasePorQuantidade(quantidadePlanos),
-                    publicadoFormulario: Boolean(item.publicado_formulario),
-                }
+                    publicadoFormulario: Boolean(item.publicado_formulario) }
             })
 
             setPlanos(listaPlanos)
             setCategorias(
                 (categoriasData || []).map((item) => ({
                     ...item,
-                    usa_limite_grupo: Boolean(item.usa_limite_grupo),
-                }))
+                    usa_limite_grupo: Boolean(item.usa_limite_grupo) }))
             )
             setLinhas(linhasMontadas)
         } catch (error) {
@@ -222,7 +214,7 @@ const Supertabelaprocedimentos = () => {
     }, [])
 
     const linhasFiltradas = useMemo(() => {
-        if (!termoBusca.trim() && !buscaNotAtiva) return linhas
+        if (!termoBusca.trim()) return linhas
         return linhas.filter((linha) => {
             const categoriaNome = categorias.find((c) => Number(c.id) === Number(linha.categoriaId))?.nome || ''
             const planoNome = ROTULO_PLANO[linha.planoBaseChave] || ''
@@ -238,9 +230,9 @@ const Supertabelaprocedimentos = () => {
                     .filter(Boolean)
                     .join(' '),
             )
-            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBusca, buscaNotAtiva)
+            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBusca)
         })
-    }, [linhas, termoBusca, categorias, buscaNotAtiva])
+    }, [linhas, termoBusca, categorias])
 
     const handleOrdenarCategoria = (categoriaId, coluna) => {
         setOrdenacaoPorCategoria((anterior) => {
@@ -283,8 +275,7 @@ const Supertabelaprocedimentos = () => {
                     linhas: ordenarLinhas(
                         linhasFiltradas.filter((linha) => Number(linha.categoriaId) === Number(categoria.id)),
                         categoria.id
-                    ),
-                }))
+                    ) }))
                 .filter((secao) => secao.linhas.length > 0),
         [categorias, linhasFiltradas, ordenacaoPorCategoria]
     )
@@ -297,18 +288,16 @@ const Supertabelaprocedimentos = () => {
                 basico: '',
                 classico: '',
                 avancado: '',
-                ultra: '',
-            }
+                ultra: '' }
             return {
                 categoriaId: id,
                 nome: categoria.nome,
                 quantidadeProcedimentos: contagemProcedimentosPorCategoria.get(id) || 0,
                 usaLimiteGrupo: Boolean(categoria.usa_limite_grupo),
-                limitesGrupo: limites,
-            }
+                limitesGrupo: limites }
         })
 
-        if (termo || buscaNotAtiva) {
+        if (termo) {
             lista = lista.filter((linha) => {
                 const blob = normalizarTextoBuscaDev(
                     [
@@ -324,7 +313,7 @@ const Supertabelaprocedimentos = () => {
                         ),
                     ].join(' '),
                 )
-                return filtrarPorTermoBusca(blob, termoBusca, buscaNotAtiva)
+                return filtrarPorTermoBusca(blob, termoBusca)
             })
         }
 
@@ -346,7 +335,6 @@ const Supertabelaprocedimentos = () => {
         contagemProcedimentosPorCategoria,
         limitesGrupoPorCategoria,
         termoBusca,
-        buscaNotAtiva,
         ordenacaoCategorias,
     ])
 
@@ -398,8 +386,7 @@ const Supertabelaprocedimentos = () => {
         const { error } = await salvarLimiteGrupoCategoria(supabase, {
             categoriaId,
             planoId,
-            limite: valor,
-        })
+            limite: valor })
 
         if (error) {
             if (isMissingCategoriaLimitesGrupoTable(error)) {
@@ -772,8 +759,7 @@ const Supertabelaprocedimentos = () => {
             if (!agrupadoPorOrigem.has(chaveOrigem)) {
                 agrupadoPorOrigem.set(chaveOrigem, {
                     cidade_id: cidadeIdRow,
-                    planos: new Set(),
-                })
+                    planos: new Set() })
             }
             agrupadoPorOrigem.get(chaveOrigem).planos.add(Number(item.plano_id))
         })
@@ -786,15 +772,13 @@ const Supertabelaprocedimentos = () => {
                     cidade_id: origem.cidade_id,
                     plano_id: planoId,
                     procedimento_cod: linha.codigo,
-                    diferenca: 0,
-                })
+                    diferenca: 0 })
             })
         })
 
         if (payloadInsercao.length > 0) {
             const { error: errInserir } = await upsertPlanosCidadeCompat(supabase, payloadInsercao, {
-                cidadeId: payloadInsercao[0]?.cidade_id,
-            })
+                cidadeId: payloadInsercao[0]?.cidade_id })
             if (errInserir) {
                 if (planoBaseAnteriorId) {
                     await supabase.from('procedimentos').update({ plano_base_id: planoBaseAnteriorId }).eq('codigo', linha.codigo)
@@ -895,8 +879,7 @@ const Supertabelaprocedimentos = () => {
                 nome,
                 categoria_id: categoriaId,
                 plano_base_id: planoBaseId,
-                publicado_formulario: false,
-            })
+                publicado_formulario: false })
             if (errInsercao) {
                 mostrarErroToast(`Erro ao inserir procedimento: ${errInsercao.message}`)
                 return
@@ -906,8 +889,7 @@ const Supertabelaprocedimentos = () => {
                 codigo: '',
                 nome: '',
                 categoriaId: String(categoriaId),
-                planoBaseChave: novoProcedimento.planoBaseChave,
-            })
+                planoBaseChave: novoProcedimento.planoBaseChave })
             await carregarBase()
         } catch (error) {
             mostrarErroToast(`Falha ao inserir procedimento: ${error.message}`)
@@ -1098,8 +1080,7 @@ const Supertabelaprocedimentos = () => {
                                     onChange={(event) =>
                                         setNovoProcedimento((anterior) => ({
                                             ...anterior,
-                                            codigo: normalizarCodigo(event.target.value),
-                                        }))
+                                            codigo: normalizarCodigo(event.target.value) }))
                                     }
                                 />
                                 <input
@@ -1110,8 +1091,7 @@ const Supertabelaprocedimentos = () => {
                                     onChange={(event) =>
                                         setNovoProcedimento((anterior) => ({
                                             ...anterior,
-                                            nome: event.target.value,
-                                        }))
+                                            nome: event.target.value }))
                                     }
                                 />
                                 <select
@@ -1120,8 +1100,7 @@ const Supertabelaprocedimentos = () => {
                                     onChange={(event) =>
                                         setNovoProcedimento((anterior) => ({
                                             ...anterior,
-                                            categoriaId: event.target.value,
-                                        }))
+                                            categoriaId: event.target.value }))
                                     }
                                 >
                                     {categorias.map((categoria) => (
@@ -1136,8 +1115,7 @@ const Supertabelaprocedimentos = () => {
                                     onChange={(event) =>
                                         setNovoProcedimento((anterior) => ({
                                             ...anterior,
-                                            planoBaseChave: event.target.value,
-                                        }))
+                                            planoBaseChave: event.target.value }))
                                     }
                                 >
                                     {ORDEM_PLANOS_BASE_PROCEDIMENTOS.map((chavePlano) => (
@@ -1290,8 +1268,7 @@ const Supertabelaprocedimentos = () => {
                                                             const chave = `nome-${linha.categoriaId}`
                                                             setEdicoesNomeCategoria((a) => ({
                                                                 ...a,
-                                                                [chave]: e.target.value,
-                                                            }))
+                                                                [chave]: e.target.value }))
                                                         }}
                                                         onBlur={() => salvarNomeCategoria(linha.categoriaId, linha.nome)}
                                                     />
@@ -1376,8 +1353,7 @@ const Supertabelaprocedimentos = () => {
                                                                 )
                                                                 setEdicoesLimiteGrupo((a) => ({
                                                                     ...a,
-                                                                    [chave]: e.target.value,
-                                                                }))
+                                                                    [chave]: e.target.value }))
                                                             }}
                                                             onBlur={() =>
                                                                 salvarLimiteGrupoCategoriaCampo(linha.categoriaId, chavePlano)
@@ -1410,8 +1386,7 @@ const Supertabelaprocedimentos = () => {
                                     totalLinhas: totalLinhasSecao,
                                     alturaLinha: ALTURA_LINHA_TABELA,
                                     alturaVisivel: alturaVisivelCorpo,
-                                    overscan: LINHAS_OVERSCAN,
-                                })
+                                    overscan: LINHAS_OVERSCAN })
                                 const { indiceInicial, indiceFinal, alturaEspacadorTopo, alturaEspacadorBase } =
                                     janelaVirtual
                                 const linhasVisiveis = secao.linhas.slice(indiceInicial, indiceFinal)
@@ -1578,8 +1553,7 @@ const Supertabelaprocedimentos = () => {
                                             style={{ maxHeight: `${Math.max(alturaVisivelCorpo, ALTURA_LINHA_TABELA)}px` }}
                                             onScroll={criarHandlerScrollVirtualTabela({
                                                 categoriaId: secao.categoriaId,
-                                                setScrollTopoPorCategoria,
-                                            })}
+                                                setScrollTopoPorCategoria })}
                                         >
                                             <table className='table_main table_main_virtual_rows'>
                                                 <colgroup>

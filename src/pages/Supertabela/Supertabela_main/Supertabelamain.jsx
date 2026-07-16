@@ -1,19 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import './Supertabelamain.css'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
-import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
 import { normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import { filtrarLinhaSupertabelaPorBusca, partesValoresLinhaSupertabela } from '../../../lib/supertabelaBuscaValores.js'
 import {
     buscarTodosPlanosCidadeCompat,
     consultarPlanoCidadeUnicoCompat,
     contextoPlanosCidadeFromCidades,
-    upsertPlanosCidadeCompat,
-} from '../../../lib/planosCidadeCompat'
+    upsertPlanosCidadeCompat } from '../../../lib/planosCidadeCompat'
 import {
     buscarCidadeIdsFiltroPlanoCredenciados,
-    buildOpcoesFiltroSupertabela,
-} from '../../../lib/cidadesSupertabelaVinculos.js'
+    buildOpcoesFiltroSupertabela } from '../../../lib/cidadesSupertabelaVinculos.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 import { calcularJanelaVirtualTabela, criarHandlerScrollVirtualTabela } from '../../../lib/tabelaVirtualScroll.js'
@@ -43,7 +40,6 @@ const Supertabelamain = () => {
     const [headerCompactProgress, setHeaderCompactProgress] = useState(0)
     const [edicaoAtiva, setEdicaoAtiva] = useState(false)
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
-    const buscaNotAtiva = useBuscaNotAtiva()
     const [edicoesLocais, setEdicoesLocais] = useState({})
     const [scrollTopoPorCategoria, setScrollTopoPorCategoria] = useState({})
 
@@ -66,8 +62,7 @@ const Supertabelamain = () => {
     const formatarMoeda = (valor) =>
         new Intl.NumberFormat('pt-BR', {
             style: 'currency',
-            currency: 'BRL',
-        }).format(Number(valor || 0))
+            currency: 'BRL' }).format(Number(valor || 0))
 
     /**
      * Normaliza o nome do porte para facilitar comparação textual.
@@ -297,8 +292,7 @@ const Supertabelamain = () => {
                     }
                     mapaRepassesPorProcedimento.get(procId)[porteId] = {
                         repasseId: item.id,
-                        valor,
-                    }
+                        valor }
                 })
 
             const mapaPlanosCidade = new Map(
@@ -306,8 +300,7 @@ const Supertabelamain = () => {
                     String(item.procedimento_cod),
                     {
                         planoCidadeId: item.id,
-                        diferenca: Number(item.diferenca || 0),
-                    },
+                        diferenca: Number(item.diferenca || 0) },
                 ])
             )
 
@@ -337,8 +330,7 @@ const Supertabelamain = () => {
                     porteIdM,
                     porteIdG,
                     diferenca,
-                    custo: valorPorteSelecionado - diferenca,
-                }
+                    custo: valorPorteSelecionado - diferenca }
             })
 
             setLinhas(linhasMontadas)
@@ -353,7 +345,7 @@ const Supertabelamain = () => {
      * Filtra localmente por texto para facilitar busca por código/procedimento/parceiro.
      */
     const linhasFiltradas = useMemo(() => {
-        if (!termoBusca.trim() && !buscaNotAtiva) return linhas
+        if (!termoBusca.trim()) return linhas
 
         return linhas.filter((linha) => {
             const categoriaNome = categorias.find((categoria) => Number(categoria.id) === Number(linha.categoriaId))?.nome || ''
@@ -362,9 +354,9 @@ const Supertabelamain = () => {
                     .filter(Boolean)
                     .join(' '),
             )
-            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBusca, buscaNotAtiva)
+            return filtrarLinhaSupertabelaPorBusca(linha, blob, termoBusca)
         })
-    }, [linhas, termoBusca, categorias, buscaNotAtiva])
+    }, [linhas, termoBusca, categorias])
 
     /**
      * Retorna um valor textual para input de edição do repasse.
@@ -384,8 +376,7 @@ const Supertabelamain = () => {
         const chave = `${categoriaId}-${linha.codigo}-${campo}`
         setEdicoesLocais((anterior) => ({
             ...anterior,
-            [chave]: valor,
-        }))
+            [chave]: valor }))
     }
 
     /**
@@ -420,8 +411,7 @@ const Supertabelamain = () => {
         const metaPorCampo = {
             porteP: { repasseId: linha.repasseIdP, porteId: linha.porteIdP },
             porteM: { repasseId: linha.repasseIdM, porteId: linha.porteIdM },
-            porteG: { repasseId: linha.repasseIdG, porteId: linha.porteIdG },
-        }
+            porteG: { repasseId: linha.repasseIdG, porteId: linha.porteIdG } }
         const meta = metaPorCampo[campo]
         if (!meta?.porteId) {
             setErroDetalhe('Porte não identificado para salvar repasse.')
@@ -445,11 +435,9 @@ const Supertabelamain = () => {
                         procedimento_id: linha.codigo,
                         cidade_id: Number(cidadeId),
                         porte_id: Number(meta.porteId),
-                        valor: valorNumerico,
-                    },
+                        valor: valorNumerico },
                     {
-                        onConflict: 'procedimento_id,cidade_id,porte_id',
-                    }
+                        onConflict: 'procedimento_id,cidade_id,porte_id' }
                 )
                 .select('id')
                 .single()
@@ -472,8 +460,7 @@ const Supertabelamain = () => {
                     [campo]: valorNumerico,
                     ...(campo === 'porteP' ? { repasseIdP: novoRepasseId } : {}),
                     ...(campo === 'porteM' ? { repasseIdM: novoRepasseId } : {}),
-                    ...(campo === 'porteG' ? { repasseIdG: novoRepasseId } : {}),
-                }
+                    ...(campo === 'porteG' ? { repasseIdG: novoRepasseId } : {}) }
 
                 const valorSelecionado =
                     String(porteSelecionado) === String(item.porteIdP)
@@ -521,8 +508,7 @@ const Supertabelamain = () => {
         const ctx = contextoPlanosCidadeFromCidades(cidadeId, cidades)
         const { data, error } = await consultarPlanoCidadeUnicoCompat(supabase, ctx, {
             planoId,
-            procedimentoCod: linha.codigo,
-        })
+            procedimentoCod: linha.codigo })
 
         if (error) {
             setErroDetalhe(`Erro ao localizar registro de diferença: ${error.message}`)
@@ -547,8 +533,7 @@ const Supertabelamain = () => {
                     {
                         plano_id: Number(planoId),
                         procedimento_cod: linha.codigo,
-                        diferenca: valorNumerico,
-                    },
+                        diferenca: valorNumerico },
                 ],
                 ctx,
                 'id',
@@ -576,8 +561,7 @@ const Supertabelamain = () => {
                 const atualizado = {
                     ...item,
                     planoCidadeId,
-                    diferenca: valorNumerico,
-                }
+                    diferenca: valorNumerico }
                 atualizado.custo = Number(
                     String(porteSelecionado) === String(item.porteIdP)
                         ? atualizado.porteP
@@ -705,14 +689,12 @@ const Supertabelamain = () => {
                 atual.coluna === coluna
                     ? {
                         coluna,
-                        direcao: atual.direcao === 'asc' ? 'desc' : 'asc',
-                    }
+                        direcao: atual.direcao === 'asc' ? 'desc' : 'asc' }
                     : { coluna, direcao: 'asc' }
 
             return {
                 ...anterior,
-                [categoriaId]: proxima,
-            }
+                [categoriaId]: proxima }
         })
     }
 
@@ -772,8 +754,7 @@ const Supertabelamain = () => {
                 linhas: ordenarLinhas(
                     linhasFiltradas.filter((linha) => Number(linha.categoriaId) === Number(categoria.id)),
                     categoria.id
-                ),
-            }))
+                ) }))
             .filter((secao) => secao.linhas.length > 0)
     }, [categorias, linhasFiltradas, ordenacaoPorCategoria])
 
@@ -981,8 +962,7 @@ const Supertabelamain = () => {
                             totalLinhas: totalLinhasSecao,
                             alturaLinha: ALTURA_LINHA_TABELA,
                             alturaVisivel: alturaVisivelCorpo,
-                            overscan: LINHAS_OVERSCAN,
-                        })
+                            overscan: LINHAS_OVERSCAN })
                         const { indiceInicial, indiceFinal, alturaEspacadorTopo, alturaEspacadorBase } = janelaVirtual
                         const linhasVisiveis = secao.linhas.slice(indiceInicial, indiceFinal)
 
@@ -1020,8 +1000,7 @@ const Supertabelamain = () => {
                                             style={{ maxHeight: `${Math.max(alturaVisivelCorpo, ALTURA_LINHA_TABELA)}px` }}
                                             onScroll={criarHandlerScrollVirtualTabela({
                                                 categoriaId: secao.categoriaId,
-                                                setScrollTopoPorCategoria,
-                                            })}
+                                                setScrollTopoPorCategoria })}
                                         >
                                             <table className='table_main table_main_virtual_rows'>
                                                 <colgroup>
