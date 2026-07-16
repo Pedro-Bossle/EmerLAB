@@ -7,20 +7,17 @@ import {
     filtrarMunicipiosIbgePorCredenciamento,
     ufsDisponiveisFiltroCredenciamento,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
-import { normalizarTextoBusca, filtrarPorTermoBusca, resolverCidadePrincipalNome, prestadorEhCredenciado } from '../../../lib/prestadorCadastroHelpers.js'
+import { normalizarTextoBusca, filtrarPorTermoBusca, prestadorEhCredenciado } from '../../../lib/prestadorCadastroHelpers.js'
 import { useBuscaNotAtiva } from '../../../lib/devToolsUi'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
 import '../Credenciamento_main/Credenciamento_main.css'
 import {
-    avaliarViaCidadeParalela,
     formatarResultadosQuemRealizaParaClipboard,
     mapaCodigoProcedimentoIdDeCatalogo,
     pesquisarQuemOfereceDescontos,
     pesquisarQuemRealizaNaRede,
-    prestadorAtendeCidadeAlvo,
 } from '../../../lib/buscarQuemRealizaPrestadores.js'
-import { anexarLocalidadeVinculoAoCtx, resolverLocalidadeEfetivaPrestador } from '../../../lib/prestadorLocalidadeVinculo.js'
 import {
     carregarCatalogoBeneficios,
     gruposDoCatalogo,
@@ -100,12 +97,12 @@ export default function CredenciamentoQuemRealiza() {
         const run = async () => {
             const [
                 { data: cats },
-                { data: prest },
-                { data: pc },
-                { data: cc },
+                resPrest,
+                resPc,
+                resCc,
                 { data: esps },
                 { data: situacoesData },
-                { data: peEst },
+                resPeEst,
                 procPaginado,
             ] = await Promise.all([
                 supabase
@@ -114,24 +111,43 @@ export default function CredenciamentoQuemRealiza() {
                     .gte('id', CATEGORIA_MIN)
                     .lte('id', CATEGORIA_MAX)
                     .order('id'),
-                supabase
-                    .from('prestadores')
-                    .select(
-                        'id, nome, telefone, celular, especialidade_id, endereco_uf, endereco_cidade, cidade_id, tipo, ativo, situacao_id'
-                    )
-                    .eq('ativo', true),
-                supabase.from('prestador_cidades').select('prestador_id, cidade_id'),
-                supabase.from('cidades_credenciamento').select('id, nome'),
+                buscarTodosPaginado(() =>
+                    supabase
+                        .from('prestadores')
+                        .select(
+                            'id, nome, telefone, celular, especialidade_id, endereco_uf, endereco_cidade, cidade_id, tipo, ativo, situacao_id',
+                        )
+                        .eq('ativo', true)
+                        .order('id', { ascending: true }),
+                ),
+                buscarTodosPaginado(() =>
+                    supabase
+                        .from('prestador_cidades')
+                        .select('prestador_id, cidade_id')
+                        .order('prestador_id', { ascending: true }),
+                ),
+                buscarTodosPaginado(() =>
+                    supabase.from('cidades_credenciamento').select('id, nome').order('id', { ascending: true }),
+                ),
                 supabase.from('especialidades').select('id, nome'),
                 supabase.from('situacoes').select('id, descricao'),
-                supabase.from('prestador_estabelecimentos').select('veterinario_id, estabelecimento_id, principal'),
+                buscarTodosPaginado(() =>
+                    supabase
+                        .from('prestador_estabelecimentos')
+                        .select('veterinario_id, estabelecimento_id, principal')
+                        .order('veterinario_id', { ascending: true }),
+                ),
                 buscarTodosPaginado(() =>
                     supabase
                         .from('procedimentos')
                         .select('id, codigo, nome, categoria_id')
-                        .order('codigo', { ascending: true })
+                        .order('codigo', { ascending: true }),
                 ),
             ])
+            const prest = resPrest.data || []
+            const pc = resPc.data || []
+            const cc = resCc.data || []
+            const peEst = resPeEst.data || []
             const catalogo = procPaginado?.data || []
             setProcedimentosCatalogo(catalogo)
             const mapaProc = new Map()
@@ -145,12 +161,12 @@ export default function CredenciamentoQuemRealiza() {
             const idPadrao = idCategoriaPadrao(listaCats)
             if (idPadrao != null) setAbaCategoria(idPadrao)
             const listaSituacoes = situacoesData || []
-            const prestCred = (prest || []).filter((p) => prestadorEhCredenciado(p, listaSituacoes))
-            setTodosPrestadoresAtivos(prest || [])
+            const prestCred = prest.filter((p) => prestadorEhCredenciado(p, listaSituacoes))
+            setTodosPrestadoresAtivos(prest)
             setPrestadores(prestCred)
-            setPrestadorCidades(pc || [])
-            setPrestadorEstabelecimentos(peEst || [])
-            setMapaCidadesCred(new Map((cc || []).map((c) => [Number(c.id), c.nome])))
+            setPrestadorCidades(pc)
+            setPrestadorEstabelecimentos(peEst)
+            setMapaCidadesCred(new Map(cc.map((c) => [Number(c.id), c.nome])))
             setEspecialidades(esps || [])
             try {
                 const catBenef = await carregarCatalogoBeneficios()
@@ -299,48 +315,6 @@ export default function CredenciamentoQuemRealiza() {
 
     const mapaEspNome = useMemo(() => new Map(especialidades.map((e) => [Number(e.id), e.nome])), [especialidades])
 
-    const ctxFiltroCidade = useMemo(
-        () =>
-            anexarLocalidadeVinculoAoCtx(
-                {
-                    mapaCidadesCred,
-                    prestadorCidades,
-                    incluirCidadesParalelas: buscarCidadesParalelas,
-                },
-                todosPrestadoresAtivos,
-                prestadorEstabelecimentos,
-            ),
-        [mapaCidadesCred, prestadorCidades, buscarCidadesParalelas, todosPrestadoresAtivos, prestadorEstabelecimentos],
-    )
-
-    const nomeCidadePrincipalPrestador = useCallback(
-        (p) => {
-            const { prestador: pLoc, prestadorIdCidades } = resolverLocalidadeEfetivaPrestador(
-                p,
-                ctxFiltroCidade.estabelecimentoPorVeterinario,
-            )
-            const rels = prestadorCidades.filter((r) => Number(r.prestador_id) === Number(prestadorIdCidades))
-            return resolverCidadePrincipalNome(pLoc, {
-                mapaCidadeNomePorId: mapaCidadesCred,
-                relacoesCidades: rels,
-            })
-        },
-        [mapaCidadesCred, prestadorCidades, ctxFiltroCidade.estabelecimentoPorVeterinario],
-    )
-
-    const alvoCidadeFiltro = useMemo(
-        () => (uf && cidadeNome ? { nome: cidadeNome, uf } : null),
-        [uf, cidadeNome],
-    )
-
-    const prestadorAtendeCidade = useCallback(
-        (p) => {
-            if (!alvoCidadeFiltro) return false
-            return prestadorAtendeCidadeAlvo(p, alvoCidadeFiltro, ctxFiltroCidade)
-        },
-        [alvoCidadeFiltro, ctxFiltroCidade],
-    )
-
     const toggleCodigo = (codigo) => {
         const c = normCodigo(codigo)
         if (!c) return
@@ -447,6 +421,7 @@ export default function CredenciamentoQuemRealiza() {
         }
         setLoading(true)
         try {
+            const cidadesAlvoPesquisa = [{ nome: cidadeNome, uf }]
             let lista
             if (modoDescontos) {
                 const beneficioIds = resolverBeneficioIdsParaPesquisa()
@@ -457,7 +432,7 @@ export default function CredenciamentoQuemRealiza() {
                 }
                 lista = await pesquisarQuemOfereceDescontos(supabase, {
                     beneficioIds,
-                    cidadesAlvo: [{ nome: cidadeNome, uf }],
+                    cidadesAlvo: cidadesAlvoPesquisa,
                     incluirCidadesParalelas: buscarCidadesParalelas,
                     prestadores,
                     prestadorCidades,
@@ -478,7 +453,7 @@ export default function CredenciamentoQuemRealiza() {
                 }
                 lista = await pesquisarQuemRealizaNaRede(supabase, {
                     codigosProcedimento: codigos,
-                    cidadesAlvo: [{ nome: cidadeNome, uf }],
+                    cidadesAlvo: cidadesAlvoPesquisa,
                     incluirCidadesParalelas: buscarCidadesParalelas,
                     prestadores,
                     prestadorCidades,

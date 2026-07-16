@@ -124,24 +124,42 @@ const CredenciamentoCadastroLista = () => {
                 { data: pcData, error: errPc },
                 { data: peData, error: errPe },
             ] = await Promise.all([
-                supabase
-                    .from('prestadores')
-                    .select(
-                        'id, nome, tipo, telefone, celular, email, cidade_id, especialidade_id, situacao_id, cpf_cnpj, crmv, ativo, cep, endereco, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, modalidade, chave_pix, tipo_repasse'
-                    )
-                    .eq('ativo', true),
-                supabase.from('cidades_credenciamento').select('id, nome').order('nome', { ascending: true }),
+                buscarTodosPaginado(() =>
+                    supabase
+                        .from('prestadores')
+                        .select(
+                            'id, nome, tipo, telefone, celular, email, cidade_id, especialidade_id, situacao_id, cpf_cnpj, crmv, ativo, cep, endereco, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, modalidade, chave_pix, tipo_repasse',
+                        )
+                        .eq('ativo', true)
+                        .order('id', { ascending: true }),
+                ),
+                buscarTodosPaginado(() =>
+                    supabase.from('cidades_credenciamento').select('id, nome').order('id', { ascending: true }),
+                ),
                 supabase.from('situacoes').select('id, descricao, ordem, ativo').eq('ativo', true).order('ordem'),
                 supabase.from('especialidades').select('id, nome, tipo').order('nome'),
-                supabase.from('prestador_cidades').select('prestador_id, cidade_id, principal'),
-                supabase.from('prestador_estabelecimentos').select('veterinario_id, estabelecimento_id'),
+                buscarTodosPaginado(() =>
+                    supabase
+                        .from('prestador_cidades')
+                        .select('prestador_id, cidade_id, principal')
+                        .order('prestador_id', { ascending: true })
+                        .order('cidade_id', { ascending: true }),
+                ),
+                buscarTodosPaginado(() =>
+                    supabase
+                        .from('prestador_estabelecimentos')
+                        .select('veterinario_id, estabelecimento_id')
+                        .order('veterinario_id', { ascending: true })
+                        .order('estabelecimento_id', { ascending: true }),
+                ),
             ])
             let procRows = []
             if (hasStoredDevTools() && colCad.procs) {
                 const { data: procData, error: errProc } = await buscarTodosPaginado(() =>
                     supabase
                         .from('prestador_procedimentos')
-                        .select('prestador_id, procedimento_cod, procedimento_id'),
+                        .select('prestador_id, procedimento_cod, procedimento_id')
+                        .order('id', { ascending: true }),
                 )
                 if (errProc?.message) {
                     setErro(

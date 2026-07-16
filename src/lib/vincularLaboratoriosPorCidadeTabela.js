@@ -75,18 +75,27 @@ function laboratoriosIdsParaPrestador(prestador, mapaLabsPorCidade, ctx) {
 }
 
 export async function carregarContextoVinculoLaboratoriosCidade(client = supabaseDefault) {
-    const [prestRes, { data: cidadesTabela, error: errC }, pcRes, { data: cidadesCred, error: errCc }, { data: especialidades, error: errE }, vinculos] =
+    const [prestRes, { data: cidadesTabela, error: errC }, pcRes, ccRes, { data: especialidades, error: errE }, vinculos] =
         await Promise.all([
             buscarTodosPaginado(() =>
                 client
                     .from('prestadores')
                     .select(
                         'id, nome, ativo, especialidade_id, endereco_uf, endereco_cidade, cidade_id',
-                    ),
+                    )
+                    .order('id', { ascending: true }),
             ),
             client.from('cidades').select('id, nome, uf').order('nome', { ascending: true }),
-            buscarTodosPaginado(() => client.from('prestador_cidades').select('prestador_id, cidade_id')),
-            client.from('cidades_credenciamento').select('id, nome'),
+            buscarTodosPaginado(() =>
+                client
+                    .from('prestador_cidades')
+                    .select('prestador_id, cidade_id')
+                    .order('prestador_id', { ascending: true })
+                    .order('cidade_id', { ascending: true }),
+            ),
+            buscarTodosPaginado(() =>
+                client.from('cidades_credenciamento').select('id, nome').order('id', { ascending: true }),
+            ),
             client.from('especialidades').select('id, nome'),
             carregarVinculosMunicipios(client),
         ])
@@ -94,14 +103,14 @@ export async function carregarContextoVinculoLaboratoriosCidade(client = supabas
     if (prestRes.error) throw new Error(prestRes.error.message)
     if (errC) throw new Error(errC.message)
     if (pcRes.error) throw new Error(pcRes.error.message)
-    if (errCc) throw new Error(errCc.message)
+    if (ccRes.error) throw new Error(ccRes.error.message)
     if (errE) throw new Error(errE.message)
 
     return {
         prestadores: prestRes.data || [],
         cidadesTabela: cidadesTabela || [],
         prestadorCidades: pcRes.data || [],
-        mapaCidadesCred: new Map((cidadesCred || []).map((c) => [Number(c.id), c.nome])),
+        mapaCidadesCred: new Map((ccRes.data || []).map((c) => [Number(c.id), c.nome])),
         especialidades: especialidades || [],
         vinculos,
         idsEspLab: idsEspecialidadeLaboratorio(especialidades || []),

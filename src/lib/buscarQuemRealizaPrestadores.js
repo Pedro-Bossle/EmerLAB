@@ -8,6 +8,7 @@ import { carregarMapaNomesAlternativosPrestador } from './prestadorNomeAlternati
 import { mapaCodigosPorPrestadorDeVinculos } from './prestadorProcedimentos.js'
 import { anexarLocalidadeVinculoAoCtx, resolverLocalidadeEfetivaPrestador } from './prestadorLocalidadeVinculo.js'
 import { formatarFaixaPercentual, nomeGrupoBeneficioVisivel } from './credenciamento/prestadorBeneficios.js'
+import { buscarEmLotesPaginado, buscarTodosPaginado } from './supabase.js'
 
 const norm = (t) =>
     String(t || '')
@@ -15,6 +16,37 @@ const norm = (t) =>
         .replace(/[\u0300-\u036f]/g, '')
         .trim()
         .toLowerCase()
+
+/**
+ * Remove sufixos de região metropolitana para comparar núcleos de município.
+ * Ex.: "porto alegre e regiao" → "porto alegre"
+ */
+function nucleoNomeMunicipio(nomeNorm) {
+    return String(nomeNorm || '')
+        .replace(
+            /\b(e\s+)?(regiao(\s+metropolitana)?|grande|rmpa|area\s+metropolitana|metro(politana)?)\b/g,
+            ' ',
+        )
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+}
+
+/**
+ * Compara nome em `cidades_credenciamento` com o município alvo (Quem Realiza / tabela).
+ * Aceita igualdade e variantes do tipo «Porto Alegre e Região» ↔ «Porto Alegre».
+ * Não confunde núcleos distintos (ex.: São Paulo ≠ São Paulo das Missões).
+ */
+export function cidadeCredenciamentoCompativelComAlvo(nomeCredBruto, alvoNomeBruto) {
+    const alvo = norm(alvoNomeBruto)
+    const cred = norm(nomeCredBruto)
+    if (!alvo || !cred) return false
+    if (alvo === cred) return true
+
+    const alvoCore = nucleoNomeMunicipio(alvo)
+    const credCore = nucleoNomeMunicipio(cred)
+    return Boolean(alvoCore && credCore && alvoCore === credCore)
+}
 
 export const normCodigoProcedimento = (c) => String(c || '').trim().toUpperCase()
 
@@ -64,12 +96,10 @@ export function formatarResultadosQuemRealizaParaClipboard(resultados, opcoes = 
 export function prestadorEnderecoNaCidadeAlvo(p, alvo) {
     const cidadeNome = String(alvo?.nome || '').trim()
     if (!cidadeNome) return false
-    const alvoCidade = norm(cidadeNome)
     const alvoUf = String(alvo?.uf || '').trim().toUpperCase()
     const exigeUf = Boolean(alvoUf)
 
-    const endCidade = norm(p.endereco_cidade)
-    if (endCidade !== alvoCidade) return false
+    if (!cidadeCredenciamentoCompativelComAlvo(p.endereco_cidade, cidadeNome)) return false
 
     const endUf = String(p.endereco_uf || '').trim().toUpperCase()
     if (!exigeUf) return true
@@ -78,46 +108,58 @@ export function prestadorEnderecoNaCidadeAlvo(p, alvo) {
     return false
 }
 
-/** Cidades que o prestador atende (tabela prestador_cidades / credenciamento). */
+/**
+ * IDs cujo `prestador_cidades` deve ser considerado.
+ * Usa o próprio prestador (a lista «outras cidades» do perfil dele).
+ */
+export function idsPrestadorCidadesParaFiltro(p, _prestadorIdCidades) {
+    const ids = new Set()
+    const selfId = Number(p?.id)
+    if (selfId) ids.add(selfId)
+    return ids
+}
+
+/** Perfil com «Múltiplas cidades» / lista «Cidades que atende» persistida. */
+export function prestadorTemCidadesParalelasNoPerfil(p, ctx, prestadorIdCidades) {
+    const ids = idsPrestadorCidadesParaFiltro(p, prestadorIdCidades)
+    if (!ids.size) return false
+    return (ctx.prestadorCidades || []).some((r) => ids.has(Number(r.prestador_id)))
+}
+
+/** Cidades da lista «Cidades que atende» (`prestador_cidades`). */
 export function prestadorAtendeCidadeCredenciamento(p, alvo, ctx, prestadorIdCidades) {
     const cidadeNome = String(alvo?.nome || '').trim()
     if (!cidadeNome) return false
-    const alvoCidade = norm(cidadeNome)
     const { mapaCidadesCred, prestadorCidades } = ctx
-    const pid = prestadorIdCidades != null ? Number(prestadorIdCidades) : Number(p.id)
-    const extras = (prestadorCidades || []).filter((r) => Number(r.prestador_id) === pid)
+    const ids = idsPrestadorCidadesParaFiltro(p, prestadorIdCidades)
+    if (!ids.size) return false
+    const extras = (prestadorCidades || []).filter((r) => ids.has(Number(r.prestador_id)))
     return extras.some((rel) => {
         const nomeCred = mapaCidadesCred.get(Number(rel.cidade_id))
-        return norm(nomeCred) === alvoCidade
+        return cidadeCredenciamentoCompativelComAlvo(nomeCred, cidadeNome)
     })
 }
 
-/** Cidade principal / vínculos de credenciamento (cidade_id + «Cidades que atendem»). */
-export function prestadorLocalizacaoCredenciamentoNaCidade(p, alvo, ctx, prestadorIdCidades) {
-    const cidadeNome = String(alvo?.nome || '').trim()
-    if (!cidadeNome) return false
-    const alvoCidade = norm(cidadeNome)
-    const { mapaCidadesCred } = ctx
-    const cidPrincipal = mapaCidadesCred.get(Number(p.cidade_id))
-    if (norm(cidPrincipal) === alvoCidade) return true
-    return prestadorAtendeCidadeCredenciamento(p, alvo, ctx, prestadorIdCidades)
-}
-
 /**
- * Filtro de localidade:
- * - Veterinário: endereço; com paralelas, também cidades que atende.
- * - Clínica/estabelecimento: endereço ou cidade de credenciamento (sede + cidades que atende).
+ * Filtro de localidade — regra unificada (Quem Realiza / Planos Impressão / Supertabela):
+ * a) Endereço principal (`endereco_cidade`) — sempre.
+ * b) Lista «Cidades que atende» — só se `incluirCidadesParalelas` e o perfil tiver
+ *    «Múltiplas cidades» persistida (`prestador_cidades` não vazio).
+ *    Se a flag/lista estiver inativa/vazia, a lista é ignorada.
+ *
+ * Credenciados de qualquer tipo usam a mesma regra. Sem duplicar na mesma cidade.
  */
 export function prestadorAtendeCidadeAlvo(p, alvo, ctx) {
     const { prestador: pLoc, prestadorIdCidades } = resolverLocalidadeEfetivaPrestador(
         p,
         ctx.estabelecimentoPorVeterinario,
     )
+    // a) cidade do endereço principal
     if (prestadorEnderecoNaCidadeAlvo(pLoc, alvo)) return true
-    if (prestadorEhEstabelecimento(p.especialidade_id)) {
-        return prestadorLocalizacaoCredenciamentoNaCidade(pLoc, alvo, ctx, prestadorIdCidades)
-    }
+
+    // b) outras cidades — exige flag/contexto de paralelas + lista no perfil
     if (!ctx.incluirCidadesParalelas) return false
+    if (!prestadorTemCidadesParalelasNoPerfil(pLoc, ctx, prestadorIdCidades)) return false
     return prestadorAtendeCidadeCredenciamento(pLoc, alvo, ctx, prestadorIdCidades)
 }
 
@@ -127,14 +169,17 @@ export function prestadorAtendeAlgumaCidadeAlvo(p, cidadesAlvo, ctx) {
     return lista.some((alvo) => prestadorAtendeCidadeAlvo(p, alvo, ctx))
 }
 
+/** Atende o alvo só pela lista adicional (não pelo endereço). */
 export function avaliarViaCidadeParalela(p, cidadesAlvo, ctx) {
-    const { incluirCidadesParalelas } = ctx
-    if (!incluirCidadesParalelas) return false
-    if (prestadorEhEstabelecimento(p.especialidade_id)) return false
-    return cidadesAlvo.some((alvo) => {
-        const sede = prestadorAtendeCidadeAlvo(p, alvo, { ...ctx, incluirCidadesParalelas: false })
-        if (sede) return false
-        return prestadorAtendeCidadeAlvo(p, alvo, { ...ctx, incluirCidadesParalelas: true })
+    if (!ctx.incluirCidadesParalelas) return false
+    const { prestador: pLoc, prestadorIdCidades } = resolverLocalidadeEfetivaPrestador(
+        p,
+        ctx.estabelecimentoPorVeterinario,
+    )
+    if (!prestadorTemCidadesParalelasNoPerfil(pLoc, ctx, prestadorIdCidades)) return false
+    return (cidadesAlvo || []).some((alvo) => {
+        if (prestadorEnderecoNaCidadeAlvo(pLoc, alvo)) return false
+        return prestadorAtendeCidadeCredenciamento(pLoc, alvo, ctx, prestadorIdCidades)
     })
 }
 
@@ -150,18 +195,22 @@ export function mapaCodigoProcedimentoIdDeCatalogo(procedimentos) {
 
 export async function buscarVinculosPrestadorProcedimentosEmLote(supabase, prestadorIds) {
     const ids = [...new Set((prestadorIds || []).map(Number).filter(Boolean))]
-    const vinculos = []
-    const chunk = 40
-    for (let i = 0; i < ids.length; i += chunk) {
-        const lote = ids.slice(i, i + chunk)
-        const { data, error } = await supabase
-            .from('prestador_procedimentos')
-            .select('prestador_id, procedimento_cod, procedimento_id')
-            .in('prestador_id', lote)
-        if (error) throw new Error(error.message)
-        vinculos.push(...(data || []))
-    }
-    return vinculos
+    if (!ids.length) return []
+    // Fatias + paginação: ~25–40 prestadores já passam de 1000 linhas em
+    // `prestador_procedimentos` (teto PostgREST). Sem paginar, a contagem de
+    // realizadores por cidade/procedimento corta prestadores (ex.: Caxias).
+    const { data, error } = await buscarEmLotesPaginado(
+        ids,
+        (lote) =>
+            supabase
+                .from('prestador_procedimentos')
+                .select('prestador_id, procedimento_cod, procedimento_id')
+                .in('prestador_id', lote)
+                .order('id', { ascending: true }),
+        { tamanhoLote: 25 },
+    )
+    if (error) throw new Error(error.message)
+    return data || []
 }
 
 function montarLinhaResultadoQuemRealiza(p, codigos, porPrestador, ctx) {
@@ -192,7 +241,8 @@ function montarLinhaResultadoQuemRealiza(p, codigos, porPrestador, ctx) {
         p,
         ctx.estabelecimentoPorVeterinario,
     )
-    const rels = prestadorCidades.filter((r) => Number(r.prestador_id) === Number(prestadorIdCidades))
+    const idsCidades = idsPrestadorCidadesParaFiltro(pLoc, prestadorIdCidades)
+    const rels = prestadorCidades.filter((r) => idsCidades.has(Number(r.prestador_id)))
     const cidadePrincipal = resolverCidadePrincipalNome(pLoc, {
         mapaCidadeNomePorId: mapaCidadesCred,
         relacoesCidades: rels,
@@ -337,19 +387,21 @@ export async function pesquisarQuemOfereceDescontos(supabase, opcoes) {
     const todosIds = (prestadores || []).map((p) => Number(p.id)).filter(Boolean)
     if (!todosIds.length) return []
 
-    const vinculos = []
-    const chunk = 80
-    for (let i = 0; i < todosIds.length; i += chunk) {
-        const lote = todosIds.slice(i, i + chunk)
-        const { data, error } = await supabase
-            .from('prestador_beneficios')
-            .select('prestador_id, beneficio_id, percentual, percentual_max, incluir')
-            .in('prestador_id', lote)
-            .eq('incluir', true)
-            .in('beneficio_id', ids)
-        if (error) throw new Error(error.message)
-        vinculos.push(...(data || []))
-    }
+    const { data: vinculosBrutos, error: errBen } = await buscarEmLotesPaginado(
+        todosIds,
+        (lote) =>
+            supabase
+                .from('prestador_beneficios')
+                .select('prestador_id, beneficio_id, percentual, percentual_max, incluir')
+                .in('prestador_id', lote)
+                .eq('incluir', true)
+                .in('beneficio_id', ids)
+                .order('prestador_id', { ascending: true })
+                .order('beneficio_id', { ascending: true }),
+        { tamanhoLote: 40 },
+    )
+    if (errBen) throw new Error(errBen.message)
+    const vinculos = vinculosBrutos || []
 
     /** @type {Map<number, Array>} */
     const porPrestador = new Map()
@@ -390,7 +442,8 @@ export async function pesquisarQuemOfereceDescontos(supabase, opcoes) {
                 p,
                 ctxFiltro.estabelecimentoPorVeterinario,
             )
-            const rels = prestadorCidades.filter((r) => Number(r.prestador_id) === Number(prestadorIdCidades))
+            const idsCidades = idsPrestadorCidadesParaFiltro(pLoc, prestadorIdCidades)
+            const rels = prestadorCidades.filter((r) => idsCidades.has(Number(r.prestador_id)))
             const cidadePrincipal = resolverCidadePrincipalNome(pLoc, {
                 mapaCidadeNomePorId: mapaCidadesCred,
                 relacoesCidades: rels,
@@ -413,47 +466,80 @@ export async function pesquisarQuemOfereceDescontos(supabase, opcoes) {
 export async function carregarDadosCredenciamentoQuemRealiza(supabase, opcoes = {}) {
     const { somenteVeterinarios = true } = opcoes
     const [
-        { data: prest },
-        { data: pc },
-        { data: cc },
-        { data: esps },
-        { data: procs },
-        { data: situacoes },
-        { data: peEst },
+        resPrest,
+        resPc,
+        resCc,
+        resEsps,
+        resProcs,
+        resSituacoes,
+        resPeEst,
     ] = await Promise.all([
-        supabase
-            .from('prestadores')
-            .select(
-                'id, nome, telefone, celular, especialidade_id, endereco_uf, endereco_cidade, cidade_id, ativo, situacao_id'
-            )
-            .eq('ativo', true),
-        supabase.from('prestador_cidades').select('prestador_id, cidade_id, principal'),
-        supabase.from('cidades_credenciamento').select('id, nome'),
+        buscarTodosPaginado(() =>
+            supabase
+                .from('prestadores')
+                .select(
+                    'id, nome, telefone, celular, especialidade_id, endereco_uf, endereco_cidade, cidade_id, ativo, situacao_id',
+                )
+                .eq('ativo', true)
+                .order('id', { ascending: true }),
+        ),
+        buscarTodosPaginado(() =>
+            supabase
+                .from('prestador_cidades')
+                .select('prestador_id, cidade_id, principal')
+                .order('prestador_id', { ascending: true })
+                .order('cidade_id', { ascending: true }),
+        ),
+        buscarTodosPaginado(() =>
+            supabase.from('cidades_credenciamento').select('id, nome').order('id', { ascending: true }),
+        ),
         supabase.from('especialidades').select('id, nome'),
-        supabase.from('procedimentos').select('id, codigo, nome'),
+        buscarTodosPaginado(() =>
+            supabase.from('procedimentos').select('id, codigo, nome').order('id', { ascending: true }),
+        ),
         supabase.from('situacoes').select('id, descricao'),
-        supabase.from('prestador_estabelecimentos').select('veterinario_id, estabelecimento_id, principal'),
+        buscarTodosPaginado(() =>
+            supabase
+                .from('prestador_estabelecimentos')
+                .select('veterinario_id, estabelecimento_id, principal')
+                .order('veterinario_id', { ascending: true })
+                .order('estabelecimento_id', { ascending: true }),
+        ),
     ])
+    for (const res of [resPrest, resPc, resCc, resProcs, resPeEst]) {
+        if (res?.error) throw new Error(res.error.message)
+    }
+    if (resEsps.error) throw new Error(resEsps.error.message)
+    if (resSituacoes.error) throw new Error(resSituacoes.error.message)
+
+    const prest = resPrest.data || []
+    const pc = resPc.data || []
+    const cc = resCc.data || []
+    const esps = resEsps.data || []
+    const procs = resProcs.data || []
+    const situacoes = resSituacoes.data || []
+    const peEst = resPeEst.data || []
+
     const mapaNomePorCodigo = new Map()
     const mapaCodigoPorProcedimentoId = new Map()
-    ;(procs || []).forEach((row) => {
+    procs.forEach((row) => {
         const cod = normCodigoProcedimento(row.codigo)
         const id = Number(row.id)
         if (cod) mapaNomePorCodigo.set(cod, String(row.nome || cod).trim())
         if (id && cod) mapaCodigoPorProcedimentoId.set(id, cod)
     })
-    const listaSituacoes = situacoes || []
-    const prestCredenciados = (prest || []).filter((p) => prestadorEhCredenciado(p, listaSituacoes))
+    const listaSituacoes = situacoes
+    const prestCredenciados = prest.filter((p) => prestadorEhCredenciado(p, listaSituacoes))
     const listaPrest = somenteVeterinarios
         ? prestCredenciados.filter((p) => !prestadorEhEstabelecimento(p.especialidade_id))
         : prestCredenciados
     return {
         prestadores: listaPrest,
         todosPrestadores: prestCredenciados,
-        prestadorCidades: pc || [],
-        prestadorEstabelecimentos: peEst || [],
-        mapaCidadesCred: new Map((cc || []).map((c) => [Number(c.id), c.nome])),
-        especialidades: esps || [],
+        prestadorCidades: pc,
+        prestadorEstabelecimentos: peEst,
+        mapaCidadesCred: new Map(cc.map((c) => [Number(c.id), c.nome])),
+        especialidades: esps,
         mapaNomePorCodigo,
         mapaCodigoPorProcedimentoId,
     }

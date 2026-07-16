@@ -274,6 +274,13 @@ export const PERMISSION_CATALOG = [
                 actions: RCUD,
                 href: '/pagamentos/registro',
             },
+            {
+                id: 'pagamentos.resumo',
+                label: 'Resumo',
+                descricao: 'Pendências com nota/resposta enviada e ainda não pagas.',
+                actions: R,
+                href: '/pagamentos/resumo',
+            },
         ],
     },
     {
@@ -450,9 +457,11 @@ export function expandLegacyToAcl(perms) {
     }
     if (p[L.PAGAMENTOS_VIEW]) {
         setTool('pagamentos.registro', { read: true })
+        setTool('pagamentos.resumo', { read: true })
     }
     if (p[L.PAGAMENTOS_EDIT]) {
         setTool('pagamentos.registro', { read: true, create: true, update: true, delete: true })
+        setTool('pagamentos.resumo', { read: true })
     }
     if (p[L.ACCESS_MANAGE]) {
         setTool('admin.acessos', { read: true, create: true, update: true, delete: true })
@@ -490,6 +499,12 @@ export function completarAclFerramentasCredenciamento(perms) {
     if (!p[kUpd]) {
         if (hasAcl(p, 'credenciamento.import_kmz', 'update') || p[L.CREDENCIAMENTO_EDIT]) {
             p[kUpd] = true
+        }
+    }
+    const kResumo = aclKey('pagamentos.resumo', 'read')
+    if (!p[kResumo]) {
+        if (hasAcl(p, 'pagamentos.registro', 'read') || p[L.PAGAMENTOS_VIEW]) {
+            p[kResumo] = true
         }
     }
     return p
@@ -544,7 +559,8 @@ export function syncLegacyFromAcl(perms) {
         hasAcl(p, 'contratos.clicksign', 'update') ||
         hasAcl(p, 'contratos.clicksign', 'create') ||
         hasAcl(p, 'contratos.gerar_pdf', 'create')
-    p[L.PAGAMENTOS_VIEW] = hasAcl(p, 'pagamentos.registro', 'read')
+    p[L.PAGAMENTOS_VIEW] =
+        hasAcl(p, 'pagamentos.registro', 'read') || hasAcl(p, 'pagamentos.resumo', 'read')
     p[L.PAGAMENTOS_EDIT] =
         hasAcl(p, 'pagamentos.registro', 'update') ||
         hasAcl(p, 'pagamentos.registro', 'create') ||

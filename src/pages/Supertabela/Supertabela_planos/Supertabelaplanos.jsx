@@ -50,7 +50,7 @@ import {
 } from '../../../lib/exportSupertabelaExcel.js'
 import {
     carregarContagemESugestoesRealizadoresPlanos,
-    montarCidadesAlvoTabelaPlanos,
+    montarCidadesAlvoContagemPrestadores,
 } from '../../../lib/impressaoPlanos/contagemRealizadoresPlanosDev.js'
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
@@ -1206,7 +1206,7 @@ const Supertabelaplanos = () => {
         const run = async () => {
             setCarregandoContagemRealizadores(true)
             try {
-                const cidadesAlvo = montarCidadesAlvoTabelaPlanos(
+                const cidadesAlvo = montarCidadesAlvoContagemPrestadores(
                     cidadeSelecionada,
                     vinculosDaCidadeSelecionada,
                 )

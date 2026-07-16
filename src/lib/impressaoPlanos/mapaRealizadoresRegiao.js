@@ -3,6 +3,7 @@ import {
     normCodigoProcedimento,
     prestadorAtendeAlgumaCidadeAlvo,
 } from '../buscarQuemRealizaPrestadores.js'
+import { anexarLocalidadeVinculoAoCtx } from '../prestadorLocalidadeVinculo.js'
 import { mapaCodigosPorPrestadorDeVinculos } from '../prestadorProcedimentos.js'
 import { carregarMapaNomesAlternativosPrestador } from '../prestadorNomeAlternativo.js'
 
@@ -11,6 +12,10 @@ const MIN_REALIZADORES_PRE_MARCAR = 3
 export { MIN_REALIZADORES_PRE_MARCAR }
 
 /**
+ * Contagem de realizadores por código na cidade.
+ * Regra unificada com Supertabela Planos/Cidades (`prestadorAtendeAlgumaCidadeAlvo`):
+ * credenciado + procedimento + (endereço principal OU lista paralela do perfil).
+ *
  * @returns {Promise<{ contagemPorCodigo: Map<string, number>, prestadoresPorCodigo: Map<string, number[]>, mapaAltPorPrestadorId: Map<number, Map<string, string>> }>}
  */
 export async function montarMapasRealizadoresRegiao(supabase, opcoes) {
@@ -20,6 +25,7 @@ export async function montarMapasRealizadoresRegiao(supabase, opcoes) {
         incluirCidadesParalelas = true,
         prestadores = [],
         prestadorCidades = [],
+        prestadorEstabelecimentos = [],
         mapaCidadesCred = new Map(),
         mapaCodigoPorProcedimentoId = new Map(),
     } = opcoes
@@ -32,7 +38,11 @@ export async function montarMapasRealizadoresRegiao(supabase, opcoes) {
         return { contagemPorCodigo, prestadoresPorCodigo, mapaAltPorPrestadorId: new Map() }
     }
 
-    const ctxFiltro = { mapaCidadesCred, prestadorCidades, incluirCidadesParalelas }
+    const ctxFiltro = anexarLocalidadeVinculoAoCtx(
+        { mapaCidadesCred, prestadorCidades, incluirCidadesParalelas },
+        prestadores,
+        prestadorEstabelecimentos,
+    )
     const candidatos = (prestadores || []).filter((p) =>
         prestadorAtendeAlgumaCidadeAlvo(p, cidadesAlvo, ctxFiltro),
     )

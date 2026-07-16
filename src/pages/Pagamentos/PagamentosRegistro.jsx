@@ -25,6 +25,7 @@ import {
     atualizarPagamentoRegistro,
     encontrarDuplicataPrestadorCompetencia,
     excluirPagamentoRegistro,
+    formatarDataAtualizadoEm,
     inserirPagamentoRegistro,
     listarPagamentosRegistros,
     listarPagamentosRegistrosIntervalo,
@@ -441,6 +442,11 @@ export default function PagamentosRegistro() {
                     return cmpBool(a.resposta, b.resposta)
                 case 'pago':
                     return cmpBool(a.pago, b.pago)
+                case 'atualizadoEm': {
+                    const ta = a.atualizadoEm ? new Date(a.atualizadoEm).getTime() : 0
+                    const tb = b.atualizadoEm ? new Date(b.atualizadoEm).getTime() : 0
+                    return cmpNum(ta, tb)
+                }
                 case 'obs':
                     return cmpStr(a.obs, b.obs)
                 case 'prestador':
@@ -1422,6 +1428,11 @@ export default function PagamentosRegistro() {
                                             Pago{indicadorOrdem('pago')}
                                         </button>
                                     </th>
+                                    <th className="pag_reg_col_atualizado">
+                                        <button type="button" onClick={() => alternarOrdenacao('atualizadoEm')}>
+                                            Atualizado{indicadorOrdem('atualizadoEm')}
+                                        </button>
+                                    </th>
                                     <th className="pag_reg_col_obs">
                                         <button type="button" onClick={() => alternarOrdenacao('obs')}>
                                             Obs{indicadorOrdem('obs')}
@@ -1433,7 +1444,7 @@ export default function PagamentosRegistro() {
                             <tbody>
                                 {linhasFiltradas.length === 0 && (
                                     <tr>
-                                        <td colSpan={podeEditar ? 9 : 8} className="pag_reg_empty">
+                                        <td colSpan={podeEditar ? 10 : 9} className="pag_reg_empty">
                                             Nenhum registro no intervalo De–Até selecionado.
                                         </td>
                                     </tr>
@@ -1538,6 +1549,13 @@ export default function PagamentosRegistro() {
                                                 />
                                                 <span className="pag_reg_sr_only">Pago</span>
                                             </label>
+                                        </td>
+                                        <td
+                                            data-label="Atualizado"
+                                            className="pag_reg_col_atualizado"
+                                            title={row.atualizadoEm || ''}
+                                        >
+                                            {formatarDataAtualizadoEm(row.atualizadoEm)}
                                         </td>
                                         <td data-label="Obs" className="pag_reg_col_obs">
                                             <input
@@ -1665,6 +1683,10 @@ export default function PagamentosRegistro() {
                                             Pago
                                         </label>
                                     </div>
+                                    <p className="pag_reg_card_meta" title={row.atualizadoEm || ''}>
+                                        <span className="pag_reg_card_field_label">Atualizado</span>
+                                        {formatarDataAtualizadoEm(row.atualizadoEm)}
+                                    </p>
                                     <label className="pag_reg_card_field">
                                         <span>Obs</span>
                                         <input

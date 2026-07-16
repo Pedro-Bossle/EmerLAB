@@ -720,6 +720,15 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     padding-right: 4px;
 }
 
+.pag_reg_col_atualizado {
+    width: 6.5rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    font-size: 0.82rem;
+    color: #556677;
+}
+
 .pag_reg_col_obs {
     width: 16%;
     min-width: 8rem;

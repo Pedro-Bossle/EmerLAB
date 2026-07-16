@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js'
+import { buscarTodosPaginado, supabase } from './supabase.js'
 import { normalizarTextoBusca } from './prestadorCadastroHelpers.js'
 
 const TABELA = 'pagamentos_registros'
@@ -20,6 +20,17 @@ export function mapRowPagamento(row) {
         criadoEm: row.criado_em,
         atualizadoEm: row.atualizado_em,
     }
+}
+
+/** Data `atualizado_em` no formato DD/MM/AAAA. */
+export function formatarDataAtualizadoEm(iso) {
+    if (!iso) return '—'
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return '—'
+    const dd = String(d.getDate()).padStart(2, '0')
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const yyyy = d.getFullYear()
+    return `${dd}/${mm}/${yyyy}`
 }
 
 /** Chave estável para unicidade por competência (id do cadastro ou nome normalizado). */
@@ -116,14 +127,15 @@ function rowParaInsert(row) {
 }
 
 export async function listarPagamentosRegistros({ mes, ano } = {}) {
-    let q = supabase.from(TABELA).select('*')
-    if (mes != null) q = q.eq('mes', mes)
-    if (ano != null) q = q.eq('ano', ano)
-    if (mes == null && ano == null) {
-        q = q.order('ano', { ascending: false }).order('mes', { ascending: false })
-    }
-    q = q.order('criado_em', { ascending: true })
-    const { data, error } = await q
+    const { data, error } = await buscarTodosPaginado(() => {
+        let q = supabase.from(TABELA).select('*')
+        if (mes != null) q = q.eq('mes', mes)
+        if (ano != null) q = q.eq('ano', ano)
+        if (mes == null && ano == null) {
+            q = q.order('ano', { ascending: false }).order('mes', { ascending: false })
+        }
+        return q.order('criado_em', { ascending: true }).order('id', { ascending: true })
+    })
     if (error) throw new Error(error.message)
     return (data || []).map(mapRowPagamento)
 }
@@ -132,6 +144,80 @@ export async function listarPagamentosRegistrosIntervalo(mesDe, anoDe, mesAte, a
     const intervalo = normalizarIntervaloCompetencia(mesDe, anoDe, mesAte, anoAte)
     const todos = await listarPagamentosRegistros()
     return todos.filter((r) => registroNoIntervaloCompetencia(r, intervalo))
+}
+
+/**
+ * Nota/resposta enviada e ainda não pagos (`resposta && !pago`).
+ * Base da tela Resumo de Pagamentos.
+ */
+export async function listarPagamentosPendentesNota() {
+    const { data, error } = await buscarTodosPaginado(() =>
+        supabase
+            .from(TABELA)
+            .select('*')
+            .eq('resposta', true)
+            .eq('pago', false)
+            .order('ano', { ascending: false })
+            .order('mes', { ascending: false })
+            .order('id', { ascending: true }),
+    )
+    if (error) throw new Error(error.message)
+    return (data || []).map(mapRowPagamento)
+}
+
+/**
+ * Agrupa pendências por prestador: meses em aberto + total.
+ */
+export function agruparPendenciasPorPrestador(registros) {
+    /** @type {Map<string, any>} */
+    const mapa = new Map()
+
+    for (const r of registros || []) {
+        if (!r?.resposta || r.pago) continue
+        const chave = chaveUnicaPrestadorCompetencia(r) || `row:${r.id}` || `anon:${mapa.size}`
+        if (!mapa.has(chave)) {
+            mapa.set(chave, {
+                chave,
+                prestadorId: r.prestadorId || '',
+                prestadorNome: String(r.prestadorNome || '').trim() || '—',
+                tipoRepasse: r.tipoRepasse || '',
+                chavePix: r.chavePix || '',
+                total: 0,
+                meses: [],
+            })
+        }
+        const g = mapa.get(chave)
+        if (!g.tipoRepasse && r.tipoRepasse) g.tipoRepasse = r.tipoRepasse
+        if (!g.chavePix && r.chavePix) g.chavePix = r.chavePix
+        if (r.prestadorId && !g.prestadorId) g.prestadorId = r.prestadorId
+        const nome = String(r.prestadorNome || '').trim()
+        if (nome && (g.prestadorNome === '—' || nome.length > g.prestadorNome.length)) {
+            g.prestadorNome = nome
+        }
+        g.meses.push({
+            id: r.id,
+            mes: r.mes,
+            ano: r.ano,
+            valor: r.valor,
+            atualizadoEm: r.atualizadoEm || null,
+            registro: { ...r },
+        })
+        g.total += Number(r.valor) || 0
+    }
+
+    const lista = [...mapa.values()]
+    for (const g of lista) {
+        g.meses.sort((a, b) => compararCompetencia(a.mes, a.ano, b.mes, b.ano))
+        g.qtdMeses = g.meses.length
+    }
+    lista.sort((a, b) => {
+        if (b.qtdMeses !== a.qtdMeses) return b.qtdMeses - a.qtdMeses
+        if (b.total !== a.total) return b.total - a.total
+        return String(a.prestadorNome || '').localeCompare(String(b.prestadorNome || ''), 'pt-BR', {
+            sensitivity: 'base',
+        })
+    })
+    return lista
 }
 
 export async function inserirPagamentoRegistro(row) {

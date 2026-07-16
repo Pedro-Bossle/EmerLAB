@@ -121,6 +121,7 @@ const menuItems = [
         permission: PERMISSION_KEYS.PAGAMENTOS_VIEW,
         children: [
             { label: 'Registro', href: '/pagamentos/registro', permission: PERMISSION_KEYS.PAGAMENTOS_VIEW },
+            { label: 'Resumo', href: '/pagamentos/resumo', permission: PERMISSION_KEYS.PAGAMENTOS_VIEW },
         ],
     },
     {

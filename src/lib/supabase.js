@@ -107,7 +107,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 // O Supabase aplica um teto de 1000 linhas por requisição (PostgREST default).
 // Quando temos tabelas como planos_cidade/procedimentos/repasses que excedem isso,
 // é necessário paginar via .range() para trazer todos os registros.
-const TAMANHO_PAGINA_SUPABASE = 1000
+export const TAMANHO_PAGINA_SUPABASE = 1000
 
 export const buscarTodosPaginado = async (montarQuery) => {
   const acumulado = []
@@ -132,5 +132,39 @@ export const buscarTodosPaginado = async (montarQuery) => {
     if (pagina > 200) break
   }
 
+  return { data: acumulado, error: null }
+}
+
+/**
+ * Busca com filtro `.in(...)` em fatias + paginação por range em cada fatia.
+ *
+ * Necessário quando um único `.in(ids)` pode devolver >1000 linhas
+ * (ex.: prestador_procedimentos de ~25–40 prestadores numa região grande).
+ * Sem isso o PostgREST corta silenciosamente e contagens de realizadores ficam erradas.
+ *
+ * @param {unknown[]} ids — valores para o `.in` (números ou strings)
+ * @param {(fatia: unknown[]) => any} montarQuery — deve incluir `.order(...)` estável
+ * @param {{ tamanhoLote?: number }} [opcoes]
+ * @returns {Promise<{ data: any[], error: Error|null }>}
+ */
+export const buscarEmLotesPaginado = async (ids, montarQuery, opcoes = {}) => {
+  const tamanhoLote = Math.max(1, Number(opcoes.tamanhoLote) || 25)
+  const vistos = new Set()
+  const lista = []
+  for (const raw of ids || []) {
+    if (raw == null || raw === '') continue
+    const chave = typeof raw === 'number' || typeof raw === 'string' ? raw : String(raw)
+    if (vistos.has(chave)) continue
+    vistos.add(chave)
+    lista.push(raw)
+  }
+
+  const acumulado = []
+  for (let i = 0; i < lista.length; i += tamanhoLote) {
+    const fatia = lista.slice(i, i + tamanhoLote)
+    const { data, error } = await buscarTodosPaginado(() => montarQuery(fatia))
+    if (error) return { data: acumulado, error }
+    acumulado.push(...(data || []))
+  }
   return { data: acumulado, error: null }
 }

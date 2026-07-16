@@ -1,4 +1,4 @@
-import { buscarTodosPaginado, supabase } from '../supabase.js'
+import { buscarEmLotesPaginado, buscarTodosPaginado, supabase } from '../supabase.js'
 import { carregarDadosCredenciamentoQuemRealiza } from '../buscarQuemRealizaPrestadores.js'
 import {
     buscarCategoriaLimitesGrupo,
@@ -24,6 +24,8 @@ import {
     MIN_REALIZADORES_PRE_MARCAR,
     montarMapasRealizadoresRegiao,
 } from './mapaRealizadoresRegiao.js'
+import { montarCidadesAlvoContagemPrestadores } from './contagemRealizadoresPlanosDev.js'
+import { carregarVinculosMunicipios } from '../cidadesSupertabelaVinculos.js'
 
 const normCodigo = (c) => String(c || '').trim().toUpperCase()
 
@@ -132,11 +134,16 @@ export async function carregarLinhasImpressaoPlanos(opcoes) {
         throw new Error('Não há procedimentos elegíveis para este plano e cidade.')
     }
 
-    const { data: procedimentosData, error: errProc } = await supabase
-        .from('procedimentos')
-        .select('id, codigo, nome, categoria_id, plano_base_id')
-        .in('codigo', codigosCidade)
-
+    const { data: procedimentosData, error: errProc } = await buscarEmLotesPaginado(
+        codigosCidade,
+        (fatia) =>
+            supabase
+                .from('procedimentos')
+                .select('id, codigo, nome, categoria_id, plano_base_id')
+                .in('codigo', fatia)
+                .order('id', { ascending: true }),
+        { tamanhoLote: 100 },
+    )
     if (errProc) throw new Error(`Erro ao carregar procedimentos: ${errProc.message}`)
 
     const procedimentosElegiveis = (procedimentosData || []).filter((p) => {
@@ -181,7 +188,15 @@ export async function carregarLinhasImpressaoPlanos(opcoes) {
         dadosCred.todosPrestadores?.length > 0 ? dadosCred.todosPrestadores : dadosCred.prestadores || []
 
     const municipioAlvo = String(opcoes.municipioNome || cidadeRow.nome || '').trim()
-    const cidadesAlvo = [{ nome: municipioAlvo, uf: cidadeRow.uf }]
+    let vinculosDaTabela = []
+    try {
+        const todosVinculos = await carregarVinculosMunicipios(supabase)
+        vinculosDaTabela = (todosVinculos || []).filter((v) => Number(v.cidade_id) === cidadeId)
+    } catch {
+        vinculosDaTabela = []
+    }
+    // Região da tabela (município principal + vinculados), não só o município escolhido no select.
+    const cidadesAlvo = montarCidadesAlvoContagemPrestadores(cidadeRow, vinculosDaTabela)
 
     const codigosNorm = procedimentosElegiveis.map((p) => normCodigo(p.codigo))
     const { contagemPorCodigo, prestadoresPorCodigo, mapaAltPorPrestadorId } = await montarMapasRealizadoresRegiao(
@@ -192,6 +207,7 @@ export async function carregarLinhasImpressaoPlanos(opcoes) {
             incluirCidadesParalelas,
             prestadores: prestadoresCredenciados,
             prestadorCidades: dadosCred.prestadorCidades,
+            prestadorEstabelecimentos: dadosCred.prestadorEstabelecimentos,
             mapaCidadesCred: dadosCred.mapaCidadesCred,
             mapaCodigoPorProcedimentoId: dadosCred.mapaCodigoPorProcedimentoId,
         },

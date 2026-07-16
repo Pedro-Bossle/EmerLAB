@@ -40,36 +40,57 @@ export default function CredenciamentoEspecialidadesCidade() {
         const run = async () => {
             setLoading(true)
             try {
-                const [
-                    { data: prest },
-                    { data: pc },
-                    { data: cc },
-                    { data: esps },
-                    { data: pe },
-                    { data: sit },
-                    { data: peEst },
-                ] = await Promise.all([
-                        supabase
-                            .from('prestadores')
-                            .select(
-                                'id, nome, especialidade_id, endereco_uf, endereco_cidade, cidade_id, tipo, ativo, situacao_id',
-                            )
-                            .eq('ativo', true),
-                        supabase.from('prestador_cidades').select('prestador_id, cidade_id'),
-                        supabase.from('cidades_credenciamento').select('id, nome'),
+                const [resPrest, resPc, resCc, { data: esps }, resPe, { data: sit }, resPeEst] =
+                    await Promise.all([
+                        buscarTodosPaginado(() =>
+                            supabase
+                                .from('prestadores')
+                                .select(
+                                    'id, nome, especialidade_id, endereco_uf, endereco_cidade, cidade_id, tipo, ativo, situacao_id',
+                                )
+                                .eq('ativo', true)
+                                .order('id', { ascending: true }),
+                        ),
+                        buscarTodosPaginado(() =>
+                            supabase
+                                .from('prestador_cidades')
+                                .select('prestador_id, cidade_id')
+                                .order('prestador_id', { ascending: true }),
+                        ),
+                        buscarTodosPaginado(() =>
+                            supabase
+                                .from('cidades_credenciamento')
+                                .select('id, nome')
+                                .order('id', { ascending: true }),
+                        ),
                         supabase.from('especialidades').select('id, nome, tipo').order('nome'),
-                        supabase.from('prestador_especialidades').select('prestador_id, especialidade_id, principal'),
+                        buscarTodosPaginado(() =>
+                            supabase
+                                .from('prestador_especialidades')
+                                .select('prestador_id, especialidade_id, principal')
+                                .order('prestador_id', { ascending: true }),
+                        ),
                         supabase.from('situacoes').select('id, descricao'),
-                        supabase.from('prestador_estabelecimentos').select('veterinario_id, estabelecimento_id, principal'),
+                        buscarTodosPaginado(() =>
+                            supabase
+                                .from('prestador_estabelecimentos')
+                                .select('veterinario_id, estabelecimento_id, principal')
+                                .order('veterinario_id', { ascending: true }),
+                        ),
                     ])
+                const prest = resPrest.data || []
+                const pc = resPc.data || []
+                const cc = resCc.data || []
+                const pe = resPe.data || []
+                const peEst = resPeEst.data || []
                 const listaSituacoes = sit || []
-                setTodosPrestadoresAtivos(prest || [])
-                setPrestadores((prest || []).filter((p) => prestadorEhCredenciado(p, listaSituacoes)))
-                setPrestadorCidades(pc || [])
-                setPrestadorEstabelecimentos(peEst || [])
-                setMapaCidadesCred(new Map((cc || []).map((c) => [Number(c.id), c.nome])))
+                setTodosPrestadoresAtivos(prest)
+                setPrestadores(prest.filter((p) => prestadorEhCredenciado(p, listaSituacoes)))
+                setPrestadorCidades(pc)
+                setPrestadorEstabelecimentos(peEst)
+                setMapaCidadesCred(new Map(cc.map((c) => [Number(c.id), c.nome])))
                 setEspecialidades(esps || [])
-                setPrestadorEspecialidades(pe || [])
+                setPrestadorEspecialidades(pe)
             } finally {
                 setLoading(false)
             }
@@ -164,11 +185,11 @@ export default function CredenciamentoEspecialidadesCidade() {
     }, [
         cidadeNome,
         uf,
+        buscarCidadesParalelas,
         prestadores,
         prestadorEspecialidades,
         especialidades,
         ctxCidade,
-        buscarCidadesParalelas,
     ])
 
     const maxTotal = useMemo(() => Math.max(1, ...grupos.map((g) => g.total)), [grupos])

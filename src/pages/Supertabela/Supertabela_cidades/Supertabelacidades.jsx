@@ -28,7 +28,7 @@ import {
 } from '../../../lib/planosHierarquia.js'
 import {
     carregarContagemESugestoesRealizadoresPlanos,
-    montarCidadesAlvoTabelaPlanos,
+    montarCidadesAlvoContagemPrestadores,
 } from '../../../lib/impressaoPlanos/contagemRealizadoresPlanosDev.js'
 import { exportarTabelaCidadeParaExcel } from '../../../lib/exportNegociacaoExcel.js'
 import ModalImpressaoHonorariosCidade from '../../../components/Supertabela/ModalImpressaoHonorariosCidade.jsx'
@@ -838,7 +838,7 @@ const Supertabelacidades = () => {
         const run = async () => {
             setCarregandoContagemRealizadores(true)
             try {
-                const cidadesAlvo = montarCidadesAlvoTabelaPlanos(
+                const cidadesAlvo = montarCidadesAlvoContagemPrestadores(
                     cidadeSelecionada,
                     vinculosDaCidadeSelecionada,
                 )

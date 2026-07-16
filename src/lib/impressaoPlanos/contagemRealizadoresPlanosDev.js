@@ -1,15 +1,34 @@
-import { supabase as supabaseDefault } from '../supabase.js'
+import { buscarEmLotesPaginado, supabase as supabaseDefault } from '../supabase.js'
 import {
     buscarVinculosPrestadorProcedimentosEmLote,
     carregarDadosCredenciamentoQuemRealiza,
     normCodigoProcedimento,
     prestadorAtendeAlgumaCidadeAlvo,
 } from '../buscarQuemRealizaPrestadores.js'
+import { anexarLocalidadeVinculoAoCtx } from '../prestadorLocalidadeVinculo.js'
 import { mapaCodigosPorPrestadorDeVinculos } from '../prestadorProcedimentos.js'
 
 /**
- * Municípios-alvo da tabela de valores (vínculos IBGE + fallback nome/UF da cidade).
- * Espelha a ideia da impressão de planos (cidade + UF), cobrindo municípios englobados.
+ * Alvos de contagem de prestadores (Planos Impressão, Supertabela Planos, Supertabela Cidades).
+ *
+ * Inclui o município principal da tabela + municípios vinculados («Gerenciar tabelas»).
+ * Ex.: Porto Alegre → Alvorada, Gravataí, Viamão, …
+ *
+ * Um prestador conta se tiver qualquer um desses nomes como:
+ *   (a) endereço principal, OU
+ *   (b) cidade na lista «Cidades que atende» com «Múltiplas cidades» ativo no perfil.
+ * Match via `prestadorAtendeAlgumaCidadeAlvo`.
+ *
+ * @param {{ nome?: string, uf?: string }|null} cidadeTabela
+ * @param {{ municipio_nome?: string, uf?: string }[]} [vinculosDaCidade]
+ * @returns {{ nome: string, uf: string }[]}
+ */
+export function montarCidadesAlvoContagemPrestadores(cidadeTabela, vinculosDaCidade = []) {
+    return montarCidadesAlvoTabelaPlanos(cidadeTabela, vinculosDaCidade)
+}
+
+/**
+ * Município principal da tabela + vínculos IBGE (mesma lista da contagem de realizadores).
  *
  * @param {{ nome?: string, uf?: string }|null} cidade
  * @param {{ municipio_nome?: string, uf?: string }[]} vinculosDaCidade
@@ -22,53 +41,119 @@ export function montarCidadesAlvoTabelaPlanos(cidade, vinculosDaCidade = []) {
     const lista = []
     const vistos = new Set()
 
-    for (const v of vinculosDaCidade || []) {
-        const nome = String(v.municipio_nome || '').trim()
-        const uf = String(v.uf || ufCidade)
+    const adicionar = (nomeRaw, ufRaw) => {
+        const nome = String(nomeRaw || '').trim()
+        const uf = String(ufRaw || ufCidade)
             .trim()
             .toUpperCase()
-        if (!nome || !uf) continue
+        if (!nome || !uf) return
         const chave = `${uf}|${nome.toLocaleLowerCase('pt-BR')}`
-        if (vistos.has(chave)) continue
+        if (vistos.has(chave)) return
         vistos.add(chave)
         lista.push({ nome, uf })
     }
 
-    if (lista.length) return lista
+    // Município principal da tabela (ex.: Porto Alegre)
+    adicionar(cidade?.nome, ufCidade)
 
-    const nome = String(cidade?.nome || '').trim()
-    if (nome && ufCidade) return [{ nome, uf: ufCidade }]
-    return []
+    // Municípios que usam os mesmos valores (ex.: Alvorada, Gravataí, …)
+    for (const v of vinculosDaCidade || []) {
+        adicionar(v.municipio_nome, v.uf || ufCidade)
+    }
+
+    return lista
+}
+
+/**
+ * Amplia o município escolhido (Quem Realiza / IBGE) para todos os municípios da mesma
+ * tabela-mestre Super-Tabela (via `cidades_municipios_vinculo`).
+ */
+export function montarCidadesAlvoMunicipioComRegiao(
+    municipioNome,
+    uf,
+    cidadesTabela = [],
+    vinculos = [],
+) {
+    const nome = String(municipioNome || '').trim()
+    const ufNorm = String(uf || '')
+        .trim()
+        .toUpperCase()
+    if (!nome) return []
+
+    const base = [{ nome, uf: ufNorm }]
+    if (!ufNorm || !cidadesTabela?.length) return base
+
+    // Importação local evita ciclo com cidadesSupertabelaVinculos ↔ contagem.
+    // Resolução inline por nome/UF.
+    const normChave = (t) =>
+        String(t || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toLowerCase()
+    const chaveAlvo = normChave(nome)
+
+    let cidadeId = null
+    for (const v of vinculos || []) {
+        if (String(v.uf || '').trim().toUpperCase() !== ufNorm) continue
+        if (normChave(v.municipio_nome) === chaveAlvo) {
+            cidadeId = Number(v.cidade_id)
+            break
+        }
+    }
+    if (!cidadeId) {
+        const legado = (cidadesTabela || []).find(
+            (c) =>
+                String(c.uf || '').trim().toUpperCase() === ufNorm &&
+                normChave(c.nome) === chaveAlvo,
+        )
+        if (legado) cidadeId = Number(legado.id)
+    }
+    if (!cidadeId) return base
+
+    const cidade = (cidadesTabela || []).find((c) => Number(c.id) === cidadeId)
+    if (!cidade) return base
+
+    const vins = (vinculos || []).filter((v) => Number(v.cidade_id) === cidadeId)
+    const ampliados = montarCidadesAlvoTabelaPlanos(cidade, vins)
+    return ampliados.length ? ampliados : base
 }
 
 async function carregarMetaProcedimentos(supabase, codigos) {
     const unicos = [...new Set((codigos || []).map(normCodigoProcedimento).filter(Boolean))]
     const mapa = new Map()
-    const TAM = 120
-    for (let i = 0; i < unicos.length; i += TAM) {
-        const fatia = unicos.slice(i, i + TAM)
-        const { data, error } = await supabase
-            .from('procedimentos')
-            .select('codigo, nome, categoria_id, plano_base_id')
-            .in('codigo', fatia)
-        if (error) throw new Error(error.message)
-        for (const p of data || []) {
-            const cod = normCodigoProcedimento(p.codigo)
-            if (!cod) continue
-            mapa.set(cod, {
-                codigo: cod,
-                nome: String(p.nome || '').trim() || cod,
-                categoriaId: p.categoria_id != null ? Number(p.categoria_id) : null,
-                planoBaseId: p.plano_base_id != null ? Number(p.plano_base_id) : null,
-            })
-        }
+    if (!unicos.length) return mapa
+
+    const { data, error } = await buscarEmLotesPaginado(
+        unicos,
+        (fatia) =>
+            supabase
+                .from('procedimentos')
+                .select('codigo, nome, categoria_id, plano_base_id')
+                .in('codigo', fatia)
+                .order('id', { ascending: true }),
+        { tamanhoLote: 100 },
+    )
+    if (error) throw new Error(error.message)
+
+    for (const p of data || []) {
+        const cod = normCodigoProcedimento(p.codigo)
+        if (!cod) continue
+        mapa.set(cod, {
+            codigo: cod,
+            nome: String(p.nome || '').trim() || cod,
+            categoriaId: p.categoria_id != null ? Number(p.categoria_id) : null,
+            planoBaseId: p.plano_base_id != null ? Number(p.plano_base_id) : null,
+        })
     }
     return mapa
 }
 
 /**
- * Contagem de prestadores/lab. que realizam cada procedimento na região (cidade + paralelas),
- * mesmo padrão da impressão de planos (`montarMapasRealizadoresRegiao`).
+ * Contagem de prestadores credenciados que realizam cada procedimento na cidade.
+ * Mesma regra que Planos Impressão (`montarMapasRealizadoresRegiao`) e Supertabela:
+ * endereço principal OU lista «Cidades que atende» (se «Múltiplas cidades» no perfil).
+ * Use `montarCidadesAlvoContagemPrestadores` para montar `cidadesAlvo`.
  *
  * @param {import('@supabase/supabase-js').SupabaseClient} [supabaseClient]
  * @param {{
@@ -115,11 +200,15 @@ export async function carregarContagemESugestoesRealizadoresPlanos(supabaseClien
             ? dadosCred.todosPrestadores
             : dadosCred.prestadores || []
 
-    const ctxFiltro = {
-        mapaCidadesCred: dadosCred.mapaCidadesCred,
-        prestadorCidades: dadosCred.prestadorCidades,
-        incluirCidadesParalelas,
-    }
+    const ctxFiltro = anexarLocalidadeVinculoAoCtx(
+        {
+            mapaCidadesCred: dadosCred.mapaCidadesCred,
+            prestadorCidades: dadosCred.prestadorCidades,
+            incluirCidadesParalelas,
+        },
+        prestadoresCredenciados,
+        dadosCred.prestadorEstabelecimentos,
+    )
     const candidatos = (prestadoresCredenciados || []).filter((p) =>
         prestadorAtendeAlgumaCidadeAlvo(p, cidadesAlvo, ctxFiltro),
     )

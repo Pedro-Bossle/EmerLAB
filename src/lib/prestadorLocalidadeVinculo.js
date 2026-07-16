@@ -27,7 +27,8 @@ export function montarEstabelecimentoPorVeterinarioDeListas(prestadores, prestad
 
 /**
  * Veterinário vinculado a clínica/equipe herda cidade, UF e cidade_id do estabelecimento.
- * Cidades paralelas (`prestador_cidades`) usam o id do estabelecimento.
+ * Em filtros de «Cidades que atendem», considerar `prestador_cidades` do vet **e** da clínica
+ * (`idsPrestadorCidadesParaFiltro` em buscarQuemRealizaPrestadores).
  */
 export function resolverLocalidadeEfetivaPrestador(prestador, estabelecimentoPorVeterinario) {
     const p = prestador || {}
