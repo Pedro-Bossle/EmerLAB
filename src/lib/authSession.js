@@ -74,13 +74,13 @@ const perfilInflightPorUsuario = new Map()
 async function buscarPerfilSupabasePorUserId(userId) {
   let { data: profileData, error } = await supabase
     .from('profiles')
-    .select('id, name, email, credenciamento_read_only, permissions')
+    .select('id, name, email, permissions')
     .eq('id', userId)
     .maybeSingle()
   if (error && String(error.message || '').includes('email')) {
     const fallback = await supabase
       .from('profiles')
-      .select('id, name, credenciamento_read_only, permissions')
+      .select('id, name, permissions')
       .eq('id', userId)
       .maybeSingle()
     profileData = fallback.data

@@ -7,6 +7,67 @@
     overflow-x: auto;
 }
 
+.permissoes_cascade_toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem;
+    margin-bottom: 0.25rem;
+}
+
+.permissoes_cascade_busca {
+    flex: 1 1 220px;
+    min-width: 0;
+    box-sizing: border-box;
+    border: 1px solid #c5d8e6;
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem;
+    font: inherit;
+    background: #fff;
+    color: inherit;
+}
+
+.permissoes_cascade_toolbar_btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.permissoes_cascade_toolbar_btn {
+    border: 1px solid #c5d8e6;
+    border-radius: 8px;
+    background: #eef5fb;
+    color: #123e59;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.permissoes_cascade_toolbar_btn:hover {
+    background: #e0eef8;
+}
+
+.permissoes_cascade_vazio {
+    margin: 0.5rem 0;
+    padding: 0.75rem;
+    border-radius: 10px;
+    border: 1px dashed #c5d8e6;
+    color: #6a8496;
+    font-size: 0.9rem;
+}
+
+.permissoes_cascade_grupo_count {
+    display: inline-flex;
+    margin-left: 0.4rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    background: rgba(47, 135, 198, 0.12);
+    font-size: 0.7rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
 .permissoes_cascade_legenda,
 .permissoes_cascade_linha,
 .permissoes_cascade_grupo_header {
@@ -111,6 +172,23 @@
     margin: 8px 0 0;
     font-size: 0.8rem;
     color: #6a8496;
+}
+
+body.dark-mode .permissoes_cascade_busca {
+    background: #1a2a36;
+    border-color: #2f4a5c;
+    color: #e8f2f8;
+}
+
+body.dark-mode .permissoes_cascade_toolbar_btn {
+    background: #223848;
+    border-color: #2f4a5c;
+    color: #e8f2f8;
+}
+
+body.dark-mode .permissoes_cascade_vazio {
+    border-color: #2f4a5c;
+    color: #9bb5c8;
 }
 
 body.dark-mode .permissoes_cascade_grupo {

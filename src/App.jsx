@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home/Home';
 import Login from './pages/Login/Login';
-import Layout from './components/Layout/Layout';
 import Layout2 from './components/Layout2/Layout2';
 import PrivateRoute from './components/PrivateRoute/PrivateRoute'
 import Supertabeladoc from './pages/Supertabela/Supertabela_doc/Supertabeladoc';
@@ -28,6 +27,7 @@ import CredenciamentoEspecialidadesRc from './pages/Credenciamento/Especialidade
 import CredenciamentoFormularioPublico from './pages/Credenciamento/Formulario/CredenciamentoFormularioPublico';
 import ConfigImportarCredenciados from './pages/Configuracoes/ImportarCredenciados/ConfigImportarCredenciados';
 import ConfigExportarCredenciados from './pages/Configuracoes/ExportarCredenciados/ConfigExportarCredenciados';
+import ConfigConferenciaLaboratorio from './pages/Configuracoes/ConferenciaLaboratorio/ConfigConferenciaLaboratorio';
 import GerenciamentoAcessos from './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos';
 import AdminAuditoria from './pages/Administrativo/Auditoria/AdminAuditoria';
 import ComprasValorVenda from './pages/Compras/ValorVenda/ComprasValorVenda';
@@ -45,8 +45,8 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/credenciamento/cadastro-publico" element={<CredenciamentoFormularioPublico />} />
         <Route path="/credenciamento/cadastro-publico/:slug" element={<CredenciamentoFormularioPublico />} />
-        {/* Com layout */}
-        <Route element={<Layout />}>
+        {/* Home pós-login: Layout2 (sidebar) */}
+        <Route element={<Layout2 />}>
           <Route
             path="/home"
             element={
@@ -258,6 +258,17 @@ function App() {
                 toolId="configuracoes.exportar_credenciados"
               >
                 <ConfigExportarCredenciados />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/configuracoes/conferencia-laboratorio"
+            element={
+              <PrivateRoute
+                permission="credenciamento.view"
+                toolId="configuracoes.conferencia_laboratorio"
+              >
+                <ConfigConferenciaLaboratorio />
               </PrivateRoute>
             }
           />

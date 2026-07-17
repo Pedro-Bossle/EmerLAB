@@ -42,8 +42,6 @@ const HERANCA_PERMISSAO_TELA = [
   [PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_CONFIG, PERMISSION_KEYS.CREDENCIAMENTO_EDIT],
   [PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_PAGINAS, PERMISSION_KEYS.CREDENCIAMENTO_EDIT],
   [PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_INBOX, PERMISSION_KEYS.CREDENCIAMENTO_VIEW],
-  [PERMISSION_KEYS.NOTIFICACOES_FORMULARIO, PERMISSION_KEYS.CREDENCIAMENTO_VIEW],
-  [PERMISSION_KEYS.NOTIFICACOES_CONTRATOS, PERMISSION_KEYS.CONTRATOS_VIEW],
   [PERMISSION_KEYS.PAGAMENTOS_VIEW, PERMISSION_KEYS.CREDENCIAMENTO_VIEW],
   [PERMISSION_KEYS.PAGAMENTOS_EDIT, PERMISSION_KEYS.CREDENCIAMENTO_EDIT],
   [PERMISSION_KEYS.PAGAMENTOS_EDIT, PERMISSION_KEYS.ACCESS_MANAGE],
@@ -64,21 +62,6 @@ export const PERMISSOES = [
         rotulo: 'Dev Tool',
         descricao:
             'Exibe a chave Dev (canto inferior direito): pesquisa NOT, colunas extras, exclusão por lista e apagar prestadores/entradas do formulário no banco.',
-      },
-    ],
-  },
-  {
-    grupo: 'Notificações',
-    itens: [
-      {
-        chave: PERMISSION_KEYS.NOTIFICACOES_FORMULARIO,
-        rotulo: 'Alertas do formulário público',
-        descricao: 'Sininho: pré-cadastros pendentes no inbox do formulário.',
-      },
-      {
-        chave: PERMISSION_KEYS.NOTIFICACOES_CONTRATOS,
-        rotulo: 'Alertas Clicksign (contratos)',
-        descricao: 'Sininho: eventos de assinatura e documentos via webhook/polling.',
       },
     ],
   },
@@ -250,14 +233,8 @@ export const DEFAULT_INVITED_PERMISSIONS = {
 export const normalizarPermissions = (profile = {}) => {
   const raw = profile?.permissions && typeof profile.permissions === 'object' ? profile.permissions : {}
   const temPermissions = Object.keys(raw).length > 0
-  const legadoCredReadonly = !!profile?.credenciamento_read_only
 
-  const base = temPermissions
-    ? { ...DEFAULT_INVITED_PERMISSIONS }
-    : {
-        ...DEFAULT_PROFILE_PERMISSIONS,
-        [PERMISSION_KEYS.CREDENCIAMENTO_EDIT]: !legadoCredReadonly,
-      }
+  const base = temPermissions ? { ...DEFAULT_INVITED_PERMISSIONS } : { ...DEFAULT_PROFILE_PERMISSIONS }
 
   const perms = {
     ...base,
@@ -276,7 +253,6 @@ export const normalizarProfileAcesso = (profile = {}) => ({
   id: profile?.id || null,
   name: profile?.name || '',
   email: profile?.email || '',
-  credenciamento_read_only: !!profile?.credenciamento_read_only,
   permissions: normalizarPermissions(profile),
 })
 

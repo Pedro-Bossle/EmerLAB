@@ -1,45 +1,47 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-
 import { isDevToolsEnabled, useStoredAccessProfile } from '../../lib/accessControl'
-
 import {
     alternarColunaDevTools,
     alternarDevToolsUiFlag,
     DEFAULT_COLUNAS_NEGOCIACOES,
     useDevToolsUi,
 } from '../../lib/devToolsUi'
-
 import './DevToolsFloating.css'
 
+const POS_STORAGE_KEY = 'sfsc_dev_tools_float_pos_v1'
+const MODE_STORAGE_KEY = 'sfsc_dev_tools_float_mode_v1'
+const BTN = 52
+const BTN_COMPACT_W = 24
+const BTN_COMPACT_H = 54
+const MARGIN = 8
+const DRAWER_GAP = 8
+const DRAWER_W = 300
+const DRAWER_MAX_H = 480
 
+/** Viewport útil (sem a faixa da scrollbar — evita cobrir a gaveta). */
+function viewportUtil() {
+    if (typeof window === 'undefined') return { width: 1280, height: 720 }
+    const doc = document.documentElement
+    return {
+        width: doc?.clientWidth || window.innerWidth,
+        height: doc?.clientHeight || window.innerHeight,
+    }
+}
 
 const ITENS_GLOBAIS = [
-
     {
-
         chave: 'exclusaoMassa',
-
         rotulo: 'Exclusão por lista',
-
         descricao: 'Somente Super-Tabela › Planos (modo Ver diferenças).',
-
     },
-
     {
-
         chave: 'contagemRealizadoresPlanos',
-
         rotulo: 'Prestadores por procedimento',
-
         descricao:
             'Super-Tabela › Planos (diferenças) e › Cidades: coluna com quantos realizam o procedimento (cidade + paralelas) e sugestões no fim da página.',
-
     },
-
 ]
-
-
 
 const ITENS_NEGOCIACOES = [
     {
@@ -50,161 +52,374 @@ const ITENS_NEGOCIACOES = [
 ]
 
 const ITENS_CADASTRO = [
-
     { chave: 'perfil', rotulo: 'Coluna Perfil %', descricao: 'Cadastro de prestadores: barra de completude da ficha.' },
-
     { chave: 'crmv', rotulo: 'Coluna CRMV', descricao: 'Cadastro de prestadores: exibe CRMV na lista.' },
-
-    { chave: 'procs', rotulo: 'Coluna Procedimentos', descricao: 'Cadastro de prestadores: quantidade de procedimentos (vets e clínicas).' },
-
+    {
+        chave: 'procs',
+        rotulo: 'Coluna Procedimentos',
+        descricao: 'Cadastro de prestadores: quantidade de procedimentos (vets e clínicas).',
+    },
     {
         chave: 'copiarCodigosProcs',
         rotulo: 'Copiar códigos do perfil',
         descricao:
             'Cadastro: botão para copiar só os códigos dos procedimentos do perfil (lista e ficha do prestador).',
     },
-
     {
-
         chave: 'ocultarVetsClinica',
-
         rotulo: 'Ocultar vets em clínicas',
-
         descricao: 'Cadastro: esconde veterinários vinculados a estabelecimentos.',
-
     },
-
     {
         chave: 'coordenadasMapa',
         rotulo: 'Latitude / longitude',
         descricao: 'Cadastro: campos editáveis de coordenadas (mapa).',
     },
-
 ]
 
+function lerPosicaoSalva() {
+    try {
+        const raw = localStorage.getItem(POS_STORAGE_KEY)
+        if (!raw) return null
+        const p = JSON.parse(raw)
+        if (typeof p?.x === 'number' && typeof p?.y === 'number') return { x: p.x, y: p.y }
+    } catch {
+        /* ignore */
+    }
+    return null
+}
 
+function salvarPosicao(pos) {
+    try {
+        localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(pos))
+    } catch {
+        /* ignore */
+    }
+}
+
+function lerModoCompacto() {
+    try {
+        return localStorage.getItem(MODE_STORAGE_KEY) === 'compact'
+    } catch {
+        return false
+    }
+}
+
+function salvarModoCompacto(compacto) {
+    try {
+        localStorage.setItem(MODE_STORAGE_KEY, compacto ? 'compact' : 'normal')
+    } catch {
+        /* ignore */
+    }
+}
+
+function tamanhoBotao(compacto = false) {
+    return compacto ? { w: BTN_COMPACT_W, h: BTN_COMPACT_H } : { w: BTN, h: BTN }
+}
+
+function posicaoPadrao() {
+    if (typeof window === 'undefined') return { x: 18, y: 18 }
+    const { width, height } = viewportUtil()
+    return {
+        x: Math.max(MARGIN, width - BTN - 18),
+        y: Math.max(MARGIN, height - BTN - 18),
+    }
+}
+
+function clamparPosicao(x, y, compacto = false) {
+    const { w, h } = tamanhoBotao(compacto)
+    const { width, height } = viewportUtil()
+    const maxX = Math.max(MARGIN, width - w - MARGIN)
+    const maxY = Math.max(MARGIN, height - h - MARGIN)
+    return {
+        x: Math.min(maxX, Math.max(MARGIN, x)),
+        y: Math.min(maxY, Math.max(MARGIN, y)),
+    }
+}
+
+function snapPosicaoCompacta(pos) {
+    if (typeof window === 'undefined') return pos
+    const { w } = tamanhoBotao(true)
+    const { width } = viewportUtil()
+    const ladoDireito = pos.x + w / 2 > width / 2
+    const y = clamparPosicao(pos.x, pos.y, true).y
+    return {
+        x: ladoDireito ? Math.max(0, width - w) : 0,
+        y,
+    }
+}
+
+/** Borda dominante para abrir a gaveta para “dentro” da tela. */
+function detectarAncora(pos, compacto = false) {
+    const { w, h } = tamanhoBotao(compacto)
+    const { width, height } = viewportUtil()
+    const cx = pos.x + w / 2
+    const cy = pos.y + h / 2
+    const distL = cx
+    const distR = width - cx
+    const distT = cy
+    const distB = height - cy
+    const min = Math.min(distL, distR, distT, distB)
+    if (min === distR) return 'right'
+    if (min === distL) return 'left'
+    if (min === distT) return 'top'
+    return 'bottom'
+}
+
+function calcularDrawerStyle(pos, ancora, compacto = false) {
+    if (typeof window === 'undefined') return undefined
+
+    const { w, h } = tamanhoBotao(compacto)
+    const { width, height } = viewportUtil()
+    const drawerW = Math.min(DRAWER_W, width - MARGIN * 3)
+    const drawerH = Math.min(DRAWER_MAX_H, Math.floor(height * 0.68))
+    const centroX = pos.x + w / 2
+    const centroY = pos.y + h / 2
+    const clampX = (value) => Math.min(width - drawerW - MARGIN, Math.max(MARGIN, value))
+    const clampY = (value) => Math.min(height - drawerH - MARGIN, Math.max(MARGIN, value))
+
+    let left = clampX(centroX - drawerW / 2)
+    let top = clampY(centroY - drawerH / 2)
+
+    if (ancora === 'left') {
+        left = clampX(pos.x + w + DRAWER_GAP)
+        top = clampY(centroY - drawerH / 2)
+    } else if (ancora === 'right') {
+        left = clampX(pos.x - DRAWER_GAP - drawerW)
+        top = clampY(centroY - drawerH / 2)
+    } else if (ancora === 'top') {
+        left = clampX(centroX - drawerW / 2)
+        top = clampY(pos.y + h + DRAWER_GAP)
+    } else if (ancora === 'bottom') {
+        left = clampX(centroX - drawerW / 2)
+        top = clampY(pos.y - DRAWER_GAP - drawerH)
+    }
+
+    return {
+        '--dev-tools-drawer-left': `${left}px`,
+        '--dev-tools-drawer-top': `${top}px`,
+        '--dev-tools-drawer-width': `${drawerW}px`,
+        '--dev-tools-drawer-max-height': `${drawerH}px`,
+    }
+}
 
 export default function DevToolsFloating() {
-
     const profile = useStoredAccessProfile()
     const permitido = isDevToolsEnabled(profile)
-
     const { pathname } = useLocation()
     const acimaRodapeFormulario = /\/credenciamento\/cadastro\/[^/]+/.test(pathname)
 
     const [aberto, setAberto] = useState(false)
-
+    const [compacto, setCompacto] = useState(() => lerModoCompacto())
+    const [pos, setPos] = useState(() => {
+        const compact = lerModoCompacto()
+        const saved = lerPosicaoSalva() || posicaoPadrao()
+        if (typeof window === 'undefined') return saved
+        const next = clamparPosicao(saved.x, saved.y, compact)
+        return compact ? snapPosicaoCompacta(next) : next
+    })
     const { ui } = useDevToolsUi()
 
-    const painelRef = useRef(null)
+    const rootRef = useRef(null)
+    const dragRef = useRef({ ativo: false, moved: false, ox: 0, oy: 0, sx: 0, sy: 0 })
 
-    const btnRef = useRef(null)
+    const ancora = detectarAncora(pos, compacto)
 
-
+    const aplicarClamp = useCallback(() => {
+        setPos((p) => {
+            let next = clamparPosicao(p.x, p.y, compacto)
+            if (compacto) {
+                next = snapPosicaoCompacta(next)
+            } else if (acimaRodapeFormulario && next.y > viewportUtil().height - BTN - 74) {
+                next = clamparPosicao(next.x, viewportUtil().height - BTN - 74, compacto)
+            }
+            return next
+        })
+    }, [acimaRodapeFormulario, compacto])
 
     useEffect(() => {
-
-        if (!aberto) return undefined
-
-        const onDoc = (e) => {
-
-            const alvo = e.target
-
-            if (painelRef.current?.contains(alvo) || btnRef.current?.contains(alvo)) return
-
-            setAberto(false)
-
+        aplicarClamp()
+        const onResize = () => aplicarClamp()
+        window.addEventListener('resize', onResize)
+        const ro =
+            typeof ResizeObserver !== 'undefined'
+                ? new ResizeObserver(() => aplicarClamp())
+                : null
+        if (ro && document.documentElement) {
+            ro.observe(document.documentElement)
         }
-
-        const onKey = (e) => {
-
-            if (e.key === 'Escape') setAberto(false)
-
-        }
-
-        document.addEventListener('mousedown', onDoc)
-
-        document.addEventListener('keydown', onKey)
-
         return () => {
-
-            document.removeEventListener('mousedown', onDoc)
-
-            document.removeEventListener('keydown', onKey)
-
+            window.removeEventListener('resize', onResize)
+            ro?.disconnect()
         }
+    }, [aplicarClamp])
 
+    useEffect(() => {
+        if (!aberto) return undefined
+        const onDoc = (e) => {
+            if (rootRef.current?.contains(e.target)) return
+            setAberto(false)
+        }
+        const onKey = (e) => {
+            if (e.key === 'Escape') setAberto(false)
+        }
+        document.addEventListener('mousedown', onDoc)
+        document.addEventListener('keydown', onKey)
+        return () => {
+            document.removeEventListener('mousedown', onDoc)
+            document.removeEventListener('keydown', onKey)
+        }
     }, [aberto])
 
+    const onPointerDown = (e) => {
+        if (e.button != null && e.button !== 0) return
+        const el = e.currentTarget
+        el.setPointerCapture?.(e.pointerId)
+        dragRef.current = {
+            ativo: true,
+            moved: false,
+            ox: e.clientX,
+            oy: e.clientY,
+            sx: pos.x,
+            sy: pos.y,
+        }
+    }
 
+    const onPointerMove = (e) => {
+        const d = dragRef.current
+        if (!d.ativo) return
+        const dx = e.clientX - d.ox
+        const dy = e.clientY - d.oy
+        if (!d.moved && dx * dx + dy * dy > 16) d.moved = true
+        if (!d.moved) return
+        e.preventDefault()
+        const next = clamparPosicao(d.sx + dx, d.sy + dy, compacto)
+        setPos(compacto ? snapPosicaoCompacta(next) : next)
+    }
+
+    const onPointerUp = (e) => {
+        const d = dragRef.current
+        if (!d.ativo) return
+        d.ativo = false
+        e.currentTarget.releasePointerCapture?.(e.pointerId)
+        if (d.moved) {
+            setPos((p) => {
+                const next = compacto ? snapPosicaoCompacta(p) : clamparPosicao(p.x, p.y, compacto)
+                salvarPosicao(next)
+                return next
+            })
+            return
+        }
+        setAberto((v) => !v)
+    }
+
+    const alternarModoCompacto = () => {
+        const prox = !compacto
+        setCompacto(prox)
+        salvarModoCompacto(prox)
+        setPos((p) => {
+            const next = prox ? snapPosicaoCompacta(p) : clamparPosicao(p.x, p.y, false)
+            salvarPosicao(next)
+            return next
+        })
+        if (prox) setAberto(false)
+    }
 
     if (!permitido) return null
 
-
-
     const colCad = ui.colunasCadastro || {}
     const colNeg = ui.colunasNegociacoes || {}
-
     const algumAtivo =
         ui.exclusaoMassa ||
         ui.contagemRealizadoresPlanos ||
         Object.values(ui.colunasProcessos || {}).some(Boolean) ||
         Object.values(colCad).some(Boolean) ||
         colNeg.vinculoPrestadorLista !== DEFAULT_COLUNAS_NEGOCIACOES.vinculoPrestadorLista
-
-
+    const drawerStyle = calcularDrawerStyle(pos, ancora, compacto)
+    const rotuloModo = compacto ? 'Restaurar ícone' : 'Minimizar'
 
     return (
-
         <div
-            className={`dev_tools_float${acimaRodapeFormulario ? ' dev_tools_float--rodape_fixo' : ''}`}
+            ref={rootRef}
+            className={`dev_tools_float is-anchor-${ancora}${aberto ? ' is-open' : ''}${algumAtivo ? ' is-active' : ''}${compacto ? ' is-compact' : ''}${acimaRodapeFormulario ? ' dev_tools_float--rodape_formo' : ''}`}
+            style={{ left: pos.x, top: pos.y }}
             aria-live="polite"
         >
+            <button
+                type="button"
+                className="dev_tools_float_btn"
+                aria-label="Ferramentas Dev Tool"
+                aria-expanded={aberto}
+                title={compacto ? 'Dev Tool — clique para abrir, arraste para mover' : 'Dev Tool — arraste para mover, clique para abrir'}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerUp}
+            >
+                {compacto ? (
+                    <span className="dev_tools_float_btn_tab" aria-hidden="true">
+                        {ancora === 'right' ? '<' : '>'}
+                    </span>
+                ) : (
+                    <>
+                        <span className="dev_tools_float_btn_ico" aria-hidden="true">
+                            🔧
+                        </span>
+                        <span className="dev_tools_float_btn_grip" aria-hidden="true" />
+                    </>
+                )}
+            </button>
 
-            {aberto && (
-
-                <div ref={painelRef} className="dev_tools_float_panel" role="dialog" aria-label="Ferramentas de desenvolvimento">
-
-                    <p className="dev_tools_float_titulo">Dev Tool</p>
+            <div
+                className={`dev_tools_float_drawer${aberto ? ' is-open' : ''}`}
+                style={drawerStyle}
+                role="dialog"
+                aria-label="Ferramentas de desenvolvimento"
+                aria-hidden={!aberto}
+            >
+                <div className="dev_tools_float_drawer_inner">
+                    <header className="dev_tools_float_drawer_head">
+                        <p className="dev_tools_float_titulo">Dev Tool</p>
+                        <div className="dev_tools_float_head_acoes">
+                            <button
+                                type="button"
+                                className="dev_tools_float_modo"
+                                onClick={alternarModoCompacto}
+                                title={compacto ? 'Voltar para o ícone completo' : 'Esconder como aba na borda'}
+                            >
+                                {rotuloModo}
+                            </button>
+                            <button
+                                type="button"
+                                className="dev_tools_float_fechar"
+                                aria-label="Fechar"
+                                onClick={() => setAberto(false)}
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </header>
 
                     <ul className="dev_tools_float_lista">
-
                         {ITENS_GLOBAIS.map((item) => (
-
                             <li key={item.chave}>
-
                                 <label className="dev_tools_float_item">
-
                                     <input
-
                                         type="checkbox"
-
                                         className="dev_tools_float_checkbox"
-
                                         checked={Boolean(ui[item.chave])}
-
                                         onChange={() => alternarDevToolsUiFlag(item.chave)}
-
                                     />
-
                                     <span className="dev_tools_float_item_texto">
-
                                         <strong>{item.rotulo}</strong>
-
                                         <small>{item.descricao}</small>
-
                                     </span>
-
                                 </label>
-
                             </li>
-
                         ))}
-
                     </ul>
 
                     <p className="dev_tools_float_subtitulo">Super-Tabela › Negociações</p>
-
                     <ul className="dev_tools_float_lista">
                         {ITENS_NEGOCIACOES.map((item) => (
                             <li key={item.chave}>
@@ -225,77 +440,26 @@ export default function DevToolsFloating() {
                     </ul>
 
                     <p className="dev_tools_float_subtitulo">Cadastro de prestadores</p>
-
                     <ul className="dev_tools_float_lista">
-
                         {ITENS_CADASTRO.map((item) => (
-
                             <li key={item.chave}>
-
                                 <label className="dev_tools_float_item">
-
                                     <input
-
                                         type="checkbox"
-
                                         className="dev_tools_float_checkbox"
-
                                         checked={Boolean(colCad[item.chave])}
-
                                         onChange={() => alternarColunaDevTools('cadastro', item.chave)}
-
                                     />
-
                                     <span className="dev_tools_float_item_texto">
-
                                         <strong>{item.rotulo}</strong>
-
                                         <small>{item.descricao}</small>
-
                                     </span>
-
                                 </label>
-
                             </li>
-
                         ))}
-
                     </ul>
-
                 </div>
-
-            )}
-
-            <button
-
-                ref={btnRef}
-
-                type="button"
-
-                className={`dev_tools_float_btn${aberto ? ' is-open' : ''}${algumAtivo ? ' is-active' : ''}`}
-
-                aria-label="Ferramentas Dev Tool"
-
-                aria-expanded={aberto}
-
-                title="Dev Tool"
-
-                onClick={() => setAberto((v) => !v)}
-
-            >
-
-                <span className="dev_tools_float_btn_ico" aria-hidden="true">
-
-                    🔧
-
-                </span>
-
-            </button>
-
+            </div>
         </div>
-
     )
-
 }
-
-

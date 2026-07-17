@@ -66,7 +66,7 @@ const responderErro = (res, status, mensagem) =>
 const buscarProfile = async (supabase, userId) => {
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, email, credenciamento_read_only, permissions')
+        .select('id, name, email, permissions')
         .eq('id', userId)
         .maybeSingle()
     return { data, error }

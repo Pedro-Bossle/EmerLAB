@@ -169,7 +169,8 @@ export const PERMISSION_CATALOG = [
             {
                 id: 'credenciamento.formulario_inbox',
                 label: 'Inbox do formulário',
-                descricao: 'Pré-cadastros e conversão em ficha de prestador.',
+                descricao:
+                    'Pré-cadastros, conversão em ficha e alertas de formulário na Home.',
                 actions: RU,
                 href: '/credenciamento/formulario/entradas',
             },
@@ -207,6 +208,14 @@ export const PERMISSION_CATALOG = [
                 descricao: 'Exportar Excel dos prestadores com status credenciado e procedimentos.',
                 actions: R,
                 href: '/configuracoes/exportar-credenciados',
+            },
+            {
+                id: 'configuracoes.conferencia_laboratorio',
+                label: 'Conferência Laboratório',
+                descricao:
+                    'Conferir relatórios mensais do laboratório e da Emerdog com valores negociados.',
+                actions: RU,
+                href: '/configuracoes/conferencia-laboratorio',
             },
         ],
     },
@@ -257,7 +266,8 @@ export const PERMISSION_CATALOG = [
             {
                 id: 'contratos.clicksign',
                 label: 'Clicksign',
-                descricao: 'Envelopes, assinaturas e gestão na Clicksign.',
+                descricao:
+                    'Envelopes, assinaturas e alertas de atualização na Home.',
                 actions: RCUD,
                 href: '/contratos/clicksign',
             },
@@ -305,24 +315,6 @@ export const PERMISSION_CATALOG = [
                 id: 'admin.dev_tools',
                 label: 'Ferramentas Dev',
                 descricao: 'Colunas extras e exclusão por lista.',
-                actions: R,
-            },
-        ],
-    },
-    {
-        id: 'notificacoes',
-        label: 'Notificações',
-        tools: [
-            {
-                id: 'notificacoes.formulario',
-                label: 'Alertas do formulário',
-                descricao: 'Sininho de pré-cadastros pendentes.',
-                actions: R,
-            },
-            {
-                id: 'notificacoes.contratos',
-                label: 'Alertas Clicksign',
-                descricao: 'Sininho de eventos de assinatura.',
                 actions: R,
             },
         ],
@@ -477,11 +469,16 @@ export function expandLegacyToAcl(perms) {
     if (p[L.DEV_TOOLS]) {
         setTool('admin.dev_tools', { read: true })
     }
-    if (p[L.NOTIFICACOES_FORMULARIO]) {
-        setTool('notificacoes.formulario', { read: true })
+    // Alertas da Home herdados das páginas (legado notificacoes.* → ferramenta).
+    if (p[L.NOTIFICACOES_FORMULARIO] || p['notificacoes.formulario.read']) {
+        if (!hasAcl(p, 'credenciamento.formulario_inbox', 'read')) {
+            p[aclKey('credenciamento.formulario_inbox', 'read')] = true
+        }
     }
-    if (p[L.NOTIFICACOES_CONTRATOS]) {
-        setTool('notificacoes.contratos', { read: true })
+    if (p[L.NOTIFICACOES_CONTRATOS] || p['notificacoes.contratos.read']) {
+        if (!hasAcl(p, 'contratos.clicksign', 'read')) {
+            p[aclKey('contratos.clicksign', 'read')] = true
+        }
     }
 
     setTool('inicio.dashboard', { read: true })
@@ -582,8 +579,12 @@ export function syncLegacyFromAcl(perms) {
 
     p[L.ACCESS_MANAGE] = hasAcl(p, 'admin.acessos', 'read') && hasAcl(p, 'admin.acessos', 'update')
     p[L.DEV_TOOLS] = hasAcl(p, 'admin.dev_tools', 'read')
-    p[L.NOTIFICACOES_FORMULARIO] = hasAcl(p, 'notificacoes.formulario', 'read')
-    p[L.NOTIFICACOES_CONTRATOS] = hasAcl(p, 'notificacoes.contratos', 'read')
+    // Alertas da Home = permissão de Ver na página correspondente.
+    p[L.NOTIFICACOES_FORMULARIO] = hasAcl(p, 'credenciamento.formulario_inbox', 'read')
+    p[L.NOTIFICACOES_CONTRATOS] = hasAcl(p, 'contratos.clicksign', 'read')
+
+    delete p['notificacoes.formulario.read']
+    delete p['notificacoes.contratos.read']
 
     return p
 }

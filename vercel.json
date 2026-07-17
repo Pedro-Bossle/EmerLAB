@@ -56,7 +56,7 @@
       "destination": "/api/prospectos-osm-coletar?_route=gemini-status"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

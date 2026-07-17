@@ -29,7 +29,7 @@ import './FormularioInboxBell.css'
 const INTERVALO_MS = 30_000
 /** Intervalo mínimo entre chamadas à API Clicksign (polling). */
 const INTERVALO_SYNC_CONTRATOS_MS = 45_000
-const TITULO_ABA_BASE = 'Emerdog SFSC'
+const TITULO_ABA_BASE = 'Emerdog AIO'
 
 export default function FormularioInboxBell() {
     const podeNotifForm = useStoredPermission(PERMISSION_KEYS.NOTIFICACOES_FORMULARIO)

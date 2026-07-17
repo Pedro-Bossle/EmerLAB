@@ -70,13 +70,41 @@ const getSupabaseAdmin = () => {
     })
 }
 
+/** Cliente com chave pública — validação de JWT do usuário (mais confiável que service role). */
+const getSupabaseAuth = () => {
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+    const anonKey =
+        process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+        process.env.VITE_SUPABASE_ANON_KEY ||
+        process.env.SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !anonKey) {
+        return null
+    }
+
+    return createClient(supabaseUrl, anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+    })
+}
+
 const responderErro = (res, status, mensagem) =>
     res.status(status).json({ ok: false, error: mensagem })
+
+const mensagemErroAuthSupabase = (error) => {
+    const msg = String(error?.message || error || '')
+    if (/rate limit/i.test(msg)) {
+        return 'Limite de e-mails do Supabase atingido. Aguarde alguns minutos e tente de novo.'
+    }
+    if (/redirect/i.test(msg)) {
+        return `${msg} Confira as Redirect URLs em Supabase → Authentication → URL Configuration.`
+    }
+    return msg || 'Falha na autenticação Supabase.'
+}
 
 const buscarProfile = async (supabase, userId) => {
     const selectCompleto = await supabase
         .from('profiles')
-        .select('id, name, email, credenciamento_read_only, permissions')
+        .select('id, name, email, permissions')
         .eq('id', userId)
         .maybeSingle()
 
@@ -87,7 +115,7 @@ const buscarProfile = async (supabase, userId) => {
 
     const fallback = await supabase
         .from('profiles')
-        .select('id, name, credenciamento_read_only, permissions')
+        .select('id, name, permissions')
         .eq('id', userId)
         .maybeSingle()
 
@@ -97,7 +125,7 @@ const buscarProfile = async (supabase, userId) => {
 const listarProfiles = async (supabase) => {
     const selectCompleto = await supabase
         .from('profiles')
-        .select('id, name, email, credenciamento_read_only, permissions')
+        .select('id, name, email, permissions')
         .order('name', { ascending: true })
 
     if (!selectCompleto.error) return selectCompleto
@@ -107,7 +135,7 @@ const listarProfiles = async (supabase) => {
 
     return supabase
         .from('profiles')
-        .select('id, name, credenciamento_read_only, permissions')
+        .select('id, name, permissions')
         .order('name', { ascending: true })
 }
 
@@ -187,18 +215,39 @@ const registrarAuditoria = async (supabase, entrada) => {
 
 const validarAdmin = async (supabase, req) => {
     const authHeader = getHeader(req, 'authorization')
-    const token = String(authHeader || '').replace(/^Bearer\s+/i, '').trim()
-    if (!token) return { error: 'Sessão ausente.' }
+    const token = String(Array.isArray(authHeader) ? authHeader[0] : authHeader || '')
+        .replace(/^Bearer\s+/i, '')
+        .trim()
+    if (!token) {
+        return { error: 'Sessão ausente. Faça login novamente e tente o convite de novo.' }
+    }
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(token)
-    if (userError || !userData?.user?.id) return { error: 'Sessão inválida.' }
+    const authClient = getSupabaseAuth() || supabase
+    const { data: userData, error: userError } = await authClient.auth.getUser(token)
+    if (userError || !userData?.user?.id) {
+        return {
+            error:
+                'Sessão inválida ou expirada. Atualize a página, faça login novamente e tente de novo.',
+        }
+    }
 
     const { data: profileData, error: profileError } = await buscarProfile(supabase, userData.user.id)
-    if (profileError || !profileData) return { error: 'Perfil administrador não encontrado.' }
+    if (profileError) {
+        return { error: `Não foi possível ler seu perfil: ${profileError.message}` }
+    }
+    if (!profileData) {
+        return {
+            error:
+                'Seu usuário está autenticado, mas não tem linha em profiles. Peça a um admin para criar seu perfil com a permissão «Gerenciar acessos».',
+        }
+    }
 
     const profile = normalizarProfileAcesso(profileData)
     if (!hasPermission(profile, PERMISSION_KEYS.ACCESS_MANAGE)) {
-        return { error: 'Sem permissão para gerenciar acessos.' }
+        return {
+            error:
+                'Sem permissão para gerenciar acessos (access.manage / Admin › Acessos com Ler+Editar).',
+        }
     }
 
     return { user: userData.user, profile }
@@ -258,13 +307,14 @@ export default async function handler(req, res) {
                     data: { name },
                     redirectTo: body.redirectTo || process.env.SITE_URL || undefined,
                 })
-                if (error) return responderErro(res, 500, error.message)
+                if (error) return responderErro(res, 500, mensagemErroAuthSupabase(error))
                 user = data?.user || null
                 conviteEnviado = true
             } else {
-                await supabase.auth.resetPasswordForEmail(email, {
+                const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
                     redirectTo: body.redirectTo || process.env.SITE_URL || undefined,
                 })
+                if (resetError) return responderErro(res, 500, mensagemErroAuthSupabase(resetError))
             }
 
             if (!user?.id) return responderErro(res, 500, 'Não foi possível identificar o usuário criado.')
@@ -274,7 +324,6 @@ export default async function handler(req, res) {
                 name,
                 email,
                 permissions,
-                credenciamento_read_only: !permissions[PERMISSION_KEYS.CREDENCIAMENTO_EDIT],
             })
 
             if (profileError) return responderErro(res, 500, profileError.message)
@@ -353,7 +402,6 @@ export default async function handler(req, res) {
                 name,
                 email: emailFinal,
                 permissions,
-                credenciamento_read_only: !permissions[PERMISSION_KEYS.CREDENCIAMENTO_EDIT],
             })
 
             if (error) return responderErro(res, 500, error.message)

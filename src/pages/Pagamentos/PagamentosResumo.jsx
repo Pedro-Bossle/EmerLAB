@@ -56,7 +56,7 @@ export default function PagamentosResumo() {
             if (!userId) return
             const { data: profileData } = await supabase
                 .from('profiles')
-                .select('id, name, email, credenciamento_read_only, permissions')
+                .select('id, name, email, permissions')
                 .eq('id', userId)
                 .maybeSingle()
             if (!profileData) return

@@ -36,9 +36,7 @@ const menuItems = [
     {
         id: 'inicio',
         label: 'Início',
-        children: [
-            { label: 'Dashboard', href: '/home' }
-        ],
+        href: '/home',
     },
     {
         id: 'supertabela',
@@ -144,6 +142,11 @@ const menuItems = [
                 href: '/configuracoes/exportar-credenciados',
                 permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
             },
+            {
+                label: 'Conferência Laboratório',
+                href: '/configuracoes/conferencia-laboratorio',
+                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+            },
         ],
     },
     {
@@ -180,7 +183,11 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
     const menuItemsVisiveis = menuItems
         .map((item) => {
             if (item.permission && !hasPermission(accessProfile, item.permission)) return null
-            const children = item.children.filter((child) => podeVerItemMenu(child))
+            if (item.href && !item.children) {
+                if (!podeVerItemMenu(item)) return null
+                return item
+            }
+            const children = (item.children || []).filter((child) => podeVerItemMenu(child))
             if (children.length === 0) return null
             return { ...item, children }
         })
@@ -284,36 +291,53 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
                 <nav className='sidebar_nav'>
                     {menuItemsVisiveis.map((item) => (
                         <div key={item.id} className="sidebar_group">
-                            <button
-                                className="sidebar_group_btn"
-                                onClick={() => toggleMenu(item.id)}
-                            >
-                                <span>{item.label}</span>
-                                <span>{openMenus[item.id] ? '▾' : '▸'}</span>
-                            </button>
+                            {item.href && !item.children ? (
+                                <Link
+                                    to={item.href}
+                                    className="sidebar_group_btn sidebar_link_btn"
+                                    onClick={() => {
+                                        if (item.href === '/home') {
+                                            window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+                                        }
+                                        onAfterNavigate?.()
+                                    }}
+                                >
+                                    <span>{item.label}</span>
+                                </Link>
+                            ) : (
+                                <>
+                                    <button
+                                        className="sidebar_group_btn"
+                                        onClick={() => toggleMenu(item.id)}
+                                    >
+                                        <span>{item.label}</span>
+                                        <span>{openMenus[item.id] ? '▾' : '▸'}</span>
+                                    </button>
 
-                            <div className={`sidebar_submenu ${openMenus[item.id] ? 'open' : ''}`}>
-                                {item.children.map((child) => (
-                                    child.action || child.href === '/logout' ? (
-                                        <button
-                                            key={child.action || child.href}
-                                            type="button"
-                                            className="sidebar_submenu_action"
-                                            onClick={() => handleAction(child)}
-                                        >
-                                            {child.label}
-                                        </button>
-                                    ) : (
-                                        <Link
-                                            key={child.href}
-                                            to={child.href}
-                                            onClick={() => onAfterNavigate?.()}
-                                        >
-                                            {child.label}
-                                        </Link>
-                                    )
-                                ))}
-                            </div>
+                                    <div className={`sidebar_submenu ${openMenus[item.id] ? 'open' : ''}`}>
+                                        {item.children.map((child) => (
+                                            child.action || child.href === '/logout' ? (
+                                                <button
+                                                    key={child.action || child.href}
+                                                    type="button"
+                                                    className="sidebar_submenu_action"
+                                                    onClick={() => handleAction(child)}
+                                                >
+                                                    {child.label}
+                                                </button>
+                                            ) : (
+                                                <Link
+                                                    key={child.href}
+                                                    to={child.href}
+                                                    onClick={() => onAfterNavigate?.()}
+                                                >
+                                                    {child.label}
+                                                </Link>
+                                            )
+                                        ))}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     ))}
                 </nav>

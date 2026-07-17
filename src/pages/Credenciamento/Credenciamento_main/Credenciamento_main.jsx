@@ -236,13 +236,13 @@ const Credenciamento_main = () => {
             if (!userId) return
             let { data, error } = await supabase
                 .from('profiles')
-                .select('id, name, email, credenciamento_read_only, permissions')
+                .select('id, name, email, permissions')
                 .eq('id', userId)
                 .single()
             if (error && String(error.message || '').includes('email')) {
                 const fallback = await supabase
                     .from('profiles')
-                    .select('id, name, credenciamento_read_only, permissions')
+                    .select('id, name, permissions')
                     .eq('id', userId)
                     .single()
                 data = fallback.data

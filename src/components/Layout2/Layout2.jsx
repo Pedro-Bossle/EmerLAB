@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../Sidebar/Sidebar'
 import DevToolsFloating from '../DevTools/DevToolsFloating'
-import FormularioInboxBell from '../Credenciamento/FormularioInboxBell'
 import SessionSecurity from '../SessionSecurity/SessionSecurity'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import './Layout2.css'
 
 const MQ_COMPACT = '(max-width: 1023px)'
 
 const Layout2 = () => {
+    const { pathname } = useLocation()
     const [openManual, setOpenManual] = useState(false)
     const [isHovering, setIsHovering] = useState(false)
     const [isCompact, setIsCompact] = useState(() =>
@@ -22,6 +22,12 @@ const Layout2 = () => {
         mq.addEventListener('change', onChange)
         return () => mq.removeEventListener('change', onChange)
     }, [])
+
+    useEffect(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+        document.documentElement.scrollTop = 0
+        document.body.scrollTop = 0
+    }, [pathname])
 
     useEffect(() => {
         if (!isCompact || !openManual) return undefined
@@ -93,7 +99,6 @@ const Layout2 = () => {
             >
                 <Outlet />
             </main>
-            <FormularioInboxBell />
             <DevToolsFloating />
         </div>
     )

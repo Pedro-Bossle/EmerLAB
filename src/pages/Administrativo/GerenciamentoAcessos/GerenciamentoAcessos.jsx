@@ -6,10 +6,25 @@ import {
     setStoredAccessProfile } from '../../../lib/accessControl'
 import PermissoesCascade from './PermissoesCascade'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
+import { PERMISSION_CATALOG, hasAcl } from '../../../lib/permissionCatalog'
 import { supabase } from '../../../lib/supabase'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
 import './GerenciamentoAcessos.css'
 import './PermissoesCascade.css'
+
+function contarFerramentasComAcesso(permissions) {
+    let total = 0
+    let comAcesso = 0
+    for (const grupo of PERMISSION_CATALOG) {
+        for (const tool of grupo.tools) {
+            total += 1
+            if (tool.actions.some((action) => hasAcl(permissions, tool.id, action))) {
+                comAcesso += 1
+            }
+        }
+    }
+    return { comAcesso, total }
+}
 
 const permissoesPadraoNovoUsuario = () => normalizarPermissions({ permissions: { ...DEFAULT_INVITED_PERMISSIONS } })
 
@@ -49,6 +64,11 @@ const GerenciamentoAcessos = () => {
         [usuarios, usuarioSelecionadoId],
     )
 
+    const resumoPermissoesConvite = useMemo(
+        () => contarFerramentasComAcesso(convite.permissions),
+        [convite.permissions],
+    )
+
     const usuariosFiltrados = useMemo(() => {
         const termo = busca
         if (!String(termo || '').trim()) return usuarios
@@ -59,22 +79,38 @@ const GerenciamentoAcessos = () => {
     }, [busca, usuarios])
 
     const chamarAdminUsers = async (payload) => {
-        const { data } = await supabase.auth.getSession()
-        const token = data?.session?.access_token
+        const refreshed = await supabase.auth.refreshSession()
+        const session =
+            refreshed.data?.session ||
+            (await supabase.auth.getSession()).data?.session
+        const token = session?.access_token
         if (!token) throw new Error('Sessão expirada. Faça login novamente.')
 
         const resp = await fetch('/api/admin-users', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}` },
+                Authorization: `Bearer ${token}`,
+            },
             body: JSON.stringify({
                 ...payload,
-                redirectTo: window.location.origin }) })
+                redirectTo: `${window.location.origin}/`,
+            }),
+        })
 
-        const json = await resp.json().catch(() => ({}))
+        const raw = await resp.text()
+        let json = {}
+        try {
+            json = raw ? JSON.parse(raw) : {}
+        } catch {
+            json = {}
+        }
         if (!resp.ok || json?.ok === false) {
-            throw new Error(json?.error || 'Falha na operação administrativa.')
+            const detalhe =
+                json?.error ||
+                (raw && !raw.trim().startsWith('<') ? raw.slice(0, 240) : '') ||
+                `Falha na operação administrativa (HTTP ${resp.status}).`
+            throw new Error(detalhe)
         }
         return json
     }
@@ -160,13 +196,14 @@ const GerenciamentoAcessos = () => {
         })
     }
 
-    const renderPermissoes = (permissions, onChange, usuarioId = '') => (
+    const renderPermissoes = (permissions, onChange, usuarioId = '', opts = {}) => (
         <PermissoesCascade
             permissions={permissions}
             onChange={onChange}
             disabled={loading}
             usuarioId={usuarioId}
             usuarioAtualId={usuarioAtualId}
+            gruposIniciaisAbertos={opts.gruposIniciaisAbertos !== false}
         />
     )
 
@@ -358,11 +395,14 @@ const GerenciamentoAcessos = () => {
                             {abaDetalhe === 'permissoes' && (
                                 <>
                                     {renderPermissoes(edicao.permissions, alterarPermissoesEdicao, edicao.id)}
-                                    <div className='gerenciamento_acessos_acoes'>
-                                        <button type='button' className='is-primary' onClick={salvarUsuario} disabled={loading}>
-                                            Salvar permissões
-                                        </button>
-                                    </div>
+                                    <button
+                                        type='button'
+                                        className='gerenciamento_acessos_salvar_flutuante is-primary'
+                                        onClick={salvarUsuario}
+                                        disabled={loading}
+                                    >
+                                        {loading ? 'Salvando…' : 'Salvar permissões'}
+                                    </button>
                                 </>
                             )}
 
@@ -454,45 +494,98 @@ const GerenciamentoAcessos = () => {
                     onClick={() => !loading && setMostrarConvite(false)}
                 >
                     <div
-                        className='gerenciamento_acessos_card gerenciamento_acessos_modal'
+                        className='gerenciamento_acessos_card gerenciamento_acessos_modal gerenciamento_acessos_modal_convite'
                         role='dialog'
                         aria-labelledby='ga-convite-title'
+                        aria-describedby='ga-convite-desc'
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className='gerenciamento_acessos_modal_head'>
-                            <h2 id='ga-convite-title'>Convidar usuário</h2>
-                            <button type='button' className='is-ghost' onClick={() => setMostrarConvite(false)} disabled={loading}>
-                                Fechar
+                            <div>
+                                <p className='gerenciamento_acessos_modal_kicker'>Novo acesso</p>
+                                <h2 id='ga-convite-title'>Convidar usuário</h2>
+                                <p id='ga-convite-desc' className='gerenciamento_acessos_modal_lead'>
+                                    Em dois passos: dados da pessoa e permissões iniciais. O convite vai por email.
+                                </p>
+                            </div>
+                            <button
+                                type='button'
+                                className='gerenciamento_acessos_modal_close'
+                                onClick={() => setMostrarConvite(false)}
+                                disabled={loading}
+                                aria-label='Fechar'
+                            >
+                                ×
                             </button>
                         </div>
-                        <form className='gerenciamento_acessos_form' onSubmit={convidarUsuario}>
-                            <label>
-                                Nome
-                                <input
-                                    type='text'
-                                    value={convite.name}
-                                    onChange={(event) => setConvite((atual) => ({ ...atual, name: event.target.value }))}
-                                    required
-                                    disabled={loading}
-                                />
-                            </label>
-                            <label>
-                                Email
-                                <input
-                                    type='email'
-                                    value={convite.email}
-                                    onChange={(event) => setConvite((atual) => ({ ...atual, email: event.target.value }))}
-                                    required
-                                    disabled={loading}
-                                />
-                            </label>
-                            {renderPermissoes(convite.permissions, alterarPermissoesConvite)}
-                            <div className='gerenciamento_acessos_acoes'>
+
+                        <form className='gerenciamento_acessos_form gerenciamento_acessos_form_convite' onSubmit={convidarUsuario}>
+                            <section className='gerenciamento_acessos_convite_bloco' aria-labelledby='ga-convite-dados'>
+                                <div className='gerenciamento_acessos_convite_bloco_head'>
+                                    <span className='gerenciamento_acessos_convite_passo' aria-hidden='true'>1</span>
+                                    <div>
+                                        <h3 id='ga-convite-dados'>Quem será convidado?</h3>
+                                        <p>Nome e email usados no convite e no primeiro acesso.</p>
+                                    </div>
+                                </div>
+                                <div className='gerenciamento_acessos_convite_campos'>
+                                    <label>
+                                        Nome completo
+                                        <input
+                                            type='text'
+                                            value={convite.name}
+                                            onChange={(event) =>
+                                                setConvite((atual) => ({ ...atual, name: event.target.value }))
+                                            }
+                                            placeholder='Ex.: Ana Silva'
+                                            required
+                                            disabled={loading}
+                                            autoFocus
+                                        />
+                                    </label>
+                                    <label>
+                                        Email corporativo
+                                        <input
+                                            type='email'
+                                            value={convite.email}
+                                            onChange={(event) =>
+                                                setConvite((atual) => ({ ...atual, email: event.target.value }))
+                                            }
+                                            placeholder='nome@emerdog.com.br'
+                                            required
+                                            disabled={loading}
+                                        />
+                                    </label>
+                                </div>
+                            </section>
+
+                            <section className='gerenciamento_acessos_convite_bloco' aria-labelledby='ga-convite-perms'>
+                                <div className='gerenciamento_acessos_convite_bloco_head'>
+                                    <span className='gerenciamento_acessos_convite_passo' aria-hidden='true'>2</span>
+                                    <div>
+                                        <h3 id='ga-convite-perms'>O que essa pessoa poderá acessar?</h3>
+                                        <p>
+                                            Comece pelo essencial — dá para ajustar depois na ficha do usuário.
+                                            Use a busca e Expandir/Recolher para navegar.
+                                        </p>
+                                    </div>
+                                    <span className='gerenciamento_acessos_convite_resumo' title='Ferramentas com algum acesso marcado'>
+                                        {resumoPermissoesConvite.comAcesso} de {resumoPermissoesConvite.total} ferramentas
+                                    </span>
+                                </div>
+                                <div className='gerenciamento_acessos_convite_perms'>
+                                    {renderPermissoes(convite.permissions, alterarPermissoesConvite, '', {
+                                        gruposIniciaisAbertos: false,
+                                    })}
+                                </div>
+                            </section>
+
+                            <div className='gerenciamento_acessos_modal_footer'>
                                 <button type='button' onClick={() => setMostrarConvite(false)} disabled={loading}>
                                     Cancelar
                                 </button>
                                 <button type='submit' className='is-primary' disabled={loading}>
-                                    Enviar convite
+                                    {loading ? 'Enviando…' : 'Enviar convite'}
                                 </button>
                             </div>
                         </form>

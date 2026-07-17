@@ -53,7 +53,8 @@
 }
 
 .gerenciamento_acessos_form button,
-.gerenciamento_acessos_acoes .is-primary {
+.gerenciamento_acessos_acoes .is-primary,
+.gerenciamento_acessos_salvar_flutuante.is-primary {
     background: #0f74b9;
     border-color: #0f74b9;
     color: #ffffff;
@@ -208,11 +209,12 @@
     position: fixed;
     inset: 0;
     z-index: 1200;
-    background: rgba(15, 35, 55, 0.45);
+    background: rgba(15, 35, 55, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 16px;
+    backdrop-filter: blur(2px);
 }
 
 .gerenciamento_acessos_modal {
@@ -221,16 +223,177 @@
     overflow-y: auto;
 }
 
+.gerenciamento_acessos_modal_convite {
+    width: min(96vw, 760px);
+    max-height: min(94vh, 860px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+}
+
 .gerenciamento_acessos_modal_head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 12px;
+    gap: 12px;
+    margin-bottom: 0;
+    padding: 1.15rem 1.25rem 0.85rem;
+    border-bottom: 1px solid #e3eef6;
+}
+
+.gerenciamento_acessos_modal_kicker {
+    margin: 0 0 0.2rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #5a7a90;
 }
 
 .gerenciamento_acessos_modal_head h2 {
     margin: 0;
+    font-size: 1.35rem;
+    color: #123e59;
+}
+
+.gerenciamento_acessos_modal_lead {
+    margin: 0.4rem 0 0;
+    max-width: 42rem;
+    font-size: 0.9rem;
+    font-weight: 400;
+    line-height: 1.45;
+    color: #5b7488;
+}
+
+.gerenciamento_acessos_modal_close {
+    flex: 0 0 auto;
+    width: 2.1rem;
+    height: 2.1rem;
+    border: 1px solid #d0e0ec;
+    border-radius: 10px;
+    background: #f4f9fc;
+    color: #31566f;
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.gerenciamento_acessos_modal_close:hover:not(:disabled) {
+    background: #e7f2fa;
+}
+
+.gerenciamento_acessos_form.gerenciamento_acessos_form_convite {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 0;
+}
+
+.gerenciamento_acessos_convite_bloco {
+    padding: 1rem 1.25rem;
+}
+
+.gerenciamento_acessos_convite_bloco + .gerenciamento_acessos_convite_bloco {
+    border-top: 1px solid #e8f1f8;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.gerenciamento_acessos_convite_bloco_head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+}
+
+.gerenciamento_acessos_convite_bloco_head > div {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.gerenciamento_acessos_convite_passo {
+    flex: 0 0 auto;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.1rem;
+    background: #0f74b9;
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.gerenciamento_acessos_convite_bloco h3 {
+    margin: 0;
+    font-size: 0.98rem;
+    color: #123e59;
+}
+
+.gerenciamento_acessos_convite_bloco_head p {
+    margin: 0.28rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    color: #6a8496;
+    font-weight: 400;
+}
+
+.gerenciamento_acessos_convite_resumo {
+    flex: 0 0 auto;
+    align-self: center;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid #c9dfef;
+    background: #eef6fc;
+    color: #1a5a82;
+    font-size: 0.74rem;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.gerenciamento_acessos_convite_campos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.85rem;
+}
+
+.gerenciamento_acessos_convite_perms {
+    flex: 1 1 auto;
+    min-height: 12rem;
+    overflow: auto;
+    padding: 0.45rem 0.55rem 0.55rem;
+    border: 1px solid #dceaf4;
+    border-radius: 12px;
+    background: #f7fbfe;
+}
+
+.gerenciamento_acessos_modal_footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    padding: 0.85rem 1.25rem 1.1rem;
+    border-top: 1px solid #e3eef6;
+    background: #fafcfe;
+}
+
+.gerenciamento_acessos_modal_footer button {
+    min-width: 7.5rem;
+}
+
+.gerenciamento_acessos_modal_footer .is-primary {
+    background: #0f74b9;
+    border-color: #0f74b9;
+    color: #fff;
+    font-weight: 700;
 }
 
 .gerenciamento_acessos_card {
@@ -368,6 +531,25 @@
     margin-top: 14px;
 }
 
+.gerenciamento_acessos_salvar_flutuante {
+    position: fixed;
+    right: max(1.25rem, env(safe-area-inset-right));
+    bottom: max(1.25rem, env(safe-area-inset-bottom));
+    z-index: 420;
+    border: none;
+    border-radius: 999px;
+    padding: 0.85rem 1.35rem;
+    font-weight: 700;
+    font-size: 0.92rem;
+    cursor: pointer;
+    box-shadow: 0 10px 28px rgba(18, 62, 89, 0.28);
+}
+
+.gerenciamento_acessos_salvar_flutuante:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .gerenciamento_acessos_vazio {
     color: #5b7488;
     margin: 0;
@@ -475,7 +657,8 @@ body.dark-mode .gerenciamento_acessos_acoes button {
 }
 
 body.dark-mode .gerenciamento_acessos_form button.is-primary,
-body.dark-mode .gerenciamento_acessos_acoes .is-primary {
+body.dark-mode .gerenciamento_acessos_acoes .is-primary,
+body.dark-mode .gerenciamento_acessos_salvar_flutuante.is-primary {
     background: #2f87c6;
     border-color: #2f87c6;
     color: #fff;
@@ -501,4 +684,70 @@ body.dark-mode .gerenciamento_acessos_acoes .is-danger:hover:not(:disabled) {
         flex-direction: column;
         align-items: stretch;
     }
+
+    .gerenciamento_acessos_convite_campos {
+        grid-template-columns: 1fr;
+    }
+
+    .gerenciamento_acessos_convite_bloco_head {
+        flex-wrap: wrap;
+    }
+
+    .gerenciamento_acessos_convite_resumo {
+        margin-left: 2.45rem;
+    }
+
+    .gerenciamento_acessos_modal_convite {
+        width: 100%;
+        max-height: 96vh;
+        border-radius: 14px;
+    }
+
+    .gerenciamento_acessos_modal_footer {
+        flex-direction: column-reverse;
+    }
+
+    .gerenciamento_acessos_modal_footer button {
+        width: 100%;
+    }
+}
+
+body.dark-mode .gerenciamento_acessos_modal_head {
+    border-color: #2a4258;
+}
+
+body.dark-mode .gerenciamento_acessos_modal_kicker,
+body.dark-mode .gerenciamento_acessos_modal_lead,
+body.dark-mode .gerenciamento_acessos_convite_bloco_head p {
+    color: #9fb4c8;
+}
+
+body.dark-mode .gerenciamento_acessos_modal_close {
+    background: #152433;
+    border-color: #3d5266;
+    color: #e7f4fc;
+}
+
+body.dark-mode .gerenciamento_acessos_convite_bloco + .gerenciamento_acessos_convite_bloco {
+    border-color: #2a4258;
+}
+
+body.dark-mode .gerenciamento_acessos_convite_bloco h3 {
+    color: #e7f4fc;
+}
+
+body.dark-mode .gerenciamento_acessos_convite_resumo {
+    background: #1a3348;
+    border-color: #3d5a72;
+    color: #b7d7ef;
+}
+
+body.dark-mode .gerenciamento_acessos_convite_perms {
+    background: #152433;
+    border-color: #2a4258;
+}
+
+body.dark-mode .gerenciamento_acessos_modal_footer {
+    background: #152433;
+    border-color: #2a4258;
 }

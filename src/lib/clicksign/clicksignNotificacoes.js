@@ -167,6 +167,91 @@ export async function listarNotificacoesContratosRecentes(limite = 8) {
     return mesclarListasNotificacoesContratos(local, webhook, limite)
 }
 
+/** Frase curta do que aconteceu em um evento de envelope. */
+export function resumirEventoEnvelope(n) {
+    const texto = String(n?.texto || '').trim()
+    const tipo = String(n?.tipo || '').toLowerCase()
+
+    if (tipo.includes('assinatura') || /assinou/i.test(texto)) {
+        const m = texto.match(/^(.*?)\s+assinou/i)
+        const nome = m ? m[1].trim() : ''
+        const parcial = texto.match(/\((\d+\/\d+)\)/)
+        if (nome) {
+            return parcial
+                ? `Assinatura de ${nome} (${parcial[1]})`
+                : `Assinatura de ${nome}`
+        }
+        return 'Nova assinatura'
+    }
+    if (tipo.includes('documento') || /documento finalizado/i.test(texto)) {
+        const m = texto.match(/«([^»]+)»/)
+        return m ? `Documento finalizado: ${m[1]}` : 'Documento finalizado'
+    }
+    if (
+        tipo.includes('envelope_finalizado') ||
+        tipo.includes('encerr') ||
+        /conclu[íi]do|encerr/i.test(texto)
+    ) {
+        return 'Encerramento do envelope'
+    }
+    return texto || 'Atualização'
+}
+
+/**
+ * Agrupa as notificações de contratos por envelope, unificando múltiplas
+ * atualizações do mesmo envelope numa só entrada.
+ * Retorna: [{ envelopeId, envelopeName, resumo, eventos, ultimaAt, total }]
+ */
+export function agruparNotificacoesPorEnvelope(lista) {
+    const mapa = new Map()
+    for (const n of lista || []) {
+        const chave =
+            String(n.envelopeId || '').trim() ||
+            String(n.envelopeName || '').trim() ||
+            `sem-envelope:${n.id}`
+        if (!mapa.has(chave)) {
+            mapa.set(chave, {
+                envelopeId: n.envelopeId || '',
+                envelopeName: String(n.envelopeName || '').trim() || 'Envelope',
+                eventos: [],
+                ultimaAt: n.at || null,
+            })
+        }
+        const g = mapa.get(chave)
+        const resumo = resumirEventoEnvelope(n)
+        g.eventos.push({ texto: n.texto || '', resumo, at: n.at || null, tipo: n.tipo || '' })
+        if (!g.ultimaAt || new Date(n.at || 0) > new Date(g.ultimaAt)) {
+            g.ultimaAt = n.at || g.ultimaAt
+        }
+    }
+
+    const grupos = [...mapa.values()].map((g) => {
+        const resumosUnicos = []
+        for (const ev of g.eventos) {
+            if (!resumosUnicos.includes(ev.resumo)) resumosUnicos.push(ev.resumo)
+        }
+        return {
+            ...g,
+            total: g.eventos.length,
+            resumo: resumosUnicos.join(', '),
+            resumos: resumosUnicos,
+        }
+    })
+
+    grupos.sort((a, b) => new Date(b.ultimaAt || 0) - new Date(a.ultimaAt || 0))
+    return grupos
+}
+
+/** Notificações de contratos já agrupadas por envelope (para a Home). */
+export async function listarEnvelopesComAtualizacoes(limite = 40) {
+    const [local, webhook] = await Promise.all([
+        Promise.resolve(carregarNotificacoes()),
+        listarNotificacoesWebhookRecentes(limite),
+    ])
+    const mescladas = mesclarListasNotificacoesContratos(local, webhook, limite)
+    return agruparNotificacoesPorEnvelope(mescladas)
+}
+
 /** Chave usada no localStorage (para evento storage entre abas). */
 export const CLICKSIGN_NOTIF_STORAGE_KEY = KEY_NOTIF
 
