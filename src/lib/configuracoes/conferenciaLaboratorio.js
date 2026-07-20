@@ -1,252 +1,84 @@
 import { normalizarTextoBusca } from '../prestadorCadastroHelpers.js'
 import { resolverPrestadorPorNome, sugerirPrestadoresPorNome } from '../pagamentosPrestador.js'
 import { supabase } from '../supabase.js'
+import {
+    CAMPOS_CONFERENCIA,
+    camposFaltantesMapeamento,
+    mapearIndicesColunasConferencia,
+    normalizarCabecalho,
+    normalizarNomeExame,
+    parsearDataFlexivel,
+    parsearExcelConferenciaLaboratorio,
+    parsearValorMonetario,
+} from './conferenciaLaboratorioExcel.js'
 
-export const CAMPOS_CONFERENCIA = ['tutor', 'pet', 'data', 'exame']
+export {
+    CAMPOS_CONFERENCIA,
+    camposFaltantesMapeamento,
+    mapearIndicesColunasConferencia,
+    normalizarCabecalho,
+    normalizarNomeExame,
+    parsearDataFlexivel,
+    parsearExcelConferenciaLaboratorio,
+    parsearValorMonetario,
+}
+
 export const CARDS_POR_PAGINA = 10
 
-export function normalizarNomeExame(texto) {
-    return normalizarTextoBusca(texto)
+/** Arredonda valor do lab para chave/comparação (2 casas). */
+export function arredondarValorLab(valor) {
+    if (valor == null || !Number.isFinite(Number(valor))) return null
+    return Math.round(Number(valor) * 100) / 100
+}
+
+/** Persistência: -1 = sem valor / legado. */
+export function valorLabParaPersistencia(valor) {
+    const v = arredondarValorLab(valor)
+    return v == null ? -1 : v
+}
+
+/**
+ * Chave de alias: nome normalizado + valor (quando houver).
+ * Sem valor finito → só o nome (compatível com mapeamentos legados).
+ */
+export function chaveAliasExame(nomeNorm, valor) {
+    const n = String(nomeNorm || '')
+    if (!n) return ''
+    const v = arredondarValorLab(valor)
+    if (v == null) return n
+    return `${n}|${v}`
+}
+
+export function valorLabDeMapeamentoSalvo(m) {
+    const raw = m?.valor_lab
+    if (raw == null || !Number.isFinite(Number(raw)) || Number(raw) < 0) return null
+    return arredondarValorLab(raw)
+}
+
+/** Busca mapeamento resolvido por nome+valor, com fallback só-nome (legado). */
+export function obterMapeamentoResolvido(mapa, nomeNorm, valor) {
+    if (!(mapa instanceof Map) || !nomeNorm) return null
+    const k = chaveAliasExame(nomeNorm, valor)
+    if (mapa.has(k)) return mapa.get(k)
+    if (k !== nomeNorm && mapa.has(nomeNorm)) return mapa.get(nomeNorm)
+    return null
+}
+
+/** Indexa mapeamentos salvos por chave nome+valor (e legado só-nome). */
+export function indexarMapeamentosSalvos(mapeamentosSalvos) {
+    const map = new Map()
+    for (const m of mapeamentosSalvos || []) {
+        const norm = String(m?.nome_lab_normalizado || '')
+        if (!norm) continue
+        const valor = valorLabDeMapeamentoSalvo(m)
+        map.set(chaveAliasExame(norm, valor), m)
+    }
+    return map
 }
 
 /** Chave de atendimento: tutor + animal + data. */
-export function chaveGrupoAtendimento(tutor, pet, data) {
-    return `${normalizarTextoBusca(tutor)}|${normalizarTextoBusca(pet)}|${data || ''}`
-}
-
-export function normalizarCabecalho(texto) {
-    return String(texto || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, ' ')
-        .trim()
-}
-
-function celulaTexto(cell) {
-    if (cell == null) return ''
-    if (typeof cell === 'object' && cell.text != null) return String(cell.text).trim()
-    if (typeof cell === 'object' && cell.result != null) return String(cell.result).trim()
-    if (cell instanceof Date && !Number.isNaN(cell.getTime())) {
-        return cell.toISOString().slice(0, 10)
-    }
-    return String(cell).trim()
-}
-
-/**
- * Detecta campo a partir do cabeçalho (Mellis / Emerdog).
- * Ignora "Animal-proprietario", Clinica, Veterinario, Prontuario, Repasse, Diferença.
- */
-function detectarCampoCabecalho(h) {
-    if (!h) return null
-
-    // Coluna composta do Mellis — não é tutor nem animal
-    if (h.includes('animal') && (h.includes('propriet') || h.includes('dono'))) {
-        return null
-    }
-
-    if (
-        h === 'tutor' ||
-        h.startsWith('tutor ') ||
-        h.includes('responsavel') ||
-        (h.includes('cliente') && !h.includes('animal')) ||
-        h === 'dono'
-    ) {
-        return 'tutor'
-    }
-
-    if (
-        h === 'animal' ||
-        h === 'pet' ||
-        h === 'paciente' ||
-        h === 'nome pet' ||
-        h === 'nome do pet' ||
-        h === 'nome animal' ||
-        h === 'nome do animal' ||
-        (h.includes('animal') && !h.includes('propriet')) ||
-        (h.includes('pet') && !h.includes('propriet'))
-    ) {
-        return 'pet'
-    }
-
-    if (
-        h === 'data' ||
-        h.startsWith('data ') ||
-        h.includes('dt atendimento') ||
-        h.includes('data atendimento') ||
-        h.includes('data exame') ||
-        h === 'dt'
-    ) {
-        return 'data'
-    }
-
-    if (
-        h === 'exame' ||
-        h.startsWith('exame ') ||
-        h.includes('procedimento') ||
-        (h.includes('descricao') && !h.includes('clinica')) ||
-        h === 'servico'
-    ) {
-        return 'exame'
-    }
-
-    if (
-        h === 'valor' ||
-        h.startsWith('valor ') ||
-        h === 'vlr' ||
-        h === 'preco' ||
-        h === 'preço'
-    ) {
-        return 'valor'
-    }
-
-    return null
-}
-
-export function mapearIndicesColunasConferencia(headerRow, mapeamentoManual = {}) {
-    const idx = { tutor: -1, pet: -1, data: -1, exame: -1, valor: -1 }
-    const headers = (headerRow || []).map((c) => String(c || ''))
-
-    for (const campo of [...CAMPOS_CONFERENCIA, 'valor']) {
-        const manual = Number(mapeamentoManual[campo])
-        if (Number.isFinite(manual) && manual >= 0 && manual < headers.length) {
-            idx[campo] = manual
-        }
-    }
-
-    headers.forEach((raw, i) => {
-        const campo = detectarCampoCabecalho(normalizarCabecalho(raw))
-        if (campo && idx[campo] < 0) idx[campo] = i
-    })
-
-    return { idx, headers }
-}
-
-export function camposFaltantesMapeamento(idx) {
-    return CAMPOS_CONFERENCIA.filter((campo) => Number(idx?.[campo]) < 0)
-}
-
-export function parsearDataFlexivel(valor) {
-    const raw = String(valor || '').trim()
-    if (!raw) return null
-
-    if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10)
-
-    const br = raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/)
-    if (br) {
-        const d = Number(br[1])
-        const m = Number(br[2])
-        let y = Number(br[3])
-        if (y < 100) y += 2000
-        if (d >= 1 && d <= 31 && m >= 1 && m <= 12) {
-            return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-        }
-    }
-
-    const excelSerial = Number(raw)
-    if (Number.isFinite(excelSerial) && excelSerial > 20000 && excelSerial < 80000) {
-        const epoch = new Date(Date.UTC(1899, 11, 30))
-        epoch.setUTCDate(epoch.getUTCDate() + Math.floor(excelSerial))
-        return epoch.toISOString().slice(0, 10)
-    }
-
-    const parsed = new Date(raw)
-    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10)
-    return null
-}
-
-export function parsearValorMonetario(valor) {
-    if (valor == null || valor === '') return null
-    if (typeof valor === 'number' && Number.isFinite(valor)) return valor
-
-    let raw = String(valor).trim()
-    if (!raw) return null
-    raw = raw.replace(/[R$\s]/gi, '')
-
-    if (/^\d{1,3}(\.\d{3})+,\d{1,2}$/.test(raw) || /^\d+,\d{1,2}$/.test(raw)) {
-        raw = raw.replace(/\./g, '').replace(',', '.')
-    } else if (raw.includes(',') && !raw.includes('.')) {
-        raw = raw.replace(',', '.')
-    } else {
-        raw = raw.replace(/,/g, '')
-    }
-
-    const n = Number(raw)
-    return Number.isFinite(n) ? n : null
-}
-
-/**
- * Lê Excel (.xlsx) e devolve linhas brutas + cabeçalhos detectados.
- * @param {ArrayBuffer} buffer
- * @param {{ mapeamentoManual?: Record<string, number>, origem?: 'lab' | 'emerdog' }} [opts]
- */
-export async function parsearExcelConferenciaLaboratorio(buffer, opts = {}) {
-    const { default: ExcelJS } = await import('exceljs')
-    const workbook = new ExcelJS.Workbook()
-    try {
-        await workbook.xlsx.load(buffer)
-    } catch (e) {
-        const msg = String(e?.message || e)
-        if (/zip|central directory|invalid|corrupt|sheets/i.test(msg) || /undefined/.test(msg)) {
-            throw new Error(
-                'Não foi possível ler o Excel. Use arquivo .xlsx (não .xls antigo) e verifique se não está corrompido.',
-            )
-        }
-        throw e
-    }
-    const ws = workbook.worksheets[0]
-    if (!ws) return { linhas: [], headers: [], idx: null, erro: 'Planilha vazia.' }
-
-    const matrix = []
-    ws.eachRow({ includeEmpty: false }, (row) => {
-        const vals = []
-        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-            vals[colNumber - 1] = celulaTexto(cell.value)
-        })
-        matrix.push(vals)
-    })
-    if (matrix.length < 2) {
-        return { linhas: [], headers: [], idx: null, erro: 'Nenhuma linha de dados encontrada.' }
-    }
-
-    const { idx, headers } = mapearIndicesColunasConferencia(matrix[0], opts.mapeamentoManual || {})
-    const faltantes = camposFaltantesMapeamento(idx)
-    if (faltantes.length) {
-        return {
-            linhas: [],
-            headers,
-            idx,
-            faltantes,
-            erro: `Mapeie as colunas obrigatórias: ${faltantes.join(', ')}.`,
-        }
-    }
-
-    const linhas = []
-    for (let r = 1; r < matrix.length; r += 1) {
-        const row = matrix[r] || []
-        const tutor = String(row[idx.tutor] || '').trim()
-        const pet = String(row[idx.pet] || '').trim()
-        const dataRaw = String(row[idx.data] || '').trim()
-        const exame = String(row[idx.exame] || '').trim()
-        if (!tutor && !pet && !dataRaw && !exame) continue
-        const data = parsearDataFlexivel(dataRaw)
-        const valorRaw = idx.valor >= 0 ? row[idx.valor] : ''
-        const valorRelatorio = parsearValorMonetario(valorRaw)
-        linhas.push({
-            idLocal: `${opts.origem || 'x'}-r${r}`,
-            linhaExcel: r + 1,
-            tutor,
-            pet,
-            data,
-            dataRaw,
-            exame,
-            exameNorm: normalizarNomeExame(exame),
-            valorRelatorio,
-            origem: opts.origem || null,
-        })
-    }
-
-    return { linhas, headers, idx, faltantes: [], erro: null }
+export function chaveGrupoAtendimento(tutor, pet, data, mapasAliases = null) {
+    return `${resolverNomeViaAlias(tutor, mapasAliases?.tutor)}|${resolverNomeViaAlias(pet, mapasAliases?.pet)}|${data || ''}`
 }
 
 export function listarNomesExameUnicos(linhas) {
@@ -376,13 +208,25 @@ export function prepararOrdenacaoEFilaAliases({
 export async function carregarMapeamentosLaboratorio(laboratorioId) {
     const id = Number(laboratorioId)
     if (!id) return []
-    const { data, error } = await supabase
+    const selectCols =
+        'id, laboratorio_id, nome_lab, nome_lab_normalizado, valor_lab, nome_emerdog, nome_emerdog_normalizado, status, confirmado_por, confirmado_em'
+    let { data, error } = await supabase
         .from('lab_exame_mapeamento')
-        .select(
-            'id, laboratorio_id, nome_lab, nome_lab_normalizado, nome_emerdog, nome_emerdog_normalizado, status, confirmado_por, confirmado_em',
-        )
+        .select(selectCols)
         .eq('laboratorio_id', id)
         .order('nome_lab', { ascending: true })
+    // Coluna valor_lab ainda não migrada
+    if (error && /valor_lab|column/i.test(error.message || '')) {
+        const retry = await supabase
+            .from('lab_exame_mapeamento')
+            .select(
+                'id, laboratorio_id, nome_lab, nome_lab_normalizado, nome_emerdog, nome_emerdog_normalizado, status, confirmado_por, confirmado_em',
+            )
+            .eq('laboratorio_id', id)
+            .order('nome_lab', { ascending: true })
+        data = retry.data
+        error = retry.error
+    }
     if (error) {
         if (/lab_exame_mapeamento|does not exist|schema cache/i.test(error.message)) {
             throw new Error(
@@ -400,6 +244,7 @@ export async function salvarMapeamentoExame({
     nomeEmerdog = null,
     status = 'confirmado',
     userId,
+    valorLab = null,
 }) {
     let confirmadoPor = null
     try {
@@ -415,6 +260,7 @@ export async function salvarMapeamentoExame({
         laboratorio_id: Number(laboratorioId),
         nome_lab: String(nomeLab || '').trim(),
         nome_lab_normalizado: normalizarNomeExame(nomeLab),
+        valor_lab: valorLabParaPersistencia(valorLab),
         nome_emerdog: nomeEmerdog ? String(nomeEmerdog).trim() : null,
         nome_emerdog_normalizado: nomeEmerdog ? normalizarNomeExame(nomeEmerdog) : null,
         status,
@@ -426,22 +272,33 @@ export async function salvarMapeamentoExame({
         throw new Error('Mapeamento inválido.')
     }
 
+    const selectCols =
+        'id, laboratorio_id, nome_lab, nome_lab_normalizado, valor_lab, nome_emerdog, nome_emerdog_normalizado, status'
+    const onConflict = 'laboratorio_id,nome_lab_normalizado,valor_lab'
+
     let { data, error } = await supabase
         .from('lab_exame_mapeamento')
-        .upsert(payload, { onConflict: 'laboratorio_id,nome_lab_normalizado' })
-        .select(
-            'id, laboratorio_id, nome_lab, nome_lab_normalizado, nome_emerdog, nome_emerdog_normalizado, status',
-        )
+        .upsert(payload, { onConflict })
+        .select(selectCols)
         .single()
 
     // Se FK de confirmado_por falhar, tenta de novo sem o usuário
     if (error && /confirmado_por|foreign key|users/i.test(error.message || '')) {
         const retry = await supabase
             .from('lab_exame_mapeamento')
-            .upsert(
-                { ...payload, confirmado_por: null },
-                { onConflict: 'laboratorio_id,nome_lab_normalizado' },
-            )
+            .upsert({ ...payload, confirmado_por: null }, { onConflict })
+            .select(selectCols)
+            .single()
+        data = retry.data
+        error = retry.error
+    }
+
+    // Schema antigo sem valor_lab: fallback por nome apenas
+    if (error && /valor_lab|on conflict|constraint|column/i.test(error.message || '')) {
+        const { valor_lab: _v, ...legado } = payload
+        const retry = await supabase
+            .from('lab_exame_mapeamento')
+            .upsert(legado, { onConflict: 'laboratorio_id,nome_lab_normalizado' })
             .select(
                 'id, laboratorio_id, nome_lab, nome_lab_normalizado, nome_emerdog, nome_emerdog_normalizado, status',
             )
@@ -459,6 +316,187 @@ export async function salvarMapeamentoExame({
         throw new Error(error.message)
     }
     return data
+}
+
+/** Resolve nome para o canônico do laboratório via mapa de aliases (norm → norm lab). */
+export function resolverNomeViaAlias(nome, mapaAliases) {
+    const n = normalizarTextoBusca(nome)
+    if (!n) return ''
+    if (!mapaAliases?.size) return n
+    return mapaAliases.get(n) || n
+}
+
+/**
+ * Monta mapas norm→canônico (lab) para tutor e pet a partir da lista persistida/sessão.
+ * @returns {{ tutor: Map<string,string>, pet: Map<string,string> }}
+ */
+export function montarMapasAliasesPessoa(lista) {
+    const tutor = new Map()
+    const pet = new Map()
+    for (const a of lista || []) {
+        const alvo = a?.tipo === 'pet' ? pet : tutor
+        const lab = normalizarTextoBusca(a?.nomeLab)
+        const plano = normalizarTextoBusca(a?.nomePlano)
+        if (!lab || !plano) continue
+        alvo.set(lab, lab)
+        alvo.set(plano, lab)
+    }
+    return { tutor, pet }
+}
+
+/**
+ * Se tutor/pet do plano diferem do lab (após normalizar), gera alias plano → lab.
+ * Usado ao aprovar pareamento manual.
+ */
+export function aliasesPessoaDePareamento({
+    tutorLab,
+    tutorPlano,
+    petLab,
+    petPlano,
+} = {}) {
+    const out = []
+    const tLab = String(tutorLab || '').trim()
+    const tPlano = String(tutorPlano || '').trim()
+    if (
+        tLab &&
+        tPlano &&
+        normalizarTextoBusca(tLab) !== normalizarTextoBusca(tPlano)
+    ) {
+        out.push({ tipo: 'tutor', nomeLab: tLab, nomePlano: tPlano })
+    }
+    const pLab = String(petLab || '').trim()
+    const pPlano = String(petPlano || '').trim()
+    if (
+        pLab &&
+        pPlano &&
+        normalizarTextoBusca(pLab) !== normalizarTextoBusca(pPlano)
+    ) {
+        out.push({ tipo: 'pet', nomeLab: pLab, nomePlano: pPlano })
+    }
+    return out
+}
+
+/** Mescla novos aliases sem duplicar (chave tipo + nome_plano_normalizado). */
+export function mesclarAliasesPessoa(existentes, novos) {
+    const mapa = new Map()
+    for (const a of [...(existentes || []), ...(novos || [])]) {
+        if (!a?.tipo || !a?.nomeLab || !a?.nomePlano) continue
+        const chave = `${a.tipo}|${normalizarTextoBusca(a.nomePlano)}`
+        mapa.set(chave, {
+            tipo: a.tipo,
+            nomeLab: String(a.nomeLab).trim(),
+            nomePlano: String(a.nomePlano).trim(),
+        })
+    }
+    return [...mapa.values()]
+}
+
+export async function carregarAliasesPessoaLaboratorio(laboratorioId) {
+    const id = Number(laboratorioId)
+    if (!id) return []
+    try {
+        const { data, error } = await supabase
+            .from('lab_pessoa_mapeamento')
+            .select(
+                'id, laboratorio_id, tipo, nome_lab, nome_lab_normalizado, nome_plano, nome_plano_normalizado',
+            )
+            .eq('laboratorio_id', id)
+            .order('nome_lab', { ascending: true })
+        if (error) {
+            if (/lab_pessoa_mapeamento|does not exist|schema cache|42P01|PGRST/i.test(error.message)) {
+                return []
+            }
+            console.warn('[conferencia] carregarAliasesPessoa:', error.message)
+            return []
+        }
+        return (data || []).map((r) => ({
+            tipo: r.tipo,
+            nomeLab: r.nome_lab,
+            nomePlano: r.nome_plano,
+        }))
+    } catch (e) {
+        console.warn('[conferencia] carregarAliasesPessoa:', e?.message || e)
+        return []
+    }
+}
+
+export async function salvarAliasPessoa({
+    laboratorioId,
+    tipo,
+    nomeLab,
+    nomePlano,
+    userId,
+}) {
+    const id = Number(laboratorioId)
+    const t = tipo === 'pet' ? 'pet' : 'tutor'
+    const lab = String(nomeLab || '').trim()
+    const plano = String(nomePlano || '').trim()
+    if (!id || !lab || !plano) return { ok: false }
+
+    let confirmadoPor = null
+    try {
+        const { data: userData } = await supabase.auth.getUser()
+        confirmadoPor = userData?.user?.id || null
+    } catch {
+        confirmadoPor = null
+    }
+    if (!confirmadoPor && userId) confirmadoPor = userId
+
+    const payload = {
+        laboratorio_id: id,
+        tipo: t,
+        nome_lab: lab,
+        nome_lab_normalizado: normalizarTextoBusca(lab),
+        nome_plano: plano,
+        nome_plano_normalizado: normalizarTextoBusca(plano),
+        confirmado_por: confirmadoPor,
+        confirmado_em: new Date().toISOString(),
+        atualizado_em: new Date().toISOString(),
+    }
+
+    try {
+        let { error } = await supabase
+            .from('lab_pessoa_mapeamento')
+            .upsert(payload, { onConflict: 'laboratorio_id,tipo,nome_plano_normalizado' })
+
+        if (error && /confirmado_por|foreign key|users/i.test(error.message || '')) {
+            const retry = await supabase
+                .from('lab_pessoa_mapeamento')
+                .upsert(
+                    { ...payload, confirmado_por: null },
+                    { onConflict: 'laboratorio_id,tipo,nome_plano_normalizado' },
+                )
+            error = retry.error
+        }
+
+        if (error) {
+            if (/lab_pessoa_mapeamento|does not exist|schema cache|42P01|PGRST|rls|row-level/i.test(
+                error.message || '',
+            )) {
+                return { ok: false, motivo: error.message }
+            }
+            return { ok: false, motivo: error.message }
+        }
+        return { ok: true }
+    } catch (e) {
+        return { ok: false, motivo: e?.message || String(e) }
+    }
+}
+
+export async function salvarAliasesPessoaEmLote({ laboratorioId, aliases, userId }) {
+    const resultados = []
+    for (const a of aliases || []) {
+        resultados.push(
+            await salvarAliasPessoa({
+                laboratorioId,
+                tipo: a.tipo,
+                nomeLab: a.nomeLab,
+                nomePlano: a.nomePlano,
+                userId,
+            }),
+        )
+    }
+    return resultados
 }
 
 export function sugerirNomeEmerdogParaExame(nomeLab, nomesEmerdog) {
@@ -545,9 +583,15 @@ export function montarFilaMapeamento({
             .filter((i) => !nomesEmerdogRelatorio.some((r) => r.norm === i.norm))
             .map((i) => ({ nome: i.nome, norm: i.norm })),
     ]
-    const salvosPorNorm = new Map(
-        (mapeamentosSalvos || []).map((m) => [String(m.nome_lab_normalizado), m]),
-    )
+    const salvosPorNorm = new Map()
+    for (const m of mapeamentosSalvos || []) {
+        const norm = String(m?.nome_lab_normalizado || '')
+        if (!norm) continue
+        // Preferência: legado sem valor; senão o primeiro encontrado
+        if (!salvosPorNorm.has(norm) || valorLabDeMapeamentoSalvo(m) == null) {
+            salvosPorNorm.set(norm, m)
+        }
+    }
     const emerdogPorNorm = new Map(nomesEmerdog.map((n) => [n.norm, n.nome]))
 
     // Normas de exames do plano por atendimento (para priorizar aliases sem par)
@@ -600,19 +644,24 @@ export function montarFilaMapeamento({
     for (const item of nomesLab) {
         const salvo = salvosPorNorm.get(item.norm)
         if (salvo?.status === 'confirmado' && salvo.nome_emerdog) {
-            resolvidos.set(item.norm, {
-                nomeLab: item.nome,
-                nomeEmerdog: salvo.nome_emerdog,
-                status: 'mapeado_automaticamente',
-            })
-            registrarAliasResolvido(item.nome, salvo.nome_emerdog, 'salvo')
-            continue
+            // Só aplica legado (sem valor) no nível do nome; overlays por valor abaixo.
+            if (valorLabDeMapeamentoSalvo(salvo) == null) {
+                resolvidos.set(item.norm, {
+                    nomeLab: item.nome,
+                    nomeEmerdog: salvo.nome_emerdog,
+                    status: 'mapeado_automaticamente',
+                    valorLab: null,
+                })
+                registrarAliasResolvido(item.nome, salvo.nome_emerdog, 'salvo')
+                continue
+            }
         }
-        if (salvo?.status === 'pendente_auditoria') {
+        if (salvo?.status === 'pendente_auditoria' && valorLabDeMapeamentoSalvo(salvo) == null) {
             resolvidos.set(item.norm, {
                 nomeLab: item.nome,
                 nomeEmerdog: null,
                 status: 'pendente_auditoria',
+                valorLab: null,
             })
             continue
         }
@@ -623,6 +672,7 @@ export function montarFilaMapeamento({
                 nomeLab: item.nome,
                 nomeEmerdog: nomeAlvo,
                 status: 'mapeado_automaticamente',
+                valorLab: null,
             })
             registrarAliasResolvido(item.nome, nomeAlvo, 'exato')
             continue
@@ -672,6 +722,30 @@ export function montarFilaMapeamento({
         })
     }
 
+    // Overlay: aliases salvos por nome+valor (vínculos independentes por preço)
+    for (const m of mapeamentosSalvos || []) {
+        const norm = String(m?.nome_lab_normalizado || '')
+        if (!norm) continue
+        const valor = valorLabDeMapeamentoSalvo(m)
+        const chave = chaveAliasExame(norm, valor)
+        if (m.status === 'confirmado' && m.nome_emerdog) {
+            resolvidos.set(chave, {
+                nomeLab: m.nome_lab,
+                nomeEmerdog: m.nome_emerdog,
+                status: 'mapeado_automaticamente',
+                valorLab: valor,
+            })
+            registrarAliasResolvido(m.nome_lab, m.nome_emerdog, 'salvo')
+        } else if (m.status === 'pendente_auditoria') {
+            resolvidos.set(chave, {
+                nomeLab: m.nome_lab,
+                nomeEmerdog: null,
+                status: 'pendente_auditoria',
+                valorLab: valor,
+            })
+        }
+    }
+
     // Prioriza exames que aparecem sem correspondente em atendimentos
     fila.sort((a, b) => {
         const p = (b.atendimentosSemPar || 0) - (a.atendimentosSemPar || 0)
@@ -689,25 +763,234 @@ export function montarFilaMapeamento({
     }
 }
 
+/**
+ * Catálogo de negociação normalizado (Cod - Nome alt - Valor).
+ */
+export function montarItensCatalogoAlias(catalogoNegociacao = []) {
+    return [...(catalogoNegociacao || [])]
+        .map((item) => {
+            const nome = String(item.nome || '').trim()
+            const codigo = String(item.codigo || '').trim()
+            const nomeAlternativo = String(item.nomeAlternativo || '').trim()
+            const norm = item.nomeNorm || normalizarNomeExame(nome)
+            const valor = Number.isFinite(Number(item.valor)) ? Number(item.valor) : null
+            if (!nome || !norm) return null
+            const nomeExibicao = nomeAlternativo || item.nomeExibicao || nome
+            const partes = [codigo || null, nomeExibicao || null]
+            if (valor != null) {
+                partes.push(
+                    valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+                )
+            }
+            return {
+                nome,
+                norm,
+                codigo,
+                valor,
+                nomeAlternativo: nomeAlternativo || null,
+                nomeExibicao,
+                rotulo: item.rotulo || partes.filter(Boolean).join(' - '),
+            }
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+            const ca = String(a.codigo || '')
+            const cb = String(b.codigo || '')
+            if (ca && cb) return ca.localeCompare(cb, 'pt-BR', { numeric: true })
+            if (ca) return -1
+            if (cb) return 1
+            return String(a.nomeExibicao || a.nome).localeCompare(
+                String(b.nomeExibicao || b.nome),
+                'pt-BR',
+            )
+        })
+}
+
+/**
+ * Lista um item por combinação nome+valor do lab × catálogo de negociação.
+ * Mesmo nome com preços distintos vira linhas separadas (vínculos independentes).
+ */
+export function montarListaAliasesExames({
+    linhasLab,
+    catalogoNegociacao = [],
+    mapeamentosSalvos = [],
+    resolvidos = new Map(),
+}) {
+    const itensCatalogo = montarItensCatalogoAlias(catalogoNegociacao)
+    const catalogoPorNorm = new Map()
+    for (const i of itensCatalogo) {
+        catalogoPorNorm.set(i.norm, i)
+        if (i.nomeAlternativo) {
+            const an = normalizarNomeExame(i.nomeAlternativo)
+            if (an && !catalogoPorNorm.has(an)) catalogoPorNorm.set(an, i)
+        }
+    }
+
+    const salvosPorChave = indexarMapeamentosSalvos(mapeamentosSalvos)
+    const mapaRes =
+        resolvidos instanceof Map
+            ? resolvidos
+            : new Map(Object.entries(resolvidos || {}))
+
+    const porChave = new Map()
+    for (const linha of linhasLab || []) {
+        const nome = String(linha.exame || '').trim()
+        const norm = linha.exameNorm || normalizarNomeExame(nome)
+        if (!norm || !nome) continue
+        const valor = arredondarValorLab(linha.valorRelatorio)
+        const chave = chaveAliasExame(norm, valor)
+        if (!porChave.has(chave)) {
+            porChave.set(chave, {
+                chave,
+                nomeLab: nome,
+                nomeLabNorm: norm,
+                valorLab: valor,
+                qtd: 0,
+            })
+        }
+        porChave.get(chave).qtd += 1
+    }
+
+    const acharCatalogo = (nomeNorm, valorLab, nomeEmerdog) => {
+        if (nomeEmerdog) {
+            const cat = catalogoPorNorm.get(normalizarNomeExame(nomeEmerdog))
+            if (cat) return cat
+        }
+        if (valorLab != null) {
+            const mesmosValor = itensCatalogo.filter(
+                (i) =>
+                    Number.isFinite(Number(i.valor)) &&
+                    Math.abs(Number(i.valor) - valorLab) <= 0.009,
+            )
+            const porNomeEValor = mesmosValor.find((i) => i.norm === nomeNorm)
+            if (porNomeEValor) return porNomeEValor
+        }
+        return catalogoPorNorm.get(nomeNorm) || null
+    }
+
+    const lista = []
+    for (const entry of porChave.values()) {
+        const salvo = salvosPorChave.get(entry.chave) || salvosPorChave.get(entry.nomeLabNorm)
+        const res = obterMapeamentoResolvido(mapaRes, entry.nomeLabNorm, entry.valorLab)
+        let nomeEmerdog =
+            (res?.nomeEmerdog && String(res.nomeEmerdog).trim()) ||
+            (salvo?.status === 'confirmado' && salvo.nome_emerdog
+                ? String(salvo.nome_emerdog).trim()
+                : '') ||
+            ''
+
+        const catPorAlias = nomeEmerdog
+            ? catalogoPorNorm.get(normalizarNomeExame(nomeEmerdog))
+            : null
+        const catPorNome = catalogoPorNorm.get(entry.nomeLabNorm)
+        const itemCatalogo =
+            catPorAlias ||
+            (!nomeEmerdog
+                ? acharCatalogo(entry.nomeLabNorm, entry.valorLab, null)
+                : null) ||
+            null
+
+        if (!nomeEmerdog && itemCatalogo) {
+            nomeEmerdog = itemCatalogo.nome
+        }
+
+        const valorNegociacao =
+            itemCatalogo && Number.isFinite(Number(itemCatalogo.valor))
+                ? Number(itemCatalogo.valor)
+                : null
+
+        const nomeIgualNoCatalogo = Boolean(catPorNome)
+        const valorDiff =
+            valorNegociacao != null &&
+            entry.valorLab != null &&
+            Math.abs(entry.valorLab - valorNegociacao) > 0.009
+
+        const pendenteAuditoria =
+            res?.status === 'pendente_auditoria' ||
+            salvo?.status === 'pendente_auditoria'
+
+        const vinculado = Boolean(nomeEmerdog) && !pendenteAuditoria
+
+        let status = 'pendente'
+        if (pendenteAuditoria) status = 'auditoria'
+        else if (vinculado && valorDiff) status = 'valor_diff'
+        else if (vinculado) status = 'ok'
+
+        lista.push({
+            chave: entry.chave,
+            nomeLab: entry.nomeLab,
+            nomeLabNorm: entry.nomeLabNorm,
+            qtd: entry.qtd,
+            valoresLab: entry.valorLab != null ? [entry.valorLab] : [],
+            valorLab: entry.valorLab,
+            nomeEmerdog: nomeEmerdog || null,
+            itemCatalogo,
+            valorNegociacao,
+            valorDiff,
+            nomeIgualValorDiff: nomeIgualNoCatalogo && valorDiff,
+            vinculado,
+            status,
+            origem:
+                res?.status ||
+                (salvo?.status === 'confirmado' ? 'salvo' : null) ||
+                (itemCatalogo && !catPorAlias ? 'exato' : null),
+        })
+    }
+
+    lista.sort((a, b) => {
+        const rank = (s) =>
+            s === 'pendente' ? 0 : s === 'valor_diff' ? 1 : s === 'auditoria' ? 2 : 3
+        const r = rank(a.status) - rank(b.status)
+        if (r !== 0) return r
+        const n = String(a.nomeLab).localeCompare(String(b.nomeLab), 'pt-BR')
+        if (n !== 0) return n
+        return (a.valorLab ?? -1) - (b.valorLab ?? -1)
+    })
+
+    const total = lista.length
+    const vinculados = lista.filter((i) => i.vinculado).length
+    const pendentes = lista.filter((i) => i.status === 'pendente').length
+    const comValorDiff = lista.filter((i) => i.valorDiff).length
+
+    return {
+        lista,
+        itensCatalogo,
+        total,
+        vinculados,
+        pendentes,
+        restantes: pendentes,
+        comValorDiff,
+        progressoPct: total > 0 ? Math.round((vinculados / total) * 100) : 100,
+    }
+}
+
 /** Chave de comparação: tutor + animal + data + exame (já no “idioma” Emerdog). */
-export function chaveMatchExame(tutor, pet, data, exameNorm) {
+export function chaveMatchExame(tutor, pet, data, exameNorm, mapasAliases = null) {
     return [
-        normalizarTextoBusca(tutor),
-        normalizarTextoBusca(pet),
+        resolverNomeViaAlias(tutor, mapasAliases?.tutor),
+        resolverNomeViaAlias(pet, mapasAliases?.pet),
         data || '',
         exameNorm || '',
     ].join('|')
 }
 
 function exameNormParaMatchLab(linha, resolvidosMapeamento) {
-    const map = resolvidosMapeamento.get(linha.exameNorm)
+    const map = obterMapeamentoResolvido(
+        resolvidosMapeamento,
+        linha.exameNorm,
+        linha.valorRelatorio,
+    )
     if (map?.nomeEmerdog) return normalizarNomeExame(map.nomeEmerdog)
     if (map?.status === 'pendente_auditoria') return null
     return linha.exameNorm || normalizarNomeExame(linha.exame)
 }
 
 function enriquecerLinhaLab(linha, resolvidosMapeamento) {
-    const map = resolvidosMapeamento.get(linha.exameNorm)
+    const map = obterMapeamentoResolvido(
+        resolvidosMapeamento,
+        linha.exameNorm,
+        linha.valorRelatorio,
+    )
     const exameMatchNorm = exameNormParaMatchLab(linha, resolvidosMapeamento)
     return {
         ...linha,
@@ -799,6 +1082,48 @@ function resolverCodigoPorNome(nomeOuNorm, codigoPorNomeNorm = new Map(), resolv
 export function valoresExameDiferem(valorA, valorB, tolerancia = 0.009) {
     if (!Number.isFinite(Number(valorA)) || !Number.isFinite(Number(valorB))) return false
     return Math.abs(Number(valorA) - Number(valorB)) > tolerancia
+}
+
+/**
+ * Badge de valor para UI: OK (igual), parecido (perto), diferente (diverge).
+ * Retorna null se algum lado não tiver valor numérico.
+ */
+export function motivoComparacaoValor(
+    valorA,
+    valorB,
+    { toleranciaOk = 0.009, toleranciaParecido = 1.7 } = {},
+) {
+    if (valorA == null || valorB == null || valorA === '' || valorB === '') return null
+    const a = Number(valorA)
+    const b = Number(valorB)
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null
+    const diff = Math.round(Math.abs(a - b) * 100) / 100
+    if (diff <= toleranciaOk) return 'Valor OK'
+    // até R$ 1,70 → parecido; acima → diferente
+    if (diff <= toleranciaParecido) return 'Valor parecido'
+    return 'Valor diferente'
+}
+
+function valorNumericoOpcional(v) {
+    if (v == null || v === '') return null
+    const n = Number(v)
+    return Number.isFinite(n) ? n : null
+}
+
+/** Valor “do exame” no card: lab usa relatório; plano usa negociado. */
+function valorCardConferencia(card) {
+    if (!card) return null
+    if (card.tipo === 'orfao_emerdog') {
+        return valorNumericoOpcional(card.valorEmerdog)
+    }
+    if (card.tipo === 'orfao_lab') {
+        return valorNumericoOpcional(card.valorLab)
+    }
+    // pareado / outros: preferir o lado presente
+    return (
+        valorNumericoOpcional(card.valorLab) ??
+        valorNumericoOpcional(card.valorEmerdog)
+    )
 }
 
 export function ordenarExamesPorCodigo(exames) {
@@ -1069,11 +1394,13 @@ export function montarCardsConferencia({
     codigoPorNomeNorm = new Map(),
     nomeSistemaPorNorm = new Map(),
     paresManuais = [],
+    mapasAliasesPessoa = null,
 }) {
     const labs = (linhasLab || []).map((l) => enriquecerLinhaLab(l, resolvidosMapeamento))
     const emerdogs = (linhasEmerdog || []).map((l) =>
         enriquecerLinhaEmerdog(l, precosPorNomeNorm, resolvidosMapeamento, nomeSistemaPorNorm),
     )
+    const mapas = mapasAliasesPessoa || { tutor: new Map(), pet: new Map() }
 
     const usadoLab = new Set()
     const usadoEm = new Set()
@@ -1109,7 +1436,13 @@ export function montarCardsConferencia({
     const bucketEm = new Map()
     for (const em of emerdogs) {
         if (usadoEm.has(em.idLocal) || !em.data || !em.exameMatchNorm) continue
-        const chave = chaveMatchExame(em.tutor, em.pet, em.data, em.exameMatchNorm)
+        const chave = chaveMatchExame(
+            em.tutor,
+            em.pet,
+            em.data,
+            em.exameMatchNorm,
+            mapas,
+        )
         if (!bucketEm.has(chave)) bucketEm.set(chave, [])
         bucketEm.get(chave).push(em)
     }
@@ -1117,7 +1450,13 @@ export function montarCardsConferencia({
     for (const lab of labs) {
         if (usadoLab.has(lab.idLocal)) continue
         if (!lab.data || !lab.exameMatchNorm) continue
-        const chave = chaveMatchExame(lab.tutor, lab.pet, lab.data, lab.exameMatchNorm)
+        const chave = chaveMatchExame(
+            lab.tutor,
+            lab.pet,
+            lab.data,
+            lab.exameMatchNorm,
+            mapas,
+        )
         const fila = bucketEm.get(chave) || []
         const em = fila.shift()
         if (!em) continue
@@ -1132,13 +1471,13 @@ export function montarCardsConferencia({
     const emsRestPorAt = new Map()
     for (const lab of labs) {
         if (usadoLab.has(lab.idLocal)) continue
-        const k = chaveGrupoAtendimento(lab.tutor, lab.pet, lab.data)
+        const k = chaveGrupoAtendimento(lab.tutor, lab.pet, lab.data, mapas)
         if (!labsRestPorAt.has(k)) labsRestPorAt.set(k, [])
         labsRestPorAt.get(k).push(lab)
     }
     for (const em of emerdogs) {
         if (usadoEm.has(em.idLocal)) continue
-        const k = chaveGrupoAtendimento(em.tutor, em.pet, em.data)
+        const k = chaveGrupoAtendimento(em.tutor, em.pet, em.data, mapas)
         if (!emsRestPorAt.has(k)) emsRestPorAt.set(k, [])
         emsRestPorAt.get(k).push(em)
     }
@@ -1241,20 +1580,49 @@ export function montarCardsConferencia({
 }
 
 /**
- * Aplica combinação manual de dois órfãos e remonta a lista de cards.
+ * Aplica combinação manual de dois órfãos e remonta a lista de cards (síncrono, sem rede).
  */
-export function combinarOrfaosNosCards(cards, idLabLocal, idEmerdogLocal) {
+export function combinarOrfaosNosCards(cards, idLabLocal, idEmerdogLocal, opts = {}) {
     const orfaoLab = (cards || []).find(
-        (c) => c.tipo === 'orfao_lab' && c.idLabLocal === idLabLocal,
+        (c) => c.tipo === 'orfao_lab' && String(c.idLabLocal) === String(idLabLocal),
     )
     const orfaoEm = (cards || []).find(
-        (c) => c.tipo === 'orfao_emerdog' && c.idEmerdogLocal === idEmerdogLocal,
+        (c) => c.tipo === 'orfao_emerdog' && String(c.idEmerdogLocal) === String(idEmerdogLocal),
     )
-    if (!orfaoLab?._linhaLab || !orfaoEm?._linhaEmerdog) {
+    if (!orfaoLab || !orfaoEm) {
         throw new Error('Selecione um órfão do laboratório e um do plano.')
     }
 
-    const novo = montarCardPareado(orfaoLab._linhaLab, orfaoEm._linhaEmerdog, {
+    const linhaLab =
+        orfaoLab._linhaLab ||
+        ({
+            idLocal: orfaoLab.idLabLocal,
+            tutor: orfaoLab.tutor,
+            pet: orfaoLab.pet,
+            data: orfaoLab.data,
+            exame: orfaoLab.exameLaboratorio,
+            exameNorm: normalizarNomeExame(orfaoLab.exameLaboratorio),
+            valorRelatorio: orfaoLab.valorLab,
+            linhaExcel: orfaoLab.linhaExcelLab,
+            nomeEmerdogMapeado: orfaoLab.nomeNegociacao,
+        })
+    const linhaEm =
+        orfaoEm._linhaEmerdog ||
+        ({
+            idLocal: orfaoEm.idEmerdogLocal,
+            tutor: orfaoEm.tutor,
+            pet: orfaoEm.pet,
+            data: orfaoEm.data,
+            exame: orfaoEm.exameEmerdog,
+            exameNorm: normalizarNomeExame(orfaoEm.exameEmerdog),
+            valorNegociacao: orfaoEm.valorEmerdog,
+            nomeNegociacao: orfaoEm.nomeNegociacao,
+            nomeSistemaNegociacao: orfaoEm.nomeNegociacao,
+            linhaExcel: orfaoEm.linhaExcelEmerdog,
+        })
+
+    const novo = montarCardPareado(linhaLab, linhaEm, {
+        ...opts,
         combinadoManual: true,
         status: 'conferido_manual',
         chaveManual: `manual:${idLabLocal}|${idEmerdogLocal}`,
@@ -1262,16 +1630,20 @@ export function combinarOrfaosNosCards(cards, idLabLocal, idEmerdogLocal) {
 
     const resto = (cards || []).filter(
         (c) =>
-            !(c.tipo === 'orfao_lab' && c.idLabLocal === idLabLocal) &&
-            !(c.tipo === 'orfao_emerdog' && c.idEmerdogLocal === idEmerdogLocal),
+            !(c.tipo === 'orfao_lab' && String(c.idLabLocal) === String(idLabLocal)) &&
+            !(c.tipo === 'orfao_emerdog' && String(c.idEmerdogLocal) === String(idEmerdogLocal)),
     )
-    return [novo, ...resto]
+    return [{ ...novo, idLocal: `par-${idLabLocal}-${idEmerdogLocal}` }, ...resto]
 }
 
 /** Score 0–1000 de similaridade textual (mesma lógica da sugestão de prestadores). */
-export function scoreSimilaridadeNome(a, b) {
-    const termo = normalizarTextoBusca(a)
-    const n = normalizarTextoBusca(b)
+export function scoreSimilaridadeNome(a, b, mapaAliases = null) {
+    let termo = normalizarTextoBusca(a)
+    let n = normalizarTextoBusca(b)
+    if (mapaAliases?.size) {
+        termo = mapaAliases.get(termo) || termo
+        n = mapaAliases.get(n) || n
+    }
     if (!termo || !n) return 0
     if (n === termo) return 1000
     if (n.startsWith(termo) || termo.startsWith(n)) return 850
@@ -1694,9 +2066,17 @@ function montarGrupoAtendimentoCompleto(cardsAt, lado, codigoPorNomeNorm = new M
     )
 }
 
-function pontuarGruposOrfaos(grupoLab, grupoEm) {
-    const scoreTutor = scoreSimilaridadeNome(grupoLab.tutor, grupoEm.tutor)
-    const scorePet = scoreSimilaridadeNome(grupoLab.pet, grupoEm.pet)
+function pontuarGruposOrfaos(grupoLab, grupoEm, mapasAliases = null) {
+    const scoreTutor = scoreSimilaridadeNome(
+        grupoLab.tutor,
+        grupoEm.tutor,
+        mapasAliases?.tutor,
+    )
+    const scorePet = scoreSimilaridadeNome(
+        grupoLab.pet,
+        grupoEm.pet,
+        mapasAliases?.pet,
+    )
     const scoreData = scoreDataProximidade(grupoLab.data, grupoEm.data)
 
     // Também conta códigos em comum (sem duplicar o mesmo exame)
@@ -1789,205 +2169,294 @@ export function expandirPareamentoGrupoOrfaos(grupoLab, grupoEm) {
         }
     }
 
-    // Se nenhum exame bateu por nome/código mas os grupos foram aprovados, pareia em ordem (1:1)
-    if (!pares.length) {
-        const n = Math.min(grupoLab.exames.length, grupoEm.exames.length)
-        for (let i = 0; i < n; i += 1) {
-            pares.push({
-                idLabLocal: grupoLab.exames[i].idLocal,
-                idEmerdogLocal: grupoEm.exames[i].idLocal,
-            })
-        }
-    }
-
+    // Se nenhum exame bateu por nome/código, não força 1:1 (evita parear exames errados)
     return pares
 }
 
 /**
- * Monta fila de revisão por atendimento (tutor + animal + data).
- * Só atendimentos 100% corretos ficam de fora (aprovados automaticamente).
- * Qualquer discrepância (órfão ou diff de valor) traz o atendimento inteiro.
+ * Score + badges de pareamento entre dois cards/lados (lab ↔ plano).
+ * Usado na fila e na UI ao trocar o atendimento do plano.
  */
-export function montarFilaPareamentoOrfaos(
-    cards,
-    { limiteCandidatos = 8, scoreMinimo = 500, codigoPorNomeNorm = new Map() } = {},
-) {
-    const porChave = new Map()
-    for (const c of cards || []) {
-        const chave = chaveGrupoAtendimento(c.tutor, c.pet, c.data)
-        if (!porChave.has(chave)) porChave.set(chave, [])
-        porChave.get(chave).push(c)
-    }
+export function pontuarPareamentoExamesIndividuais(ladoA, ladoB, mapasAliases = null) {
+    const scoreTutor = scoreSimilaridadeNome(
+        ladoA?.tutor,
+        ladoB?.tutor,
+        mapasAliases?.tutor,
+    )
+    const scorePet = scoreSimilaridadeNome(ladoA?.pet, ladoB?.pet, mapasAliases?.pet)
+    const scoreData = scoreDataProximidade(ladoA?.data, ladoB?.data)
+    const nomeA = ladoA?.exameLaboratorio || ladoA?.exameEmerdog || ladoA?.exame || ''
+    const nomeB = ladoB?.exameEmerdog || ladoB?.exameLaboratorio || ladoB?.exame || ''
+    const scoreExame = scorePareamentoExame(
+        {
+            nome: nomeA,
+            nomeNorm: normalizarNomeExame(nomeA),
+            codigo: ladoA?.codigo,
+        },
+        {
+            nome: nomeB,
+            nomeNorm: normalizarNomeExame(nomeB),
+            codigo: ladoB?.codigo,
+        },
+    )
+    const total = scoreTutor * 4 + scorePet * 3 + scoreData + scoreExame * 0.5
+    const motivos = []
+    if (scoreTutor >= 1000) motivos.push('Tutor idêntico')
+    else if (scoreTutor >= 650) motivos.push('Tutor parecido')
+    else if (scoreTutor >= 180) motivos.push('Tutor parcialmente parecido')
+    if (scorePet >= 1000) motivos.push('Animal idêntico')
+    else if (scorePet >= 650) motivos.push('Animal parecido')
+    else if (scorePet >= 180) motivos.push('Animal parcialmente parecido')
+    if (scoreData >= 200) motivos.push('Mesma data')
+    else if (scoreData >= 60) motivos.push('Data próxima')
+    if (scoreExame >= 1000) motivos.push('Exame/código idêntico')
+    else if (scoreExame >= 650) motivos.push('Exame parecido')
+    const motivoValor = motivoComparacaoValor(
+        valorCardConferencia(ladoA),
+        valorCardConferencia(ladoB),
+    )
+    if (motivoValor) motivos.push(motivoValor)
+    return { scoreTutor, scorePet, scoreData, scoreExame, total, motivos }
+}
 
-    const gruposLab = []
-    const gruposEm = []
-    const chavesRevisao = new Set()
+/**
+ * Match 100%: tutor, animal, data, exame/código idênticos e valor OK.
+ * Esses podem ser aprovados automaticamente e sair da fila.
+ */
+export function ehPareamentoExamePerfeito(scores) {
+    if (!scores) return false
+    if (Number(scores.scoreTutor) < 1000) return false
+    if (Number(scores.scorePet) < 1000) return false
+    if (Number(scores.scoreData) < 200) return false
+    if (Number(scores.scoreExame) < 1000) return false
+    const motivos = scores.motivos || []
+    return motivos.includes('Valor OK')
+}
 
-    for (const [chave, cardsAt] of porChave) {
-        if (atendimentoEsta100PorCento(cardsAt)) continue
-        chavesRevisao.add(chave)
-        const gLab = montarGrupoAtendimentoCompleto(cardsAt, 'lab', codigoPorNomeNorm)
-        const gEm = montarGrupoAtendimentoCompleto(cardsAt, 'emerdog', codigoPorNomeNorm)
-        if (gLab) gruposLab.push(gLab)
-        if (gEm) gruposEm.push(gEm)
-    }
+/**
+ * Pareia órfãos lab↔plano com match 100% e remove da lista de órfãos.
+ * Cada lab/em entra em no máximo um par (guloso por score total).
+ */
+export function autoAprovarPareamentosPerfeitos(cards, opts = {}) {
+    const mapas = opts.mapasAliasesPessoa || { tutor: new Map(), pet: new Map() }
+    let atual = [...(cards || [])]
+    const orfaosLab = atual.filter((c) => c.tipo === 'orfao_lab')
+    const orfaosEm = atual.filter((c) => c.tipo === 'orfao_emerdog')
 
-    // Planos de outras datas do mesmo tutor/pet também entram como candidatos
-    // (já cobertos se a chave deles também está em revisão; senão, gruposEm de chaves
-    // só-plano com ófãos já foram adicionados acima)
-
-    const orfaosLab = (cards || []).filter((c) => c.tipo === 'orfao_lab')
-    const orfaosEm = (cards || []).filter((c) => c.tipo === 'orfao_emerdog')
-
-    const candidatosPorLab = new Map()
-    for (const gLab of gruposLab) {
-        const ranked = []
-        for (const gEm of gruposEm) {
-            const scores = pontuarGruposOrfaos(gLab, gEm)
-            const mesmaChave = gLab.chave === gEm.chave
-            const passaFiltro =
-                mesmaChave ||
-                scores.scoreTutor >= 180 ||
-                (scores.scorePet >= 650 && scores.scoreData >= 25) ||
-                scores.total >= scoreMinimo
-            if (!passaFiltro) continue
-            ranked.push({
-                chaveEm: gEm.chave,
-                grupoEm: gEm,
-                ...scores,
-                total: mesmaChave ? scores.total + 5000 : scores.total,
+    const candidatos = []
+    for (const lab of orfaosLab) {
+        for (const em of orfaosEm) {
+            const scores = pontuarPareamentoExamesIndividuais(lab, em, mapas)
+            if (!ehPareamentoExamePerfeito(scores)) continue
+            candidatos.push({
+                idLabLocal: lab.idLabLocal,
+                idEmerdogLocal: em.idEmerdogLocal,
+                total: scores.total,
             })
         }
-        ranked.sort((a, b) => b.total - a.total || b.scoreTutor - a.scoreTutor)
-        candidatosPorLab.set(gLab.chave, ranked.slice(0, limiteCandidatos))
+    }
+    candidatos.sort((a, b) => b.total - a.total)
+
+    const usadosLab = new Set()
+    const usadosEm = new Set()
+    const paresAuto = []
+    for (const p of candidatos) {
+        const idL = String(p.idLabLocal)
+        const idE = String(p.idEmerdogLocal)
+        if (usadosLab.has(idL) || usadosEm.has(idE)) continue
+        usadosLab.add(idL)
+        usadosEm.add(idE)
+        paresAuto.push({
+            idLabLocal: p.idLabLocal,
+            idEmerdogLocal: p.idEmerdogLocal,
+        })
     }
 
-    const pares = []
-    const usadoEm = new Set()
-    const usadoLab = new Set()
-    const todos = []
-    for (const gLab of gruposLab) {
-        for (const cand of candidatosPorLab.get(gLab.chave) || []) {
-            todos.push({ gLab, cand })
+    for (const par of paresAuto) {
+        try {
+            atual = combinarOrfaosNosCards(
+                atual,
+                par.idLabLocal,
+                par.idEmerdogLocal,
+                opts,
+            )
+        } catch {
+            // par já consumido / inconsistente — ignora
         }
-    }
-    todos.sort((a, b) => b.cand.total - a.cand.total)
-
-    for (const { gLab, cand } of todos) {
-        if (usadoLab.has(gLab.chave) || usadoEm.has(cand.chaveEm)) continue
-        if (cand.total < scoreMinimo && cand.scoreTutor < 650 && gLab.chave !== cand.chaveEm) {
-            continue
-        }
-        usadoLab.add(gLab.chave)
-        usadoEm.add(cand.chaveEm)
-        const alts = (candidatosPorLab.get(gLab.chave) || []).filter((c) => c.chaveEm !== cand.chaveEm)
-        pares.push({
-            tipo: 'grupo',
-            chaveLab: gLab.chave,
-            chaveEm: cand.chaveEm,
-            grupoLab: gLab,
-            grupoEm: cand.grupoEm,
-            scoreTutor: cand.scoreTutor,
-            scorePet: cand.scorePet,
-            scoreData: cand.scoreData,
-            examesComuns: cand.examesComuns,
-            total: cand.total,
-            motivos: cand.motivos,
-            candidatos: [
-                {
-                    chaveEm: cand.chaveEm,
-                    grupoEm: cand.grupoEm,
-                    total: cand.total,
-                    motivos: cand.motivos,
-                },
-                ...alts.map((c) => ({
-                    chaveEm: c.chaveEm,
-                    grupoEm: c.grupoEm,
-                    total: c.total,
-                    motivos: c.motivos,
-                })),
-            ],
-        })
-    }
-
-    for (const gLab of gruposLab) {
-        if (usadoLab.has(gLab.chave)) continue
-        const alts = candidatosPorLab.get(gLab.chave) || []
-        pares.push({
-            tipo: 'grupo',
-            chaveLab: gLab.chave,
-            chaveEm: alts[0]?.chaveEm || '',
-            grupoLab: gLab,
-            grupoEm: alts[0]?.grupoEm || null,
-            scoreTutor: alts[0]?.scoreTutor || 0,
-            scorePet: alts[0]?.scorePet || 0,
-            scoreData: alts[0]?.scoreData || 0,
-            examesComuns: alts[0]?.examesComuns || 0,
-            total: alts[0]?.total || 0,
-            motivos: alts[0]?.motivos || ['Atendimento com discrepância — confirme o plano'],
-            candidatos: alts.map((c) => ({
-                chaveEm: c.chaveEm,
-                grupoEm: c.grupoEm,
-                total: c.total,
-                motivos: c.motivos,
-            })),
-            exigeEscolhaManual: true,
-        })
-        usadoLab.add(gLab.chave)
-    }
-
-    // Órfãos só-plano (sem lab na mesma chave) que ainda não entraram como candidato principal
-    for (const gEm of gruposEm) {
-        if (usadoEm.has(gEm.chave)) continue
-        // Já há lab na mesma chave? Se não, cria item invertido para não perder o plano
-        const temLabMesma = gruposLab.some((g) => g.chave === gEm.chave)
-        if (temLabMesma) continue
-        pares.push({
-            tipo: 'grupo',
-            chaveLab: '',
-            chaveEm: gEm.chave,
-            grupoLab: {
-                chave: gEm.chave,
-                tutor: gEm.tutor,
-                pet: gEm.pet,
-                data: gEm.data,
-                lado: 'lab',
-                exames: [],
-                subtotal: 0,
-                ids: [],
-            },
-            grupoEm: gEm,
-            scoreTutor: 0,
-            scorePet: 0,
-            scoreData: 0,
-            examesComuns: 0,
-            total: 0,
-            motivos: ['Atendimento só no plano — sem lab correspondente'],
-            candidatos: [
-                {
-                    chaveEm: gEm.chave,
-                    grupoEm: gEm,
-                    total: 0,
-                    motivos: ['Só plano'],
-                },
-            ],
-            exigeEscolhaManual: true,
-            soPlano: true,
-        })
-        usadoEm.add(gEm.chave)
     }
 
     return {
-        fila: pares,
+        cards: atual,
+        paresAuto,
+        qtdAuto: paresAuto.length,
+    }
+}
+
+/**
+ * Fila de revisão exame a exame (linha da planilha).
+ * Inclui órfãos lab, órfãos plano e pares com valor divergente.
+ * Candidatos do outro lado ranqueados por tutor/pet (+ data/exame).
+ */
+export function montarFilaExamesIndividuais(
+    cards,
+    { limiteCandidatos = 12, scoreMinimoTutorPet = 180, mapasAliasesPessoa = null } = {},
+) {
+    const lista = cards || []
+    const orfaosLab = lista.filter((c) => c.tipo === 'orfao_lab')
+    const orfaosEm = lista.filter((c) => c.tipo === 'orfao_emerdog')
+    const diffs = lista.filter((c) => c.tipo === 'pareado' && c.valoresDiferem)
+    const mapas = mapasAliasesPessoa || { tutor: new Map(), pet: new Map() }
+
+    const ranquearCandidatos = (origem, pool, idField) => {
+        const ranked = []
+        for (const cand of pool) {
+            const scores = pontuarPareamentoExamesIndividuais(origem, cand, mapas)
+            if (
+                scores.scoreTutor < scoreMinimoTutorPet &&
+                scores.scorePet < 650 &&
+                scores.total < 500
+            ) {
+                continue
+            }
+            ranked.push({
+                idLocal: cand[idField] || cand.idEmerdogLocal || cand.idLabLocal,
+                card: cand,
+                ...scores,
+            })
+        }
+        ranked.sort((a, b) => b.total - a.total || b.scoreExame - a.scoreExame)
+        return ranked.slice(0, limiteCandidatos)
+    }
+
+    const fila = []
+
+    for (const lab of orfaosLab) {
+        const candidatos = ranquearCandidatos(lab, orfaosEm, 'idEmerdogLocal')
+        fila.push({
+            tipo: 'orfao_lab',
+            idItem: `lab:${lab.idLabLocal}`,
+            idLabLocal: lab.idLabLocal,
+            idEmerdogLocal: null,
+            cardLab: lab,
+            cardEm: null,
+            tutor: lab.tutor,
+            pet: lab.pet,
+            data: lab.data,
+            exame: lab.exameLaboratorio,
+            codigo: lab.codigo,
+            valorLab: lab.valorLab,
+            valorEm: null,
+            candidatos,
+            idEmSugerido: candidatos[0]?.idLocal || '',
+            motivos: candidatos[0]?.motivos || ['Sem sugestão automática — escolha o exame do plano'],
+        })
+    }
+
+    for (const em of orfaosEm) {
+        // Só entra se ainda não é o melhor candidato exclusivo de algum lab já listado
+        // (continua visível para parear lab→em; itens só-plano ajudam achar matches invertidos)
+        const candidatos = ranquearCandidatos(em, orfaosLab, 'idLabLocal')
+        if (!candidatos.length) {
+            fila.push({
+                tipo: 'orfao_emerdog',
+                idItem: `em:${em.idEmerdogLocal}`,
+                idLabLocal: null,
+                idEmerdogLocal: em.idEmerdogLocal,
+                cardLab: null,
+                cardEm: em,
+                tutor: em.tutor,
+                pet: em.pet,
+                data: em.data,
+                exame: em.exameEmerdog,
+                codigo: em.codigo,
+                valorLab: null,
+                valorEm: em.valorEmerdog,
+                candidatos: [],
+                idEmSugerido: '',
+                idLabSugerido: '',
+                motivos: ['Exame só no plano — sem lab correspondente próximo'],
+                soPlano: true,
+            })
+        }
+    }
+
+    for (const par of diffs) {
+        fila.push({
+            tipo: 'diff_valor',
+            idItem: `diff:${par.idLabLocal}|${par.idEmerdogLocal}`,
+            idLabLocal: par.idLabLocal,
+            idEmerdogLocal: par.idEmerdogLocal,
+            cardLab: par,
+            cardEm: par,
+            tutor: par.tutor,
+            pet: par.pet,
+            data: par.data,
+            exame: par.exameLaboratorio,
+            examePlano: par.exameEmerdog,
+            codigo: par.codigo,
+            valorLab: par.valorLab,
+            valorEm: par.valorEmerdog,
+            diferenca: par.diferenca,
+            candidatos: [
+                {
+                    idLocal: par.idEmerdogLocal,
+                    card: par,
+                    scoreTutor: 1000,
+                    scorePet: 1000,
+                    scoreData: 200,
+                    scoreExame: 1000,
+                    total: 9999,
+                    motivos: [
+                        'Par atual',
+                        motivoComparacaoValor(par.valorLab, par.valorEmerdog) ||
+                            'Valor diferente',
+                    ],
+                },
+            ],
+            idEmSugerido: par.idEmerdogLocal,
+            motivos: [
+                motivoComparacaoValor(par.valorLab, par.valorEmerdog) || 'Valor diferente',
+            ],
+            valoresDiferem: true,
+        })
+    }
+
+    fila.sort((a, b) => {
+        const t = normalizarTextoBusca(a.tutor).localeCompare(normalizarTextoBusca(b.tutor), 'pt-BR')
+        if (t !== 0) return t
+        const p = normalizarTextoBusca(a.pet).localeCompare(normalizarTextoBusca(b.pet), 'pt-BR')
+        if (p !== 0) return p
+        const d = String(a.data || '').localeCompare(String(b.data || ''))
+        if (d !== 0) return d
+        return String(a.exame || '').localeCompare(String(b.exame || ''), 'pt-BR')
+    })
+
+    return {
+        fila,
         totalOrfaosLab: orfaosLab.length,
         totalOrfaosEm: orfaosEm.length,
-        totalGruposLab: gruposLab.length,
-        totalGruposEm: gruposEm.length,
-        totalRevisao: chavesRevisao.size,
-        gruposLab,
-        gruposEm,
+        totalDiffs: diffs.length,
+        totalPendentes: fila.length,
         orfaosLab,
         orfaosEm,
+    }
+}
+
+/** Compat: mantém API antiga, agora baseada em exames individuais. */
+export function montarFilaPareamentoOrfaos(cards, opts = {}) {
+    const r = montarFilaExamesIndividuais(cards, opts)
+    return {
+        fila: r.fila,
+        totalOrfaosLab: r.totalOrfaosLab,
+        totalOrfaosEm: r.totalOrfaosEm,
+        totalGruposLab: 0,
+        totalGruposEm: 0,
+        totalRevisao: r.totalPendentes,
+        gruposLab: [],
+        gruposEm: [],
+        orfaosLab: r.orfaosLab,
+        orfaosEm: r.orfaosEm,
+        modoExamesIndividuais: true,
     }
 }
 
@@ -2105,4 +2574,189 @@ export async function exportarPosRelatorioConferenciaExcel(linhas, opts = {}) {
     URL.revokeObjectURL(url)
 
     return { nomeArquivo, total: (linhas || []).length }
+}
+
+function mapParaEntradas(mapLike) {
+    if (!mapLike) return []
+    if (mapLike instanceof Map) return [...mapLike.entries()]
+    if (Array.isArray(mapLike)) return mapLike
+    return Object.entries(mapLike)
+}
+
+function entradasParaMap(entries) {
+    return new Map(Array.isArray(entries) ? entries : [])
+}
+
+/**
+ * Totais da comparação para o resumo da etapa 4.
+ */
+export function resumirTotaisConferencia(cards) {
+    const lista = cards || []
+    let totalLab = 0
+    let totalEm = 0
+    let qtdPareados = 0
+    let qtdDiff = 0
+    let qtdOrfaoLab = 0
+    let qtdOrfaoEm = 0
+    for (const c of lista) {
+        if (Number.isFinite(Number(c.valorLab))) totalLab += Number(c.valorLab)
+        if (Number.isFinite(Number(c.valorEmerdog))) totalEm += Number(c.valorEmerdog)
+        if (c.tipo === 'orfao_lab') qtdOrfaoLab += 1
+        else if (c.tipo === 'orfao_emerdog') qtdOrfaoEm += 1
+        else {
+            qtdPareados += 1
+            if (c.valoresDiferem) qtdDiff += 1
+        }
+    }
+    return {
+        totalLab,
+        totalEm,
+        diferenca: totalLab - totalEm,
+        qtdPareados,
+        qtdDiff,
+        qtdOrfaoLab,
+        qtdOrfaoEm,
+        qtdExames: lista.length,
+    }
+}
+
+/**
+ * Serializa o estado da conferência (sem arquivos File) para JSONB.
+ */
+export function serializarEstadoSessaoConferencia(estado) {
+    const e = estado || {}
+    return {
+        versao: 1,
+        passo: e.passo || 'setup',
+        periodoYm: e.periodoYm || '',
+        laboratorioId: e.laboratorioId ? Number(e.laboratorioId) : null,
+        mapColsLab: e.mapColsLab || {},
+        mapColsEmerdog: e.mapColsEmerdog || {},
+        linhasLab: e.linhasLab || [],
+        linhasEmerdog: e.linhasEmerdog || [],
+        paresManuais: e.paresManuais || [],
+        resolvidos: mapParaEntradas(e.resolvidos),
+        mapaResolvidosAtual: mapParaEntradas(e.mapaResolvidosAtual),
+        decisoesOrfaos: mapParaEntradas(e.decisoesOrfaos),
+        escolhasExames: e.escolhasExames || {},
+        marcadosPosRelatorio: [...(e.marcadosPosRelatorio || [])],
+        cards: e.cards || [],
+        filaOrfaos: e.filaOrfaos || [],
+        obsAuditoria: e.obsAuditoria || {},
+        aliasesPessoa: e.aliasesPessoa || [],
+        atualizadoEm: new Date().toISOString(),
+    }
+}
+
+export function desserializarEstadoSessaoConferencia(payload) {
+    const e = payload || {}
+    return {
+        versao: e.versao || 1,
+        passo: e.passo || 'setup',
+        periodoYm: e.periodoYm || '',
+        laboratorioId: e.laboratorioId ? String(e.laboratorioId) : '',
+        mapColsLab: e.mapColsLab || {},
+        mapColsEmerdog: e.mapColsEmerdog || {},
+        linhasLab: e.linhasLab || [],
+        linhasEmerdog: e.linhasEmerdog || [],
+        paresManuais: e.paresManuais || [],
+        resolvidos: entradasParaMap(e.resolvidos),
+        mapaResolvidosAtual: entradasParaMap(e.mapaResolvidosAtual),
+        decisoesOrfaos: entradasParaMap(e.decisoesOrfaos),
+        escolhasExames: e.escolhasExames || {},
+        marcadosPosRelatorio: new Set(e.marcadosPosRelatorio || []),
+        cards: e.cards || [],
+        filaOrfaos: e.filaOrfaos || [],
+        aliasesPessoa: Array.isArray(e.aliasesPessoa) ? e.aliasesPessoa : [],
+        obsAuditoria: e.obsAuditoria || {},
+    }
+}
+
+export async function carregarSessaoConferencia({ laboratorioId, periodoYm }) {
+    const labId = Number(laboratorioId)
+    const periodo = String(periodoYm || '').trim()
+    if (!labId || !periodo) return null
+
+    try {
+        const { data: userData } = await supabase.auth.getUser()
+        const userId = userData?.user?.id
+        if (!userId) return null
+
+        const { data, error } = await supabase
+            .from('lab_conferencia_sessao')
+            .select('id, laboratorio_id, periodo_ym, passo, estado, atualizado_em')
+            .eq('laboratorio_id', labId)
+            .eq('periodo_ym', periodo)
+            .eq('criado_por', userId)
+            .maybeSingle()
+
+        if (error) {
+            // Tabela ausente / schema / 500: sessão é opcional — não bloqueia a conferência
+            return null
+        }
+        if (!data) return null
+        return {
+            id: data.id,
+            passo: data.passo,
+            atualizadoEm: data.atualizado_em,
+            estado: desserializarEstadoSessaoConferencia(data.estado),
+        }
+    } catch {
+        return null
+    }
+}
+
+/**
+ * Persiste progresso. Retorna { ok, data?, aviso? } — nunca lança
+ * (sessão é opcional; falha não deve impedir aprovar/parear).
+ */
+export async function salvarSessaoConferencia({ laboratorioId, periodoYm, passo, estado }) {
+    const labId = Number(laboratorioId)
+    const periodo = String(periodoYm || '').trim()
+    if (!labId || !periodo) {
+        return { ok: false, aviso: 'Laboratório e período são obrigatórios para salvar a sessão.' }
+    }
+
+    try {
+        const { data: userData } = await supabase.auth.getUser()
+        const userId = userData?.user?.id
+        if (!userId) {
+            return { ok: false, aviso: 'Sessão de usuário necessária para persistir a conferência.' }
+        }
+
+        const payload = {
+            laboratorio_id: labId,
+            periodo_ym: periodo,
+            passo: passo || estado?.passo || 'setup',
+            estado: serializarEstadoSessaoConferencia({
+                ...estado,
+                laboratorioId: labId,
+                periodoYm: periodo,
+                passo: passo || estado?.passo,
+            }),
+            criado_por: userId,
+            atualizado_em: new Date().toISOString(),
+        }
+
+        const { data, error } = await supabase
+            .from('lab_conferencia_sessao')
+            .upsert(payload, { onConflict: 'laboratorio_id,periodo_ym,criado_por' })
+            .select('id, atualizado_em')
+            .single()
+
+        if (error) {
+            const msg = String(error.message || error.code || '')
+            if (/lab_conferencia_sessao|does not exist|schema cache|42P01|PGRST/i.test(msg)) {
+                return {
+                    ok: false,
+                    aviso:
+                        'Tabela de sessão não configurada. Execute scripts/sql/conferencia_laboratorio.sql no Supabase (opcional).',
+                }
+            }
+            return { ok: false, aviso: msg || 'Falha ao salvar sessão.' }
+        }
+        return { ok: true, data }
+    } catch (e) {
+        return { ok: false, aviso: e?.message || String(e) }
+    }
 }

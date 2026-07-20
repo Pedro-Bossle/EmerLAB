@@ -40,6 +40,7 @@ const A = ['read', 'create', 'update', 'delete']
 const R = ['read']
 const RC = ['read', 'create']
 const RU = ['read', 'update']
+const RCU = ['read', 'create', 'update']
 const RUD = ['read', 'update', 'delete']
 const RCUD = ['read', 'create', 'update', 'delete']
 
@@ -214,7 +215,7 @@ export const PERMISSION_CATALOG = [
                 label: 'Conferência Laboratório',
                 descricao:
                     'Conferir relatórios mensais do laboratório e da Emerdog com valores negociados.',
-                actions: RU,
+                actions: RCU,
                 href: '/configuracoes/conferencia-laboratorio',
             },
         ],
@@ -410,6 +411,7 @@ export function expandLegacyToAcl(perms) {
         setTool('credenciamento.especialidades_rc', { read: true })
         setTool('configuracoes.importar_credenciados', { read: true })
         setTool('configuracoes.exportar_credenciados', { read: true })
+        setTool('configuracoes.conferencia_laboratorio', { read: true })
     }
     if (p[L.CREDENCIAMENTO_CADASTRO_VIEW]) {
         setTool('credenciamento.cadastro', { read: true })
@@ -428,6 +430,11 @@ export function expandLegacyToAcl(perms) {
         setTool('credenciamento.import_kmz', { read: true, update: true })
         setTool('credenciamento.prospectos_osm', { read: true, update: true })
         setTool('configuracoes.importar_credenciados', { read: true, update: true })
+        setTool('configuracoes.conferencia_laboratorio', {
+            read: true,
+            create: true,
+            update: true,
+        })
     }
     if (p[L.CREDENCIAMENTO_FORMULARIO_CONFIG]) {
         setTool('credenciamento.formulario', { read: true, update: true })
@@ -518,6 +525,33 @@ export function completarAclFerramentasCredenciamento(perms) {
             p[kAud] = true
         }
     }
+
+    // Conferência Laboratório: quem já tinha só «Ler» passa a poder criar/editar aliases e conferência
+    const kConfRead = aclKey('configuracoes.conferencia_laboratorio', 'read')
+    const kConfCreate = aclKey('configuracoes.conferencia_laboratorio', 'create')
+    const kConfUpdate = aclKey('configuracoes.conferencia_laboratorio', 'update')
+    if (!p[kConfRead]) {
+        if (
+            hasAcl(p, 'configuracoes.importar_credenciados', 'read') ||
+            hasAcl(p, 'configuracoes.exportar_credenciados', 'read') ||
+            hasAcl(p, 'credenciamento.processos', 'read') ||
+            p[L.CREDENCIAMENTO_VIEW]
+        ) {
+            p[kConfRead] = true
+        }
+    }
+    if (!p[kConfCreate] || !p[kConfUpdate]) {
+        if (
+            p[kConfRead] ||
+            hasAcl(p, 'configuracoes.importar_credenciados', 'update') ||
+            p[L.CREDENCIAMENTO_EDIT]
+        ) {
+            p[kConfRead] = true
+            p[kConfCreate] = true
+            p[kConfUpdate] = true
+        }
+    }
+
     return p
 }
 
@@ -542,7 +576,8 @@ export function syncLegacyFromAcl(perms) {
         hasAcl(p, 'credenciamento.formulario', 'read') ||
         hasAcl(p, 'credenciamento.especialidades_rc', 'read') ||
         hasAcl(p, 'configuracoes.importar_credenciados', 'read') ||
-        hasAcl(p, 'configuracoes.exportar_credenciados', 'read')
+        hasAcl(p, 'configuracoes.exportar_credenciados', 'read') ||
+        hasAcl(p, 'configuracoes.conferencia_laboratorio', 'read')
     p[L.CREDENCIAMENTO_CADASTRO_VIEW] = hasAcl(p, 'credenciamento.cadastro', 'read')
     p[L.CREDENCIAMENTO_QUEM_REALIZA_VIEW] = hasAcl(p, 'credenciamento.quem_realiza', 'read')
     p[L.CREDENCIAMENTO_FORMULARIO_INBOX] = hasAcl(p, 'credenciamento.formulario_inbox', 'read')

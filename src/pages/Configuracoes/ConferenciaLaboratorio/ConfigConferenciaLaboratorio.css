@@ -1008,6 +1008,44 @@ body.dark-mode .conf_lab_norm_titulo {
     border: 1px solid #e0b56a;
 }
 
+.conf_lab_orfaos_motivos li.is-ok {
+    background: rgba(21, 128, 61, 0.12);
+    color: #15803d;
+    border-color: #86efac;
+}
+
+.conf_lab_orfaos_motivos li.is-warn {
+    background: #fff3d6;
+    color: #8a5a00;
+    border-color: #e0b56a;
+    cursor: help;
+}
+
+.conf_lab_orfaos_motivos li.is-bad {
+    background: rgba(185, 28, 28, 0.1);
+    color: #b91c1c;
+    border-color: #f0b4b4;
+    cursor: help;
+}
+
+body.dark-mode .conf_lab_orfaos_motivos li.is-ok {
+    background: rgba(34, 197, 94, 0.16);
+    color: #86efac;
+    border-color: #166534;
+}
+
+body.dark-mode .conf_lab_orfaos_motivos li.is-warn {
+    background: rgba(250, 204, 21, 0.14);
+    color: #fde047;
+    border-color: #a16207;
+}
+
+body.dark-mode .conf_lab_orfaos_motivos li.is-bad {
+    background: rgba(248, 113, 113, 0.16);
+    color: #fca5a5;
+    border-color: #7f1d1d;
+}
+
 .conf_lab_orfao_meta {
     display: flex;
     flex-direction: column;
@@ -1187,12 +1225,303 @@ body.dark-mode .conf_lab_orfaos_versus .conf_lab_orfao_cabeca > strong {
     display: none;
 }
 
+.conf_lab_exames_ind_toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem 1rem;
+    align-items: flex-end;
+    margin-bottom: 0.75rem;
+}
+
+.conf_lab_exames_ind_lista {
+    /* herda .conf_lab_cards_lista */
+}
+
+.conf_lab_exame_ind_card {
+    display: flex;
+    flex-direction: column;
+}
+
+.conf_lab_exame_ind_card.tipo-diff_valor {
+    border-left-color: #b91c1c;
+    background: color-mix(in srgb, #b91c1c 4%, #fff);
+}
+
+.conf_lab_exame_ind_corpo {
+    padding: 0.75rem 0.9rem 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.conf_lab_exame_ind_card .conf_lab_orfaos_versus {
+    margin-bottom: 0;
+    align-items: stretch;
+}
+
+.conf_lab_exame_ind_card .conf_lab_orfaos_motivos {
+    margin: 0;
+}
+
+.conf_lab_exame_ind_card .conf_lab_orfao_exames {
+    margin-top: 0.15rem;
+}
+
+.conf_lab_exame_ind_card .conf_lab_map_side {
+    min-height: 5.5rem;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    height: 100%;
+}
+
+.conf_lab_map_side_head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    min-height: 1.7rem;
+    flex: 0 0 auto;
+}
+
+.conf_lab_map_side_head .conf_lab_map_side_label {
+    margin: 0;
+}
+
+.conf_lab_map_side_head_spacer {
+    width: 1.7rem;
+    height: 1.7rem;
+    flex: 0 0 auto;
+}
+
+.conf_lab_exame_lado_corpo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.conf_lab_exame_lado_tutor {
+    margin: 0;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #123e59;
+    line-height: 1.3;
+    min-height: 1.2em;
+}
+
+.conf_lab_exame_lado_data {
+    margin: 0;
+    font-size: 0.84rem;
+    color: var(--conf-muted);
+    line-height: 1.3;
+    min-height: 1.2em;
+}
+
+.conf_lab_exame_lado_corpo .conf_lab_orfao_exames {
+    margin-top: 0.2rem;
+}
+
+.conf_lab_plano_picker {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.conf_lab_plano_picker_btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid #b7d4ea;
+    background: #fff;
+    color: #0f4f78;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.conf_lab_plano_picker_btn:hover:not(:disabled) {
+    background: #e8f4fc;
+    border-color: #7eb3d9;
+}
+
+.conf_lab_plano_picker_btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.conf_lab_plano_picker_menu {
+    position: absolute;
+    top: calc(100% + 0.3rem);
+    right: 0;
+    z-index: 40;
+    min-width: min(22rem, 78vw);
+    max-width: min(28rem, 90vw);
+    max-height: 14rem;
+    overflow: auto;
+    padding: 0.3rem;
+    border-radius: 10px;
+    border: 1px solid var(--conf-line);
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(16, 49, 73, 0.16);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.conf_lab_plano_picker_menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    border-radius: 7px;
+    padding: 0.45rem 0.55rem;
+    font: inherit;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    color: #123e59;
+    cursor: pointer;
+}
+
+.conf_lab_plano_picker_menu button:hover {
+    background: #eef6fc;
+}
+
+.conf_lab_plano_picker_menu button.is-active {
+    background: #123e59;
+    color: #fff;
+}
+
+body.dark-mode .conf_lab_exame_lado_tutor {
+    color: #e7f4fc;
+}
+
+body.dark-mode .conf_lab_plano_picker_btn {
+    background: #1a2838;
+    border-color: #3d5266;
+    color: #9fc7e4;
+}
+
+body.dark-mode .conf_lab_plano_picker_btn:hover:not(:disabled) {
+    background: #223548;
+}
+
+body.dark-mode .conf_lab_plano_picker_menu {
+    background: #1a2838;
+    border-color: #3d5266;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .conf_lab_plano_picker_menu button {
+    color: #e7f4fc;
+}
+
+body.dark-mode .conf_lab_plano_picker_menu button:hover {
+    background: #223548;
+}
+
+body.dark-mode .conf_lab_plano_picker_menu button.is-active {
+    background: #0f4f78;
+    color: #fff;
+}
+
+.conf_lab_exame_ind_rodape {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.45rem;
+    padding: 0.65rem 0.9rem 0.75rem;
+    border-top: 1px solid var(--conf-line);
+    background: rgba(255, 255, 255, 0.65);
+}
+
+.conf_lab_exame_ind_motivos {
+    justify-content: flex-end;
+    margin: 0;
+    max-width: 100%;
+}
+
+.conf_lab_exame_ind_acoes {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.55rem;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0;
+    border-top: 0;
+}
+
+.conf_lab_exame_ind_acoes .credenciamento_main_action_btn {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 9.5rem;
+}
+
+@media (max-width: 520px) {
+    .conf_lab_exame_ind_rodape {
+        align-items: stretch;
+    }
+
+    .conf_lab_exame_ind_motivos {
+        justify-content: flex-start;
+    }
+
+    .conf_lab_exame_ind_acoes {
+        flex-wrap: wrap;
+        justify-content: stretch;
+    }
+
+    .conf_lab_exame_ind_acoes .credenciamento_main_action_btn {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+}
+
 .conf_lab_orfaos_vazio {
     padding: 1rem 0;
     text-align: center;
 }
 
-body.dark-mode .conf_lab_orfaos_motivos li {
+.conf_lab_resumo_totais {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem 1.25rem;
+    margin: 0 0 0.85rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid #b7d4ea;
+    background: linear-gradient(180deg, #fff 0%, #eaf4fb 100%);
+    font-size: 0.88rem;
+    color: #35556d;
+}
+
+.conf_lab_resumo_totais strong {
+    color: #0f3a54;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+    .conf_lab_exame_ind_card .conf_lab_map_versus {
+        grid-template-columns: 1fr;
+    }
+
+    .conf_lab_exame_ind_card .conf_lab_map_versus .conf_lab_map_eq {
+        display: none;
+    }
+}
+
+body.dark-mode .conf_lab_exame_ind_card.tipo-diff_valor {
+    background: color-mix(in srgb, #b91c1c 8%, #1a2838);
+    border-left-color: #f87171;
+}
+
+body.dark-mode .conf_lab_orfaos_motivos li:not(.is-ok):not(.is-warn):not(.is-bad) {
     background: #3a2e14;
     border-color: #6b5420;
     color: #f0d9a0;
@@ -1301,6 +1630,32 @@ body.dark-mode .conf_lab_busca_limpar {
     color: #a16207;
 }
 
+.conf_lab_orfao_exames li.is-match,
+.conf_lab_pair_grid li.is-match {
+    background: rgba(21, 128, 61, 0.12);
+    color: #15803d;
+}
+
+.conf_lab_orfao_exames li.is-match em,
+.conf_lab_orfao_exames li.is-match .conf_lab_exame_txt,
+.conf_lab_pair_grid li.is-match em,
+.conf_lab_pair_grid li.is-match .conf_lab_exame_txt {
+    color: #15803d;
+    font-weight: 650;
+}
+
+body.dark-mode .conf_lab_orfao_exames li.is-match,
+body.dark-mode .conf_lab_pair_grid li.is-match {
+    background: rgba(34, 197, 94, 0.14);
+}
+
+body.dark-mode .conf_lab_orfao_exames li.is-match em,
+body.dark-mode .conf_lab_orfao_exames li.is-match .conf_lab_exame_txt,
+body.dark-mode .conf_lab_pair_grid li.is-match em,
+body.dark-mode .conf_lab_pair_grid li.is-match .conf_lab_exame_txt {
+    color: #86efac;
+}
+
 .conf_lab_orfao_exames li.is-sem-par em,
 .conf_lab_orfao_exames li.is-sem-par .conf_lab_exame_txt,
 .conf_lab_pair_grid li.is-sem-par em,
@@ -1329,6 +1684,58 @@ body.dark-mode .conf_lab_pair_grid li.is-sem-par .conf_lab_exame_txt {
 body.dark-mode .conf_lab_orfao_exames li.is-sem-par .conf_lab_bandeira,
 body.dark-mode .conf_lab_pair_grid li.is-sem-par .conf_lab_bandeira {
     color: #fde047;
+}
+
+.conf_lab_mescla_bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0.65rem 0 0.35rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 10px;
+    background: rgba(15, 79, 120, 0.08);
+    border: 1px solid #9fc7e4;
+}
+
+.conf_lab_mescla_bar p {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #123e59;
+}
+
+.conf_lab_mescla_bar_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+body.dark-mode .conf_lab_mescla_bar {
+    background: rgba(96, 165, 250, 0.12);
+    border-color: #1e3a5f;
+}
+
+body.dark-mode .conf_lab_mescla_bar p {
+    color: #dbeafe;
+}
+
+.conf_lab_orfao_exames li.is-mesclavel {
+    cursor: pointer;
+}
+
+.conf_lab_orfao_exames li.is-mesclavel:hover {
+    box-shadow: inset 0 0 0 1px #0f4f78;
+}
+
+.conf_lab_orfao_exames li.is-mescla-sel {
+    box-shadow: inset 0 0 0 2px #0f4f78;
+    background: rgba(15, 79, 120, 0.1);
+}
+
+body.dark-mode .conf_lab_orfao_exames li.is-mescla-sel {
+    box-shadow: inset 0 0 0 2px #60a5fa;
+    background: rgba(96, 165, 250, 0.14);
 }
 
 .conf_lab_atendimento_footer {
@@ -1660,6 +2067,44 @@ body.dark-mode .conf_lab_float_btn:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.65);
 }
 
+.conf_lab_pair_card > footer.conf_lab_exame_ind_rodape {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.45rem;
+    padding: 0.65rem 0.9rem 0.75rem;
+}
+
+.conf_lab_pair_card > footer.conf_lab_exame_ind_rodape .conf_lab_exame_ind_acoes {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.55rem;
+    width: auto;
+}
+
+.conf_lab_pair_card > footer.conf_lab_exame_ind_rodape .credenciamento_main_action_btn {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 9.5rem;
+}
+
+@media (max-width: 520px) {
+    .conf_lab_pair_card > footer.conf_lab_exame_ind_rodape {
+        align-items: stretch;
+    }
+
+    .conf_lab_pair_card > footer.conf_lab_exame_ind_rodape .conf_lab_exame_ind_acoes {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .conf_lab_pair_card > footer.conf_lab_exame_ind_rodape .credenciamento_main_action_btn {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+}
+
 .conf_lab_audit_row {
     display: flex;
     gap: 0.5rem;
@@ -1738,3 +2183,504 @@ body.dark-mode .conf_lab_drop_btn {
         border-top: 1px solid var(--conf-line);
     }
 }
+
+/* —— Aliases: lista lab × negociação —— */
+.conf_lab_alias_lista_card {
+    padding: 1rem 1.1rem 1.15rem;
+}
+
+.conf_lab_alias_lista_card .conf_lab_map_head {
+    margin-bottom: 0.35rem;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.conf_lab_alias_lista_card .conf_lab_map_head h2 {
+    font-size: 1.15rem;
+    margin: 0 0 0.2rem;
+}
+
+.conf_lab_alias_lista_card .conf_lab_map_head .conf_lab_muted {
+    font-size: 0.8rem;
+    line-height: 1.35;
+    max-width: 42rem;
+}
+
+.conf_lab_alias_lista_card .conf_lab_map_head_actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.45rem;
+    min-width: 10rem;
+}
+
+.conf_lab_alias_lista_card .conf_lab_progress {
+    width: 10rem;
+    height: 0.4rem;
+}
+
+.conf_lab_alias_resumo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.65rem;
+    margin: 0.55rem 0 0.7rem;
+}
+
+.conf_lab_alias_resumo > span {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(15, 79, 120, 0.07);
+    border: 1px solid #c5dceb;
+    font-size: 0.78rem;
+    color: #35556d;
+}
+
+.conf_lab_alias_resumo strong {
+    font-weight: 750;
+    color: #0f4f78;
+}
+
+.conf_lab_alias_resumo .is-warn {
+    background: rgba(185, 28, 28, 0.08);
+    border-color: #f0b4b4;
+    color: #9f1239;
+}
+
+.conf_lab_alias_resumo .is-warn strong {
+    color: #9f1239;
+}
+
+.conf_lab_alias_toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem 0.85rem;
+    margin-bottom: 0.65rem;
+}
+
+.conf_lab_alias_filtros {
+    margin: 0;
+}
+
+.conf_lab_alias_filtros button {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.78rem;
+}
+
+.conf_lab_alias_busca {
+    flex: 1 1 14rem;
+    max-width: 22rem;
+    margin: 0;
+}
+
+.conf_lab_alias_busca input {
+    width: 100%;
+    min-height: 2rem;
+    font-size: 0.84rem;
+    padding: 0.35rem 0.7rem;
+}
+
+.conf_lab_alias_batch {
+    margin-bottom: 0.65rem;
+}
+
+.conf_lab_alias_batch .conf_lab_mescla_bar_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.conf_lab_alias_batch .conf_lab_alias_combo {
+    flex: 1 1 16rem;
+    min-width: 12rem;
+    max-width: 28rem;
+}
+
+.conf_lab_alias_table_wrap {
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: min(58vh, 560px);
+    border: 1px solid var(--conf-line);
+    border-radius: 10px;
+    background: #fff;
+}
+
+.conf_lab_alias_table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
+    font-size: 0.8rem;
+}
+
+.conf_lab_alias_table th,
+.conf_lab_alias_table td {
+    padding: 0.35rem 0.45rem;
+    border-bottom: 1px solid var(--conf-line);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.conf_lab_alias_table th {
+    position: sticky;
+    top: 0;
+    background: #eef5fa;
+    z-index: 1;
+    font-size: 0.68rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #35556d;
+    white-space: nowrap;
+}
+
+.conf_lab_alias_col_check {
+    width: 1%;
+    text-align: center;
+    white-space: nowrap;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+}
+
+.conf_lab_alias_col_lab {
+    width: auto;
+    min-width: 9rem;
+    max-width: 18rem;
+}
+
+.conf_lab_alias_col_valor {
+    width: 1%;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
+}
+
+.conf_lab_alias_table th.conf_lab_alias_col_valor {
+    text-align: right;
+}
+
+.conf_lab_alias_col_neg {
+    width: 42%;
+    min-width: 14rem;
+}
+
+.conf_lab_alias_col_status {
+    width: 1%;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.conf_lab_alias_col_acoes {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.conf_lab_alias_lab_nome {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: #123e59;
+    word-break: break-word;
+}
+
+.conf_lab_alias_meta {
+    display: block;
+    margin-top: 0.12rem;
+    font-size: 0.68rem;
+    color: var(--conf-muted);
+    font-weight: 550;
+}
+
+.conf_lab_alias_valores {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 0.2rem;
+}
+
+.conf_lab_alias_valores em {
+    font-style: normal;
+    font-size: 0.72rem;
+    font-weight: 650;
+    padding: 0.12rem 0.4rem;
+    border-radius: 999px;
+    background: rgba(15, 79, 120, 0.08);
+    color: #0f4f78;
+    white-space: nowrap;
+}
+
+.conf_lab_alias_combo {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.conf_lab_alias_combo_input {
+    width: 100%;
+    min-width: 0;
+    min-height: 1.9rem;
+    font-size: 0.78rem;
+    padding: 0.22rem 1.6rem 0.22rem 0.45rem;
+    border-radius: 6px;
+    border: 1px solid var(--conf-line);
+    background: #fff;
+    color: #123e59;
+}
+
+.conf_lab_alias_combo_input:focus {
+    outline: 2px solid rgba(15, 79, 120, 0.28);
+    outline-offset: 1px;
+    border-color: #0f4f78;
+}
+
+.conf_lab_alias_combo_limpar {
+    position: absolute;
+    right: 0.2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 0;
+    background: transparent;
+    color: #5a7488;
+    font-size: 1.05rem;
+    line-height: 1;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 0;
+}
+
+.conf_lab_alias_combo_limpar:hover {
+    background: rgba(15, 79, 120, 0.08);
+    color: #123e59;
+}
+
+.conf_lab_alias_combo_portal {
+    overflow-x: hidden;
+    overflow-y: auto;
+    border: 1px solid var(--conf-line);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(18, 62, 89, 0.16);
+    padding: 0.2rem;
+    box-sizing: border-box;
+}
+
+.conf_lab_alias_combo_vazio {
+    padding: 0.55rem 0.65rem;
+    font-size: 0.78rem;
+    color: var(--conf-muted);
+}
+
+.conf_lab_alias_combo_opcao {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    border-radius: 6px;
+    padding: 0.4rem 0.5rem;
+    cursor: pointer;
+    color: #123e59;
+}
+
+.conf_lab_alias_combo_opcao:hover,
+.conf_lab_alias_combo_opcao.is-hl {
+    background: rgba(15, 79, 120, 0.09);
+}
+
+.conf_lab_alias_combo_opcao.is-sel {
+    background: rgba(15, 79, 120, 0.14);
+    font-weight: 650;
+}
+
+.conf_lab_alias_combo_opcao_txt {
+    display: block;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.conf_lab_alias_aviso {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.68rem;
+    font-weight: 650;
+    line-height: 1.25;
+    color: #b91c1c;
+}
+
+.conf_lab_alias_table tr.is-pendente td {
+    background: rgba(250, 204, 21, 0.07);
+}
+
+.conf_lab_alias_table tr.is-valor-diff td {
+    background: rgba(185, 28, 28, 0.06);
+}
+
+.conf_lab_alias_table tbody tr:hover td {
+    background: rgba(15, 79, 120, 0.04);
+}
+
+.conf_lab_alias_status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 4.2rem;
+    border-radius: 999px;
+    padding: 0.18rem 0.45rem;
+    font-size: 0.68rem;
+    font-weight: 750;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+.conf_lab_alias_status.status-ok {
+    background: rgba(21, 128, 61, 0.12);
+    color: #15803d;
+}
+
+.conf_lab_alias_status.status-pendente {
+    background: #fff3d6;
+    color: #8a5a00;
+}
+
+.conf_lab_alias_status.status-valor_diff {
+    background: rgba(185, 28, 28, 0.1);
+    color: #b91c1c;
+}
+
+.conf_lab_alias_status.status-auditoria {
+    background: rgba(100, 116, 139, 0.15);
+    color: #475569;
+}
+
+.conf_lab_alias_acoes {
+    white-space: nowrap;
+    text-align: right;
+}
+
+.conf_lab_alias_btn {
+    margin: 0 0 0 0.25rem;
+    padding: 0.22rem 0.5rem !important;
+    font-size: 0.72rem !important;
+    min-height: 1.7rem;
+    line-height: 1.1;
+}
+
+.conf_lab_alias_footer_actions {
+    margin-top: 0.75rem;
+    justify-content: flex-end;
+}
+
+@media (max-width: 960px) {
+    .conf_lab_alias_table {
+        min-width: 720px;
+        font-size: 0.78rem;
+    }
+
+    .conf_lab_alias_col_lab,
+    .conf_lab_alias_col_neg {
+        max-width: none;
+    }
+
+    .conf_lab_alias_toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .conf_lab_alias_busca {
+        max-width: none;
+    }
+}
+
+body.dark-mode .conf_lab_alias_resumo > span {
+    background: rgba(96, 165, 250, 0.1);
+    border-color: #1e3a5f;
+    color: #cbd5e1;
+}
+
+body.dark-mode .conf_lab_alias_resumo strong {
+    color: #93c5fd;
+}
+
+body.dark-mode .conf_lab_alias_resumo .is-warn {
+    background: rgba(248, 113, 113, 0.12);
+    border-color: #7f1d1d;
+    color: #fca5a5;
+}
+
+body.dark-mode .conf_lab_alias_resumo .is-warn strong {
+    color: #fca5a5;
+}
+
+body.dark-mode .conf_lab_alias_table_wrap {
+    background: #152231;
+}
+
+body.dark-mode .conf_lab_alias_table th {
+    background: #1a2838;
+    color: #94a3b8;
+}
+
+body.dark-mode .conf_lab_alias_lab_nome {
+    color: #e2e8f0;
+}
+
+body.dark-mode .conf_lab_alias_valores em {
+    background: rgba(96, 165, 250, 0.14);
+    color: #93c5fd;
+}
+
+body.dark-mode .conf_lab_alias_combo_input {
+    background: #1a2838;
+    border-color: #2a3f55;
+    color: #e2e8f0;
+}
+
+body.dark-mode .conf_lab_alias_combo_portal {
+    background: #1a2838;
+    border-color: #2a3f55;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .conf_lab_alias_combo_opcao {
+    color: #e2e8f0;
+}
+
+body.dark-mode .conf_lab_alias_combo_opcao:hover,
+body.dark-mode .conf_lab_alias_combo_opcao.is-hl {
+    background: rgba(96, 165, 250, 0.12);
+}
+
+body.dark-mode .conf_lab_alias_combo_opcao.is-sel {
+    background: rgba(96, 165, 250, 0.2);
+}
+
+body.dark-mode .conf_lab_alias_table tr.is-pendente td {
+    background: rgba(250, 204, 21, 0.08);
+}
+
+body.dark-mode .conf_lab_alias_table tr.is-valor-diff td {
+    background: rgba(248, 113, 113, 0.1);
+}
+
+body.dark-mode .conf_lab_alias_table tbody tr:hover td {
+    background: rgba(96, 165, 250, 0.08);
+}
+

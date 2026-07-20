@@ -9,29 +9,43 @@ import {
 import {
     CARDS_POR_PAGINA,
     CAMPOS_CONFERENCIA,
+    aliasesPessoaDePareamento,
     alinharExamesLabAoCodigoDoPlano,
+    autoAprovarPareamentosPerfeitos,
+    carregarAliasesPessoaLaboratorio,
     carregarMapeamentosLaboratorio,
     camposFaltantesMapeamento,
+    chaveAliasExame,
     chaveMarcacaoPosRelatorio,
-    expandirPareamentoGrupoOrfaos,
     exportarPosRelatorioConferenciaExcel,
     listarAliasesDoExameAlvo,
     listarNomesExameUnicos,
     mapearIndicesColunasConferencia,
+    mesclarAliasesPessoa,
     montarCardsConferencia,
+    montarListaAliasesExames,
+    montarMapasAliasesPessoa,
+    combinarOrfaosNosCards,
     agruparCardsComparacaoPorAtendimento,
     agruparLinhasPorAtendimento,
     enriquecerLinhaEmerdog,
     montarFilaPareamentoOrfaos,
+    montarFilaExamesIndividuais,
     montarLinhasPosRelatorio,
     normalizarNomeExame,
+    arredondarValorLab,
+    valorLabDeMapeamentoSalvo,
     ordenarExamesPorCodigo,
     ordenarLinhasPorAtendimento,
-    parsearExcelConferenciaLaboratorio,
     prepararOrdenacaoEFilaAliases,
+    resumirTotaisConferencia,
+    salvarAliasesPessoaEmLote,
     salvarMapeamentoExame,
+    salvarSessaoConferencia,
+    carregarSessaoConferencia,
     nomeCorrespondeFoco,
 } from '../../../lib/configuracoes/conferenciaLaboratorio.js'
+import { parsearExcelConferenciaViaWorker } from '../../../lib/configuracoes/conferenciaExcelWorkerClient.js'
 import {
     carregarPrecosNegociacaoLaboratorio,
     filtrarCatalogoNegociacao,
@@ -45,6 +59,8 @@ import {
 } from '../../../lib/prestadorCadastroHelpers.js'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
+import EtapaExamesIndividuais from './EtapaExamesIndividuais.jsx'
+import EtapaAliasesExames from './EtapaAliasesExames.jsx'
 import '../../Credenciamento/Credenciamento_main/Credenciamento_main.css'
 import './ConfigConferenciaLaboratorio.css'
 
@@ -225,6 +241,7 @@ const ConfigConferenciaLaboratorio = () => {
     const [filaMapeamento, setFilaMapeamento] = useState([])
     const [indiceFila, setIndiceFila] = useState(0)
     const [resolvidos, setResolvidos] = useState(() => new Map())
+    const [mapeamentosSalvos, setMapeamentosSalvos] = useState([])
     const [escolhaEmerdog, setEscolhaEmerdog] = useState('')
     /** true = revisando aliases após já ter gerado comparação (não força nova comparação ao salvar). */
     const [modoRevisaoAliases, setModoRevisaoAliases] = useState(false)
@@ -234,18 +251,25 @@ const ConfigConferenciaLaboratorio = () => {
     const [filaOrfaos, setFilaOrfaos] = useState([])
     const [indiceOrfao, setIndiceOrfao] = useState(0)
     const [escolhaOrfaoEm, setEscolhaOrfaoEm] = useState('')
-    /** chaveLab → { status: 'aprovado'|'rejeitado'|'pendente', chaveEm } */
+    /** idItem → idEmerdogLocal escolhido no select */
+    const [escolhasExames, setEscolhasExames] = useState({})
+    /** chaveLab/idItem → { status, chaveEm/idEm } */
     const [decisoesOrfaos, setDecisoesOrfaos] = useState(() => new Map())
     const [orfaosDisponiveisEm, setOrfaosDisponiveisEm] = useState([])
     const [gruposEmDisponiveis, setGruposEmDisponiveis] = useState([])
-    const [filtroCards, setFiltroCards] = useState('todos')
+    const [filtroCards, setFiltroCards] = useState('diferencas')
     const [buscaComparacao, setBuscaComparacao] = useState('')
     const [tutorFoco, setTutorFoco] = useState(null) // { norm, label, petNorm, petLabel }
-    const [selecaoUnificar, setSelecaoUnificar] = useState(() => new Set())
     const [pagina, setPagina] = useState(1)
     const paginaAntesTutorFocoRef = useRef(1)
+    /** Seleção para mesclar órfãos lab ↔ plano na comparação. */
+    const [mesclaLabId, setMesclaLabId] = useState(null)
+    const [mesclaEmId, setMesclaEmId] = useState(null)
+    const comparacaoTopoRef = useRef(null)
     const [obsAuditoria, setObsAuditoria] = useState({})
     const [mapaResolvidosAtual, setMapaResolvidosAtual] = useState(() => new Map())
+    /** Aliases tutor/pet: nome do plano → canônico do lab (persistidos por laboratório). */
+    const [aliasesPessoa, setAliasesPessoa] = useState([])
     const [catalogoNegociacao, setCatalogoNegociacao] = useState([])
     const [precosPorNomeNorm, setPrecosPorNomeNorm] = useState(() => new Map())
     const [codigoPorNomeNorm, setCodigoPorNomeNorm] = useState(() => new Map())
@@ -255,6 +279,10 @@ const ConfigConferenciaLaboratorio = () => {
     const [escolhaCatalogo, setEscolhaCatalogo] = useState('')
     const [marcadosPosRelatorio, setMarcadosPosRelatorio] = useState(() => new Set())
     const [headerCompacto, setHeaderCompacto] = useState(false)
+    const [sessaoSalvaMeta, setSessaoSalvaMeta] = useState(null)
+    const [salvandoSessao, setSalvandoSessao] = useState(false)
+    const [sessaoPersistenciaOk, setSessaoPersistenciaOk] = useState(true)
+    const sujoRef = useRef(false)
 
     useEffect(() => {
         let compacto = false
@@ -272,6 +300,20 @@ const ConfigConferenciaLaboratorio = () => {
         onScroll()
         window.addEventListener('scroll', onScroll, { passive: true })
         return () => window.removeEventListener('scroll', onScroll)
+    }, [])
+
+    useEffect(() => {
+        sujoRef.current = Boolean(linhasLab.length || linhasEmerdog.length || cards.length)
+    }, [linhasLab.length, linhasEmerdog.length, cards.length])
+
+    useEffect(() => {
+        const onBeforeUnload = (e) => {
+            if (!sujoRef.current) return
+            e.preventDefault()
+            e.returnValue = ''
+        }
+        window.addEventListener('beforeunload', onBeforeUnload)
+        return () => window.removeEventListener('beforeunload', onBeforeUnload)
     }, [])
 
     const carregarLaboratorios = useCallback(async () => {
@@ -309,6 +351,225 @@ const ConfigConferenciaLaboratorio = () => {
     useEffect(() => {
         void carregarLaboratorios()
     }, [carregarLaboratorios])
+
+    useEffect(() => {
+        setSessaoPersistenciaOk(true)
+        let cancelado = false
+        const checar = async () => {
+            if (!laboratorioId || !periodoYm) {
+                setSessaoSalvaMeta(null)
+                return
+            }
+            try {
+                const sessao = await carregarSessaoConferencia({
+                    laboratorioId,
+                    periodoYm,
+                })
+                if (!cancelado) {
+                    setSessaoSalvaMeta(
+                        sessao
+                            ? {
+                                  id: sessao.id,
+                                  passo: sessao.passo || sessao.estado?.passo,
+                                  atualizadoEm: sessao.atualizadoEm,
+                                  temLinhas: Boolean(
+                                      sessao.estado?.linhasLab?.length ||
+                                          sessao.estado?.linhasEmerdog?.length,
+                                  ),
+                              }
+                            : null,
+                    )
+                }
+            } catch {
+                if (!cancelado) setSessaoSalvaMeta(null)
+            }
+        }
+        void checar()
+        return () => {
+            cancelado = true
+        }
+    }, [laboratorioId, periodoYm])
+
+    const montarEstadoParaSessao = useCallback(
+        () => ({
+            passo,
+            periodoYm,
+            laboratorioId,
+            mapColsLab,
+            mapColsEmerdog,
+            linhasLab,
+            linhasEmerdog,
+            paresManuais,
+            resolvidos,
+            mapaResolvidosAtual,
+            decisoesOrfaos,
+            escolhasExames,
+            marcadosPosRelatorio,
+            cards,
+            filaOrfaos,
+            obsAuditoria,
+            aliasesPessoa,
+        }),
+        [
+            passo,
+            periodoYm,
+            laboratorioId,
+            mapColsLab,
+            mapColsEmerdog,
+            linhasLab,
+            linhasEmerdog,
+            paresManuais,
+            resolvidos,
+            mapaResolvidosAtual,
+            decisoesOrfaos,
+            escolhasExames,
+            marcadosPosRelatorio,
+            cards,
+            filaOrfaos,
+            obsAuditoria,
+            aliasesPessoa,
+        ],
+    )
+
+    const persistirSessaoAgora = useCallback(async () => {
+        if (!podeEditar || !laboratorioId || !periodoYm) return null
+        if (!linhasLab.length && !linhasEmerdog.length && !cards.length) return null
+        if (!sessaoPersistenciaOk) return null
+        setSalvandoSessao(true)
+        try {
+            const resultado = await salvarSessaoConferencia({
+                laboratorioId,
+                periodoYm,
+                passo,
+                estado: montarEstadoParaSessao(),
+            })
+            if (!resultado?.ok) {
+                setSessaoPersistenciaOk(false)
+                return null
+            }
+            const data = resultado.data
+            setSessaoSalvaMeta({
+                id: data?.id,
+                passo,
+                atualizadoEm: data?.atualizado_em || new Date().toISOString(),
+                temLinhas: true,
+            })
+            return data
+        } catch {
+            setSessaoPersistenciaOk(false)
+            return null
+        } finally {
+            setSalvandoSessao(false)
+        }
+    }, [
+        podeEditar,
+        laboratorioId,
+        periodoYm,
+        passo,
+        linhasLab.length,
+        linhasEmerdog.length,
+        cards.length,
+        montarEstadoParaSessao,
+        sessaoPersistenciaOk,
+    ])
+
+    useEffect(() => {
+        if (!podeEditar) return undefined
+        if (!linhasLab.length && !linhasEmerdog.length && !cards.length) return undefined
+        const t = window.setTimeout(() => {
+            void persistirSessaoAgora().catch(() => {})
+        }, 2500)
+        return () => window.clearTimeout(t)
+    }, [
+        podeEditar,
+        linhasLab,
+        linhasEmerdog,
+        cards,
+        paresManuais,
+        decisoesOrfaos,
+        resolvidos,
+        passo,
+        persistirSessaoAgora,
+    ])
+
+    const restaurarSessaoSalva = async () => {
+        if (!laboratorioId || !periodoYm) return
+        setProcessando(true)
+        setErro('')
+        try {
+            const sessao = await carregarSessaoConferencia({ laboratorioId, periodoYm })
+            if (!sessao?.estado) {
+                setFeedback('Nenhuma sessão salva para este lab/período.')
+                return
+            }
+            const e = sessao.estado
+            setMapColsLab(e.mapColsLab || {})
+            setMapColsEmerdog(e.mapColsEmerdog || {})
+            setLinhasLab(e.linhasLab || [])
+            setLinhasEmerdog(e.linhasEmerdog || [])
+            setParesManuais(e.paresManuais || [])
+            setResolvidos(e.resolvidos || new Map())
+            setMapaResolvidosAtual(e.mapaResolvidosAtual || new Map())
+            setDecisoesOrfaos(e.decisoesOrfaos || new Map())
+            setEscolhasExames(e.escolhasExames || {})
+            setMarcadosPosRelatorio(e.marcadosPosRelatorio || new Set())
+            setCards(e.cards || [])
+            const filaRest =
+                e.filaOrfaos?.length
+                    ? e.filaOrfaos
+                    : e.cards?.length
+                      ? montarFilaExamesIndividuais(e.cards, {
+                            mapasAliasesPessoa: montarMapasAliasesPessoa(
+                                e.aliasesPessoa || [],
+                            ),
+                        }).fila
+                      : []
+            setFilaOrfaos(filaRest)
+            setObsAuditoria(e.obsAuditoria || {})
+            setAliasesPessoa(e.aliasesPessoa || [])
+            setArquivoLab(null)
+            setArquivoEmerdog(null)
+
+            const {
+                catalogo,
+                precosPorNomeNorm: precos,
+                codigoPorNomeNorm: codigos,
+                nomeSistemaPorNorm: nomesSis,
+            } = await carregarPrecosNegociacaoLaboratorio(laboratorioId)
+            setCatalogoNegociacao(catalogo || [])
+            setPrecosPorNomeNorm(precos || new Map())
+            setCodigoPorNomeNorm(codigos || new Map())
+            setNomeSistemaPorNorm(nomesSis || new Map())
+
+            // Completa aliases de pessoa do banco (além da sessão)
+            const doBanco = await carregarAliasesPessoaLaboratorio(laboratorioId)
+            const aliasesMesclados = mesclarAliasesPessoa(e.aliasesPessoa || [], doBanco)
+            setAliasesPessoa(aliasesMesclados)
+            if (e.cards?.length && (!e.filaOrfaos || !e.filaOrfaos.length)) {
+                setFilaOrfaos(
+                    montarFilaExamesIndividuais(e.cards, {
+                        mapasAliasesPessoa: montarMapasAliasesPessoa(aliasesMesclados),
+                    }).fila,
+                )
+            }
+
+            const passoRest = e.passo || sessao.passo || 'comparacao'
+            setPasso(passoRest)
+            setFeedback(
+                `Sessão restaurada (${e.cards?.length || 0} exames · passo ${passoRest}).`,
+            )
+            setSessaoSalvaMeta({
+                id: sessao.id,
+                passo: passoRest,
+                atualizadoEm: sessao.atualizadoEm,
+                temLinhas: true,
+            })
+        } catch (err) {
+            setErro(err?.message || String(err))
+        } finally {
+            setProcessando(false)
+        }
+    }
 
     const labsFiltrados = useMemo(() => {
         const termo = normalizarTextoBusca(buscaLab)
@@ -407,7 +668,7 @@ const ConfigConferenciaLaboratorio = () => {
             throw new Error('Arquivos .xls antigos não são suportados. Salve como .xlsx e envie de novo.')
         }
         const buffer = await file.arrayBuffer()
-        return parsearExcelConferenciaLaboratorio(buffer, { mapeamentoManual, origem })
+        return parsearExcelConferenciaViaWorker(buffer, { mapeamentoManual, origem })
     }
 
     const onEscolherArquivo = (tipo, file) => {
@@ -493,6 +754,9 @@ const ConfigConferenciaLaboratorio = () => {
             setNomeSistemaPorNorm(nomesSis || new Map())
 
             const mapeamentos = await carregarMapeamentosLaboratorio(laboratorioId)
+            const aliasesPessoaDb = await carregarAliasesPessoaLaboratorio(laboratorioId)
+            setAliasesPessoa(aliasesPessoaDb)
+            setMapeamentosSalvos(mapeamentos || [])
 
             // 1) Ordena data → tutor → pet e une atendimentos iguais
             // 2) Detecta exames sem correspondência para aliases
@@ -511,21 +775,20 @@ const ConfigConferenciaLaboratorio = () => {
             setIndiceFila(0)
 
             const msgOrg = `Atendimentos organizados: ${preparado.totalAtendimentosLab} lab · ${preparado.totalAtendimentosEm} plano (data → tutor → animal).`
-            if (preparado.fila.length) {
-                setFeedback(
-                    `${msgOrg} ${preparado.fila.length} exame(s) sem correspondente — mapeie os aliases antes da comparação.`,
-                )
-                setPasso('mapeamento')
-                setModoRevisaoAliases(false)
-            } else {
-                setFeedback(`${msgOrg} Nenhum alias pendente — iniciando comparação.`)
-                await gerarComparacao(
-                    preparado.resolvidos,
-                    preparado.linhasLab,
-                    preparado.linhasEmerdog,
-                    [],
-                )
-            }
+            const packLista = montarListaAliasesExames({
+                linhasLab: preparado.linhasLab,
+                catalogoNegociacao: catalogo || [],
+                mapeamentosSalvos: mapeamentos,
+                resolvidos: preparado.resolvidos,
+            })
+            setFeedback(
+                `${msgOrg} ${packLista.total} exame(s) no lab · ${packLista.pendentes} pendente(s)` +
+                    (packLista.comValorDiff
+                        ? ` · ${packLista.comValorDiff} com valor diferente.`
+                        : '.'),
+            )
+            setPasso('mapeamento')
+            setModoRevisaoAliases(false)
         } catch (e) {
             setErro(e?.message || String(e))
         } finally {
@@ -538,7 +801,12 @@ const ConfigConferenciaLaboratorio = () => {
         labRows = linhasLab,
         emRows = linhasEmerdog,
         pares = paresManuais,
-        { pularOrfaos = false, manterTutorFoco = false } = {},
+        {
+            pularOrfaos = false,
+            manterTutorFoco = false,
+            manterFilaExames = false,
+            aliasesPessoaOverride = null,
+        } = {},
     ) => {
         setProcessando(true)
         setErro('')
@@ -562,6 +830,10 @@ const ConfigConferenciaLaboratorio = () => {
             setLinhasLab(labSorted)
             setLinhasEmerdog(emSorted)
 
+            const mapasPessoa = montarMapasAliasesPessoa(
+                aliasesPessoaOverride ?? aliasesPessoa,
+            )
+
             const cardsGerados = montarCardsConferencia({
                 linhasLab: labSorted,
                 linhasEmerdog: emSorted,
@@ -570,47 +842,84 @@ const ConfigConferenciaLaboratorio = () => {
                 codigoPorNomeNorm: codigos || new Map(),
                 nomeSistemaPorNorm: nomesSis || new Map(),
                 paresManuais: pares,
+                mapasAliasesPessoa: mapasPessoa,
             })
 
-            const cardsComId = cardsGerados.map((c, i) => ({
+            const optsCombine = {
+                precosPorNomeNorm: precos,
+                codigoPorNomeNorm: codigos || new Map(),
+                nomeSistemaPorNorm: nomesSis || new Map(),
+                resolvidosMapeamento: mapaResolvidos,
+                mapasAliasesPessoa: mapasPessoa,
+            }
+            const auto = autoAprovarPareamentosPerfeitos(cardsGerados, optsCombine)
+            const paresComAuto = [...(pares || [])]
+            for (const p of auto.paresAuto) {
+                if (
+                    paresComAuto.some(
+                        (x) =>
+                            String(x.idLabLocal) === String(p.idLabLocal) &&
+                            String(x.idEmerdogLocal) === String(p.idEmerdogLocal),
+                    )
+                ) {
+                    continue
+                }
+                paresComAuto.push(p)
+            }
+            if (auto.qtdAuto > 0) setParesManuais(paresComAuto)
+
+            const cardsComId = auto.cards.map((c, i) => ({
                 ...c,
-                idLocal: `${Date.now()}-${i}`,
+                idLocal: c.idLocal || `${Date.now()}-${i}`,
             }))
             setCards(cardsComId)
             setMapaResolvidosAtual(mapaResolvidos)
-            setPagina(1)
-            setFiltroCards('todos')
-            if (!manterTutorFoco) {
+            if (!manterFilaExames) setPagina(1)
+            if (!manterFilaExames) setFiltroCards('diferencas')
+            if (!manterTutorFoco && !manterFilaExames) {
                 setTutorFoco(null)
-                setSelecaoUnificar(new Set())
             }
 
-            const nOrfaos = cardsGerados.filter(
+            const nOrfaos = cardsComId.filter(
                 (c) => c.tipo === 'orfao_lab' || c.tipo === 'orfao_emerdog',
             ).length
-            const nPareados = cardsGerados.filter((c) => c.tipo === 'pareado').length
-            const nDiff = cardsGerados.filter((c) => c.valoresDiferem).length
+            const nPareados = cardsComId.filter((c) => c.tipo === 'pareado').length
+            const nDiff = cardsComId.filter((c) => c.valoresDiferem).length
+            const msgAuto =
+                auto.qtdAuto > 0
+                    ? ` ${auto.qtdAuto} aprovado(s) automático(s) (100%).`
+                    : ''
 
-            if (!pularOrfaos) {
+            if (manterFilaExames) {
+                const fila = montarFilaExamesIndividuais(cardsComId, {
+                    mapasAliasesPessoa: mapasPessoa,
+                })
+                setFilaOrfaos(fila.fila)
+                setOrfaosDisponiveisEm(fila.orfaosEm)
+                setPasso('orfaos')
+                setFeedback(
+                    `Exame pareado.${msgAuto} Restam ${fila.totalPendentes} pendente(s) · ${nPareados} pareado(s).`,
+                )
+            } else if (!pularOrfaos) {
                 const fila = montarFilaPareamentoOrfaos(cardsComId, {
                     codigoPorNomeNorm: codigos || new Map(),
+                    mapasAliasesPessoa: mapasPessoa,
                 })
                 if (fila.fila.length) {
                     setFilaOrfaos(fila.fila)
                     setOrfaosDisponiveisEm(fila.orfaosEm)
                     setGruposEmDisponiveis(fila.gruposEm || [])
                     setDecisoesOrfaos(new Map())
+                    setEscolhasExames({})
                     setIndiceOrfao(0)
-                    setEscolhaOrfaoEm(fila.fila[0]?.chaveEm || '')
+                    setEscolhaOrfaoEm(fila.fila[0]?.idEmSugerido || fila.fila[0]?.chaveEm || '')
                     setPasso('orfaos')
-                    const nAutoOk = agruparCardsComparacaoPorAtendimento(cardsComId).filter(
-                        (g) => !g.temOrfao && !g.temDiff && g.status === 'verde',
-                    ).length
                     setFeedback(
-                        `${nAutoOk} atendimento(s) 100% corretos (auto). Revise ${fila.fila.length} com discrepância` +
+                        `${fila.totalPendentes || fila.fila.length} exame(s) para revisão individual` +
                             (nOrfaos || nDiff
-                                ? ` (${nOrfaos} órfão(s), ${nDiff} diff de valor).`
-                                : '.'),
+                                ? ` (${nOrfaos} órfão(s), ${nDiff} diff de valor). Pareados auto: ${nPareados}.`
+                                : '.') +
+                            msgAuto,
                     )
                 } else {
                     setFilaOrfaos([])
@@ -618,7 +927,8 @@ const ConfigConferenciaLaboratorio = () => {
                     setFeedback(
                         `Conferência gerada: ${nPareados} pareado(s)` +
                             (nOrfaos ? `, ${nOrfaos} órfão(s)` : '') +
-                            ' — sem fila de revisão.',
+                            ' — sem fila de revisão.' +
+                            msgAuto,
                     )
                 }
             } else {
@@ -626,7 +936,8 @@ const ConfigConferenciaLaboratorio = () => {
                 setPasso('comparacao')
                 setFeedback(
                     `Conferência gerada: ${nPareados} pareado(s)` +
-                        (nOrfaos ? `, ${nOrfaos} órfão(s) restante(s).` : '.'),
+                        (nOrfaos ? `, ${nOrfaos} órfão(s) restante(s).` : '.') +
+                        msgAuto,
                 )
             }
         } catch (e) {
@@ -653,23 +964,32 @@ const ConfigConferenciaLaboratorio = () => {
                     nomeEmerdog: escolhaEmerdog,
                     status: 'confirmado',
                     userId,
+                    valorLab: itemFilaAtual.valorLab,
                 })
                 setResolvidos((prev) => {
                     const next = new Map(prev)
-                    next.set(itemFilaAtual.nomeLabNorm, {
-                        nomeLab: itemFilaAtual.nomeLab,
-                        nomeEmerdog: escolhaEmerdog,
-                        status: 'mapeado_manualmente_confirmado',
-                    })
+                    next.set(
+                        chaveAliasExame(itemFilaAtual.nomeLabNorm, itemFilaAtual.valorLab),
+                        {
+                            nomeLab: itemFilaAtual.nomeLab,
+                            nomeEmerdog: escolhaEmerdog,
+                            status: 'mapeado_manualmente_confirmado',
+                            valorLab: itemFilaAtual.valorLab ?? null,
+                        },
+                    )
                     return next
                 })
                 setMapaResolvidosAtual((prev) => {
                     const next = new Map(prev.size ? prev : resolvidos)
-                    next.set(itemFilaAtual.nomeLabNorm, {
-                        nomeLab: itemFilaAtual.nomeLab,
-                        nomeEmerdog: escolhaEmerdog,
-                        status: 'mapeado_manualmente_confirmado',
-                    })
+                    next.set(
+                        chaveAliasExame(itemFilaAtual.nomeLabNorm, itemFilaAtual.valorLab),
+                        {
+                            nomeLab: itemFilaAtual.nomeLab,
+                            nomeEmerdog: escolhaEmerdog,
+                            status: 'mapeado_manualmente_confirmado',
+                            valorLab: itemFilaAtual.valorLab ?? null,
+                        },
+                    )
                     return next
                 })
             } else {
@@ -679,22 +999,29 @@ const ConfigConferenciaLaboratorio = () => {
                     nomeEmerdog: null,
                     status: 'pendente_auditoria',
                     userId,
+                    valorLab: itemFilaAtual.valorLab,
                 })
+                const chaveAud = chaveAliasExame(
+                    itemFilaAtual.nomeLabNorm,
+                    itemFilaAtual.valorLab,
+                )
                 setResolvidos((prev) => {
                     const next = new Map(prev)
-                    next.set(itemFilaAtual.nomeLabNorm, {
+                    next.set(chaveAud, {
                         nomeLab: itemFilaAtual.nomeLab,
                         nomeEmerdog: null,
                         status: 'pendente_auditoria',
+                        valorLab: itemFilaAtual.valorLab ?? null,
                     })
                     return next
                 })
                 setMapaResolvidosAtual((prev) => {
                     const next = new Map(prev.size ? prev : resolvidos)
-                    next.set(itemFilaAtual.nomeLabNorm, {
+                    next.set(chaveAud, {
                         nomeLab: itemFilaAtual.nomeLab,
                         nomeEmerdog: null,
                         status: 'pendente_auditoria',
+                        valorLab: itemFilaAtual.valorLab ?? null,
                     })
                     return next
                 })
@@ -710,17 +1037,23 @@ const ConfigConferenciaLaboratorio = () => {
                 setIndiceFila(Math.max(0, filaMapeamento.length - 1))
             } else {
                 const mapaFinal = new Map(resolvidos)
+                const chaveFinal = chaveAliasExame(
+                    itemFilaAtual.nomeLabNorm,
+                    itemFilaAtual.valorLab,
+                )
                 if (aceitar) {
-                    mapaFinal.set(itemFilaAtual.nomeLabNorm, {
+                    mapaFinal.set(chaveFinal, {
                         nomeLab: itemFilaAtual.nomeLab,
                         nomeEmerdog: escolhaEmerdog,
                         status: 'mapeado_manualmente_confirmado',
+                        valorLab: itemFilaAtual.valorLab ?? null,
                     })
                 } else {
-                    mapaFinal.set(itemFilaAtual.nomeLabNorm, {
+                    mapaFinal.set(chaveFinal, {
                         nomeLab: itemFilaAtual.nomeLab,
                         nomeEmerdog: null,
                         status: 'pendente_auditoria',
+                        valorLab: itemFilaAtual.valorLab ?? null,
                     })
                 }
                 setMapaResolvidosAtual(mapaFinal)
@@ -829,6 +1162,8 @@ const ConfigConferenciaLaboratorio = () => {
 
         if (filtroCards === 'pendentes') {
             grupos = grupos.filter((g) => g.status !== 'verde' && g.status !== 'conferido_manual')
+        } else if (filtroCards === 'diferencas') {
+            grupos = grupos.filter((g) => g.temOrfao || g.temDiff)
         } else if (filtroCards === 'verdes') {
             grupos = grupos.filter((g) => g.status === 'verde' || g.status === 'conferido_manual')
         } else if (filtroCards === 'orfaos') {
@@ -858,6 +1193,8 @@ const ConfigConferenciaLaboratorio = () => {
         [cards],
     )
 
+    const resumoTotais = useMemo(() => resumirTotaisConferencia(cards), [cards])
+
     const totalTutorFoco = tutorFoco ? cardsFiltrados.length : 0
 
     const linhasPosRelatorio = useMemo(
@@ -875,6 +1212,139 @@ const ConfigConferenciaLaboratorio = () => {
         const inicio = (paginaSafe - 1) * porPagina
         return cardsFiltrados.slice(inicio, inicio + porPagina)
     }, [cardsFiltrados, paginaSafe, porPagina])
+
+    const totalComDiferenca = useMemo(() => {
+        return agruparCardsComparacaoPorAtendimento(cards).filter(
+            (g) => g.temOrfao || g.temDiff,
+        ).length
+    }, [cards])
+
+    useEffect(() => {
+        if (passo !== 'comparacao') return
+        const el = comparacaoTopoRef.current
+        if (el?.scrollIntoView) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+    }, [pagina, passo])
+
+    const selecionarOrfaoMescla = (lado, id) => {
+        if (!podeEditar || !id) return
+        if (lado === 'lab') {
+            setMesclaLabId((prev) => (String(prev) === String(id) ? null : id))
+        } else {
+            setMesclaEmId((prev) => (String(prev) === String(id) ? null : id))
+        }
+    }
+
+    const limparSelecaoMescla = () => {
+        setMesclaLabId(null)
+        setMesclaEmId(null)
+    }
+
+    const mesclarOrfaosNaComparacao = () => {
+        if (!podeEditar) {
+            setErro('Sem permissão para mesclar exames.')
+            return
+        }
+        if (!mesclaLabId || !mesclaEmId) {
+            setErro('Selecione um exame órfão do laboratório e um do plano.')
+            return
+        }
+        const labCard = cards.find(
+            (c) =>
+                c.tipo === 'orfao_lab' && String(c.idLabLocal) === String(mesclaLabId),
+        )
+        const emCard = cards.find(
+            (c) =>
+                c.tipo === 'orfao_emerdog' &&
+                String(c.idEmerdogLocal) === String(mesclaEmId),
+        )
+        if (!labCard || !emCard) {
+            setErro('Não foi possível localizar os exames selecionados.')
+            limparSelecaoMescla()
+            return
+        }
+        if (
+            (paresManuais || []).some(
+                (p) => String(p.idEmerdogLocal) === String(mesclaEmId),
+            )
+        ) {
+            setErro('Este exame do plano já foi pareado.')
+            return
+        }
+
+        try {
+            let listaAliases = aliasesPessoa
+            const novosAliases = aliasesPessoaDePareamento({
+                tutorLab: labCard.tutor,
+                tutorPlano: emCard.tutor,
+                petLab: labCard.pet,
+                petPlano: emCard.pet,
+            })
+            if (novosAliases.length) {
+                listaAliases = mesclarAliasesPessoa(aliasesPessoa, novosAliases)
+                setAliasesPessoa(listaAliases)
+                if (laboratorioId) {
+                    void salvarAliasesPessoaEmLote({
+                        laboratorioId,
+                        aliases: novosAliases,
+                    })
+                }
+            }
+            const mapasPessoa = montarMapasAliasesPessoa(listaAliases)
+            const optsCombine = {
+                precosPorNomeNorm,
+                codigoPorNomeNorm,
+                nomeSistemaPorNorm,
+                resolvidosMapeamento: mapaResolvidosAtual.size
+                    ? mapaResolvidosAtual
+                    : resolvidos,
+                mapasAliasesPessoa: mapasPessoa,
+            }
+            let cardsNovos = combinarOrfaosNosCards(
+                cards,
+                mesclaLabId,
+                mesclaEmId,
+                optsCombine,
+            )
+            const auto = autoAprovarPareamentosPerfeitos(cardsNovos, optsCombine)
+            cardsNovos = auto.cards
+
+            const novosPares = [
+                ...(paresManuais || []).filter(
+                    (p) => String(p.idLabLocal) !== String(mesclaLabId),
+                ),
+                { idLabLocal: mesclaLabId, idEmerdogLocal: mesclaEmId },
+                ...auto.paresAuto.filter(
+                    (p) =>
+                        String(p.idLabLocal) !== String(mesclaLabId) ||
+                        String(p.idEmerdogLocal) !== String(mesclaEmId),
+                ),
+            ]
+            // dedupe
+            const vistos = new Set()
+            const paresUnicos = []
+            for (const p of novosPares) {
+                const k = `${p.idLabLocal}|${p.idEmerdogLocal}`
+                if (vistos.has(k)) continue
+                vistos.add(k)
+                paresUnicos.push(p)
+            }
+            setParesManuais(paresUnicos)
+            setCards(cardsNovos)
+            limparSelecaoMescla()
+            setErro('')
+            setFeedback(
+                auto.qtdAuto > 0
+                    ? `Exames mesclados. +${auto.qtdAuto} auto (100%).`
+                    : 'Exames mesclados na comparação.',
+            )
+        } catch (e) {
+            setErro(e?.message || String(e))
+        }
+    }
 
     const mostrarTodosDoTutor = (tutor, pet = '') => {
         const label = String(tutor || '').trim() || '—'
@@ -912,7 +1382,6 @@ const ConfigConferenciaLaboratorio = () => {
             petNorm: normalizarTextoBusca(petExib) || petNorm,
             petLabel: petExib,
         })
-        setSelecaoUnificar(new Set())
         setFeedback(
             petExib
                 ? `Atendimentos de «${labelExib}» · «${petExib}» (lab + plano) — mais antigo → mais novo.`
@@ -922,197 +1391,8 @@ const ConfigConferenciaLaboratorio = () => {
 
     const limparTutorFoco = () => {
         setTutorFoco(null)
-        setSelecaoUnificar(new Set())
         if (passo === 'comparacao') {
             setPagina(paginaAntesTutorFocoRef.current || 1)
-        }
-    }
-
-    const toggleSelecaoUnificar = (chaveGrupo) => {
-        if (!chaveGrupo) return
-        setSelecaoUnificar((prev) => {
-            const next = new Set(prev)
-            if (next.has(chaveGrupo)) next.delete(chaveGrupo)
-            else next.add(chaveGrupo)
-            return next
-        })
-    }
-
-    const unificarAtendimentosSelecionados = async () => {
-        if (!tutorFoco) return
-        if (!podeEditar) {
-            setErro('Sem permissão para unificar atendimentos.')
-            return
-        }
-
-        let alvo = null
-        const idsLab = new Set()
-        const idsEm = new Set()
-
-        if (passo === 'orfaos') {
-            const labsSel = atendimentosTutorAmbosLados.lab.filter((g) =>
-                selecaoUnificar.has(`lab:${g.chave}`),
-            )
-            const emsSel = atendimentosTutorAmbosLados.plano.filter((g) =>
-                selecaoUnificar.has(`em:${g.chave}`),
-            )
-            if (labsSel.length + emsSel.length < 2) {
-                setErro('Marque pelo menos 2 atendimentos (lab e/ou plano) para unificar.')
-                return
-            }
-            const todos = [
-                ...labsSel.map((g) => ({ ...g, _lado: 'lab' })),
-                ...emsSel.map((g) => ({ ...g, _lado: 'em' })),
-            ].sort((a, b) => {
-                const d = String(a.data || '').localeCompare(String(b.data || ''))
-                if (d !== 0) return d
-                return String(a.pet || '').localeCompare(String(b.pet || ''), 'pt-BR')
-            })
-            alvo = todos[0]
-            for (const g of labsSel) {
-                for (const l of g.linhas || []) if (l.idLocal) idsLab.add(l.idLocal)
-            }
-            for (const g of emsSel) {
-                for (const l of g.linhas || []) if (l.idLocal) idsEm.add(l.idLocal)
-            }
-        } else {
-            const selecionados = cardsFiltrados.filter((g) => selecaoUnificar.has(g.chave))
-            if (selecionados.length < 2) {
-                setErro('Marque pelo menos 2 atendimentos para unificar.')
-                return
-            }
-            alvo = [...selecionados].sort((a, b) => {
-                const d = String(a.data || '').localeCompare(String(b.data || ''))
-                if (d !== 0) return d
-                return String(a.pet || '').localeCompare(String(b.pet || ''), 'pt-BR')
-            })[0]
-            for (const g of selecionados) {
-                for (const c of g.cardsExame || []) {
-                    if (c.idLabLocal) idsLab.add(c.idLabLocal)
-                    if (c.idEmerdogLocal) idsEm.add(c.idEmerdogLocal)
-                }
-            }
-        }
-
-        const labNext = (linhasLab || []).map((l) =>
-            idsLab.has(l.idLocal)
-                ? { ...l, tutor: alvo.tutor, pet: alvo.pet, data: alvo.data }
-                : l,
-        )
-        const emNext = (linhasEmerdog || []).map((l) =>
-            idsEm.has(l.idLocal)
-                ? { ...l, tutor: alvo.tutor, pet: alvo.pet, data: alvo.data }
-                : l,
-        )
-
-        const labLinhas = labNext.filter((l) => idsLab.has(l.idLocal))
-        const emLinhas = emNext.filter((l) => idsEm.has(l.idLocal))
-        const paresNovos = expandirPareamentoGrupoOrfaos(
-            {
-                exames: labLinhas.map((l) => ({
-                    idLocal: l.idLocal,
-                    nome: l.exame,
-                    nomeNorm: l.exameNorm || normalizarNomeExame(l.exame),
-                })),
-            },
-            {
-                exames: emLinhas.map((l) => ({
-                    idLocal: l.idLocal,
-                    nome: l.exame,
-                    nomeNorm: l.exameNorm || normalizarNomeExame(l.exame),
-                })),
-            },
-        )
-
-        const paresFiltrados = (paresManuais || []).filter(
-            (p) => !idsLab.has(p.idLabLocal) && !idsEm.has(p.idEmerdogLocal),
-        )
-        const paresAtualizados = [...paresFiltrados, ...paresNovos]
-        const qtdSel =
-            passo === 'orfaos' ? selecaoUnificar.size : cardsFiltrados.filter((g) => selecaoUnificar.has(g.chave)).length
-
-        setProcessando(true)
-        setErro('')
-        try {
-            setLinhasLab(labNext)
-            setLinhasEmerdog(emNext)
-            setParesManuais(paresAtualizados)
-            setSelecaoUnificar(new Set())
-
-            if (passo === 'orfaos') {
-                const mapa = mapaResolvidosAtual.size ? mapaResolvidosAtual : resolvidos
-                const {
-                    precosPorNomeNorm: precos,
-                    catalogo,
-                    codigoPorNomeNorm: codigos,
-                    nomeSistemaPorNorm: nomesSis,
-                } = await carregarPrecosNegociacaoLaboratorio(laboratorioId)
-                setCatalogoNegociacao(catalogo || [])
-                setPrecosPorNomeNorm(precos || new Map())
-                setCodigoPorNomeNorm(codigos || new Map())
-                setNomeSistemaPorNorm(nomesSis || new Map())
-                const cardsGerados = montarCardsConferencia({
-                    linhasLab: labNext,
-                    linhasEmerdog: emNext,
-                    resolvidosMapeamento: mapa,
-                    precosPorNomeNorm: precos,
-                    codigoPorNomeNorm: codigos || new Map(),
-                    nomeSistemaPorNorm: nomesSis || new Map(),
-                    paresManuais: paresAtualizados,
-                }).map((c, i) => ({ ...c, idLocal: `${Date.now()}-${i}` }))
-                setCards(cardsGerados)
-                setMapaResolvidosAtual(mapa)
-                const fila = montarFilaPareamentoOrfaos(cardsGerados, {
-                    codigoPorNomeNorm: codigos || new Map(),
-                })
-                setFilaOrfaos(fila.fila)
-                setOrfaosDisponiveisEm(fila.orfaosEm)
-                setGruposEmDisponiveis(fila.gruposEm || [])
-                setDecisoesOrfaos(new Map())
-                const idx = fila.fila.findIndex((item) => {
-                    const g = item.grupoLab
-                    if (!nomeCorrespondeFoco(g?.tutor, tutorFoco.norm, tutorFoco.label)) {
-                        return false
-                    }
-                    if (
-                        tutorFoco.petNorm &&
-                        !nomeCorrespondeFoco(g?.pet, tutorFoco.petNorm, tutorFoco.petLabel)
-                    ) {
-                        return false
-                    }
-                    return true
-                })
-                setIndiceOrfao(idx >= 0 ? idx : 0)
-                setEscolhaOrfaoEm(fila.fila[idx >= 0 ? idx : 0]?.chaveEm || '')
-                setTutorFoco({
-                    norm: normalizarTextoBusca(alvo.tutor),
-                    label: alvo.tutor,
-                    petNorm: normalizarTextoBusca(alvo.pet),
-                    petLabel: alvo.pet || '',
-                })
-                setFeedback(
-                    `Unificados ${qtdSel} atendimentos em «${alvo.tutor} · ${alvo.pet} · ${formatarDataConferencia(alvo.data)}».`,
-                )
-            } else {
-                await gerarComparacao(
-                    mapaResolvidosAtual.size ? mapaResolvidosAtual : resolvidos,
-                    labNext,
-                    emNext,
-                    paresAtualizados,
-                    { pularOrfaos: true, manterTutorFoco: true },
-                )
-                setTutorFoco({
-                    norm: normalizarTextoBusca(alvo.tutor),
-                    label: alvo.tutor,
-                })
-                setFeedback(
-                    `Unificados ${qtdSel} atendimentos em «${alvo.tutor} · ${alvo.pet} · ${formatarDataConferencia(alvo.data)}».`,
-                )
-            }
-        } catch (e) {
-            setErro(e?.message || String(e))
-        } finally {
-            setProcessando(false)
         }
     }
 
@@ -1167,75 +1447,200 @@ const ConfigConferenciaLaboratorio = () => {
         setFeedback('Fila de órfãos concluída. Volte a um card ou vá para a comparação.')
     }
 
-    const confirmarPareamentoOrfao = () => {
-        if (!itemOrfaoAtual) return
+    const aprovarExameIndividual = (item, idEmEscolhido) => {
         if (!podeEditar) {
-            setErro('Sem permissão para parear órfãos.')
+            setErro('Sem permissão para parear exames.')
             return
         }
-        const chaveEm = escolhaOrfaoEm || itemOrfaoAtual.chaveEm
-        if (!chaveEm) {
-            setErro('Selecione o atendimento do plano para parear.')
-            return
-        }
+        if (!item) return
 
-        const grupoEm =
-            itemOrfaoAtual.candidatos?.find((c) => c.chaveEm === chaveEm)?.grupoEm ||
-            gruposEmDisponiveis.find((g) => g.chave === chaveEm) ||
-            (itemOrfaoAtual.chaveEm === chaveEm ? itemOrfaoAtual.grupoEm : null) ||
-            grupoEmSelecionado
-
-        if (!itemOrfaoAtual.grupoLab || !grupoEm) {
-            setErro('Grupo do plano não encontrado.')
-            return
-        }
-
-        const idsLabGrupo = new Set((itemOrfaoAtual.grupoLab.ids || []).map(String))
-        const paresSemEste = (paresManuais || []).filter(
-            (p) => !idsLabGrupo.has(String(p.idLabLocal)),
-        )
-        const idsEmGrupo = new Set((grupoEm.ids || []).map(String))
-        const conflito = paresSemEste.some((p) => idsEmGrupo.has(String(p.idEmerdogLocal)))
-        if (conflito) {
-            setErro('Um ou mais exames deste atendimento do plano já foram pareados.')
-            return
-        }
-
-        const paresGrupo = expandirPareamentoGrupoOrfaos(itemOrfaoAtual.grupoLab, grupoEm)
-        if (!paresGrupo.length) {
-            setErro('Não foi possível parear os exames deste atendimento.')
-            return
-        }
-
-        const novosPares = [...paresSemEste, ...paresGrupo]
-        setParesManuais(novosPares)
-        setDecisoesOrfaos((prev) => {
-            const next = new Map(prev)
-            next.set(itemOrfaoAtual.chaveLab, { status: 'aprovado', chaveEm })
-            return next
-        })
-        setFeedback(
-            `Atendimento aprovado: ${paresGrupo.length} exame(s) pareado(s).`,
-        )
-        setErro('')
-        avancarFilaOrfaos(indiceOrfao + 1)
-    }
-
-    const rejeitarPareamentoOrfao = () => {
-        if (itemOrfaoAtual?.grupoLab) {
-            desfazerDecisaoOrfao(itemOrfaoAtual)
+        if (item.tipo === 'diff_valor') {
             setDecisoesOrfaos((prev) => {
                 const next = new Map(prev)
-                next.set(itemOrfaoAtual.chaveLab, {
-                    status: 'rejeitado',
-                    chaveEm: escolhaOrfaoEm || itemOrfaoAtual.chaveEm || '',
+                next.set(item.idItem, {
+                    status: 'aprovado',
+                    idEm: item.idEmerdogLocal,
                 })
                 return next
             })
+            setCards((prev) =>
+                prev.map((c) =>
+                    c.idLabLocal === item.idLabLocal && c.idEmerdogLocal === item.idEmerdogLocal
+                        ? { ...c, status: 'conferido_manual', valoresDiferem: false }
+                        : c,
+                ),
+            )
+            setFeedback('Par com diff aceito.')
+            setErro('')
+            return
         }
-        setFeedback('Sugestão rejeitada — atendimento permanece órfão.')
+
+        const idEm = idEmEscolhido || escolhasExames[item.idItem] || item.idEmSugerido
+        if (!idEm || !item.idLabLocal) {
+            setErro('Selecione o exame do plano para parear.')
+            return
+        }
+
+        const candEscolhido =
+            (item.candidatos || []).find((c) => String(c.idLocal) === String(idEm)) ||
+            null
+        const cardPlano = candEscolhido?.card || null
+        const novosAliases = aliasesPessoaDePareamento({
+            tutorLab: item.tutor || item.cardLab?.tutor,
+            tutorPlano: cardPlano?.tutor,
+            petLab: item.pet || item.cardLab?.pet,
+            petPlano: cardPlano?.pet,
+        })
+        let listaAliases = aliasesPessoa
+        if (novosAliases.length) {
+            listaAliases = mesclarAliasesPessoa(aliasesPessoa, novosAliases)
+            setAliasesPessoa(listaAliases)
+            if (laboratorioId) {
+                void salvarAliasesPessoaEmLote({
+                    laboratorioId,
+                    aliases: novosAliases,
+                })
+            }
+        }
+        const mapasPessoa = montarMapasAliasesPessoa(listaAliases)
+
+        const idsLab = new Set([String(item.idLabLocal)])
+        const paresSemEste = (paresManuais || []).filter(
+            (p) => !idsLab.has(String(p.idLabLocal)),
+        )
+        if (paresSemEste.some((p) => String(p.idEmerdogLocal) === String(idEm))) {
+            setErro('Este exame do plano já foi pareado com outro do laboratório.')
+            return
+        }
+
+        // 1) Esconde o item na hora (antes de qualquer remount)
+        setDecisoesOrfaos((prev) => {
+            const next = new Map(prev)
+            next.set(item.idItem, { status: 'aprovado', idEm })
+            next.set(`em:${idEm}`, { status: 'aprovado', idEm })
+            return next
+        })
+        // Mantém flag do pós-relatório ao virar par
+        setMarcadosPosRelatorio((prev) => {
+            const next = new Set(prev)
+            const chavePar = `par:${item.idLabLocal}|${idEm}`
+            const chaveLab = `lab:${item.idLabLocal}`
+            const chaveEm = `em:${idEm}`
+            if (next.has(chaveLab) || next.has(chaveEm) || next.has(chavePar)) {
+                next.add(chavePar)
+                next.delete(chaveLab)
+                next.delete(chaveEm)
+            }
+            return next
+        })
         setErro('')
-        avancarFilaOrfaos(indiceOrfao + 1)
+        const msgAlias =
+            novosAliases.length > 0
+                ? ` Alias: ${novosAliases
+                      .map((a) =>
+                          a.tipo === 'pet'
+                              ? `animal «${a.nomePlano}»→«${a.nomeLab}»`
+                              : `tutor «${a.nomePlano}»→«${a.nomeLab}»`,
+                      )
+                      .join('; ')}.`
+                : ''
+        setFeedback(`Exame aprovado e pareado.${msgAlias}`)
+
+        const novosPares = [
+            ...paresSemEste,
+            { idLabLocal: item.idLabLocal, idEmerdogLocal: idEm },
+        ]
+        setParesManuais(novosPares)
+
+        // 2) Atualiza cards + fila em memória (sem rede / sem gerarComparacao)
+        try {
+            const optsCombine = {
+                precosPorNomeNorm,
+                codigoPorNomeNorm,
+                nomeSistemaPorNorm,
+                resolvidosMapeamento: mapaResolvidosAtual.size
+                    ? mapaResolvidosAtual
+                    : resolvidos,
+                mapasAliasesPessoa: mapasPessoa,
+            }
+            let cardsNovos = combinarOrfaosNosCards(
+                cards,
+                item.idLabLocal,
+                idEm,
+                optsCombine,
+            )
+            // Após alias, outros exames 100% iguais saem da fila sozinhos
+            const auto = autoAprovarPareamentosPerfeitos(cardsNovos, optsCombine)
+            cardsNovos = auto.cards
+            if (auto.qtdAuto > 0) {
+                const extra = auto.paresAuto.filter(
+                    (p) =>
+                        !novosPares.some(
+                            (x) =>
+                                String(x.idLabLocal) === String(p.idLabLocal) &&
+                                String(x.idEmerdogLocal) === String(p.idEmerdogLocal),
+                        ),
+                )
+                if (extra.length) setParesManuais([...novosPares, ...extra])
+            }
+            setCards(cardsNovos)
+            const fila = montarFilaExamesIndividuais(cardsNovos, {
+                mapasAliasesPessoa: mapasPessoa,
+            })
+            setFilaOrfaos(fila.fila)
+            setOrfaosDisponiveisEm(fila.orfaosEm || [])
+            const msgAuto =
+                auto.qtdAuto > 0
+                    ? ` +${auto.qtdAuto} auto (100%).`
+                    : ''
+            setFeedback(
+                `Exame aprovado. Restam ${fila.totalPendentes} pendente(s).${msgAlias}${msgAuto}`,
+            )
+        } catch (e) {
+            // Fallback: só marca decisão; cards serão coerentes na próxima comparação
+            setErro('')
+            setFeedback(
+                e?.message
+                    ? `Pareado na fila (atualização local parcial: ${e.message}).`
+                    : `Exame aprovado e pareado.${msgAlias}`,
+            )
+        }
+    }
+
+    const rejeitarExameIndividual = (item) => {
+        if (!item) return
+        setDecisoesOrfaos((prev) => {
+            const next = new Map(prev)
+            next.set(item.idItem, {
+                status: 'rejeitado',
+                idEm: escolhasExames[item.idItem] || item.idEmSugerido || '',
+            })
+            return next
+        })
+        if (item.idLabLocal) {
+            setParesManuais((prev) =>
+                (prev || []).filter((p) => String(p.idLabLocal) !== String(item.idLabLocal)),
+            )
+        }
+        setFeedback(
+            item.tipo === 'diff_valor'
+                ? 'Diff mantido para pós-relatório.'
+                : 'Exame mantido como órfão.',
+        )
+        setErro('')
+    }
+
+    const confirmarPareamentoOrfao = () => {
+        if (itemOrfaoAtual?.idItem) {
+            aprovarExameIndividual(
+                itemOrfaoAtual,
+                escolhasExames[itemOrfaoAtual.idItem] || itemOrfaoAtual.idEmSugerido,
+            )
+        }
+    }
+
+    const rejeitarPareamentoOrfao = () => {
+        if (itemOrfaoAtual) rejeitarExameIndividual(itemOrfaoAtual)
     }
 
     const concluirOrfaos = () => {
@@ -1246,18 +1651,62 @@ const ConfigConferenciaLaboratorio = () => {
     }
 
     const voltarParaOrfaos = () => {
-        const fila = montarFilaPareamentoOrfaos(cards, { codigoPorNomeNorm })
+        const mapasPessoa = montarMapasAliasesPessoa(aliasesPessoa)
+        const optsCombine = {
+            precosPorNomeNorm,
+            codigoPorNomeNorm,
+            nomeSistemaPorNorm,
+            resolvidosMapeamento: mapaResolvidosAtual.size
+                ? mapaResolvidosAtual
+                : resolvidos,
+            mapasAliasesPessoa: mapasPessoa,
+        }
+        const auto = autoAprovarPareamentosPerfeitos(cards, optsCombine)
+        const cardsBase = auto.cards
+        if (auto.qtdAuto > 0) {
+            setCards(cardsBase)
+            setParesManuais((prev) => {
+                const next = [...(prev || [])]
+                for (const p of auto.paresAuto) {
+                    if (
+                        next.some(
+                            (x) =>
+                                String(x.idLabLocal) === String(p.idLabLocal) &&
+                                String(x.idEmerdogLocal) === String(p.idEmerdogLocal),
+                        )
+                    ) {
+                        continue
+                    }
+                    next.push(p)
+                }
+                return next
+            })
+        }
+        const fila = montarFilaExamesIndividuais(cardsBase, {
+            mapasAliasesPessoa: mapasPessoa,
+        })
         if (!fila.fila.length) {
-            setFeedback('Não há mais órfãos para revisar.')
+            setFilaOrfaos([])
+            setFeedback(
+                auto.qtdAuto > 0
+                    ? `${auto.qtdAuto} exame(s) 100% aprovado(s) automaticamente. Nada pendente.`
+                    : 'Não há exames pendentes para revisar.',
+            )
+            if (auto.qtdAuto > 0) setPasso('comparacao')
             return
         }
         setFilaOrfaos(fila.fila)
         setOrfaosDisponiveisEm(fila.orfaosEm)
-        setGruposEmDisponiveis(fila.gruposEm || [])
+        setGruposEmDisponiveis([])
         setDecisoesOrfaos(new Map())
+        setEscolhasExames({})
         setIndiceOrfao(0)
-        setEscolhaOrfaoEm(fila.fila[0]?.chaveEm || '')
         setPasso('orfaos')
+        if (auto.qtdAuto > 0) {
+            setFeedback(
+                `${auto.qtdAuto} aprovado(s) automático(s). ${fila.totalPendentes} restante(s).`,
+            )
+        }
     }
 
     const marcarCardConferido = (card) => {
@@ -1312,21 +1761,30 @@ const ConfigConferenciaLaboratorio = () => {
                 nomeEmerdog: nomeCatalogo,
                 status: 'confirmado',
                 userId,
+                valorLab: card.valorLaboratorio ?? card.valorLab ?? null,
             })
 
             const nextMapa = new Map(mapaResolvidosAtual.size ? mapaResolvidosAtual : resolvidos)
-            const chave = normalizarNomeExame(nomeOrigem)
+            const valorCard = arredondarValorLab(
+                card.valorLaboratorio ?? card.valorLab ?? null,
+            )
+            const chave = chaveAliasExame(normalizarNomeExame(nomeOrigem), valorCard)
             nextMapa.set(chave, {
                 nomeLab: nomeOrigem,
                 nomeEmerdog: nomeCatalogo,
                 status: 'mapeado_manualmente_confirmado',
+                valorLab: valorCard,
             })
             if (card.exameLaboratorio && card.exameLaboratorio !== nomeOrigem) {
-                nextMapa.set(normalizarNomeExame(card.exameLaboratorio), {
-                    nomeLab: card.exameLaboratorio,
-                    nomeEmerdog: nomeCatalogo,
-                    status: 'mapeado_manualmente_confirmado',
-                })
+                nextMapa.set(
+                    chaveAliasExame(normalizarNomeExame(card.exameLaboratorio), valorCard),
+                    {
+                        nomeLab: card.exameLaboratorio,
+                        nomeEmerdog: nomeCatalogo,
+                        status: 'mapeado_manualmente_confirmado',
+                        valorLab: valorCard,
+                    },
+                )
             }
 
             setResolvidos(nextMapa)
@@ -1355,13 +1813,16 @@ const ConfigConferenciaLaboratorio = () => {
         setFilaMapeamento([])
         setIndiceFila(0)
         setResolvidos(new Map())
+        setMapeamentosSalvos([])
         setMapaResolvidosAtual(new Map())
+        setAliasesPessoa([])
         setCards([])
         setParesManuais([])
         setFilaOrfaos([])
         setIndiceOrfao(0)
         setEscolhaOrfaoEm('')
         setDecisoesOrfaos(new Map())
+        setEscolhasExames({})
         setOrfaosDisponiveisEm([])
         setGruposEmDisponiveis([])
         setCatalogoNegociacao([])
@@ -1373,14 +1834,17 @@ const ConfigConferenciaLaboratorio = () => {
         setBuscaCatalogo('')
         setMarcadosPosRelatorio(new Set())
         setTutorFoco(null)
-        setSelecaoUnificar(new Set())
+        setMesclaLabId(null)
+        setMesclaEmId(null)
         setBuscaComparacao('')
         setPagina(1)
+        setFiltroCards('diferencas')
         setModoRevisaoAliases(false)
         setFeedback('')
         setAviso('')
         setErro('')
         setPrecisaMapearCols(false)
+        setSessaoSalvaMeta(null)
     }
 
     const valorLabPorNomeNorm = useCallback(
@@ -1407,14 +1871,24 @@ const ConfigConferenciaLaboratorio = () => {
         const vistos = new Set()
         const fila = []
 
-        for (const [norm, info] of mapa) {
-            if (!norm || vistos.has(norm)) continue
-            vistos.add(norm)
-            const nomeLab = info?.nomeLab || norm
+        for (const [chave, info] of mapa) {
+            if (!chave || vistos.has(chave)) continue
+            vistos.add(chave)
+            const nomeLabNorm =
+                info?.nomeLabNorm ||
+                (String(chave).includes('|') ? String(chave).split('|')[0] : chave)
+            const nomeLab = info?.nomeLab || nomeLabNorm
+            const valorLab =
+                info?.valorLab != null
+                    ? info.valorLab
+                    : String(chave).includes('|')
+                      ? Number(String(chave).split('|')[1])
+                      : valorLabPorNomeNorm(nomeLab)
             fila.push({
                 nomeLab,
-                nomeLabNorm: norm,
-                valorLab: valorLabPorNomeNorm(nomeLab),
+                nomeLabNorm,
+                valorLab: Number.isFinite(Number(valorLab)) ? Number(valorLab) : null,
+                chave,
                 nomesEmerdog: nomesEm,
                 sugestoes: info?.nomeEmerdog ? [info.nomeEmerdog] : [],
                 atendimentosSemPar: 0,
@@ -1425,10 +1899,15 @@ const ConfigConferenciaLaboratorio = () => {
 
         // Pendentes ainda na fila original
         for (const item of filaMapeamento || []) {
-            const norm = item.nomeLabNorm || normalizarNomeExame(item.nomeLab)
-            if (!norm || vistos.has(norm)) continue
-            vistos.add(norm)
-            fila.push({ ...item, revisao: true })
+            const chave =
+                item.chave ||
+                chaveAliasExame(
+                    item.nomeLabNorm || normalizarNomeExame(item.nomeLab),
+                    item.valorLab,
+                )
+            if (!chave || vistos.has(chave)) continue
+            vistos.add(chave)
+            fila.push({ ...item, chave, revisao: true })
         }
 
         fila.sort((a, b) =>
@@ -1453,7 +1932,7 @@ const ConfigConferenciaLaboratorio = () => {
             },
             {
                 id: 'orfaos',
-                label: '3. Órfãos',
+                label: '3. Exames',
                 liberada: Boolean(cards.length || filaOrfaos.length),
             },
             {
@@ -1475,26 +1954,7 @@ const ConfigConferenciaLaboratorio = () => {
         if (!etapa?.liberada || id === passo) return
 
         if (id === 'mapeamento') {
-            const jaComparou = cards.length > 0
-            setModoRevisaoAliases(jaComparou)
-            if (jaComparou || !filaMapeamento.length) {
-                const fila = montarFilaRevisaoAliases()
-                if (fila.length) {
-                    setFilaMapeamento(fila)
-                    setIndiceFila(0)
-                    const primeiro = fila[0]
-                    const prev = resolvidos.get(primeiro.nomeLabNorm) ||
-                        mapaResolvidosAtual.get(primeiro.nomeLabNorm)
-                    setEscolhaEmerdog(prev?.nomeEmerdog || primeiro.sugestoes?.[0] || '')
-                } else {
-                    setFeedback('Nenhum alias para revisar ainda.')
-                }
-            } else {
-                setIndiceFila(0)
-                const item = filaMapeamento[0]
-                const prev = resolvidos.get(item?.nomeLabNorm)
-                setEscolhaEmerdog(prev?.nomeEmerdog || item?.sugestoes?.[0] || '')
-            }
+            setModoRevisaoAliases(cards.length > 0)
             setTutorFoco(null)
             setPasso('mapeamento')
             return
@@ -1545,13 +2005,159 @@ const ConfigConferenciaLaboratorio = () => {
         })
     }
 
+    const aplicarVinculoAlias = async (itens, nomeEmerdog) => {
+        if (!podeEditar) {
+            setErro('Sem permissão para salvar mapeamento.')
+            return
+        }
+        const alvo = String(nomeEmerdog || '').trim()
+        const rows = (itens || []).filter((r) => r?.nomeLab && r?.nomeLabNorm)
+        if (!alvo || !rows.length) {
+            setErro('Selecione o exame da negociação e ao menos um do laboratório.')
+            return
+        }
+        setProcessando(true)
+        setErro('')
+        try {
+            for (const row of rows) {
+                await salvarMapeamentoExame({
+                    laboratorioId,
+                    nomeLab: row.nomeLab,
+                    nomeEmerdog: alvo,
+                    status: 'confirmado',
+                    userId,
+                    valorLab: row.valorLab,
+                })
+            }
+            const patch = (prev) => {
+                const next = new Map(prev.size ? prev : resolvidos)
+                for (const row of rows) {
+                    const chave =
+                        row.chave || chaveAliasExame(row.nomeLabNorm, row.valorLab)
+                    next.set(chave, {
+                        nomeLab: row.nomeLab,
+                        nomeEmerdog: alvo,
+                        status: 'mapeado_manualmente_confirmado',
+                        valorLab: row.valorLab ?? null,
+                    })
+                }
+                return next
+            }
+            setResolvidos(patch)
+            setMapaResolvidosAtual(patch)
+            setMapeamentosSalvos((prev) => {
+                const out = [...(prev || [])]
+                for (const row of rows) {
+                    const valorPersist = arredondarValorLab(row.valorLab)
+                    const idx = out.findIndex((m) => {
+                        if (String(m.nome_lab_normalizado) !== String(row.nomeLabNorm))
+                            return false
+                        return valorLabDeMapeamentoSalvo(m) === valorPersist
+                    })
+                    const entry = {
+                        laboratorio_id: Number(laboratorioId),
+                        nome_lab: row.nomeLab,
+                        nome_lab_normalizado: row.nomeLabNorm,
+                        valor_lab:
+                            valorPersist == null ? -1 : valorPersist,
+                        nome_emerdog: alvo,
+                        nome_emerdog_normalizado: normalizarNomeExame(alvo),
+                        status: 'confirmado',
+                    }
+                    if (idx >= 0) out[idx] = { ...out[idx], ...entry }
+                    else out.push(entry)
+                }
+                return out
+            })
+            setFeedback(
+                rows.length === 1
+                    ? `Alias salvo: «${rows[0].nomeLab}»${
+                          rows[0].valorLab != null
+                              ? ` (${formatarValorConferencia(rows[0].valorLab)})`
+                              : ''
+                      } → «${alvo}».`
+                    : `${rows.length} aliases vinculados a «${alvo}».`,
+            )
+        } catch (e) {
+            setErro(e?.message || String(e))
+        } finally {
+            setProcessando(false)
+        }
+    }
+
+    const auditarAliasLinha = async (row) => {
+        if (!row?.nomeLab) return
+        if (!podeEditar) {
+            setErro('Sem permissão para salvar mapeamento.')
+            return
+        }
+        setProcessando(true)
+        setErro('')
+        try {
+            await salvarMapeamentoExame({
+                laboratorioId,
+                nomeLab: row.nomeLab,
+                nomeEmerdog: null,
+                status: 'pendente_auditoria',
+                userId,
+                valorLab: row.valorLab,
+            })
+            const patch = (prev) => {
+                const next = new Map(prev.size ? prev : resolvidos)
+                const chave = row.chave || chaveAliasExame(row.nomeLabNorm, row.valorLab)
+                next.set(chave, {
+                    nomeLab: row.nomeLab,
+                    nomeEmerdog: null,
+                    status: 'pendente_auditoria',
+                    valorLab: row.valorLab ?? null,
+                })
+                return next
+            }
+            setResolvidos(patch)
+            setMapaResolvidosAtual(patch)
+            setFeedback(
+                `«${row.nomeLab}»${
+                    row.valorLab != null
+                        ? ` (${formatarValorConferencia(row.valorLab)})`
+                        : ''
+                } marcado para auditoria.`,
+            )
+        } catch (e) {
+            setErro(e?.message || String(e))
+        } finally {
+            setProcessando(false)
+        }
+    }
+
+    const continuarAposAliases = () => {
+        const mapa = new Map([
+            ...(resolvidos || new Map()),
+            ...(mapaResolvidosAtual || new Map()),
+        ])
+        setMapaResolvidosAtual(mapa)
+        if (modoRevisaoAliases || cards.length > 0) {
+            void gerarComparacao(mapa, linhasLab, linhasEmerdog, paresManuais, {
+                pularOrfaos: false,
+            })
+        } else {
+            void gerarComparacao(mapa, linhasLab, linhasEmerdog, [], {
+                pularOrfaos: false,
+                aliasesPessoaOverride: aliasesPessoa,
+            })
+        }
+    }
+
     const podeIniciar = Boolean(laboratorioId && periodoYm && arquivoLab && arquivoEmerdog && !processando)
-    const progressoMap =
-        filaMapeamento.length > 0
-            ? Math.round((indiceFila / filaMapeamento.length) * 100)
-            : 100
     const progressoOrfaos =
-        filaOrfaos.length > 0 ? Math.round((indiceOrfao / filaOrfaos.length) * 100) : 100
+        filaOrfaos.length > 0
+            ? Math.round(
+                  ([...decisoesOrfaos.values()].filter(
+                      (d) => d.status === 'aprovado' || d.status === 'rejeitado',
+                  ).length /
+                      filaOrfaos.length) *
+                      100,
+              )
+            : 100
 
     const indicesOrfaosDoTutor = useMemo(() => {
         if (!tutorFoco?.norm || passo !== 'orfaos') return []
@@ -1583,6 +2189,23 @@ const ConfigConferenciaLaboratorio = () => {
     const mapaAliasesAtivo = useMemo(() => {
         return mapaResolvidosAtual.size > 0 ? mapaResolvidosAtual : resolvidos
     }, [mapaResolvidosAtual, resolvidos])
+
+    const packAliases = useMemo(
+        () =>
+            montarListaAliasesExames({
+                linhasLab,
+                catalogoNegociacao,
+                mapeamentosSalvos,
+                resolvidos: mapaAliasesAtivo,
+            }),
+        [linhasLab, catalogoNegociacao, mapeamentosSalvos, mapaAliasesAtivo],
+    )
+    const progressoMap = packAliases.progressoPct
+
+    const mapasAliasesPessoa = useMemo(
+        () => montarMapasAliasesPessoa(aliasesPessoa),
+        [aliasesPessoa],
+    )
 
     /** Linhas do plano com preço de negociacoes_vet (mesma base do «Todos do tutor»). */
     const linhasEmerdogEnriquecidas = useMemo(() => {
@@ -2215,950 +2838,97 @@ const ConfigConferenciaLaboratorio = () => {
                         >
                             {processando ? 'Processando…' : 'Iniciar Conferência'}
                         </button>
+                        {sessaoSalvaMeta?.temLinhas ? (
+                            <button
+                                type="button"
+                                className="credenciamento_main_action_btn secondary"
+                                disabled={processando || !podeEditar}
+                                onClick={() => void restaurarSessaoSalva()}
+                            >
+                                Restaurar sessão salva
+                            </button>
+                        ) : null}
+                        {(linhasLab.length || cards.length) && podeEditar ? (
+                            <button
+                                type="button"
+                                className="credenciamento_main_action_btn secondary"
+                                disabled={processando || salvandoSessao || !sessaoPersistenciaOk}
+                                onClick={() =>
+                                    void persistirSessaoAgora().then((data) => {
+                                        if (data) {
+                                            setFeedback('Sessão salva no Supabase.')
+                                            setAviso('')
+                                        } else {
+                                            setAviso(
+                                                'Não foi possível salvar a sessão (tabela ausente ou erro no Supabase). O pareamento continua funcionando em memória — execute scripts/sql/conferencia_laboratorio.sql se quiser persistir.',
+                                            )
+                                        }
+                                    })
+                                }
+                            >
+                                {salvandoSessao ? 'Salvando…' : 'Salvar sessão'}
+                            </button>
+                        ) : null}
                     </div>
+                    {sessaoSalvaMeta?.temLinhas ? (
+                        <p className="conf_lab_muted">
+                            Há uma sessão salva para este lab/período
+                            {sessaoSalvaMeta.atualizadoEm
+                                ? ` (atualizada em ${new Date(sessaoSalvaMeta.atualizadoEm).toLocaleString('pt-BR')})`
+                                : ''}
+                            . Restaure para continuar sem reenviar os Excel.
+                        </p>
+                    ) : null}
                 </section>
             ) : null}
 
             {passo === 'mapeamento' ? (
-                itemFilaAtual ? (
-                <section className="conf_lab_card conf_lab_map_card">
-                    <div className="conf_lab_map_head">
-                        <div>
-                            <h2>{modoRevisaoAliases ? 'Revisar aliases' : 'Aliases de exames'}</h2>
-                            <p className="conf_lab_muted">
-                                {labNome ? `${labNome} · ` : ''}
-                                {modoRevisaoAliases
-                                    ? 'Revise ou altere aliases já salvos. Ao terminar, recalcule a conferência.'
-                                    : 'Atendimentos já organizados (data → tutor → animal). Mapeie os nomes sem correspondente antes da comparação.'}
-                                {' · '}
-                                {indiceFila + 1} de {filaMapeamento.length}
-                                {itemFilaAtual.atendimentosSemPar
-                                    ? ` · sem par em ${itemFilaAtual.atendimentosSemPar} atendimento(s)`
-                                    : ''}
-                            </p>
-                        </div>
-                        <div className="conf_lab_map_head_actions">
-                            {modoRevisaoAliases ? (
-                                <button
-                                    type="button"
-                                    className="credenciamento_main_action_btn secondary conf_lab_btn_tutor_main"
-                                    disabled={processando}
-                                    onClick={() => void recalcularAposAliases()}
-                                >
-                                    Recalcular conferência
-                                </button>
-                            ) : null}
-                            <div className="conf_lab_progress" aria-hidden>
-                                <div
-                                    className="conf_lab_progress_bar"
-                                    style={{ width: `${progressoMap}%` }}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="conf_lab_map_versus">
-                        <div className="conf_lab_map_side is-lab">
-                            <span className="conf_lab_map_side_label">Laboratório</span>
-                            <strong className="conf_lab_alias_nome_valor">
-                                <span>{itemFilaAtual.nomeLab || '—'}</span>
-                                <em>{formatarValorConferencia(itemFilaAtual.valorLab)}</em>
-                            </strong>
-                            <p className="conf_lab_valor_fonte">Nome — valor do relatório</p>
-                        </div>
-                        <div className="conf_lab_map_eq" aria-hidden>
-                            =
-                        </div>
-                        <div className="conf_lab_map_side is-plan">
-                            <span className="conf_lab_map_side_label">Plano</span>
-                            {examePlanoEscolhido ? (
-                                <strong className="conf_lab_alias_nome_valor">
-                                    <span>
-                                        {examePlanoEscolhido.codigo
-                                            ? `${examePlanoEscolhido.codigo} - `
-                                            : ''}
-                                        {examePlanoEscolhido.nomeExibicao ||
-                                            examePlanoEscolhido.nomeAlternativo ||
-                                            examePlanoEscolhido.nome}
-                                    </span>
-                                    <em>
-                                        {formatarValorConferencia(examePlanoEscolhido.valor)}
-                                    </em>
-                                </strong>
-                            ) : (
-                                <strong className="conf_lab_alias_nome_valor is-vazio">
-                                    <span>Selecione o exame</span>
-                                    <em>—</em>
-                                </strong>
-                            )}
-                            <label className="conf_lab_map_select_wrap">
-                                <span className="conf_lab_sr">Exame correspondente</span>
-                                <select
-                                    value={escolhaEmerdog}
-                                    onChange={(e) => setEscolhaEmerdog(e.target.value)}
-                                >
-                                    <option value="">Selecione o exame da negociação…</option>
-                                    {opcoesCatalogoAlias.length ? (
-                                        <optgroup label="Negociação do laboratório (Cod - Nome alt - Valor)">
-                                            {opcoesCatalogoAlias.map((item) => (
-                                                <option
-                                                    key={`cat-${item.codigo || item.nome}`}
-                                                    value={item.nome}
-                                                >
-                                                    {item.rotulo}
-                                                </option>
-                                            ))}
-                                        </optgroup>
-                                    ) : null}
-                                    {(itemFilaAtual.nomesEmerdog || []).length ? (
-                                        <optgroup label="Relatório do plano">
-                                            {(itemFilaAtual.nomesEmerdog || []).map((nome) => {
-                                                const rotulo =
-                                                    typeof nome === 'string'
-                                                        ? nome
-                                                        : nome?.nome || String(nome || '')
-                                                if (!rotulo) return null
-                                                return (
-                                                    <option key={`em-${rotulo}`} value={rotulo}>
-                                                        {rotulo}
-                                                    </option>
-                                                )
-                                            })}
-                                        </optgroup>
-                                    ) : null}
-                                </select>
-                            </label>
-                            <p className="conf_lab_valor_fonte">
-                                Cod - Nome alt (se houver) - Valor · grava o nome de sistema
-                            </p>
-                            {(itemFilaAtual.sugestoes || []).length ? (
-                                <div className="conf_lab_sugestoes">
-                                    {(itemFilaAtual.sugestoes || []).slice(0, 4).map((s) => {
-                                        const cat = opcoesCatalogoAlias.find(
-                                            (i) =>
-                                                normalizarNomeExame(i.nome) ===
-                                                normalizarNomeExame(s),
-                                        )
-                                        return (
-                                            <button
-                                                key={s}
-                                                type="button"
-                                                className={escolhaEmerdog === s ? 'is-active' : ''}
-                                                onClick={() => setEscolhaEmerdog(s)}
-                                            >
-                                                {cat?.rotulo || s}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            ) : null}
-                            {aliasesDoExameEscolhido.length ? (
-                                <div className="conf_lab_aliases_existentes">
-                                    <span className="conf_lab_map_side_label">
-                                        Outros aliases deste exame
-                                    </span>
-                                    <ul>
-                                        {aliasesDoExameEscolhido.map((a) => (
-                                            <li key={a}>{a}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            ) : null}
-                        </div>
-                    </div>
-
-                    <p className="conf_lab_map_q">
-                        Este nome do laboratório é um alias do exame selecionado?
-                    </p>
-                </section>
-                ) : (
-                <section className="conf_lab_card conf_lab_map_card">
-                    <h2>Aliases de exames</h2>
-                    <p className="conf_lab_muted">
-                        Nenhum alias pendente ou salvo para revisar nesta conferência.
-                    </p>
-                    <div className="conf_lab_actions">
-                        {cards.length ? (
-                            <button
-                                type="button"
-                                className="credenciamento_main_action_btn"
-                                onClick={() => irParaEtapa('comparacao')}
-                            >
-                                Ir para comparação
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                className="credenciamento_main_action_btn secondary"
-                                onClick={() => irParaEtapa('setup')}
-                            >
-                                Voltar ao setup
-                            </button>
-                        )}
-                    </div>
-                </section>
-                )
+                <EtapaAliasesExames
+                    labNome={labNome}
+                    lista={packAliases.lista}
+                    itensCatalogo={packAliases.itensCatalogo}
+                    total={packAliases.total}
+                    vinculados={packAliases.vinculados}
+                    restantes={packAliases.restantes}
+                    comValorDiff={packAliases.comValorDiff}
+                    progressoPct={packAliases.progressoPct}
+                    modoRevisao={modoRevisaoAliases}
+                    podeEditar={podeEditar}
+                    processando={processando}
+                    onVincular={(itens, nome) => void aplicarVinculoAlias(itens, nome)}
+                    onAuditar={(row) => void auditarAliasLinha(row)}
+                    onContinuar={continuarAposAliases}
+                    onRecalcular={recalcularAposAliases}
+                />
             ) : null}
-
-            {passo === 'mapeamento' && itemFilaAtual
-                ? createPortal(
-                      <nav className="conf_lab_float_nav" aria-label="Navegação de aliases">
-                          <div className="conf_lab_float_side is-left">
-                              <button
-                                  type="button"
-                                  className="conf_lab_float_btn"
-                                  disabled={processando || indiceFila <= 0}
-                                  onClick={voltarAliasAnterior}
-                              >
-                                  ← Anterior
-                              </button>
-                          </div>
-                          <div className="conf_lab_float_center">
-                              <button
-                                  type="button"
-                                  className="conf_lab_float_btn is-ghost"
-                                  disabled={processando}
-                                  onClick={() => void confirmarMapeamentoAtual(false)}
-                              >
-                                  Não — auditar
-                              </button>
-                              {modoRevisaoAliases ? (
-                                  <button
-                                      type="button"
-                                      className="conf_lab_float_btn is-ghost"
-                                      disabled={processando}
-                                      onClick={() => void recalcularAposAliases()}
-                                  >
-                                      Recalcular
-                                  </button>
-                              ) : null}
-                          </div>
-                          <div className="conf_lab_float_side is-right">
-                              <button
-                                  type="button"
-                                  className="conf_lab_float_btn is-primary"
-                                  disabled={processando || !escolhaEmerdog}
-                                  onClick={() => void confirmarMapeamentoAtual(true)}
-                              >
-                                  {modoRevisaoAliases ? 'Salvar →' : 'Sim — salvar →'}
-                              </button>
-                          </div>
-                      </nav>,
-                      document.body,
-                  )
-                : null}
 
             {passo === 'orfaos' ? (
-                <section className="conf_lab_card conf_lab_orfaos_card">
-                    <div className="conf_lab_map_head">
-                        <div>
-                            <h2>Pareamento de órfãos</h2>
-                            <p className="conf_lab_muted">
-                                Só atendimentos 100% corretos seguem automáticos. Qualquer
-                                discrepância traz o atendimento inteiro (tutor · animal · data)
-                                para conferência.
-                                {filaOrfaos.length
-                                    ? indiceOrfao >= filaOrfaos.length
-                                        ? ` · concluído (${filaOrfaos.length})`
-                                        : ` · ${indiceOrfao + 1} de ${filaOrfaos.length}`
-                                    : ''}
-                            </p>
-                        </div>
-                        <div className="conf_lab_map_head_actions">
-                            {itemOrfaoAtual?.grupoLab?.tutor && !tutorFoco ? (
-                                <button
-                                    type="button"
-                                    className="credenciamento_main_action_btn secondary conf_lab_btn_tutor_main"
-                                    onClick={() =>
-                                        mostrarTodosDoTutor(
-                                            itemOrfaoAtual.grupoLab?.tutor,
-                                            itemOrfaoAtual.grupoLab?.pet,
-                                        )
-                                    }
-                                >
-                                    Todos do tutor
-                                </button>
-                            ) : null}
-                            <div className="conf_lab_progress" aria-hidden>
-                                <div
-                                    className="conf_lab_progress_bar"
-                                    style={{ width: `${progressoOrfaos}%` }}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {!itemOrfaoAtual ? (
-                        <div className="conf_lab_orfaos_vazio">
-                            <p className="conf_lab_muted">
-                                {filaOrfaos.length
-                                    ? 'Fila concluída. Volte a um card para revisar ou siga para a comparação.'
-                                    : 'Nenhuma sugestão pendente.'}
-                            </p>
-                            <div className="conf_lab_actions">
-                                {filaOrfaos.length && indiceOrfao > 0 ? (
-                                    <button
-                                        type="button"
-                                        className="credenciamento_main_action_btn secondary"
-                                        onClick={voltarCardOrfao}
-                                    >
-                                        ← Voltar ao card anterior
-                                    </button>
-                                ) : null}
-                                <button
-                                    type="button"
-                                    className="credenciamento_main_action_btn"
-                                    onClick={concluirOrfaos}
-                                >
-                                    Ir para comparação
-                                </button>
-                            </div>
-                        </div>
-                    ) : tutorFoco &&
-                      (atendimentosTutorAmbosLados.lab.length ||
-                          atendimentosTutorAmbosLados.plano.length) ? (
-                        <>
-                            <div className="conf_lab_tutor_foco_bar">
-                                <div className="conf_lab_tutor_foco_copy">
-                                    <p>
-                                        Tutor <strong>{tutorFoco.label}</strong>
-                                        {tutorFoco.petLabel ? (
-                                            <>
-                                                {' '}
-                                                · Animal <strong>{tutorFoco.petLabel}</strong>
-                                            </>
-                                        ) : null}{' '}
-                                        · {atendimentosTutorAmbosLados.lab.length} lab ·{' '}
-                                        {atendimentosTutorAmbosLados.plano.length} plano ·
-                                        mais antigo → mais novo
-                                    </p>
-                                    <p className="conf_lab_tutor_foco_hint">
-                                        Marque 2 ou mais cards e clique em Unificar para fundir
-                                        no atendimento mais antigo.
-                                    </p>
-                                </div>
-                                <div className="conf_lab_tutor_foco_actions">
-                                    <button
-                                        type="button"
-                                        className="credenciamento_main_action_btn"
-                                        disabled={
-                                            !podeEditar ||
-                                            processando ||
-                                            selecaoUnificar.size < 2
-                                        }
-                                        onClick={() => void unificarAtendimentosSelecionados()}
-                                    >
-                                        Unificar ({selecaoUnificar.size})
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="credenciamento_main_action_btn secondary"
-                                        onClick={limparTutorFoco}
-                                    >
-                                        Voltar à fila
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="conf_lab_tutor_versus_lista">
-                                {paresTutorAlinhados.map((par, idx) => {
-                                    const lab = par.lab
-                                    const plano = par.plano
-                                    const chaveLab = lab ? `lab:${lab.chave}` : null
-                                    const chaveEm = plano ? `em:${plano.chave}` : null
-                                    const selLab = chaveLab
-                                        ? selecaoUnificar.has(chaveLab)
-                                        : false
-                                    const selEm = chaveEm
-                                        ? selecaoUnificar.has(chaveEm)
-                                        : false
-                                    const idxFila = lab
-                                        ? filaOrfaos.findIndex(
-                                              (item) =>
-                                                  item.grupoLab?.chave === lab.chave ||
-                                                  (nomeCorrespondeFoco(
-                                                      item.grupoLab?.tutor,
-                                                      tutorFoco.norm,
-                                                      tutorFoco.label,
-                                                  ) &&
-                                                      (!tutorFoco.petNorm ||
-                                                          nomeCorrespondeFoco(
-                                                              item.grupoLab?.pet,
-                                                              tutorFoco.petNorm,
-                                                              tutorFoco.petLabel,
-                                                          )) &&
-                                                      normalizarTextoBusca(item.grupoLab?.pet) ===
-                                                          normalizarTextoBusca(lab.pet) &&
-                                                      item.grupoLab?.data === lab.data),
-                                          )
-                                        : -1
-                                    return (
-                                        <div
-                                            key={`par-${lab?.chave || 'x'}-${plano?.chave || 'y'}-${idx}`}
-                                            className={`conf_lab_map_versus conf_lab_orfaos_versus conf_lab_tutor_versus_row${idx === 0 ? ' is-principal' : ''}${selLab || selEm ? ' is-selecionado-unificar' : ''}${idxFila === indiceOrfao ? ' is-ativo-fila' : ''}`}
-                                        >
-                                            <div
-                                                className={`conf_lab_map_side is-lab${selLab ? ' is-selecionado-lado' : ''}`}
-                                            >
-                                                {lab ? (
-                                                    <>
-                                                        <div className="conf_lab_tutor_lado_head">
-                                                            <label className="conf_lab_check_unificar">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={selLab}
-                                                                    onChange={() =>
-                                                                        toggleSelecaoUnificar(
-                                                                            chaveLab,
-                                                                        )
-                                                                    }
-                                                                />
-                                                                <span className="conf_lab_sr">
-                                                                    Selecionar lab
-                                                                </span>
-                                                            </label>
-                                                            <span className="conf_lab_map_side_label">
-                                                                Atendimento — laboratório
-                                                                {idx === 0 ? ' (principal)' : ''}
-                                                            </span>
-                                                        </div>
-                                                        <strong>
-                                                            {lab.tutor} ·{' '}
-                                                            <span className="conf_lab_card_pet">
-                                                                {lab.pet}
-                                                            </span>
-                                                        </strong>
-                                                        <p className="conf_lab_orfao_meta">
-                                                            <span>
-                                                                Data:{' '}
-                                                                {formatarDataConferencia(lab.data)}
-                                                            </span>
-                                                            <span>
-                                                                {par.examesLab.length} exame(s)
-                                                            </span>
-                                                        </p>
-                                                        <ul className="conf_lab_orfao_exames">
-                                                            {par.examesLab.map((ex) => {
-                                                                const chave = chaveExamePosRelatorio(
-                                                                    ex,
-                                                                    'lab',
-                                                                )
-                                                                const destaque = ex.valoresDiferem
-                                                                    ? 'is-diff'
-                                                                    : ex.semPar
-                                                                      ? 'is-sem-par'
-                                                                      : ''
-                                                                return (
-                                                                    <li
-                                                                        key={ex.idLocal}
-                                                                        className={destaque}
-                                                                        title={dicaLinhaExameOrfao(
-                                                                            ex,
-                                                                            'lab',
-                                                                            par.examesEm,
-                                                                        )}
-                                                                    >
-                                                                        <span className="conf_lab_exame_linha">
-                                                                            {ex.valoresDiferem ||
-                                                                            ex.semPar ? (
-                                                                                <BandeiraPosRelatorio
-                                                                                    marcado={chaveEstaMarcada(
-                                                                                        chave,
-                                                                                    )}
-                                                                                    onToggle={() =>
-                                                                                        toggleMarcadoPorChave(
-                                                                                            chave,
-                                                                                        )
-                                                                                    }
-                                                                                />
-                                                                            ) : null}
-                                                                            <span className="conf_lab_exame_txt">
-                                                                                {ex.codigo
-                                                                                    ? `${ex.codigo} — `
-                                                                                    : ''}
-                                                                                {ex.nome || '—'}
-                                                                            </span>
-                                                                        </span>
-                                                                        <em>
-                                                                            {formatarValorConferencia(
-                                                                                ex.valor,
-                                                                            )}
-                                                                        </em>
-                                                                    </li>
-                                                                )
-                                                            })}
-                                                        </ul>
-                                                        <p className="conf_lab_subtotal">
-                                                            <span>Total do atendimento</span>
-                                                            <strong>
-                                                                {formatarValorConferencia(
-                                                                    par.subLab,
-                                                                )}
-                                                            </strong>
-                                                        </p>
-                                                    </>
-                                                ) : (
-                                                    <p className="conf_lab_muted conf_lab_tutor_lado_vazio">
-                                                        Sem atendimento lab neste pareamento
-                                                    </p>
-                                                )}
-                                            </div>
-                                            <div className="conf_lab_map_eq" aria-hidden>
-                                                ?
-                                            </div>
-                                            <div
-                                                className={`conf_lab_map_side is-plan${selEm ? ' is-selecionado-lado' : ''}`}
-                                            >
-                                                {plano ? (
-                                                    <>
-                                                        <div className="conf_lab_tutor_lado_head">
-                                                            <label className="conf_lab_check_unificar">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={selEm}
-                                                                    onChange={() =>
-                                                                        toggleSelecaoUnificar(
-                                                                            chaveEm,
-                                                                        )
-                                                                    }
-                                                                />
-                                                                <span className="conf_lab_sr">
-                                                                    Selecionar plano
-                                                                </span>
-                                                            </label>
-                                                            <span className="conf_lab_map_side_label">
-                                                                Atendimento — plano
-                                                                {idx === 0 ? ' (principal)' : ''}
-                                                            </span>
-                                                        </div>
-                                                        <strong>
-                                                            {plano.tutor} ·{' '}
-                                                            <span className="conf_lab_card_pet">
-                                                                {plano.pet}
-                                                            </span>
-                                                        </strong>
-                                                        <p className="conf_lab_orfao_meta">
-                                                            <span>
-                                                                Data:{' '}
-                                                                {formatarDataConferencia(
-                                                                    plano.data,
-                                                                )}
-                                                            </span>
-                                                            <span>
-                                                                {par.examesEm.length} exame(s)
-                                                            </span>
-                                                        </p>
-                                                        <ul className="conf_lab_orfao_exames">
-                                                            {par.examesEm.map((ex) => {
-                                                                const chave = chaveExamePosRelatorio(
-                                                                    ex,
-                                                                    'em',
-                                                                )
-                                                                const destaque = ex.valoresDiferem
-                                                                    ? 'is-diff'
-                                                                    : ex.semPar
-                                                                      ? 'is-sem-par'
-                                                                      : ''
-                                                                return (
-                                                                    <li
-                                                                        key={ex.idLocal}
-                                                                        className={destaque}
-                                                                        title={dicaLinhaExameOrfao(
-                                                                            ex,
-                                                                            'em',
-                                                                            par.examesLab,
-                                                                        )}
-                                                                    >
-                                                                        <span className="conf_lab_exame_linha">
-                                                                            {ex.valoresDiferem ||
-                                                                            ex.semPar ? (
-                                                                                <BandeiraPosRelatorio
-                                                                                    marcado={chaveEstaMarcada(
-                                                                                        chave,
-                                                                                    )}
-                                                                                    onToggle={() =>
-                                                                                        toggleMarcadoPorChave(
-                                                                                            chave,
-                                                                                        )
-                                                                                    }
-                                                                                />
-                                                                            ) : null}
-                                                                            <span className="conf_lab_exame_txt">
-                                                                                {ex.codigo
-                                                                                    ? `${ex.codigo} — `
-                                                                                    : ''}
-                                                                                {ex.nome || '—'}
-                                                                            </span>
-                                                                        </span>
-                                                                        <em>
-                                                                            {formatarValorConferencia(
-                                                                                ex.valor,
-                                                                            )}
-                                                                        </em>
-                                                                    </li>
-                                                                )
-                                                            })}
-                                                        </ul>
-                                                        <p className="conf_lab_subtotal">
-                                                            <span>Total do atendimento</span>
-                                                            <strong>
-                                                                {formatarValorConferencia(
-                                                                    par.subEm,
-                                                                )}
-                                                            </strong>
-                                                        </p>
-                                                    </>
-                                                ) : (
-                                                    <p className="conf_lab_muted conf_lab_tutor_lado_vazio">
-                                                        Sem atendimento plano neste pareamento
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            {(itemOrfaoAtual.motivos || []).length ? (
-                                <ul className="conf_lab_orfaos_motivos">
-                                    {(itemOrfaoAtual.motivos || []).map((m) => (
-                                        <li key={m}>{m}</li>
-                                    ))}
-                                </ul>
-                            ) : null}
-
-                            <p className="conf_lab_legenda_orfaos">
-                                <strong>Legenda:</strong> amarelo = sem par no outro lado nesta
-                                comparação · vermelho = valor diferente · bandeira = marcar
-                                pós-relatório. Passe o mouse no exame para ver o par ou aprovação
-                                manual.
-                            </p>
-
-                            <div className="conf_lab_map_versus conf_lab_orfaos_versus">
-                                <div className="conf_lab_map_side is-lab">
-                                    <span className="conf_lab_map_side_label">
-                                        Atendimento — laboratório
-                                    </span>
-                                    <div className="conf_lab_orfao_cabeca">
-                                        <strong>
-                                            {itemOrfaoAtual.grupoLab?.tutor || '—'}
-                                            {itemOrfaoAtual.grupoLab?.pet ? (
-                                                <>
-                                                    {' '}
-                                                    ·{' '}
-                                                    <span className="conf_lab_card_pet">
-                                                        {itemOrfaoAtual.grupoLab.pet}
-                                                    </span>
-                                                </>
-                                            ) : null}
-                                        </strong>
-                                        <p className="conf_lab_orfao_meta">
-                                            <span>
-                                                Data:{' '}
-                                                {formatarDataConferencia(
-                                                    itemOrfaoAtual.grupoLab?.data,
-                                                )}
-                                            </span>
-                                            <span>
-                                                {qtdExamesLabPorChave.get(
-                                                    itemOrfaoAtual.grupoLab?.chave,
-                                                ) ||
-                                                    grupoLabCompletoOrfao?.exames?.length ||
-                                                    itemOrfaoAtual.grupoLab?.exames?.length ||
-                                                    0}{' '}
-                                                exame(s)
-                                            </span>
-                                        </p>
-                                    </div>
-                                    <ul className="conf_lab_orfao_exames">
-                                        {(examesOrfaosAlinhados.examesLab || []).map((ex) => {
-                                            const chave = chaveExamePosRelatorio(ex, 'lab')
-                                            const destaque = ex.valoresDiferem
-                                                ? 'is-diff'
-                                                : ex.semPar
-                                                  ? 'is-sem-par'
-                                                  : ''
-                                            return (
-                                            <li
-                                                key={ex.idLocal}
-                                                className={destaque}
-                                                title={dicaLinhaExameOrfao(
-                                                    ex,
-                                                    'lab',
-                                                    examesOrfaosAlinhados.examesEm,
-                                                )}
-                                            >
-                                                <span className="conf_lab_exame_linha">
-                                                    {ex.valoresDiferem || ex.semPar ? (
-                                                        <BandeiraPosRelatorio
-                                                            marcado={chaveEstaMarcada(chave)}
-                                                            onToggle={() =>
-                                                                toggleMarcadoPorChave(chave)
-                                                            }
-                                                        />
-                                                    ) : null}
-                                                    <span className="conf_lab_exame_txt">
-                                                        {ex.codigo ? `${ex.codigo} — ` : ''}
-                                                        {ex.nome || '—'}
-                                                    </span>
-                                                </span>
-                                                <em>{formatarValorConferencia(ex.valor)}</em>
-                                            </li>
-                                            )
-                                        })}
-                                    </ul>
-                                    <p className="conf_lab_subtotal">
-                                        <span>Total do atendimento</span>
-                                        <strong>
-                                            {formatarValorConferencia(
-                                                grupoLabCompletoOrfao?.subtotal ??
-                                                    itemOrfaoAtual.grupoLab?.subtotal,
-                                            )}
-                                        </strong>
-                                    </p>
-                                </div>
-                                <div className="conf_lab_map_eq" aria-hidden>
-                                    ?
-                                </div>
-                                <div className="conf_lab_map_side is-plan">
-                                    <span className="conf_lab_map_side_label">
-                                        Atendimento — plano
-                                    </span>
-                                    <div className="conf_lab_orfao_cabeca">
-                                        <label className="conf_lab_map_select_wrap">
-                                            <span className="conf_lab_sr">
-                                                Atendimento do plano
-                                            </span>
-                                            <select
-                                                value={
-                                                    escolhaOrfaoEm ||
-                                                    opcoesEmOrfao.chavePref ||
-                                                    ''
-                                                }
-                                                onChange={(e) =>
-                                                    setEscolhaOrfaoEm(e.target.value)
-                                                }
-                                            >
-                                                <option value="">
-                                                    Selecione o atendimento…
-                                                </option>
-                                                {opcoesEmOrfao.sugeridos.length ? (
-                                                    <optgroup label="Sugestões">
-                                                        {opcoesEmOrfao.sugeridos.map((c) => (
-                                                            <option
-                                                                key={c.chaveEm}
-                                                                value={c.chaveEm}
-                                                            >
-                                                                {[
-                                                                    c.grupoEm?.tutor,
-                                                                    c.grupoEm?.pet,
-                                                                    formatarDataConferencia(
-                                                                        c.grupoEm?.data,
-                                                                    ),
-                                                                    `${qtdExamesPlanoPorChave.get(c.chaveEm) || c.grupoEm?.exames?.length || 0} exame(s)`,
-                                                                ]
-                                                                    .filter(Boolean)
-                                                                    .join(' · ') ||
-                                                                    'Atendimento sugerido'}
-                                                            </option>
-                                                        ))}
-                                                    </optgroup>
-                                                ) : null}
-                                                {opcoesEmOrfao.extras.length ? (
-                                                    <optgroup label="Outros atendimentos do plano">
-                                                        {opcoesEmOrfao.extras.map((g) => (
-                                                            <option
-                                                                key={g.chave}
-                                                                value={g.chave}
-                                                            >
-                                                                {[
-                                                                    g.tutor,
-                                                                    g.pet,
-                                                                    formatarDataConferencia(
-                                                                        g.data,
-                                                                    ),
-                                                                    `${qtdExamesPlanoPorChave.get(g.chave) || g.exames?.length || 0} exame(s)`,
-                                                                ]
-                                                                    .filter(Boolean)
-                                                                    .join(' · ') ||
-                                                                    'Atendimento do plano'}
-                                                            </option>
-                                                        ))}
-                                                    </optgroup>
-                                                ) : null}
-                                            </select>
-                                        </label>
-                                    </div>
-                                    {grupoEmSelecionado ? (
-                                        <>
-                                            <ul className="conf_lab_orfao_exames">
-                                                {(examesOrfaosAlinhados.examesEm || []).map(
-                                                    (ex) => {
-                                                    const chave = chaveExamePosRelatorio(ex, 'em')
-                                                    const destaque = ex.valoresDiferem
-                                                        ? 'is-diff'
-                                                        : ex.semPar
-                                                          ? 'is-sem-par'
-                                                          : ''
-                                                    return (
-                                                    <li
-                                                        key={ex.idLocal}
-                                                        className={destaque}
-                                                        title={dicaLinhaExameOrfao(
-                                                            ex,
-                                                            'em',
-                                                            examesOrfaosAlinhados.examesLab,
-                                                        )}
-                                                    >
-                                                        <span className="conf_lab_exame_linha">
-                                                            {ex.valoresDiferem || ex.semPar ? (
-                                                                <BandeiraPosRelatorio
-                                                                    marcado={chaveEstaMarcada(chave)}
-                                                                    onToggle={() =>
-                                                                        toggleMarcadoPorChave(chave)
-                                                                    }
-                                                                />
-                                                            ) : null}
-                                                            <span className="conf_lab_exame_txt">
-                                                                {ex.codigo ? `${ex.codigo} — ` : ''}
-                                                                {ex.nome || '—'}
-                                                            </span>
-                                                        </span>
-                                                        <em>
-                                                            {formatarValorConferencia(ex.valor)}
-                                                        </em>
-                                                    </li>
-                                                    )
-                                                },
-                                                )}
-                                            </ul>
-                                            <p className="conf_lab_subtotal">
-                                                <span>Total do atendimento</span>
-                                                <strong>
-                                                    {formatarValorConferencia(
-                                                        grupoEmSelecionado.subtotal,
-                                                    )}
-                                                </strong>
-                                            </p>
-                                        </>
-                                    ) : (
-                                        <p className="conf_lab_muted">
-                                            Escolha um atendimento do plano para comparar.
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <p className="conf_lab_map_q">
-                                Estes atendimentos (tutor · animal · data) são o mesmo?
-                            </p>
-                        </>
-                    )}
-                </section>
+                <EtapaExamesIndividuais
+                    fila={filaOrfaos}
+                    decisoes={decisoesOrfaos}
+                    escolhas={escolhasExames}
+                    mapasAliasesPessoa={mapasAliasesPessoa}
+                    marcados={marcadosPosRelatorio}
+                    onToggleFlag={toggleMarcadoPorChave}
+                    onEscolha={(idItem, valor) =>
+                        setEscolhasExames((prev) => ({ ...prev, [idItem]: valor }))
+                    }
+                    onAprovar={aprovarExameIndividual}
+                    onRejeitar={rejeitarExameIndividual}
+                    onConcluir={concluirOrfaos}
+                    podeEditar={podeEditar}
+                    processando={processando}
+                    progressoPct={progressoOrfaos}
+                    feedbackResumo={
+                        filaOrfaos.length
+                            ? String(filaOrfaos.length) + ' exame(s) na fila'
+                            : ''
+                    }
+                />
             ) : null}
 
-            {passo === 'orfaos' && itemOrfaoAtual && !tutorFoco
-                ? createPortal(
-                      <nav className="conf_lab_float_nav" aria-label="Navegação do pareamento">
-                          <div className="conf_lab_float_side is-left">
-                              <button
-                                  type="button"
-                                  className="conf_lab_float_btn"
-                                  disabled={indiceOrfao <= 0}
-                                  onClick={voltarCardOrfao}
-                              >
-                                  ← Anterior
-                              </button>
-                          </div>
-                          <div className="conf_lab_float_center">
-                              <button
-                                  type="button"
-                                  className="conf_lab_float_btn is-ghost"
-                                  onClick={concluirOrfaos}
-                              >
-                                  Pular restante
-                              </button>
-                              <button
-                                  type="button"
-                                  className="conf_lab_float_btn is-ghost"
-                                  disabled={!podeEditar}
-                                  onClick={rejeitarPareamentoOrfao}
-                              >
-                                  Não — órfão
-                              </button>
-                          </div>
-                          <div className="conf_lab_float_side is-right">
-                              <button
-                                  type="button"
-                                  className="conf_lab_float_btn is-primary"
-                                  disabled={
-                                      !podeEditar ||
-                                      !(escolhaOrfaoEm || opcoesEmOrfao.chavePref) ||
-                                      processando
-                                  }
-                                  onClick={confirmarPareamentoOrfao}
-                              >
-                                  Sim — aprovar →
-                              </button>
-                          </div>
-                      </nav>,
-                      document.body,
-                  )
-                : null}
-
-            {passo === 'orfaos' && tutorFoco
-                ? createPortal(
-                      <nav className="conf_lab_float_nav" aria-label="Navegação todos do tutor">
-                          <div className="conf_lab_float_side is-left">
-                              {indiceOrfao > 0 ? (
-                                  <button
-                                      type="button"
-                                      className="conf_lab_float_btn"
-                                      onClick={voltarCardOrfao}
-                                  >
-                                      ← Anterior
-                                  </button>
-                              ) : (
-                                  <span />
-                              )}
-                          </div>
-                          <div className="conf_lab_float_center">
-                              <button
-                                  type="button"
-                                  className="conf_lab_float_btn is-ghost"
-                                  onClick={limparTutorFoco}
-                              >
-                                  Fechar todos do tutor
-                              </button>
-                          </div>
-                          <div className="conf_lab_float_side is-right">
-                              {indiceOrfao < filaOrfaos.length - 1 ? (
-                                  <button
-                                      type="button"
-                                      className="conf_lab_float_btn is-primary"
-                                      onClick={() => irParaCardOrfao(indiceOrfao + 1)}
-                                  >
-                                      Próximo →
-                                  </button>
-                              ) : (
-                                  <button
-                                      type="button"
-                                      className="conf_lab_float_btn is-primary"
-                                      onClick={concluirOrfaos}
-                                  >
-                                      Ir à comparação →
-                                  </button>
-                              )}
-                          </div>
-                      </nav>,
-                      document.body,
-                  )
-                : null}
-
             {passo === 'comparacao' ? (
-                <section className="conf_lab_card">
+                <section className="conf_lab_card" ref={comparacaoTopoRef}>
                     <div className="conf_lab_compare_head">
                         <div>
                             <h2>Comparação e auditoria</h2>
@@ -3166,6 +2936,9 @@ const ConfigConferenciaLaboratorio = () => {
                                 Atendimentos unificados por tutor · animal · data
                                 {labNome ? ` · ${labNome}` : ''} · {periodoYm} ·{' '}
                                 {totalAtendimentos} atendimento(s) · {cards.length} exame(s)
+                                {podeEditar && (orfaosLab.length || orfaosEm.length)
+                                    ? ' · Clique em dois órfãos (lab + plano) para mesclar'
+                                    : ''}
                             </p>
                         </div>
                         <div className="conf_lab_actions">
@@ -3175,7 +2948,7 @@ const ConfigConferenciaLaboratorio = () => {
                                     className="credenciamento_main_action_btn secondary"
                                     onClick={voltarParaOrfaos}
                                 >
-                                    Revisar órfãos ({orfaosLab.length + orfaosEm.length})
+                                    Revisar exames ({orfaosLab.length + orfaosEm.length})
                                 </button>
                             ) : null}
                             <button
@@ -3196,11 +2969,35 @@ const ConfigConferenciaLaboratorio = () => {
                         </div>
                     </div>
 
+                    <div className="conf_lab_resumo_totais" role="status">
+                        <span>
+                            Lab <strong>{formatarValorConferencia(resumoTotais.totalLab)}</strong>
+                        </span>
+                        <span>
+                            Plano <strong>{formatarValorConferencia(resumoTotais.totalEm)}</strong>
+                        </span>
+                        <span>
+                            Δ <strong>{formatarValorConferencia(resumoTotais.diferenca)}</strong>
+                        </span>
+                        <span>
+                            Pareados <strong>{resumoTotais.qtdPareados}</strong>
+                            {resumoTotais.qtdDiff ? ` · ${resumoTotais.qtdDiff} com diff` : ''}
+                        </span>
+                        <span>
+                            Órfãos lab <strong>{resumoTotais.qtdOrfaoLab}</strong> · só plano{' '}
+                            <strong>{resumoTotais.qtdOrfaoEm}</strong>
+                        </span>
+                    </div>
+
                     <div className="conf_lab_filtros" role="tablist">
                         {[
+                            {
+                                id: 'diferencas',
+                                label: `Com diferença (${totalComDiferenca})`,
+                            },
                             { id: 'todos', label: `Todos (${totalAtendimentos})` },
-                            { id: 'pareados', label: 'Pareados' },
                             { id: 'orfaos', label: 'Com órfãos' },
+                            { id: 'pareados', label: 'Pareados' },
                             { id: 'pendentes', label: 'Pendentes' },
                             { id: 'verdes', label: 'Conferidos' },
                             { id: 'marcados', label: `Marcados (${totalMarcados})` },
@@ -3212,12 +3009,45 @@ const ConfigConferenciaLaboratorio = () => {
                                 onClick={() => {
                                     setTutorFoco(null)
                                     setFiltroCards(f.id)
+                                    setPagina(1)
                                 }}
                             >
                                 {f.label}
                             </button>
                         ))}
                     </div>
+
+                    {podeEditar && (mesclaLabId || mesclaEmId) ? (
+                        <div className="conf_lab_mescla_bar" role="status">
+                            <p>
+                                Mesclar órfãos:{' '}
+                                <strong>
+                                    {mesclaLabId ? '1 lab' : 'lab?'}
+                                </strong>
+                                {' + '}
+                                <strong>
+                                    {mesclaEmId ? '1 plano' : 'plano?'}
+                                </strong>
+                            </p>
+                            <div className="conf_lab_mescla_bar_acoes">
+                                <button
+                                    type="button"
+                                    className="credenciamento_main_action_btn secondary"
+                                    onClick={limparSelecaoMescla}
+                                >
+                                    Limpar
+                                </button>
+                                <button
+                                    type="button"
+                                    className="credenciamento_main_action_btn"
+                                    disabled={!mesclaLabId || !mesclaEmId}
+                                    onClick={mesclarOrfaosNaComparacao}
+                                >
+                                    Mesclar exames
+                                </button>
+                            </div>
+                        </div>
+                    ) : null}
 
                     {!tutorFoco ? (
                         <label className="conf_lab_busca_comparacao">
@@ -3255,24 +3085,8 @@ const ConfigConferenciaLaboratorio = () => {
                                     · {totalTutorFoco}{' '}
                                     atendimento(s) · mais antigo → mais novo
                                 </p>
-                                <p className="conf_lab_tutor_foco_hint">
-                                    Marque 2 ou mais cards e clique em Unificar para fundir no
-                                    atendimento mais antigo (tutor · animal · data).
-                                </p>
                             </div>
                             <div className="conf_lab_tutor_foco_actions">
-                                <button
-                                    type="button"
-                                    className="credenciamento_main_action_btn"
-                                    disabled={
-                                        !podeEditar ||
-                                        processando ||
-                                        selecaoUnificar.size < 2
-                                    }
-                                    onClick={() => void unificarAtendimentosSelecionados()}
-                                >
-                                    Unificar ({selecaoUnificar.size})
-                                </button>
                                 <button
                                     type="button"
                                     className="credenciamento_main_action_btn secondary"
@@ -3290,7 +3104,9 @@ const ConfigConferenciaLaboratorio = () => {
                                 ? 'Nenhum atendimento deste tutor na conferência.'
                                 : buscaComparacao.trim()
                                   ? 'Nenhum atendimento encontrado para essa busca.'
-                                  : 'Nenhum atendimento neste filtro.'}
+                                  : filtroCards === 'diferencas'
+                                    ? 'Nenhum atendimento com diferença (órfão ou valor divergente).'
+                                    : 'Nenhum atendimento neste filtro.'}
                         </p>
                     ) : (
                         <div className="conf_lab_cards_lista">
@@ -3298,28 +3114,13 @@ const ConfigConferenciaLaboratorio = () => {
                                 const algumMarcado = grupo.cardsExame.some((c) =>
                                     cardEstaMarcado(c),
                                 )
-                                const selecionadoUnificar = selecaoUnificar.has(grupo.chave)
                                 return (
                                 <article
                                     key={grupo.chave}
-                                    className={`conf_lab_pair_card conf_lab_atendimento status-${grupo.status}${grupo.temOrfao ? ' has-orfao' : ''}${algumMarcado ? ' is-flagged' : ''}${selecionadoUnificar ? ' is-selecionado-unificar' : ''}`}
+                                    className={`conf_lab_pair_card conf_lab_atendimento status-${grupo.status}${grupo.temOrfao ? ' has-orfao' : ''}${algumMarcado ? ' is-flagged' : ''}`}
                                 >
                                     <header>
                                         <div className="conf_lab_atendimento_titulo">
-                                            {tutorFoco ? (
-                                                <label className="conf_lab_check_unificar">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selecionadoUnificar}
-                                                        onChange={() =>
-                                                            toggleSelecaoUnificar(grupo.chave)
-                                                        }
-                                                    />
-                                                    <span className="conf_lab_sr">
-                                                        Selecionar para unificar
-                                                    </span>
-                                                </label>
-                                            ) : null}
                                             <div>
                                                 <strong>
                                                     {grupo.tutor} ·{' '}
@@ -3337,6 +3138,26 @@ const ConfigConferenciaLaboratorio = () => {
                                             </div>
                                         </div>
                                         <div className="conf_lab_header_right">
+                                            <BandeiraPosRelatorio
+                                                marcado={algumMarcado}
+                                                onToggle={() => {
+                                                    const chaves = (grupo.cardsExame || [])
+                                                        .map((c) => chaveMarcacaoPosRelatorio(c))
+                                                        .filter(Boolean)
+                                                    if (!chaves.length) return
+                                                    const todosOn = chaves.every((k) =>
+                                                        marcadosPosRelatorio.has(k),
+                                                    )
+                                                    setMarcadosPosRelatorio((prev) => {
+                                                        const next = new Set(prev)
+                                                        for (const k of chaves) {
+                                                            if (todosOn) next.delete(k)
+                                                            else next.add(k)
+                                                        }
+                                                        return next
+                                                    })
+                                                }}
+                                            />
                                             {!tutorFoco ? (
                                                 <button
                                                     type="button"
@@ -3365,16 +3186,44 @@ const ConfigConferenciaLaboratorio = () => {
                                             <ul className="conf_lab_orfao_exames">
                                                 {grupo.examesLab.map((ex) => {
                                                     const card = ex.card
-                                                    const showFlag = card && (card.valoresDiferem || ex.semPar)
+                                                    const showFlag = Boolean(card)
+                                                    const idLab = card?.idLabLocal
+                                                    const mesclavel =
+                                                        podeEditar &&
+                                                        card?.tipo === 'orfao_lab' &&
+                                                        idLab
+                                                    const selecionado =
+                                                        mesclavel &&
+                                                        String(mesclaLabId) === String(idLab)
                                                     return (
                                                     <li
                                                         key={`lab-${ex.linhaId}`}
-                                                        className={
+                                                        className={[
                                                             ex.valoresDiferem
                                                                 ? 'is-diff'
                                                                 : ex.semPar
                                                                   ? 'is-sem-par'
-                                                                  : ''
+                                                                  : '',
+                                                            mesclavel ? 'is-mesclavel' : '',
+                                                            selecionado ? 'is-mescla-sel' : '',
+                                                        ]
+                                                            .filter(Boolean)
+                                                            .join(' ')}
+                                                        title={
+                                                            mesclavel
+                                                                ? selecionado
+                                                                    ? 'Clique para desmarcar'
+                                                                    : 'Clique para mesclar com um órfão do plano'
+                                                                : undefined
+                                                        }
+                                                        onClick={
+                                                            mesclavel
+                                                                ? () =>
+                                                                      selecionarOrfaoMescla(
+                                                                          'lab',
+                                                                          idLab,
+                                                                      )
+                                                                : undefined
                                                         }
                                                     >
                                                         <span className="conf_lab_exame_linha">
@@ -3413,16 +3262,44 @@ const ConfigConferenciaLaboratorio = () => {
                                             <ul className="conf_lab_orfao_exames">
                                                 {grupo.examesEm.map((ex) => {
                                                     const card = ex.card
-                                                    const showFlag = card && (card.valoresDiferem || ex.semPar)
+                                                    const showFlag = Boolean(card)
+                                                    const idEm = card?.idEmerdogLocal
+                                                    const mesclavel =
+                                                        podeEditar &&
+                                                        card?.tipo === 'orfao_emerdog' &&
+                                                        idEm
+                                                    const selecionado =
+                                                        mesclavel &&
+                                                        String(mesclaEmId) === String(idEm)
                                                     return (
                                                     <li
                                                         key={`em-${ex.linhaId}`}
-                                                        className={
+                                                        className={[
                                                             ex.valoresDiferem
                                                                 ? 'is-diff'
                                                                 : ex.semPar
                                                                   ? 'is-sem-par'
-                                                                  : ''
+                                                                  : '',
+                                                            mesclavel ? 'is-mesclavel' : '',
+                                                            selecionado ? 'is-mescla-sel' : '',
+                                                        ]
+                                                            .filter(Boolean)
+                                                            .join(' ')}
+                                                        title={
+                                                            mesclavel
+                                                                ? selecionado
+                                                                    ? 'Clique para desmarcar'
+                                                                    : 'Clique para mesclar com um órfão do lab'
+                                                                : undefined
+                                                        }
+                                                        onClick={
+                                                            mesclavel
+                                                                ? () =>
+                                                                      selecionarOrfaoMescla(
+                                                                          'em',
+                                                                          idEm,
+                                                                      )
+                                                                : undefined
                                                         }
                                                     >
                                                         <span className="conf_lab_exame_linha">

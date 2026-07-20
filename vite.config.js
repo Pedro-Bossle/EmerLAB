@@ -490,5 +490,9 @@ export default defineConfig(({ command, mode }) => {
         optimizeDeps: {
             include: ['exceljs'],
         },
+        test: {
+            environment: 'node',
+            include: ['src/**/*.test.{js,jsx,ts,tsx}'],
+        },
     }
 })
