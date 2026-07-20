@@ -264,15 +264,39 @@ export const hasPermission = (profileOrPermissions, key) => {
 export const hasAnyPermission = (profileOrPermissions, keys = []) =>
   keys.some((key) => hasPermission(profileOrPermissions, key))
 
+/** True se há create/update/delete em qualquer ferramenta de módulo (ACL) ou edição legada. */
+export const usuarioTemAlgumaPermissaoDeEscrita = (profileOrPermissions) => {
+  const permissions = profileOrPermissions?.permissions || profileOrPermissions || {}
+  if (
+    hasAnyPermission(permissions, [
+      PERMISSION_KEYS.SUPERTABELA_EDIT,
+      PERMISSION_KEYS.CREDENCIAMENTO_EDIT,
+      PERMISSION_KEYS.COMPRAS_EDIT,
+      PERMISSION_KEYS.CONTRATOS_EDIT,
+      PERMISSION_KEYS.PAGAMENTOS_EDIT,
+      PERMISSION_KEYS.ACCESS_MANAGE,
+    ])
+  ) {
+    return true
+  }
+  return Object.keys(permissions).some((chave) => {
+    if (!permissions[chave]) return false
+    // Dashboard/Home não conta: afazeres são liberados à parte no client Supabase
+    if (chave.startsWith('inicio.dashboard.')) return false
+    return (
+      chave.endsWith('.create') ||
+      chave.endsWith('.update') ||
+      chave.endsWith('.delete')
+    )
+  })
+}
+
+/**
+ * Flag global de «somente leitura» nos módulos (Super-Tabela, Credenciamento, etc.).
+ * Não impede to-dos da Home — isso é liberado no client Supabase (guardedFetch).
+ */
 export const usuarioSomenteLeituraGlobal = (profileOrPermissions) =>
-  !hasAnyPermission(profileOrPermissions, [
-    PERMISSION_KEYS.SUPERTABELA_EDIT,
-    PERMISSION_KEYS.CREDENCIAMENTO_EDIT,
-    PERMISSION_KEYS.COMPRAS_EDIT,
-    PERMISSION_KEYS.CONTRATOS_EDIT,
-    PERMISSION_KEYS.PAGAMENTOS_EDIT,
-    PERMISSION_KEYS.ACCESS_MANAGE,
-  ])
+  !usuarioTemAlgumaPermissaoDeEscrita(profileOrPermissions)
 
 /** Exclusão na Super-Tabela exige permissão de edição (somente «Ver» bloqueia). */
 export const podeExcluirNaSuperTabela = (profileOrPermissions) =>

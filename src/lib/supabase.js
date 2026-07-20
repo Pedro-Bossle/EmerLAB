@@ -44,6 +44,22 @@ export const clearAccessState = () => {
   clearStoredAccessProfile()
 }
 
+/**
+ * Tabelas de uso pessoal (Home) que qualquer autenticado pode gravar,
+ * mesmo com perfil global «somente leitura» nos módulos.
+ * A segurança continua nas policies RLS do Supabase.
+ */
+const REST_WRITES_PERMITIDOS_EM_SOMENTE_LEITURA = ['home_tarefas']
+
+function isEscritaPessoalPermitidaEmSomenteLeitura(url) {
+  const raw = String(url || '')
+  return REST_WRITES_PERMITIDOS_EM_SOMENTE_LEITURA.some((tabela) => {
+    // PostgREST: .../rest/v1/home_tarefas ou .../rest/v1/home_tarefas?...
+    const re = new RegExp(`/rest/v1/${tabela}(?:\\?|$|/|$)`)
+    return re.test(raw)
+  })
+}
+
 const guardedFetch = async (input, init = {}) => {
   const url = typeof input === 'string' ? input : input?.url || ''
   const method = String(init?.method || 'GET').toUpperCase()
@@ -54,7 +70,8 @@ const guardedFetch = async (input, init = {}) => {
     isDbRestCall &&
     isWriteMethod &&
     getReadOnlyFlag() &&
-    !isRotaFormularioPublicoCredenciamento()
+    !isRotaFormularioPublicoCredenciamento() &&
+    !isEscritaPessoalPermitidaEmSomenteLeitura(url)
   ) {
     throw new Error('Acesso somente leitura: alterações estão bloqueadas para este perfil.')
   }

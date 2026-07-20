@@ -53,7 +53,8 @@ export const PERMISSION_CATALOG = [
             {
                 id: 'inicio.dashboard',
                 label: 'Dashboard',
-                descricao: 'Página inicial com atalhos às ferramentas.',
+                descricao:
+                    'Página inicial com atalhos. Afazeres da Home são liberados a todo usuário autenticado.',
                 actions: R,
                 href: '/home',
             },
@@ -592,7 +593,9 @@ export function syncLegacyFromAcl(perms) {
         hasAcl(p, 'credenciamento.especialidades_rc', 'update') ||
         hasAcl(p, 'credenciamento.formulario_inbox', 'update') ||
         hasAcl(p, 'credenciamento.import_kmz', 'update') ||
-        hasAcl(p, 'configuracoes.importar_credenciados', 'update')
+        hasAcl(p, 'configuracoes.importar_credenciados', 'update') ||
+        hasAcl(p, 'configuracoes.conferencia_laboratorio', 'update') ||
+        hasAcl(p, 'configuracoes.conferencia_laboratorio', 'create')
 
     p[L.PLANOS_VIEW] = hasAcl(p, 'planos.impressao', 'read')
     p[L.COMPRAS_VIEW] = anyAclInGroup(p, 'compras', 'read')
