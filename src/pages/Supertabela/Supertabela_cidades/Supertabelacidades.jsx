@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { PERMISSION_KEYS, hasStoredDevTools, hasStoredPermission } from '../../../lib/accessControl'
-import { useDevToolsUi } from '../../../lib/devToolsUi'
+import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
 import { normalizarTextoBusca as normalizarTextoBuscaDev } from '../../../lib/prestadorCadastroHelpers'
 import { filtrarLinhaSupertabelaPorBusca, partesValoresLinhaSupertabela } from '../../../lib/supertabelaBuscaValores.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
@@ -35,9 +34,7 @@ import './Supertabelacidades.css'
 
 const Supertabelacidades = () => {
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
-    const { ui: devToolsUi } = useDevToolsUi()
-    const mostrarContagemRealizadores =
-        hasStoredDevTools() && !!devToolsUi.contagemRealizadoresPlanos
+    const mostrarContagemRealizadores = true
     const [cidades, setCidades] = useState([])
     const [municipiosVinculos, setMunicipiosVinculos] = useState([])
     const [suportaVinculosMunicipios, setSuportaVinculosMunicipios] = useState(true)

@@ -412,6 +412,23 @@ body.dark-mode .home_dash_card {
     background: #fff;
     color: #1a2f45;
     overflow: hidden;
+    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.home_dash_tarefa_anexos.is-dragover {
+    border-color: #2f87c6;
+    border-style: solid;
+    background: #eef7fc;
+    box-shadow: inset 0 0 0 2px rgba(47, 135, 198, 0.2);
+}
+
+.home_dash_tarefa_anexos.is-dragover .home_dash_tarefa_anexo_zone {
+    background: transparent;
+}
+
+.home_dash_tarefa_anexos.is-dragover .home_dash_tarefa_anexo_ico_wrap {
+    background: #d6ebf8;
+    border-color: #7eb6db;
 }
 
 .home_dash_tarefa_anexos--lista {
@@ -601,45 +618,72 @@ body.dark-mode .home_dash_card {
 }
 
 body.dark-mode .home_dash_tarefa_anexos {
-    background: #fff;
-    border-color: #b7c7d6;
-    color: #1a2f45;
+    background: #1a2634;
+    border-color: #3d5470;
+    color: #e8eef5;
+}
+
+body.dark-mode .home_dash_tarefa_anexos.is-dragover {
+    background: rgba(47, 135, 198, 0.18);
+    border-color: #6eb6e0;
+    box-shadow: inset 0 0 0 2px rgba(110, 182, 224, 0.25);
 }
 
 body.dark-mode .home_dash_tarefa_anexos_head {
-    color: #1a2f45;
+    color: #e8eef5;
 }
 
 body.dark-mode .home_dash_tarefa_anexos_hint,
 body.dark-mode .home_dash_tarefa_anexos_vazio {
-    color: #5a7085;
+    color: #9db0c4;
 }
 
 body.dark-mode .home_dash_tarefa_anexo_lista li {
-    background: #f7f9fb;
-    border-color: #dce4ec;
-    color: #1a2f45;
+    background: #243445;
+    border-color: #3d5470;
+    color: #e8eef5;
+}
+
+body.dark-mode .home_dash_tarefa_anexo_link {
+    color: #6eb6e0;
 }
 
 body.dark-mode .home_dash_tarefa_anexos .home_dash_btn.secondary {
-    background: #f3f6f9;
-    color: #1a2f45;
-    border-color: #c5d0db;
+    background: #243445;
+    color: #e8eef5;
+    border-color: #3d5470;
 }
 
 body.dark-mode .home_dash_tarefa_anexo_zone {
-    background: #fff;
-    color: #1a2f45;
+    background: #1a2634;
+    color: #e8eef5;
 }
 
 body.dark-mode .home_dash_tarefa_anexo_zone:hover:not(:disabled) {
-    background: #f8fbfe;
+    background: #213142;
 }
 
 body.dark-mode .home_dash_tarefa_anexo_ico_wrap {
-    background: #e8f3fb;
-    border-color: #c5dced;
-    color: #2f87c6;
+    background: rgba(47, 135, 198, 0.22);
+    border-color: #4a7194;
+    color: #6eb6e0;
+}
+
+body.dark-mode .home_dash_tarefa_anexo_ico {
+    color: #6eb6e0;
+}
+
+body.dark-mode .home_dash_tarefa_anexo_zone_txt small {
+    color: #9db0c4;
+}
+
+body.dark-mode .home_dash_tarefa_anexo_add {
+    color: #6eb6e0;
+}
+
+body.dark-mode .home_dash_tarefa_anexos.is-dragover .home_dash_tarefa_anexo_ico_wrap {
+    background: rgba(47, 135, 198, 0.35);
+    border-color: #6eb6e0;
 }
 
 .home_dash_tarefa_form_row {

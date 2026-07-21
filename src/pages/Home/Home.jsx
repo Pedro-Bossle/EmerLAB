@@ -103,7 +103,11 @@ const Home = () => {
     const [anexosPendentes, setAnexosPendentes] = useState([])
     const [salvandoTarefa, setSalvandoTarefa] = useState(false)
     const [anexoBusyId, setAnexoBusyId] = useState(null)
+    const [anexoDragOverModal, setAnexoDragOverModal] = useState(false)
+    const [anexoDragOverTarefaId, setAnexoDragOverTarefaId] = useState(null)
     const inputAnexoTarefaRef = useRef(null)
+    const anexoDragDepthModalRef = useRef(0)
+    const anexoDragDepthTarefaRef = useRef(0)
 
     const [notifForm, setNotifForm] = useState(0)
     const [recentesForm, setRecentesForm] = useState([])
@@ -242,6 +246,8 @@ const Home = () => {
     const fecharModalTarefa = () => {
         setModalTarefaAberto(false)
         setAnexosPendentes([])
+        setAnexoDragOverModal(false)
+        anexoDragDepthModalRef.current = 0
     }
 
     const adicionarAnexosPendentes = (fileList) => {
@@ -264,6 +270,79 @@ const Home = () => {
             }
             return next
         })
+    }
+
+    const extrairArquivosDoDrop = (event) => {
+        const dt = event?.dataTransfer
+        if (!dt) return []
+        if (dt.files?.length) return Array.from(dt.files)
+        const items = Array.from(dt.items || [])
+        return items
+            .filter((item) => item.kind === 'file')
+            .map((item) => item.getAsFile())
+            .filter(Boolean)
+    }
+
+    const onDragEnterAnexosModal = (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (salvandoTarefa || anexosPendentes.length >= MAX_ANEXOS_TAREFA) return
+        anexoDragDepthModalRef.current += 1
+        setAnexoDragOverModal(true)
+    }
+
+    const onDragOverAnexosModal = (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+    }
+
+    const onDragLeaveAnexosModal = (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        anexoDragDepthModalRef.current = Math.max(0, anexoDragDepthModalRef.current - 1)
+        if (anexoDragDepthModalRef.current === 0) setAnexoDragOverModal(false)
+    }
+
+    const onDropAnexosModal = (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        anexoDragDepthModalRef.current = 0
+        setAnexoDragOverModal(false)
+        if (salvandoTarefa || anexosPendentes.length >= MAX_ANEXOS_TAREFA) return
+        adicionarAnexosPendentes(extrairArquivosDoDrop(e))
+    }
+
+    const onDragEnterAnexosTarefa = (e, tarefa) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (anexoBusyId === tarefa.id) return
+        if ((tarefa.anexos || []).length >= MAX_ANEXOS_TAREFA) return
+        anexoDragDepthTarefaRef.current += 1
+        setAnexoDragOverTarefaId(tarefa.id)
+    }
+
+    const onDragOverAnexosTarefa = (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+    }
+
+    const onDragLeaveAnexosTarefa = (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        anexoDragDepthTarefaRef.current = Math.max(0, anexoDragDepthTarefaRef.current - 1)
+        if (anexoDragDepthTarefaRef.current === 0) setAnexoDragOverTarefaId(null)
+    }
+
+    const onDropAnexosTarefa = (e, tarefa) => {
+        e.preventDefault()
+        e.stopPropagation()
+        anexoDragDepthTarefaRef.current = 0
+        setAnexoDragOverTarefaId(null)
+        if (anexoBusyId === tarefa.id) return
+        if ((tarefa.anexos || []).length >= MAX_ANEXOS_TAREFA) return
+        void onAnexarNaTarefaExistente(tarefa, extrairArquivosDoDrop(e))
     }
 
     const mesclarTarefaNaLista = (atualizada) => {
@@ -806,9 +885,20 @@ const Home = () => {
                                                                 </p>
                                                             ) : null}
                                                             <div
-                                                                className="home_dash_tarefa_anexos home_dash_tarefa_anexos--lista"
+                                                                className={`home_dash_tarefa_anexos home_dash_tarefa_anexos--lista${
+                                                                    String(anexoDragOverTarefaId) ===
+                                                                    String(t.id)
+                                                                        ? ' is-dragover'
+                                                                        : ''
+                                                                }`}
                                                                 onClick={(e) => e.stopPropagation()}
                                                                 onKeyDown={(e) => e.stopPropagation()}
+                                                                onDragEnter={(e) =>
+                                                                    onDragEnterAnexosTarefa(e, t)
+                                                                }
+                                                                onDragOver={onDragOverAnexosTarefa}
+                                                                onDragLeave={onDragLeaveAnexosTarefa}
+                                                                onDrop={(e) => onDropAnexosTarefa(e, t)}
                                                             >
                                                                 {(t.anexos || []).length > 0 ? (
                                                                     <ul className="home_dash_tarefa_anexo_lista">
@@ -865,7 +955,10 @@ const Home = () => {
                                                                         <span>
                                                                             {anexoBusyId === t.id
                                                                                 ? 'Enviando…'
-                                                                                : 'Anexar arquivo'}
+                                                                                : String(anexoDragOverTarefaId) ===
+                                                                                    String(t.id)
+                                                                                  ? 'Solte para anexar'
+                                                                                  : 'Anexar ou arrastar arquivo'}
                                                                         </span>
                                                                     </label>
                                                                 ) : null}
@@ -1349,7 +1442,13 @@ const Home = () => {
                                     }
                                 />
                             </label>
-                            <div className="home_dash_tarefa_anexos">
+                            <div
+                                className={`home_dash_tarefa_anexos${anexoDragOverModal ? ' is-dragover' : ''}`}
+                                onDragEnter={onDragEnterAnexosModal}
+                                onDragOver={onDragOverAnexosModal}
+                                onDragLeave={onDragLeaveAnexosModal}
+                                onDrop={onDropAnexosModal}
+                            >
                                 <input
                                     ref={inputAnexoTarefaRef}
                                     type="file"
@@ -1384,8 +1483,14 @@ const Home = () => {
                                         </svg>
                                     </span>
                                     <span className="home_dash_tarefa_anexo_zone_txt">
-                                        <strong>Arquivos</strong>
-                                        <small>Clique para anexar · até {MAX_ANEXOS_TAREFA} · máx. 10 MB</small>
+                                        <strong>
+                                            {anexoDragOverModal ? 'Solte os arquivos' : 'Arquivos'}
+                                        </strong>
+                                        <small>
+                                            {anexoDragOverModal
+                                                ? 'Largue aqui para anexar'
+                                                : `Clique ou arraste · até ${MAX_ANEXOS_TAREFA} · máx. 10 MB`}
+                                        </small>
                                     </span>
                                 </button>
                                 {anexosPendentes.length > 0 ? (

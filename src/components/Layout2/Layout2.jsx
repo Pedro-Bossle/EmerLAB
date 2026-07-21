@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../Sidebar/Sidebar'
 import DevToolsFloating from '../DevTools/DevToolsFloating'
+import BatePapoFloating from '../BatePapo/BatePapoFloating'
 import SessionSecurity from '../SessionSecurity/SessionSecurity'
 import { Outlet, useLocation } from 'react-router-dom'
 import './Layout2.css'
@@ -99,6 +100,7 @@ const Layout2 = () => {
             >
                 <Outlet />
             </main>
+            <BatePapoFloating />
             <DevToolsFloating />
         </div>
     )

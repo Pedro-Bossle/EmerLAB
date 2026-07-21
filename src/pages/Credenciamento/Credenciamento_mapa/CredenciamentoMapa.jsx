@@ -30,12 +30,9 @@ import {
     PERMISSION_KEYS,
     getStoredAccessProfile,
     hasPermission,
-    hasStoredDevTools,
     podeLerFerramenta,
     useStoredAccessProfile,
-    useStoredPermission,
 } from '../../../lib/accessControl'
-import { useDevToolsUi } from '../../../lib/devToolsUi'
 import { resolverEmojiMapaEspecialidade } from '../../../lib/credenciamento/mapaEspecialidadeIcones'
 import { idsEspecialidadesPrestadorLocal, especialidadeCatalogoEhLocal } from '../../../lib/credenciamento/especialidadesPorCidade.js'
 import { iconeLeafletEmojiMapa } from '../../../lib/credenciamento/mapaPinEmojiLeaflet'
@@ -367,12 +364,7 @@ const CredenciamentoMapa = () => {
     const accessProfile = useStoredAccessProfile()
     const podeImportarKmz = podeLerFerramenta(accessProfile?.permissions, 'credenciamento.import_kmz')
 
-    const podeDevToolPerfil = useStoredPermission(PERMISSION_KEYS.DEV_TOOLS)
-
-    const { ui: devToolsUi } = useDevToolsUi()
-    const mostrarCoordenadasDev =
-        hasStoredDevTools() && podeDevToolPerfil && devToolsUi.colunasCadastro?.coordenadasMapa
-    const podeEditarCoordenadasMapa = !somenteLeitura || mostrarCoordenadasDev
+    const podeEditarCoordenadasMapa = !somenteLeitura
 
     const carregar = useCallback(async () => {
         setLoading(true)

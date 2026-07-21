@@ -32,6 +32,7 @@ export const PERMISSION_KEYS = {
   PAGAMENTOS_VIEW: 'pagamentos.view',
   PAGAMENTOS_EDIT: 'pagamentos.edit',
   DEV_TOOLS: 'dev.tools',
+  BATE_PAPO: 'bate.papo',
 }
 
 /** Telas com chave própria: se ausente no JSON salvo, herda o «ver» do módulo. */
@@ -61,7 +62,13 @@ export const PERMISSOES = [
         chave: PERMISSION_KEYS.DEV_TOOLS,
         rotulo: 'Dev Tool',
         descricao:
-            'Exibe a chave Dev (canto inferior direito): pesquisa NOT, colunas extras, exclusão por lista e apagar prestadores/entradas do formulário no banco.',
+            'Exibe a chave Dev (canto inferior direito): pesquisa NOT, colunas extras de cadastro, exclusão por lista e apagar prestadores/entradas do formulário no banco.',
+      },
+      {
+        chave: PERMISSION_KEYS.BATE_PAPO,
+        rotulo: 'Bate-papo',
+        descricao:
+            'Exibe a gaveta flutuante de bate-papo entre usuários (arrastar, compactar e conversar).',
       },
     ],
   },
@@ -204,6 +211,7 @@ export const DEFAULT_PROFILE_PERMISSIONS = {
   [PERMISSION_KEYS.PAGAMENTOS_EDIT]: true,
   [PERMISSION_KEYS.ACCESS_MANAGE]: false,
   [PERMISSION_KEYS.DEV_TOOLS]: false,
+  [PERMISSION_KEYS.BATE_PAPO]: false,
 }
 
 export const DEFAULT_INVITED_PERMISSIONS = {
@@ -228,6 +236,7 @@ export const DEFAULT_INVITED_PERMISSIONS = {
   [PERMISSION_KEYS.PAGAMENTOS_EDIT]: false,
   [PERMISSION_KEYS.ACCESS_MANAGE]: false,
   [PERMISSION_KEYS.DEV_TOOLS]: false,
+  [PERMISSION_KEYS.BATE_PAPO]: false,
 }
 
 export const normalizarPermissions = (profile = {}) => {
@@ -317,6 +326,11 @@ export const isDevToolsEnabled = (profileOrPermissions) =>
   hasPermission(profileOrPermissions, PERMISSION_KEYS.DEV_TOOLS)
 
 export const hasStoredDevTools = () => isDevToolsEnabled(getStoredAccessProfile())
+
+export const isBatePapoEnabled = (profileOrPermissions) =>
+  hasPermission(profileOrPermissions, PERMISSION_KEYS.BATE_PAPO)
+
+export const hasStoredBatePapo = () => isBatePapoEnabled(getStoredAccessProfile())
 
 const ROTULOS_PERMISSAO = Object.fromEntries(
   PERMISSOES.flatMap((g) => g.itens.map((i) => [i.chave, i.rotulo])),

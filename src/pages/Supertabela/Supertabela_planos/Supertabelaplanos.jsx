@@ -131,8 +131,7 @@ const Supertabelaplanos = () => {
     const [edicaoAtiva, setEdicaoAtiva] = useState(false)
     const [modoLimitacoes, setModoLimitacoes] = useState(false)
     const [planoDetalheId, setPlanoDetalheId] = useState('')
-    const mostrarContagemRealizadores =
-        hasStoredDevTools() && !!devToolsUi.contagemRealizadoresPlanos && !modoLimitacoes
+    const mostrarContagemRealizadores = !modoLimitacoes
 
     const [linhasDiferencas, setLinhasDiferencas] = useState([])
     const [linhasLimitacoes, setLinhasLimitacoes] = useState([])

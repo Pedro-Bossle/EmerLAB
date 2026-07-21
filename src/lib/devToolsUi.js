@@ -15,17 +15,19 @@ export const DEFAULT_COLUNAS_CADASTRO = {
     procs: false,
     copiarCodigosProcs: false,
     ocultarVetsClinica: false,
-    coordenadasMapa: false,
+    /** Padrão do produto (não é mais toggle Dev Tool). */
+    coordenadasMapa: true,
 }
 
 export const DEFAULT_COLUNAS_NEGOCIACOES = {
-    /** Lista principal: coluna Prestador vinculado (edição inline). */
+    /** Padrão do produto (não é mais toggle Dev Tool). */
     vinculoPrestadorLista: true,
 }
 
 const DEFAULT_UI = {
     exclusaoMassa: false,
-    contagemRealizadoresPlanos: false,
+    /** Padrão do produto (não é mais toggle Dev Tool). */
+    contagemRealizadoresPlanos: true,
     colunasProcessos: { ...DEFAULT_COLUNAS_PROCESSOS },
     colunasCadastro: { ...DEFAULT_COLUNAS_CADASTRO },
     colunasNegociacoes: { ...DEFAULT_COLUNAS_NEGOCIACOES },
@@ -49,20 +51,18 @@ function normalizarColunasCadastro(raw) {
         base.procs = !!raw.procs
         base.copiarCodigosProcs = !!raw.copiarCodigosProcs
         base.ocultarVetsClinica = !!(raw.ocultarVetsClinica ?? raw.ocultarVets)
-        base.coordenadasMapa = !!raw.coordenadasMapa
+        // Sempre ativo: recurso padrão do produto.
+        base.coordenadasMapa = true
     }
     return base
 }
 
-function normalizarColunasNegociacoes(raw) {
-    const base = { ...DEFAULT_COLUNAS_NEGOCIACOES }
-    if (raw && typeof raw === 'object') {
-        base.vinculoPrestadorLista =
-            raw.vinculoPrestadorLista !== undefined
-                ? !!raw.vinculoPrestadorLista
-                : DEFAULT_COLUNAS_NEGOCIACOES.vinculoPrestadorLista
+function normalizarColunasNegociacoes(_raw) {
+    return {
+        ...DEFAULT_COLUNAS_NEGOCIACOES,
+        // Sempre ativo: recurso padrão do produto.
+        vinculoPrestadorLista: true,
     }
-    return base
 }
 
 function estadoUiPadrao() {
@@ -87,7 +87,7 @@ export function lerDevToolsUi() {
         if (parsed.colunasExtras === true) {
             return {
                 exclusaoMassa: !!parsed.exclusaoMassa,
-                contagemRealizadoresPlanos: !!parsed.contagemRealizadoresPlanos,
+                contagemRealizadoresPlanos: true,
                 colunasProcessos: { pdf: true, site: true, mapa: true },
                 colunasCadastro: {
                     perfil: true,
@@ -95,14 +95,14 @@ export function lerDevToolsUi() {
                     procs: true,
                     copiarCodigosProcs: false,
                     ocultarVetsClinica: false,
-                    coordenadasMapa: false,
+                    coordenadasMapa: true,
                 },
                 colunasNegociacoes: { vinculoPrestadorLista: true },
             }
         }
         return {
             exclusaoMassa: !!parsed.exclusaoMassa,
-            contagemRealizadoresPlanos: !!parsed.contagemRealizadoresPlanos,
+            contagemRealizadoresPlanos: true,
             colunasProcessos: normalizarColunasProcessos(parsed.colunasProcessos),
             colunasCadastro: normalizarColunasCadastro(parsed.colunasCadastro),
             colunasNegociacoes: normalizarColunasNegociacoes(parsed.colunasNegociacoes),
@@ -118,22 +118,37 @@ export function salvarDevToolsUi(partial) {
     const next = {
         ...atual,
         ...partial,
+        contagemRealizadoresPlanos: true,
         colunasProcessos: partial.colunasProcessos
             ? { ...atual.colunasProcessos, ...partial.colunasProcessos }
             : atual.colunasProcessos,
         colunasCadastro: partial.colunasCadastro
-            ? { ...atual.colunasCadastro, ...partial.colunasCadastro }
-            : atual.colunasCadastro,
-        colunasNegociacoes: partial.colunasNegociacoes
-            ? { ...atual.colunasNegociacoes, ...partial.colunasNegociacoes }
-            : atual.colunasNegociacoes,
+            ? {
+                  ...atual.colunasCadastro,
+                  ...partial.colunasCadastro,
+                  coordenadasMapa: true,
+              }
+            : { ...atual.colunasCadastro, coordenadasMapa: true },
+        colunasNegociacoes: {
+            ...atual.colunasNegociacoes,
+            ...(partial.colunasNegociacoes || {}),
+            vinculoPrestadorLista: true,
+        },
     }
     window.localStorage.setItem(DEV_TOOLS_UI_STORAGE_KEY, JSON.stringify(next))
     window.dispatchEvent(new CustomEvent(DEV_TOOLS_UI_CHANGE_EVENT, { detail: next }))
     return next
 }
 
+const FLAGS_PADRAO_PRODUTO = new Set([
+    'contagemRealizadoresPlanos',
+])
+
 export function alternarDevToolsUiFlag(chave) {
+    // Recursos promovidos a padrão do produto não podem ser desligados pela Dev Tool.
+    if (FLAGS_PADRAO_PRODUTO.has(chave)) {
+        return lerDevToolsUi()
+    }
     const atual = lerDevToolsUi()
     return salvarDevToolsUi({ [chave]: !atual[chave] })
 }
@@ -148,6 +163,7 @@ export function alternarColunaDevTools(tela, chaveColuna) {
         return salvarDevToolsUi({ colunasProcessos })
     }
     if (tela === 'cadastro') {
+        if (chaveColuna === 'coordenadasMapa') return atual
         const atualCol = { ...DEFAULT_COLUNAS_CADASTRO, ...atual.colunasCadastro }
         const colunasCadastro = {
             ...atualCol,
@@ -156,6 +172,7 @@ export function alternarColunaDevTools(tela, chaveColuna) {
         return salvarDevToolsUi({ colunasCadastro })
     }
     if (tela === 'negociacoes') {
+        if (chaveColuna === 'vinculoPrestadorLista') return atual
         const atualCol = { ...DEFAULT_COLUNAS_NEGOCIACOES, ...atual.colunasNegociacoes }
         const colunasNegociacoes = {
             ...atualCol,
@@ -196,9 +213,11 @@ export function useDevToolsUi() {
 
 export function devToolsAlgumRecursoAtivo(ui) {
     const u = ui || lerDevToolsUi()
-    if (u.exclusaoMassa || u.contagemRealizadoresPlanos) return true
+    if (u.exclusaoMassa) return true
     if (Object.values(u.colunasProcessos || {}).some(Boolean)) return true
-    if (Object.values(u.colunasCadastro || {}).some(Boolean)) return true
-    if (Object.values(u.colunasNegociacoes || {}).some(Boolean)) return true
+    const cad = u.colunasCadastro || {}
+    if (cad.perfil || cad.crmv || cad.procs || cad.copiarCodigosProcs || cad.ocultarVetsClinica) {
+        return true
+    }
     return false
 }

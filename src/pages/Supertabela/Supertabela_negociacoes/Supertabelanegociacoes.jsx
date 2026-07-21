@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { PERMISSION_KEYS, hasStoredDevTools, hasStoredPermission } from '../../../lib/accessControl'
-import { useDevToolsUi } from '../../../lib/devToolsUi'
+import { PERMISSION_KEYS, hasStoredPermission } from '../../../lib/accessControl'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import { filtrarLinhaSupertabelaPorBusca, partesValoresLinhaSupertabela } from '../../../lib/supertabelaBuscaValores.js'
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
@@ -109,10 +108,7 @@ const normalizarNumeroEntrada = (valorTexto) => {
 
 const Supertabelanegociacoes = () => {
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
-    const { ui: devToolsUi } = useDevToolsUi()
-    const podeDevToolNeg = hasStoredDevTools()
-    const mostrarColunaVinculoLista =
-        !podeDevToolNeg || !!devToolsUi.colunasNegociacoes?.vinculoPrestadorLista
+    const mostrarColunaVinculoLista = true
     const [cidades, setCidades] = useState([])
     const [planos, setPlanos] = useState([])
     const [portes, setPortes] = useState([])

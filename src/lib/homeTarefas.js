@@ -75,14 +75,43 @@ export function mapRowTarefa(row, nomesPorId = new Map()) {
     }
 }
 
-function sanitizarNomeArquivoAnexo(nome) {
+/** Nome amigável para exibir (mantém espaços/acentos razoáveis). */
+function nomeArquivoExibicaoAnexo(nome) {
     return (
         String(nome || 'arquivo')
             .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
             .replace(/\s+/g, ' ')
             .trim()
-            .slice(0, 120) || 'arquivo'
+            .slice(0, 180) || 'arquivo'
     )
+}
+
+/**
+ * Chave segura para Supabase Storage (sem espaços, acentos ou caracteres especiais).
+ * Ex.: "Básico Caxias.pdf" → "Basico_Caxias.pdf"
+ */
+function sanitizarNomeArquivoStorage(nome) {
+    const bruto = String(nome || 'arquivo').trim()
+    const partes = bruto.split('.')
+    const ext =
+        partes.length > 1
+            ? String(partes.pop())
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .replace(/[^a-zA-Z0-9]/g, '')
+                  .slice(0, 12)
+                  .toLowerCase()
+            : ''
+    const base = partes
+        .join('.')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9._-]+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^[._-]+|[._-]+$/g, '')
+        .slice(0, 80)
+    const limpo = base || 'arquivo'
+    return ext ? `${limpo}.${ext}` : limpo
 }
 
 export function validarArquivoAnexoTarefa(file) {
@@ -95,7 +124,7 @@ export function validarArquivoAnexoTarefa(file) {
 }
 
 function montarStoragePathAnexoTarefa(tarefaId, nomeArquivo) {
-    const safe = sanitizarNomeArquivoAnexo(nomeArquivo)
+    const safe = sanitizarNomeArquivoStorage(nomeArquivo)
     const id =
         typeof crypto !== 'undefined' && crypto.randomUUID
             ? crypto.randomUUID()
@@ -205,7 +234,7 @@ export async function anexarArquivosTarefa(tarefaId, files) {
         }
         novos.push({
             storage_path: storagePath,
-            nome_arquivo: sanitizarNomeArquivoAnexo(file.name),
+            nome_arquivo: nomeArquivoExibicaoAnexo(file.name),
             mime_type: file.type || null,
             tamanho: file.size || null,
         })

@@ -4,7 +4,6 @@ import { isDevToolsEnabled, useStoredAccessProfile } from '../../lib/accessContr
 import {
     alternarColunaDevTools,
     alternarDevToolsUiFlag,
-    DEFAULT_COLUNAS_NEGOCIACOES,
     useDevToolsUi,
 } from '../../lib/devToolsUi'
 import './DevToolsFloating.css'
@@ -35,20 +34,6 @@ const ITENS_GLOBAIS = [
         rotulo: 'Exclusão por lista',
         descricao: 'Somente Super-Tabela › Planos (modo Ver diferenças).',
     },
-    {
-        chave: 'contagemRealizadoresPlanos',
-        rotulo: 'Prestadores por procedimento',
-        descricao:
-            'Super-Tabela › Planos (diferenças) e › Cidades: coluna com quantos realizam o procedimento (cidade + paralelas) e sugestões no fim da página.',
-    },
-]
-
-const ITENS_NEGOCIACOES = [
-    {
-        chave: 'vinculoPrestadorLista',
-        rotulo: 'Coluna Prestador vinculado',
-        descricao: 'Negociações (lista): exibe e permite editar o vínculo com prestador credenciado.',
-    },
 ]
 
 const ITENS_CADASTRO = [
@@ -69,11 +54,6 @@ const ITENS_CADASTRO = [
         chave: 'ocultarVetsClinica',
         rotulo: 'Ocultar vets em clínicas',
         descricao: 'Cadastro: esconde veterinários vinculados a estabelecimentos.',
-    },
-    {
-        chave: 'coordenadasMapa',
-        rotulo: 'Latitude / longitude',
-        descricao: 'Cadastro: campos editáveis de coordenadas (mapa).',
     },
 ]
 
@@ -328,13 +308,14 @@ export default function DevToolsFloating() {
     if (!permitido) return null
 
     const colCad = ui.colunasCadastro || {}
-    const colNeg = ui.colunasNegociacoes || {}
     const algumAtivo =
         ui.exclusaoMassa ||
-        ui.contagemRealizadoresPlanos ||
         Object.values(ui.colunasProcessos || {}).some(Boolean) ||
-        Object.values(colCad).some(Boolean) ||
-        colNeg.vinculoPrestadorLista !== DEFAULT_COLUNAS_NEGOCIACOES.vinculoPrestadorLista
+        colCad.perfil ||
+        colCad.crmv ||
+        colCad.procs ||
+        colCad.copiarCodigosProcs ||
+        colCad.ocultarVetsClinica
     const drawerStyle = calcularDrawerStyle(pos, ancora, compacto)
     const rotuloModo = compacto ? 'Restaurar ícone' : 'Minimizar'
 
@@ -409,26 +390,6 @@ export default function DevToolsFloating() {
                                         className="dev_tools_float_checkbox"
                                         checked={Boolean(ui[item.chave])}
                                         onChange={() => alternarDevToolsUiFlag(item.chave)}
-                                    />
-                                    <span className="dev_tools_float_item_texto">
-                                        <strong>{item.rotulo}</strong>
-                                        <small>{item.descricao}</small>
-                                    </span>
-                                </label>
-                            </li>
-                        ))}
-                    </ul>
-
-                    <p className="dev_tools_float_subtitulo">Super-Tabela › Negociações</p>
-                    <ul className="dev_tools_float_lista">
-                        {ITENS_NEGOCIACOES.map((item) => (
-                            <li key={item.chave}>
-                                <label className="dev_tools_float_item">
-                                    <input
-                                        type="checkbox"
-                                        className="dev_tools_float_checkbox"
-                                        checked={Boolean(colNeg[item.chave])}
-                                        onChange={() => alternarColunaDevTools('negociacoes', item.chave)}
                                     />
                                     <span className="dev_tools_float_item_texto">
                                         <strong>{item.rotulo}</strong>

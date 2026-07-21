@@ -5,11 +5,9 @@ import {
     PERMISSION_KEYS,
     getStoredAccessProfile,
     hasPermission,
-    hasStoredDevTools,
     hasStoredExclusaoPermanenteCredenciamento,
     useStoredPermission,
 } from '../../../lib/accessControl'
-import { useDevToolsUi } from '../../../lib/devToolsUi'
 import { supabase } from '../../../lib/supabase'
 import { buscarEnderecoPorCep } from '../../../lib/viacepClient'
 import {
@@ -182,9 +180,7 @@ const CredenciamentoCadastroForm = () => {
     }, [])
 
     const podeDevToolPerfil = useStoredPermission(PERMISSION_KEYS.DEV_TOOLS)
-    const { ui: devToolsUi } = useDevToolsUi()
-    const mostrarCoordenadasDev =
-        hasStoredDevTools() && podeDevToolPerfil && devToolsUi.colunasCadastro?.coordenadasMapa
+    const mostrarCoordenadasDev = true
     const podeGerarContrato = useStoredPermission(PERMISSION_KEYS.CONTRATOS_EDIT)
     const podeExclusaoPermanente = hasStoredExclusaoPermanenteCredenciamento() && !isNovo && prestadorId
 

@@ -27,6 +27,7 @@ const L = {
     PAGAMENTOS_VIEW: 'pagamentos.view',
     PAGAMENTOS_EDIT: 'pagamentos.edit',
     DEV_TOOLS: 'dev.tools',
+    BATE_PAPO: 'bate.papo',
 }
 
 export const ACL_ACTIONS = [
@@ -319,6 +320,12 @@ export const PERMISSION_CATALOG = [
                 descricao: 'Colunas extras e exclusão por lista.',
                 actions: R,
             },
+            {
+                id: 'admin.bate_papo',
+                label: 'Bate-papo',
+                descricao: 'Gaveta flutuante de mensagens entre usuários.',
+                actions: R,
+            },
         ],
     },
 ]
@@ -477,6 +484,9 @@ export function expandLegacyToAcl(perms) {
     if (p[L.DEV_TOOLS]) {
         setTool('admin.dev_tools', { read: true })
     }
+    if (p[L.BATE_PAPO]) {
+        setTool('admin.bate_papo', { read: true })
+    }
     // Alertas da Home herdados das páginas (legado notificacoes.* → ferramenta).
     if (p[L.NOTIFICACOES_FORMULARIO] || p['notificacoes.formulario.read']) {
         if (!hasAcl(p, 'credenciamento.formulario_inbox', 'read')) {
@@ -617,6 +627,7 @@ export function syncLegacyFromAcl(perms) {
 
     p[L.ACCESS_MANAGE] = hasAcl(p, 'admin.acessos', 'read') && hasAcl(p, 'admin.acessos', 'update')
     p[L.DEV_TOOLS] = hasAcl(p, 'admin.dev_tools', 'read')
+    p[L.BATE_PAPO] = hasAcl(p, 'admin.bate_papo', 'read')
     // Alertas da Home = permissão de Ver na página correspondente.
     p[L.NOTIFICACOES_FORMULARIO] = hasAcl(p, 'credenciamento.formulario_inbox', 'read')
     p[L.NOTIFICACOES_CONTRATOS] = hasAcl(p, 'contratos.clicksign', 'read')
