@@ -1197,6 +1197,43 @@ body.dark-mode .pcad_form_footer {
     border-top-color: var(--border-soft);
 }
 
+body.dark-mode .pcad_form_footer .pcad_footer_btn_apagar_bd {
+    color: #f0a0a0 !important;
+    border-color: #8a3d3d !important;
+    background: #3a1f24 !important;
+}
+
+body.dark-mode .pcad_form_footer .pcad_footer_btn_apagar_bd:hover:not(:disabled) {
+    color: #ffc9c9 !important;
+    border-color: #b05050 !important;
+    background: #4a282e !important;
+}
+
+body.dark-mode .credenciamento_cadastro_dev_massa {
+    background: #1a2a38;
+    border-color: #3d5a6e;
+}
+
+body.dark-mode .credenciamento_cadastro_dev_massa .pcad_muted,
+body.dark-mode .credenciamento_cadastro_dev_massa .pcad_servicos_massa_feedback {
+    color: #a8c4d8;
+}
+
+body.dark-mode .credenciamento_cadastro_dev_massa .credenciamento_main_action_btn.secondary {
+    background: #213b54;
+    color: #e6f1fb;
+    border-color: #557696;
+}
+
+body.dark-mode .credenciamento_cadastro_dev_massa .credenciamento_main_action_btn.secondary:hover:not(:disabled) {
+    background: #274158;
+    border-color: #6a8aab;
+}
+
+body.dark-mode .credenciamento_cadastro_dev_massa .credenciamento_main_action_btn.secondary:disabled {
+    opacity: 0.65;
+}
+
 body.dark-mode .credenciamento_main.pcad_form_page .credenciamento_main_input,
 body.dark-mode .credenciamento_main.pcad_form_page .credenciamento_main_select {
     background: #0f1e2e;

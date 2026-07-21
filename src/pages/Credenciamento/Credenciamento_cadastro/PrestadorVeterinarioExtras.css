@@ -283,6 +283,30 @@
     width: auto;
 }
 
+body.dark-mode .pcad_responsavel_card {
+    background: #1a2a38;
+    border-color: #3d5a6e;
+}
+
+body.dark-mode .fcred_passo_volante_docs .pcad_responsavel_card {
+    background: #243545;
+    border-color: #3d5a6e;
+}
+
+body.dark-mode .pcad_responsavel_tit,
+body.dark-mode .pcad_responsavel_card .pcad_field > span,
+body.dark-mode .pcad_responsavel_card .fcred_field > span {
+    color: #a8c4d8;
+}
+
+body.dark-mode .pcad_responsavel_rem {
+    color: #7fc0f0;
+}
+
+body.dark-mode .pcad_responsavel_rem:hover {
+    color: #b6ddf7;
+}
+
 body.dark-mode .pcad_cert_dropzone {
     background: #1a2a38;
     border-color: #3d5a6e;
@@ -302,4 +326,32 @@ body.dark-mode .pcad_cert_lista li {
     background: #243545;
     border-color: #3d5a6e;
     color: #e8f2f8;
+}
+
+body.dark-mode .pcad_cert_pdf_badge {
+    background: #1a2a38;
+    color: #a8c4d8;
+}
+
+body.dark-mode .pcad_cert_link {
+    color: #7fc0f0;
+}
+
+body.dark-mode .pcad_cert_rem {
+    color: #9bb4c6;
+}
+
+body.dark-mode .pcad_cert_rem:hover {
+    color: #f0a0a0;
+}
+
+body.dark-mode .pcad_cert_vazio {
+    background: #1a2a38;
+    border-color: #3d5a6e;
+    color: #a8c4d8;
+}
+
+body.dark-mode .fcred_passo_volante_docs .fcred_bloco {
+    background: #1a2a38;
+    border-color: #3d5a6e;
 }

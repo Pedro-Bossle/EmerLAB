@@ -30,7 +30,6 @@ import {
     normalizarEmailParaSalvar,
     montarEnderecoUmaLinha,
     tipoEspecialidadePrestador,
-    prestadorEhEstabelecimento,
 } from '../../../lib/prestadorCadastroHelpers'
 import ClinicasAtendeInput from './ClinicasAtendeInput.jsx'
 import {
@@ -196,10 +195,8 @@ const CredenciamentoCadastroForm = () => {
 
     const mostrarAtendeClinica = secaoMultiplasCidades
 
-    const mostrarCamposVeterinario = useMemo(() => {
-        if (!form.especialidade_id) return false
-        return !prestadorEhEstabelecimento(form.especialidade_id)
-    }, [form.especialidade_id])
+    /** Certificados e responsáveis: todos os tipos de especialidade/perfil. */
+    const mostrarCertificadosResponsaveis = Boolean(form.especialidade_id)
 
     const estabelecimentosSelecionadosDados = useMemo(
         () =>
@@ -563,7 +560,7 @@ const CredenciamentoCadastroForm = () => {
             setErro('Selecione a clínica/local para preencher a modalidade.')
             return
         }
-        if (mostrarCamposVeterinario) {
+        if (mostrarCertificadosResponsaveis) {
             const errResp = validarResponsaveisCompletosSeInformados(responsaveis)
             if (errResp) {
                 setErro(errResp)
@@ -786,7 +783,7 @@ const CredenciamentoCadastroForm = () => {
                 }
             }
 
-            if (mostrarCamposVeterinario) {
+            if (mostrarCertificadosResponsaveis) {
                 await sincronizarResponsaveisPrestador(pid, responsaveis)
 
                 const novosCertFiles = certificadosPendentes.map((p) => p.file).filter(Boolean)
@@ -996,7 +993,7 @@ const CredenciamentoCadastroForm = () => {
                     </div>
                 </section>
 
-                {mostrarCamposVeterinario && (
+                {mostrarCertificadosResponsaveis && (
                     <>
                         <section className="pcad_card">
                             <h2>Certificado de conclusão de curso</h2>

@@ -651,8 +651,7 @@ export default function CredenciamentoFormularioInbox() {
                                 </div>
                             )}
 
-                            {(tipoPerfil === 'volante' || tipoPerfil === 'clinica') &&
-                                (p.responsaveis || []).length > 0 && (
+                            {(p.responsaveis || []).length > 0 && (
                                 <div className="credenciamento_main_detail_box fcred_inbox_detail_box">
                                     <h3 className="fcred_inbox_sec_tit">Responsável(is)</h3>
                                     <ul className="fcred_inbox_proc_list">
@@ -667,8 +666,7 @@ export default function CredenciamentoFormularioInbox() {
                                 </div>
                             )}
 
-                            {(tipoPerfil === 'volante' || tipoPerfil === 'clinica') &&
-                                (p.certificadosConclusao || []).length > 0 && (
+                            {(p.certificadosConclusao || []).length > 0 && (
                                 <div className="credenciamento_main_detail_box fcred_inbox_detail_box">
                                     <h3 className="fcred_inbox_sec_tit">Certificados de conclusão</h3>
                                     <ul className="fcred_inbox_proc_list">

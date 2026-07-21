@@ -820,7 +820,7 @@ export async function converterEntradaFormularioEmPrestador(entradaId) {
         await sincronizarPrestadorProcedimentos(prestadorId, codigos)
     }
 
-    if (tipoPerfil === 'volante' || tipoPerfil === 'clinica') {
+    if (payload.responsaveis?.length || payload.certificadosConclusao?.length) {
         await promoverResponsaveisFormularioParaPrestador(prestadorId, payload.responsaveis)
         await promoverCertificadosFormularioParaPrestador(prestadorId, payload.certificadosConclusao)
     }
@@ -986,7 +986,7 @@ export async function aplicarEntradaFormularioEmPrestadorExistente(entradaId, pr
         await sincronizarPrestadorProcedimentos(prestadorId, codigos)
     }
 
-    if (tipoPerfil === 'volante' || tipoPerfil === 'clinica') {
+    if (payload.responsaveis?.length || payload.certificadosConclusao?.length) {
         await promoverResponsaveisFormularioParaPrestador(prestadorId, payload.responsaveis)
         await promoverCertificadosFormularioParaPrestador(prestadorId, payload.certificadosConclusao)
     }

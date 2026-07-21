@@ -13,7 +13,8 @@ import PrestadorResponsaveisInput from '../Credenciamento_cadastro/PrestadorResp
 const PLACEHOLDER_CRMV = 'PF/PJ - 123456 - UF'
 
 /**
- * Campos extras do passo de dados conforme tipo de perfil (volante / clínica).
+ * Campos extras do passo de dados conforme tipo de perfil.
+ * Certificados e responsáveis aparecem em todos os perfis; volante/clínica têm blocos adicionais.
  */
 export default function FormularioPublicoPerfilExtra({
     tipoPerfil,
@@ -149,7 +150,7 @@ export default function FormularioPublicoPerfilExtra({
         onVetsPendentesChange(vetsPendentes.filter((v) => v.key !== key))
     }
 
-    if (!isVolante && !isClinica) return null
+    if (!tipoPerfil) return null
 
     return (
         <>
@@ -315,39 +316,35 @@ export default function FormularioPublicoPerfilExtra({
                 </section>
             )}
 
-            {(isVolante || isClinica) && (
-                <>
-                    <section className="fcred_bloco">
-                        <h2 className="fcred_bloco_tit">Certificado de conclusão de curso *</h2>
-                        <p className="fcred_public_muted fcred_bloco_lead">
-                            Anexe foto ou PDF do certificado (obrigatório; até 5 arquivos).
-                        </p>
-                        <PrestadorCertificadosConclusaoInput
-                            modo="staging"
-                            variant="public"
-                            mostrarHint={false}
-                            somenteLeitura={false}
-                            salvos={[]}
-                            pendentes={certificadosPendentes || []}
-                            onChangePendentes={onCertificadosPendentesChange}
-                            onErro={onErroCertificados}
-                        />
-                        {erroCertificados && (
-                            <p className="fcred_public_erro fcred_perfil_erro">{erroCertificados}</p>
-                        )}
-                    </section>
-                    <section className="fcred_bloco">
-                        <h2 className="fcred_bloco_tit">Responsável(is) *</h2>
-                        <PrestadorResponsaveisInput
-                            variant="public"
-                            mostrarLead={false}
-                            lista={responsaveis}
-                            onChange={onResponsaveisChange}
-                            somenteLeitura={false}
-                        />
-                    </section>
-                </>
-            )}
+            <section className="fcred_bloco">
+                <h2 className="fcred_bloco_tit">Certificado de conclusão de curso *</h2>
+                <p className="fcred_public_muted fcred_bloco_lead">
+                    Anexe foto ou PDF do certificado (obrigatório; até 5 arquivos).
+                </p>
+                <PrestadorCertificadosConclusaoInput
+                    modo="staging"
+                    variant="public"
+                    mostrarHint={false}
+                    somenteLeitura={false}
+                    salvos={[]}
+                    pendentes={certificadosPendentes || []}
+                    onChangePendentes={onCertificadosPendentesChange}
+                    onErro={onErroCertificados}
+                />
+                {erroCertificados && (
+                    <p className="fcred_public_erro fcred_perfil_erro">{erroCertificados}</p>
+                )}
+            </section>
+            <section className="fcred_bloco">
+                <h2 className="fcred_bloco_tit">Responsável(is) *</h2>
+                <PrestadorResponsaveisInput
+                    variant="public"
+                    mostrarLead={false}
+                    lista={responsaveis}
+                    onChange={onResponsaveisChange}
+                    somenteLeitura={false}
+                />
+            </section>
 
             {erroLocal && <p className="fcred_public_erro fcred_perfil_erro">{erroLocal}</p>}
         </>

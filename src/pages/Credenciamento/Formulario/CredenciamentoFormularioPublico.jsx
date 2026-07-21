@@ -164,8 +164,7 @@ export default function CredenciamentoFormularioPublico() {
         }
     }, [passo])
 
-    const perfilComCertificadosResponsaveis =
-        tipoPerfil === 'volante' || tipoPerfil === 'clinica'
+    const perfilComCertificadosResponsaveis = Boolean(tipoPerfil)
 
     useEffect(() => {
         const run = async () => {
