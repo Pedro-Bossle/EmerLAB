@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Footer from '../../components/Footer/Footer'
 import OutlookAgendaCard from '../../components/Outlook/OutlookAgendaCard'
 import HomeNotifHelp from './HomeNotifHelp'
+import HomeTarefaChat from './HomeTarefaChat'
 import {
     PERMISSION_KEYS,
     getStoredAccessProfile,
@@ -25,10 +26,12 @@ import {
     resolverFavoritosComMeta,
 } from '../../lib/homeFavoritos'
 import {
+    MAX_ANEXOS_TAREFA,
     PRIORIDADES_TAREFA,
     STATUS_TAREFA,
     TAREFAS_POR_PAGINA,
     atualizarTarefaHome,
+    anexarArquivosTarefa,
     buscarTarefasTexto,
     contarTarefasPorAba,
     criarTarefaHome,
@@ -38,10 +41,14 @@ import {
     lerOrdemTarefasHome,
     listarTarefasHome,
     listarUsuariosParaAtribuicao,
+    listarNotificacoesMensagensTarefas,
     ordenarTarefasPorPreferencia,
+    removerAnexoTarefa,
     reordenarIdsTarefas,
     salvarOrdemTarefasHome,
     tarefaAtrasada,
+    urlAssinadaAnexoTarefa,
+    validarArquivoAnexoTarefa,
 } from '../../lib/homeTarefas'
 import {
     agruparPendenciasPorPrestador,
@@ -93,11 +100,15 @@ const Home = () => {
         prioridade: 'normal',
         atribuidoA: '',
     })
+    const [anexosPendentes, setAnexosPendentes] = useState([])
     const [salvandoTarefa, setSalvandoTarefa] = useState(false)
+    const [anexoBusyId, setAnexoBusyId] = useState(null)
+    const inputAnexoTarefaRef = useRef(null)
 
     const [notifForm, setNotifForm] = useState(0)
     const [recentesForm, setRecentesForm] = useState([])
     const [envelopesAtualizacoes, setEnvelopesAtualizacoes] = useState([])
+    const [notifMensagensTarefas, setNotifMensagensTarefas] = useState([])
     const [pendenciasPag, setPendenciasPag] = useState(0)
     const [pendenciasPagNomes, setPendenciasPagNomes] = useState([])
 
@@ -151,6 +162,12 @@ const Home = () => {
                         }))
                     })
                     .catch(() => setUsuarios([])),
+            )
+
+            jobs.push(
+                listarNotificacoesMensagensTarefas({ userId: uid })
+                    .then((lista) => setNotifMensagensTarefas(lista || []))
+                    .catch(() => setNotifMensagensTarefas([])),
             )
 
             if (podeForm) {
@@ -213,11 +230,107 @@ const Home = () => {
     useEffect(() => {
         if (!modalTarefaAberto) return undefined
         const onKey = (e) => {
-            if (e.key === 'Escape') setModalTarefaAberto(false)
+            if (e.key === 'Escape') {
+                setModalTarefaAberto(false)
+                setAnexosPendentes([])
+            }
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
     }, [modalTarefaAberto])
+
+    const fecharModalTarefa = () => {
+        setModalTarefaAberto(false)
+        setAnexosPendentes([])
+    }
+
+    const adicionarAnexosPendentes = (fileList) => {
+        const novos = Array.from(fileList || [])
+        if (!novos.length) return
+        setErro('')
+        setAnexosPendentes((prev) => {
+            const next = [...prev]
+            for (const file of novos) {
+                const check = validarArquivoAnexoTarefa(file)
+                if (!check.ok) {
+                    setErro(check.erro)
+                    continue
+                }
+                if (next.length >= MAX_ANEXOS_TAREFA) {
+                    setErro(`Máximo de ${MAX_ANEXOS_TAREFA} anexos por tarefa.`)
+                    break
+                }
+                next.push(file)
+            }
+            return next
+        })
+    }
+
+    const mesclarTarefaNaLista = (atualizada) => {
+        if (!atualizada?.id) return
+        setTarefas((prev) =>
+            (prev || []).map((t) =>
+                String(t.id) === String(atualizada.id)
+                    ? {
+                          ...t,
+                          ...atualizada,
+                          criadorNome: atualizada.criadorNome || t.criadorNome,
+                          atribuidoNome: atualizada.atribuidoNome || t.atribuidoNome,
+                      }
+                    : t,
+            ),
+        )
+    }
+
+    const onBaixarAnexoTarefa = async (anexo) => {
+        try {
+            const url = await urlAssinadaAnexoTarefa(anexo.storage_path)
+            if (!url) throw new Error('Não foi possível gerar o link do anexo.')
+            window.open(url, '_blank', 'noopener,noreferrer')
+        } catch (err) {
+            setErro(err?.message || String(err))
+        }
+    }
+
+    const onAnexarNaTarefaExistente = async (tarefa, fileList) => {
+        const files = Array.from(fileList || [])
+        if (!files.length) return
+        setAnexoBusyId(tarefa.id)
+        setErro('')
+        try {
+            for (const file of files) {
+                const check = validarArquivoAnexoTarefa(file)
+                if (!check.ok) throw new Error(check.erro)
+            }
+            const atualizada = await anexarArquivosTarefa(tarefa.id, files)
+            mesclarTarefaNaLista({
+                ...atualizada,
+                criadorNome: tarefa.criadorNome,
+                atribuidoNome: tarefa.atribuidoNome,
+            })
+        } catch (err) {
+            setErro(err?.message || String(err))
+        } finally {
+            setAnexoBusyId(null)
+        }
+    }
+
+    const onRemoverAnexoTarefa = async (tarefa, storagePath) => {
+        setAnexoBusyId(tarefa.id)
+        setErro('')
+        try {
+            const atualizada = await removerAnexoTarefa(tarefa.id, storagePath)
+            mesclarTarefaNaLista({
+                ...atualizada,
+                criadorNome: tarefa.criadorNome,
+                atribuidoNome: tarefa.atribuidoNome,
+            })
+        } catch (err) {
+            setErro(err?.message || String(err))
+        } finally {
+            setAnexoBusyId(null)
+        }
+    }
 
     const contagensFiltro = useMemo(
         () => contarTarefasPorAba(tarefas, userId),
@@ -266,6 +379,57 @@ const Home = () => {
         })
     }
 
+    const abrirTarefaDaNotificacao = (tarefaId) => {
+        const id = String(tarefaId || '')
+        if (!id) return
+        setFiltroTarefas('todas')
+        setBuscaTarefa('')
+        setTarefasExpandidas((prev) => {
+            const next = new Set(prev)
+            next.add(id)
+            return next
+        })
+        window.requestAnimationFrame(() => {
+            document
+                .getElementById(`home-tarefa-${id}`)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        })
+    }
+
+    const refreshNotifMensagens = useCallback(async () => {
+        try {
+            const lista = await listarNotificacoesMensagensTarefas({ userId })
+            setNotifMensagensTarefas(lista || [])
+        } catch {
+            /* ignore */
+        }
+    }, [userId])
+
+    useEffect(() => {
+        if (!userId) return undefined
+        const channel = supabase
+            .channel(`home-tarefas-msg-notif:${userId}`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'home_tarefas_mensagens' },
+                (payload) => {
+                    if (payload?.new?.autor_id === userId) return
+                    void refreshNotifMensagens()
+                },
+            )
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'home_tarefas_mensagens' },
+                () => {
+                    void refreshNotifMensagens()
+                },
+            )
+            .subscribe()
+        return () => {
+            void supabase.removeChannel(channel)
+        }
+    }, [userId, refreshNotifMensagens])
+
     const aplicarListaTarefas = useCallback(
         (lista) => {
             const ordenada = ordenarTarefasPorPreferencia(lista || [], ordemTarefas)
@@ -296,6 +460,7 @@ const Home = () => {
                 prazo: formTarefa.prazo || null,
                 prioridade: formTarefa.prioridade,
                 atribuidoA: formTarefa.atribuidoA || userId,
+                anexosFiles: anexosPendentes,
             })
             setFormTarefa((f) => ({
                 ...f,
@@ -304,6 +469,7 @@ const Home = () => {
                 prazo: '',
                 prioridade: 'normal',
             }))
+            setAnexosPendentes([])
             setModalTarefaAberto(false)
             const { tarefas: lista } = await listarTarefasHome({ userId })
             aplicarListaTarefas(lista)
@@ -363,18 +529,24 @@ const Home = () => {
 
     const notifEnvelopes = envelopesAtualizacoes.length
     const notifTarefasParaMim = tarefasParaMim.length
+    const notifMensagensCount = notifMensagensTarefas.reduce(
+        (acc, n) => acc + (Number(n.quantidade) || 1),
+        0,
+    )
 
     const temNotificacoes =
         (podeForm && notifForm > 0) ||
         (podeContratos && notifEnvelopes > 0) ||
         (podePagamentos && pendenciasPag > 0) ||
-        notifTarefasParaMim > 0
+        notifTarefasParaMim > 0 ||
+        notifMensagensCount > 0
 
     const totalNotificacoes =
         (podeForm ? notifForm : 0) +
         (podeContratos ? notifEnvelopes : 0) +
         (podePagamentos ? pendenciasPag : 0) +
-        notifTarefasParaMim
+        notifTarefasParaMim +
+        notifMensagensCount
 
     useEffect(() => {
         const base = 'Emerdog AIO'
@@ -538,6 +710,7 @@ const Home = () => {
                                     return (
                                         <li
                                             key={t.id}
+                                            id={`home-tarefa-${t.id}`}
                                             className={`home_dash_tarefa_item pri-${t.prioridade}${tarefaAtrasada(t) ? ' is-atrasada' : ''}${t.status === 'concluida' ? ' is-done' : ''}${expandida ? ' is-open' : ''}${isDragging ? ' is-dragging' : ''}${isDragOver ? ' is-drag-over' : ''}`}
                                             draggable
                                             onDragStart={(e) => {
@@ -632,6 +805,78 @@ const Home = () => {
                                                                     {t.observacoes}
                                                                 </p>
                                                             ) : null}
+                                                            <div
+                                                                className="home_dash_tarefa_anexos home_dash_tarefa_anexos--lista"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                onKeyDown={(e) => e.stopPropagation()}
+                                                            >
+                                                                {(t.anexos || []).length > 0 ? (
+                                                                    <ul className="home_dash_tarefa_anexo_lista">
+                                                                        {(t.anexos || []).map((a) => (
+                                                                            <li key={a.storage_path}>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="home_dash_tarefa_anexo_link"
+                                                                                    onClick={() =>
+                                                                                        void onBaixarAnexoTarefa(a)
+                                                                                    }
+                                                                                    title="Abrir anexo"
+                                                                                >
+                                                                                    {a.nome_arquivo}
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="home_dash_btn ghost"
+                                                                                    disabled={
+                                                                                        anexoBusyId === t.id
+                                                                                    }
+                                                                                    onClick={() =>
+                                                                                        void onRemoverAnexoTarefa(
+                                                                                            t,
+                                                                                            a.storage_path,
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    Remover
+                                                                                </button>
+                                                                            </li>
+                                                                        ))}
+                                                                    </ul>
+                                                                ) : (
+                                                                    <p className="home_dash_tarefa_anexos_vazio">
+                                                                        Sem anexos
+                                                                    </p>
+                                                                )}
+                                                                {(t.anexos || []).length <
+                                                                MAX_ANEXOS_TAREFA ? (
+                                                                    <label className="home_dash_tarefa_anexo_add">
+                                                                        <input
+                                                                            type="file"
+                                                                            multiple
+                                                                            disabled={anexoBusyId === t.id}
+                                                                            onChange={(e) => {
+                                                                                void onAnexarNaTarefaExistente(
+                                                                                    t,
+                                                                                    e.target.files,
+                                                                                )
+                                                                                e.target.value = ''
+                                                                            }}
+                                                                        />
+                                                                        <span>
+                                                                            {anexoBusyId === t.id
+                                                                                ? 'Enviando…'
+                                                                                : 'Anexar arquivo'}
+                                                                        </span>
+                                                                    </label>
+                                                                ) : null}
+                                                            </div>
+                                                            <HomeTarefaChat
+                                                                tarefaId={t.id}
+                                                                userId={userId}
+                                                                ativo={expandida}
+                                                                onErro={setErro}
+                                                                onMensagensLidas={refreshNotifMensagens}
+                                                            />
                                                             <div
                                                                 className="home_dash_tarefa_acoes"
                                                                 onClick={(e) => e.stopPropagation()}
@@ -906,6 +1151,50 @@ const Home = () => {
                                     </div>
                                 ) : null}
 
+                                {notifMensagensTarefas.map((n) => (
+                                    <div
+                                        key={`${n.tarefaId}-${n.deUserId}`}
+                                        className="home_dash_notif home_dash_notif_pag"
+                                    >
+                                        <button
+                                            type="button"
+                                            className="home_dash_notif_main"
+                                            onClick={() => abrirTarefaDaNotificacao(n.tarefaId)}
+                                        >
+                                            <span className="home_dash_notif_n">
+                                                {n.quantidade || 1}
+                                            </span>
+                                            <div>
+                                                <strong>Mensagem de {n.deNome}</strong>
+                                                <span>{n.preview || 'Nova mensagem'}</span>
+                                            </div>
+                                        </button>
+                                        <HomeNotifHelp
+                                            title="Ver mensagem"
+                                            ariaLabel={`Detalhes da mensagem de ${n.deNome}`}
+                                        >
+                                            <p className="home_dash_notif_help_title">
+                                                Mensagem de {n.deNome}
+                                            </p>
+                                            <ul>
+                                                <li>
+                                                    <strong>{n.tarefaTitulo}</strong>
+                                                    <span className="home_dash_notif_help_sub">
+                                                        {n.preview || 'Sem preview'}
+                                                    </span>
+                                                </li>
+                                            </ul>
+                                            <button
+                                                type="button"
+                                                className="home_dash_notif_help_link"
+                                                onClick={() => abrirTarefaDaNotificacao(n.tarefaId)}
+                                            >
+                                                Abrir tarefa
+                                            </button>
+                                        </HomeNotifHelp>
+                                    </div>
+                                ))}
+
                                 {notifTarefasParaMim > 0 ? (
                                     <div className="home_dash_notif home_dash_notif_pag">
                                         <button
@@ -964,7 +1253,7 @@ const Home = () => {
                 <div
                     className="home_dash_modal_backdrop"
                     role="presentation"
-                    onClick={() => setModalTarefaAberto(false)}
+                    onClick={() => fecharModalTarefa()}
                 >
                     <div
                         className="home_dash_modal"
@@ -975,95 +1264,156 @@ const Home = () => {
                     >
                         <div className="home_dash_modal_head">
                             <h3 id="home-dash-modal-tarefa-title">Nova tarefa</h3>
-                            <button
-                                type="button"
-                                className="home_dash_btn secondary"
-                                onClick={() => setModalTarefaAberto(false)}
-                            >
-                                Fechar
-                            </button>
                         </div>
                         <form className="home_dash_tarefa_form" onSubmit={onCriarTarefa}>
-                            <input
-                                className="home_dash_input"
-                                placeholder="Título da tarefa…"
-                                value={formTarefa.titulo}
-                                onChange={(e) =>
-                                    setFormTarefa((f) => ({ ...f, titulo: e.target.value }))
-                                }
-                                required
-                                autoFocus
-                            />
-                            <textarea
-                                className="home_dash_textarea"
-                                placeholder="Observações (opcional)"
-                                rows={3}
-                                value={formTarefa.observacoes}
-                                onChange={(e) =>
-                                    setFormTarefa((f) => ({ ...f, observacoes: e.target.value }))
-                                }
-                            />
-                            <div className="home_dash_tarefa_form_row">
-                                <label>
-                                    <span>Prazo</span>
+                            <div className="home_dash_tarefa_form_topo">
+                                <label className="home_dash_tarefa_campo home_dash_tarefa_campo--titulo">
+                                    <span>Título</span>
                                     <input
-                                        type="date"
                                         className="home_dash_input"
-                                        value={formTarefa.prazo}
+                                        placeholder="Título da tarefa…"
+                                        value={formTarefa.titulo}
                                         onChange={(e) =>
-                                            setFormTarefa((f) => ({ ...f, prazo: e.target.value }))
+                                            setFormTarefa((f) => ({ ...f, titulo: e.target.value }))
                                         }
+                                        required
+                                        autoFocus
                                     />
                                 </label>
-                                <label>
-                                    <span>Prioridade</span>
-                                    <select
-                                        className="home_dash_input"
-                                        value={formTarefa.prioridade}
-                                        onChange={(e) =>
-                                            setFormTarefa((f) => ({
-                                                ...f,
-                                                prioridade: e.target.value,
-                                            }))
-                                        }
-                                    >
-                                        {PRIORIDADES_TAREFA.map((p) => (
-                                            <option key={p.value} value={p.value}>
-                                                {p.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
-                                <label>
-                                    <span>Atribuir a</span>
-                                    <select
-                                        className="home_dash_input"
-                                        value={formTarefa.atribuidoA || userId}
-                                        onChange={(e) =>
-                                            setFormTarefa((f) => ({
-                                                ...f,
-                                                atribuidoA: e.target.value,
-                                            }))
-                                        }
-                                    >
-                                        {usuarios.length === 0 ? (
-                                            <option value={userId}>Eu</option>
-                                        ) : (
-                                            usuarios.map((u) => (
-                                                <option key={u.id} value={u.id}>
-                                                    {u.nome}
-                                                    {u.id === userId ? ' (eu)' : ''}
+                                <div className="home_dash_tarefa_form_meta">
+                                    <label className="home_dash_tarefa_campo">
+                                        <span>Atribuir</span>
+                                        <select
+                                            className="home_dash_input"
+                                            value={formTarefa.atribuidoA || userId}
+                                            onChange={(e) =>
+                                                setFormTarefa((f) => ({
+                                                    ...f,
+                                                    atribuidoA: e.target.value,
+                                                }))
+                                            }
+                                        >
+                                            {usuarios.length === 0 ? (
+                                                <option value={userId}>Eu</option>
+                                            ) : (
+                                                usuarios.map((u) => (
+                                                    <option key={u.id} value={u.id}>
+                                                        {u.nome}
+                                                        {u.id === userId ? ' (eu)' : ''}
+                                                    </option>
+                                                ))
+                                            )}
+                                        </select>
+                                    </label>
+                                    <label className="home_dash_tarefa_campo">
+                                        <span>Prazo</span>
+                                        <input
+                                            type="date"
+                                            className="home_dash_input"
+                                            value={formTarefa.prazo}
+                                            onChange={(e) =>
+                                                setFormTarefa((f) => ({ ...f, prazo: e.target.value }))
+                                            }
+                                        />
+                                    </label>
+                                    <label className="home_dash_tarefa_campo">
+                                        <span>Prioridade</span>
+                                        <select
+                                            className="home_dash_input"
+                                            value={formTarefa.prioridade}
+                                            onChange={(e) =>
+                                                setFormTarefa((f) => ({
+                                                    ...f,
+                                                    prioridade: e.target.value,
+                                                }))
+                                            }
+                                        >
+                                            {PRIORIDADES_TAREFA.map((p) => (
+                                                <option key={p.value} value={p.value}>
+                                                    {p.label}
                                                 </option>
-                                            ))
-                                        )}
-                                    </select>
-                                </label>
+                                            ))}
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+                            <label className="home_dash_tarefa_campo">
+                                <span>Descrição</span>
+                                <textarea
+                                    className="home_dash_textarea"
+                                    placeholder="Descrição (opcional)"
+                                    rows={6}
+                                    value={formTarefa.observacoes}
+                                    onChange={(e) =>
+                                        setFormTarefa((f) => ({ ...f, observacoes: e.target.value }))
+                                    }
+                                />
+                            </label>
+                            <div className="home_dash_tarefa_anexos">
+                                <input
+                                    ref={inputAnexoTarefaRef}
+                                    type="file"
+                                    multiple
+                                    className="home_dash_tarefa_anexo_input"
+                                    onChange={(e) => {
+                                        adicionarAnexosPendentes(e.target.files)
+                                        e.target.value = ''
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    className="home_dash_tarefa_anexo_zone"
+                                    disabled={
+                                        salvandoTarefa || anexosPendentes.length >= MAX_ANEXOS_TAREFA
+                                    }
+                                    onClick={() => inputAnexoTarefaRef.current?.click()}
+                                >
+                                    <span className="home_dash_tarefa_anexo_ico_wrap" aria-hidden="true">
+                                        <svg
+                                            className="home_dash_tarefa_anexo_ico"
+                                            viewBox="0 0 24 24"
+                                            width="26"
+                                            height="26"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        >
+                                            <path d="M8 12.5V8.2a4 4 0 0 1 8 0v8.1a2.7 2.7 0 1 1-5.4 0V9.1a1.3 1.3 0 1 1 2.6 0v6.4" />
+                                        </svg>
+                                    </span>
+                                    <span className="home_dash_tarefa_anexo_zone_txt">
+                                        <strong>Arquivos</strong>
+                                        <small>Clique para anexar · até {MAX_ANEXOS_TAREFA} · máx. 10 MB</small>
+                                    </span>
+                                </button>
+                                {anexosPendentes.length > 0 ? (
+                                    <ul className="home_dash_tarefa_anexo_lista">
+                                        {anexosPendentes.map((file, idx) => (
+                                            <li key={`${file.name}-${file.size}-${idx}`}>
+                                                <span title={file.name}>{file.name}</span>
+                                                <button
+                                                    type="button"
+                                                    className="home_dash_btn ghost"
+                                                    onClick={() =>
+                                                        setAnexosPendentes((prev) =>
+                                                            prev.filter((_, i) => i !== idx),
+                                                        )
+                                                    }
+                                                >
+                                                    Remover
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : null}
                             </div>
                             <div className="home_dash_modal_actions">
                                 <button
                                     type="button"
                                     className="home_dash_btn secondary"
-                                    onClick={() => setModalTarefaAberto(false)}
+                                    onClick={() => fecharModalTarefa()}
                                 >
                                     Cancelar
                                 </button>

@@ -49,7 +49,7 @@ export const clearAccessState = () => {
  * mesmo com perfil global «somente leitura» nos módulos.
  * A segurança continua nas policies RLS do Supabase.
  */
-const REST_WRITES_PERMITIDOS_EM_SOMENTE_LEITURA = ['home_tarefas']
+const REST_WRITES_PERMITIDOS_EM_SOMENTE_LEITURA = ['home_tarefas', 'home_tarefas_mensagens']
 
 function isEscritaPessoalPermitidaEmSomenteLeitura(url) {
   const raw = String(url || '')

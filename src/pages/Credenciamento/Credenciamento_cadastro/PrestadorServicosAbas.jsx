@@ -318,8 +318,8 @@ export default function PrestadorServicosAbas({
         if (!cod) return
         setNomesAlternativos((prev) => {
             const next = new Map(prev)
-            const v = String(texto ?? '').trim()
-            if (v) next.set(cod, v)
+            const v = String(texto ?? '')
+            if (v.length) next.set(cod, v)
             else next.delete(cod)
             return next
         })

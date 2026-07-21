@@ -512,7 +512,7 @@
 
 .pcad_servicos_item {
     display: grid;
-    grid-template-columns: 1fr var(--pcad-servicos-col-nome-alt, 14rem);
+    grid-template-columns: 1fr var(--pcad-servicos-col-nome-alt, 16.8rem);
     column-gap: 0.5rem;
     padding: 0.25rem 0;
     font-size: 0.88rem;

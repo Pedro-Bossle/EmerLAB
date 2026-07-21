@@ -208,8 +208,8 @@ body.dark-mode .home_dash_card {
 }
 
 .home_dash_modal {
-    width: min(520px, 100%);
-    max-height: min(90dvh, 640px);
+    width: min(811px, 100%);
+    max-height: min(92dvh, 936px);
     overflow: auto;
     padding: 1rem 1.1rem 1.15rem;
     border-radius: 14px;
@@ -222,7 +222,7 @@ body.dark-mode .home_dash_card {
 .home_dash_modal_head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 0.75rem;
     margin-bottom: 0.85rem;
 }
@@ -236,6 +236,56 @@ body.dark-mode .home_dash_card {
     margin-bottom: 0;
     padding-bottom: 0;
     border-bottom: none;
+}
+
+.home_dash_tarefa_form_topo {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
+    gap: 0.85rem 1.15rem;
+    align-items: end;
+}
+
+.home_dash_tarefa_form_meta {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    align-items: end;
+}
+
+.home_dash_tarefa_campo {
+    display: grid;
+    grid-template-rows: auto minmax(2.45rem, auto);
+    gap: 0.35rem;
+    min-width: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--home-muted);
+}
+
+.home_dash_tarefa_campo--titulo {
+    align-self: stretch;
+}
+
+.home_dash_tarefa_form_meta .home_dash_tarefa_campo {
+    align-items: stretch;
+}
+
+.home_dash_tarefa_form_meta .home_dash_input,
+.home_dash_tarefa_campo--titulo .home_dash_input {
+    height: 2.45rem;
+    min-height: 2.45rem;
+    box-sizing: border-box;
+}
+
+.home_dash_tarefa_campo .home_dash_input,
+.home_dash_tarefa_campo .home_dash_textarea {
+    font-weight: 400;
+    color: var(--home-ink);
+}
+
+.home_dash_tarefa_campo .home_dash_textarea {
+    min-height: 8.5rem;
+    resize: vertical;
 }
 
 .home_dash_modal_actions {
@@ -349,6 +399,247 @@ body.dark-mode .home_dash_card {
     margin-bottom: 1rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--home-line);
+}
+
+.home_dash_tarefa_anexos {
+    display: grid;
+    gap: 0.55rem;
+    padding: 0;
+    min-height: 8.4rem;
+    box-sizing: border-box;
+    border: 1.5px dashed #b7c7d6;
+    border-radius: 12px;
+    background: #fff;
+    color: #1a2f45;
+    overflow: hidden;
+}
+
+.home_dash_tarefa_anexos--lista {
+    margin-top: 0.35rem;
+    min-height: 5.2rem;
+    padding: 0.65rem 0.75rem;
+}
+
+.home_dash_tarefa_anexos_head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 650;
+    color: #1a2f45;
+}
+
+.home_dash_tarefa_anexos_hint,
+.home_dash_tarefa_anexos_vazio {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #5a7085;
+}
+
+.home_dash_tarefa_anexo_input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.home_dash_tarefa_anexo_zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    width: 100%;
+    min-height: 8.4rem;
+    margin: 0;
+    padding: 1.1rem 1rem;
+    border: none;
+    border-radius: 12px;
+    background: #fff;
+    color: #1a2f45;
+    font: inherit;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.home_dash_tarefa_anexo_zone:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.home_dash_tarefa_anexo_zone:hover:not(:disabled) {
+    background: #f8fbfe;
+}
+
+.home_dash_tarefa_anexo_zone:focus-visible {
+    outline: 2px solid #2f87c6;
+    outline-offset: -2px;
+}
+
+.home_dash_tarefa_anexo_ico_wrap {
+    display: grid;
+    place-items: center;
+    width: 3.1rem;
+    height: 3.1rem;
+    border-radius: 999px;
+    background: #e8f3fb;
+    border: 1px solid #c5dced;
+    color: #2f87c6;
+}
+
+.home_dash_tarefa_anexo_ico {
+    display: block;
+    color: #2f87c6;
+}
+
+.home_dash_tarefa_anexo_zone_txt {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+    justify-items: center;
+}
+
+.home_dash_tarefa_anexo_zone_txt strong {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.home_dash_tarefa_anexo_zone_txt small {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #5a7085;
+}
+
+.home_dash_tarefa_anexo_lista {
+    list-style: none;
+    margin: 0;
+    padding: 0 0.85rem 0.85rem;
+    display: grid;
+    gap: 0.35rem;
+}
+
+.home_dash_tarefa_anexos--lista .home_dash_tarefa_anexo_lista {
+    padding: 0;
+}
+
+.home_dash_tarefa_anexo_lista li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: 8px;
+    background: #f7f9fb;
+    border: 1px solid #dce4ec;
+    font-size: 0.84rem;
+    color: #1a2f45;
+}
+
+.home_dash_tarefa_anexo_lista li > span,
+.home_dash_tarefa_anexo_link {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.home_dash_tarefa_anexo_link {
+    appearance: none;
+    border: none;
+    background: none;
+    padding: 0;
+    color: #2d6a9f;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.home_dash_tarefa_anexo_lista .home_dash_btn.ghost {
+    flex-shrink: 0;
+    padding: 0.25rem 0.45rem;
+    font-size: 0.78rem;
+}
+
+.home_dash_tarefa_anexos .home_dash_btn.secondary {
+    background: #f3f6f9;
+    color: #1a2f45;
+    border-color: #c5d0db;
+    justify-self: start;
+    min-height: 2.6rem;
+    padding: 0.65rem 1.15rem;
+}
+
+.home_dash_tarefa_anexo_add {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #2d6a9f;
+}
+
+.home_dash_tarefa_anexo_add input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+}
+
+.home_dash_tarefa_anexo_add:has(input:disabled) {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+body.dark-mode .home_dash_tarefa_anexos {
+    background: #fff;
+    border-color: #b7c7d6;
+    color: #1a2f45;
+}
+
+body.dark-mode .home_dash_tarefa_anexos_head {
+    color: #1a2f45;
+}
+
+body.dark-mode .home_dash_tarefa_anexos_hint,
+body.dark-mode .home_dash_tarefa_anexos_vazio {
+    color: #5a7085;
+}
+
+body.dark-mode .home_dash_tarefa_anexo_lista li {
+    background: #f7f9fb;
+    border-color: #dce4ec;
+    color: #1a2f45;
+}
+
+body.dark-mode .home_dash_tarefa_anexos .home_dash_btn.secondary {
+    background: #f3f6f9;
+    color: #1a2f45;
+    border-color: #c5d0db;
+}
+
+body.dark-mode .home_dash_tarefa_anexo_zone {
+    background: #fff;
+    color: #1a2f45;
+}
+
+body.dark-mode .home_dash_tarefa_anexo_zone:hover:not(:disabled) {
+    background: #f8fbfe;
+}
+
+body.dark-mode .home_dash_tarefa_anexo_ico_wrap {
+    background: #e8f3fb;
+    border-color: #c5dced;
+    color: #2f87c6;
 }
 
 .home_dash_tarefa_form_row {
@@ -519,6 +810,99 @@ body.dark-mode .home_dash_card {
     font-size: 0.82rem;
     color: var(--home-muted);
     white-space: pre-wrap;
+}
+
+.home_dash_tarefa_chat {
+    margin-top: 0.65rem;
+    padding: 0.55rem 0.6rem 0.6rem;
+    border: 1px solid var(--home-line);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--home-card) 92%, var(--home-accent-soft));
+}
+
+.home_dash_tarefa_chat_head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+    font-size: 0.8rem;
+}
+
+.home_dash_tarefa_chat_status {
+    font-size: 0.72rem;
+    color: var(--home-muted);
+    font-weight: 500;
+}
+
+.home_dash_tarefa_chat_lista {
+    max-height: 220px;
+    overflow: auto;
+    display: grid;
+    gap: 0.4rem;
+    padding: 0.15rem 0.1rem 0.35rem;
+    margin-bottom: 0.45rem;
+}
+
+.home_dash_tarefa_chat_vazio {
+    margin: 0.35rem 0;
+    font-size: 0.8rem;
+    color: var(--home-muted);
+}
+
+.home_dash_tarefa_chat_msg {
+    justify-self: start;
+    max-width: min(92%, 28rem);
+    padding: 0.4rem 0.55rem;
+    border-radius: 10px 10px 10px 4px;
+    background: #fff;
+    border: 1px solid var(--home-line);
+    color: var(--home-ink);
+}
+
+.home_dash_tarefa_chat_msg.is-mine {
+    justify-self: end;
+    border-radius: 10px 10px 4px 10px;
+    background: var(--home-accent-soft);
+}
+
+.home_dash_tarefa_chat_msg_meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.15rem;
+    font-size: 0.68rem;
+    color: var(--home-muted);
+}
+
+.home_dash_tarefa_chat_msg p {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.home_dash_tarefa_chat_form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.home_dash_tarefa_chat_form .home_dash_btn {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.8rem;
+}
+
+body.dark-mode .home_dash_tarefa_chat_msg {
+    background: #243445;
+    border-color: #3d5470;
+    color: #e8eef5;
+}
+
+body.dark-mode .home_dash_tarefa_chat_msg.is-mine {
+    background: rgba(47, 135, 198, 0.28);
 }
 
 .home_dash_tarefa_meta {
@@ -920,10 +1304,16 @@ a.home_dash_agenda_link:hover {
 .home_dash_notif_help_link {
     display: inline-block;
     margin-top: 0.55rem;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--home-accent);
     text-decoration: none;
+    cursor: pointer;
+    text-align: left;
 }
 
 .home_dash_notif_help_link:hover {
@@ -1012,6 +1402,15 @@ a.home_dash_agenda_link:hover {
         min-height: calc(100dvh - 9.5rem);
     }
 
+    .home_dash_tarefa_form_topo {
+        grid-template-columns: 1fr;
+    }
+
+    .home_dash_tarefa_form_meta {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+    }
+
     .home_dash_tarefa_form_row {
         grid-template-columns: 1fr 1fr;
     }
@@ -1028,6 +1427,10 @@ a.home_dash_agenda_link:hover {
     }
 
     .home_dash_tarefa_form_row {
+        grid-template-columns: 1fr;
+    }
+
+    .home_dash_tarefa_form_meta {
         grid-template-columns: 1fr;
     }
 
