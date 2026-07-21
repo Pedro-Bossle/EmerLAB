@@ -57,6 +57,7 @@ import {
     carregarNotificacoes,
     limparTodasNotificacoesContratos,
     sincronizarNotificacoesClicksign } from '../../lib/clicksign/clicksignNotificacoes.js'
+import { supabase } from '../../lib/supabase.js'
 import { maskTelefoneBr } from '../../lib/telefoneBrasil.js'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl.js'
 import './ContratosEmerdog.css'
@@ -597,10 +598,31 @@ export default function ClicksignEmerdog() {
             void carregarContagensDashboard()
             void carregarContinuarDeOndeParou()
             void atualizarNotificacoesPainel()
+
+            const onLocal = () => {
+                void atualizarNotificacoesPainel()
+            }
+            window.addEventListener('emerdog-clicksign-notif-change', onLocal)
+
+            const channel = supabase
+                .channel('cs-hub-notifs-webhook')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'clicksign_notificacoes_webhook' },
+                    onLocal,
+                )
+                .subscribe()
+
+            // Fallback: sync API Clicksign (eventos sem webhook) — raro.
             const timer = window.setInterval(() => {
                 void atualizarNotificacoesPainel()
-            }, 90000)
-            return () => window.clearInterval(timer)
+            }, 180_000)
+
+            return () => {
+                window.clearInterval(timer)
+                window.removeEventListener('emerdog-clicksign-notif-change', onLocal)
+                void supabase.removeChannel(channel)
+            }
         }
         return undefined
     }, [tab, vistaPainel, carregarContagensDashboard, carregarContinuarDeOndeParou, atualizarNotificacoesPainel])

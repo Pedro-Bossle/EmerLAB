@@ -66,12 +66,12 @@ const menuItems = [
             },
             { label: 'Quem Realiza', href: '/credenciamento/quem-realiza', permission: PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW },
             {
-                label: 'Especialidades por cidade',
+                label: 'Especialistas por Cidade',
                 href: '/credenciamento/especialidades-cidade',
                 permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
             },
             {
-                label: 'Formulário público',
+                label: 'Formulário',
                 href: '/credenciamento/formulario',
                 permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
             },

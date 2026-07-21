@@ -225,11 +225,23 @@ export const patchCredenciadoEmSeTransicao = (situacaoIdAnterior, situacaoIdNova
 /** Situação «Preenchendo formulário(s)» ou equivalente. */
 export const acharSituacaoPreenchendoFormularioId = (situacoes) => {
     const hit = (situacoes || []).find((s) => {
-        const t = String(s.descricao || '')
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toUpperCase()
+        const t = normalizarDescricaoSituacao(s.descricao)
         return t.includes('PREENCH') && (t.includes('FORMUL') || t.includes('FORM'))
+    })
+    return hit != null ? String(hit.id) : ''
+}
+
+/** Situação «Aguardando Formulário» (ou equivalente). Sem fallback. */
+export const acharSituacaoAguardandoFormularioId = (situacoes) => {
+    const lista = situacoes || []
+    const preferido = lista.find((s) => {
+        const t = normalizarDescricaoSituacao(s.descricao)
+        return t === 'AGUARDANDO FORMULARIO' || t === 'AGUARDANDO FORMULARIOS'
+    })
+    if (preferido != null) return String(preferido.id)
+    const hit = lista.find((s) => {
+        const t = normalizarDescricaoSituacao(s.descricao)
+        return t.includes('AGUARD') && (t.includes('FORMUL') || t.includes('FORM'))
     })
     return hit != null ? String(hit.id) : ''
 }

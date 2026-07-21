@@ -6,17 +6,22 @@ import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
 import { contarProcedimentosDistintosPorPrestador } from '../../../lib/prestadorProcedimentos'
 import { aplicarVinculosLaboratoriosPorCidadeEmMassa } from '../../../lib/vincularLaboratoriosPorCidadeTabela.js'
 import {
+    acharSituacaoAguardandoFormularioId,
     acharSituacaoCredenciadoId,
     calcularPercentualCompletudePerfil,
     formatarCrmvEntrada,
+    formatarTelefoneEntrada,
     filtrarPorTermoBusca,
     listarPendenciasCompletudePerfil,
     normalizarTextoBusca,
     resolverCidadePrincipalNome,
+    prestadorEhCredenciado,
     prestadorEhEstabelecimento } from '../../../lib/prestadorCadastroHelpers'
 import {
     montarEstabelecimentoPorVeterinarioDeListas,
     resolverLocalidadeEfetivaPrestador } from '../../../lib/prestadorLocalidadeVinculo.js'
+import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
+import { montarNomeArquivoRc } from '../../../lib/rc/rcPdfNomeArquivo.js'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
 import CopiarCodigosProcedimentosBtn from './CopiarCodigosProcedimentosBtn.jsx'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
@@ -65,6 +70,21 @@ const CredenciamentoCadastroLista = () => {
     const [qtdProcedimentosPorPrestador, setQtdProcedimentosPorPrestador] = useState(() => new Map())
     const [labsMassaBusy, setLabsMassaBusy] = useState(false)
     const [feedbackLabsMassa, setFeedbackLabsMassa] = useState('')
+
+    const [modalRcAberto, setModalRcAberto] = useState(false)
+    const [rcCidadeBusca, setRcCidadeBusca] = useState('')
+    const [rcCidadesSelecionadas, setRcCidadesSelecionadas] = useState([])
+    const [rcGerando, setRcGerando] = useState(false)
+
+    const [modalSimplesAberto, setModalSimplesAberto] = useState(false)
+    const [simplesNome, setSimplesNome] = useState('')
+    const [simplesUf, setSimplesUf] = useState('')
+    const [simplesCidade, setSimplesCidade] = useState('')
+    const [simplesTelefone, setSimplesTelefone] = useState('')
+    const [simplesSituacaoId, setSimplesSituacaoId] = useState('')
+    const [municipiosUf, setMunicipiosUf] = useState([])
+    const [carregandoMunicipios, setCarregandoMunicipios] = useState(false)
+    const [salvandoSimples, setSalvandoSimples] = useState(false)
 
     useAutoDismiss(Boolean(feedbackLabsMassa), () => setFeedbackLabsMassa(''))
 
@@ -257,13 +277,50 @@ const CredenciamentoCadastroLista = () => {
         [prestadores, prestadorEstabelecimentos],
     )
 
-    const linhas = useMemo(() => {
-        const cidadesPorPrestador = new Map()
+    const cidadesPorPrestador = useMemo(() => {
+        const mapa = new Map()
         prestadorCidades.forEach((rel) => {
             const pid = Number(rel.prestador_id)
-            if (!cidadesPorPrestador.has(pid)) cidadesPorPrestador.set(pid, [])
-            cidadesPorPrestador.get(pid).push(rel)
+            if (!mapa.has(pid)) mapa.set(pid, [])
+            mapa.get(pid).push(rel)
         })
+        return mapa
+    }, [prestadorCidades])
+
+    const opcoesCidadesRc = useMemo(() => {
+        const termo = normalizarTextoBusca(rcCidadeBusca)
+        const nomes = new Set()
+        for (const p of prestadores) {
+            if (!prestadorEhCredenciado(p, situacoes)) continue
+            const pid = Number(p.id)
+            const { prestador: pLoc, prestadorIdCidades } = resolverLocalidadeEfetivaPrestador(
+                p,
+                estabelecimentoPorVeterinario,
+            )
+            const rels = cidadesPorPrestador.get(prestadorIdCidades) || cidadesPorPrestador.get(pid) || []
+            const principal = resolverCidadePrincipalNome(pLoc, {
+                mapaCidadeNomePorId: cidadePorId,
+                relacoesCidades: rels,
+            })
+            if (principal && principal !== '—') nomes.add(principal)
+            for (const rel of rels) {
+                const nome = String(cidadePorId.get(Number(rel.cidade_id))?.nome || '').trim()
+                if (nome) nomes.add(nome)
+            }
+        }
+        return [...nomes]
+            .filter((nome) => !termo || normalizarTextoBusca(nome).includes(termo))
+            .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }))
+    }, [
+        prestadores,
+        situacoes,
+        estabelecimentoPorVeterinario,
+        cidadesPorPrestador,
+        cidadePorId,
+        rcCidadeBusca,
+    ])
+
+    const linhas = useMemo(() => {
         const temVinculoClinicaPorVet = new Map()
         ;(prestadorEstabelecimentos || []).forEach((rel) => {
             const vid = Number(rel.veterinario_id)
@@ -301,9 +358,9 @@ const CredenciamentoCadastroLista = () => {
         })
     }, [
         prestadores,
-        prestadorCidades,
         prestadorEstabelecimentos,
         estabelecimentoPorVeterinario,
+        cidadesPorPrestador,
         cidadePorId,
         situacaoPorId,
         especialidadePorId,
@@ -402,6 +459,162 @@ const CredenciamentoCadastroLista = () => {
         return linhasFiltradasOrdenadas.slice(inicio, inicio + Number(itensPorPagina || 20))
     }, [linhasFiltradasOrdenadas, paginaAjustada, itensPorPagina])
 
+    const abrirModalRc = () => {
+        setRcCidadeBusca('')
+        setRcCidadesSelecionadas([])
+        setModalRcAberto(true)
+    }
+
+    const alternarCidadeRc = (nomeCidade) => {
+        setRcCidadesSelecionadas((anteriores) =>
+            anteriores.includes(nomeCidade)
+                ? anteriores.filter((nome) => nome !== nomeCidade)
+                : [...anteriores, nomeCidade],
+        )
+    }
+
+    const gerarPdfRc = async () => {
+        if (!rcCidadesSelecionadas.length) {
+            setErro('Selecione pelo menos uma cidade para gerar a RC.')
+            return
+        }
+        try {
+            setRcGerando(true)
+            setErro('')
+            const response = await fetch('/api/rc-pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cidades: rcCidadesSelecionadas }),
+            })
+            const erroJson = await response.clone().json().catch(() => null)
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error(
+                        'API RC não encontrada no dev local. Rode "npm run dev:api" e mantenha "npm run dev" em paralelo.',
+                    )
+                }
+                throw new Error(erroJson?.error || 'Falha ao gerar PDF da RC.')
+            }
+            const blob = await response.blob()
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = montarNomeArquivoRc(rcCidadesSelecionadas)
+            a.click()
+            URL.revokeObjectURL(url)
+            setModalRcAberto(false)
+        } catch (error) {
+            setErro(`Falha ao gerar RC: ${error?.message || error}`)
+        } finally {
+            setRcGerando(false)
+        }
+    }
+
+    const abrirModalSimples = () => {
+        setSimplesNome('')
+        setSimplesUf('')
+        setSimplesCidade('')
+        setSimplesTelefone('')
+        setMunicipiosUf([])
+        setErro('')
+        setModalSimplesAberto(true)
+        void (async () => {
+            let id = acharSituacaoAguardandoFormularioId(situacoes)
+            if (!id) {
+                try {
+                    const maxOrdem = situacoes.reduce((m, s) => Math.max(m, Number(s.ordem) || 0), 0)
+                    const { data, error } = await supabase
+                        .from('situacoes')
+                        .insert({
+                            descricao: 'Aguardando Formulário',
+                            ativo: true,
+                            ordem: maxOrdem + 1,
+                        })
+                        .select('id, descricao, ordem, ativo')
+                        .single()
+                    if (error) throw new Error(error.message)
+                    setSituacoes((anteriores) =>
+                        [...anteriores, data].sort((a, b) => Number(a.ordem) - Number(b.ordem)),
+                    )
+                    id = String(data.id)
+                } catch (e) {
+                    setErro(
+                        e?.message ||
+                            'Situação «Aguardando Formulário» não encontrada. Cadastre-a em Situações.',
+                    )
+                }
+            }
+            setSimplesSituacaoId(id)
+        })()
+    }
+
+    useEffect(() => {
+        if (!modalSimplesAberto || !simplesUf) {
+            setMunicipiosUf([])
+            return
+        }
+        let cancelado = false
+        setCarregandoMunicipios(true)
+        void (async () => {
+            try {
+                const lista = await buscarMunicipiosPorUf(simplesUf)
+                if (!cancelado) setMunicipiosUf(lista)
+            } catch (e) {
+                if (!cancelado) {
+                    setMunicipiosUf([])
+                    setErro(e?.message || 'Não foi possível carregar cidades desta UF.')
+                }
+            } finally {
+                if (!cancelado) setCarregandoMunicipios(false)
+            }
+        })()
+        return () => {
+            cancelado = true
+        }
+    }, [modalSimplesAberto, simplesUf])
+
+    const salvarNovoSimples = async () => {
+        if (somenteLeitura) return setErro('Seu perfil tem acesso somente leitura para credenciamento.')
+        if (!simplesNome.trim()) return setErro('Nome é obrigatório.')
+        if (!simplesUf) return setErro('UF é obrigatória.')
+        if (!simplesCidade.trim()) return setErro('Cidade é obrigatória.')
+        const situacaoId =
+            simplesSituacaoId || acharSituacaoAguardandoFormularioId(situacoes)
+        if (!situacaoId) {
+            return setErro('Situação «Aguardando Formulário» não encontrada. Cadastre-a em Situações ou reabra o modal.')
+        }
+        try {
+            setSalvandoSimples(true)
+            setErro('')
+            const agora = new Date().toISOString()
+            const payload = {
+                nome: simplesNome.trim(),
+                telefone: simplesTelefone.trim() || null,
+                endereco_uf: simplesUf,
+                endereco_cidade: simplesCidade.trim(),
+                endereco_pais: 'Brasil',
+                situacao_id: Number(situacaoId),
+                ativo: true,
+                data_cadastro: agora,
+                data_atualizacao: agora,
+            }
+            const { data: ins, error: errIns } = await supabase
+                .from('prestadores')
+                .insert(payload)
+                .select('id')
+                .single()
+            if (errIns) throw new Error(errIns.message)
+            setModalSimplesAberto(false)
+            await carregar()
+            const novoId = Number(ins?.id)
+            if (novoId) navigate(`/credenciamento/cadastro/${novoId}`)
+        } catch (e) {
+            setErro(e?.message || String(e))
+        } finally {
+            setSalvandoSimples(false)
+        }
+    }
+
     return (
         <div className={`credenciamento_main credenciamento_cadastro_lista${somenteLeitura ? ' somente_leitura_lista' : ''}`}>
             <h1>Cadastro de prestadores</h1>
@@ -447,15 +660,33 @@ const CredenciamentoCadastroLista = () => {
                                     </select>
                                 </div>
                                 <div className="credenciamento_main_filter_item credenciamento_cadastro_filters_action">
-                                    {!somenteLeitura && (
+                                    <div className="credenciamento_cadastro_lista_acoes">
                                         <button
                                             type="button"
-                                            className="credenciamento_main_action_btn credenciamento_cadastro_btn_novo"
-                                            onClick={() => navigate('/credenciamento/cadastro/novo')}
+                                            className="credenciamento_main_action_btn secondary"
+                                            onClick={abrirModalRc}
                                         >
-                                            ＋ Incluir novo
+                                            Imprimir RC
                                         </button>
-                                    )}
+                                        {!somenteLeitura && (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    className="credenciamento_main_action_btn secondary"
+                                                    onClick={abrirModalSimples}
+                                                >
+                                                    Novo Simples
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="credenciamento_main_action_btn credenciamento_cadastro_btn_novo"
+                                                    onClick={() => navigate('/credenciamento/cadastro/novo')}
+                                                >
+                                                    ＋ Incluir novo
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -681,6 +912,152 @@ const CredenciamentoCadastroLista = () => {
                     </>
                 )}
             </div>
+
+            {modalRcAberto && (
+                <div className="credenciamento_modal_backdrop" onClick={() => setModalRcAberto(false)}>
+                    <div
+                        className="credenciamento_modal credenciamento_rc_modal"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h3>Gerar RC por cidades</h3>
+                        <label className="credenciamento_modal_full">
+                            <span>Buscar cidades</span>
+                            <CampoBuscaComLimpar
+                                value={rcCidadeBusca}
+                                onChange={(event) => setRcCidadeBusca(event.target.value)}
+                                placeholder="Digite para filtrar cidades"
+                                className="credenciamento_main_input"
+                            />
+                        </label>
+                        <div className="credenciamento_rc_cidades_lista">
+                            {opcoesCidadesRc.map((cidade) => (
+                                <label key={`rc-cidade-${cidade}`} className="credenciamento_rc_cidade_item">
+                                    <input
+                                        type="checkbox"
+                                        checked={rcCidadesSelecionadas.includes(cidade)}
+                                        onChange={() => alternarCidadeRc(cidade)}
+                                    />
+                                    <span>{cidade}</span>
+                                </label>
+                            ))}
+                        </div>
+                        <div className="credenciamento_modal_actions">
+                            <button
+                                type="button"
+                                className="credenciamento_main_action_btn"
+                                onClick={() => void gerarPdfRc()}
+                                disabled={rcGerando}
+                            >
+                                {rcGerando ? 'Gerando...' : 'Gerar RC'}
+                            </button>
+                            <button
+                                type="button"
+                                className="credenciamento_main_action_btn secondary"
+                                onClick={() => setModalRcAberto(false)}
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {modalSimplesAberto && (
+                <div className="credenciamento_modal_backdrop" onClick={() => setModalSimplesAberto(false)}>
+                    <div
+                        className="credenciamento_modal credenciamento_cadastro_simples_modal"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h3>Novo cadastro simples</h3>
+                        <div className="credenciamento_modal_grid credenciamento_cadastro_simples_grid">
+                            <label className="credenciamento_cadastro_simples_nome">
+                                <span>Nome *</span>
+                                <input
+                                    type="text"
+                                    value={simplesNome}
+                                    onChange={(e) => setSimplesNome(e.target.value)}
+                                    autoFocus
+                                />
+                            </label>
+                            <label className="credenciamento_cadastro_simples_telefone">
+                                <span>Telefone</span>
+                                <input
+                                    type="text"
+                                    value={simplesTelefone}
+                                    onChange={(e) => setSimplesTelefone(formatarTelefoneEntrada(e.target.value))}
+                                    placeholder="(00) 00000-0000"
+                                />
+                            </label>
+                            <label className="credenciamento_cadastro_simples_situacao">
+                                <span>Situação</span>
+                                <select
+                                    value={simplesSituacaoId}
+                                    onChange={(e) => setSimplesSituacaoId(e.target.value)}
+                                >
+                                    <option value="">Selecione</option>
+                                    {situacoes.map((s) => (
+                                        <option key={s.id} value={s.id}>
+                                            {s.descricao}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="credenciamento_cadastro_simples_uf">
+                                <span>UF *</span>
+                                <select
+                                    value={simplesUf}
+                                    onChange={(e) => {
+                                        setSimplesUf(e.target.value)
+                                        setSimplesCidade('')
+                                    }}
+                                >
+                                    <option value="">UF</option>
+                                    {UFS_BRASIL.map((u) => (
+                                        <option key={u} value={u}>
+                                            {u}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="credenciamento_cadastro_simples_cidade">
+                                <span>Cidade *</span>
+                                <select
+                                    value={simplesCidade}
+                                    onChange={(e) => setSimplesCidade(e.target.value)}
+                                    disabled={!simplesUf || carregandoMunicipios}
+                                >
+                                    <option value="">
+                                        {carregandoMunicipios ? 'Carregando…' : 'Selecione a cidade'}
+                                    </option>
+                                    {municipiosUf.map((m) => (
+                                        <option key={m.id} value={m.nome}>
+                                            {m.nome}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+                        <div className="credenciamento_modal_actions">
+                            <button
+                                type="button"
+                                className="credenciamento_main_action_btn"
+                                onClick={() => void salvarNovoSimples()}
+                                disabled={salvandoSimples}
+                            >
+                                {salvandoSimples ? 'Salvando…' : 'Salvar'}
+                            </button>
+                            <button
+                                type="button"
+                                className="credenciamento_main_action_btn secondary"
+                                onClick={() => setModalSimplesAberto(false)}
+                                disabled={salvandoSimples}
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

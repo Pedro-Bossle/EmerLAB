@@ -49,6 +49,7 @@ import {
     tarefaAtrasada,
     urlAssinadaAnexoTarefa,
     validarArquivoAnexoTarefa,
+    podeRemoverAnexoTarefa,
 } from '../../lib/homeTarefas'
 import {
     agruparPendenciasPorPrestador,
@@ -59,12 +60,12 @@ import { supabase } from '../../lib/supabase'
 import './Home.css'
 
 const FILTRO_TAREFAS = [
-    { id: 'abertas', label: 'Abertas' },
-    { id: 'em_andamento', label: 'Em andamento' },
-    { id: 'concluidas', label: 'Concluídas' },
-    { id: 'minhas', label: 'Para mim' },
-    { id: 'criadas', label: 'Que criei' },
-    { id: 'todas', label: 'Todas' },
+    { id: 'abertas', label: 'Abertas', labelCurto: 'Abertas' },
+    { id: 'em_andamento', label: 'Em andamento', labelCurto: 'Andamento' },
+    { id: 'concluidas', label: 'Concluídas', labelCurto: 'Feitas' },
+    { id: 'minhas', label: 'Para mim', labelCurto: 'Para mim' },
+    { id: 'criadas', label: 'Que criei', labelCurto: 'Criei' },
+    { id: 'todas', label: 'Todas', labelCurto: 'Todas' },
 ]
 
 const Home = () => {
@@ -484,10 +485,86 @@ const Home = () => {
         }
     }, [userId])
 
+    const refreshNotifForm = useCallback(async () => {
+        if (!podeForm) return
+        try {
+            const [n, lista] = await Promise.all([
+                contarEntradasFormularioPendentesNotificacao(),
+                listarEntradasFormularioNotificacao({
+                    status: ['pendente', 'em_analise'],
+                    limite: 5,
+                }),
+            ])
+            setNotifForm(n)
+            setRecentesForm(lista || [])
+        } catch {
+            /* ignore */
+        }
+    }, [podeForm])
+
+    const refreshNotifContratos = useCallback(async () => {
+        if (!podeContratos) return
+        try {
+            const grupos = await listarEnvelopesComAtualizacoes(40)
+            setEnvelopesAtualizacoes(grupos || [])
+        } catch {
+            /* ignore */
+        }
+    }, [podeContratos])
+
+    const refreshNotifPagamentos = useCallback(async () => {
+        if (!podePagamentos) return
+        try {
+            const rows = await listarPagamentosPendentesNota()
+            const grupos = agruparPendenciasPorPrestador(rows || [])
+            setPendenciasPag(grupos.length)
+            setPendenciasPagNomes(
+                grupos
+                    .map((g) => String(g.prestadorNome || '').trim())
+                    .filter((n) => n && n !== '—'),
+            )
+        } catch {
+            /* ignore */
+        }
+    }, [podePagamentos])
+
+    const refreshListaTarefas = useCallback(async () => {
+        if (!userId) return
+        try {
+            const { tarefas: lista, aviso } = await listarTarefasHome({ userId })
+            const ordem = lerOrdemTarefasHome(userId)
+            setOrdemTarefas(ordem)
+            setTarefas(ordenarTarefasPorPreferencia(lista || [], ordem))
+            if (aviso) setAvisoTarefas(aviso)
+        } catch {
+            /* ignore */
+        }
+    }, [userId])
+
+    /** Notificações e listas da Home via Supabase Realtime (sem polling). */
     useEffect(() => {
         if (!userId) return undefined
+
+        let debounceTarefas = null
+        let debouncePag = null
+        const agendar = (refKey, fn, ms = 250) => {
+            if (refKey === 'tarefas') {
+                if (debounceTarefas) clearTimeout(debounceTarefas)
+                debounceTarefas = setTimeout(() => {
+                    debounceTarefas = null
+                    void fn()
+                }, ms)
+            } else if (refKey === 'pag') {
+                if (debouncePag) clearTimeout(debouncePag)
+                debouncePag = setTimeout(() => {
+                    debouncePag = null
+                    void fn()
+                }, ms)
+            }
+        }
+
         const channel = supabase
-            .channel(`home-tarefas-msg-notif:${userId}`)
+            .channel(`home-notifs-realtime:${userId}`)
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'home_tarefas_mensagens' },
@@ -503,11 +580,78 @@ const Home = () => {
                     void refreshNotifMensagens()
                 },
             )
-            .subscribe()
-        return () => {
-            void supabase.removeChannel(channel)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'home_tarefas' },
+                () => {
+                    agendar('tarefas', refreshListaTarefas)
+                },
+            )
+
+        if (podeForm) {
+            channel.on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'formulario_cred_entradas' },
+                () => {
+                    void refreshNotifForm()
+                },
+            )
         }
-    }, [userId, refreshNotifMensagens])
+
+        if (podeContratos) {
+            channel.on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'clicksign_notificacoes_webhook' },
+                () => {
+                    void refreshNotifContratos()
+                },
+            )
+        }
+
+        if (podePagamentos) {
+            channel.on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'pagamentos_registros' },
+                () => {
+                    agendar('pag', refreshNotifPagamentos)
+                },
+            )
+        }
+
+        channel.subscribe()
+
+        const onClicksignLocal = () => {
+            void refreshNotifContratos()
+        }
+        const onStorage = (e) => {
+            if (e.key && e.key !== 'emerdog_clicksign_notificacoes_v1') return
+            onClicksignLocal()
+        }
+        if (podeContratos) {
+            window.addEventListener('emerdog-clicksign-notif-change', onClicksignLocal)
+            window.addEventListener('storage', onStorage)
+        }
+
+        return () => {
+            if (debounceTarefas) clearTimeout(debounceTarefas)
+            if (debouncePag) clearTimeout(debouncePag)
+            void supabase.removeChannel(channel)
+            if (podeContratos) {
+                window.removeEventListener('emerdog-clicksign-notif-change', onClicksignLocal)
+                window.removeEventListener('storage', onStorage)
+            }
+        }
+    }, [
+        userId,
+        podeForm,
+        podeContratos,
+        podePagamentos,
+        refreshNotifMensagens,
+        refreshNotifForm,
+        refreshNotifContratos,
+        refreshNotifPagamentos,
+        refreshListaTarefas,
+    ])
 
     const aplicarListaTarefas = useCallback(
         (lista) => {
@@ -637,7 +781,7 @@ const Home = () => {
     }, [totalNotificacoes])
 
     return (
-        <div className="home_dash">
+        <div className={`home_dash${temNotificacoes ? ' home_dash--tem-notif' : ''}`}>
             <header className="home_dash_hero">
                 <div>
                     <p className="home_dash_kicker">Início</p>
@@ -651,9 +795,19 @@ const Home = () => {
 
             <section className="home_dash_bookmarks" aria-label="Favoritos">
                 <div className="home_dash_bookmarks_bar">
-                    <span className="home_dash_bookmarks_label" title="Favoritos">
-                        ★
-                    </span>
+                    <div className="home_dash_bookmarks_top">
+                        <span className="home_dash_bookmarks_label" title="Favoritos">
+                            <span aria-hidden="true">★</span>
+                            <span className="home_dash_bookmarks_label_txt">Favoritos</span>
+                        </span>
+                        <button
+                            type="button"
+                            className="home_dash_btn secondary home_dash_bookmarks_edit"
+                            onClick={() => setEditandoFavoritos((v) => !v)}
+                        >
+                            {editandoFavoritos ? 'Pronto' : 'Editar'}
+                        </button>
+                    </div>
                     {!editandoFavoritos ? (
                         <div className="home_dash_bookmarks_track">
                             {favoritos.map((f) => (
@@ -671,7 +825,7 @@ const Home = () => {
                             ))}
                             {!favoritos.length ? (
                                 <span className="home_dash_bookmarks_empty">
-                                    Nenhum favorito — Editar para adicionar
+                                    Nenhum favorito — toque em Editar
                                 </span>
                             ) : null}
                         </div>
@@ -680,13 +834,6 @@ const Home = () => {
                             Marque as páginas abaixo
                         </div>
                     )}
-                    <button
-                        type="button"
-                        className="home_dash_btn secondary home_dash_bookmarks_edit"
-                        onClick={() => setEditandoFavoritos((v) => !v)}
-                    >
-                        {editandoFavoritos ? 'OK' : 'Editar'}
-                    </button>
                 </div>
                 {editandoFavoritos ? (
                     <div className="home_dash_fav_edit">
@@ -727,17 +874,22 @@ const Home = () => {
                 ) : null}
             </section>
 
-            <section className="home_dash_grid">
+            <section
+                className={`home_dash_grid${temNotificacoes ? ' home_dash_grid--com-notif' : ''}`}
+            >
                 <div className="home_dash_col home_dash_col_main">
-                    <section className="home_dash_card" aria-label="Afazeres">
-                        <div className="home_dash_card_head">
-                            <h2>Lista de afazeres</h2>
+                    <section className="home_dash_card home_dash_card--tarefas" aria-label="Afazeres">
+                        <div className="home_dash_card_head home_dash_card_head--tarefas">
+                            <h2>Afazeres</h2>
                             <button
                                 type="button"
-                                className="home_dash_btn"
+                                className="home_dash_btn home_dash_btn--nova_tarefa"
                                 onClick={() => setModalTarefaAberto(true)}
                             >
-                                Nova tarefa
+                                <span className="home_dash_btn_nova_full">Nova tarefa</span>
+                                <span className="home_dash_btn_nova_short" aria-hidden="true">
+                                    + Nova
+                                </span>
                             </button>
                         </div>
                         <div className="home_dash_tabs" role="tablist" aria-label="Filtros de afazeres">
@@ -748,14 +900,34 @@ const Home = () => {
                                     role="tab"
                                     className={filtroTarefas === f.id ? 'is-active' : ''}
                                     onClick={() => setFiltroTarefas(f.id)}
+                                    aria-label={`${f.label}: ${contagensFiltro[f.id] ?? 0}`}
                                 >
-                                    {f.label}
+                                    <span className="home_dash_tab_label_full">{f.label}</span>
+                                    <span className="home_dash_tab_label_short" aria-hidden="true">
+                                        {f.labelCurto}
+                                    </span>
                                     <span className="home_dash_tab_count">
                                         {contagensFiltro[f.id] ?? 0}
                                     </span>
                                 </button>
                             ))}
                         </div>
+
+                        <label className="home_dash_tarefa_filtro_wrap">
+                            <span className="home_dash_tarefa_filtro_label">Filtrar</span>
+                            <select
+                                className="home_dash_input home_dash_tarefa_filtro_select"
+                                value={filtroTarefas}
+                                onChange={(e) => setFiltroTarefas(e.target.value)}
+                                aria-label="Filtro de afazeres"
+                            >
+                                {FILTRO_TAREFAS.map((f) => (
+                                    <option key={f.id} value={f.id}>
+                                        {f.label} ({contagensFiltro[f.id] ?? 0})
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
 
                         <div className="home_dash_tarefa_toolbar">
                             <input
@@ -902,7 +1074,13 @@ const Home = () => {
                                                             >
                                                                 {(t.anexos || []).length > 0 ? (
                                                                     <ul className="home_dash_tarefa_anexo_lista">
-                                                                        {(t.anexos || []).map((a) => (
+                                                                        {(t.anexos || []).map((a) => {
+                                                                            const podeRemover = podeRemoverAnexoTarefa(
+                                                                                a,
+                                                                                t,
+                                                                                userId,
+                                                                            )
+                                                                            return (
                                                                             <li key={a.storage_path}>
                                                                                 <button
                                                                                     type="button"
@@ -914,6 +1092,7 @@ const Home = () => {
                                                                                 >
                                                                                     {a.nome_arquivo}
                                                                                 </button>
+                                                                                {podeRemover ? (
                                                                                 <button
                                                                                     type="button"
                                                                                     className="home_dash_btn ghost"
@@ -929,8 +1108,10 @@ const Home = () => {
                                                                                 >
                                                                                     Remover
                                                                                 </button>
+                                                                                ) : null}
                                                                             </li>
-                                                                        ))}
+                                                                            )
+                                                                        })}
                                                                     </ul>
                                                                 ) : (
                                                                     <p className="home_dash_tarefa_anexos_vazio">
@@ -1087,9 +1268,16 @@ const Home = () => {
                 </div>
 
                 <div className="home_dash_col home_dash_col_side">
-                    <section className="home_dash_card" aria-label="Notificações">
+                    <section className="home_dash_card home_dash_card--notifs" aria-label="Notificações">
                         <div className="home_dash_card_head">
-                            <h2>Notificações</h2>
+                            <h2>
+                                Notificações
+                                {temNotificacoes ? (
+                                    <span className="home_dash_notif_badge_total" aria-hidden="true">
+                                        {totalNotificacoes > 99 ? '99+' : totalNotificacoes}
+                                    </span>
+                                ) : null}
+                            </h2>
                         </div>
                         {!temNotificacoes ? (
                             <p className="home_dash_empty">Nada por aqui</p>
@@ -1332,7 +1520,7 @@ const Home = () => {
                         )}
                     </section>
 
-                    <section className="home_dash_card" aria-label="Agenda Outlook">
+                    <section className="home_dash_card home_dash_card--agenda" aria-label="Agenda Outlook">
                         <div className="home_dash_card_head">
                             <h2>Agenda</h2>
                             <span className="home_dash_pill">Outlook</span>

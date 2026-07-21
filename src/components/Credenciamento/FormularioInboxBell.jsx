@@ -25,10 +25,10 @@ import { formatarCpfCnpjEntrada } from '../../lib/prestadorCadastroHelpers'
 import { formatarDataPtBr } from '../../pages/Contratos/contratosUi'
 import './FormularioInboxBell.css'
 
-/** Fallback se Realtime do Supabase estiver indisponível. */
-const INTERVALO_MS = 30_000
-/** Intervalo mínimo entre chamadas à API Clicksign (polling). */
-const INTERVALO_SYNC_CONTRATOS_MS = 45_000
+/** Fallback raro se Realtime do Supabase estiver indisponível. */
+const INTERVALO_FALLBACK_MS = 120_000
+/** Sync Clicksign API só ao focar a aba / abrir painel (webhook cobre o tempo real). */
+const INTERVALO_SYNC_CONTRATOS_MS = 60_000
 const TITULO_ABA_BASE = 'Emerdog AIO'
 
 export default function FormularioInboxBell() {
@@ -123,7 +123,7 @@ export default function FormularioInboxBell() {
     useEffect(() => {
         if (!temPermissao) return undefined
         void atualizar({ forcarContratos: true })
-        const t = setInterval(() => void atualizar(), INTERVALO_MS)
+        const t = setInterval(() => void atualizar(), INTERVALO_FALLBACK_MS)
         return () => clearInterval(t)
     }, [temPermissao, atualizar])
 
@@ -146,6 +146,32 @@ export default function FormularioInboxBell() {
             void supabase.removeChannel(channel)
         }
     }, [temPermissao, podeNotifForm, atualizarFormulario])
+
+    useEffect(() => {
+        if (!temPermissao || !podeNotifContratos) return undefined
+        const onWebhook = () => {
+            void (async () => {
+                try {
+                    const n = await contarNotificacoesContratosTotal()
+                    setCountContratos(n)
+                    if (aberto) setRecentesContratos(await listarNotificacoesContratosRecentes(8))
+                } catch {
+                    /* ignore */
+                }
+            })()
+        }
+        const channel = supabase
+            .channel('form-inbox-bell-clicksign')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'clicksign_notificacoes_webhook' },
+                onWebhook,
+            )
+            .subscribe()
+        return () => {
+            void supabase.removeChannel(channel)
+        }
+    }, [temPermissao, podeNotifContratos, aberto])
 
     useEffect(() => {
         if (!temPermissao) return undefined

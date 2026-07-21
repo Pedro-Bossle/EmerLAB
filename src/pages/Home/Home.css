@@ -117,6 +117,10 @@ body.dark-mode .home_dash_card {
     margin: 0;
     font-size: 1.1rem;
     font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.15rem;
 }
 
 .home_dash_tabs {
@@ -124,6 +128,27 @@ body.dark-mode .home_dash_card {
     flex-wrap: wrap;
     gap: 0.35rem;
     margin: 0 0 0.85rem;
+}
+
+.home_dash_tarefa_filtro_wrap {
+    display: none;
+    margin: 0 0 0.85rem;
+    gap: 0.35rem;
+}
+
+.home_dash_tarefa_filtro_label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--home-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.home_dash_tarefa_filtro_select {
+    width: 100%;
+    min-height: 2.55rem;
+    font-size: 1rem;
+    cursor: pointer;
 }
 
 .home_dash_tabs button {
@@ -306,6 +331,10 @@ body.dark-mode .home_dash_card {
     font-size: 0.88rem;
     cursor: pointer;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
 }
 
 .home_dash_btn:disabled {
@@ -847,13 +876,16 @@ body.dark-mode .home_dash_tarefa_anexos.is-dragover .home_dash_tarefa_anexo_ico_
 }
 
 .home_dash_tarefa_obs {
-    margin: 0.45rem 0 0;
-    padding: 0.4rem 0.5rem;
-    border-radius: 6px;
-    background: var(--home-accent-soft);
-    font-size: 0.82rem;
-    color: var(--home-muted);
+    margin: 0.65rem 0 0;
+    padding: 0.55rem 0.6rem;
+    border-radius: 10px;
+    border: 1px solid var(--home-line);
+    background: color-mix(in srgb, var(--home-card) 92%, var(--home-accent-soft));
+    font-size: 0.84rem;
+    line-height: 1.35;
+    color: var(--home-ink);
     white-space: pre-wrap;
+    word-break: break-word;
 }
 
 .home_dash_tarefa_chat {
@@ -995,12 +1027,28 @@ body.dark-mode .home_dash_bookmarks_bar {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+.home_dash_bookmarks_top {
+    display: contents;
+}
+
 .home_dash_bookmarks_label {
     flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     color: var(--home-accent);
     font-size: 0.95rem;
     line-height: 1;
     opacity: 0.9;
+}
+
+.home_dash_bookmarks_label_txt {
+    display: none;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--home-muted);
 }
 
 .home_dash_bookmarks_track {
@@ -1012,6 +1060,14 @@ body.dark-mode .home_dash_bookmarks_bar {
     overflow-x: auto;
     scrollbar-width: thin;
     padding: 0.1rem 0;
+}
+
+.home_dash_btn_nova_short {
+    display: none;
+}
+
+.home_dash_tab_label_short {
+    display: none;
 }
 
 .home_dash_bookmark {
@@ -1440,10 +1496,27 @@ a.home_dash_agenda_link:hover {
     border-top-right-radius: 0;
 }
 
+.home_dash_notif_badge_total {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    margin-left: 0.45rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: var(--home-accent);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
 @media (max-width: 1100px) {
     .home_dash_grid {
         grid-template-columns: 1fr;
-        min-height: calc(100dvh - 9.5rem);
+        min-height: 0;
+        gap: 0.9rem;
     }
 
     .home_dash_tarefa_form_topo {
@@ -1460,14 +1533,419 @@ a.home_dash_agenda_link:hover {
     }
 }
 
+/* Tablet / layout compacto do shell */
+@media (max-width: 1023px) {
+    .home_dash {
+        padding: 1rem 1rem 5.5rem;
+        padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .home_dash_hero {
+        margin-bottom: 0.85rem;
+    }
+
+    .home_dash_hero h1 {
+        font-size: clamp(1.35rem, 5vw, 1.75rem);
+    }
+
+    .home_dash_lead {
+        font-size: 0.95rem;
+    }
+
+    .home_dash_footer_wrap {
+        margin-left: -1rem;
+        margin-right: -1rem;
+    }
+
+    /* Compacto: seletor único no lugar das abas roláveis */
+    .home_dash_tabs {
+        display: none;
+    }
+
+    .home_dash_tarefa_filtro_wrap {
+        display: grid;
+        margin: 0 0 0.85rem;
+    }
+}
+
 @media (max-width: 640px) {
     .home_dash {
-        padding: 0.85rem 0.85rem 0;
+        padding: 0.75rem 0.85rem 7rem;
+        padding-right: max(0.85rem, env(safe-area-inset-right));
+        padding-left: max(0.85rem, env(safe-area-inset-left));
+        padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+        overflow-x: clip;
     }
 
     .home_dash_hero {
         flex-direction: column;
         align-items: stretch;
+        margin-bottom: 0.75rem;
+    }
+
+    .home_dash_kicker {
+        font-size: 0.68rem;
+    }
+
+    .home_dash_hero h1 {
+        font-size: 1.4rem;
+        word-break: break-word;
+    }
+
+    .home_dash_lead {
+        margin-top: 0.2rem;
+        font-size: 0.9rem;
+    }
+
+    .home_dash_grid {
+        gap: 0.85rem;
+    }
+
+    .home_dash_grid--com-notif {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
+
+    .home_dash_grid--com-notif .home_dash_col_side {
+        display: contents;
+    }
+
+    .home_dash_grid--com-notif .home_dash_card--notifs {
+        order: -1;
+    }
+
+    .home_dash_grid--com-notif .home_dash_col_main {
+        order: 0;
+    }
+
+    .home_dash_grid--com-notif .home_dash_card--agenda {
+        order: 1;
+    }
+
+    .home_dash_card {
+        padding: 0.9rem 0.85rem 1rem;
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+    .home_dash_card + .home_dash_card {
+        margin-top: 0.85rem;
+    }
+
+    .home_dash_card_head {
+        align-items: stretch;
+        gap: 0.55rem;
+        margin-bottom: 0.75rem;
+        flex-wrap: nowrap;
+    }
+
+    .home_dash_card_head h2 {
+        font-size: 1.05rem;
+        min-width: 0;
+    }
+
+    .home_dash_card_head--tarefas {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        flex-direction: column;
+        align-items: stretch;
+        margin: -0.9rem -0.85rem 0.75rem;
+        padding: 0.75rem 0.85rem;
+        background: color-mix(in srgb, var(--home-card) 94%, transparent);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--home-line);
+        border-radius: 14px 14px 0 0;
+    }
+
+    body.dark-mode .home_dash_card_head--tarefas {
+        background: color-mix(in srgb, var(--home-card) 90%, #000);
+    }
+
+    .home_dash_card_head--tarefas h2 {
+        width: 100%;
+    }
+
+    .home_dash_btn--nova_tarefa {
+        width: 100%;
+        min-height: 2.55rem;
+        padding: 0.55rem 0.85rem;
+        font-size: 0.9rem;
+        border-radius: 10px;
+        justify-content: center;
+    }
+
+    .home_dash_btn_nova_full {
+        display: none;
+    }
+
+    .home_dash_btn_nova_short {
+        display: inline;
+    }
+
+    .home_dash_tabs {
+        display: none;
+    }
+
+    .home_dash_tarefa_filtro_wrap {
+        display: grid;
+        margin: 0 0 0.75rem;
+    }
+
+    .home_dash_tarefa_filtro_select {
+        min-height: 2.55rem;
+        font-size: 1rem;
+        border-radius: 10px;
+    }
+
+    .home_dash_tarefa_busca {
+        min-height: 2.55rem;
+        font-size: 1rem;
+        width: 100%;
+    }
+
+    .home_dash_tarefa_item {
+        padding: 0.7rem 0.7rem;
+        border-radius: 12px;
+        border-left-width: 4px;
+    }
+
+    .home_dash_tarefa_row {
+        gap: 0.5rem;
+    }
+
+    .home_dash_tarefa_drag {
+        display: none;
+    }
+
+    .home_dash_tarefa_expand {
+        width: 1.55rem;
+        height: 1.55rem;
+        margin-top: 0.1rem;
+        font-size: 0.85rem;
+        border-radius: 8px;
+        background: var(--home-accent-soft);
+        pointer-events: none;
+        flex-shrink: 0;
+    }
+
+    .home_dash_tarefa_top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.35rem;
+    }
+
+    .home_dash_tarefa_top strong {
+        font-size: 0.95rem;
+        width: 100%;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+    }
+
+    .home_dash_tarefa_top .home_dash_pill {
+        flex: 0 0 auto;
+        max-width: 100%;
+        font-size: 0.72rem;
+        padding: 0.2rem 0.55rem;
+        white-space: nowrap;
+    }
+
+    .home_dash_tarefa_meta {
+        font-size: 0.78rem;
+        gap: 0.3rem 0.65rem;
+    }
+
+    .home_dash_tarefa_meta--compact {
+        margin-top: 0.2rem;
+    }
+
+    .home_dash_tarefa_acoes {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.45rem;
+        margin-top: 0.7rem;
+    }
+
+    .home_dash_tarefa_acoes .home_dash_btn {
+        width: 100%;
+        min-height: 2.4rem;
+        padding: 0.45rem 0.5rem;
+        font-size: 0.78rem;
+        justify-content: center;
+    }
+
+    .home_dash_tarefa_chat {
+        margin-top: 0.75rem;
+    }
+
+    .home_dash_tarefa_chat_lista {
+        max-height: 180px;
+    }
+
+    .home_dash_tarefa_chat_form {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.35rem;
+    }
+
+    .home_dash_tarefa_chat_form .home_dash_input {
+        min-height: 2.4rem;
+        font-size: 1rem;
+    }
+
+    .home_dash_tarefa_chat_form .home_dash_btn {
+        min-height: 2.4rem;
+        padding: 0.45rem 0.7rem;
+    }
+
+    .home_dash_tarefa_anexo_lista li {
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+
+    .home_dash_tarefa_paginacao {
+        gap: 0.4rem;
+    }
+
+    .home_dash_tarefa_paginacao .home_dash_btn {
+        min-height: 2.25rem;
+        flex: 1 1 auto;
+    }
+
+    .home_dash_notif {
+        padding: 0.7rem 0.65rem;
+        border-radius: 12px;
+        min-height: 3.1rem;
+    }
+
+    .home_dash_notif_pag {
+        padding: 0.5rem 0.45rem 0.5rem 0.55rem;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .home_dash_notif_main {
+        gap: 0.6rem;
+        padding: 0.2rem 0.1rem;
+        min-width: 0;
+    }
+
+    .home_dash_notif_main > div {
+        min-width: 0;
+    }
+
+    .home_dash_notif_main > div > span {
+        overflow-wrap: anywhere;
+    }
+
+    .home_dash_notif .home_dash_notif_n {
+        min-width: 2.4rem;
+        height: 2.4rem;
+        font-size: 1rem;
+        border-radius: 12px;
+        flex-shrink: 0;
+    }
+
+    .home_dash_notif strong {
+        font-size: 0.92rem;
+    }
+
+    .home_dash_notif_help_btn {
+        width: 2rem;
+        height: 2rem;
+        font-size: 0.9rem;
+        flex-shrink: 0;
+    }
+
+    .home_dash_notif_help_panel {
+        position: fixed;
+        left: 0.85rem;
+        right: 0.85rem;
+        top: auto;
+        bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+        width: auto;
+        max-width: none;
+        max-height: min(45dvh, 320px);
+        z-index: 40;
+        box-shadow: 0 12px 36px rgba(30, 49, 72, 0.28);
+    }
+
+    .home_dash_bookmarks {
+        margin-bottom: 0.85rem;
+    }
+
+    .home_dash_bookmarks_bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.45rem;
+        padding: 0.55rem 0.6rem 0.6rem;
+        min-height: 0;
+        border-radius: 12px;
+    }
+
+    .home_dash_bookmarks_top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    .home_dash_bookmarks_label_txt {
+        display: inline;
+    }
+
+    .home_dash_bookmarks_track {
+        width: 100%;
+        gap: 0.35rem;
+        padding: 0.05rem 0 0.1rem;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .home_dash_bookmarks_track::-webkit-scrollbar {
+        display: none;
+    }
+
+    .home_dash_bookmark {
+        max-width: none;
+        min-height: 2.15rem;
+        padding: 0.35rem 0.65rem;
+        font-size: 0.8rem;
+        gap: 0.35rem;
+        border-radius: 999px;
+        background: var(--home-card);
+        border: 1px solid var(--home-line);
+    }
+
+    .home_dash_bookmark_txt {
+        max-width: 9.5rem;
+    }
+
+    .home_dash_bookmark_ico {
+        width: 1.15rem;
+        height: 1.15rem;
+        font-size: 0.62rem;
+    }
+
+    .home_dash_bookmarks_edit {
+        min-height: 2rem;
+        padding: 0.3rem 0.7rem;
+        font-size: 0.78rem;
+        flex-shrink: 0;
+    }
+
+    .home_dash_bookmarks_empty,
+    .home_dash_bookmarks_edit_hint {
+        font-size: 0.78rem;
+        padding: 0.15rem 0;
+    }
+
+    .home_dash_fav_edit {
+        max-height: 50dvh;
+    }
+
+    .home_dash_fav_edit_grupo ul {
+        grid-template-columns: 1fr;
     }
 
     .home_dash_tarefa_form_row {
@@ -1478,100 +1956,79 @@ a.home_dash_agenda_link:hover {
         grid-template-columns: 1fr;
     }
 
-    .home_dash_card_head {
-        align-items: center;
-    }
-
-    .home_dash_card_head .home_dash_btn {
-        padding: 0.4rem 0.7rem;
-        font-size: 0.8rem;
-    }
-
-    .home_dash_tabs {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        scrollbar-width: thin;
-        margin-bottom: 0.75rem;
-        padding-bottom: 0.15rem;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .home_dash_tabs button {
-        flex: 0 0 auto;
-    }
-
-    /* Barra de favoritos: uma linha com scroll horizontal */
-    .home_dash_bookmarks_bar {
-        flex-wrap: nowrap;
-        gap: 0.3rem;
-        padding: 0.22rem 0.35rem 0.22rem 0.4rem;
-        min-height: 2.15rem;
-    }
-
-    .home_dash_bookmarks_label {
-        font-size: 0.85rem;
-    }
-
-    .home_dash_bookmarks_track {
-        order: 0;
-        flex: 1 1 auto;
-        min-width: 0;
-        gap: 0.1rem;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .home_dash_bookmark {
-        max-width: 8.5rem;
-        padding: 0.22rem 0.4rem;
-        font-size: 0.75rem;
-        gap: 0.28rem;
-    }
-
-    .home_dash_bookmark_ico {
-        width: 1rem;
-        height: 1rem;
-        font-size: 0.58rem;
-    }
-
-    .home_dash_bookmarks_edit {
-        padding: 0.28rem 0.55rem;
-        font-size: 0.72rem;
-    }
-
-    .home_dash_bookmarks_empty,
-    .home_dash_bookmarks_edit_hint {
-        font-size: 0.72rem;
-    }
-
-    .home_dash_fav_edit {
-        max-height: 260px;
-    }
-
-    .home_dash_fav_edit_grupo ul {
-        grid-template-columns: 1fr;
+    .home_dash_tarefa_form_meta .home_dash_input,
+    .home_dash_tarefa_campo--titulo .home_dash_input,
+    .home_dash_tarefa_campo .home_dash_input,
+    .home_dash_tarefa_campo .home_dash_textarea,
+    .home_dash_modal .home_dash_input,
+    .home_dash_modal select.home_dash_input {
+        min-height: 2.5rem;
+        font-size: 1rem;
     }
 
     .home_dash_modal_backdrop {
-        padding: 0.75rem;
+        padding: 0;
         align-items: flex-end;
+        background: rgba(15, 23, 36, 0.45);
     }
 
     .home_dash_modal {
         width: 100%;
-        max-height: 88dvh;
-        border-radius: 14px 14px 10px 10px;
+        max-width: none;
+        max-height: min(92dvh, 100%);
+        border-radius: 16px 16px 0 0;
+        padding: 0.85rem 0.9rem calc(0.9rem + env(safe-area-inset-bottom, 0px));
+        box-shadow: 0 -8px 32px rgba(30, 49, 72, 0.22);
+    }
+
+    .home_dash_modal_head h3 {
+        font-size: 1.05rem;
     }
 
     .home_dash_modal_actions {
         flex-direction: column-reverse;
+        gap: 0.45rem;
+        position: sticky;
+        bottom: 0;
+        padding-top: 0.65rem;
+        background: linear-gradient(180deg, transparent, var(--home-card) 28%);
     }
 
     .home_dash_modal_actions .home_dash_btn {
         width: 100%;
+        min-height: 2.65rem;
+        font-size: 0.92rem;
+    }
+
+    .home_dash_modal_confirm .home_dash_modal_actions {
+        flex-direction: column-reverse;
     }
 
     .home_dash_footer_wrap {
         margin-left: -0.85rem;
         margin-right: -0.85rem;
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .home_dash_footer_wrap footer {
+        padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    }
+}
+
+/* Toque / ponteiro grosso: alvos maiores mesmo em tablets largos */
+@media (hover: none) and (pointer: coarse) {
+    .home_dash_tarefa_drag {
+        display: none;
+    }
+
+    .home_dash_tabs button,
+    .home_dash_bookmark,
+    .home_dash_btn {
+        min-height: 2.2rem;
+    }
+
+    .home_dash_tarefa_item:hover {
+        border-color: var(--home-line);
     }
 }

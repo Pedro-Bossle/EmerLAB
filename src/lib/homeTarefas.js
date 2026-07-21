@@ -50,9 +50,31 @@ export function normalizarAnexosTarefa(raw) {
                 nome_arquivo: String(item.nome_arquivo || 'arquivo').trim() || 'arquivo',
                 mime_type: item.mime_type ? String(item.mime_type) : null,
                 tamanho: Number.isFinite(Number(item.tamanho)) ? Number(item.tamanho) : null,
+                enviadoPor: item.enviado_por || item.enviadoPor
+                    ? String(item.enviado_por || item.enviadoPor)
+                    : null,
             }
         })
         .filter(Boolean)
+}
+
+function serializarAnexosParaDb(anexos) {
+    return (anexos || []).map((a) => ({
+        storage_path: a.storage_path,
+        nome_arquivo: a.nome_arquivo,
+        mime_type: a.mime_type ?? null,
+        tamanho: a.tamanho ?? null,
+        enviado_por: a.enviadoPor || a.enviado_por || null,
+    }))
+}
+
+/** Só quem enviou o arquivo pode removê-lo (anexos antigos sem dono: só o criador da tarefa). */
+export function podeRemoverAnexoTarefa(anexo, tarefa, userId) {
+    const uid = String(userId || '')
+    if (!uid || !anexo) return false
+    const dono = String(anexo.enviadoPor || '').trim()
+    if (dono) return dono === uid
+    return String(tarefa?.criadoPor || '') === uid
 }
 
 export function mapRowTarefa(row, nomesPorId = new Map()) {
@@ -214,6 +236,10 @@ export async function anexarArquivosTarefa(tarefaId, files) {
         throw new Error(`Máximo de ${MAX_ANEXOS_TAREFA} anexos por tarefa.`)
     }
 
+    const { data: userData } = await supabase.auth.getUser()
+    const uid = userData?.user?.id
+    if (!uid) throw new Error('Sessão ausente.')
+
     const novos = []
     for (const file of lista) {
         const storagePath = montarStoragePathAnexoTarefa(tid, file.name)
@@ -237,10 +263,14 @@ export async function anexarArquivosTarefa(tarefaId, files) {
             nome_arquivo: nomeArquivoExibicaoAnexo(file.name),
             mime_type: file.type || null,
             tamanho: file.size || null,
+            enviado_por: uid,
         })
     }
 
-    const data = await atualizarAnexosNaTarefa(tid, [...anexosAtuais, ...novos])
+    const data = await atualizarAnexosNaTarefa(
+        tid,
+        serializarAnexosParaDb([...anexosAtuais, ...novos]),
+    )
     return mapRowTarefa(data)
 }
 
@@ -252,10 +282,20 @@ export async function removerAnexoTarefa(tarefaId, storagePath) {
         return mapRowTarefa(data)
     }
 
+    const { data: userData } = await supabase.auth.getUser()
+    const uid = userData?.user?.id
+    if (!uid) throw new Error('Sessão ausente.')
+
     const { data: atual, error } = await selectTarefaPorId(tid)
     if (error) throw new Error(error.message)
-    const restantes = normalizarAnexosTarefa(atual?.anexos).filter((a) => a.storage_path !== path)
-    const data = await atualizarAnexosNaTarefa(tid, restantes)
+    const tarefa = mapRowTarefa(atual)
+    const alvo = (tarefa?.anexos || []).find((a) => a.storage_path === path)
+    if (!alvo) return tarefa
+    if (!podeRemoverAnexoTarefa(alvo, tarefa, uid)) {
+        throw new Error('Só quem enviou o arquivo pode removê-lo.')
+    }
+    const restantes = (tarefa.anexos || []).filter((a) => a.storage_path !== path)
+    const data = await atualizarAnexosNaTarefa(tid, serializarAnexosParaDb(restantes))
     try {
         await removerArquivosStorage([path])
     } catch {

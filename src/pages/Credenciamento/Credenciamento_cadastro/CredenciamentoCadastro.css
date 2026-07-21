@@ -63,10 +63,77 @@
     padding-bottom: 0;
 }
 
+.credenciamento_cadastro_lista .credenciamento_cadastro_lista_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.credenciamento_cadastro_lista .credenciamento_cadastro_lista_acoes .credenciamento_main_action_btn {
+    width: auto;
+    min-width: 0;
+    height: 30px;
+    white-space: nowrap;
+}
+
 .credenciamento_cadastro_lista .credenciamento_cadastro_btn_novo {
-    width: 100%;
+    width: auto;
     min-width: 148px;
     height: 30px;
+}
+
+.credenciamento_cadastro_simples_modal {
+    width: min(520px, calc(100vw - 24px));
+}
+
+.credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_grid {
+    grid-template-columns: 100px minmax(0, 1fr) minmax(0, 1.1fr);
+    gap: 12px 10px;
+}
+
+.credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_nome {
+    grid-column: 1 / -1;
+}
+
+.credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_telefone {
+    grid-column: 1 / 3;
+}
+
+.credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_cidade {
+    grid-column: 2 / -1;
+}
+
+.credenciamento_cadastro_simples_modal .credenciamento_modal_grid input,
+.credenciamento_cadastro_simples_modal .credenciamento_modal_grid select {
+    width: 100%;
+    min-width: 0;
+    height: 38px;
+    box-sizing: border-box;
+    padding: 0 10px;
+    line-height: 36px;
+    font-size: 0.92rem;
+    border-radius: 8px;
+    border: 1px solid #9fc5de;
+    background: #fff;
+    color: #15364f;
+}
+
+.credenciamento_cadastro_simples_modal .credenciamento_modal_grid select {
+    appearance: auto;
+}
+
+@media (max-width: 560px) {
+    .credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_grid {
+        grid-template-columns: 1fr;
+    }
+
+    .credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_telefone,
+    .credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_cidade,
+    .credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_nome {
+        grid-column: 1 / -1;
+    }
 }
 
 .credenciamento_cadastro_filter_switch .credenciamento_switch {
@@ -1031,8 +1098,19 @@
         align-items: stretch !important;
     }
 
+    .credenciamento_cadastro_lista .credenciamento_cadastro_lista_acoes {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .credenciamento_cadastro_lista .credenciamento_cadastro_lista_acoes .credenciamento_main_action_btn {
+        width: 100%;
+    }
+
     .credenciamento_cadastro_lista .credenciamento_cadastro_btn_novo {
         min-width: 0;
+        width: 100%;
     }
 
     .credenciamento_main.pcad_form_page {

@@ -355,10 +355,15 @@ export default function BatePapoFloating() {
     useEffect(() => {
         if (!permitido || !userId) return undefined
         void atualizarBadge()
-        const t = setInterval(() => {
-            void atualizarBadge()
-        }, 60000)
-        return () => clearInterval(t)
+        const onVis = () => {
+            if (document.visibilityState === 'visible') void atualizarBadge()
+        }
+        document.addEventListener('visibilitychange', onVis)
+        const t = setInterval(() => void atualizarBadge(), 120_000)
+        return () => {
+            document.removeEventListener('visibilitychange', onVis)
+            clearInterval(t)
+        }
     }, [permitido, userId, atualizarBadge])
 
     useEffect(() => {
@@ -427,6 +432,18 @@ export default function BatePapoFloating() {
                             void atualizarBadge()
                         }
                     })()
+                },
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'home_bate_papo_mensagens',
+                },
+                () => {
+                    void atualizarBadge()
+                    if (abertoRef.current) void carregarLista()
                 },
             )
             .subscribe()
@@ -605,8 +622,8 @@ export default function BatePapoFloating() {
                 aria-expanded={aberto}
                 title={
                     compacto
-                        ? 'Bate-papo — clique para abrir, arraste para mover'
-                        : 'Bate-papo — arraste para mover, clique para abrir'
+                        ? 'Emer-zap — clique para abrir, arraste para mover'
+                        : 'Emer-zap — arraste para mover, clique para abrir'
                 }
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}

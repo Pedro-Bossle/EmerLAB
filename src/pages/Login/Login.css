@@ -2,58 +2,113 @@
     align-items: center;
     display: flex;
     justify-content: center;
-    background: white;
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 1.5rem;
+    background: #ffffff;
+    color: var(--cinza-escuro);
 }
 
 .login_container {
-    border: 1px solid black;
-    border-radius: 8px;
-    margin: 5em;
-    padding: 2em 5em;
-    background-color: white;
+    border: 1px solid #1e3148;
+    border-radius: 12px;
+    margin: 0;
+    padding: 2em 3.5em;
+    background-color: #ffffff;
+    box-shadow: 0 12px 32px rgba(30, 49, 72, 0.1);
+    max-width: 440px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .login_title {
-    color: var(--azul-escuro);
+    color: #1e3148;
+    font-size: 1.55rem;
+    line-height: 1.2;
+    margin: 0 0 0.35rem;
 }
 
+.login_subtitle {
+    margin: 0;
+    color: #5a6f86;
+    font-size: 0.92rem;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+.login_subtitle + .login_subtitle {
+    margin-top: 0.15rem;
+}
 
 .login_form {
-    margin: 2em;
+    margin: 1.5rem 0 0;
     display: flex;
     flex-direction: column;
-    gap: 1em;
-    align-items: center;
+    gap: 0.85rem;
+    align-items: stretch;
 }
 
 .login_input {
-    padding: 7px;
-    font-size: 15px;
-    border: 1px solid var(--azul-escuro);
-    border-radius: 5px;
-    width: 15vw;
+    padding: 0.65rem 0.75rem;
+    font-size: 1rem;
+    border: 1px solid #9eb8cc;
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    background: #ffffff;
+    color: #1e3148;
+}
+
+.login_input::placeholder {
+    color: #7a8fa3;
+}
+
+.login_input:focus {
+    outline: none;
+    border-color: #2f87c6;
+    box-shadow: 0 0 0 3px rgba(47, 135, 198, 0.2);
 }
 
 .login_button {
-    width: 10vw;
-    padding: 5px;
-    font-size: 15px;
+    width: 100%;
+    margin-top: 0.35rem;
+    padding: 0.65rem 1rem;
+    font-size: 0.95rem;
     font-weight: 700;
-    background: var(--azul-claro);
-    color: var(--azul-destaque);
-    border: 1px solid var(--cinza-claro);
+    background: #e7f4fc;
+    color: #1e5f8a;
+    border: 1px solid #b9d4e8;
     border-radius: 8px;
     cursor: pointer;
+    min-height: 2.65rem;
+}
+
+.login_button:hover:not(:disabled) {
+    background: #d5ecf8;
+}
+
+.login_button:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.login_erro {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #b91c1c;
+    text-align: center;
 }
 
 .password_container {
     position: relative;
-    width: 15vw;
+    width: 100%;
 }
 
 .password_container .login_input {
     width: 100%;
-    padding-right: 36px;
+    padding-right: 2.5rem;
     box-sizing: border-box;
 }
 
@@ -66,40 +121,88 @@
     border: none;
     cursor: pointer;
     font-size: 16px;
+    line-height: 1;
+    padding: 0.25rem;
 }
 
+/* —— Modo escuro (resquício da sessão / preferência salva) —— */
+body.dark-mode .login {
+    background:
+        radial-gradient(900px 420px at 50% -10%, rgba(47, 135, 198, 0.18), transparent 55%),
+        linear-gradient(180deg, #101c2a 0%, #0b1420 55%);
+    color: #eaf2fa;
+}
+
+body.dark-mode .login_container {
+    background: #132335;
+    border-color: #3a5775;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .login_title {
+    color: #eaf2fa;
+}
+
+body.dark-mode .login_subtitle {
+    color: #9db0c4;
+}
+
+body.dark-mode .login .login_input,
+body.dark-mode .login input.login_input {
+    background: #0f1e2e;
+    color: #eaf2fa;
+    border-color: #355372;
+}
+
+body.dark-mode .login .login_input::placeholder,
+body.dark-mode .login input.login_input::placeholder {
+    color: #7f95ab;
+}
+
+body.dark-mode .login .login_input:focus,
+body.dark-mode .login input.login_input:focus {
+    border-color: #6eb6e0;
+    box-shadow: 0 0 0 3px rgba(110, 182, 224, 0.25);
+}
+
+body.dark-mode .login_button {
+    background: #1a3a52;
+    color: #e7f4fc;
+    border-color: #3d6a8f;
+}
+
+body.dark-mode .login_button:hover:not(:disabled) {
+    background: #214866;
+}
+
+body.dark-mode .login_erro {
+    color: #fca5a5;
+}
+
+body.dark-mode .toggle_password {
+    filter: grayscale(0.15);
+    opacity: 0.9;
+}
 
 @media (max-width: 1023px) {
-    .login_container {
-        margin: 2rem 1rem;
-        padding: 1.5rem 1.25rem;
-        max-width: 420px;
-        width: calc(100% - 2rem);
-        box-sizing: border-box;
+    .login {
+        padding: 1rem;
+        align-items: flex-start;
+        padding-top: max(1.5rem, env(safe-area-inset-top, 0px));
     }
 
-    .login_input,
-    .password_container {
+    .login_container {
+        margin: 2rem auto;
+        padding: 1.5rem 1.25rem;
+        max-width: 420px;
         width: 100%;
-        max-width: 100%;
     }
 
     .login_button {
-        width: 100%;
-        max-width: 280px;
         min-height: 44px;
     }
 
     .login_form {
-        margin: 1rem 0;
+        margin-top: 1.25rem;
     }
 }
-
-
-/*login
-    login_container
-        login_title
-        login_form
-            login_input
-            login_button
-*/

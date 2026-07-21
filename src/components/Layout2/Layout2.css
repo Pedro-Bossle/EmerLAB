@@ -65,7 +65,8 @@
 .layout2_nav_fab {
     position: fixed;
     top: max(12px, env(safe-area-inset-top));
-    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    left: auto;
     z-index: 430;
     width: 46px;
     height: 46px;
