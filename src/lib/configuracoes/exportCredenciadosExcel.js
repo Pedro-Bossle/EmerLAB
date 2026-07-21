@@ -9,6 +9,11 @@ import {
     montarEstabelecimentoPorVeterinarioDeListas,
     resolverLocalidadeEfetivaPrestador,
 } from '../prestadorLocalidadeVinculo.js'
+import {
+    getPrestadorProcedimentosTemNomeAlternativo,
+    isErroColunaNomeAlternativo,
+    setPrestadorProcedimentosTemNomeAlternativo,
+} from '../prestadorProcedimentos.js'
 import { buscarTodosPaginado, supabase } from '../supabase.js'
 
 export const CAMPOS_EXPORT_CREDENCIADOS = [
@@ -23,6 +28,12 @@ export const CAMPOS_EXPORT_CREDENCIADOS = [
     { chave: 'cidadePrincipal', cabecalho: 'Cidade Principal', largura: 18, grupo: 'Localidade' },
     { chave: 'codigoProcedimento', cabecalho: 'Codigo de Procedimentos', largura: 16, grupo: 'Procedimentos' },
     { chave: 'procedimento', cabecalho: 'Procedimentos', largura: 36, grupo: 'Procedimentos' },
+    {
+        chave: 'nomeAlternativoProcedimento',
+        cabecalho: 'Nome Alternativo do Procedimento',
+        largura: 36,
+        grupo: 'Procedimentos',
+    },
     { chave: 'categoriaProcedimento', cabecalho: 'Categoria do Procedimento', largura: 22, grupo: 'Procedimentos' },
     { chave: 'descontosGrupo', cabecalho: 'Descontos Grupo', largura: 22, grupo: 'Descontos' },
     { chave: 'descontoTipo', cabecalho: 'Desconto Tipo', largura: 24, grupo: 'Descontos' },
@@ -51,6 +62,26 @@ async function carregarTudo(queryBuilder) {
     const { data, error } = await buscarTodosPaginado(queryBuilder)
     if (error) throw new Error(error.message)
     return data || []
+}
+
+const COLS_PRESTADOR_PROCS_BASE = 'prestador_id, procedimento_cod, procedimento_id'
+
+async function carregarPrestadorProcedimentosExport() {
+    const tentar = (cols) =>
+        carregarTudo(() => supabase.from('prestador_procedimentos').select(cols))
+
+    if (getPrestadorProcedimentosTemNomeAlternativo()) {
+        try {
+            return await tentar(`${COLS_PRESTADOR_PROCS_BASE}, nome_alternativo`)
+        } catch (e) {
+            if (isErroColunaNomeAlternativo({ message: e?.message || String(e) })) {
+                setPrestadorProcedimentosTemNomeAlternativo(false)
+            } else {
+                throw e
+            }
+        }
+    }
+    return tentar(COLS_PRESTADOR_PROCS_BASE)
 }
 
 /**
@@ -86,9 +117,7 @@ export async function carregarLinhasExportCredenciados() {
         carregarTudo(() =>
             supabase.from('procedimentos').select('codigo, nome, categoria_id').order('codigo'),
         ),
-        carregarTudo(() =>
-            supabase.from('prestador_procedimentos').select('prestador_id, procedimento_cod, procedimento_id'),
-        ),
+        carregarPrestadorProcedimentosExport(),
         carregarTudo(() =>
             supabase.from('prestador_especialidades').select('prestador_id, especialidade_id, principal'),
         ),
@@ -152,6 +181,7 @@ export async function carregarLinhasExportCredenciados() {
         relacoesCidadesPorPrestador.get(pid).push(row)
     }
 
+    /** prestador_id → Map(código → nome_alternativo) */
     const procsPorPrestador = new Map()
     for (const row of prestadorProcedimentos || []) {
         const pid = Number(row.prestador_id)
@@ -164,8 +194,11 @@ export async function carregarLinhasExportCredenciados() {
                 .trim()
                 .toUpperCase()
         if (!cod) continue
-        if (!procsPorPrestador.has(pid)) procsPorPrestador.set(pid, [])
-        procsPorPrestador.get(pid).push(cod)
+        if (!procsPorPrestador.has(pid)) procsPorPrestador.set(pid, new Map())
+        const mapaCod = procsPorPrestador.get(pid)
+        const alt = String(row.nome_alternativo ?? '').trim()
+        if (!mapaCod.has(cod)) mapaCod.set(cod, alt)
+        else if (alt) mapaCod.set(cod, alt)
     }
 
     const beneficiosPorPrestador = new Map()
@@ -263,9 +296,8 @@ export async function carregarLinhasExportCredenciados() {
         const endereco = montarEnderecoUmaLinha(pLoc) || String(p.endereco || '').trim()
         const vinculos = rotuloVinculos(p)
 
-        const codigos = [...new Set(procsPorPrestador.get(pid) || [])].sort((a, b) =>
-            a.localeCompare(b, 'pt-BR'),
-        )
+        const mapaCodigos = procsPorPrestador.get(pid) || new Map()
+        const codigos = [...mapaCodigos.keys()].sort((a, b) => a.localeCompare(b, 'pt-BR'))
 
         const base = {
             id: pid,
@@ -295,6 +327,7 @@ export async function carregarLinhasExportCredenciados() {
                 ...base,
                 codigoProcedimento: '',
                 procedimento: '',
+                nomeAlternativoProcedimento: '',
                 categoriaProcedimento: '',
             })
             continue
@@ -306,6 +339,7 @@ export async function carregarLinhasExportCredenciados() {
                 ...base,
                 codigoProcedimento: cod,
                 procedimento: meta?.nome || '',
+                nomeAlternativoProcedimento: mapaCodigos.get(cod) || '',
                 categoriaProcedimento: mapaCat.get(Number(meta?.categoria_id)) || '',
             })
         }
