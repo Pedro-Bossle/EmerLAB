@@ -852,12 +852,13 @@ export async function aplicarEntradaFormularioEmPrestadorExistente(entradaId, pr
     const doc = normalizarCpfCnpjParaSalvar(entrada.cpf_cnpj)
     if (!doc) throw new Error('CPF/CNPJ inválido na entrada.')
 
-    let prestadorId =
-        prestadorIdInformado != null && Number(prestadorIdInformado) > 0
-            ? Number(prestadorIdInformado)
-            : Number(payload.prestador_id_sugerido) > 0
-              ? Number(payload.prestador_id_sugerido)
-              : await buscarPrestadorIdPorDocumento(doc)
+    const selecaoExplicita = prestadorIdInformado != null && Number(prestadorIdInformado) > 0
+
+    let prestadorId = selecaoExplicita
+        ? Number(prestadorIdInformado)
+        : Number(payload.prestador_id_sugerido) > 0
+          ? Number(payload.prestador_id_sugerido)
+          : await buscarPrestadorIdPorDocumento(doc)
     if (!prestadorId) {
         throw new Error('Não há prestador cadastrado com este CPF/CNPJ para vincular.')
     }
@@ -869,9 +870,15 @@ export async function aplicarEntradaFormularioEmPrestadorExistente(entradaId, pr
         .maybeSingle()
     if (errExist) throw new Error(errExist.message)
     if (!existente?.id) throw new Error('Prestador não encontrado.')
-    if (somenteDigitosCpfCnpj(existente.cpf_cnpj) !== doc) {
+
+    const docExistente = somenteDigitosCpfCnpj(existente.cpf_cnpj)
+    // Cadastros simples / manuais podem estar sem documento: preenchemos com o da entrada.
+    // Com seleção explícita de perfil, permite vincular mesmo se o documento divergir
+    // (mantém o CPF/CNPJ já salvo no cadastro).
+    if (docExistente && docExistente !== doc && !selecaoExplicita) {
         throw new Error('O documento da entrada não confere com o prestador selecionado.')
     }
+    const preencherDocumentoNoCadastro = !docExistente && Boolean(doc)
 
     const [{ data: esps }, { data: situacoes }] = await Promise.all([
         supabase.from('especialidades').select('id, nome, tipo').order('nome'),
@@ -938,6 +945,7 @@ export async function aplicarEntradaFormularioEmPrestadorExistente(entradaId, pr
         tipo_repasse: payload.tipo_repasse ? String(payload.tipo_repasse) : null,
         cidade_id: cidadeId || undefined,
         data_atualizacao: new Date().toISOString(),
+        ...(preencherDocumentoNoCadastro ? { cpf_cnpj: doc } : {}),
     }
     Object.keys(patch).forEach((k) => {
         if (patch[k] === undefined) delete patch[k]
