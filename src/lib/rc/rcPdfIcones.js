@@ -50,3 +50,33 @@ export async function aguardarImagensIcones(page) {
         )
     )
 }
+
+/**
+ * Reduz a fonte de nomes/títulos até caberem numa linha (sem reticências).
+ * Alvos: `.card-corpo h3` e `.card-topo > span`.
+ */
+export async function ajustarFontesTextosRc(page) {
+    await page.evaluate(() => {
+        const reduzirAteCabar = (el, minPx) => {
+            if (!el) return
+            let size = parseFloat(window.getComputedStyle(el).fontSize)
+            if (!Number.isFinite(size) || size <= 0) return
+            // Garante medição em linha única.
+            el.style.whiteSpace = 'nowrap'
+            el.style.overflow = 'hidden'
+            el.style.textOverflow = 'clip'
+            let guard = 80
+            while (guard-- > 0 && el.scrollWidth > el.clientWidth + 0.5 && size > minPx) {
+                size -= 0.25
+                el.style.fontSize = `${size}px`
+            }
+        }
+
+        document.querySelectorAll('.card-corpo h3').forEach((el) => reduzirAteCabar(el, 7))
+        document.querySelectorAll('.card-topo > span, .card-topo').forEach((el) => {
+            // Preferir o span interno quando existir.
+            if (el.matches('.card-topo') && el.querySelector(':scope > span')) return
+            reduzirAteCabar(el, 8)
+        })
+    })
+}

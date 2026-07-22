@@ -5,7 +5,7 @@ import puppeteer from 'puppeteer'
 import { PDFDocument } from 'pdf-lib'
 import { createClient } from '@supabase/supabase-js'
 import { config as dotenvConfig } from 'dotenv'
-import { aguardarImagensIcones, carregarIconesRcParaHtml } from '../../src/lib/rc/rcPdfIcones.js'
+import { aguardarImagensIcones, ajustarFontesTextosRc, carregarIconesRcParaHtml } from '../../src/lib/rc/rcPdfIcones.js'
 import { aplicarCarimboRcDocumento } from '../../src/lib/rc/rcPdfCarimbo.js'
 import { montarNomeArquivoRc } from '../../src/lib/rc/rcPdfNomeArquivo.js'
 import { buildMapaOrdemRc, ordenarLinhasRc } from '../../src/lib/rc/ordenarCardsRc.js'
@@ -216,7 +216,7 @@ const gerarHtmlCards = (cardsPorPagina, pageWidthPt, pageHeightPt, icones) => {
                     const telefone = escaparHtml(formatarTelefone(item.telefoneEfetivo || item.telefone || '-'))
                     return `
                         <article class="card">
-                            <header class="card-topo">${especialidade}</header>
+                            <header class="card-topo"><span>${especialidade}</span></header>
                             <div class="card-corpo">
                                 <h3>${nome}</h3>
                                 <p><img class="icon" src="${estetoscopio}" alt="" width="12" height="12" /><span>${atendimento}</span></p>
@@ -273,8 +273,14 @@ const gerarHtmlCards = (cardsPorPagina, pageWidthPt, pageHeightPt, icones) => {
                 font-size: 13pt;
                 white-space: nowrap;
                 overflow: hidden;
-                text-overflow: ellipsis;
                 padding: 0 8pt;
+              }
+              .card-topo > span {
+                display: block;
+                max-width: 100%;
+                white-space: nowrap;
+                overflow: hidden;
+                text-align: center;
               }
               .card-corpo {
                 padding: 8pt 10pt 7pt;
@@ -290,7 +296,6 @@ const gerarHtmlCards = (cardsPorPagina, pageWidthPt, pageHeightPt, icones) => {
                 font-weight: 700;
                 white-space: nowrap;
                 overflow: hidden;
-                text-overflow: ellipsis;
               }
               .card-corpo p {
                 margin: 0;
@@ -338,6 +343,7 @@ const gerarOverlayComPuppeteer = async (cards, pageWidthPt, pageHeightPt) => {
         const html = gerarHtmlCards(chunk(cards, 10), pageWidthPt, pageHeightPt, icones)
         await page.setContent(html, { waitUntil: 'domcontentloaded' })
         await aguardarImagensIcones(page)
+        await ajustarFontesTextosRc(page)
         await page.pdf({
             path: TMP_OVERLAY_PATH,
             printBackground: true,

@@ -5,7 +5,7 @@ import puppeteerCore from 'puppeteer-core'
 import { PDFDocument } from 'pdf-lib'
 import { createClient } from '@supabase/supabase-js'
 import { config as dotenvConfig } from 'dotenv'
-import { aguardarImagensIcones, carregarIconesRcParaHtml } from '../src/lib/rc/rcPdfIcones.js'
+import { aguardarImagensIcones, ajustarFontesTextosRc, carregarIconesRcParaHtml } from '../src/lib/rc/rcPdfIcones.js'
 import { aplicarCarimboRcDocumento } from '../src/lib/rc/rcPdfCarimbo.js'
 import { montarNomeArquivoRc } from '../src/lib/rc/rcPdfNomeArquivo.js'
 import { buildMapaOrdemRc, ordenarLinhasRc } from '../src/lib/rc/ordenarCardsRc.js'
@@ -246,7 +246,7 @@ const gerarHtmlCards = (cardsPorPagina, pageWidthPt, pageHeightPt, icones) => {
                     const telefone = escaparHtml(formatarTelefone(item.telefoneEfetivo || item.telefone || '-'))
                     return `
                         <article class="card">
-                            <header class="card-topo">${especialidade}</header>
+                            <header class="card-topo"><span>${especialidade}</span></header>
                             <div class="card-corpo">
                                 <h3>${nome}</h3>
                                 <p><img class="icon" src="${estetoscopio}" alt="" width="12" height="12" /><span>${atendimento}</span></p>
@@ -280,9 +280,10 @@ const gerarHtmlCards = (cardsPorPagina, pageWidthPt, pageHeightPt, icones) => {
                 align-items: stretch;
               }
               .card { border-radius: 16pt; border: .8pt solid #d9e6f0; background: #fff; overflow: hidden; min-height: 0; }
-              .card-topo { height: 24pt; display: flex; align-items: center; justify-content: center; background: #1c3455; color: #fff; font-weight: 700; font-size: 13pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 8pt; }
+              .card-topo { height: 24pt; display: flex; align-items: center; justify-content: center; background: #1c3455; color: #fff; font-weight: 700; font-size: 13pt; white-space: nowrap; overflow: hidden; padding: 0 8pt; }
+              .card-topo > span { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-align: center; }
               .card-corpo { padding: 8pt 10pt 7pt; display: grid; gap: 7pt; min-height: 0; }
-              .card-corpo h3 { margin: 0; text-align: center; color: #1a2e4a; font-size: 12pt; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+              .card-corpo h3 { margin: 0; text-align: center; color: #1a2e4a; font-size: 12pt; font-weight: 700; white-space: nowrap; overflow: hidden; }
               .card-corpo p { margin: 0; color: #5e7188; font-size: 10pt; display: grid; grid-template-columns: 12pt 1fr; align-items: start; gap: 6pt; }
               .card-corpo p span:last-child {
                 overflow-wrap: anywhere;
@@ -318,6 +319,7 @@ const gerarPdfBuffer = async (cidadesSelecionadas) => {
             { waitUntil: 'domcontentloaded' }
         )
         await aguardarImagensIcones(page)
+        await ajustarFontesTextosRc(page)
         overlayBytes = await page.pdf({
             printBackground: true,
             width: ptParaIn(width),
