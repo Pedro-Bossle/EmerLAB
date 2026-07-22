@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import Sidebar from '../Sidebar/Sidebar'
 import DevToolsFloating from '../DevTools/DevToolsFloating'
 import BatePapoFloating from '../BatePapo/BatePapoFloating'
+import FormularioInboxBell from '../Credenciamento/FormularioInboxBell'
 import SessionSecurity from '../SessionSecurity/SessionSecurity'
 import { Outlet, useLocation } from 'react-router-dom'
 import './Layout2.css'
@@ -102,6 +103,8 @@ const Layout2 = () => {
             </main>
             <BatePapoFloating />
             <DevToolsFloating />
+            {/* Fora da Home: sino só com notificações não visualizadas (+ (N) no título da aba). */}
+            {pathname !== '/home' ? <FormularioInboxBell /> : null}
         </div>
     )
 }

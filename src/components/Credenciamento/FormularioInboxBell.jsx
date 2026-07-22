@@ -6,8 +6,6 @@ import {
     carregarNotificacoes,
     contarNotificacoesContratosTotal,
     listarNotificacoesContratosRecentes,
-    contarNotificacoesArmazenadas,
-    listarNotificacoesRecentes,
     limparTodasNotificacoesContratos,
     sincronizarNotificacoesClicksign,
 } from '../../lib/clicksign/clicksignNotificacoes'
@@ -31,6 +29,151 @@ const INTERVALO_FALLBACK_MS = 120_000
 const INTERVALO_SYNC_CONTRATOS_MS = 60_000
 const TITULO_ABA_BASE = 'Emerdog AIO'
 
+const POS_STORAGE_KEY = 'sfsc_notif_float_pos_v1'
+const MODE_STORAGE_KEY = 'sfsc_notif_float_mode_v1'
+const BTN = 52
+const BTN_COMPACT_W = 24
+const BTN_COMPACT_H = 54
+const MARGIN = 8
+const DRAWER_GAP = 8
+const DRAWER_W = 340
+const DRAWER_MAX_H = 480
+
+function viewportUtil() {
+    if (typeof window === 'undefined') return { width: 1280, height: 720 }
+    const doc = document.documentElement
+    return {
+        width: doc?.clientWidth || window.innerWidth,
+        height: doc?.clientHeight || window.innerHeight,
+    }
+}
+
+function lerPosicaoSalva() {
+    try {
+        const raw = localStorage.getItem(POS_STORAGE_KEY)
+        if (!raw) return null
+        const p = JSON.parse(raw)
+        if (typeof p?.x === 'number' && typeof p?.y === 'number') return { x: p.x, y: p.y }
+    } catch {
+        /* ignore */
+    }
+    return null
+}
+
+function salvarPosicao(pos) {
+    try {
+        localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(pos))
+    } catch {
+        /* ignore */
+    }
+}
+
+function lerModoCompacto() {
+    try {
+        return localStorage.getItem(MODE_STORAGE_KEY) === 'compact'
+    } catch {
+        return false
+    }
+}
+
+function salvarModoCompacto(compacto) {
+    try {
+        localStorage.setItem(MODE_STORAGE_KEY, compacto ? 'compact' : 'normal')
+    } catch {
+        /* ignore */
+    }
+}
+
+function tamanhoBotao(compacto = false) {
+    return compacto ? { w: BTN_COMPACT_W, h: BTN_COMPACT_H } : { w: BTN, h: BTN }
+}
+
+/** Canto superior direito — longe do chat (esq.) e Dev Tool (inf. dir.). */
+function posicaoPadrao() {
+    if (typeof window === 'undefined') return { x: 18, y: 58 }
+    const { width } = viewportUtil()
+    return {
+        x: Math.max(MARGIN, width - BTN - 18),
+        y: 58,
+    }
+}
+
+function clamparPosicao(x, y, compacto = false) {
+    const { w, h } = tamanhoBotao(compacto)
+    const { width, height } = viewportUtil()
+    const maxX = Math.max(MARGIN, width - w - MARGIN)
+    const maxY = Math.max(MARGIN, height - h - MARGIN)
+    return {
+        x: Math.min(maxX, Math.max(MARGIN, x)),
+        y: Math.min(maxY, Math.max(MARGIN, y)),
+    }
+}
+
+function snapPosicaoCompacta(pos) {
+    if (typeof window === 'undefined') return pos
+    const { w } = tamanhoBotao(true)
+    const { width } = viewportUtil()
+    const ladoDireito = pos.x + w / 2 > width / 2
+    const y = clamparPosicao(pos.x, pos.y, true).y
+    return {
+        x: ladoDireito ? Math.max(0, width - w) : 0,
+        y,
+    }
+}
+
+function detectarAncora(pos, compacto = false) {
+    const { w, h } = tamanhoBotao(compacto)
+    const { width, height } = viewportUtil()
+    const cx = pos.x + w / 2
+    const cy = pos.y + h / 2
+    const distL = cx
+    const distR = width - cx
+    const distT = cy
+    const distB = height - cy
+    const min = Math.min(distL, distR, distT, distB)
+    if (min === distR) return 'right'
+    if (min === distL) return 'left'
+    if (min === distT) return 'top'
+    return 'bottom'
+}
+
+function calcularDrawerStyle(pos, ancora, compacto = false) {
+    if (typeof window === 'undefined') return undefined
+
+    const { w, h } = tamanhoBotao(compacto)
+    const { width, height } = viewportUtil()
+    const drawerW = Math.min(DRAWER_W, width - MARGIN * 3)
+    const drawerH = Math.min(DRAWER_MAX_H, Math.floor(height * 0.68))
+    const centroX = pos.x + w / 2
+    const centroY = pos.y + h / 2
+    const clampX = (value) => Math.min(width - drawerW - MARGIN, Math.max(MARGIN, value))
+    const clampY = (value) => Math.min(height - drawerH - MARGIN, Math.max(MARGIN, value))
+
+    let left = clampX(centroX - drawerW / 2)
+    let top = clampY(centroY - drawerH / 2)
+
+    if (ancora === 'left') {
+        left = clampX(pos.x + w + DRAWER_GAP)
+        top = clampY(centroY - drawerH / 2)
+    } else if (ancora === 'right') {
+        left = clampX(pos.x - DRAWER_GAP - drawerW)
+        top = clampY(centroY - drawerH / 2)
+    } else if (ancora === 'top') {
+        left = clampX(centroX - drawerW / 2)
+        top = clampY(pos.y + h + DRAWER_GAP)
+    } else if (ancora === 'bottom') {
+        left = clampX(centroX - drawerW / 2)
+        top = clampY(pos.y - DRAWER_GAP - drawerH)
+    }
+
+    return {
+        '--notif-drawer-left': `${left}px`,
+        '--notif-drawer-top': `${top}px`,
+        '--notif-drawer-width': `${drawerW}px`,
+        '--notif-drawer-max-height': `${drawerH}px`,
+    }
+}
+
 export default function FormularioInboxBell() {
     const podeNotifForm = useStoredPermission(PERMISSION_KEYS.NOTIFICACOES_FORMULARIO)
     const podeNotifContratos = useStoredPermission(PERMISSION_KEYS.NOTIFICACOES_CONTRATOS)
@@ -43,13 +186,23 @@ export default function FormularioInboxBell() {
     const [loading, setLoading] = useState(false)
     const [syncContratos, setSyncContratos] = useState(false)
     const [limpando, setLimpando] = useState(false)
-    const painelRef = useRef(null)
-    const btnRef = useRef(null)
+    const [compacto, setCompacto] = useState(() => lerModoCompacto())
+    const [pos, setPos] = useState(() => {
+        const compact = lerModoCompacto()
+        const saved = lerPosicaoSalva() || posicaoPadrao()
+        if (typeof window === 'undefined') return saved
+        const next = clamparPosicao(saved.x, saved.y, compact)
+        return compact ? snapPosicaoCompacta(next) : next
+    })
+
+    const rootRef = useRef(null)
+    const dragRef = useRef({ ativo: false, moved: false, ox: 0, oy: 0, sx: 0, sy: 0 })
     const ultimoSyncContratosRef = useRef(0)
 
     const countTotal = countForm + countContratos
     const temPermissao = podeNotifForm || podeNotifContratos
     const visivel = temPermissao && countTotal > 0
+    const ancora = detectarAncora(pos, compacto)
 
     useEffect(() => {
         if (!temPermissao) return undefined
@@ -60,6 +213,27 @@ export default function FormularioInboxBell() {
         }
     }, [temPermissao, countTotal])
 
+    const aplicarClamp = useCallback(() => {
+        setPos((p) => {
+            const next = clamparPosicao(p.x, p.y, compacto)
+            return compacto ? snapPosicaoCompacta(next) : next
+        })
+    }, [compacto])
+
+    useEffect(() => {
+        if (!visivel) return undefined
+        aplicarClamp()
+        const onResize = () => aplicarClamp()
+        window.addEventListener('resize', onResize)
+        const ro =
+            typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => aplicarClamp()) : null
+        if (ro && document.documentElement) ro.observe(document.documentElement)
+        return () => {
+            window.removeEventListener('resize', onResize)
+            ro?.disconnect()
+        }
+    }, [aplicarClamp, visivel])
+
     const lerContratosLocal = useCallback(async () => {
         const lista = carregarNotificacoes()
         const total = await contarNotificacoesContratosTotal()
@@ -67,26 +241,29 @@ export default function FormularioInboxBell() {
         return lista
     }, [])
 
-    const sincronizarContratosSeDevido = useCallback(async (forcar = false) => {
-        if (!podeNotifContratos) return
-        const agora = Date.now()
-        if (!forcar && agora - ultimoSyncContratosRef.current < INTERVALO_SYNC_CONTRATOS_MS) {
-            await lerContratosLocal()
-            return
-        }
-        ultimoSyncContratosRef.current = agora
-        setSyncContratos(true)
-        try {
-            const { lista } = await sincronizarNotificacoesClicksign(clicksignRequest)
-            const total = await contarNotificacoesContratosTotal()
-            setCountContratos(total)
-            if (aberto) setRecentesContratos(await listarNotificacoesContratosRecentes(8))
-        } catch {
-            await lerContratosLocal()
-        } finally {
-            setSyncContratos(false)
-        }
-    }, [podeNotifContratos, aberto, lerContratosLocal])
+    const sincronizarContratosSeDevido = useCallback(
+        async (forcar = false) => {
+            if (!podeNotifContratos) return
+            const agora = Date.now()
+            if (!forcar && agora - ultimoSyncContratosRef.current < INTERVALO_SYNC_CONTRATOS_MS) {
+                await lerContratosLocal()
+                return
+            }
+            ultimoSyncContratosRef.current = agora
+            setSyncContratos(true)
+            try {
+                await sincronizarNotificacoesClicksign(clicksignRequest)
+                const total = await contarNotificacoesContratosTotal()
+                setCountContratos(total)
+                if (aberto) setRecentesContratos(await listarNotificacoesContratosRecentes(8))
+            } catch {
+                await lerContratosLocal()
+            } finally {
+                setSyncContratos(false)
+            }
+        },
+        [podeNotifContratos, aberto, lerContratosLocal],
+    )
 
     const atualizarFormulario = useCallback(async () => {
         if (!podeNotifForm) return
@@ -117,7 +294,14 @@ export default function FormularioInboxBell() {
                 /* silencioso no polling */
             }
         },
-        [temPermissao, podeNotifForm, podeNotifContratos, aberto, sincronizarContratosSeDevido, atualizarFormulario],
+        [
+            temPermissao,
+            podeNotifForm,
+            podeNotifContratos,
+            aberto,
+            sincronizarContratosSeDevido,
+            atualizarFormulario,
+        ],
     )
 
     useEffect(() => {
@@ -236,12 +420,23 @@ export default function FormularioInboxBell() {
     useEffect(() => {
         if (!aberto) return undefined
         const onDoc = (e) => {
-            if (painelRef.current?.contains(e.target) || btnRef.current?.contains(e.target)) return
+            if (rootRef.current?.contains(e.target)) return
             setAberto(false)
         }
+        const onKey = (e) => {
+            if (e.key === 'Escape') setAberto(false)
+        }
         document.addEventListener('mousedown', onDoc)
-        return () => document.removeEventListener('mousedown', onDoc)
+        document.addEventListener('keydown', onKey)
+        return () => {
+            document.removeEventListener('mousedown', onDoc)
+            document.removeEventListener('keydown', onKey)
+        }
     }, [aberto])
+
+    useEffect(() => {
+        if (countTotal === 0 && aberto) setAberto(false)
+    }, [countTotal, aberto])
 
     const limparTudo = useCallback(async () => {
         setLimpando(true)
@@ -262,143 +457,242 @@ export default function FormularioInboxBell() {
         }
     }, [podeNotifContratos, podeNotifForm])
 
+    const onPointerDown = (e) => {
+        if (e.button != null && e.button !== 0) return
+        const el = e.currentTarget
+        el.setPointerCapture?.(e.pointerId)
+        dragRef.current = {
+            ativo: true,
+            moved: false,
+            ox: e.clientX,
+            oy: e.clientY,
+            sx: pos.x,
+            sy: pos.y,
+        }
+    }
+
+    const onPointerMove = (e) => {
+        const d = dragRef.current
+        if (!d.ativo) return
+        const dx = e.clientX - d.ox
+        const dy = e.clientY - d.oy
+        if (!d.moved && dx * dx + dy * dy > 16) d.moved = true
+        if (!d.moved) return
+        e.preventDefault()
+        const next = clamparPosicao(d.sx + dx, d.sy + dy, compacto)
+        setPos(compacto ? snapPosicaoCompacta(next) : next)
+    }
+
+    const onPointerUp = (e) => {
+        const d = dragRef.current
+        if (!d.ativo) return
+        d.ativo = false
+        e.currentTarget.releasePointerCapture?.(e.pointerId)
+        if (d.moved) {
+            setPos((p) => {
+                const next = compacto ? snapPosicaoCompacta(p) : clamparPosicao(p.x, p.y, compacto)
+                salvarPosicao(next)
+                return next
+            })
+            return
+        }
+        setAberto((v) => !v)
+    }
+
+    const alternarModoCompacto = () => {
+        const prox = !compacto
+        setCompacto(prox)
+        salvarModoCompacto(prox)
+        setPos((p) => {
+            const next = prox ? snapPosicaoCompacta(p) : clamparPosicao(p.x, p.y, false)
+            salvarPosicao(next)
+            return next
+        })
+        if (prox) setAberto(false)
+    }
+
     if (!temPermissao) return null
     if (!visivel) return null
 
     const podeLimpar =
         (podeNotifContratos && countContratos > 0) || (podeNotifForm && countForm > 0)
-
     const vazio = !loading && !syncContratos && countTotal === 0
+    const badge = countTotal > 99 ? '99+' : String(countTotal)
+    const drawerStyle = calcularDrawerStyle(pos, ancora, compacto)
+    const rotuloModo = compacto ? 'Restaurar ícone' : 'Minimizar'
 
     return (
-        <div className="form_inbox_bell_wrap" aria-live="polite">
+        <div
+            ref={rootRef}
+            className={`notif_float is-anchor-${ancora}${aberto ? ' is-open' : ''}${compacto ? ' is-compact' : ''}`}
+            style={{ left: pos.x, top: pos.y }}
+            aria-live="polite"
+        >
             <button
-                ref={btnRef}
                 type="button"
-                className={`form_inbox_bell_btn ${aberto ? 'is-open' : ''} ${countTotal > 0 ? 'has-alert' : ''}`}
-                aria-label={`Notificações${countTotal ? `, ${countTotal} pendente(s)` : ''}`}
+                className="notif_float_btn"
+                aria-label={`Notificações, ${countTotal} pendente(s)`}
                 aria-expanded={aberto}
-                onClick={() => setAberto((v) => !v)}
+                title={
+                    compacto
+                        ? 'Notificações — clique para abrir, arraste para mover'
+                        : 'Notificações — arraste para mover, clique para abrir'
+                }
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerUp}
             >
-                <span className="form_inbox_bell_ico" aria-hidden>
-                    🔔
-                </span>
-                {countTotal > 0 && (
-                    <span className="form_inbox_bell_badge">{countTotal > 99 ? '99+' : countTotal}</span>
+                {compacto ? (
+                    <span className="notif_float_btn_tab" aria-hidden="true">
+                        {ancora === 'right' ? '‹' : '›'}
+                    </span>
+                ) : (
+                    <>
+                        <span className="notif_float_btn_ico" aria-hidden="true">
+                            🔔
+                        </span>
+                        <span className="notif_float_btn_grip" aria-hidden="true" />
+                    </>
                 )}
+                <span className="notif_float_badge" aria-hidden="true">
+                    {badge}
+                </span>
             </button>
 
-            {aberto && (
-                <div ref={painelRef} className="form_inbox_bell_panel" role="dialog" aria-label="Notificações">
-                    <header className="form_inbox_bell_head">
+            <div
+                className={`notif_float_drawer${aberto ? ' is-open' : ''}`}
+                style={drawerStyle}
+                role="dialog"
+                aria-label="Notificações"
+                aria-hidden={!aberto}
+            >
+                <div className="notif_float_drawer_inner">
+                    <header className="notif_float_drawer_head">
                         <strong>Notificações</strong>
-                        <div className="form_inbox_bell_head_actions">
+                        <div className="notif_float_head_acoes">
                             {podeLimpar && (
                                 <button
                                     type="button"
-                                    className="form_inbox_bell_clear"
+                                    className="notif_float_clear"
                                     disabled={limpando || loading}
                                     onClick={() => void limparTudo()}
                                 >
                                     {limpando ? 'Limpando…' : 'Limpar'}
                                 </button>
                             )}
-                            <button type="button" className="form_inbox_bell_close" onClick={() => setAberto(false)}>
+                            <button
+                                type="button"
+                                className="notif_float_modo"
+                                onClick={alternarModoCompacto}
+                                title={
+                                    compacto
+                                        ? 'Voltar para o ícone de sino'
+                                        : 'Esconder como aba na borda'
+                                }
+                            >
+                                {rotuloModo}
+                            </button>
+                            <button
+                                type="button"
+                                className="notif_float_fechar"
+                                aria-label="Fechar"
+                                onClick={() => setAberto(false)}
+                            >
                                 ×
                             </button>
                         </div>
                     </header>
 
-                    <div className="form_inbox_bell_body">
-                        {loading && <p className="form_inbox_bell_muted form_inbox_bell_pad">A carregar…</p>}
+                    <div className="notif_float_body">
+                        {loading && <p className="notif_float_muted">A carregar…</p>}
                         {syncContratos && !loading && (
-                            <p className="form_inbox_bell_muted form_inbox_bell_pad">
-                                A verificar contratos (Clicksign)…
-                            </p>
+                            <p className="notif_float_muted">A verificar contratos (Clicksign)…</p>
                         )}
 
                         {podeNotifForm && countForm > 0 && (
-                        <section className="form_inbox_bell_sec" aria-labelledby="bell-sec-form">
-                            <h3 id="bell-sec-form" className="form_inbox_bell_sec_tit">
-                                Formulário público
-                                <span className="form_inbox_bell_sec_count">{countForm}</span>
-                            </h3>
-                            <ul className="form_inbox_bell_list">
-                                {recentesForm.map((e) => {
-                                    const p = e.payload || {}
-                                    return (
-                                        <li key={e.id}>
+                            <section className="notif_float_sec" aria-labelledby="notif-sec-form">
+                                <h3 id="notif-sec-form" className="notif_float_sec_tit">
+                                    Formulário
+                                    <span className="notif_float_sec_count">{countForm}</span>
+                                </h3>
+                                <ul className="notif_float_list">
+                                    {recentesForm.map((e) => {
+                                        const p = e.payload || {}
+                                        return (
+                                            <li key={e.id}>
+                                                <Link
+                                                    to={`/credenciamento/formulario/entradas?id=${e.id}`}
+                                                    className="notif_float_item"
+                                                    onClick={() => setAberto(false)}
+                                                >
+                                                    <span className="notif_float_item_nome">
+                                                        {p.nome || 'Sem nome'}
+                                                    </span>
+                                                    <span className="notif_float_item_meta">
+                                                        {rotuloTipoPerfil(e.tipo_perfil)} ·{' '}
+                                                        {formatarCpfCnpjEntrada(e.cpf_cnpj)} ·{' '}
+                                                        {formatarDataEntrada(e.criado_em)}
+                                                    </span>
+                                                </Link>
+                                            </li>
+                                        )
+                                    })}
+                                </ul>
+                                <p className="notif_float_sec_foot">
+                                    <Link
+                                        to="/credenciamento/formulario/entradas"
+                                        className="notif_float_link"
+                                        onClick={() => setAberto(false)}
+                                    >
+                                        Ver inbox
+                                    </Link>
+                                </p>
+                            </section>
+                        )}
+
+                        {podeNotifContratos && countContratos > 0 && (
+                            <section
+                                className="notif_float_sec"
+                                aria-labelledby="notif-sec-contratos"
+                            >
+                                <h3 id="notif-sec-contratos" className="notif_float_sec_tit">
+                                    Contratos
+                                    <span className="notif_float_sec_count">{countContratos}</span>
+                                </h3>
+                                <ul className="notif_float_list">
+                                    {recentesContratos.map((n) => (
+                                        <li key={n.id}>
                                             <Link
-                                                to={`/credenciamento/formulario/entradas?id=${e.id}`}
-                                                className="form_inbox_bell_item"
+                                                to="/contratos/clicksign"
+                                                className="notif_float_item"
                                                 onClick={() => setAberto(false)}
+                                                title={n.envelopeName || ''}
                                             >
-                                                <span className="form_inbox_bell_item_nome">
-                                                    {p.nome || 'Sem nome'}
-                                                </span>
-                                                <span className="form_inbox_bell_item_meta">
-                                                    {rotuloTipoPerfil(e.tipo_perfil)} ·{' '}
-                                                    {formatarCpfCnpjEntrada(e.cpf_cnpj)} ·{' '}
-                                                    {formatarDataEntrada(e.criado_em)}
+                                                <span className="notif_float_item_nome">{n.texto}</span>
+                                                <span className="notif_float_item_meta">
+                                                    {formatarDataPtBr(n.at)}
                                                 </span>
                                             </Link>
                                         </li>
-                                    )
-                                })}
-                            </ul>
-                            <p className="form_inbox_bell_sec_foot">
-                                <Link
-                                    to="/credenciamento/formulario/entradas"
-                                    className="form_inbox_bell_link_all"
-                                    onClick={() => setAberto(false)}
-                                >
-                                    Ver inbox do formulário
-                                </Link>
-                            </p>
-                        </section>
-                    )}
-
-                    {podeNotifContratos && countContratos > 0 && (
-                        <section className="form_inbox_bell_sec" aria-labelledby="bell-sec-contratos">
-                            <h3 id="bell-sec-contratos" className="form_inbox_bell_sec_tit">
-                                Contratos (Clicksign)
-                                <span className="form_inbox_bell_sec_count">{countContratos}</span>
-                            </h3>
-                            <ul className="form_inbox_bell_list">
-                                {recentesContratos.map((n) => (
-                                    <li key={n.id}>
-                                        <Link
-                                            to="/contratos/clicksign"
-                                            className="form_inbox_bell_item"
-                                            onClick={() => setAberto(false)}
-                                            title={n.envelopeName || ''}
-                                        >
-                                            <span className="form_inbox_bell_item_nome">{n.texto}</span>
-                                            <span className="form_inbox_bell_item_meta">
-                                                {formatarDataPtBr(n.at)}
-                                            </span>
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
-                            <p className="form_inbox_bell_sec_foot">
-                                <Link
-                                    to="/contratos/clicksign"
-                                    className="form_inbox_bell_link_all"
-                                    onClick={() => setAberto(false)}
-                                >
-                                    Abrir painel de contratos
-                                </Link>
-                            </p>
-                        </section>
-                    )}
-
-                        {vazio && (
-                            <p className="form_inbox_bell_muted form_inbox_bell_pad">Nada novo por aqui.</p>
+                                    ))}
+                                </ul>
+                                <p className="notif_float_sec_foot">
+                                    <Link
+                                        to="/contratos/clicksign"
+                                        className="notif_float_link"
+                                        onClick={() => setAberto(false)}
+                                    >
+                                        Abrir contratos
+                                    </Link>
+                                </p>
+                            </section>
                         )}
+
+                        {vazio && <p className="notif_float_muted">Nada novo por aqui.</p>}
                     </div>
                 </div>
-            )}
+            </div>
         </div>
     )
 }
