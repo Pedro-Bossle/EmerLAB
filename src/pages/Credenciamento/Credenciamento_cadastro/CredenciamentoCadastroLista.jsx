@@ -21,7 +21,9 @@ import {
     montarEstabelecimentoPorVeterinarioDeListas,
     resolverLocalidadeEfetivaPrestador } from '../../../lib/prestadorLocalidadeVinculo.js'
 import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
+import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
 import { montarNomeArquivoRc } from '../../../lib/rc/rcPdfNomeArquivo.js'
+import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
 import CopiarCodigosProcedimentosBtn from './CopiarCodigosProcedimentosBtn.jsx'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
@@ -81,6 +83,7 @@ const CredenciamentoCadastroLista = () => {
     const [simplesUf, setSimplesUf] = useState('')
     const [simplesCidade, setSimplesCidade] = useState('')
     const [simplesTelefone, setSimplesTelefone] = useState('')
+    const [simplesEspecialidadeId, setSimplesEspecialidadeId] = useState('')
     const [simplesSituacaoId, setSimplesSituacaoId] = useState('')
     const [municipiosUf, setMunicipiosUf] = useState([])
     const [carregandoMunicipios, setCarregandoMunicipios] = useState(false)
@@ -515,6 +518,7 @@ const CredenciamentoCadastroLista = () => {
         setSimplesUf('')
         setSimplesCidade('')
         setSimplesTelefone('')
+        setSimplesEspecialidadeId('')
         setMunicipiosUf([])
         setErro('')
         setModalSimplesAberto(true)
@@ -523,7 +527,9 @@ const CredenciamentoCadastroLista = () => {
             if (!id) {
                 try {
                     const maxOrdem = situacoes.reduce((m, s) => Math.max(m, Number(s.ordem) || 0), 0)
-                    const { data, error } = await supabase
+                    let data = null
+                    let error = null
+                    ;({ data, error } = await supabase
                         .from('situacoes')
                         .insert({
                             descricao: 'Aguardando Formulário',
@@ -531,7 +537,17 @@ const CredenciamentoCadastroLista = () => {
                             ordem: maxOrdem + 1,
                         })
                         .select('id, descricao, ordem, ativo')
-                        .single()
+                        .single())
+                    if (error) {
+                        ;({ data, error } = await supabase
+                            .from('situacoes')
+                            .insert({
+                                descricao: 'Aguardando Formulário',
+                                ativo: true,
+                            })
+                            .select('id, descricao, ordem, ativo')
+                            .single())
+                    }
                     if (error) throw new Error(error.message)
                     setSituacoes((anteriores) =>
                         [...anteriores, data].sort((a, b) => Number(a.ordem) - Number(b.ordem)),
@@ -576,6 +592,7 @@ const CredenciamentoCadastroLista = () => {
     const salvarNovoSimples = async () => {
         if (somenteLeitura) return setErro('Seu perfil tem acesso somente leitura para credenciamento.')
         if (!simplesNome.trim()) return setErro('Nome é obrigatório.')
+        if (!simplesEspecialidadeId) return setErro('Especialidade é obrigatória.')
         if (!simplesUf) return setErro('UF é obrigatória.')
         if (!simplesCidade.trim()) return setErro('Cidade é obrigatória.')
         const situacaoId =
@@ -583,10 +600,17 @@ const CredenciamentoCadastroLista = () => {
         if (!situacaoId) {
             return setErro('Situação «Aguardando Formulário» não encontrada. Cadastre-a em Situações ou reabra o modal.')
         }
+        const espSelecionada =
+            (especialidades || []).find((e) => Number(e.id) === Number(simplesEspecialidadeId)) || null
+        if (!espSelecionada?.id) {
+            return setErro('Especialidade inválida. Selecione novamente.')
+        }
         try {
             setSalvandoSimples(true)
             setErro('')
             const agora = new Date().toISOString()
+            const cidadeObj = await obterOuCriarCidadeCredenciamento(simplesCidade.trim())
+            const tipoSalvar = String(espSelecionada.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
             const payload = {
                 nome: simplesNome.trim(),
                 telefone: simplesTelefone.trim() || null,
@@ -594,19 +618,55 @@ const CredenciamentoCadastroLista = () => {
                 endereco_cidade: simplesCidade.trim(),
                 endereco_pais: 'Brasil',
                 situacao_id: Number(situacaoId),
+                especialidade_id: Number(espSelecionada.id),
+                tipo: tipoSalvar,
+                cidade_id: cidadeObj?.id ? Number(cidadeObj.id) : null,
                 ativo: true,
                 data_cadastro: agora,
                 data_atualizacao: agora,
             }
-            const { data: ins, error: errIns } = await supabase
+            let { data: ins, error: errIns } = await supabase
                 .from('prestadores')
                 .insert(payload)
                 .select('id')
                 .single()
-            if (errIns) throw new Error(errIns.message)
+            if (errIns && /tipo/i.test(String(errIns.message || ''))) {
+                const { tipo: _t, ...semTipo } = payload
+                const retry = await supabase.from('prestadores').insert(semTipo).select('id').single()
+                ins = retry.data
+                errIns = retry.error
+            }
+            if (errIns) {
+                const detalhe = [errIns.message, errIns.details, errIns.hint].filter(Boolean).join(' — ')
+                throw new Error(detalhe || 'Falha ao salvar cadastro simples.')
+            }
+            const novoId = Number(ins?.id)
+            if (novoId) {
+                await supabase.from('prestador_especialidades').upsert(
+                    [
+                        {
+                            prestador_id: novoId,
+                            especialidade_id: Number(espSelecionada.id),
+                            principal: true,
+                        },
+                    ],
+                    { onConflict: 'prestador_id,especialidade_id', ignoreDuplicates: true },
+                )
+                if (cidadeObj?.id) {
+                    await supabase.from('prestador_cidades').upsert(
+                        [
+                            {
+                                prestador_id: novoId,
+                                cidade_id: Number(cidadeObj.id),
+                                principal: true,
+                            },
+                        ],
+                        { onConflict: 'prestador_id,cidade_id', ignoreDuplicates: true },
+                    )
+                }
+            }
             setModalSimplesAberto(false)
             await carregar()
-            const novoId = Number(ins?.id)
             if (novoId) navigate(`/credenciamento/cadastro/${novoId}`)
         } catch (e) {
             setErro(e?.message || String(e))
@@ -978,6 +1038,20 @@ const CredenciamentoCadastroLista = () => {
                                     onChange={(e) => setSimplesNome(e.target.value)}
                                     autoFocus
                                 />
+                            </label>
+                            <label className="credenciamento_cadastro_simples_especialidade">
+                                <span>Especialidade *</span>
+                                <select
+                                    value={simplesEspecialidadeId}
+                                    onChange={(e) => setSimplesEspecialidadeId(e.target.value)}
+                                >
+                                    <option value="">Selecione</option>
+                                    {especialidades.map((e) => (
+                                        <option key={e.id} value={e.id}>
+                                            {e.nome}
+                                        </option>
+                                    ))}
+                                </select>
                             </label>
                             <label className="credenciamento_cadastro_simples_telefone">
                                 <span>Telefone</span>

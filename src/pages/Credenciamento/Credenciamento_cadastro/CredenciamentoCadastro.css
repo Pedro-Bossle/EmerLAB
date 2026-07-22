@@ -93,7 +93,8 @@
     gap: 12px 10px;
 }
 
-.credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_nome {
+.credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_nome,
+.credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_especialidade {
     grid-column: 1 / -1;
 }
 
@@ -131,6 +132,7 @@
 
     .credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_telefone,
     .credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_cidade,
+    .credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_especialidade,
     .credenciamento_cadastro_simples_modal .credenciamento_cadastro_simples_nome {
         grid-column: 1 / -1;
     }
