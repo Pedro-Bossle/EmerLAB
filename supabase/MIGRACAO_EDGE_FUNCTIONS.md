@@ -62,7 +62,7 @@ Crie `supabase/.env.secrets` (não commitar — já está no `.gitignore`):
 SUPABASE_URL=https://SEU_REF.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-2.0-flash-001
+GEMINI_MODEL=gemini-2.5-flash
 PROSPECTOS_COLETA_FONTE=auto
 PROSPECTOS_GEMINI_FALLBACK_OSM=true
 PROSPECTOS_GEMINI_MAX=30

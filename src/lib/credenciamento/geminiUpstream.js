@@ -1,15 +1,16 @@
 /**
- * Cliente mínimo da API Gemini (Google AI) — apenas servidor/Node.
+ * Cliente Gemini via Interactions API (@google/genai) — apenas servidor/Node.
+ * @see https://ai.google.dev/gemini-api/docs/quickstart
  */
-import { fetchComTimeout } from './fetchComTimeout.js'
+import { ApiError, GoogleGenAI } from '@google/genai'
 import { extrairGeminiRetrySegundos, metaDescansoGemini } from './geminiDescanso.js'
 
 const GEMINI_FETCH_TIMEOUT_MS = 120_000
 
-/** Padrão alinhado à POC (antes: gemini-2.0-flash) e ao AI Studio atual. */
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash-001'
+/** Padrão alinhado ao AI Studio / Interactions API. */
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
 
-/** Modelo da primeira POC no código legado — use em GEMINI_MODEL se quiser reproduzir exatamente. */
+/** Modelo legado da PoC — use em GEMINI_MODEL se quiser forçar o ID antigo. */
 export const GEMINI_MODEL_POC_LEGADO = 'gemini-2.0-flash-001'
 
 /**
@@ -18,8 +19,10 @@ export const GEMINI_MODEL_POC_LEGADO = 'gemini-2.0-flash-001'
 const MODEL_ID_ALIASES = {
     'gemini-1.5-flash': 'gemini-2.5-flash',
     'gemini-1.5-pro': 'gemini-2.5-pro',
-    'gemini-2.0-flash': 'gemini-2.0-flash-001',
-    'gemini-2.0-flash-lite': 'gemini-2.0-flash-lite-001',
+    'gemini-2.0-flash': 'gemini-2.5-flash',
+    'gemini-2.0-flash-001': 'gemini-2.5-flash',
+    'gemini-2.0-flash-lite': 'gemini-2.5-flash-lite',
+    'gemini-2.0-flash-lite-001': 'gemini-2.5-flash-lite',
 }
 
 /** @type {{ modelo: string, configHash: string } | null} */
@@ -37,7 +40,7 @@ export function resolverModeloGemini(pedido) {
     return MODEL_ID_ALIASES[key] || raw
 }
 
-/** Chave do AI Studio (generateContent com ?key=) costuma começar com AIza */
+/** Chave do AI Studio (Interactions / generateContent) costuma começar com AIza */
 export function avisoFormatoChaveGemini(apiKey) {
     const k = String(apiKey || '').trim()
     if (!k || k.startsWith('AIza')) return null
@@ -56,7 +59,7 @@ function fallbacksApos404(modeloPrincipal) {
     if (modeloPrincipal === 'gemini-2.5-flash-lite') {
         return ['gemini-2.5-flash']
     }
-    if (modeloPrincipal === 'gemini-2.0-flash-001' || modeloPrincipal === 'gemini-2.0-flash') {
+    if (modeloPrincipal === 'gemini-3.6-flash') {
         return ['gemini-2.5-flash']
     }
     return []
@@ -156,68 +159,90 @@ export function mensagemErroGeminiAmigavel(msg, status, modeloConfigurado, model
     return raw || 'Falha na consulta Gemini.'
 }
 
-function extrairTextoResposta(body) {
-    const parts = body?.candidates?.[0]?.content?.parts
-    if (!Array.isArray(parts)) return ''
-    return parts.map((p) => p?.text || '').join('').trim()
+function extrairTextoInteraction(interaction) {
+    const direto = String(interaction?.output_text || '').trim()
+    if (direto) return direto
+    const steps = Array.isArray(interaction?.steps) ? interaction.steps : []
+    let out = ''
+    for (const step of steps) {
+        if (step?.type !== 'model_output') continue
+        for (const block of step.content || []) {
+            if (block?.type === 'text' && block.text) out += block.text
+        }
+    }
+    return out.trim()
 }
 
-async function geminiGenerateJsonUmaTentativa(apiKey, model, opts) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`
+function normalizarErroSdk(err) {
+    if (err instanceof ApiError) {
+        return { status: err.status, message: err.message || String(err) }
+    }
+    const status = Number(err?.status || err?.statusCode || 0) || undefined
+    const message = String(err?.message || err?.error?.message || err || 'Falha na consulta Gemini.')
+    return { status, message }
+}
 
-    const generationConfig = {
+async function comTimeout(promessa, ms, rotulo) {
+    let timer
+    try {
+        return await Promise.race([
+            promessa,
+            new Promise((_, reject) => {
+                timer = setTimeout(() => reject(new Error(rotulo)), ms)
+            }),
+        ])
+    } finally {
+        if (timer) clearTimeout(timer)
+    }
+}
+
+/**
+ * @param {string} apiKey
+ * @param {string} model
+ * @param {{ prompt: string, jsonSchema?: object, temperature?: number, maxOutputTokens?: number }} opts
+ */
+async function geminiGenerateJsonUmaTentativa(apiKey, model, opts) {
+    const ai = new GoogleGenAI({ apiKey })
+
+    const generation_config = {
         temperature: opts.temperature ?? 0.25,
-        responseMimeType: 'application/json',
     }
     if (Number.isFinite(opts.maxOutputTokens) && opts.maxOutputTokens > 0) {
-        generationConfig.maxOutputTokens = Math.ceil(opts.maxOutputTokens)
-    }
-    if (opts.jsonSchema) {
-        generationConfig.responseSchema = opts.jsonSchema
+        generation_config.max_output_tokens = Math.ceil(opts.maxOutputTokens)
     }
 
-    let res
+    /** @type {Record<string, unknown>} */
+    const request = {
+        model,
+        input: opts.prompt,
+        store: false,
+        response_format: {
+            type: 'text',
+            mime_type: 'application/json',
+            ...(opts.jsonSchema ? { schema: opts.jsonSchema } : {}),
+        },
+        generation_config,
+    }
+
+    let interaction
     try {
-        res = await fetchComTimeout(
-            url,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ role: 'user', parts: [{ text: opts.prompt }] }],
-                    generationConfig,
-                }),
-            },
+        interaction = await comTimeout(
+            ai.interactions.create(request),
             GEMINI_FETCH_TIMEOUT_MS,
+            'Timeout ao chamar Gemini (Interactions API).',
         )
     } catch (e) {
-        return { ok: false, erro: e?.message || 'Falha de rede ao chamar Gemini.', modeloUsado: model }
-    }
-
-    const raw = await res.text()
-    let body
-    try {
-        body = raw ? JSON.parse(raw) : {}
-    } catch {
+        const { status, message } = normalizarErroSdk(e)
         return {
             ok: false,
-            erro: 'Resposta Gemini inválida (não-JSON).',
-            status: res.status,
+            status,
+            erro: message,
+            erroOriginal: message,
             modeloUsado: model,
         }
     }
 
-    if (!res.ok) {
-        const msg = body?.error?.message || raw.slice(0, 400) || `HTTP ${res.status}`
-        return {
-            ok: false,
-            status: res.status,
-            erroOriginal: msg,
-            modeloUsado: model,
-        }
-    }
-
-    const texto = extrairTextoResposta(body)
+    const texto = extrairTextoInteraction(interaction)
     if (!texto) {
         return { ok: false, erro: 'Gemini não retornou conteúdo.', modeloUsado: model }
     }
@@ -230,7 +255,7 @@ async function geminiGenerateJsonUmaTentativa(apiKey, model, opts) {
 }
 
 /**
- * @param {{ prompt: string, jsonSchema?: object, model?: string, temperature?: number, apenasModeloPrincipal?: boolean }} opts
+ * @param {{ prompt: string, jsonSchema?: object, model?: string, temperature?: number, maxOutputTokens?: number, apenasModeloPrincipal?: boolean }} opts
  */
 export async function geminiGenerateJson(opts) {
     const apiKey = String(process.env.GEMINI_API_KEY || '').trim()
@@ -239,7 +264,8 @@ export async function geminiGenerateJson(opts) {
     }
     const avisoChave = avisoFormatoChaveGemini(apiKey)
 
-    const modeloConfigurado = String(opts.model || process.env.GEMINI_MODEL || '').trim() || DEFAULT_GEMINI_MODEL
+    const modeloConfigurado =
+        String(opts.model || process.env.GEMINI_MODEL || '').trim() || DEFAULT_GEMINI_MODEL
     const candidatos = modelosParaTentar(modeloConfigurado, {
         apenasPrincipal: Boolean(opts.apenasModeloPrincipal),
     })
@@ -276,7 +302,9 @@ export async function geminiGenerateJson(opts) {
 
     return {
         ok: false,
-        erro: mensagemErroGeminiAmigavel(msg, status, modeloConfigurado, modeloUsado) + (avisoChave ? ` ${avisoChave}` : ''),
+        erro:
+            mensagemErroGeminiAmigavel(msg, status, modeloConfigurado, modeloUsado) +
+            (avisoChave ? ` ${avisoChave}` : ''),
         status,
         codigoErro: codigo,
         quotaExceeded,
@@ -303,6 +331,11 @@ export async function geminiVerificarDisponibilidade() {
         temperature: 0,
         maxOutputTokens: 16,
         apenasModeloPrincipal: true,
+        jsonSchema: {
+            type: 'object',
+            properties: { ok: { type: 'boolean' } },
+            required: ['ok'],
+        },
     })
 
     if (r.ok) {
