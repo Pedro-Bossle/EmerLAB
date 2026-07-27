@@ -100,18 +100,22 @@
     margin: 0 auto;
     width: 100%;
     box-sizing: border-box;
+    align-items: start;
 }
 
-@media (max-width: 960px) {
-    .cred_esp_cidade_grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+.cred_esp_cidade_grid[data-cols='2'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-@media (max-width: 620px) {
-    .cred_esp_cidade_grid {
-        grid-template-columns: minmax(0, 1fr);
-    }
+.cred_esp_cidade_grid[data-cols='1'] {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.cred_esp_cidade_coluna {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
 }
 
 .cred_esp_cidade_card {
@@ -126,15 +130,28 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    border: none;
     background: #f8fafc;
     padding: 10px 12px;
-    cursor: pointer;
     text-align: left;
 }
 
 .cred_esp_cidade_card_head:hover {
     background: #eef4ff;
+}
+
+.cred_esp_cidade_card_head_toggle {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    font: inherit;
 }
 
 .cred_esp_cidade_chevron {
@@ -158,6 +175,32 @@
     font-weight: 600;
     font-size: 14px;
     line-height: 1.3;
+}
+
+.cred_esp_cidade_copiar {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #5a7085;
+    cursor: pointer;
+}
+
+.cred_esp_cidade_copiar:hover {
+    background: rgba(47, 128, 237, 0.12);
+    color: #2f80ed;
+}
+
+.cred_esp_cidade_copiar_ok {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a7f37;
 }
 
 .cred_esp_cidade_card_qtd {
@@ -271,11 +314,24 @@ body.dark-mode .cred_esp_cidade_card_head:hover {
     background: #1a3350;
 }
 
+body.dark-mode .cred_esp_cidade_card_head_toggle {
+    color: var(--text-main);
+}
+
 body.dark-mode .cred_esp_cidade_card_tit {
     color: var(--text-main);
 }
 
 body.dark-mode .cred_esp_cidade_card_qtd {
+    color: var(--azul-destaque);
+}
+
+body.dark-mode .cred_esp_cidade_copiar {
+    color: var(--cinza-medio);
+}
+
+body.dark-mode .cred_esp_cidade_copiar:hover {
+    background: rgba(74, 154, 232, 0.15);
     color: var(--azul-destaque);
 }
 
@@ -415,6 +471,10 @@ body.dark-mode .cred_esp_cidade_page > hr {
         gap: 10px;
     }
 
+    .cred_esp_cidade_coluna {
+        gap: 10px;
+    }
+
     .cred_esp_cidade_card_head {
         padding: 9px 10px;
         gap: 8px;
@@ -471,6 +531,10 @@ body.dark-mode .cred_esp_cidade_page > hr {
     }
 
     .cred_esp_cidade_grid {
+        gap: 8px;
+    }
+
+    .cred_esp_cidade_coluna {
         gap: 8px;
     }
 

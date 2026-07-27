@@ -9,12 +9,41 @@ import {
     ufsDisponiveisFiltroCredenciamento,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
 import { prestadorEhCredenciado } from '../../../lib/prestadorCadastroHelpers.js'
-import { agruparCredenciadosPorEspecialidadeCidade } from '../../../lib/credenciamento/especialidadesPorCidade.js'
+import {
+    agruparCredenciadosPorEspecialidadeCidade,
+    formatarEspecialidadeCidadeParaClipboard,
+} from '../../../lib/credenciamento/especialidadesPorCidade.js'
 import { anexarLocalidadeVinculoAoCtx } from '../../../lib/prestadorLocalidadeVinculo.js'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase.js'
 import '../Credenciamento_main/Credenciamento_main.css'
 import '../QuemRealiza/CredenciamentoQuemRealiza.css'
 import './CredenciamentoEspecialidadesCidade.css'
+
+function usarContagemColunasEspecialidade() {
+    const [cols, setCols] = useState(() => {
+        if (typeof window === 'undefined') return 3
+        if (window.matchMedia('(max-width: 620px)').matches) return 1
+        if (window.matchMedia('(max-width: 960px)').matches) return 2
+        return 3
+    })
+    useEffect(() => {
+        const mq1 = window.matchMedia('(max-width: 620px)')
+        const mq2 = window.matchMedia('(max-width: 960px)')
+        const sync = () => {
+            if (mq1.matches) setCols(1)
+            else if (mq2.matches) setCols(2)
+            else setCols(3)
+        }
+        sync()
+        mq1.addEventListener('change', sync)
+        mq2.addEventListener('change', sync)
+        return () => {
+            mq1.removeEventListener('change', sync)
+            mq2.removeEventListener('change', sync)
+        }
+    }, [])
+    return cols
+}
 
 export default function CredenciamentoEspecialidadesCidade() {
     const [uf, setUf] = useState('')
@@ -35,6 +64,8 @@ export default function CredenciamentoEspecialidadesCidade() {
     const [especialidades, setEspecialidades] = useState([])
     const [loading, setLoading] = useState(true)
     const [expandidas, setExpandidas] = useState({})
+    const [copiadoEspId, setCopiadoEspId] = useState(null)
+    const colunasCount = usarContagemColunasEspecialidade()
 
     useEffect(() => {
         const run = async () => {
@@ -46,7 +77,7 @@ export default function CredenciamentoEspecialidadesCidade() {
                             supabase
                                 .from('prestadores')
                                 .select(
-                                    'id, nome, especialidade_id, endereco_uf, endereco_cidade, cidade_id, tipo, ativo, situacao_id',
+                                    'id, nome, telefone, celular, especialidade_id, endereco_uf, endereco_cidade, cidade_id, tipo, ativo, situacao_id',
                                 )
                                 .eq('ativo', true)
                                 .order('id', { ascending: true }),
@@ -192,6 +223,20 @@ export default function CredenciamentoEspecialidadesCidade() {
         ctxCidade,
     ])
 
+    const gruposPorColuna = useMemo(() => {
+        const n = Math.max(1, colunasCount)
+        const cols = Array.from({ length: n }, () => [])
+        grupos.forEach((g, i) => {
+            cols[i % n].push(g)
+        })
+        return cols
+    }, [grupos, colunasCount])
+
+    const prestadorPorId = useMemo(
+        () => new Map(todosPrestadoresAtivos.map((p) => [Number(p.id), p])),
+        [todosPrestadoresAtivos],
+    )
+
     const maxTotal = useMemo(() => Math.max(1, ...grupos.map((g) => g.total)), [grupos])
 
     const totalCredenciadosUnicos = useMemo(() => {
@@ -206,24 +251,70 @@ export default function CredenciamentoEspecialidadesCidade() {
         setExpandidas((prev) => ({ ...prev, [espId]: !prev[espId] }))
     }
 
+    const copiarEspecialidade = async (g, event) => {
+        event?.stopPropagation?.()
+        event?.preventDefault?.()
+        const texto = formatarEspecialidadeCidadeParaClipboard({
+            uf,
+            cidadeNome,
+            especialidadeNome: g.nome,
+            itens: g.itens,
+            prestadorPorId,
+            estabelecimentoPorVeterinario: ctxCidade.estabelecimentoPorVeterinario,
+        })
+        try {
+            await navigator.clipboard.writeText(texto)
+            setCopiadoEspId(g.especialidadeId)
+            window.setTimeout(() => setCopiadoEspId((atual) => (atual === g.especialidadeId ? null : atual)), 2000)
+        } catch {
+            /* ignore */
+        }
+    }
+
     const renderCard = (g) => {
         const expandido = !!expandidas[g.especialidadeId]
         const pct = Math.round((g.total / maxTotal) * 100)
         return (
             <article key={g.especialidadeId} className="cred_esp_cidade_card">
-                <button
-                    type="button"
-                    className="cred_esp_cidade_card_head"
-                    aria-expanded={expandido}
-                    onClick={() => toggleExpandir(g.especialidadeId)}
-                >
-                    <span
-                        className={`cred_esp_cidade_chevron ${expandido ? 'is-open' : ''}`}
-                        aria-hidden
-                    />
-                    <span className="cred_esp_cidade_card_tit">{g.nome}</span>
+                <div className="cred_esp_cidade_card_head">
+                    <button
+                        type="button"
+                        className="cred_esp_cidade_card_head_toggle"
+                        aria-expanded={expandido}
+                        onClick={() => toggleExpandir(g.especialidadeId)}
+                    >
+                        <span
+                            className={`cred_esp_cidade_chevron ${expandido ? 'is-open' : ''}`}
+                            aria-hidden
+                        />
+                        <span className="cred_esp_cidade_card_tit">{g.nome}</span>
+                    </button>
+                    <button
+                        type="button"
+                        className="cred_esp_cidade_copiar"
+                        title={
+                            copiadoEspId === g.especialidadeId
+                                ? 'Copiado'
+                                : 'Copiar lista (UF-cidade-especialidade e nomes com telefone)'
+                        }
+                        aria-label={`Copiar credenciados de ${g.nome}`}
+                        onClick={(e) => void copiarEspecialidade(g, e)}
+                    >
+                        {copiadoEspId === g.especialidadeId ? (
+                            <span className="cred_esp_cidade_copiar_ok" aria-hidden>
+                                ✓
+                            </span>
+                        ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path
+                                    fill="currentColor"
+                                    d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                                />
+                            </svg>
+                        )}
+                    </button>
                     <span className="cred_esp_cidade_card_qtd">{g.total}</span>
-                </button>
+                </div>
                 <div className="cred_esp_cidade_bar_track" aria-hidden>
                     <div className="cred_esp_cidade_bar_fill" style={{ width: `${pct}%` }} />
                 </div>
@@ -331,8 +422,12 @@ export default function CredenciamentoEspecialidadesCidade() {
                         <strong>{totalCredenciadosUnicos}</strong> credenciado(s) único(s) ·{' '}
                         <strong>{grupos.length}</strong> especialidade(s) com pelo menos um vínculo
                     </p>
-                    <div className="cred_esp_cidade_grid">
-                        {grupos.map((g) => renderCard(g))}
+                    <div className="cred_esp_cidade_grid" data-cols={colunasCount}>
+                        {gruposPorColuna.map((coluna, idx) => (
+                            <div key={`col-${idx}`} className="cred_esp_cidade_coluna">
+                                {coluna.map((g) => renderCard(g))}
+                            </div>
+                        ))}
                     </div>
                 </>
             )}

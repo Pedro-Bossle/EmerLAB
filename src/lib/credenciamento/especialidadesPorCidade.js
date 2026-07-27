@@ -1,5 +1,50 @@
 import { avaliarViaCidadeParalela, prestadorAtendeCidadeAlvo } from '../buscarQuemRealizaPrestadores.js'
-import { tipoEspecialidadePrestador } from '../prestadorCadastroHelpers.js'
+import { prestadorEhEstabelecimento, tipoEspecialidadePrestador } from '../prestadorCadastroHelpers.js'
+
+function primeiroTelefonePrestador(p) {
+    return [p?.celular, p?.telefone].map((t) => String(t || '').trim()).find(Boolean) || '—'
+}
+
+/** Telefone para cópia: vet vinculado usa o do estabelecimento principal. */
+export function telefonePrestadorEspecialidadeCidade(prestador, estabelecimentoPorVeterinario) {
+    const p = prestador || {}
+    const id = Number(p.id)
+    if (id && !prestadorEhEstabelecimento(p.especialidade_id)) {
+        const est = estabelecimentoPorVeterinario?.get(id)
+        if (est) {
+            const telEst = primeiroTelefonePrestador(est)
+            if (telEst !== '—') return telEst
+        }
+    }
+    return primeiroTelefonePrestador(p)
+}
+
+/**
+ * Texto para área de transferência (Especialidades por cidade), um bloco por especialidade.
+ * @param {{ uf: string, cidadeNome: string, especialidadeNome: string, itens: { id, nome }[], prestadorPorId: Map, estabelecimentoPorVeterinario?: Map }} opcoes
+ */
+export function formatarEspecialidadeCidadeParaClipboard({
+    uf = '',
+    cidadeNome = '',
+    especialidadeNome = '',
+    itens = [],
+    prestadorPorId,
+    estabelecimentoPorVeterinario,
+}) {
+    const ufNorm = String(uf || '').trim().toUpperCase()
+    const cidade = String(cidadeNome || '').trim()
+    const esp = String(especialidadeNome || '').trim()
+    const cabecalho = [ufNorm, cidade, esp].filter(Boolean).join('-')
+    const linhas = (itens || []).map((it) => {
+        const nome = String(it.nome || '').trim() || '—'
+        const p = prestadorPorId?.get(Number(it.id))
+        const tel = p
+            ? telefonePrestadorEspecialidadeCidade(p, estabelecimentoPorVeterinario)
+            : '—'
+        return `${nome} - ${tel}`
+    })
+    return [cabecalho, ...linhas].join('\n')
+}
 
 export function especialidadeCatalogoEhLocal(esp) {
     return tipoEspecialidadePrestador(esp?.tipo || '') === 'LOCAL'
