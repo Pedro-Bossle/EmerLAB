@@ -65,6 +65,7 @@ export default function CredenciamentoEspecialidadesCidade() {
     const [loading, setLoading] = useState(true)
     const [expandidas, setExpandidas] = useState({})
     const [copiadoEspId, setCopiadoEspId] = useState(null)
+    const [ordenacao, setOrdenacao] = useState('desc')
     const colunasCount = usarContagemColunasEspecialidade()
 
     useEffect(() => {
@@ -205,7 +206,7 @@ export default function CredenciamentoEspecialidadesCidade() {
 
     const grupos = useMemo(() => {
         if (!cidadeNome || !uf) return []
-        return agruparCredenciadosPorEspecialidadeCidade({
+        const base = agruparCredenciadosPorEspecialidadeCidade({
             prestadores,
             prestadorEspecialidades,
             especialidades,
@@ -213,6 +214,14 @@ export default function CredenciamentoEspecialidadesCidade() {
             ctx: ctxCidade,
             incluirCidadesParalelas: buscarCidadesParalelas,
         })
+        const lista = [...base]
+        const porNome = (a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })
+        const porTotal = (a, b) => a.total - b.total
+        if (ordenacao === 'az') lista.sort(porNome)
+        else if (ordenacao === 'za') lista.sort((a, b) => porNome(b, a))
+        else if (ordenacao === 'cres') lista.sort((a, b) => porTotal(a, b) || porNome(a, b))
+        else lista.sort((a, b) => porTotal(b, a) || porNome(a, b))
+        return lista
     }, [
         cidadeNome,
         uf,
@@ -221,6 +230,7 @@ export default function CredenciamentoEspecialidadesCidade() {
         prestadorEspecialidades,
         especialidades,
         ctxCidade,
+        ordenacao,
     ])
 
     const gruposPorColuna = useMemo(() => {
@@ -382,6 +392,20 @@ export default function CredenciamentoEspecialidadesCidade() {
                                     {m.nome}
                                 </option>
                             ))}
+                        </select>
+                    </label>
+                    <label className="pcad_field">
+                        <span>Ordenar por</span>
+                        <select
+                            className="credenciamento_main_input"
+                            value={ordenacao}
+                            onChange={(e) => setOrdenacao(e.target.value)}
+                            disabled={!cidadeNome}
+                        >
+                            <option value="az">A–Z</option>
+                            <option value="za">Z–A</option>
+                            <option value="cres">Crescente</option>
+                            <option value="desc">Decrescente</option>
                         </select>
                     </label>
                     <div className="quem_realiza_switch_cidades">

@@ -40,7 +40,7 @@
 
 .cred_esp_cidade_filtros_flutuantes.quem_realiza_filtros_center {
     width: calc(100% - 1rem);
-    max-width: 920px;
+    max-width: 1080px;
 }
 
 .cred_esp_cidade_filtros_flutuantes .quem_realiza_row_center {
@@ -411,6 +411,10 @@ body.dark-mode .cred_esp_cidade_page > hr {
         gap: 0.45rem 0.5rem;
         max-width: none;
         width: 100%;
+    }
+
+    .cred_esp_cidade_filtros_flutuantes .quem_realiza_row_center .pcad_field:nth-child(3) {
+        grid-column: 1 / -1;
     }
 
     .cred_esp_cidade_filtros_flutuantes .quem_realiza_row_center .pcad_field {

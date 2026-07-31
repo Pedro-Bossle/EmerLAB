@@ -38,6 +38,7 @@ import {
     normalizarValorMonetarioEntrada,
 } from '../../lib/pagamentosValor.js'
 import './PagamentosRegistro.css'
+import PagamentosExportarModal from './PagamentosExportarModal.jsx'
 import { useSfscExclusaoConfirm } from '../../hooks/useSfscExclusaoConfirm.jsx'
 
 const hoje = new Date()
@@ -250,6 +251,7 @@ export default function PagamentosRegistro() {
     const [ordenarDir, setOrdenarDir] = useState('asc')
 
     const [massaAberta, setMassaAberta] = useState(false)
+    const [exportModalAberto, setExportModalAberto] = useState(false)
     const [massaMes, setMassaMes] = useState(MES_ATUAL)
     const [massaAno, setMassaAno] = useState(ANO_ATUAL)
     const [massaLinhas, setMassaLinhas] = useState('')
@@ -1079,6 +1081,13 @@ export default function PagamentosRegistro() {
                             <button
                                 type="button"
                                 className="pag_reg_btn pag_reg_btn--sec"
+                                onClick={() => setExportModalAberto(true)}
+                            >
+                                Exportar Excel
+                            </button>
+                            <button
+                                type="button"
+                                className="pag_reg_btn pag_reg_btn--sec"
                                 onClick={() => setMassaAberta((v) => !v)}
                             >
                                 {massaAberta ? 'Fechar Inclusão' : 'Inclusão em massa'}
@@ -1706,6 +1715,14 @@ export default function PagamentosRegistro() {
                 </>
             )}
             {exclusaoToast}
+            <PagamentosExportarModal
+                aberto={exportModalAberto}
+                onClose={() => setExportModalAberto(false)}
+                mesInicial={filtroMesDe}
+                anoInicial={filtroAnoDe}
+                onErro={(msg) => setErro(msg)}
+                onOk={(msg) => setInfo(msg)}
+            />
         </div>
     )
 }
