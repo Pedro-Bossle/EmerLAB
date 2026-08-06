@@ -1,0 +1,206 @@
+.ccad_exp_backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+    background: rgba(18, 32, 48, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+}
+
+.ccad_exp_modal {
+    width: min(420px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-radius: 12px;
+    border: 1px solid #c5d9e8;
+    background: #fff;
+    box-shadow: 0 16px 40px rgba(30, 49, 72, 0.28);
+    padding: 16px 18px 18px;
+    box-sizing: border-box;
+    text-align: left;
+}
+
+.ccad_exp_head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.ccad_exp_head h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #15364f;
+}
+
+.ccad_exp_close {
+    border: none;
+    background: transparent;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    color: #5a7388;
+    padding: 2px 6px;
+}
+
+.ccad_exp_close:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ccad_exp_sub {
+    margin: 0;
+    color: #5a7388;
+    font-size: 0.88rem;
+    line-height: 1.35;
+}
+
+.ccad_exp_periodo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.ccad_exp_field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #1e4d7a;
+}
+
+.ccad_exp_input_date {
+    height: 36px;
+    padding: 4px 10px;
+    border: 1px solid #c5d9e8;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #243b53;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.ccad_exp_fieldset {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid #d7e8f2;
+    border-radius: 10px;
+}
+
+.ccad_exp_fieldset legend {
+    padding: 0 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #1e4d7a;
+}
+
+.ccad_exp_situacoes_toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.ccad_exp_link_btn {
+    border: none;
+    background: transparent;
+    color: #2f80ed;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+}
+
+.ccad_exp_link_btn:hover {
+    text-decoration: underline;
+}
+
+.ccad_exp_situacoes_qtd {
+    font-size: 0.75rem;
+    color: #5a7388;
+}
+
+.ccad_exp_situacoes_lista {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 160px;
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.ccad_exp_check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+    color: #243b53;
+    cursor: pointer;
+}
+
+.ccad_exp_check input {
+    margin: 0;
+    accent-color: #2f80ed;
+}
+
+.ccad_exp_erro {
+    margin: 0;
+    color: #b42318;
+    font-size: 0.85rem;
+}
+
+.ccad_exp_acoes {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+body.dark-mode .ccad_exp_modal {
+    background: var(--bg-surface);
+    border-color: var(--border-soft);
+}
+
+body.dark-mode .ccad_exp_head h3 {
+    color: var(--text-main);
+}
+
+body.dark-mode .ccad_exp_close {
+    color: var(--cinza-medio);
+}
+
+body.dark-mode .ccad_exp_sub,
+body.dark-mode .ccad_exp_situacoes_qtd,
+body.dark-mode .ccad_exp_check {
+    color: var(--cinza-medio);
+}
+
+body.dark-mode .ccad_exp_field,
+body.dark-mode .ccad_exp_fieldset legend {
+    color: var(--azul-destaque);
+}
+
+body.dark-mode .ccad_exp_fieldset {
+    border-color: var(--border-soft);
+}
+
+body.dark-mode .ccad_exp_input_date {
+    background: var(--bg-page);
+    border-color: var(--border-soft);
+    color: var(--text-main);
+}
+
+body.dark-mode .ccad_exp_erro {
+    color: #f97066;
+}
+
+body.dark-mode .ccad_exp_link_btn {
+    color: var(--azul-destaque);
+}

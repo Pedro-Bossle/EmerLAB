@@ -1,0 +1,537 @@
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { idsEspecialidadesPrestador } from './especialidadesPorCidade.js'
+import {
+    carregarLogoPdfEmerdog,
+    downloadPdf,
+    sanitizarNomeArquivoPdf,
+} from '../contratos/pdf/gerarContratoPdf.js'
+import {
+    prestadorEhCredenciado,
+    resolverCidadePrincipalNome,
+} from '../prestadorCadastroHelpers.js'
+import { resolverLocalidadeEfetivaPrestador } from '../prestadorLocalidadeVinculo.js'
+
+const MM_MARGIN = 12
+const PAGE_W = 210
+const TABLE_WIDTH_MM = PAGE_W - MM_MARGIN * 2
+
+function dataGeracaoPtBr() {
+    return new Date().toLocaleString('pt-BR', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+    })
+}
+
+function formatarDataCredenciadoEm(iso) {
+    if (!iso) return ''
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return String(iso)
+    return d.toLocaleDateString('pt-BR')
+}
+
+/** YYYY-MM-DD no fuso local (para comparar com inputs type=date). */
+export function dataIsoParaYmdLocal(iso) {
+    if (!iso) return ''
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return ''
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+}
+
+export function dataNoPeriodoYmd(iso, deYmd, ateYmd) {
+    const ymd = dataIsoParaYmdLocal(iso)
+    if (!ymd || !deYmd || !ateYmd) return false
+    return ymd >= deYmd && ymd <= ateYmd
+}
+
+export function formatarPeriodoYmdPtBr(deYmd, ateYmd) {
+    const fmt = (ymd) => {
+        const hit = String(ymd || '').match(/^(\d{4})-(\d{2})-(\d{2})$/)
+        if (!hit) return String(ymd || '')
+        return `${hit[3]}/${hit[2]}/${hit[1]}`
+    }
+    return `${fmt(deYmd)} a ${fmt(ateYmd)}`
+}
+
+function rotuloPrincipalComExtras(principal, totalUnicos) {
+    const base = String(principal || '').trim() || '—'
+    const extras = Math.max(0, Number(totalUnicos) - 1)
+    return extras > 0 ? `${base} +${extras}` : base
+}
+
+function mapaEspecialidadesPorPrestador(linhas) {
+    const m = new Map()
+    for (const row of linhas || []) {
+        const pid = Number(row.prestador_id)
+        if (!pid) continue
+        if (!m.has(pid)) m.set(pid, [])
+        m.get(pid).push(row)
+    }
+    return m
+}
+
+function mapaCidadesPorPrestador(linhas) {
+    const m = new Map()
+    for (const row of linhas || []) {
+        const pid = Number(row.prestador_id)
+        if (!pid) continue
+        if (!m.has(pid)) m.set(pid, [])
+        m.get(pid).push(row)
+    }
+    return m
+}
+
+/**
+ * Monta linhas do relatório (Nome | Especialidade | Cidade | Situação | Credenciado Em).
+ * Especialidade/Cidade: principal +N quando há vínculos extras.
+ * Com `periodoDe`/`periodoAte` (YYYY-MM-DD), mantém só quem tem `credenciado_em` no intervalo.
+ */
+export function montarLinhasRelatorioCadastros({
+    prestadores = [],
+    situacoes = [],
+    especialidades = [],
+    cidadesCred = [],
+    prestadorEspecialidades = [],
+    prestadorCidades = [],
+    estabelecimentoPorVeterinario,
+    idsPermitidos = null,
+    periodoDe = '',
+    periodoAte = '',
+    situacaoIds = null,
+} = {}) {
+    const mapaEsp = new Map((especialidades || []).map((e) => [Number(e.id), String(e.nome || '').trim()]))
+    const mapaCidade = new Map((cidadesCred || []).map((c) => [Number(c.id), c]))
+    const mapaCidadeNome = new Map(
+        (cidadesCred || []).map((c) => [Number(c.id), String(c.nome || '').trim()]),
+    )
+    const espPorPrestador = mapaEspecialidadesPorPrestador(prestadorEspecialidades)
+    const cidadesPorPrestador = mapaCidadesPorPrestador(prestadorCidades)
+    const idsOk = idsPermitidos instanceof Set ? idsPermitidos : null
+    const filtraPeriodo = Boolean(periodoDe && periodoAte)
+    const situacoesOk =
+        Array.isArray(situacaoIds) && situacaoIds.length
+            ? new Set(situacaoIds.map(Number).filter(Boolean))
+            : null
+
+    const linhas = []
+    for (const p of prestadores || []) {
+        const pid = Number(p.id)
+        if (!pid) continue
+        if (idsOk && !idsOk.has(pid)) continue
+        const sid = Number(p.situacao_id)
+        if (situacoesOk && !situacoesOk.has(sid)) continue
+        if (filtraPeriodo && !dataNoPeriodoYmd(p.credenciado_em, periodoDe, periodoAte)) continue
+
+        const espIds = idsEspecialidadesPrestador(p, espPorPrestador.get(pid) || [])
+        const espPrincipal =
+            mapaEsp.get(Number(p.especialidade_id)) ||
+            (espIds.size ? mapaEsp.get([...espIds][0]) : '') ||
+            '—'
+        const especialidade = rotuloPrincipalComExtras(espPrincipal, espIds.size)
+
+        const { prestador: pLoc, prestadorIdCidades } = resolverLocalidadeEfetivaPrestador(
+            p,
+            estabelecimentoPorVeterinario,
+        )
+        const rels =
+            cidadesPorPrestador.get(Number(prestadorIdCidades)) ||
+            cidadesPorPrestador.get(pid) ||
+            []
+        const cidadePrincipal = resolverCidadePrincipalNome(pLoc, {
+            mapaCidadeNomePorId: mapaCidade,
+            relacoesCidades: rels,
+        })
+        const nomesCidade = new Set()
+        if (cidadePrincipal && cidadePrincipal !== '—') nomesCidade.add(cidadePrincipal)
+        for (const rel of rels) {
+            const nome = mapaCidadeNome.get(Number(rel.cidade_id))
+            if (nome) nomesCidade.add(nome)
+        }
+        const cidadeBase =
+            cidadePrincipal && cidadePrincipal !== '—'
+                ? cidadePrincipal
+                : [...nomesCidade][0] || '—'
+        const cidade = rotuloPrincipalComExtras(cidadeBase, nomesCidade.size)
+
+        const situacao =
+            (situacoes || []).find((s) => Number(s.id) === sid)?.descricao || '—'
+        const ehCredenciado = prestadorEhCredenciado(p, situacoes)
+        const isoGrafico = p.credenciado_em || ''
+        const credenciadoEm = ehCredenciado ? formatarDataCredenciadoEm(isoGrafico) : ''
+
+        linhas.push({
+            id: pid,
+            nome: String(p.nome || '').trim() || '—',
+            especialidade,
+            cidade,
+            situacao,
+            situacaoId: sid || 0,
+            credenciadoEm,
+            credenciadoEmIso: isoGrafico,
+        })
+    }
+
+    return linhas.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
+}
+
+const MESES_CURTOS_PT = [
+    'jan',
+    'fev',
+    'mar',
+    'abr',
+    'mai',
+    'jun',
+    'jul',
+    'ago',
+    'set',
+    'out',
+    'nov',
+    'dez',
+]
+
+/** Lista YYYY-MM entre duas datas (inclusive), ordenada. */
+export function listarMesesYmdEntre(deYmd, ateYmd) {
+    const de = String(deYmd || '').match(/^(\d{4})-(\d{2})/)
+    const ate = String(ateYmd || '').match(/^(\d{4})-(\d{2})/)
+    if (!de || !ate) return []
+    let y = Number(de[1])
+    let m = Number(de[2])
+    const yF = Number(ate[1])
+    const mF = Number(ate[2])
+    if (!y || !m || !yF || !mF) return []
+    const out = []
+    while (y < yF || (y === yF && m <= mF)) {
+        out.push(`${y}-${String(m).padStart(2, '0')}`)
+        m += 1
+        if (m > 12) {
+            m = 1
+            y += 1
+        }
+        if (out.length > 120) break
+    }
+    return out
+}
+
+function rotuloMesAnoCurtoPdf(ym) {
+    const hit = String(ym || '').match(/^(\d{4})-(\d{2})$/)
+    if (!hit) return String(ym || '')
+    const mes = Number(hit[2])
+    const nome = MESES_CURTOS_PT[mes - 1] || hit[2]
+    return `${nome}/${hit[1].slice(2)}`
+}
+
+/**
+ * Série por mês/ano (total). Inclui meses vazios do período quando informado.
+ * @returns {Array<{ ym: string, label: string, total: number }>}
+ */
+export function montarSerieCredenciadosPorMes(linhas, periodoDe = '', periodoAte = '') {
+    const contagem = new Map()
+    for (const l of linhas || []) {
+        const ymd = dataIsoParaYmdLocal(l.credenciadoEmIso)
+        if (!ymd) continue
+        const ym = ymd.slice(0, 7)
+        contagem.set(ym, (contagem.get(ym) || 0) + 1)
+    }
+
+    let meses = listarMesesYmdEntre(periodoDe, periodoAte)
+    if (!meses.length) {
+        meses = [...contagem.keys()].sort()
+    }
+    return meses.map((ym) => ({
+        ym,
+        label: rotuloMesAnoCurtoPdf(ym),
+        total: contagem.get(ym) || 0,
+    }))
+}
+
+const CORES_SITUACAO_PDF = [
+    [47, 128, 237],
+    [39, 174, 96],
+    [242, 153, 74],
+    [155, 81, 224],
+    [235, 87, 87],
+    [45, 156, 219],
+    [111, 207, 151],
+    [242, 201, 76],
+]
+
+/**
+ * Séries por situação × mês (para gráfico agrupado).
+ * @returns {{ meses: Array<{ ym: string, label: string }>, series: Array<{ situacaoId: number, nome: string, valores: number[], cor: number[] }> }}
+ */
+export function montarSeriesPorSituacaoEMes(linhas, periodoDe = '', periodoAte = '') {
+    let mesesYm = listarMesesYmdEntre(periodoDe, periodoAte)
+    const porSitMes = new Map() // `${sid}|${ym}` -> count
+    const nomesSit = new Map()
+
+    for (const l of linhas || []) {
+        const ymd = dataIsoParaYmdLocal(l.credenciadoEmIso)
+        if (!ymd) continue
+        const ym = ymd.slice(0, 7)
+        const sid = Number(l.situacaoId) || 0
+        const chave = `${sid}|${ym}`
+        porSitMes.set(chave, (porSitMes.get(chave) || 0) + 1)
+        if (!nomesSit.has(sid)) {
+            nomesSit.set(sid, String(l.situacao || '').trim() || `Situação ${sid}`)
+        }
+    }
+
+    if (!mesesYm.length) {
+        const set = new Set()
+        for (const k of porSitMes.keys()) set.add(k.split('|')[1])
+        mesesYm = [...set].sort()
+    }
+
+    const situacaoIds = [...nomesSit.keys()].sort((a, b) =>
+        String(nomesSit.get(a)).localeCompare(String(nomesSit.get(b)), 'pt-BR', {
+            sensitivity: 'base',
+        }),
+    )
+
+    const meses = mesesYm.map((ym) => ({ ym, label: rotuloMesAnoCurtoPdf(ym) }))
+    const series = situacaoIds.map((sid, idx) => ({
+        situacaoId: sid,
+        nome: nomesSit.get(sid),
+        cor: CORES_SITUACAO_PDF[idx % CORES_SITUACAO_PDF.length],
+        valores: mesesYm.map((ym) => porSitMes.get(`${sid}|${ym}`) || 0),
+    }))
+
+    return { meses, series }
+}
+
+function desenharGraficoCredenciadosPorMes(doc, serieOuPack, opts = {}) {
+    const titleY = opts.startY ?? MM_MARGIN + 8
+    const multi =
+        serieOuPack &&
+        typeof serieOuPack === 'object' &&
+        Array.isArray(serieOuPack.meses) &&
+        Array.isArray(serieOuPack.series)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.setTextColor(21, 54, 79)
+    doc.text('Credenciados por mês/ano', MM_MARGIN, titleY)
+    doc.setTextColor(0, 0, 0)
+
+    const chartLeft = MM_MARGIN + 12
+    const chartRight = PAGE_W - MM_MARGIN
+    const chartBottom = multi && serieOuPack.series.length > 1 ? 235 : 250
+    const chartTop = titleY + 14
+    const chartH = chartBottom - chartTop
+    const chartW = chartRight - chartLeft
+
+    const meses = multi ? serieOuPack.meses : serieOuPack
+    const series = multi
+        ? serieOuPack.series
+        : [
+              {
+                  nome: 'Total',
+                  cor: [47, 128, 237],
+                  valores: (serieOuPack || []).map((s) => s.total),
+              },
+          ]
+    const nMeses = meses.length
+    const nSeries = series.length
+    const maxVal = Math.max(
+        1,
+        ...series.flatMap((s) => s.valores),
+        ...(multi ? [] : (serieOuPack || []).map((s) => s.total)),
+    )
+
+    const groupGap = Math.min(5, chartW / (nMeses * 5))
+    const groupW = Math.max(8, (chartW - groupGap * (nMeses + 1)) / nMeses)
+    const barGap = nSeries > 1 ? 0.8 : 0
+    const barW = Math.max(2.2, (groupW - barGap * (nSeries - 1)) / nSeries)
+
+    doc.setDrawColor(180, 190, 200)
+    doc.setLineWidth(0.3)
+    doc.line(chartLeft, chartTop, chartLeft, chartBottom)
+    doc.line(chartLeft, chartBottom, chartRight, chartBottom)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(120, 130, 140)
+    for (let i = 0; i <= 4; i += 1) {
+        const v = Math.round((maxVal * i) / 4)
+        const y = chartBottom - (chartH * i) / 4
+        doc.setDrawColor(230, 235, 240)
+        doc.line(chartLeft, y, chartRight, y)
+        doc.text(String(v), chartLeft - 2, y + 1, { align: 'right' })
+    }
+    doc.setTextColor(0, 0, 0)
+
+    for (let mi = 0; mi < nMeses; mi += 1) {
+        const groupX = chartLeft + groupGap + mi * (groupW + groupGap)
+        for (let si = 0; si < nSeries; si += 1) {
+            const val = Number(series[si].valores[mi]) || 0
+            const h = (val / maxVal) * (chartH - 2)
+            const x = groupX + si * (barW + barGap)
+            const y = chartBottom - h
+            const cor = series[si].cor || [47, 128, 237]
+            doc.setFillColor(cor[0], cor[1], cor[2])
+            doc.rect(x, y, barW, Math.max(val > 0 ? 0.5 : 0, h), 'F')
+            if (val > 0 && nSeries <= 4) {
+                doc.setFont('helvetica', 'bold')
+                doc.setFontSize(6)
+                doc.setTextColor(30, 77, 122)
+                doc.text(String(val), x + barW / 2, y - 1.2, { align: 'center' })
+            }
+        }
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(nMeses > 10 ? 5.5 : 7)
+        doc.setTextColor(60, 70, 80)
+        const label = meses[mi].label || meses[mi]
+        doc.text(String(label), groupX + groupW / 2, chartBottom + 4, {
+            align: 'center',
+            angle: nMeses > 8 ? 45 : 0,
+        })
+    }
+
+    let legendY = chartBottom + 14
+    if (nSeries > 1) {
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(7.5)
+        let lx = MM_MARGIN
+        for (const s of series) {
+            const cor = s.cor || [47, 128, 237]
+            doc.setFillColor(cor[0], cor[1], cor[2])
+            doc.rect(lx, legendY - 2.5, 4, 4, 'F')
+            doc.setTextColor(40, 50, 60)
+            const nome = String(s.nome || '').slice(0, 28)
+            doc.text(nome, lx + 5.5, legendY + 0.5)
+            const tw = doc.getTextWidth(nome) + 12
+            lx += tw
+            if (lx > PAGE_W - MM_MARGIN - 40) {
+                lx = MM_MARGIN
+                legendY += 6
+            }
+        }
+        legendY += 6
+    }
+
+    const soma = series.reduce(
+        (acc, s) => acc + s.valores.reduce((a, v) => a + (Number(v) || 0), 0),
+        0,
+    )
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(60, 70, 80)
+    const sitTxt =
+        nSeries > 1 ? `${nSeries} situação(ões)` : series[0]?.nome || '1 situação'
+    doc.text(
+        `Total no período: ${soma} · ${nMeses} mês(es) · ${sitTxt}`,
+        MM_MARGIN,
+        legendY + (nSeries > 1 ? 2 : 2),
+    )
+    doc.setTextColor(0, 0, 0)
+}
+
+/**
+ * @param {{ linhas: Array, subtitulo?: string, periodoDe?: string, periodoAte?: string }} opts
+ */
+export async function gerarRelatorioCadastrosPdf(opts) {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
+    const logo = await carregarLogoPdfEmerdog()
+    let y = MM_MARGIN
+    const rightX = PAGE_W - MM_MARGIN
+
+    doc.addImage(logo.dataUrl, 'PNG', MM_MARGIN, y, logo.w, logo.h)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(60, 60, 60)
+    doc.text(`Gerado em: ${dataGeracaoPtBr()}`, rightX, y + logo.h * 0.45, { align: 'right' })
+    doc.setTextColor(0, 0, 0)
+    y += logo.h + 6
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(14)
+    doc.text('Relatório de Cadastros', MM_MARGIN, y)
+    y += 6
+
+    const sub = String(opts.subtitulo || '').trim()
+    if (sub) {
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(60, 60, 60)
+        doc.text(sub, MM_MARGIN, y, { maxWidth: TABLE_WIDTH_MM })
+        doc.setTextColor(0, 0, 0)
+        y += 6
+    } else {
+        y += 2
+    }
+
+    const body = (opts.linhas || []).map((l) => [
+        String(l.nome || '—'),
+        String(l.especialidade || '—'),
+        String(l.cidade || '—'),
+        String(l.situacao || '—'),
+        String(l.credenciadoEm || '—'),
+    ])
+
+    autoTable(doc, {
+        startY: y,
+        margin: { left: MM_MARGIN, right: MM_MARGIN },
+        tableWidth: TABLE_WIDTH_MM,
+        theme: 'grid',
+        styles: {
+            font: 'helvetica',
+            fontSize: 8,
+            cellPadding: 1.6,
+            overflow: 'linebreak',
+            valign: 'middle',
+        },
+        head: [['Nome', 'Especialidade', 'Cidade', 'Situação', 'Credenciado Em']],
+        body: body.length ? body : [['—', '—', '—', '—', '—']],
+        headStyles: { fillColor: [30, 77, 122], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+        columnStyles: {
+            0: { cellWidth: 52 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 36 },
+            3: { cellWidth: 30 },
+            4: { cellWidth: 28, halign: 'center' },
+        },
+    })
+
+    const pack = montarSeriesPorSituacaoEMes(
+        opts.linhas,
+        opts.periodoDe || '',
+        opts.periodoAte || '',
+    )
+    if (pack.meses.length > 1) {
+        doc.addPage()
+        let gy = MM_MARGIN
+        doc.addImage(logo.dataUrl, 'PNG', MM_MARGIN, gy, logo.w, logo.h)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(60, 60, 60)
+        doc.text(`Gerado em: ${dataGeracaoPtBr()}`, rightX, gy + logo.h * 0.45, { align: 'right' })
+        doc.setTextColor(0, 0, 0)
+        gy += logo.h + 10
+        desenharGraficoCredenciadosPorMes(doc, pack, { startY: gy })
+    }
+
+    const total = doc.getNumberOfPages()
+    for (let i = 1; i <= total; i += 1) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setTextColor(100, 100, 100)
+        doc.text(`Página ${i} de ${total}`, PAGE_W - MM_MARGIN, 290, { align: 'right' })
+        doc.setTextColor(0, 0, 0)
+    }
+
+    return doc.output('blob')
+}
+
+export function nomeArquivoRelatorioCadastros(sufixo = '') {
+    const base = sanitizarNomeArquivoPdf(String(sufixo || '').trim() || 'Cadastros')
+    const d = new Date()
+    const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
+    return `Relatorio-Cadastros-${base}-${stamp}.pdf`
+}
+
+export function downloadRelatorioCadastrosPdf(blob, sufixo) {
+    downloadPdf(blob, nomeArquivoRelatorioCadastros(sufixo))
+}

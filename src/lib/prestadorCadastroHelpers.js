@@ -234,6 +234,21 @@ export const acharSituacaoPreenchendoFormularioId = (situacoes) => {
 /** Situação «Aguardando Formulário» (ou equivalente). Sem fallback. */
 export const acharSituacaoAguardandoFormularioId = (situacoes) => {
     const lista = situacoes || []
+    const porCodigo = lista.find((s) => {
+        const c = String(s.codigo || '')
+            .trim()
+            .toUpperCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^A-Z0-9]+/g, '_')
+        return (
+            c === 'AGUARDANDO_FORMULARIO' ||
+            c === 'AGUARDANDO_FORMULARIOS' ||
+            c === 'AGUARD_FORM' ||
+            c === 'AGUARDANDO_FORM'
+        )
+    })
+    if (porCodigo != null) return String(porCodigo.id)
     const preferido = lista.find((s) => {
         const t = normalizarDescricaoSituacao(s.descricao)
         return t === 'AGUARDANDO FORMULARIO' || t === 'AGUARDANDO FORMULARIOS'

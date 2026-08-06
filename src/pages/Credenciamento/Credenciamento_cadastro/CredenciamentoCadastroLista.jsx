@@ -23,8 +23,15 @@ import {
 import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
 import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
 import { montarNomeArquivoRc } from '../../../lib/rc/rcPdfNomeArquivo.js'
+import {
+    downloadRelatorioCadastrosPdf,
+    formatarPeriodoYmdPtBr,
+    gerarRelatorioCadastrosPdf,
+    montarLinhasRelatorioCadastros,
+} from '../../../lib/credenciamento/gerarRelatorioCadastrosPdf.js'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
 import CopiarCodigosProcedimentosBtn from './CopiarCodigosProcedimentosBtn.jsx'
+import CadastroExportarPdfModal from './CadastroExportarPdfModal.jsx'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import '../Credenciamento_main/Credenciamento_main.css'
@@ -67,10 +74,13 @@ const CredenciamentoCadastroLista = () => {
     const [situacoes, setSituacoes] = useState([])
     const [especialidades, setEspecialidades] = useState([])
     const [prestadorCidades, setPrestadorCidades] = useState([])
+    const [prestadorEspecialidades, setPrestadorEspecialidades] = useState([])
     const [prestadorEstabelecimentos, setPrestadorEstabelecimentos] = useState([])
     const [qtdProcedimentosPorPrestador, setQtdProcedimentosPorPrestador] = useState(() => new Map())
     const [labsMassaBusy, setLabsMassaBusy] = useState(false)
     const [feedbackLabsMassa, setFeedbackLabsMassa] = useState('')
+    const [exportandoPdf, setExportandoPdf] = useState(false)
+    const [modalExportPdfAberto, setModalExportPdfAberto] = useState(false)
 
     const [modalRcAberto, setModalRcAberto] = useState(false)
     const [rcCidadeBusca, setRcCidadeBusca] = useState('')
@@ -141,12 +151,13 @@ const CredenciamentoCadastroLista = () => {
                 { data: especialidadesData, error: errE },
                 { data: pcData, error: errPc },
                 { data: peData, error: errPe },
+                { data: peEspData, error: errPeEsp },
             ] = await Promise.all([
                 buscarTodosPaginado(() =>
                     supabase
                         .from('prestadores')
                         .select(
-                            'id, nome, tipo, telefone, celular, email, cidade_id, especialidade_id, situacao_id, cpf_cnpj, crmv, ativo, cep, endereco, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, modalidade, chave_pix, tipo_repasse',
+                            'id, nome, tipo, telefone, celular, email, cidade_id, especialidade_id, situacao_id, cpf_cnpj, crmv, ativo, cep, endereco, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, modalidade, chave_pix, tipo_repasse, credenciado_em',
                         )
                         .eq('ativo', true)
                         .order('id', { ascending: true }),
@@ -154,7 +165,7 @@ const CredenciamentoCadastroLista = () => {
                 buscarTodosPaginado(() =>
                     supabase.from('cidades_credenciamento').select('id, nome').order('id', { ascending: true }),
                 ),
-                supabase.from('situacoes').select('id, descricao, ordem, ativo').eq('ativo', true).order('ordem'),
+                supabase.from('situacoes').select('id, codigo, descricao, ordem, ativo').eq('ativo', true).order('ordem'),
                 supabase.from('especialidades').select('id, nome, tipo').order('nome'),
                 buscarTodosPaginado(() =>
                     supabase
@@ -170,6 +181,12 @@ const CredenciamentoCadastroLista = () => {
                         .order('veterinario_id', { ascending: true })
                         .order('estabelecimento_id', { ascending: true }),
                 ),
+                buscarTodosPaginado(() =>
+                    supabase
+                        .from('prestador_especialidades')
+                        .select('prestador_id, especialidade_id, principal')
+                        .order('prestador_id', { ascending: true }),
+                ),
             ])
             let procRows = []
             if (hasStoredDevTools() && colCad.procs) {
@@ -181,7 +198,7 @@ const CredenciamentoCadastroLista = () => {
                 )
                 if (errProc?.message) {
                     setErro(
-                        [errP, errC, errS, errE, errPc, errPe, errProc]
+                        [errP, errC, errS, errE, errPc, errPe, errPeEsp, errProc]
                             .map((e) => e?.message)
                             .filter(Boolean)
                             .join(' | '),
@@ -190,7 +207,9 @@ const CredenciamentoCadastroLista = () => {
                 }
                 procRows = procData || []
             }
-            const erros = [errP, errC, errS, errE, errPc, errPe].map((e) => e?.message).filter(Boolean)
+            const erros = [errP, errC, errS, errE, errPc, errPe, errPeEsp]
+                .map((e) => e?.message)
+                .filter(Boolean)
             if (erros.length) {
                 setErro(erros.join(' | '))
                 return
@@ -201,6 +220,7 @@ const CredenciamentoCadastroLista = () => {
             setEspecialidades(especialidadesData || [])
             setPrestadorCidades(pcData || [])
             setPrestadorEstabelecimentos(peData || [])
+            setPrestadorEspecialidades(peEspData || [])
             if (hasStoredDevTools() && colCad.procs) {
                 setQtdProcedimentosPorPrestador(contarProcedimentosDistintosPorPrestador(procRows))
             } else {
@@ -475,6 +495,76 @@ const CredenciamentoCadastroLista = () => {
         )
     }
 
+    const exportarPdfCadastros = async ({ periodoDe, periodoAte, situacaoIds }) => {
+        if (exportandoPdf) return
+        if (!periodoDe || !periodoAte) {
+            setErro('Informe o período de exportação.')
+            return
+        }
+        const idsSit = (situacaoIds || []).map(Number).filter(Boolean)
+        if (!idsSit.length) {
+            setErro('Selecione ao menos uma situação para o relatório.')
+            return
+        }
+        if (!prestadores.length) {
+            setErro('Nenhum cadastro carregado para exportar.')
+            return
+        }
+        setExportandoPdf(true)
+        setErro('')
+        try {
+            const linhasPdf = montarLinhasRelatorioCadastros({
+                prestadores,
+                situacoes,
+                especialidades,
+                cidadesCred: cidades,
+                prestadorEspecialidades,
+                prestadorCidades,
+                estabelecimentoPorVeterinario,
+                periodoDe,
+                periodoAte,
+                situacaoIds: idsSit,
+            })
+
+            if (!linhasPdf.length) {
+                setErro(
+                    `Nenhum cadastro no período ${formatarPeriodoYmdPtBr(periodoDe, periodoAte)} com as situações selecionadas.`,
+                )
+                return
+            }
+
+            const nomesSit = idsSit
+                .map((id) => situacoes.find((s) => Number(s.id) === id)?.descricao)
+                .filter(Boolean)
+            const sitLabel =
+                nomesSit.length <= 3
+                    ? nomesSit.join(', ')
+                    : `${nomesSit.slice(0, 2).join(', ')} +${nomesSit.length - 2}`
+            const periodoLabel = formatarPeriodoYmdPtBr(periodoDe, periodoAte)
+            const partesSub = [
+                `Período (Credenciado Em): ${periodoLabel}`,
+                `${linhasPdf.length} registro(s)`,
+                `Situação(ões): ${sitLabel}`,
+            ]
+
+            const blob = await gerarRelatorioCadastrosPdf({
+                linhas: linhasPdf,
+                subtitulo: partesSub.join(' · '),
+                periodoDe,
+                periodoAte,
+            })
+            downloadRelatorioCadastrosPdf(
+                blob,
+                `${periodoDe}_${periodoAte}-${idsSit.length}sit`,
+            )
+            setModalExportPdfAberto(false)
+        } catch (e) {
+            setErro(e?.message || 'Falha ao gerar PDF do relatório de cadastros.')
+        } finally {
+            setExportandoPdf(false)
+        }
+    }
+
     const gerarPdfRc = async () => {
         if (!rcCidadesSelecionadas.length) {
             setErro('Selecione pelo menos uma cidade para gerar a RC.')
@@ -526,31 +616,44 @@ const CredenciamentoCadastroLista = () => {
             if (!id) {
                 try {
                     const maxOrdem = situacoes.reduce((m, s) => Math.max(m, Number(s.ordem) || 0), 0)
+                    const payloadBase = {
+                        descricao: 'Aguardando Formulário',
+                        codigo: 'AGUARDANDO_FORMULARIO',
+                        ativo: true,
+                    }
                     let data = null
                     let error = null
                     ;({ data, error } = await supabase
                         .from('situacoes')
                         .insert({
-                            descricao: 'Aguardando Formulário',
-                            ativo: true,
+                            ...payloadBase,
                             ordem: maxOrdem + 1,
                         })
-                        .select('id, descricao, ordem, ativo')
+                        .select('id, codigo, descricao, ordem, ativo')
                         .single())
                     if (error) {
-                        ;({ data, error } = await supabase
+                        // Já existe com esse código, ou coluna ordem indisponível — tenta reutilizar / insert mínimo
+                        const { data: existente } = await supabase
                             .from('situacoes')
-                            .insert({
-                                descricao: 'Aguardando Formulário',
-                                ativo: true,
-                            })
-                            .select('id, descricao, ordem, ativo')
-                            .single())
+                            .select('id, codigo, descricao, ordem, ativo')
+                            .eq('codigo', 'AGUARDANDO_FORMULARIO')
+                            .maybeSingle()
+                        if (existente?.id) {
+                            data = existente
+                            error = null
+                        } else {
+                            ;({ data, error } = await supabase
+                                .from('situacoes')
+                                .insert(payloadBase)
+                                .select('id, codigo, descricao, ordem, ativo')
+                                .single())
+                        }
                     }
                     if (error) throw new Error(error.message)
-                    setSituacoes((anteriores) =>
-                        [...anteriores, data].sort((a, b) => Number(a.ordem) - Number(b.ordem)),
-                    )
+                    setSituacoes((anteriores) => {
+                        if (anteriores.some((s) => Number(s.id) === Number(data.id))) return anteriores
+                        return [...anteriores, data].sort((a, b) => Number(a.ordem) - Number(b.ordem))
+                    })
                     id = String(data.id)
                 } catch (e) {
                     setErro(
@@ -720,6 +823,15 @@ const CredenciamentoCadastroLista = () => {
                                 </div>
                                 <div className="credenciamento_main_filter_item credenciamento_cadastro_filters_action">
                                     <div className="credenciamento_cadastro_lista_acoes">
+                                        <button
+                                            type="button"
+                                            className="credenciamento_main_action_btn secondary"
+                                            disabled={exportandoPdf || loading}
+                                            onClick={() => setModalExportPdfAberto(true)}
+                                            title="Exporta PDF pelos critérios do modal (período e situações), independente da busca na tela"
+                                        >
+                                            Exportar PDF
+                                        </button>
                                         <button
                                             type="button"
                                             className="credenciamento_main_action_btn secondary"
@@ -971,6 +1083,15 @@ const CredenciamentoCadastroLista = () => {
                     </>
                 )}
             </div>
+
+            <CadastroExportarPdfModal
+                aberto={modalExportPdfAberto}
+                onClose={() => !exportandoPdf && setModalExportPdfAberto(false)}
+                exportando={exportandoPdf}
+                situacoes={situacoes}
+                situacaoIdsIniciais={null}
+                onConfirmar={(opts) => void exportarPdfCadastros(opts)}
+            />
 
             {modalRcAberto && (
                 <div className="credenciamento_modal_backdrop" onClick={() => setModalRcAberto(false)}>
