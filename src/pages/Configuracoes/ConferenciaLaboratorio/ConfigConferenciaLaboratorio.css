@@ -2438,6 +2438,13 @@ body.dark-mode .conf_lab_drop_btn {
     color: #123e59;
 }
 
+.conf_lab_alias_combo_input::-webkit-search-cancel-button,
+.conf_lab_alias_combo_input::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+}
+
 .conf_lab_alias_combo_input:focus {
     outline: 2px solid rgba(15, 79, 120, 0.28);
     outline-offset: 1px;

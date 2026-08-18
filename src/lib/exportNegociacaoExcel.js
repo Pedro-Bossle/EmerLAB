@@ -1,3 +1,5 @@
+import { nomeParaHonorariosPdf } from './prestadorNomeAlternativo.js'
+
 const FONTE_PADRAO = { name: 'Calibri', size: 11 }
 const FONTE_CABECALHO = { ...FONTE_PADRAO, bold: true }
 const PREENCHIMENTO_CABECALHO = {
@@ -56,7 +58,10 @@ function valorNumericoExport(valor) {
 
 function montarValoresLinhaExport(linha, opcoes = {}) {
     const { preencherPropostaEmerdog = true, preencherRespostaVeterinario = false } = opcoes
-    const proc = linha.procedimento ?? linha.nome ?? ''
+    const proc = nomeParaHonorariosPdf(
+        linha.procedimento ?? linha.nome ?? '',
+        linha.nomeAlternativo ?? linha.nome_alternativo,
+    )
     const propostaP = preencherPropostaEmerdog ? linha.propostaPorteP ?? linha.porteP : linha.propostaPorteP
     const propostaM = preencherPropostaEmerdog ? linha.propostaPorteM ?? linha.porteM : linha.propostaPorteM
     const propostaG = preencherPropostaEmerdog ? linha.propostaPorteG ?? linha.porteG : linha.propostaPorteG

@@ -20,11 +20,18 @@ async function buscarPaginado(montarQuery, tamanho = 500) {
     return { data: acumulado, error: null }
 }
 
+function precoEhUtil(valor) {
+    return Number.isFinite(Number(valor)) && Number(valor) !== 0
+}
+
 function indexarPreco(mapas, chaveNorm, valor, codigo, nomeSistema) {
     if (!chaveNorm) return
     const { precosPorNomeNorm, codigoPorNomeNorm, nomeSistemaPorNorm } = mapas
-    if (!precosPorNomeNorm.has(chaveNorm) || !Number.isFinite(Number(precosPorNomeNorm.get(chaveNorm)))) {
-        precosPorNomeNorm.set(chaveNorm, valor)
+    const novo = Number(valor)
+    const atual = precosPorNomeNorm.has(chaveNorm) ? Number(precosPorNomeNorm.get(chaveNorm)) : null
+    const atualInutil = atual == null || !Number.isFinite(atual) || atual === 0
+    if (atualInutil && Number.isFinite(novo)) {
+        precosPorNomeNorm.set(chaveNorm, novo)
     }
     if (codigo && !codigoPorNomeNorm.has(chaveNorm)) {
         codigoPorNomeNorm.set(chaveNorm, codigo)
@@ -32,6 +39,18 @@ function indexarPreco(mapas, chaveNorm, valor, codigo, nomeSistema) {
     if (nomeSistema && !nomeSistemaPorNorm.has(chaveNorm)) {
         nomeSistemaPorNorm.set(chaveNorm, nomeSistema)
     }
+}
+
+/** Primeiro preço > 0 no mapa, por nome/código (0 e vazio não contam). */
+export function precoNegociacaoUtil(precosPorNomeNorm, ...nomesOuCodigos) {
+    if (!precosPorNomeNorm) return null
+    for (const bruto of nomesOuCodigos) {
+        const chave = normalizarNomeExame(bruto)
+        if (!chave || !precosPorNomeNorm.has(chave)) continue
+        const v = Number(precosPorNomeNorm.get(chave))
+        if (precoEhUtil(v)) return v
+    }
+    return null
 }
 
 /**
@@ -212,6 +231,7 @@ export function resolverExameNegociacao(nomeOuNorm, opts = {}) {
 
     let nomeSistema = nomeSistemaPorNorm.get(norm) || null
     let valor = precosPorNomeNorm.has(norm) ? Number(precosPorNomeNorm.get(norm)) : null
+    if (!precoEhUtil(valor)) valor = null
     let codigo = codigoPorNomeNorm.get(norm) || ''
 
     if (!nomeSistema) {
@@ -233,16 +253,18 @@ export function resolverExameNegociacao(nomeOuNorm, opts = {}) {
     )
     const nomeAlternativo = itemCat?.nomeAlternativo || null
 
-    if ((!Number.isFinite(valor) || valor === 0) && nomeSistema) {
-        const v2 = precosPorNomeNorm.get(normalizarNomeExame(nomeSistema))
-        if (Number.isFinite(Number(v2)) && Number(v2) !== 0) valor = Number(v2)
+    if (!precoEhUtil(valor) && nomeSistema) {
+        valor = precoNegociacaoUtil(precosPorNomeNorm, nomeSistema, codigo, itemCat?.codigo)
+    }
+    if (!precoEhUtil(valor) && itemCat && precoEhUtil(itemCat.valor)) {
+        valor = Number(itemCat.valor)
     }
 
     return {
         nomeSistema: nomeSistema || null,
         nomeAlternativo,
         codigo: codigo || itemCat?.codigo || '',
-        valor: Number.isFinite(valor) ? valor : null,
+        valor: precoEhUtil(valor) ? Number(valor) : null,
         norm,
     }
 }

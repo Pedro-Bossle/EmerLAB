@@ -220,7 +220,7 @@ function CatalogoCombobox({
         <div className="conf_lab_alias_combo" ref={wrapRef}>
             <input
                 ref={inputRef}
-                type="search"
+                type="text"
                 className="conf_lab_alias_combo_input"
                 role="combobox"
                 aria-expanded={aberto}

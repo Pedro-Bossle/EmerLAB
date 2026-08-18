@@ -17,6 +17,7 @@ import {
     camposFaltantesMapeamento,
     chaveAliasExame,
     chaveMarcacaoPosRelatorio,
+    mesmoCardConferencia,
     exportarPosRelatorioConferenciaExcel,
     listarAliasesDoExameAlvo,
     listarNomesExameUnicos,
@@ -27,6 +28,7 @@ import {
     montarMapasAliasesPessoa,
     combinarOrfaosNosCards,
     agruparCardsComparacaoPorAtendimento,
+    preencherPrecosZeroNosGruposComparacao,
     agruparLinhasPorAtendimento,
     enriquecerLinhaEmerdog,
     montarFilaPareamentoOrfaos,
@@ -55,6 +57,7 @@ import {
 import {
     idsEspecialidadeLaboratorio,
     normalizarTextoBusca,
+    prestadorEhCredenciado,
     prestadorEhLaboratorio,
 } from '../../../lib/prestadorCadastroHelpers.js'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
@@ -320,27 +323,38 @@ const ConfigConferenciaLaboratorio = () => {
         setLoading(true)
         setErro('')
         try {
-            const [{ data: especialidades, error: errEsp }, { data: prestadores, error: errP }] =
+            const [
+                { data: especialidades, error: errEsp },
+                { data: prestadores, error: errP },
+                { data: situacoes, error: errS },
+            ] =
                 await Promise.all([
                     supabase.from('especialidades').select('id, nome').order('nome'),
                     buscarTodosPaginado(() =>
                         supabase
                             .from('prestadores')
-                            .select('id, nome, especialidade_id, ativo')
+                            .select('id, nome, especialidade_id, ativo, situacao_id')
                             .eq('ativo', true)
                             .order('nome', { ascending: true }),
                     ),
+                    supabase.from('situacoes').select('id, descricao'),
                 ])
             if (errEsp) throw new Error(errEsp.message)
             if (errP) throw new Error(errP.message)
+            if (errS) throw new Error(errS.message)
 
             const idsLab = new Set(idsEspecialidadeLaboratorio(especialidades || []))
             const labs = (prestadores || []).filter((p) => {
+                if (!prestadorEhCredenciado(p, situacoes || [])) return false
                 if (idsLab.has(Number(p.especialidade_id))) return true
                 return prestadorEhLaboratorio(p.especialidade_id, especialidades || [])
             })
             setLaboratorios(labs)
-            if (!laboratorioId && labs[0]?.id) setLaboratorioId(String(labs[0].id))
+            if (laboratorioId && !labs.some((l) => String(l.id) === String(laboratorioId))) {
+                setLaboratorioId(labs[0]?.id ? String(labs[0].id) : '')
+            } else if (!laboratorioId && labs[0]?.id) {
+                setLaboratorioId(String(labs[0].id))
+            }
         } catch (e) {
             setErro(e?.message || String(e))
         } finally {
@@ -1143,7 +1157,10 @@ const ConfigConferenciaLaboratorio = () => {
     }
 
     const cardsFiltrados = useMemo(() => {
-        let grupos = agruparCardsComparacaoPorAtendimento(cards)
+        let grupos = preencherPrecosZeroNosGruposComparacao(
+            agruparCardsComparacaoPorAtendimento(cards),
+            precosPorNomeNorm,
+        )
 
         if (tutorFoco?.norm) {
             grupos = grupos.filter(
@@ -1186,7 +1203,7 @@ const ConfigConferenciaLaboratorio = () => {
         }
 
         return grupos
-    }, [cards, filtroCards, marcadosPosRelatorio, tutorFoco, buscaComparacao])
+    }, [cards, filtroCards, marcadosPosRelatorio, tutorFoco, buscaComparacao, precosPorNomeNorm])
 
     const totalAtendimentos = useMemo(
         () => agruparCardsComparacaoPorAtendimento(cards).length,
@@ -1714,19 +1731,21 @@ const ConfigConferenciaLaboratorio = () => {
             setErro('Sem permissão para auditar.')
             return
         }
-        const obs = obsAuditoria[card.idLocal] || ''
+        const chaveObs = chaveMarcacaoPosRelatorio(card)
+        const obs = obsAuditoria[chaveObs] || obsAuditoria[card.idLocal] || ''
         setCards((prev) =>
             prev.map((c) =>
-                c.idLocal === card.idLocal || c.chave === card.chave
+                mesmoCardConferencia(c, card)
                     ? {
                           ...c,
                           status: 'conferido_manual',
+                          valoresDiferem: false,
                           observacaoAuditoria: obs,
                       }
                     : c,
             ),
         )
-        setFeedback('Card marcado como conferido manualmente.')
+        setFeedback('Exame marcado como conferido.')
     }
 
     const abrirNormalizacao = (card) => {
@@ -2215,9 +2234,10 @@ const ConfigConferenciaLaboratorio = () => {
                 precosPorNomeNorm,
                 mapaAliasesAtivo,
                 nomeSistemaPorNorm,
+                codigoPorNomeNorm,
             ),
         )
-    }, [linhasEmerdog, precosPorNomeNorm, mapaAliasesAtivo, nomeSistemaPorNorm])
+    }, [linhasEmerdog, precosPorNomeNorm, mapaAliasesAtivo, nomeSistemaPorNorm, codigoPorNomeNorm])
 
     /** Todos os atendimentos do tutor (lab + plano) a partir das planilhas. */
     const atendimentosTutorAmbosLados = useMemo(() => {
@@ -2408,11 +2428,12 @@ const ConfigConferenciaLaboratorio = () => {
                         } else {
                             const vPreco =
                                 precosPorNomeNorm.get(nomeNormMatch) ??
-                                precosPorNomeNorm.get(nomeNorm)
+                                precosPorNomeNorm.get(nomeNorm) ??
+                                (codigo
+                                    ? precosPorNomeNorm.get(normalizarNomeExame(codigo))
+                                    : null)
                             if (Number.isFinite(Number(vPreco)) && Number(vPreco) !== 0) {
                                 valor = Number(vPreco)
-                            } else if (Number.isFinite(vNeg)) {
-                                valor = vNeg
                             } else {
                                 const vRel = Number(l.valorRelatorio)
                                 if (Number.isFinite(vRel) && vRel !== 0) valor = vRel
@@ -2474,7 +2495,7 @@ const ConfigConferenciaLaboratorio = () => {
                     return {
                         ...ex,
                         codigo,
-                        valor: Number.isFinite(valor) ? valor : null,
+                        valor: Number.isFinite(valor) && valor !== 0 ? valor : null,
                     }
                 }),
             )
@@ -2710,7 +2731,7 @@ const ConfigConferenciaLaboratorio = () => {
                             />
                         </label>
                         <label>
-                            Laboratório
+                            Laboratório (credenciados)
                             <select
                                 value={laboratorioId}
                                 onChange={(e) => setLaboratorioId(e.target.value)}
@@ -3438,6 +3459,7 @@ const ConfigConferenciaLaboratorio = () => {
                                             .filter(
                                                 (l) =>
                                                     l.status !== 'verde' &&
+                                                    l.status !== 'conferido_manual' &&
                                                     l.tipo === 'pareado' &&
                                                     !l.semParNegociacao &&
                                                     l.valoresDiferem,
@@ -3457,11 +3479,18 @@ const ConfigConferenciaLaboratorio = () => {
                                                     <input
                                                         type="text"
                                                         placeholder="Observação da auditoria…"
-                                                        value={obsAuditoria[l.card.idLocal] || ''}
+                                                        value={
+                                                            obsAuditoria[
+                                                                chaveMarcacaoPosRelatorio(l.card)
+                                                            ] ||
+                                                            obsAuditoria[l.card.idLocal] ||
+                                                            ''
+                                                        }
                                                         onChange={(e) =>
                                                             setObsAuditoria((prev) => ({
                                                                 ...prev,
-                                                                [l.card.idLocal]: e.target.value,
+                                                                [chaveMarcacaoPosRelatorio(l.card)]:
+                                                                    e.target.value,
                                                             }))
                                                         }
                                                     />

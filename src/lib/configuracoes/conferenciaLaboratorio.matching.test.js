@@ -4,14 +4,21 @@ import {
     alinharExamesLabAoCodigoDoPlano,
     autoAprovarPareamentosPerfeitos,
     ehPareamentoExamePerfeito,
+    montarCardsConferencia,
     montarFilaExamesIndividuais,
     montarMapasAliasesPessoa,
     motivoComparacaoValor,
+    normalizarNomeExame,
     pontuarPareamentoExamesIndividuais,
+    preencherPrecosZeroNosGruposComparacao,
+    agruparCardsComparacaoPorAtendimento,
+    cardTemDiffPendente,
+    mesmoCardConferencia,
     scorePareamentoExame,
     scoreSimilaridadeNome,
 } from './conferenciaLaboratorio.js'
-import { parsearValorMonetario } from './conferenciaLaboratorioExcel.js'
+import { parsearValorMonetario, matrizDeHtmlTabela, matrizDeSpreadsheetMl, matrizDeWorksheetXmlXlsx, linhaConferenciaTemRegistro } from './conferenciaLaboratorioExcel.js'
+import { precoNegociacaoUtil } from './conferenciaLaboratorioPrecos.js'
 
 describe('scoreSimilaridadeNome', () => {
     it('idêntico = 1000', () => {
@@ -298,5 +305,209 @@ describe('montarFilaExamesIndividuais', () => {
         expect(item?.candidatos?.[0]?.motivos).not.toEqual(
             expect.arrayContaining(['Valor diferente']),
         )
+    })
+})
+
+describe('matrizDeHtmlTabela', () => {
+    it('lê tabela HTML de relatório', () => {
+        const html = `<html><table>
+          <tr><td>Tutor</td><td>Animal</td><td>Data</td><td>Exame</td></tr>
+          <tr><td>Ana</td><td>Thor</td><td>01/08/2026</td><td>ALT</td></tr>
+        </table></html>`
+        const m = matrizDeHtmlTabela(html)
+        expect(m[0]).toEqual(['Tutor', 'Animal', 'Data', 'Exame'])
+        expect(m[1][0]).toBe('Ana')
+        expect(m[1][3]).toBe('ALT')
+    })
+})
+
+describe('matrizDeWorksheetXmlXlsx', () => {
+    it('resolve shared strings e colunas esparsas', () => {
+        const xml = `<worksheet><sheetData>
+          <row r="1">
+            <c r="A1" t="s"><v>0</v></c>
+            <c r="C1"><v>45812</v></c>
+          </row>
+        </sheetData></worksheet>`
+        const m = matrizDeWorksheetXmlXlsx(xml, ['Tutor'])
+        expect(m[0][0]).toBe('Tutor')
+        expect(m[0][1]).toBe('')
+        expect(m[0][2]).toBe('45812')
+    })
+
+    it('não trata shared string vazia como índice 0', () => {
+        const xml = `<worksheet><sheetData>
+          <row r="2">
+            <c r="A2" t="s"><v></v></c>
+            <c r="B2" t="s"><v>  </v></c>
+          </row>
+        </sheetData></worksheet>`
+        const m = matrizDeWorksheetXmlXlsx(xml, ['NAO_DEVE_APARECER'])
+        expect(m.length).toBe(0)
+    })
+})
+
+describe('linhaConferenciaTemRegistro', () => {
+    it('aceita tutor + exame com nome', () => {
+        expect(
+            linhaConferenciaTemRegistro({
+                tutor: 'Ana Silva',
+                pet: 'Thor',
+                exame: 'ALT',
+            }),
+        ).toBe(true)
+    })
+
+    it('rejeita linha só com número / placeholder', () => {
+        expect(linhaConferenciaTemRegistro({ tutor: '', pet: '', exame: '97' })).toBe(false)
+        expect(linhaConferenciaTemRegistro({ tutor: '--', pet: '-', exame: '—' })).toBe(false)
+        expect(linhaConferenciaTemRegistro({ tutor: 'Total', pet: '', exame: 'ALT' })).toBe(false)
+        expect(linhaConferenciaTemRegistro({ tutor: 'Ana', pet: 'Thor', exame: '' })).toBe(false)
+        expect(linhaConferenciaTemRegistro({ tutor: 'Ana', pet: 'Thor', exame: '--' })).toBe(false)
+    })
+})
+
+describe('preço da negociação zerado', () => {
+    const labNome = '.HEMOGRAMA COMPLETO MELLISLAB - Citometria de Fluxo'
+    const planoNome = 'Hemograma + Plaquetas'
+    const labNorm = normalizarNomeExame(labNome)
+    const planoNorm = normalizarNomeExame(planoNome)
+    const codigoNorm = normalizarNomeExame('ELAB-035')
+
+    const linhaLab = {
+        idLocal: 'lab-1',
+        tutor: 'Ana Silva',
+        pet: 'Thor',
+        data: '2026-08-01',
+        exame: labNome,
+        exameNorm: labNorm,
+        valorRelatorio: 23.4,
+    }
+    const linhaEm = {
+        idLocal: 'em-1',
+        tutor: 'Ana Silva',
+        pet: 'Thor',
+        data: '2026-08-01',
+        exame: planoNome,
+        exameNorm: planoNorm,
+        valorRelatorio: 0,
+    }
+    const resolvidos = new Map([
+        [
+            labNorm,
+            {
+                nomeLab: labNome,
+                nomeEmerdog: planoNome,
+                status: 'mapeado_manualmente_confirmado',
+            },
+        ],
+    ])
+
+    it('precoNegociacaoUtil ignora 0 e usa o código', () => {
+        const mapa = new Map([
+            [planoNorm, 0],
+            [codigoNorm, 18.75],
+        ])
+        expect(precoNegociacaoUtil(mapa, planoNome)).toBe(null)
+        expect(precoNegociacaoUtil(mapa, planoNome, 'ELAB-035')).toBe(18.75)
+    })
+
+    it('preenche R$ 18,75 no plano quando o nome está zerado e o código tem preço', () => {
+        const cards = montarCardsConferencia({
+            linhasLab: [linhaLab],
+            linhasEmerdog: [linhaEm],
+            resolvidosMapeamento: resolvidos,
+            precosPorNomeNorm: new Map([
+                [planoNorm, 0],
+                [codigoNorm, 18.75],
+            ]),
+            codigoPorNomeNorm: new Map([
+                [planoNorm, 'ELAB-035'],
+                [labNorm, 'ELAB-035'],
+            ]),
+            nomeSistemaPorNorm: new Map([[planoNorm, planoNome]]),
+        })
+        const par = cards.find((c) => c.tipo === 'pareado')
+        expect(par).toBeTruthy()
+        expect(par.valorEmerdog).toBe(18.75)
+        expect(par.codigo).toBe('ELAB-035')
+    })
+
+    it('corrige grupo da comparação que ainda veio com R$ 0,00', () => {
+        const grupos = agruparCardsComparacaoPorAtendimento([
+            {
+                tipo: 'pareado',
+                idLocal: 'c1',
+                idLabLocal: 'lab-1',
+                idEmerdogLocal: 'em-1',
+                tutor: 'Ana Silva',
+                pet: 'Thor',
+                data: '2026-08-01',
+                exameLaboratorio: labNome,
+                exameEmerdog: planoNome,
+                nomeNegociacao: planoNome,
+                codigo: 'ELAB-035',
+                valorLab: 23.4,
+                valorEmerdog: 0,
+                diferenca: 23.4,
+                valoresDiferem: true,
+                status: 'pendente',
+            },
+        ])
+        const out = preencherPrecosZeroNosGruposComparacao(
+            grupos,
+            new Map([[codigoNorm, 18.75]]),
+        )
+        expect(out[0].examesEm[0].valor).toBe(18.75)
+        expect(out[0].subtotalEm).toBe(18.75)
+    })
+})
+
+describe('marcar conferido no atendimento', () => {
+    it('atendimento sai das diferenças quando o único diff foi conferido', () => {
+        const cards = [
+            {
+                tipo: 'pareado',
+                idLocal: 'c1',
+                idLabLocal: 'lab-1',
+                idEmerdogLocal: 'em-1',
+                tutor: 'Ana Silva',
+                pet: 'Thor',
+                data: '2026-08-01',
+                exameLaboratorio: 'ALT',
+                exameEmerdog: 'ALT',
+                valorLab: 13.16,
+                valorEmerdog: 13.16,
+                valoresDiferem: false,
+                status: 'verde',
+            },
+            {
+                tipo: 'pareado',
+                idLocal: 'c2',
+                idLabLocal: 'lab-2',
+                idEmerdogLocal: 'em-2',
+                tutor: 'Ana Silva',
+                pet: 'Thor',
+                data: '2026-08-01',
+                exameLaboratorio: '.HEMOGRAMA COMPLETO',
+                exameEmerdog: 'Hemograma + Plaquetas',
+                codigo: 'ELAB-035',
+                valorLab: 23.4,
+                valorEmerdog: 18.75,
+                valoresDiferem: true,
+                status: 'conferido_manual',
+            },
+        ]
+        const grupos = agruparCardsComparacaoPorAtendimento(cards)
+        expect(grupos).toHaveLength(1)
+        expect(grupos[0].temDiff).toBe(false)
+        expect(grupos[0].status).toBe('conferido_manual')
+        expect(cardTemDiffPendente(cards[1])).toBe(false)
+        expect(
+            mesmoCardConferencia(cards[1], {
+                idLabLocal: 'lab-2',
+                idEmerdogLocal: 'em-2',
+            }),
+        ).toBe(true)
     })
 })

@@ -10,6 +10,7 @@ import {
     parsearDataFlexivel,
     parsearExcelConferenciaLaboratorio,
     parsearValorMonetario,
+    linhaConferenciaTemRegistro,
 } from './conferenciaLaboratorioExcel.js'
 
 export {
@@ -1005,9 +1006,12 @@ export function enriquecerLinhaEmerdog(
     precosPorNomeNorm,
     resolvidosMapeamento = new Map(),
     nomeSistemaPorNorm = new Map(),
+    codigoPorNomeNorm = new Map(),
 ) {
     const exameNorm = linha.exameNorm || normalizarNomeExame(linha.exame)
-    const map = resolvidosMapeamento.get(exameNorm)
+    const map =
+        obterMapeamentoResolvido(resolvidosMapeamento, exameNorm, linha.valorRelatorio) ||
+        resolvidosMapeamento.get(exameNorm)
 
     // Resolve para nome de sistema via alt/código/mapeamento (evita preço zerado)
     let nomeSistema =
@@ -1016,20 +1020,23 @@ export function enriquecerLinhaEmerdog(
         map?.nomeEmerdog ||
         null
 
-    let valorNegociacao = precosPorNomeNorm.get(exameNorm)
-    if (!Number.isFinite(Number(valorNegociacao)) || Number(valorNegociacao) === 0) {
-        if (nomeSistema) {
-            const vSis = precosPorNomeNorm.get(normalizarNomeExame(nomeSistema))
-            if (Number.isFinite(Number(vSis)) && Number(vSis) !== 0) valorNegociacao = vSis
-        }
-    }
-    if ((!Number.isFinite(Number(valorNegociacao)) || Number(valorNegociacao) === 0) && map?.nomeEmerdog) {
-        const vMap = precosPorNomeNorm.get(normalizarNomeExame(map.nomeEmerdog))
-        if (Number.isFinite(Number(vMap)) && Number(vMap) !== 0) {
-            valorNegociacao = vMap
-            if (!nomeSistema) nomeSistema = map.nomeEmerdog
-        }
-    }
+    const codigoHint =
+        codigoPorNomeNorm.get(exameNorm) ||
+        (map?.nomeEmerdog
+            ? codigoPorNomeNorm.get(normalizarNomeExame(map.nomeEmerdog))
+            : null) ||
+        (nomeSistema ? codigoPorNomeNorm.get(normalizarNomeExame(nomeSistema)) : null)
+
+    let valorNegociacao = precoUtilDoMapa(
+        precosPorNomeNorm,
+        exameNorm,
+        nomeSistema,
+        map?.nomeEmerdog,
+        linha.exame,
+        codigoHint,
+    )
+
+    if (!nomeSistema && map?.nomeEmerdog) nomeSistema = map.nomeEmerdog
 
     const nomeNegociacao = nomeSistema || map?.nomeEmerdog || null
     const exameMatchNorm = nomeNegociacao
@@ -1041,24 +1048,26 @@ export function enriquecerLinhaEmerdog(
         exameMatchNorm,
         nomeNegociacao,
         nomeSistemaNegociacao: nomeSistema || null,
-        valorNegociacao: Number.isFinite(Number(valorNegociacao)) ? Number(valorNegociacao) : null,
-        semParNegociacao: !Number.isFinite(Number(valorNegociacao)),
+        valorNegociacao,
+        semParNegociacao: valorNegociacao == null,
     }
 }
 
-function resolverValorDoLabViaMapeamento(lab, precosPorNomeNorm, nomeSistemaPorNorm = new Map()) {
+function resolverValorDoLabViaMapeamento(
+    lab,
+    precosPorNomeNorm,
+    nomeSistemaPorNorm = new Map(),
+    codigoPorNomeNorm = new Map(),
+) {
     const tentar = (nome) => {
         if (!nome) return null
-        const norm = normalizarNomeExame(nome)
-        const v = precosPorNomeNorm.get(norm)
-        if (Number.isFinite(Number(v)) && Number(v) !== 0) return Number(v)
-        const sis = nomeSistemaPorNorm.get(norm)
-        if (sis) {
-            const v2 = precosPorNomeNorm.get(normalizarNomeExame(sis))
-            if (Number.isFinite(Number(v2))) return Number(v2)
-        }
-        if (Number.isFinite(Number(v))) return Number(v)
-        return null
+        const direto = precoUtilDoMapa(precosPorNomeNorm, nome)
+        if (direto != null) return direto
+        const sis = nomeSistemaPorNorm.get(normalizarNomeExame(nome))
+        const viaSis = precoUtilDoMapa(precosPorNomeNorm, sis)
+        if (viaSis != null) return viaSis
+        const codigo = codigoPorNomeNorm.get(normalizarNomeExame(nome))
+        return precoUtilDoMapa(precosPorNomeNorm, codigo)
     }
     return (
         tentar(lab.nomeEmerdogMapeado) ??
@@ -1108,6 +1117,17 @@ function valorNumericoOpcional(v) {
     if (v == null || v === '') return null
     const n = Number(v)
     return Number.isFinite(n) ? n : null
+}
+
+function precoUtilDoMapa(precosPorNomeNorm, ...nomesOuCodigos) {
+    if (!precosPorNomeNorm) return null
+    for (const bruto of nomesOuCodigos) {
+        const chave = normalizarNomeExame(bruto)
+        if (!chave || !precosPorNomeNorm.has(chave)) continue
+        const v = Number(precosPorNomeNorm.get(chave))
+        if (Number.isFinite(v) && v !== 0) return v
+    }
+    return null
 }
 
 /** Valor “do exame” no card: lab usa relatório; plano usa negociado. */
@@ -1238,38 +1258,35 @@ export function alinharExamesLabAoCodigoDoPlano(examesLab, examesEm) {
 function montarCardPareado(lab, emerdog, opts = {}) {
     const codigoPorNomeNorm = opts.codigoPorNomeNorm || new Map()
     const resolvidos = opts.resolvidosMapeamento || new Map()
+    const precos = opts.precosPorNomeNorm || new Map()
+    const nomesSis = opts.nomeSistemaPorNorm || new Map()
     const valorLab = Number.isFinite(Number(lab.valorRelatorio)) ? Number(lab.valorRelatorio) : null
-    let valorEmerdog = Number.isFinite(Number(emerdog.valorNegociacao))
-        ? Number(emerdog.valorNegociacao)
-        : null
-    if (valorEmerdog == null && opts.precosPorNomeNorm) {
-        valorEmerdog = resolverValorDoLabViaMapeamento(
-            lab,
-            opts.precosPorNomeNorm,
-            opts.nomeSistemaPorNorm || new Map(),
-        )
+    const codigo =
+        resolverCodigoPorNome(emerdog.exame, codigoPorNomeNorm, resolvidos) ||
+        resolverCodigoPorNome(emerdog.nomeNegociacao || lab.nomeEmerdogMapeado, codigoPorNomeNorm) ||
+        resolverCodigoPorNome(lab.exame, codigoPorNomeNorm, resolvidos)
+
+    let valorEmerdog = Number(emerdog.valorNegociacao)
+    if (!Number.isFinite(valorEmerdog) || valorEmerdog === 0) valorEmerdog = null
+    if (valorEmerdog == null) {
+        valorEmerdog =
+            resolverValorDoLabViaMapeamento(lab, precos, nomesSis, codigoPorNomeNorm) ??
+            precoUtilDoMapa(
+                precos,
+                emerdog.nomeSistemaNegociacao,
+                emerdog.nomeNegociacao,
+                emerdog.exame,
+                lab.nomeEmerdogMapeado,
+                codigo,
+            )
     }
-    // Se veio 0, tenta de novo pelo nome de sistema
-    if (
-        (valorEmerdog == null || valorEmerdog === 0) &&
-        opts.precosPorNomeNorm &&
-        (emerdog.nomeSistemaNegociacao || emerdog.nomeNegociacao)
-    ) {
-        const vSis = opts.precosPorNomeNorm.get(
-            normalizarNomeExame(emerdog.nomeSistemaNegociacao || emerdog.nomeNegociacao),
-        )
-        if (Number.isFinite(Number(vSis)) && Number(vSis) !== 0) valorEmerdog = Number(vSis)
-    }
+    if (valorEmerdog === 0) valorEmerdog = null
     const diferenca =
         valorLab != null && valorEmerdog != null ? Number((valorLab - valorEmerdog).toFixed(2)) : null
     const valoresDiferem = valoresExameDiferem(valorLab, valorEmerdog)
 
     const exameParaNormalizar = emerdog.exame || lab.exame || null
     const semParNegociacao = valorEmerdog == null && Boolean(exameParaNormalizar)
-    const codigo =
-        resolverCodigoPorNome(emerdog.exame, codigoPorNomeNorm, resolvidos) ||
-        resolverCodigoPorNome(emerdog.nomeNegociacao || lab.nomeEmerdogMapeado, codigoPorNomeNorm) ||
-        resolverCodigoPorNome(lab.exame, codigoPorNomeNorm, resolvidos)
 
     let status = opts.status
     if (!status) {
@@ -1322,33 +1339,42 @@ function montarCardOrfao(
 
     if (isLab) {
         exameParaNormalizar = linha.exame || null
-        valorEmerdog = resolverValorDoLabViaMapeamento(
-            linha,
-            precosPorNomeNorm,
-            nomeSistemaPorNorm,
-        )
         nomeNegociacao =
             linha.nomeEmerdogMapeado ||
             nomeSistemaPorNorm.get(normalizarNomeExame(linha.exame)) ||
             null
-        if (nomeNegociacao && (valorEmerdog == null || valorEmerdog === 0)) {
-            const v = precosPorNomeNorm.get(normalizarNomeExame(nomeNegociacao))
-            if (Number.isFinite(Number(v))) valorEmerdog = Number(v)
-        }
+        valorEmerdog =
+            resolverValorDoLabViaMapeamento(
+                linha,
+                precosPorNomeNorm,
+                nomeSistemaPorNorm,
+                codigoPorNomeNorm,
+            ) ?? precoUtilDoMapa(precosPorNomeNorm, nomeNegociacao, linha.exame)
+        if (valorEmerdog === 0) valorEmerdog = null
         semParNegociacao = Boolean(exameParaNormalizar) && valorEmerdog == null
     } else {
         exameParaNormalizar = linha.exame || null
-        valorEmerdog = Number.isFinite(Number(linha.valorNegociacao))
-            ? Number(linha.valorNegociacao)
-            : null
         nomeNegociacao =
             linha.nomeSistemaNegociacao || linha.nomeNegociacao || null
+        valorEmerdog = Number(linha.valorNegociacao)
+        if (!Number.isFinite(valorEmerdog) || valorEmerdog === 0) {
+            valorEmerdog = precoUtilDoMapa(
+                precosPorNomeNorm,
+                nomeNegociacao,
+                linha.exame,
+                linha.nomeEmerdogMapeado,
+            )
+        }
         semParNegociacao = Boolean(exameParaNormalizar) && valorEmerdog == null
     }
 
     const codigo =
         resolverCodigoPorNome(nomeNegociacao || linha.exame, codigoPorNomeNorm, resolvidosMapeamento) ||
         resolverCodigoPorNome(linha.exame, codigoPorNomeNorm, resolvidosMapeamento)
+
+    if (valorEmerdog == null && codigo) {
+        valorEmerdog = precoUtilDoMapa(precosPorNomeNorm, codigo)
+    }
 
     return {
         tipo: isLab ? 'orfao_lab' : 'orfao_emerdog',
@@ -1396,10 +1422,20 @@ export function montarCardsConferencia({
     paresManuais = [],
     mapasAliasesPessoa = null,
 }) {
-    const labs = (linhasLab || []).map((l) => enriquecerLinhaLab(l, resolvidosMapeamento))
-    const emerdogs = (linhasEmerdog || []).map((l) =>
-        enriquecerLinhaEmerdog(l, precosPorNomeNorm, resolvidosMapeamento, nomeSistemaPorNorm),
-    )
+    const labs = (linhasLab || [])
+        .filter((l) => linhaConferenciaTemRegistro(l))
+        .map((l) => enriquecerLinhaLab(l, resolvidosMapeamento))
+    const emerdogs = (linhasEmerdog || [])
+        .filter((l) => linhaConferenciaTemRegistro(l))
+        .map((l) =>
+            enriquecerLinhaEmerdog(
+                l,
+                precosPorNomeNorm,
+                resolvidosMapeamento,
+                nomeSistemaPorNorm,
+                codigoPorNomeNorm,
+            ),
+        )
     const mapas = mapasAliasesPessoa || { tutor: new Map(), pet: new Map() }
 
     const usadoLab = new Set()
@@ -1778,9 +1814,10 @@ export function agruparCardsComparacaoPorAtendimento(cards) {
         const usados = new Set()
 
         const addLinha = ({ card, lab, em, semPar }) => {
-            const valoresDiferem = Boolean(card.valoresDiferem)
+            const valoresDiferem = cardTemDiffPendente(card)
+            const idLinha = chaveMarcacaoPosRelatorio(card) || card.idLocal
             linhas.push({
-                idLocal: card.idLocal,
+                idLocal: idLinha,
                 card,
                 codigo: card.codigo || lab?.codigo || em?.codigo || '',
                 lab,
@@ -1792,12 +1829,13 @@ export function agruparCardsComparacaoPorAtendimento(cards) {
                 tipo: card.tipo,
                 diferenca: card.diferenca,
             })
-            usados.add(card.idLocal)
+            usados.add(idLinha)
         }
 
         for (const card of g.cardsExame) {
             if (card.tipo === 'pareado' || (card.idLabLocal && card.idEmerdogLocal)) {
-                if (usados.has(card.idLocal)) continue
+                const idLinha = chaveMarcacaoPosRelatorio(card) || card.idLocal
+                if (usados.has(idLinha)) continue
                 addLinha({
                     card,
                     lab: card.exameLaboratorio
@@ -1818,7 +1856,8 @@ export function agruparCardsComparacaoPorAtendimento(cards) {
         }
 
         for (const card of g.cardsExame) {
-            if (card.tipo !== 'orfao_lab' || usados.has(card.idLocal)) continue
+            const idLinha = chaveMarcacaoPosRelatorio(card) || card.idLocal
+            if (card.tipo !== 'orfao_lab' || usados.has(idLinha)) continue
             addLinha({
                 card,
                 lab: {
@@ -1832,7 +1871,8 @@ export function agruparCardsComparacaoPorAtendimento(cards) {
         }
 
         for (const card of g.cardsExame) {
-            if (card.tipo !== 'orfao_emerdog' || usados.has(card.idLocal)) continue
+            const idLinha = chaveMarcacaoPosRelatorio(card) || card.idLocal
+            if (card.tipo !== 'orfao_emerdog' || usados.has(idLinha)) continue
             addLinha({
                 card,
                 lab: null,
@@ -1846,7 +1886,8 @@ export function agruparCardsComparacaoPorAtendimento(cards) {
         }
 
         for (const card of g.cardsExame) {
-            if (usados.has(card.idLocal)) continue
+            const idLinha = chaveMarcacaoPosRelatorio(card) || card.idLocal
+            if (usados.has(idLinha)) continue
             addLinha({
                 card,
                 lab: card.exameLaboratorio
@@ -1956,6 +1997,94 @@ export function agruparCardsComparacaoPorAtendimento(cards) {
     })
 
     return resultado
+}
+
+/**
+ * Se o plano ficou R$ 0,00, completa com o preço da negociação (nome/código).
+ */
+export function preencherPrecosZeroNosGruposComparacao(grupos, precosPorNomeNorm) {
+    return (grupos || []).map((g) => {
+        const examesEm = (g.examesEm || []).map((ex) => {
+            const atual = Number(ex.valor)
+            const diffPendente = cardTemDiffPendente(ex.card)
+            if (Number.isFinite(atual) && atual !== 0) {
+                if (ex.valoresDiferem && !diffPendente) {
+                    return { ...ex, valoresDiferem: false }
+                }
+                return ex
+            }
+            const achado = precoUtilDoMapa(
+                precosPorNomeNorm,
+                ex.codigo,
+                ex.nome,
+                ex.card?.nomeNegociacao,
+                ex.card?.exameEmerdog,
+                ex.card?.codigo,
+            )
+            if (achado == null) {
+                return Number.isFinite(atual) && atual === 0 ? { ...ex, valor: null } : ex
+            }
+            const valorLab = ex.card?.valorLab
+            const valoresDiferem = cardTemDiffPendente({
+                ...ex.card,
+                valoresDiferem: valoresExameDiferem(valorLab, achado),
+            })
+            return {
+                ...ex,
+                valor: achado,
+                valoresDiferem,
+                semParNegociacao: false,
+                card: ex.card
+                    ? {
+                          ...ex.card,
+                          valorEmerdog: achado,
+                          diferenca:
+                              valorLab != null
+                                  ? Number((Number(valorLab) - achado).toFixed(2))
+                                  : null,
+                          valoresDiferem,
+                          semParNegociacao: false,
+                      }
+                    : ex.card,
+            }
+        })
+
+        const porLinha = new Map(examesEm.map((e) => [e.linhaId, e]))
+        const examesLab = (g.examesLab || []).map((ex) => {
+            const em = porLinha.get(ex.linhaId)
+            if (!em) return ex
+            return { ...ex, valoresDiferem: Boolean(em.valoresDiferem) }
+        })
+        const linhas = (g.linhas || []).map((l) => {
+            const em = porLinha.get(l.idLocal)
+            if (!em?.card) return l
+            return {
+                ...l,
+                valoresDiferem: Boolean(em.valoresDiferem),
+                diferenca: em.card.diferenca,
+                semParNegociacao: false,
+                card: em.card,
+                em: l.em ? { ...l.em, valor: em.valor } : l.em,
+            }
+        })
+        const soma = (lista) =>
+            Number(
+                (lista || [])
+                    .map((e) => Number(e.valor))
+                    .filter((n) => Number.isFinite(n))
+                    .reduce((a, n) => a + n, 0)
+                    .toFixed(2),
+            )
+        const temDiff = linhas.some((l) => l.valoresDiferem)
+        return {
+            ...g,
+            examesEm,
+            examesLab,
+            linhas,
+            subtotalEm: soma(examesEm),
+            temDiff,
+        }
+    })
 }
 
 function agruparOrfaosPorAtendimento(orfaos, lado, codigoPorNomeNorm = new Map()) {
@@ -2470,6 +2599,23 @@ export function chaveMarcacaoPosRelatorio(card) {
     return `k:${card?.chave || card?.idLocal || ''}`
 }
 
+/** Diff de valor ainda pendente (conferido manual não conta). */
+export function cardTemDiffPendente(card) {
+    if (!card?.valoresDiferem) return false
+    const st = card.status
+    if (st === 'conferido_manual' || st === 'verde') return false
+    return true
+}
+
+export function mesmoCardConferencia(a, b) {
+    if (!a || !b) return false
+    const ka = chaveMarcacaoPosRelatorio(a)
+    const kb = chaveMarcacaoPosRelatorio(b)
+    if (ka && kb && ka !== 'k:' && ka === kb) return true
+    if (a.idLocal && b.idLocal && String(a.idLocal) === String(b.idLocal)) return true
+    return false
+}
+
 /**
  * Monta linhas do pós-relatório a partir dos cards flagados.
  */
@@ -2605,7 +2751,7 @@ export function resumirTotaisConferencia(cards) {
         else if (c.tipo === 'orfao_emerdog') qtdOrfaoEm += 1
         else {
             qtdPareados += 1
-            if (c.valoresDiferem) qtdDiff += 1
+            if (c.valoresDiferem && cardTemDiffPendente(c)) qtdDiff += 1
         }
     }
     return {
@@ -2657,16 +2803,28 @@ export function desserializarEstadoSessaoConferencia(payload) {
         laboratorioId: e.laboratorioId ? String(e.laboratorioId) : '',
         mapColsLab: e.mapColsLab || {},
         mapColsEmerdog: e.mapColsEmerdog || {},
-        linhasLab: e.linhasLab || [],
-        linhasEmerdog: e.linhasEmerdog || [],
+        linhasLab: (e.linhasLab || []).filter((l) => linhaConferenciaTemRegistro(l)),
+        linhasEmerdog: (e.linhasEmerdog || []).filter((l) => linhaConferenciaTemRegistro(l)),
         paresManuais: e.paresManuais || [],
         resolvidos: entradasParaMap(e.resolvidos),
         mapaResolvidosAtual: entradasParaMap(e.mapaResolvidosAtual),
         decisoesOrfaos: entradasParaMap(e.decisoesOrfaos),
         escolhasExames: e.escolhasExames || {},
         marcadosPosRelatorio: new Set(e.marcadosPosRelatorio || []),
-        cards: e.cards || [],
-        filaOrfaos: e.filaOrfaos || [],
+        cards: (e.cards || []).filter((c) =>
+            linhaConferenciaTemRegistro({
+                tutor: c.tutor,
+                pet: c.pet,
+                exame: c.exameLaboratorio || c.exameEmerdog || c.exame || c.nomeNegociacao,
+            }),
+        ),
+        filaOrfaos: (e.filaOrfaos || []).filter((i) =>
+            linhaConferenciaTemRegistro({
+                tutor: i.tutor,
+                pet: i.pet,
+                exame: i.exame || i.examePlano,
+            }),
+        ),
         aliasesPessoa: Array.isArray(e.aliasesPessoa) ? e.aliasesPessoa : [],
         obsAuditoria: e.obsAuditoria || {},
     }
