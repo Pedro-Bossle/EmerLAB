@@ -17,11 +17,18 @@ function membrosNorm(perfil) {
         .filter(Boolean)
 }
 
-function exameNoPerfil(exame, perfil) {
+function exameNoPerfil(exame, perfil, incluirTitulo = true) {
     const n = normalizeExam(exame)
     if (!n) return false
-    if (n === normalizeExam(perfil.nome || perfil.descricao)) return true
-    return membrosNorm(perfil).some((m) => n === m || applyExamEquivalence(n, m, []).equivalent || applyExamEquivalence(n, m, []).score >= 850)
+    if (incluirTitulo) {
+        const titulo = normalizeExam(perfil.nome) || normalizeExam(perfil.descricao)
+        if (titulo && n === titulo) return true
+    }
+    return membrosNorm(perfil).some((m) => {
+        if (n === m) return true
+        const ev = applyExamEquivalence(n, m, [])
+        return ev.equivalent || ev.score >= 850
+    })
 }
 
 /**
@@ -77,7 +84,7 @@ export function applyProfileEquivalence({
                 }
                 const dt = compareDates(hon.data, m.data)
                 if (!dt.compativel) return false
-                return exameNoPerfil(m.exame, { ...perfil, nome: '' })
+                return exameNoPerfil(m.exame, perfil, false)
             })
 
             if (!membros.length) continue

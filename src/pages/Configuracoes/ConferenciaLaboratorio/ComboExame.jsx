@@ -35,9 +35,10 @@ export default function ComboExame({
         [itens, value],
     )
 
-    const filtrados = useMemo(() => {
+    const { filtrados, truncado } = useMemo(() => {
         const t = normalizarTextoBusca(query)
-        return (itens || []).filter((i) => itemCorresponde(i, t)).slice(0, 80)
+        const todos = (itens || []).filter((i) => itemCorresponde(i, t))
+        return { filtrados: todos.slice(0, 80), truncado: todos.length > 80 }
     }, [itens, query])
 
     const rotuloExibicao = selecionado?.rotulo || ''
@@ -147,11 +148,14 @@ export default function ComboExame({
                       {!filtrados.length ? (
                           <div className="conf_lab_alias_combo_vazio">{vazio}</div>
                       ) : (
-                          filtrados.map((item, idx) => {
+                          <>
+                          {filtrados.map((item, idx) => {
                               const ativo = String(item.id) === String(value)
+                              const optId = `${listId}-opt-${idx}`
                               return (
                                   <button
                                       key={item.id || `${item.rotulo}-${idx}`}
+                                      id={optId}
                                       type="button"
                                       role="option"
                                       aria-selected={ativo}
@@ -167,7 +171,13 @@ export default function ComboExame({
                                       </span>
                                   </button>
                               )
-                          })
+                          })}
+                          {truncado ? (
+                              <div className="conf_lab_alias_combo_vazio">
+                                  Mostrando os 80 primeiros. Refine a busca para ver os demais.
+                              </div>
+                          ) : null}
+                          </>
                       )}
                   </div>,
                   document.body,
@@ -184,6 +194,11 @@ export default function ComboExame({
                 aria-expanded={aberto}
                 aria-controls={listId}
                 aria-autocomplete="list"
+                aria-activedescendant={
+                    aberto && filtrados[highlight]
+                        ? `${listId}-opt-${highlight}`
+                        : undefined
+                }
                 disabled={disabled}
                 placeholder={placeholder}
                 value={aberto ? query : rotuloExibicao}
@@ -196,6 +211,12 @@ export default function ComboExame({
                     setHighlight(0)
                 }}
                 onFocus={abrir}
+                onBlur={(e) => {
+                    const next = e.relatedTarget
+                    const listaEl = portalRef.current || document.getElementById(listId)
+                    if (wrapRef.current?.contains(next) || listaEl?.contains(next)) return
+                    fechar()
+                }}
                 onKeyDown={onKeyDown}
                 autoComplete="off"
             />

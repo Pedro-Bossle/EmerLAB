@@ -317,8 +317,7 @@ export function linhaValoresBaseTemRegistro({ codigo, nome } = {}) {
     const codigoTxt = String(codigo || '').trim()
     if (pareceLinhaRodapeConferencia(nomeTxt) || pareceLinhaRodapeConferencia(codigoTxt)) return false
     const nomeOk = !textoCelulaPlaceholder(nomeTxt) && temLetra(nomeTxt)
-    const codigoOk = !textoCelulaPlaceholder(codigoTxt)
-    return nomeOk || codigoOk
+    return nomeOk
 }
 
 function celulaTemConteudoUtil(valor) {
@@ -724,8 +723,8 @@ export async function parsearExcelConferenciaLaboratorio(buffer, opts = {}) {
             dataRaw,
             exame,
             exameNorm: normalizarNomeExame(exame),
-            valor: o === 'honorarios' ? null : valorRelatorio,
-            valorRelatorio: o === 'honorarios' ? null : valorRelatorio,
+            valor: valorRelatorio,
+            valorRelatorio,
             origem: o || origem,
             bruto: row,
         })

@@ -545,7 +545,7 @@ body.dark-mode .conf_lab_pos_codigo {
 .conf_lab_hist_arqs {
     font-size: 0.72rem;
     color: #3d5d72;
-    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .conf_lab_hist_tot {
@@ -3024,7 +3024,6 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
     vertical-align: middle;
     padding: 0.35rem 0.4rem;
     overflow-wrap: anywhere;
-    word-break: break-word;
 }
 
 .conf_lab_table_compact thead th {
@@ -3417,7 +3416,6 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
 .conf_lab_cmp_val {
     min-width: 0;
     overflow-wrap: anywhere;
-    word-break: break-word;
 }
 
 .conf_lab_cmp_ico {
@@ -3639,11 +3637,17 @@ body.dark-mode .conf_lab_massa {
 
 body.dark-mode .conf_lab_dash_card strong,
 body.dark-mode .conf_lab_drawer h2,
-body.dark-mode .conf_lab_table th {
+body.dark-mode .conf_lab_table th,
+body.dark-mode .conf_lab_table_compact thead th {
     color: #e2e8f0;
 }
 
-body.dark-mode .conf_lab_table th {
+body.dark-mode .conf_lab_table th,
+body.dark-mode .conf_lab_table_compact thead th {
+    background: #152433;
+}
+
+body.dark-mode .conf_lab_hist_painel {
     background: #152433;
 }
 

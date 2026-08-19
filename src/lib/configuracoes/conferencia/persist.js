@@ -145,20 +145,22 @@ export async function salvarPerfilExame({
     const titulo = String(nome || '').trim()
     if (!id || !titulo) return { ok: false, motivo: 'Informe o nome do perfil.' }
     try {
-        const { data, error } = await supabase
-            .from('lab_exame_perfil')
-            .insert({
-                laboratorio_id: id,
-                nome: titulo,
-                descricao: String(descricao || '').trim() || null,
-                valor: valor == null || valor === '' ? null : Number(valor),
-                vigencia_inicio: vigenciaInicio || null,
-                vigencia_fim: vigenciaFim || null,
-                ativo: true,
-                criado_por: userId || (await uidAtual()),
-            })
-            .select('id')
-            .single()
+        const { data, error } = await supabase.rpc('salvar_lab_exame_perfil', {
+            p_laboratorio_id: id,
+            p_nome: titulo,
+            p_descricao: String(descricao || '').trim() || null,
+            p_valor: valor == null || valor === '' ? null : Number(valor),
+            p_vigencia_inicio: vigenciaInicio || null,
+            p_vigencia_fim: vigenciaFim || null,
+            p_itens: (exames || [])
+                .map((e) => String(e || '').trim())
+                .filter(Boolean)
+                .map((nomeExame) => ({
+                    nome_exame: nomeExame,
+                    nome_exame_normalizado: normalizarTextoBusca(nomeExame),
+                })),
+            p_criado_por: userId || (await uidAtual()),
+        })
         if (error) {
             if (tabelaAusente(error)) {
                 return {
@@ -169,19 +171,7 @@ export async function salvarPerfilExame({
             }
             return { ok: false, motivo: error.message }
         }
-        const perfilId = data?.id
-        const lista = (exames || []).map((e) => String(e || '').trim()).filter(Boolean)
-        if (perfilId && lista.length) {
-            const { error: errItens } = await supabase.from('lab_exame_perfil_item').insert(
-                lista.map((nomeExame) => ({
-                    perfil_id: perfilId,
-                    nome_exame: nomeExame,
-                    nome_exame_normalizado: normalizarTextoBusca(nomeExame),
-                })),
-            )
-            if (errItens) return { ok: false, motivo: errItens.message }
-        }
-        return { ok: true, id: perfilId }
+        return { ok: true, id: data }
     } catch (e) {
         return { ok: false, motivo: e?.message || String(e) }
     }

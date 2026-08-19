@@ -16,7 +16,7 @@ const COLUNAS_PLANAS = [
     { header: 'diferenca_valor', key: 'diferenca_valor', width: 16 },
     { header: 'confianca', key: 'confianca', width: 12 },
     { header: 'motivo', key: 'motivo', width: 40 },
-    { header: 'acao', key: 'acao', width: 16 },
+    { header: 'acao_resultado', key: 'acao_resultado', width: 16 },
 ]
 
 function isoParaBr(iso) {
@@ -44,7 +44,7 @@ function linhaPlana(r) {
             dv == null || dv === '' ? '' : `${sinal}${Number(dv).toFixed(2).replace('.', ',')}`,
         confianca: r.confianca || '',
         motivo: r.motivo || '',
-        acao: r.revisao?.acao || r.acao || '',
+        acao_resultado: r.acao || '',
     }
 }
 
@@ -119,7 +119,7 @@ export async function exportarConferenciaHonorariosExcel({
     wsRev.columns = [
         { header: 'usuario', key: 'usuario', width: 24 },
         { header: 'data_hora', key: 'data_hora', width: 22 },
-        { header: 'acao', key: 'acao', width: 24 },
+        { header: 'acao_revisao', key: 'acao_revisao', width: 24 },
         { header: 'registro', key: 'registro', width: 28 },
         { header: 'justificativa', key: 'justificativa', width: 40 },
         ...COLUNAS_PLANAS,
@@ -132,7 +132,7 @@ export async function exportarConferenciaHonorariosExcel({
         wsRev.addRow({
             usuario: item.usuario || r.revisao?.usuario || '',
             data_hora: item.dataHora || r.revisao?.dataHora || '',
-            acao: item.acao || r.revisao?.acao || '',
+            acao_revisao: item.acao || r.revisao?.acao || '',
             registro: item.resultadoId || r.id || '',
             justificativa: item.justificativa || r.revisao?.justificativa || '',
             ...linhaPlana(r),

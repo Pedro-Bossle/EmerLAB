@@ -23,8 +23,16 @@ function chaveVinculo(exame) {
  * Conservador: nome (ou código) único na lista de Valores de Base.
  * 0 ou 2+ candidatos → o usuário vincula nesta conferência.
  */
+function itensBaseNormalizados(valoresBase = []) {
+    if (!valoresBase.length) return []
+    if (valoresBase[0]?.nomeNorm != null && valoresBase[0]?.codigoNorm != null) {
+        return valoresBase
+    }
+    return valoresBase.map((l, i) => normalizarItemBase(l, i))
+}
+
 export function buscarValorBase(exameOuCodigo, valoresBase = [], { vinculos = {}, equivalencias = [] } = {}) {
-    const itens = (valoresBase || []).map((l, i) => normalizarItemBase(l, i))
+    const itens = itensBaseNormalizados(valoresBase)
     const termo = String(exameOuCodigo || '').trim()
     const termoNorm = normalizeExam(termo)
     if (!termoNorm || !itens.length) {
@@ -63,7 +71,11 @@ export function buscarValorBase(exameOuCodigo, valoresBase = [], { vinculos = {}
 export function aplicarValoresBase(linhasPlano = [], valoresBase = [], vinculos = {}, equivalencias = []) {
     const itens = (valoresBase || []).map((l, i) => normalizarItemBase(l, i))
     return (linhasPlano || []).map((linha, i) => {
-        const found = buscarValorBase(linha.exame || linha.codigo, itens, { vinculos, equivalencias })
+        let found = buscarValorBase(linha.exame || linha.codigo, itens, { vinculos, equivalencias })
+        if (found.tipo !== 'unico' && linha.codigo && linha.codigo !== (linha.exame || '')) {
+            const porCodigo = buscarValorBase(linha.codigo, itens, { vinculos, equivalencias })
+            if (porCodigo.tipo === 'unico') found = porCodigo
+        }
         const item = found.item
         const valorOficial = found.tipo === 'unico' ? item?.valor ?? null : null
         return {
@@ -93,7 +105,7 @@ export function examesPendentesVinculo(linhasComLookup = []) {
                 exame: nome,
                 qtd: 0,
                 tipo: tipo || 'nenhum',
-                candidatos: linha.lookup_base?.candidatos || [],
+                candidatos: [...(linha.lookup_base?.candidatos || [])],
                 valores: [],
             })
         }

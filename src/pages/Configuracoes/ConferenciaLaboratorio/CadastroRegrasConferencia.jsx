@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { EQUIVALENCIAS_PADRAO } from '../../../lib/configuracoes/conferencia/examSimilarity.js'
 import ComboExame from './ComboExame.jsx'
+import { useDrawerDialog } from './useDrawerDialog.js'
 
 export default function CadastroRegrasConferencia({
     aberto,
@@ -21,6 +22,7 @@ export default function CadastroRegrasConferencia({
     const [perfilFim, setPerfilFim] = useState('')
     const [perfilExames, setPerfilExames] = useState([])
     const [examePerfil, setExamePerfil] = useState('')
+    const closeRef = useDrawerDialog({ aberto, onClose })
 
     if (!aberto) return null
 
@@ -29,6 +31,7 @@ export default function CadastroRegrasConferencia({
             <aside
                 className="conf_lab_drawer conf_lab_drawer_regras"
                 role="dialog"
+                aria-modal="true"
                 aria-labelledby="conf-lab-regras-title"
                 onClick={(e) => e.stopPropagation()}
             >
@@ -37,7 +40,12 @@ export default function CadastroRegrasConferencia({
                         <p className="conf_lab_kicker">Esta conferência</p>
                         <h2 id="conf-lab-regras-title">Equivalências e perfis</h2>
                     </div>
-                    <button type="button" className="conf_lab_drawer_close" onClick={onClose}>
+                    <button
+                        ref={closeRef}
+                        type="button"
+                        className="conf_lab_drawer_close"
+                        onClick={onClose}
+                    >
                         Fechar
                     </button>
                 </header>
@@ -67,7 +75,10 @@ export default function CadastroRegrasConferencia({
                     <button
                         type="button"
                         className="credenciamento_main_action_btn"
+                        disabled={!String(nomeA || '').trim() || !String(nomeB || '').trim()}
                         onClick={() => {
+                            if (!onSalvarEquivalencia) return
+                            if (!String(nomeA || '').trim() || !String(nomeB || '').trim()) return
                             onSalvarEquivalencia(nomeA, nomeB)
                             setNomeA('')
                             setNomeB('')
@@ -143,13 +154,17 @@ export default function CadastroRegrasConferencia({
                     </label>
                     {perfilExames.length ? (
                         <ul className="conf_lab_chip_lista">
-                            {perfilExames.map((ex) => (
+                            {perfilExames.map((ex) => {
+                                const rotulo =
+                                    examesOpcoes.find((o) => String(o.id) === String(ex))
+                                        ?.rotulo || ex
+                                return (
                                 <li key={ex}>
-                                    <span>{ex}</span>
+                                    <span>{rotulo}</span>
                                     <button
                                         type="button"
                                         className="conf_lab_alias_combo_limpar"
-                                        aria-label={`Remover ${ex}`}
+                                        aria-label={`Remover ${rotulo}`}
                                         onClick={() =>
                                             setPerfilExames((prev) => prev.filter((x) => x !== ex))
                                         }
@@ -157,13 +172,17 @@ export default function CadastroRegrasConferencia({
                                         ×
                                     </button>
                                 </li>
-                            ))}
+                                )
+                            })}
                         </ul>
                     ) : null}
                     <button
                         type="button"
                         className="credenciamento_main_action_btn"
+                        disabled={!String(perfilNome || '').trim()}
                         onClick={() => {
+                            if (!onSalvarPerfil) return
+                            if (!String(perfilNome || '').trim()) return
                             onSalvarPerfil({
                                 nome: perfilNome,
                                 descricao: perfilDesc,

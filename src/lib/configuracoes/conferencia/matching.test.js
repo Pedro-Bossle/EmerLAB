@@ -7,7 +7,9 @@ import { EQUIVALENCIAS_PADRAO, indexarEquivalencias } from './examSimilarity.js'
 import { buscarValorBase, aplicarValoresBase, examesPendentesVinculo } from './lookupBase.js'
 import {
     camposFaltantesMapeamento,
+    linhaValoresBaseTemRegistro,
     mapearIndicesColunasConferencia,
+    parsearExcelConferenciaLaboratorio,
 } from '../conferenciaLaboratorioExcel.js'
 
 const EQ = indexarEquivalencias(EQUIVALENCIAS_PADRAO)
@@ -108,7 +110,7 @@ describe('conferência MellisLab × Honorários', () => {
             L({ id: 'h1', prontuario: '1' }),
             L({ id: 'h2', prontuario: '2' }),
         ]
-        const { resultados } = runConferencia({
+        const { resultados, resumo } = runConferencia({
             honorarios: hon,
             mellislab: [L({ id: 'm1', exame: 'Hemograma Completo MellisLab' })],
         })
@@ -121,6 +123,8 @@ describe('conferência MellisLab × Honorários', () => {
         )
         expect(found.tipo).toBe('ambiguo')
         expect(found.candidatos).toHaveLength(2)
+        expect(resultados.some((r) => r.status === 'ORFAO_HONORARIOS')).toBe(true)
+        expect(resumo.totalHonorarios).toBe(37.5)
     })
 })
 
@@ -146,7 +150,10 @@ describe('lookup Valores de Base', () => {
             [{ id: 'p1', exame: 'Creatinina extra', tutor: 'Ana', pet: 'Luna', data: '2026-07-05' }],
             base,
         )
-        expect(examesPendentesVinculo(linhas)).toHaveLength(1)
+        const pendentes = examesPendentesVinculo(linhas)
+        expect(pendentes).toHaveLength(1)
+        pendentes[0].candidatos.push({ id: 'mutado' })
+        expect(linhas[0].lookup_base.candidatos.some((c) => c.id === 'mutado')).toBe(false)
     })
 
     it('vínculo manual desta conferência resolve a ambiguidade', () => {
@@ -238,5 +245,41 @@ describe('parear órfãos manualmente', () => {
         expect(par.acao).toBe('Pareado manualmente')
         expect(par.status).toBe('OK')
         expect(par.id).toBe('par:h9|m9')
+    })
+
+    it('parear exames sem relação devolve EXAME_DIVERGENTE', () => {
+        const par = montarParManual(
+            L({ id: 'h8', exame: 'Hemograma + Plaquetas', valor: 40 }),
+            L({ id: 'm8', exame: 'T4', valor: 40, tutor: 'JOÃO' }),
+        )
+        expect(par.status).toBe('EXAME_DIVERGENTE')
+    })
+})
+
+describe('valor de honorários sem Valores de Base', () => {
+    it('runConferencia usa o valor da linha de honorários', () => {
+        const { resultados, resumo } = runConferencia({
+            honorarios: [L({ id: 'h1', exame: 'Urocultura', valor: 40 })],
+            mellislab: [L({ id: 'm1', exame: 'Urocultura', valor: 40 })],
+        })
+        expect(resultados[0].valor_honorarios).toBe(40)
+        expect(resumo.totalHonorarios).toBe(40)
+    })
+
+    it('parser do Relatório Plano lê a coluna de valor quando existe', async () => {
+        const html = `<table><tr><td>Data</td><td>Tutor</td><td>Pet</td><td>Exame</td><td>Valor</td></tr><tr><td>05/07/2026</td><td>João</td><td>Rex</td><td>Urocultura</td><td>40</td></tr></table>`
+        const buffer = new TextEncoder().encode(html).buffer
+        const parsed = await parsearExcelConferenciaLaboratorio(buffer, {
+            origem: 'honorarios',
+        })
+        expect(parsed.linhas).toHaveLength(1)
+        expect(parsed.linhas[0].valor).toBe(40)
+        expect(parsed.linhas[0].valorRelatorio).toBe(40)
+    })
+
+    it('Valores de Base exige nome com letras, não só código', () => {
+        expect(linhaValoresBaseTemRegistro({ codigo: 'ELAB-001', nome: '' })).toBe(false)
+        expect(linhaValoresBaseTemRegistro({ codigo: 'ELAB-001', nome: '---' })).toBe(false)
+        expect(linhaValoresBaseTemRegistro({ codigo: 'ELAB-001', nome: 'Hemograma' })).toBe(true)
     })
 })

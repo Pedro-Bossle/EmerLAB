@@ -231,8 +231,8 @@ export function runConferencia({
             )
         } else if (found.tipo === 'ambiguo') {
             usadosM.add(m.id)
-            for (const c of found.candidatos) usadosH.add(c.honorarios.id)
             const primeiro = found.candidatos[0]
+            if (primeiro?.honorarios?.id) usadosH.add(primeiro.honorarios.id)
             const av = primeiro?.av || {
                 tutorOk: false,
                 tutorAlias: false,
@@ -277,24 +277,28 @@ export function runConferencia({
             exame: { exact: false, equivalent: true, score: 900 },
             perfil: true,
         })
-        for (const m of g.mellis || []) {
+        for (let i = 0; i < (g.mellis || []).length; i += 1) {
+            const m = g.mellis[i]
             usadosM.add(m.id)
-            resultados.push(
-                montarResultadoPar({
-                    honorarios: g.honorarios,
-                    mellis: m,
-                    av: {
-                        tutorOk: true,
-                        tutorAlias: false,
-                        petOk: true,
-                        data: { compativel: true, exata: true, diferenca_dias: 0 },
-                        valor,
-                        exame: { exact: false, equivalent: true, score: 900 },
-                    },
-                    classificacao,
-                    prioridade: 5,
-                }),
-            )
+            const par = montarResultadoPar({
+                honorarios: g.honorarios,
+                mellis: m,
+                av: {
+                    tutorOk: true,
+                    tutorAlias: false,
+                    petOk: true,
+                    data: { compativel: true, exata: true, diferenca_dias: 0 },
+                    valor,
+                    exame: { exact: false, equivalent: true, score: 900 },
+                },
+                classificacao,
+                prioridade: 5,
+            })
+            if (i > 0) {
+                par.valor_honorarios = null
+                par.diferenca_valor = null
+            }
+            resultados.push(par)
         }
     }
 

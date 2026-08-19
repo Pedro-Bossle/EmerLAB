@@ -108,6 +108,12 @@ export function classifyComparison({
             motivo: 'Nome de exame diferente, correspondência conferida.',
         }
     }
+    if (exame?.exact === false && !exame?.equivalent && (exame?.score || 0) < 650) {
+        return {
+            status: 'EXAME_DIVERGENTE',
+            motivo: 'Nome de exame divergente entre Honorários e MellisLab.',
+        }
+    }
     return { status: 'OK', motivo: 'Correspondência conferida.' }
 }
 

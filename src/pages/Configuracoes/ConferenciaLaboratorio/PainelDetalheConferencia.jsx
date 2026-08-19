@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
     formatarDataConferencia,
     formatarValorConferencia,
 } from '../../../lib/configuracoes/conferenciaLaboratorioPrecos.js'
 import ComboExame from './ComboExame.jsx'
+import { useDrawerDialog } from './useDrawerDialog.js'
 import { rotuloStatusConferencia } from '../../../lib/configuracoes/conferencia/index.js'
 import { nomesPessoaEquivalentes, petsEquivalentes } from '../../../lib/configuracoes/conferencia/normalize.js'
 import { normalizeExam } from '../../../lib/configuracoes/conferencia/examSimilarity.js'
@@ -39,7 +40,7 @@ function textoCampo(tipo, linha) {
     if (tipo === 'pet') return linha.pet || '—'
     if (tipo === 'data') return formatarDataConferencia(linha.data)
     if (tipo === 'exame') return linha.exame || '—'
-    if (tipo === 'valor') return formatarValorConferencia(linha.valor)
+    if (tipo === 'valor') return formatarValorConferencia(linha.valor ?? linha.valor_base)
     return '—'
 }
 
@@ -74,8 +75,8 @@ function camposIguais(tipo, hon, mel) {
         return Boolean(a && b && a === b) || iguaisIgnorandoCaixa(hon.exame, mel.exame)
     }
     if (tipo === 'valor') {
-        const na = Number(hon.valor)
-        const nb = Number(mel.valor)
+        const na = Number(hon.valor ?? hon.valor_base)
+        const nb = Number(mel.valor ?? mel.valor_base)
         if (!Number.isFinite(na) || !Number.isFinite(nb)) return false
         return Math.round(na * 100) === Math.round(nb * 100)
     }
@@ -121,14 +122,12 @@ export default function PainelDetalheConferencia({
     orfaosPlano = [],
     orfaosLab = [],
 }) {
-    const [escolhaOposto, setEscolhaOposto] = useState('')
+    const [escolhaOposto, setEscolhaOposto] = useState({ itemId: null, value: '' })
+    const closeRef = useDrawerDialog({ aberto: Boolean(item), onClose })
     const ehOrfaoLab = item?.status === 'ORFAO_MELLISLAB'
     const ehOrfaoPlano = item?.status === 'ORFAO_HONORARIOS'
     const ehOrfao = ehOrfaoLab || ehOrfaoPlano
-
-    useEffect(() => {
-        setEscolhaOposto('')
-    }, [item?.id])
+    const escolhaAtual = escolhaOposto.itemId === item?.id ? escolhaOposto.value : ''
 
     const itensOpostos = useMemo(() => {
         const lista = ehOrfaoLab ? orfaosPlano : ehOrfaoPlano ? orfaosLab : []
@@ -147,12 +146,12 @@ export default function PainelDetalheConferencia({
     }, [ehOrfaoLab, ehOrfaoPlano, orfaosPlano, orfaosLab, item?.id])
 
     const linhaOposta = useMemo(() => {
-        if (!escolhaOposto) return null
+        if (!escolhaAtual) return null
         const lista = ehOrfaoLab ? orfaosPlano : orfaosLab
-        const r = lista.find((x) => String(x.id) === String(escolhaOposto))
+        const r = lista.find((x) => String(x.id) === String(escolhaAtual))
         if (!r) return null
         return ehOrfaoLab ? r.honorarios : r.mellis
-    }, [escolhaOposto, ehOrfaoLab, orfaosPlano, orfaosLab])
+    }, [escolhaAtual, ehOrfaoLab, orfaosPlano, orfaosLab])
 
     if (!item) return null
     const hon = item.honorarios || (ehOrfaoLab ? linhaOposta : null)
@@ -163,6 +162,7 @@ export default function PainelDetalheConferencia({
             <aside
                 className="conf_lab_drawer"
                 role="dialog"
+                aria-modal="true"
                 aria-labelledby="conf-lab-drawer-title"
                 onClick={(e) => e.stopPropagation()}
             >
@@ -172,7 +172,12 @@ export default function PainelDetalheConferencia({
                         <h2 id="conf-lab-drawer-title">{rotuloStatusConferencia(item.status)}</h2>
                         <p className="conf_lab_muted">{item.motivo}</p>
                     </div>
-                    <button type="button" className="conf_lab_drawer_close" onClick={onClose}>
+                    <button
+                        ref={closeRef}
+                        type="button"
+                        className="conf_lab_drawer_close"
+                        onClick={onClose}
+                    >
                         Fechar
                     </button>
                 </header>
@@ -192,16 +197,18 @@ export default function PainelDetalheConferencia({
                         </p>
                         <ComboExame
                             itens={itensOpostos}
-                            value={escolhaOposto}
+                            value={escolhaAtual}
                             placeholder="Buscar tutor, pet, exame, valor…"
                             vazio="Nenhum órfão no lado oposto"
-                            onChange={setEscolhaOposto}
+                            onChange={(id) =>
+                                setEscolhaOposto({ itemId: item?.id ?? null, value: id })
+                            }
                         />
                         <button
                             type="button"
                             className="credenciamento_main_action_btn"
-                            disabled={!escolhaOposto}
-                            onClick={() => onAcao('parear', { opostoId: escolhaOposto })}
+                            disabled={!escolhaAtual}
+                            onClick={() => onAcao('parear', { opostoId: escolhaAtual })}
                         >
                             Encaixar correspondência
                         </button>
