@@ -2771,15 +2771,26 @@ export function resumirTotaisConferencia(cards) {
  */
 export function serializarEstadoSessaoConferencia(estado) {
     const e = estado || {}
+    const versao = e.versao === 2 || e.linhasHonorarios || e.resultados ? 2 : 1
     return {
-        versao: 1,
+        versao,
         passo: e.passo || 'setup',
         periodoYm: e.periodoYm || '',
         laboratorioId: e.laboratorioId ? Number(e.laboratorioId) : null,
-        mapColsLab: e.mapColsLab || {},
-        mapColsEmerdog: e.mapColsEmerdog || {},
-        linhasLab: e.linhasLab || [],
-        linhasEmerdog: e.linhasEmerdog || [],
+        mapColsLab: e.mapColsLab || e.mapColsMellis || {},
+        mapColsEmerdog: e.mapColsEmerdog || e.mapColsHonorarios || {},
+        mapColsHonorarios: e.mapColsHonorarios || e.mapColsEmerdog || {},
+        mapColsMellis: e.mapColsMellis || e.mapColsLab || {},
+        mapColsBase: e.mapColsBase || {},
+        linhasLab: e.linhasLab || e.linhasMellis || [],
+        linhasEmerdog: e.linhasEmerdog || e.linhasHonorarios || [],
+        linhasHonorarios: e.linhasHonorarios || e.linhasEmerdog || [],
+        linhasMellis: e.linhasMellis || e.linhasLab || [],
+        linhasBase: e.linhasBase || [],
+        vinculosBase: e.vinculosBase || {},
+        resultados: e.resultados || [],
+        resumo: e.resumo || null,
+        revisoes: e.revisoes || [],
         paresManuais: e.paresManuais || [],
         resolvidos: mapParaEntradas(e.resolvidos),
         mapaResolvidosAtual: mapParaEntradas(e.mapaResolvidosAtual),
@@ -2796,15 +2807,31 @@ export function serializarEstadoSessaoConferencia(estado) {
 
 export function desserializarEstadoSessaoConferencia(payload) {
     const e = payload || {}
+    const linhasHonorarios = (e.linhasHonorarios || e.linhasEmerdog || []).filter((l) =>
+        linhaConferenciaTemRegistro(l),
+    )
+    const linhasMellis = (e.linhasMellis || e.linhasLab || []).filter((l) =>
+        linhaConferenciaTemRegistro(l),
+    )
     return {
         versao: e.versao || 1,
         passo: e.passo || 'setup',
         periodoYm: e.periodoYm || '',
         laboratorioId: e.laboratorioId ? String(e.laboratorioId) : '',
-        mapColsLab: e.mapColsLab || {},
-        mapColsEmerdog: e.mapColsEmerdog || {},
-        linhasLab: (e.linhasLab || []).filter((l) => linhaConferenciaTemRegistro(l)),
-        linhasEmerdog: (e.linhasEmerdog || []).filter((l) => linhaConferenciaTemRegistro(l)),
+        mapColsLab: e.mapColsLab || e.mapColsMellis || {},
+        mapColsEmerdog: e.mapColsEmerdog || e.mapColsHonorarios || {},
+        mapColsHonorarios: e.mapColsHonorarios || e.mapColsEmerdog || {},
+        mapColsMellis: e.mapColsMellis || e.mapColsLab || {},
+        mapColsBase: e.mapColsBase || {},
+        linhasLab: linhasMellis,
+        linhasEmerdog: linhasHonorarios,
+        linhasHonorarios,
+        linhasMellis,
+        linhasBase: Array.isArray(e.linhasBase) ? e.linhasBase : [],
+        vinculosBase: e.vinculosBase && typeof e.vinculosBase === 'object' ? e.vinculosBase : {},
+        resultados: Array.isArray(e.resultados) ? e.resultados : [],
+        resumo: e.resumo || null,
+        revisoes: Array.isArray(e.revisoes) ? e.revisoes : [],
         paresManuais: e.paresManuais || [],
         resolvidos: entradasParaMap(e.resolvidos),
         mapaResolvidosAtual: entradasParaMap(e.mapaResolvidosAtual),

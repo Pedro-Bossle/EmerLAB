@@ -1,6 +1,26 @@
 import { normalizarTextoBusca } from '../prestadorCadastroHelpers.js'
 
-export const CAMPOS_CONFERENCIA = ['tutor', 'pet', 'data', 'exame']
+export const CAMPOS_CONFERENCIA = ['prontuario', 'tutor', 'pet', 'data', 'exame']
+export const CAMPOS_CONFERENCIA_BASE = ['tutor', 'pet', 'data', 'exame']
+export const CAMPOS_PLANO = ['tutor', 'pet', 'data', 'exame']
+export const CAMPOS_LABORATORIO = ['tutor', 'pet', 'data', 'exame', 'valor']
+export const CAMPOS_VALORES_BASE = ['codigo', 'exame', 'valor']
+
+export function normalizarOrigemConferencia(origem) {
+    const o = String(origem || '').toLowerCase()
+    if (o === 'valores_base' || o === 'base') return 'valores_base'
+    if (o === 'emerdog' || o === 'honorarios' || o === 'plano') return 'honorarios'
+    if (o === 'lab' || o === 'mellislab' || o === 'laboratorio') return 'mellislab'
+    return o || null
+}
+
+export function requisitosMapeamento(origem) {
+    const o = normalizarOrigemConferencia(origem)
+    if (o === 'valores_base') return CAMPOS_VALORES_BASE
+    if (o === 'honorarios') return CAMPOS_PLANO
+    if (o === 'mellislab') return CAMPOS_LABORATORIO
+    return CAMPOS_PLANO
+}
 
 export function normalizarNomeExame(texto) {
     return normalizarTextoBusca(texto)
@@ -26,14 +46,53 @@ function celulaTexto(cell) {
 }
 
 /**
- * Detecta campo a partir do cabeçalho (Mellis / Emerdog).
- * Ignora "Animal-proprietario", Clinica, Veterinario, Prontuario, Repasse, Diferença.
+ * Detecta campo a partir do cabeçalho.
+ * Valores de Base: Código | Nome | Valor
+ * Plano: Data | Tutor | Pet | Exame
+ * Laboratório: Data | Tutor | Pet | Exame | Valor
  */
-function detectarCampoCabecalho(h) {
+function detectarCampoCabecalho(h, origem = null) {
     if (!h) return null
+    const o = normalizarOrigemConferencia(origem)
+
+    if (o === 'valores_base') {
+        if (
+            h.includes('codig') ||
+            h === 'code' ||
+            h === 'elab' ||
+            h.startsWith('elab ') ||
+            h === 'cd'
+        ) {
+            return 'codigo'
+        }
+        if (
+            h === 'nome' ||
+            h.startsWith('nome ') ||
+            h === 'exame' ||
+            h.startsWith('exame ') ||
+            h.includes('procedimento') ||
+            h.includes('descricao')
+        ) {
+            return 'exame'
+        }
+        if (h === 'valor' || h.startsWith('valor ') || h === 'vlr' || h === 'preco' || h === 'preço') {
+            return 'valor'
+        }
+        return null
+    }
 
     if (h.includes('animal') && (h.includes('propriet') || h.includes('dono'))) {
         return null
+    }
+
+    if (
+        h.includes('prontuar') ||
+        h === 'atendimento' ||
+        h.startsWith('atendimento ') ||
+        h === 'n atendimento' ||
+        h === 'protocolo'
+    ) {
+        return 'prontuario'
     }
 
     if (
@@ -82,6 +141,19 @@ function detectarCampoCabecalho(h) {
     }
 
     if (
+        h.includes('codig') ||
+        h === 'code' ||
+        h === 'elab' ||
+        h.startsWith('elab ')
+    ) {
+        return 'codigo'
+    }
+
+    if (h.includes('repasse')) {
+        return o === 'mellislab' ? null : 'valor'
+    }
+
+    if (
         h === 'valor' ||
         h.startsWith('valor ') ||
         h === 'vlr' ||
@@ -94,11 +166,12 @@ function detectarCampoCabecalho(h) {
     return null
 }
 
-export function mapearIndicesColunasConferencia(headerRow, mapeamentoManual = {}) {
-    const idx = { tutor: -1, pet: -1, data: -1, exame: -1, valor: -1 }
+export function mapearIndicesColunasConferencia(headerRow, mapeamentoManual = {}, origem = null) {
+    const idx = { prontuario: -1, tutor: -1, pet: -1, data: -1, exame: -1, valor: -1, codigo: -1 }
     const headers = (headerRow || []).map((c) => String(c || ''))
+    const o = normalizarOrigemConferencia(origem)
 
-    for (const campo of [...CAMPOS_CONFERENCIA, 'valor']) {
+    for (const campo of ['prontuario', 'tutor', 'pet', 'data', 'exame', 'valor', 'codigo']) {
         const manual = Number(mapeamentoManual[campo])
         if (Number.isFinite(manual) && manual >= 0 && manual < headers.length) {
             idx[campo] = manual
@@ -106,15 +179,32 @@ export function mapearIndicesColunasConferencia(headerRow, mapeamentoManual = {}
     }
 
     headers.forEach((raw, i) => {
-        const campo = detectarCampoCabecalho(normalizarCabecalho(raw))
+        const campo = detectarCampoCabecalho(normalizarCabecalho(raw), origem)
         if (campo && idx[campo] < 0) idx[campo] = i
     })
+
+    if (o === 'honorarios') {
+        headers.forEach((raw, i) => {
+            const h = normalizarCabecalho(raw)
+            if (h.includes('repasse')) idx.valor = i
+        })
+        const manualValor = Number(mapeamentoManual.valor)
+        if (Number.isFinite(manualValor) && manualValor >= 0 && manualValor < headers.length) {
+            idx.valor = manualValor
+        }
+    }
 
     return { idx, headers }
 }
 
-export function camposFaltantesMapeamento(idx) {
-    return CAMPOS_CONFERENCIA.filter((campo) => Number(idx?.[campo]) < 0)
+export function camposFaltantesMapeamento(idx, opts = {}) {
+    const origem = typeof opts === 'string' ? opts : opts?.origem
+    const campos =
+        opts?.campos ||
+        (origem
+            ? requisitosMapeamento(origem)
+            : CAMPOS_CONFERENCIA_BASE)
+    return campos.filter((campo) => Number(idx?.[campo]) < 0)
 }
 
 export function parsearDataFlexivel(valor) {
@@ -220,6 +310,15 @@ export function linhaConferenciaTemRegistro({ tutor, pet, exame } = {}) {
         (!textoCelulaPlaceholder(tutorTxt) && temLetra(tutorTxt)) ||
         (!textoCelulaPlaceholder(petTxt) && temLetra(petTxt))
     return pessoaOk
+}
+
+export function linhaValoresBaseTemRegistro({ codigo, nome } = {}) {
+    const nomeTxt = String(nome || '').trim()
+    const codigoTxt = String(codigo || '').trim()
+    if (pareceLinhaRodapeConferencia(nomeTxt) || pareceLinhaRodapeConferencia(codigoTxt)) return false
+    const nomeOk = !textoCelulaPlaceholder(nomeTxt) && temLetra(nomeTxt)
+    const codigoOk = !textoCelulaPlaceholder(codigoTxt)
+    return nomeOk || codigoOk
 }
 
 function celulaTemConteudoUtil(valor) {
@@ -555,8 +654,14 @@ export async function parsearExcelConferenciaLaboratorio(buffer, opts = {}) {
         return { linhas: [], headers: [], idx: null, erro: 'Nenhuma linha de dados encontrada.' }
     }
 
-    const { idx, headers } = mapearIndicesColunasConferencia(matrix[0], opts.mapeamentoManual || {})
-    const faltantes = camposFaltantesMapeamento(idx)
+    const origem = opts.origem || null
+    const o = normalizarOrigemConferencia(origem)
+    const { idx, headers } = mapearIndicesColunasConferencia(
+        matrix[0],
+        opts.mapeamentoManual || {},
+        origem,
+    )
+    const faltantes = camposFaltantesMapeamento(idx, { origem })
     if (faltantes.length) {
         return {
             linhas: [],
@@ -570,25 +675,59 @@ export async function parsearExcelConferenciaLaboratorio(buffer, opts = {}) {
     const linhas = []
     for (let r = 1; r < matrix.length; r += 1) {
         const row = matrix[r] || []
+        if (o === 'valores_base') {
+            const codigo = idx.codigo >= 0 ? String(row[idx.codigo] || '').trim() : ''
+            const nome = idx.exame >= 0 ? String(row[idx.exame] || '').trim() : ''
+            if (!linhaValoresBaseTemRegistro({ codigo, nome })) continue
+            const valorRaw = idx.valor >= 0 ? row[idx.valor] : ''
+            const valorRelatorio = parsearValorMonetario(valorRaw)
+            const id = `base-r${r}`
+            linhas.push({
+                id,
+                idLocal: id,
+                linhaExcel: r + 1,
+                linha_original: r + 1,
+                codigo,
+                nome,
+                exame: nome,
+                exameNorm: normalizarNomeExame(nome),
+                valor: valorRelatorio,
+                valorRelatorio,
+                origem: 'valores_base',
+                bruto: row,
+            })
+            continue
+        }
+
         const tutor = String(row[idx.tutor] || '').trim()
         const pet = String(row[idx.pet] || '').trim()
         const dataRaw = String(row[idx.data] || '').trim()
         const exame = String(row[idx.exame] || '').trim()
+        const prontuario =
+            idx.prontuario >= 0 ? String(row[idx.prontuario] || '').trim() : ''
+        const codigo = idx.codigo >= 0 ? String(row[idx.codigo] || '').trim() : ''
         if (!linhaConferenciaTemRegistro({ tutor, pet, exame })) continue
         const data = parsearDataFlexivel(dataRaw)
         const valorRaw = idx.valor >= 0 ? row[idx.valor] : ''
         const valorRelatorio = parsearValorMonetario(valorRaw)
+        const id = `${o || origem || 'x'}-r${r}`
         linhas.push({
-            idLocal: `${opts.origem || 'x'}-r${r}`,
+            id,
+            idLocal: id,
             linhaExcel: r + 1,
+            linha_original: r + 1,
+            prontuario,
+            codigo,
             tutor,
             pet,
             data,
             dataRaw,
             exame,
             exameNorm: normalizarNomeExame(exame),
-            valorRelatorio,
-            origem: opts.origem || null,
+            valor: o === 'honorarios' ? null : valorRelatorio,
+            valorRelatorio: o === 'honorarios' ? null : valorRelatorio,
+            origem: o || origem,
+            bruto: row,
         })
     }
 
