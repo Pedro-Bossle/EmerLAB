@@ -30,6 +30,7 @@ import {
 } from '../../../lib/prestadorCadastroHelpers'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
+import { PageHeader } from '../../../components/ui'
 
 const FILTROS = [
     { id: 'abertas', label: 'Pendentes e em análise', status: ['pendente', 'em_analise'] },
@@ -433,24 +434,28 @@ export default function CredenciamentoFormularioInbox() {
         selecionada.status !== 'descartado'
 
     return (
-        <div className="credenciamento_main fcred_inbox">
+        <div className="el-page credenciamento_main fcred_inbox">
             {exclusaoToast}
-            <h1>Credenciamento — Inbox do formulário</h1>
-            <p className="pcad_muted fcred_inbox_lead">
-                Revise pré-cadastros enviados pelos parceiros e converta em ficha de prestador.
-                {abertasCount > 0 && (
+            <PageHeader
+                kicker="Credenciamento"
+                title="Inbox do formulário"
+                description={
                     <>
-                        {' '}
-                        <strong>{abertasCount}</strong> em aberto (pendente ou em análise).
+                        Revise pré-cadastros enviados pelos parceiros e converta em ficha de prestador.
+                        {abertasCount > 0 && (
+                            <>
+                                {' '}
+                                <strong>{abertasCount}</strong> em aberto (pendente ou em análise).
+                            </>
+                        )}
                     </>
-                )}
-            </p>
-            <p className="fcred_inbox_top_links">
-                <Link to="/credenciamento/formulario" className="credenciamento_main_action_btn secondary">
-                    Configuração do formulário
-                </Link>
-            </p>
-            <hr />
+                }
+                actions={
+                    <Link to="/credenciamento/formulario" className="credenciamento_main_action_btn secondary min-h-touch">
+                        Configuração do formulário
+                    </Link>
+                }
+            />
 
             <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
             <CredenciamentoMainAlert message={okMsg} onClose={() => setOkMsg('')} role="status" />
@@ -458,14 +463,14 @@ export default function CredenciamentoFormularioInbox() {
             <header className="credenciamento_main_header">
                 <h2 className="credenciamento_cadastro_filters_title">Filtrar entradas</h2>
                 <div className="credenciamento_main_filters fcred_inbox_filters">
-                    <div className="fcred_inbox_filtros" role="tablist" aria-label="Filtrar entradas">
+                    <div className="fcred_inbox_filtros flex flex-wrap gap-2" role="tablist" aria-label="Filtrar entradas">
                         {FILTROS.map((f) => (
                             <button
                                 key={f.id}
                                 type="button"
                                 role="tab"
                                 aria-selected={filtroAtivo.id === f.id}
-                                className={`credenciamento_main_action_btn ${
+                                className={`credenciamento_main_action_btn min-h-touch ${
                                     filtroAtivo.id === f.id ? '' : 'secondary'
                                 }`}
                                 onClick={() => mudarFiltro(f.id)}
@@ -766,11 +771,11 @@ export default function CredenciamentoFormularioInbox() {
                                 </div>
                             )}
 
-                            <div className="fcred_inbox_acoes">
+                            <div className="fcred_inbox_acoes flex flex-wrap items-center gap-2">
                                 {selecionada.prestador_id && (
                                     <Link
                                         to={`/credenciamento/cadastro/${selecionada.prestador_id}`}
-                                        className="credenciamento_main_action_btn"
+                                        className="credenciamento_main_action_btn min-h-touch"
                                     >
                                         Abrir ficha do prestador
                                     </Link>
@@ -780,7 +785,7 @@ export default function CredenciamentoFormularioInbox() {
                                         {prestadorAlvoId ? (
                                             <button
                                                 type="button"
-                                                className="credenciamento_main_action_btn"
+                                                className="credenciamento_main_action_btn min-h-touch"
                                                 disabled={acaoLoading || somenteLeitura}
                                                 onClick={() => void aplicarCadastroExistente()}
                                             >
@@ -789,7 +794,7 @@ export default function CredenciamentoFormularioInbox() {
                                         ) : (
                                             <button
                                                 type="button"
-                                                className="credenciamento_main_action_btn"
+                                                className="credenciamento_main_action_btn min-h-touch"
                                                 disabled={acaoLoading || somenteLeitura}
                                                 onClick={() => void criarCadastro()}
                                             >
@@ -799,7 +804,7 @@ export default function CredenciamentoFormularioInbox() {
                                         {selecionada.status === 'pendente' && (
                                             <button
                                                 type="button"
-                                                className="credenciamento_main_action_btn secondary"
+                                                className="credenciamento_main_action_btn secondary min-h-touch"
                                                 disabled={acaoLoading || somenteLeitura}
                                                 onClick={() => void marcarEmAnalise()}
                                             >
@@ -808,7 +813,7 @@ export default function CredenciamentoFormularioInbox() {
                                         )}
                                         <button
                                             type="button"
-                                            className="credenciamento_main_action_btn secondary fcred_inbox_btn_descartar"
+                                            className="credenciamento_main_action_btn secondary fcred_inbox_btn_descartar min-h-touch"
                                             disabled={acaoLoading || somenteLeitura}
                                             onClick={() => void descartar()}
                                         >
@@ -821,7 +826,7 @@ export default function CredenciamentoFormularioInbox() {
                                 <div className="fcred_inbox_dev_excluir">
                                     <button
                                         type="button"
-                                        className="credenciamento_main_action_btn fcred_inbox_btn_apagar_bd"
+                                        className="credenciamento_main_action_btn fcred_inbox_btn_apagar_bd min-h-touch"
                                         disabled={acaoLoading}
                                         onClick={() => void excluirEntradaPermanente()}
                                     >

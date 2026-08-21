@@ -804,7 +804,19 @@ body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabel
 
     .supertabelaprocedimentos .categoria_secao {
         padding: 8px 6px;
+        overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+    }
+
+    .supertabelaprocedimentos_table_container.overflow-x-auto,
+    .supertabelaprocedimentos_table_container {
+        overflow-x: visible !important;
+    }
+
+    .supertabelaprocedimentos .table_main_virtual_body {
+        overflow-x: hidden;
+        overflow-y: auto;
+        min-width: 760px;
     }
 
     .supertabelaprocedimentos .categoria_secao .table_main,

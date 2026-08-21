@@ -21,6 +21,7 @@ import {
     nomeGrupoBeneficioVisivel } from '../../../lib/credenciamento/prestadorBeneficios.js'
 import './CredenciamentoQuemRealiza.css'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
+import { PageHeader } from '../../../components/ui'
 
 const CATEGORIA_MIN = 3
 const CATEGORIA_MAX = 25
@@ -484,9 +485,8 @@ export default function CredenciamentoQuemRealiza() {
     }
 
     return (
-        <div className="credenciamento_main quem_realiza">
-            <h1>Credenciamento — Quem Realiza</h1>
-            <hr />
+        <div className="el-page credenciamento_main quem_realiza">
+            <PageHeader kicker="Credenciamento" title="Quem Realiza" />
 
             <section className="quem_realiza_filtros quem_realiza_filtros_center">
                 <div className="quem_realiza_row quem_realiza_row_center">

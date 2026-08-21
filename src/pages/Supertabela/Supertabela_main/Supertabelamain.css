@@ -1,6 +1,6 @@
 .supertabelamain {
-    text-align: center;
-    margin: 0 2.5em 2.5em 2.5em;
+    text-align: left;
+    margin: 0;
     color: var(--cinza-escuro);
     font-family: var(--fonte-principal), sans-serif;
 }
@@ -448,6 +448,12 @@ table_main
         gap: 4px;
     }
 
+    /* Um único scroll horizontal: a secção. O container e o corpo virtualizado não competem. */
+    .table_container.overflow-x-auto,
+    .table_container {
+        overflow-x: visible !important;
+    }
+
     .categoria_titulo {
         font-size: clamp(0.88rem, 0.55rem + 2.8vw, 1.05rem);
         line-height: 1.2;
@@ -482,9 +488,9 @@ table_main
     }
 
     .table_main_virtual_body {
-        overflow-x: visible;
+        overflow-x: hidden;
+        overflow-y: auto;
         min-width: 900px;
-        -webkit-overflow-scrolling: touch;
     }
 
     .table_text_proc {

@@ -45,12 +45,6 @@ const ITENS_CADASTRO = [
         descricao: 'Cadastro de prestadores: quantidade de procedimentos (vets e clínicas).',
     },
     {
-        chave: 'copiarCodigosProcs',
-        rotulo: 'Copiar códigos do perfil',
-        descricao:
-            'Cadastro: botão para copiar só os códigos dos procedimentos do perfil (lista e ficha do prestador).',
-    },
-    {
         chave: 'ocultarVetsClinica',
         rotulo: 'Ocultar vets em clínicas',
         descricao: 'Cadastro: esconde veterinários vinculados a estabelecimentos.',
@@ -314,7 +308,6 @@ export default function DevToolsFloating() {
         colCad.perfil ||
         colCad.crmv ||
         colCad.procs ||
-        colCad.copiarCodigosProcs ||
         colCad.ocultarVetsClinica
     const drawerStyle = calcularDrawerStyle(pos, ancora, compacto)
     const rotuloModo = compacto ? 'Restaurar ícone' : 'Minimizar'

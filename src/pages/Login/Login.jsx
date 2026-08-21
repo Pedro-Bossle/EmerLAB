@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { registrarEventoAuthAuditoria } from '../../lib/auditoriaLogs.js'
-import './Login.css'
+import { Button, Input } from '../../components/ui'
+import { cn } from '../../lib/cn'
 
 const DARK_MODE_KEY = 'emerlab-dark-mode'
 
-/** Mantém o tema da sessão anterior na tela de login (body.dark-mode). */
 function aplicarTemaSalvoNoBody() {
   if (typeof window === 'undefined') return
   const ativo = window.localStorage.getItem(DARK_MODE_KEY) === '1'
@@ -54,11 +54,7 @@ const Login = () => {
     setErrorMsg('')
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
 
     if (error) {
@@ -71,69 +67,80 @@ const Login = () => {
   }
 
   return (
-    <main className="login">
-      <div className="login_atmosphere" aria-hidden="true" />
-      <div className="login_glow login_glow--a" aria-hidden="true" />
-      <div className="login_glow login_glow--b" aria-hidden="true" />
-
-      <p className="login_watermark" aria-hidden="true">
+    <main className="relative isolate flex min-h-dvh items-center justify-center overflow-hidden bg-[radial-gradient(1200px_700px_at_12%_-10%,#cfe8f8_0%,transparent_55%),radial-gradient(900px_600px_at_100%_0%,#d9eef7_0%,transparent_50%),linear-gradient(165deg,#eef6fb_0%,#f7fbfd_42%,#e8f2f8_100%)] p-6 dark:bg-[radial-gradient(1000px_640px_at_10%_-8%,#1a3a52_0%,transparent_55%),linear-gradient(165deg,#0d1520_0%,#121c2a_45%,#0f1a26_100%)]">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(20,32,51,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(20,32,51,0.03)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,#000_20%,transparent_75%)]"
+        aria-hidden
+      />
+      <p
+        className="pointer-events-none absolute left-1/2 top-[46%] -translate-x-1/2 -translate-y-1/2 font-display text-[clamp(8rem,28vw,16rem)] font-extrabold leading-none tracking-tighter text-ink/[0.05] dark:text-white/[0.04]"
+        aria-hidden
+      >
         LAB
       </p>
 
-      <div className="login_stage">
-        <p className="login_brand">EmerLAB</p>
-        <h1 className="login_title">Bem-vindo de volta</h1>
-        <p className="login_lead">Entre com sua conta para continuar no Livro de Apoio Base.</p>
+      <div className="el-stage relative z-10 w-full max-w-md animate-[fadeRise_0.7s_cubic-bezier(0.22,1,0.36,1)_both]">
+        <p className="mb-4 font-display text-[clamp(1.85rem,4.5vw,2.5rem)] font-extrabold leading-none tracking-tight text-ink dark:text-[#e8f1f8]">
+          EmerLAB
+        </p>
+        <h1 className="mb-2 font-sans text-xl font-extrabold tracking-tight text-[#123e59] dark:text-[#e8f1f8]">
+          Bem-vindo de volta
+        </h1>
+        <p className="mb-6 max-w-[34ch] text-[0.95rem] font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
+          Entre com sua conta para continuar no Livro de Apoio Base.
+        </p>
 
-        <form className="login_form" onSubmit={handleLogin} noValidate>
-          <label className="login_field">
-            <span className="login_label">Email</span>
-            <input
-              className="login_input"
-              type="email"
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+        <form className="flex flex-col gap-4" onSubmit={handleLogin} noValidate>
+          <Input
+            label="Email"
+            type="email"
+            placeholder="seu@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="username"
+            autoFocus
+          />
+
+          <div className="relative">
+            <Input
+              label="Senha"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
-              autoComplete="username"
-              autoFocus
+              autoComplete="current-password"
+              className="[&_input]:pr-12"
             />
-          </label>
-
-          <label className="login_field">
-            <span className="login_label">Senha</span>
-            <div className="login_password">
-              <input
-                className="login_input"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                className="login_toggle"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-              >
-                {showPassword ? <IconEyeOff /> : <IconEye />}
-              </button>
-            </div>
-          </label>
+            <button
+              type="button"
+              className="absolute bottom-2 right-2 inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-soft hover:bg-ink/5 dark:text-[#9eb4c8]"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+            >
+              {showPassword ? <IconEyeOff /> : <IconEye />}
+            </button>
+          </div>
 
           {errorMsg ? (
-            <p className="login_erro" role="alert">
+            <p className="rounded-xl border border-status-erro/20 bg-status-erro-bg px-3 py-2 text-sm font-semibold text-status-erro" role="alert">
               {errorMsg}
             </p>
           ) : null}
 
-          <button className="login_submit" type="submit" disabled={loading}>
+          <Button type="submit" className="mt-1 w-full" disabled={loading}>
             {loading ? 'Entrando…' : 'Entrar'}
-          </button>
+          </Button>
         </form>
       </div>
+
+      <style>{`
+        @keyframes fadeRise {
+          from { opacity: 0; transform: translateY(18px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </main>
   )
 }

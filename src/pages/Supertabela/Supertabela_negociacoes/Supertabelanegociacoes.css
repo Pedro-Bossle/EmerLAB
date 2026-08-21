@@ -276,23 +276,24 @@ body.supertabelanegociacoes_no_bounce {
     max-width: 100%;
 }
 
+.supertabelanegociacoes_vinculo_readonly {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1e3148;
+    line-height: 1.4;
+    padding: 0.15rem 0;
+    border: none;
+    background: transparent;
+}
+
 .supertabelanegociacoes_lista_vinculo_cell .prestador_vinculo_busca_input {
-    font-size: 0.78rem;
-    padding: 0.35rem 0.5rem;
+    font-size: 0.88rem;
+    font-weight: 500;
+    padding: 0.45rem 0.6rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.supertabelanegociacoes_lista_vinculo_cell .prestador_vinculo_busca_input:focus {
-    white-space: normal;
-    text-overflow: clip;
-}
-
-.supertabelanegociacoes_vinculo_readonly {
-    font-size: 0.88rem;
-    color: #32566f;
-    line-height: 1.35;
 }
 
 .supertabelanegociacoes .categoria_secao {
@@ -885,7 +886,13 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
 
     .supertabelanegociacoes .categoria_secao {
         padding: 8px 6px;
+        overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+    }
+
+    .supertabelanegociacoes_table_container.overflow-x-auto,
+    .supertabelanegociacoes_table_container {
+        overflow-x: visible !important;
     }
 
     .supertabelanegociacoes .categoria_titulo {
@@ -898,8 +905,9 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
     }
 
     .supertabelanegociacoes .table_main_virtual_body {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+        overflow-x: hidden;
+        overflow-y: auto;
+        min-width: 860px;
     }
 
     .supertabelanegociacoes .categoria_secao .table_main {

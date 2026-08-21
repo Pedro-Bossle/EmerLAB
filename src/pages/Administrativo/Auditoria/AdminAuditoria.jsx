@@ -10,6 +10,7 @@ import {
     resumirAlteracaoAuditoria,
 } from '../../../lib/auditoriaLogs.js'
 import './AdminAuditoria.css'
+import { PageHeader } from '../../../components/ui'
 
 const PAGE_SIZE = 50
 
@@ -130,27 +131,27 @@ const AdminAuditoria = () => {
     )
 
     return (
-        <div className="admin_auditoria">
-            <header className="admin_auditoria_header">
-                <div>
-                    <p className="admin_auditoria_kicker">Administrativo</p>
-                    <h1>Auditoria</h1>
-                    <p>Registro imutável de alterações críticas do sistema.</p>
-                </div>
-                <div className="admin_auditoria_header_acoes">
-                    <button type="button" onClick={() => void carregar(page)} disabled={loading}>
-                        Atualizar
-                    </button>
-                    <button
-                        type="button"
-                        className="is-primary"
-                        onClick={() => void exportarCsv()}
-                        disabled={exportando || loading}
-                    >
-                        {exportando ? 'Exportando…' : 'Exportar CSV'}
-                    </button>
-                </div>
-            </header>
+        <div className="el-page admin_auditoria">
+            <PageHeader
+                kicker="Administrativo"
+                title="Auditoria"
+                description="Registro imutável de alterações críticas do sistema."
+                actions={
+                    <div className="admin_auditoria_header_acoes">
+                        <button type="button" onClick={() => void carregar(page)} disabled={loading}>
+                            Atualizar
+                        </button>
+                        <button
+                            type="button"
+                            className="is-primary"
+                            onClick={() => void exportarCsv()}
+                            disabled={exportando || loading}
+                        >
+                            {exportando ? 'Exportando…' : 'Exportar CSV'}
+                        </button>
+                    </div>
+                }
+            />
 
             {aviso ? <div className="admin_auditoria_aviso">{aviso}</div> : null}
             {erro ? <div className="admin_auditoria_erro">{erro}</div> : null}
@@ -230,7 +231,7 @@ const AdminAuditoria = () => {
                 </span>
             </div>
 
-            <div className="admin_auditoria_table_wrap">
+            <div className="admin_auditoria_table_wrap overflow-x-auto">
                 <table className="admin_auditoria_table">
                     <thead>
                         <tr>
@@ -295,9 +296,10 @@ const AdminAuditoria = () => {
                 </table>
             </div>
 
-            <div className="admin_auditoria_paginacao">
+            <div className="admin_auditoria_paginacao flex flex-wrap items-center justify-center gap-3">
                 <button
                     type="button"
+                    className="min-h-11 min-w-11"
                     disabled={page <= 1 || loading}
                     onClick={() => void carregar(1)}
                 >
@@ -305,6 +307,7 @@ const AdminAuditoria = () => {
                 </button>
                 <button
                     type="button"
+                    className="min-h-11 px-3"
                     disabled={page <= 1 || loading}
                     onClick={() => void carregar(page - 1)}
                 >
@@ -312,6 +315,7 @@ const AdminAuditoria = () => {
                 </button>
                 <button
                     type="button"
+                    className="min-h-11 px-3"
                     disabled={page >= totalPaginas || loading}
                     onClick={() => void carregar(page + 1)}
                 >
@@ -319,6 +323,7 @@ const AdminAuditoria = () => {
                 </button>
                 <button
                     type="button"
+                    className="min-h-11 min-w-11"
                     disabled={page >= totalPaginas || loading}
                     onClick={() => void carregar(totalPaginas)}
                 >

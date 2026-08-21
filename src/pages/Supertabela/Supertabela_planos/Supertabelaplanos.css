@@ -1785,9 +1785,14 @@
         -webkit-overflow-scrolling: touch;
     }
 
+    .supertabelaplanos_table_container.overflow-x-auto,
+    .supertabelaplanos_table_container {
+        overflow-x: visible !important;
+    }
+
+    /* Scroll horizontal só na secção — evita 2 barras (stage + secção). */
     .supertabelaplanos_table_stage {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+        overflow-x: visible;
         width: 100%;
         max-width: 100%;
     }

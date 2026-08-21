@@ -12,6 +12,7 @@ import { solicitarGeocodePrestador } from '../../../lib/credenciamento/solicitar
 import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanenteCredenciamento.js'
 import { useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
+import { PageHeader } from '../../../components/ui'
 
 const normalizarTexto = (texto) =>
     String(texto || '')
@@ -929,9 +930,8 @@ const Credenciamento_main = () => {
     }
 
     return (
-        <div className='credenciamento_main'>
-            <h1>Credenciamento - Principal</h1>
-            <hr />
+        <div className='el-legacy-wrap credenciamento_main'>
+            <PageHeader kicker="Credenciamento" title="Principal" />
 
             <header className={`credenciamento_main_header ${headerCompacto ? 'is-compact' : ''}`}>
                 <h2>Filtros</h2>
@@ -1069,7 +1069,7 @@ const Credenciamento_main = () => {
                 />
             )}
 
-            <div className='credenciamento_main_table_container'>
+            <div className='credenciamento_main_table_container overflow-x-auto'>
                 {loading ? (
                     <p>Carregando...</p>
                 ) : (
@@ -1248,32 +1248,38 @@ const Credenciamento_main = () => {
                                     Exibindo <strong>{(paginaAjustada - 1) * itensPorPagina + 1}-{Math.min(paginaAjustada * itensPorPagina, linhasOrdenadas.length)}</strong> de <strong>{linhasOrdenadas.length}</strong>
                                 </div>
                                 <div className='credenciamento_main_paginacao_controles'>
-                                    <label className='credenciamento_main_paginacao_label'>
-                                        Por página
-                                        <select className='credenciamento_main_select' value={itensPorPagina} onChange={(e) => setItensPorPagina(Number(e.target.value))}>
-                                            <option value={20}>20</option>
-                                            <option value={30}>30</option>
-                                            <option value={40}>40</option>
-                                            <option value={100}>100</option>
-                                        </select>
-                                    </label>
-                                    <button type='button' className='credenciamento_main_action_btn secondary' onClick={() => setPaginaAtual((anterior) => Math.max(1, anterior - 1))} disabled={paginaAjustada <= 1}>Anterior</button>
-                                    <span className='credenciamento_main_paginacao_page'>Página {paginaAjustada} de {totalPaginas}</span>
-                                    <button type='button' className='credenciamento_main_action_btn secondary' onClick={() => setPaginaAtual((anterior) => Math.min(totalPaginas, anterior + 1))} disabled={paginaAjustada >= totalPaginas}>Próxima</button>
-                                    <label className='credenciamento_main_paginacao_label credenciamento_main_paginacao_ir_label'>
-                                        Ir para
-                                        <input
-                                            type='text'
-                                            inputMode='numeric'
-                                            className='credenciamento_main_input credenciamento_main_paginacao_ir_input'
-                                            value={paginaAlvoInput}
-                                            onChange={(e) => setPaginaAlvoInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') irParaPagina()
-                                            }}
-                                        />
-                                    </label>
-                                    <button type='button' className='credenciamento_main_action_btn secondary' onClick={irParaPagina}>Ir</button>
+                                    <div className='credenciamento_main_paginacao_grupo'>
+                                        <label className='credenciamento_main_paginacao_label'>
+                                            Por página
+                                            <select className='credenciamento_main_select' value={itensPorPagina} onChange={(e) => setItensPorPagina(Number(e.target.value))}>
+                                                <option value={20}>20</option>
+                                                <option value={30}>30</option>
+                                                <option value={40}>40</option>
+                                                <option value={100}>100</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <div className='credenciamento_main_paginacao_grupo credenciamento_main_paginacao_grupo--nav'>
+                                        <button type='button' className='credenciamento_main_action_btn secondary' onClick={() => setPaginaAtual((anterior) => Math.max(1, anterior - 1))} disabled={paginaAjustada <= 1}>Anterior</button>
+                                        <span className='credenciamento_main_paginacao_page'>Página {paginaAjustada} de {totalPaginas}</span>
+                                        <button type='button' className='credenciamento_main_action_btn secondary' onClick={() => setPaginaAtual((anterior) => Math.min(totalPaginas, anterior + 1))} disabled={paginaAjustada >= totalPaginas}>Próxima</button>
+                                    </div>
+                                    <div className='credenciamento_main_paginacao_grupo credenciamento_main_paginacao_grupo--ir'>
+                                        <label className='credenciamento_main_paginacao_label credenciamento_main_paginacao_ir_label'>
+                                            Ir para
+                                            <input
+                                                type='text'
+                                                inputMode='numeric'
+                                                className='credenciamento_main_input credenciamento_main_paginacao_ir_input'
+                                                value={paginaAlvoInput}
+                                                onChange={(e) => setPaginaAlvoInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') irParaPagina()
+                                                }}
+                                            />
+                                        </label>
+                                        <button type='button' className='credenciamento_main_action_btn secondary' onClick={irParaPagina}>Ir</button>
+                                    </div>
                                 </div>
                             </div>
                         )}

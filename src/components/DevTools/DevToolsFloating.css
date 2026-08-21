@@ -4,7 +4,8 @@
     --dev-tools-drawer-top: 8px;
     --dev-tools-drawer-width: 300px;
     --dev-tools-drawer-max-height: 480px;
-    position: fixed;
+    /* absolute: acompanha o documento (não gruda no viewport ao scroll) */
+    position: absolute;
     z-index: 10050;
     width: var(--dev-tools-btn);
     height: var(--dev-tools-btn);

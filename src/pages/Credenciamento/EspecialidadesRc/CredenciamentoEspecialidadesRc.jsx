@@ -11,6 +11,7 @@ import {
 } from '../../../lib/rc/ordenarCardsRc.js'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
+import { PageHeader } from '../../../components/ui'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoEspecialidadesRc.css'
 
@@ -201,13 +202,12 @@ const CredenciamentoEspecialidadesRc = () => {
     }
 
     return (
-        <div className="credenciamento_main especialidades_rc">
-            <h1>Credenciamento — Especialidades (RC)</h1>
-            <hr />
-            <p className="especialidades_rc_intro">
-                Defina o nome, o tipo e a ordem em que cada especialidade aparece no PDF da Rede Credenciada.
-                Arraste as linhas ou use as setas. A ordem vale para todos os prestadores com essa especialidade principal.
-            </p>
+        <div className="el-legacy-wrap credenciamento_main especialidades_rc">
+            <PageHeader
+                kicker="Credenciamento"
+                title="Especialidades (RC)"
+                description="Defina o nome, o tipo e a ordem em que cada especialidade aparece no PDF da Rede Credenciada. Arraste as linhas ou use as setas. A ordem vale para todos os prestadores com essa especialidade principal."
+            />
 
             <CredenciamentoMainAlert
                 message={erro}
@@ -307,7 +307,7 @@ const CredenciamentoEspecialidadesRc = () => {
             {loading ? (
                 <p className="especialidades_rc_muted">A carregar…</p>
             ) : (
-                <div className="especialidades_rc_table_wrap">
+                <div className="especialidades_rc_table_wrap overflow-x-auto">
                     <table className="table_main especialidades_rc_table">
                         <thead>
                             <tr>

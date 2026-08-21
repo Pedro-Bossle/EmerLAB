@@ -1375,7 +1375,13 @@
 
     .supertabelacidades .categoria_secao {
         padding: 8px 6px;
+        overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+    }
+
+    .supertabelacidades_table_container.overflow-x-auto,
+    .supertabelacidades_table_container {
+        overflow-x: visible !important;
     }
 
     .supertabelacidades .categoria_secao .table_main {

@@ -16,6 +16,7 @@ import {
 } from '../../../lib/impressaoPlanos/gerarImpressaoPlanosPdf.js'
 import { MIN_REALIZADORES_PRE_MARCAR } from '../../../lib/impressaoPlanos/mapaRealizadoresRegiao.js'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
+import { PageHeader } from '../../../components/ui'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers.js'
 import '../../Credenciamento/Credenciamento_main/Credenciamento_main.css'
 import '../../Supertabela/Supertabela_planos/Supertabelaplanos.css'
@@ -387,9 +388,12 @@ export default function ImpressaoPlanos() {
     )
 
     return (
-        <div className="credenciamento_main planos_impressao">
-            <h1>Planos — Impressão</h1>
-            <hr />
+        <div className="el-legacy-wrap credenciamento_main planos_impressao">
+            <PageHeader
+                kicker="Planos"
+                title="Impressão"
+                description="Selecione UF, cidade e plano para gerar a listagem e o PDF de impressão."
+            />
 
             <section className="planos_impressao_filtros planos_impressao_filtros_center">
                 <div className="planos_impressao_row planos_impressao_row_center">
@@ -546,7 +550,7 @@ export default function ImpressaoPlanos() {
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="planos_impressao_table_wrap">
+                                    <div className="planos_impressao_table_wrap overflow-x-auto">
                                     <table
                                         className={`table_main planos_impressao_table_main${
                                             tabelaMobile ? ' is-layout-mobile' : ''

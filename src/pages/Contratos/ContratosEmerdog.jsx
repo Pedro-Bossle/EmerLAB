@@ -8,6 +8,7 @@ import { gerarPdfBlob, downloadPdf, nomeArquivoContrato } from '../../lib/contra
 import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl.js'
 import './ContratosEmerdog.css'
 import { TOAST_AUTO_DISMISS_MS } from './contratosUi.js'
+import { PageHeader } from '../../components/ui'
 
 const clinicaInicial = {
     cnpj: '',
@@ -209,9 +210,12 @@ const ContratosEmerdog = () => {
     }
 
     return (
-        <div className="contratos_emerdog">
-            <h1>Contratos — Emerdog Plano de Saúde Animal</h1>
-            <p className="contratos_emerdog_sub">Gere minutas em PDF com base nos modelos contratuais. Campos com * são obrigatórios.</p>
+        <div className="el-page contratos_emerdog">
+            <PageHeader
+                kicker="Contratos"
+                title="Emerdog Plano de Saúde Animal"
+                description="Gere minutas em PDF com base nos modelos contratuais. Campos com * são obrigatórios."
+            />
 
             {!podeEditar && (
                 <p className="contratos_readonly_banner" role="status">
