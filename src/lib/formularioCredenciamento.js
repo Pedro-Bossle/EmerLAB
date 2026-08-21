@@ -17,6 +17,9 @@ import {
 
 export const FORMULARIO_CRED_SLUG_PADRAO = 'parceiros'
 
+/** Link curto público (máscara) → mesmo formulário do slug padrão. */
+export const FORMULARIO_CRED_PATH_CURTO = 'ser_parceiro'
+
 /** Disparado no browser quando entradas do formulário público mudam (insert/update). */
 export const FORMULARIO_ENTRADAS_CHANGE_EVENT = 'emerdog-formulario-entradas-change'
 
@@ -67,7 +70,11 @@ const normCod = (c) => String(c || '').trim().toUpperCase()
 export function urlPublicaFormularioCredenciamento(slug = FORMULARIO_CRED_SLUG_PADRAO) {
     const base = String(import.meta.env.BASE_URL || '/').replace(/\/?$/, '/')
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
-    return `${origin}${base}credenciamento/cadastro-publico/${encodeURIComponent(slug)}`
+    const s = String(slug || FORMULARIO_CRED_SLUG_PADRAO).trim() || FORMULARIO_CRED_SLUG_PADRAO
+    if (s === FORMULARIO_CRED_SLUG_PADRAO) {
+        return `${origin}${base}${FORMULARIO_CRED_PATH_CURTO}`
+    }
+    return `${origin}${base}credenciamento/cadastro-publico/${encodeURIComponent(s)}`
 }
 
 export function documentoCpfCnpjEstaCompleto(cpfCnpj) {

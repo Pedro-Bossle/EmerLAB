@@ -36,7 +36,10 @@ export const getReadOnlyFlag = () => {
 export function isRotaFormularioPublicoCredenciamento() {
   if (typeof window === 'undefined') return false
   const path = String(window.location.pathname || '')
-  return path.includes('/credenciamento/cadastro-publico')
+  return (
+    path.includes('/credenciamento/cadastro-publico') ||
+    /\/ser[_-]parceiro\/?$/.test(path)
+  )
 }
 
 export const clearAccessState = () => {

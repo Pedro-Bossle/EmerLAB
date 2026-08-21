@@ -43,6 +43,8 @@ function App() {
       <Routes>
         {/* Sem layout */}
         <Route path="/" element={<Login />} />
+        <Route path="/ser_parceiro" element={<CredenciamentoFormularioPublico />} />
+        <Route path="/ser-parceiro" element={<Navigate to="/ser_parceiro" replace />} />
         <Route path="/credenciamento/cadastro-publico" element={<CredenciamentoFormularioPublico />} />
         <Route path="/credenciamento/cadastro-publico/:slug" element={<CredenciamentoFormularioPublico />} />
         {/* Home pós-login: Layout2 (sidebar) */}
