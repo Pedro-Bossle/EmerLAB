@@ -739,7 +739,8 @@ export default function PrestadorServicosAbas({
                                             onChange={() => toggle(p.codigo)}
                                         />
                                         <span className="pcad_servicos_item_titulo">
-                                            <strong>{p.codigo}</strong> — {p.nome}
+                                            <strong>{p.codigo}</strong>
+                                            <span className="pcad_servicos_item_nome">{p.nome}</span>
                                         </span>
                                     </label>
                                     <input

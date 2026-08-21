@@ -1375,7 +1375,31 @@
 
     .supertabelacidades .categoria_secao {
         padding: 8px 6px;
+        overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+    }
+
+    .supertabelacidades_table_container.overflow-x-auto,
+    .supertabelacidades_table_container {
+        overflow-x: visible !important;
+    }
+
+    .supertabelacidades_sugestoes_rede {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .supertabelacidades_sugestoes_rede:focus {
+        outline: none;
+    }
+
+    .supertabelacidades_sugestoes_rede:focus-visible {
+        outline: 2px solid #2a6b5a;
+        outline-offset: 2px;
+    }
+
+    .supertabelacidades_sugestoes_rede .table_main {
+        min-width: 760px;
     }
 
     .supertabelacidades .categoria_secao .table_main {

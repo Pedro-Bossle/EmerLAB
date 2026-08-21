@@ -85,17 +85,20 @@ function camposIguais(tipo, hon, mel) {
 
 function ComparacaoLados({ hon, mel }) {
     return (
-        <div className="conf_lab_cmp">
-            <div className="conf_lab_cmp_head">
-                <span />
+        <div className="conf_lab_cmp grid grid-cols-1 gap-2 md:block">
+            <div className="conf_lab_cmp_head flex flex-col gap-2 md:grid md:grid-cols-[7.2rem_minmax(0,1fr)_1.6rem_minmax(0,1fr)]">
+                <span className="hidden md:block" />
                 <h3>Plano (valor de base)</h3>
-                <span />
+                <span className="hidden md:block" />
                 <h3>Laboratório</h3>
             </div>
             {CAMPOS_CMP.map((c) => {
                 const ok = camposIguais(c.id, hon, mel)
                 return (
-                    <div key={c.id} className={`conf_lab_cmp_row${ok ? ' is-ok' : ' is-dif'}`}>
+                    <div
+                        key={c.id}
+                        className={`conf_lab_cmp_row flex flex-col gap-1 md:grid md:grid-cols-[7.2rem_minmax(0,1fr)_1.6rem_minmax(0,1fr)]${ok ? ' is-ok' : ' is-dif'}`}
+                    >
                         <span className="conf_lab_cmp_label">{c.label}</span>
                         <span className="conf_lab_cmp_val">{textoCampo(c.id, hon)}</span>
                         <span

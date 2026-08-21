@@ -1,0 +1,105 @@
+.floating_tools_dock {
+  position: fixed;
+  z-index: 45; /* z-fab — abaixo de drawer/modal (50/60) */
+  left: 0;
+  right: 0;
+  bottom: 4.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 0.75rem;
+  pointer-events: none;
+}
+
+.floating_tools_dock_toggle,
+.floating_tools_dock_chips {
+  pointer-events: auto;
+}
+
+.floating_tools_dock_toggle {
+  width: 2.5rem;
+  height: 1.35rem;
+  border: 1px solid #a8c0b4;
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(180deg, #f4faf7 0%, #e5f0ea 100%);
+  color: #2a5c4c;
+  font-size: 0.85rem;
+  line-height: 1;
+  box-shadow: 0 -2px 10px rgba(30, 49, 72, 0.12);
+  cursor: pointer;
+}
+
+.floating_tools_dock_chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  max-width: 28rem;
+  padding: 0.4rem 0.5rem 0.55rem;
+  border-radius: 12px 12px 0 0;
+  border: 1px solid #a8c0b4;
+  border-bottom: 0;
+  background: rgba(248, 252, 250, 0.96);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 -4px 18px rgba(30, 49, 72, 0.14);
+}
+
+.floating_tools_dock_chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #8fb8a8;
+  background: #fff;
+  color: #1e3d34;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.floating_tools_dock_chip.is-active {
+  border-color: #247a64;
+  background: #e3f6ef;
+  color: #165a48;
+}
+
+.floating_tools_dock_chip_badge {
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  background: #c0392b;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.1rem;
+  text-align: center;
+}
+
+body.dark-mode .floating_tools_dock_toggle {
+  background: linear-gradient(180deg, #1e2a26 0%, #15201c 100%);
+  border-color: #2f4a42;
+  color: #9fd0c0;
+}
+
+body.dark-mode .floating_tools_dock_chips {
+  background: rgba(18, 26, 24, 0.96);
+  border-color: #2f4a42;
+}
+
+body.dark-mode .floating_tools_dock_chip {
+  background: #1a2421;
+  border-color: #3d6b5a;
+  color: #e8f2ee;
+}
+
+body.dark-mode .floating_tools_dock_chip.is-active {
+  background: #24483c;
+  border-color: #4a9b7e;
+}

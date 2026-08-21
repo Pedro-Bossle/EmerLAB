@@ -31,6 +31,7 @@ import ModalImpressaoHonorariosCidade from '../../../components/Supertabela/Moda
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelacidades.css'
+import { PageHeader } from '../../../components/ui'
 
 const Supertabelacidades = () => {
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
@@ -1539,9 +1540,12 @@ const Supertabelacidades = () => {
     }, [])
 
     return (
-        <div className='supertabelacidades'>
-            <h1>Supertabela - Cidades</h1>
-            <hr />
+        <div className='el-page supertabelacidades'>
+            <PageHeader
+                kicker="SuperTabela"
+                title="Cidades"
+                description="Valores de procedimentos por município e porte."
+            />
             <header className={`supertabelacidades_header ${headerCompacto ? 'is-compact' : ''}`}>
                 <h2>Filtros</h2>
                 <div className='supertabelacidades_filters'>
@@ -1728,7 +1732,7 @@ ou um código por linha`}
                 />
             )}
 
-            <div className='supertabelacidades_table_container'>
+            <div className='supertabelacidades_table_container overflow-x-auto'>
                 {loading ? (
                     <p>Carregando...</p>
                 ) : secoesPorCategoria.length === 0 ? (
@@ -1963,7 +1967,13 @@ ou um código por linha`}
                 )}
 
                 {mostrarContagemRealizadores && !loading && cidadeId ? (
-                    <section className='supertabelacidades_sugestoes_rede' aria-live='polite'>
+                    <section
+                        className='supertabelacidades_sugestoes_rede'
+                        aria-live='polite'
+                        tabIndex={0}
+                        role='region'
+                        aria-label='Sugestões com realizador — tabela com rolagem horizontal'
+                    >
                         <div className='supertabelacidades_sugestoes_rede_head'>
                             <h2 className='categoria_titulo'>Sugestões — com realizador, fora da tabela</h2>
                             <p className='supertabelacidades_sugestoes_rede_hint'>

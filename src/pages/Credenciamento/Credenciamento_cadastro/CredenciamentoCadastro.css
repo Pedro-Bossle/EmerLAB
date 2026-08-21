@@ -1,86 +1,95 @@
-/* Lista: layout largo igual credenciamento principal (usa Credenciamento_main.css) */
+/* Lista: filtros em duas linhas — Busca 1 | Busca 2 | Situação | Mais ; ações */
 .credenciamento_cadastro_lista .credenciamento_cadastro_filters_title {
     margin: 0 0 0.35rem;
     font-size: 1.05rem;
 }
 
-.credenciamento_cadastro_lista .credenciamento_cadastro_filters_layout {
-    align-items: end;
-}
-
-.credenciamento_cadastro_lista .credenciamento_main_filters {
+.credenciamento_cadastro_lista .credenciamento_cadastro_filters.credenciamento_main_filters {
     max-width: none;
     width: 100%;
-    margin-left: 0;
-    margin-right: 0;
+    margin: 0;
+    padding: 0.65rem 0.75rem 0.75rem;
     text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    align-items: stretch;
 }
 
-/* Uma única linha: busca, refinar, situação e ação */
-.credenciamento_cadastro_lista .credenciamento_main_filters_selectors .credenciamento_cadastro_filters_row {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.35fr) minmax(140px, 0.85fr) minmax(148px, auto) !important;
-    align-items: end !important;
-    flex-wrap: unset !important;
-    justify-content: unset !important;
-    gap: 10px !important;
-}
-
-.credenciamento_cadastro_lista.somente_leitura_lista
-    .credenciamento_main_filters_selectors
-    .credenciamento_cadastro_filters_row {
-    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.35fr) minmax(140px, 0.85fr) !important;
-}
-
-.credenciamento_cadastro_lista
-    .credenciamento_main_filters_selectors
-    .credenciamento_cadastro_filters_row:last-child
-    .credenciamento_main_filter_item {
-    flex-direction: column !important;
-    align-items: stretch !important;
+.credenciamento_cadastro_filters_row_busca {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(9rem, 0.9fr) auto;
+    gap: 0.55rem 0.65rem;
+    align-items: end;
     width: 100%;
-    gap: 4px;
 }
 
-.credenciamento_cadastro_lista
-    .credenciamento_main_filters_selectors
-    .credenciamento_cadastro_filters_row:last-child
-    .credenciamento_main_filter_item
-    p {
-    min-width: 0 !important;
-    text-align: left !important;
+.credenciamento_cadastro_field {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+    min-width: 0;
+    margin: 0;
+}
+
+.credenciamento_cadastro_field > span {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--azul-escuro, #123e59);
+    line-height: 1.2;
     white-space: nowrap;
 }
 
-.credenciamento_cadastro_lista .credenciamento_cadastro_filters_row .credenciamento_main_input,
-.credenciamento_cadastro_lista .credenciamento_cadastro_filters_row .credenciamento_main_select {
+.credenciamento_cadastro_field .credenciamento_main_input,
+.credenciamento_cadastro_field .credenciamento_main_select,
+.credenciamento_cadastro_field .campo_busca_limpar {
     width: 100%;
     min-width: 0;
+    box-sizing: border-box;
 }
 
-.credenciamento_cadastro_lista .credenciamento_cadastro_filters_action {
-    justify-content: flex-end;
-    padding-bottom: 0;
+.credenciamento_cadastro_mais_btn {
+    height: 30px;
+    min-width: 4.5rem;
+    padding: 0 0.65rem !important;
+    gap: 0.25rem;
+    align-self: end;
+    white-space: nowrap;
 }
 
-.credenciamento_cadastro_lista .credenciamento_cadastro_lista_acoes {
+.credenciamento_cadastro_mais_chevron {
+    font-size: 0.7rem;
+    line-height: 1;
+    opacity: 0.85;
+}
+
+.credenciamento_cadastro_filters_row_acoes {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 0.45rem;
     align-items: center;
-    justify-content: flex-end;
+    width: 100%;
 }
 
-.credenciamento_cadastro_lista .credenciamento_cadastro_lista_acoes .credenciamento_main_action_btn {
+.credenciamento_cadastro_filters_row_acoes .credenciamento_main_action_btn {
     width: auto;
     min-width: 0;
     height: 30px;
     white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.credenciamento_cadastro_dev_labs_feedback {
+    flex: 1 1 100%;
+    margin: 0.15rem 0 0;
+    font-size: 0.82rem;
 }
 
 .credenciamento_cadastro_lista .credenciamento_cadastro_btn_novo {
     width: auto;
-    min-width: 148px;
+    min-width: 0;
     height: 30px;
 }
 
@@ -172,18 +181,168 @@
     margin: 0.25rem 0 0;
 }
 
+/* Tabela desktop: fluida, sem sticky / sem scroll lateral */
 .credenciamento_cadastro_table {
     min-width: 0 !important;
     width: 100%;
+    table-layout: auto;
+    border-collapse: collapse;
+    overflow: visible;
+}
+
+.credenciamento_main_table_container:has(.credenciamento_cadastro_table) {
+    overflow-x: visible;
+    border: 1px solid #dbe9f2;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.credenciamento_cadastro_table.table_main {
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+}
+
+.credenciamento_cadastro_table .cred_col_pin,
+.credenciamento_cadastro_table thead .cred_col_pin {
+    position: static;
+    left: auto;
+    z-index: auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    box-shadow: none !important;
+    border-right: none;
+    background: transparent;
+}
+
+.credenciamento_cadastro_table thead .cred_col_pin {
+    background: #edf5fb;
+}
+
+.credenciamento_cadastro_table tbody tr:nth-child(even) .cred_col_pin,
+.credenciamento_cadastro_table tbody tr:hover .cred_col_pin {
+    background: transparent;
+}
+
+.credenciamento_cadastro_table .cred_col_pin--nome { width: 32%; }
+.credenciamento_cadastro_table .cred_col_pin--cidade { width: 22%; }
+.credenciamento_cadastro_table .cred_col_pin--especialidade { width: 22%; }
+.credenciamento_cadastro_table .cred_col_situacao {
+    width: 24%;
+    min-width: 0;
+}
+
+.credenciamento_cadastro_table th,
+.credenciamento_cadastro_table td {
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Cards mobile — escondidos no desktop */
+.credenciamento_cadastro_cards {
+    display: none;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.credenciamento_cadastro_card {
+    display: grid;
+    gap: 0.2rem;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid #d7e8f2;
+    border-radius: 10px;
+    background: #fff;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    box-shadow: none;
+}
+
+.credenciamento_cadastro_card.is-empty {
+    cursor: default;
+    color: #5a7085;
+    text-align: center;
+    padding: 0.85rem;
+}
+
+.credenciamento_cadastro_card:not(.is-empty):active {
+    background: #f0f7fc;
+}
+
+.credenciamento_cadastro_card_nome {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #123e59;
+    line-height: 1.25;
+    word-break: normal;
+    overflow-wrap: anywhere;
+    margin-bottom: 0.1rem;
+}
+
+.credenciamento_cadastro_card_meta {
+    display: grid;
+    grid-template-columns: 5.75rem minmax(0, 1fr);
+    gap: 0.1rem 0.45rem;
+    align-items: baseline;
+    font-size: 0.82rem;
+    line-height: 1.25;
+    color: #35556d;
+}
+
+.credenciamento_cadastro_card_label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #6a8499;
+    line-height: 1.25;
+}
+
+.credenciamento_cadastro_card_situacao {
+    font-weight: 700;
+    color: #0b5cab;
+}
+
+body.dark-mode .credenciamento_main_table_container:has(.credenciamento_cadastro_table) {
+    border-color: #3a5775;
+    background: #132335;
+}
+
+body.dark-mode .credenciamento_cadastro_table thead .cred_col_pin {
+    background: #1a2d40;
+}
+
+body.dark-mode .credenciamento_cadastro_table .cred_col_pin {
+    background: transparent;
+    box-shadow: none !important;
+}
+
+body.dark-mode .credenciamento_cadastro_card {
+    background: #132335;
+    border-color: #3a5775;
+    color: #e8f1f8;
+}
+
+body.dark-mode .credenciamento_cadastro_card_nome {
+    color: #e8f1f8;
+}
+
+body.dark-mode .credenciamento_cadastro_card_meta {
+    color: #9eb4c8;
+}
+
+body.dark-mode .credenciamento_cadastro_card_situacao {
+    color: #7fc0f0;
 }
 
 .credenciamento_cadastro_qtd_procs {
     font-variant-numeric: tabular-nums;
-}
-
-.credenciamento_cadastro_td_copiar_codigos {
-    width: 1%;
-    white-space: nowrap;
 }
 
 .credenciamento_cadastro_copiar_codigos_btn {
@@ -197,10 +356,6 @@
     flex-wrap: wrap;
     gap: 0.5rem;
     align-items: center;
-}
-
-.pcad_dev_tools_copiar_codigos {
-    flex-shrink: 0;
 }
 
 .credenciamento_cadastro_perfil_pct {
@@ -520,7 +675,8 @@
     overflow: auto;
     padding: 0.5rem;
     box-sizing: border-box;
-    transition: opacity 0.15s ease;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 400px;
 }
 
 .pcad_servicos_lista.is-loading {
@@ -581,18 +737,19 @@
 
 .pcad_servicos_item {
     display: grid;
-    grid-template-columns: 1fr var(--pcad-servicos-col-nome-alt, 16.8rem);
-    column-gap: 0.5rem;
-    padding: 0.25rem 0;
-    font-size: 0.88rem;
-    align-items: center;
-    border-bottom: 1px solid #f0f0f0;
+    grid-template-columns: minmax(0, 1fr) minmax(10rem, 14rem);
+    column-gap: 0.65rem;
+    row-gap: 0.35rem;
+    padding: 0.55rem 0;
+    font-size: 0.92rem;
+    align-items: start;
+    border-bottom: 1px solid #eef3f7;
 }
 
 .pcad_servicos_item_sel {
     display: flex;
-    align-items: center;
-    gap: 0.45rem;
+    align-items: flex-start;
+    gap: 0.5rem;
     min-width: 0;
     cursor: pointer;
     user-select: none;
@@ -605,16 +762,43 @@
 .pcad_servicos_item_titulo {
     flex: 1;
     min-width: 0;
-    line-height: 1.35;
+    line-height: 1.4;
     text-align: left;
+    color: #1e3148;
+    word-break: normal;
+    overflow-wrap: anywhere;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.pcad_servicos_item_titulo strong {
+    color: #123e59;
+    font-weight: 800;
+    font-size: 0.98rem;
+}
+
+.pcad_servicos_item_nome {
+    color: #3d5168;
+    font-weight: 500;
+    font-size: 0.9rem;
 }
 
 .pcad_servicos_nome_alt {
     width: 100%;
     min-width: 0;
-    font-size: 0.82rem;
-    font-weight: 400;
+    font-size: 0.9rem;
+    font-weight: 500;
     justify-self: stretch;
+    position: relative;
+    z-index: 0;
+}
+
+@media (max-width: 720px) {
+    .pcad_servicos_item {
+        grid-template-columns: 1fr;
+        padding: 0.75rem 0;
+    }
 }
 
 .pcad_servicos_massa {
@@ -1031,12 +1215,31 @@
 
 .pcad_form_footer .pcad_footer_btn_apagar_bd {
     margin-right: auto;
-    width: auto;
-    min-width: 0;
-    max-width: min(100%, 280px);
+    width: 2.15rem;
+    min-width: 2.15rem;
+    max-width: 2.15rem;
+    height: 2.15rem;
+    padding: 0 !important;
+    border-radius: 8px;
     color: #b3261e !important;
     border-color: #e8b4b0 !important;
     background: #fff8f7 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.pcad_form_footer .pcad_footer_btn_apagar_bd svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    display: block;
+    pointer-events: none;
+}
+
+.pcad_form_footer .pcad_footer_btn_apagar_bd:hover:not(:disabled) {
+    background: #fdecea !important;
+    border-color: #d18c8c !important;
 }
 
 .pcad_cidades_virtual {
@@ -1094,6 +1297,43 @@
 }
 
 @media (max-width: 1023px) {
+    .credenciamento_cadastro_lista.el-legacy-wrap.credenciamento_main,
+    .el-legacy-wrap.credenciamento_main.credenciamento_cadastro_lista {
+        margin: 0 !important;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: clip;
+        padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .credenciamento_cadastro_filters_row_busca {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .credenciamento_cadastro_field--situacao {
+        grid-column: 1 / -1;
+    }
+
+    .credenciamento_cadastro_mais_btn {
+        grid-column: 1 / -1;
+        width: 100%;
+        min-height: 40px;
+        height: 40px;
+        justify-content: center;
+    }
+
+    .credenciamento_cadastro_filters_row_acoes {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .credenciamento_cadastro_filters_row_acoes .credenciamento_main_action_btn,
+    .credenciamento_cadastro_lista .credenciamento_cadastro_btn_novo {
+        width: 100%;
+        min-height: 40px;
+        height: 40px;
+    }
+
     .credenciamento_cadastro_lista .credenciamento_cadastro_filters_row {
         display: grid !important;
         grid-template-columns: 1fr !important;
@@ -1113,6 +1353,34 @@
     .credenciamento_cadastro_lista .credenciamento_cadastro_btn_novo {
         min-width: 0;
         width: 100%;
+    }
+
+    .credenciamento_cadastro_lista .credenciamento_main_table_container,
+    .credenciamento_cadastro_lista .credenciamento_main_table_container:has(.credenciamento_cadastro_table) {
+        overflow: visible;
+        border: none;
+        background: transparent;
+        border-radius: 0;
+        margin: 0.75rem 0 0;
+    }
+
+    .credenciamento_cadastro_lista .credenciamento_cadastro_table_wrap {
+        display: none;
+    }
+
+    .credenciamento_cadastro_lista .credenciamento_cadastro_cards {
+        display: grid;
+        gap: 0.4rem;
+        width: 100%;
+    }
+
+    .credenciamento_cadastro_lista .credenciamento_main_paginacao {
+        margin-top: 0.85rem;
+    }
+
+    .credenciamento_cadastro_lista .credenciamento_main_paginacao_grupo--nav .credenciamento_main_action_btn {
+        min-height: 40px;
+        padding-inline: 0.85rem;
     }
 
     .credenciamento_main.pcad_form_page {
@@ -1149,8 +1417,26 @@
     .pcad_span2 {
         grid-column: span 1;
     }
+
     .pcad_form_footer {
-        padding: 12px 1rem;
+        padding: 0.65rem 1rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .pcad_form_footer {
+        padding: 0.55rem 0.75rem calc(0.55rem + env(safe-area-inset-bottom, 0px));
+        gap: 0.5rem;
+    }
+
+    .pcad_form_footer .pcad_footer_btn {
+        min-width: 0;
+        width: auto;
+        flex: 1 1 auto;
+        max-width: 9.5rem;
+        height: 2.15rem;
+        padding: 0 0.65rem !important;
+        font-size: 0.8rem;
     }
 }
 

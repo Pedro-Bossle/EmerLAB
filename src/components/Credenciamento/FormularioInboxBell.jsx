@@ -35,6 +35,7 @@ const BTN = 52
 const BTN_COMPACT_W = 24
 const BTN_COMPACT_H = 54
 const MARGIN = 8
+const EDGE_GUTTER = 14
 const DRAWER_GAP = 8
 const DRAWER_W = 340
 const DRAWER_MAX_H = 480
@@ -101,10 +102,11 @@ function posicaoPadrao() {
 function clamparPosicao(x, y, compacto = false) {
     const { w, h } = tamanhoBotao(compacto)
     const { width, height } = viewportUtil()
-    const maxX = Math.max(MARGIN, width - w - MARGIN)
+    const edge = compacto ? EDGE_GUTTER : MARGIN
+    const maxX = Math.max(edge, width - w - edge)
     const maxY = Math.max(MARGIN, height - h - MARGIN)
     return {
-        x: Math.min(maxX, Math.max(MARGIN, x)),
+        x: Math.min(maxX, Math.max(edge, x)),
         y: Math.min(maxY, Math.max(MARGIN, y)),
     }
 }
@@ -116,7 +118,7 @@ function snapPosicaoCompacta(pos) {
     const ladoDireito = pos.x + w / 2 > width / 2
     const y = clamparPosicao(pos.x, pos.y, true).y
     return {
-        x: ladoDireito ? Math.max(0, width - w) : 0,
+        x: ladoDireito ? Math.max(EDGE_GUTTER, width - w - EDGE_GUTTER) : EDGE_GUTTER,
         y,
     }
 }
@@ -174,15 +176,31 @@ function calcularDrawerStyle(pos, ancora, compacto = false) {
     }
 }
 
-export default function FormularioInboxBell() {
+export default function FormularioInboxBell({
+    mode = 'fab',
+    open: openControlled,
+    onOpenChange,
+    onBadgeChange,
+} = {}) {
     const podeNotifForm = useStoredPermission(PERMISSION_KEYS.NOTIFICACOES_FORMULARIO)
     const podeNotifContratos = useStoredPermission(PERMISSION_KEYS.NOTIFICACOES_CONTRATOS)
+    const isDock = mode === 'dock'
+    const controlled = typeof openControlled === 'boolean'
 
     const [countForm, setCountForm] = useState(0)
     const [countContratos, setCountContratos] = useState(0)
     const [recentesForm, setRecentesForm] = useState([])
     const [recentesContratos, setRecentesContratos] = useState([])
-    const [aberto, setAberto] = useState(false)
+    const [abertoInterno, setAbertoInterno] = useState(false)
+    const aberto = controlled ? openControlled : abertoInterno
+    const setAberto = useCallback(
+        (v) => {
+            const next = typeof v === 'function' ? v(aberto) : v
+            if (!controlled) setAbertoInterno(next)
+            onOpenChange?.(next)
+        },
+        [aberto, controlled, onOpenChange],
+    )
     const [loading, setLoading] = useState(false)
     const [syncContratos, setSyncContratos] = useState(false)
     const [limpando, setLimpando] = useState(false)
@@ -201,8 +219,12 @@ export default function FormularioInboxBell() {
 
     const countTotal = countForm + countContratos
     const temPermissao = podeNotifForm || podeNotifContratos
-    const visivel = temPermissao && countTotal > 0
+    const visivel = temPermissao && (isDock || countTotal > 0)
     const ancora = detectarAncora(pos, compacto)
+
+    useEffect(() => {
+        onBadgeChange?.(countTotal)
+    }, [countTotal, onBadgeChange])
 
     useEffect(() => {
         if (!temPermissao) return undefined
@@ -214,14 +236,15 @@ export default function FormularioInboxBell() {
     }, [temPermissao, countTotal])
 
     const aplicarClamp = useCallback(() => {
+        if (isDock) return
         setPos((p) => {
             const next = clamparPosicao(p.x, p.y, compacto)
             return compacto ? snapPosicaoCompacta(next) : next
         })
-    }, [compacto])
+    }, [compacto, isDock])
 
     useEffect(() => {
-        if (!visivel) return undefined
+        if (!visivel || isDock) return undefined
         aplicarClamp()
         const onResize = () => aplicarClamp()
         window.addEventListener('resize', onResize)
@@ -232,7 +255,7 @@ export default function FormularioInboxBell() {
             window.removeEventListener('resize', onResize)
             ro?.disconnect()
         }
-    }, [aplicarClamp, visivel])
+    }, [aplicarClamp, visivel, isDock])
 
     const lerContratosLocal = useCallback(async () => {
         const lista = carregarNotificacoes()
@@ -418,7 +441,7 @@ export default function FormularioInboxBell() {
     }, [aberto, temPermissao, podeNotifForm, podeNotifContratos, sincronizarContratosSeDevido])
 
     useEffect(() => {
-        if (!aberto) return undefined
+        if (!aberto || isDock) return undefined
         const onDoc = (e) => {
             if (rootRef.current?.contains(e.target)) return
             setAberto(false)
@@ -432,11 +455,11 @@ export default function FormularioInboxBell() {
             document.removeEventListener('mousedown', onDoc)
             document.removeEventListener('keydown', onKey)
         }
-    }, [aberto])
+    }, [aberto, isDock, setAberto])
 
     useEffect(() => {
-        if (countTotal === 0 && aberto) setAberto(false)
-    }, [countTotal, aberto])
+        if (!isDock && countTotal === 0 && aberto) setAberto(false)
+    }, [countTotal, aberto, isDock, setAberto])
 
     const limparTudo = useCallback(async () => {
         setLimpando(true)
@@ -458,6 +481,7 @@ export default function FormularioInboxBell() {
     }, [podeNotifContratos, podeNotifForm])
 
     const onPointerDown = (e) => {
+        if (isDock) return
         if (e.button != null && e.button !== 0) return
         const el = e.currentTarget
         el.setPointerCapture?.(e.pointerId)
@@ -518,55 +542,18 @@ export default function FormularioInboxBell() {
         (podeNotifContratos && countContratos > 0) || (podeNotifForm && countForm > 0)
     const vazio = !loading && !syncContratos && countTotal === 0
     const badge = countTotal > 99 ? '99+' : String(countTotal)
-    const drawerStyle = calcularDrawerStyle(pos, ancora, compacto)
+    const drawerStyle = isDock
+        ? {
+              '--notif-drawer-left': '0px',
+              '--notif-drawer-top': 'auto',
+              '--notif-drawer-bottom': 'calc(4.25rem + 2.75rem)',
+              '--notif-drawer-width': '100%',
+              '--notif-drawer-max-height': 'min(70dvh, 480px)',
+          }
+        : calcularDrawerStyle(pos, ancora, compacto)
     const rotuloModo = compacto ? 'Restaurar ícone' : 'Minimizar'
 
-    return (
-        <div
-            ref={rootRef}
-            className={`notif_float is-anchor-${ancora}${aberto ? ' is-open' : ''}${compacto ? ' is-compact' : ''}`}
-            style={{ left: pos.x, top: pos.y }}
-            aria-live="polite"
-        >
-            <button
-                type="button"
-                className="notif_float_btn"
-                aria-label={`Notificações, ${countTotal} pendente(s)`}
-                aria-expanded={aberto}
-                title={
-                    compacto
-                        ? 'Notificações — clique para abrir, arraste para mover'
-                        : 'Notificações — arraste para mover, clique para abrir'
-                }
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={onPointerUp}
-                onPointerCancel={onPointerUp}
-            >
-                {compacto ? (
-                    <span className="notif_float_btn_tab" aria-hidden="true">
-                        {ancora === 'right' ? '‹' : '›'}
-                    </span>
-                ) : (
-                    <>
-                        <span className="notif_float_btn_ico" aria-hidden="true">
-                            🔔
-                        </span>
-                        <span className="notif_float_btn_grip" aria-hidden="true" />
-                    </>
-                )}
-                <span className="notif_float_badge" aria-hidden="true">
-                    {badge}
-                </span>
-            </button>
-
-            <div
-                className={`notif_float_drawer${aberto ? ' is-open' : ''}`}
-                style={drawerStyle}
-                role="dialog"
-                aria-label="Notificações"
-                aria-hidden={!aberto}
-            >
+    const drawerInner = (
                 <div className="notif_float_drawer_inner">
                     <header className="notif_float_drawer_head">
                         <strong>Notificações</strong>
@@ -581,6 +568,7 @@ export default function FormularioInboxBell() {
                                     {limpando ? 'Limpando…' : 'Limpar'}
                                 </button>
                             )}
+                            {!isDock ? (
                             <button
                                 type="button"
                                 className="notif_float_modo"
@@ -593,6 +581,7 @@ export default function FormularioInboxBell() {
                             >
                                 {rotuloModo}
                             </button>
+                            ) : null}
                             <button
                                 type="button"
                                 className="notif_float_fechar"
@@ -692,6 +681,77 @@ export default function FormularioInboxBell() {
                         {vazio && <p className="notif_float_muted">Nada novo por aqui.</p>}
                     </div>
                 </div>
+    )
+
+    if (isDock) {
+        return (
+            <div
+                ref={rootRef}
+                className={`notif_float notif_float--dock${aberto ? ' is-open' : ''}`}
+                aria-live="polite"
+            >
+                <div
+                    className={`notif_float_drawer notif_float_drawer--dock${aberto ? ' is-open' : ''}`}
+                    style={drawerStyle}
+                    role="dialog"
+                    aria-label="Notificações"
+                    aria-hidden={!aberto}
+                >
+                    {drawerInner}
+                </div>
+            </div>
+        )
+    }
+
+    return (
+        <div
+            ref={rootRef}
+            className={`notif_float is-anchor-${ancora}${aberto ? ' is-open' : ''}${compacto ? ' is-compact' : ''}`}
+            style={{ left: pos.x, top: pos.y }}
+            aria-live="polite"
+        >
+            <button
+                type="button"
+                className="notif_float_btn"
+                aria-label={`Notificações, ${countTotal} pendente(s)`}
+                aria-expanded={aberto}
+                title={
+                    compacto
+                        ? 'Notificações — clique para abrir, arraste para mover'
+                        : 'Notificações — arraste para mover, clique para abrir'
+                }
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerUp}
+            >
+                {compacto ? (
+                    <span className="notif_float_btn_tab" aria-hidden="true">
+                        {ancora === 'right' ? '‹' : '›'}
+                    </span>
+                ) : (
+                    <>
+                        <span className="notif_float_btn_ico" aria-hidden="true">
+                            🔔
+                        </span>
+                        <span className="notif_float_btn_grip" aria-hidden="true" />
+                    </>
+                )}
+                {countTotal > 0 ? (
+                <span className="notif_float_badge" aria-hidden="true">
+                    {badge}
+                </span>
+                ) : null}
+            </button>
+
+            <div
+                className={`notif_float_drawer${aberto ? ' is-open' : ''}`}
+                style={drawerStyle}
+                role="dialog"
+                aria-label="Notificações"
+                aria-hidden={!aberto}
+            >
+                {drawerInner}
             </div>
         </div>
     )

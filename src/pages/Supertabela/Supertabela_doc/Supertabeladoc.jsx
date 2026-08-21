@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import './Supertabeladoc.css'
+import { PageHeader } from '../../../components/ui'
 
 const Supertabeladoc = () => {
     const [isHoveringIframe, setIsHoveringIframe] = useState(false)
@@ -26,8 +27,12 @@ const Supertabeladoc = () => {
     }, [isHoveringIframe])
 
     return (
-        <div className='documentation'>
-            <h1>Supertabela - Documentação</h1>
+        <div className='el-page documentation'>
+            <PageHeader
+                kicker="SuperTabela"
+                title="Documentação"
+                description="Contexto histórico e uso da SuperTabela na plataforma EmerLAB."
+            />
             <div>
                 <h2>Por que Existe?</h2>
                 <p>Criada para unificar as tabelas das regiões, negociações e planos todas em uma unica ferramenta, montada a partir de abas individuais de excel que se relacionavam entre si, impedindo a perda de dados e a inconsistência de informações.</p>
@@ -43,7 +48,7 @@ const Supertabeladoc = () => {
 
             <h2>A Super Tabela Original</h2>
             <div
-                className="documentation_iframe_wrapper"
+                className="documentation_iframe_wrapper overflow-x-auto"
                 onMouseEnter={() => setIsHoveringIframe(true)}
                 onMouseLeave={() => setIsHoveringIframe(false)}
             >
@@ -71,7 +76,3 @@ const Supertabeladoc = () => {
 }
 
 export default Supertabeladoc
-
-
-
-

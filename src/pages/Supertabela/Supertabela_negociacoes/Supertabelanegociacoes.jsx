@@ -20,6 +20,7 @@ import {
 import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planosHierarquia.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelanegociacoes.css'
+import { PageHeader } from '../../../components/ui'
 
 const ALTURA_LINHA_TABELA = 42
 const MAX_LINHAS_VISIVEIS = 10
@@ -1476,9 +1477,12 @@ const Supertabelanegociacoes = () => {
     }, [])
 
     return (
-        <div className='supertabelanegociacoes'>
-            <h1>Supertabela - Negociações</h1>
-            <hr />
+        <div className='el-page supertabelanegociacoes'>
+            <PageHeader
+                kicker="SuperTabela"
+                title="Negociações"
+                description="Tabelas negociadas por prestador, cidade e plano."
+            />
 
             <header className={`supertabelanegociacoes_header ${headerCompacto ? 'is-compact' : ''}`}>
                 <h2>Filtros</h2>
@@ -1877,7 +1881,7 @@ ou um código por linha`}
             )}
 
             {!negociacaoSelecionada ? (
-                <div className='supertabelanegociacoes_table_container'>
+                <div className='supertabelanegociacoes_table_container overflow-x-auto'>
                     {loading ? (
                         <p>Carregando...</p>
                     ) : (
@@ -2081,7 +2085,7 @@ ou um código por linha`}
                     )}
                 </div>
             ) : (
-                <div className='supertabelanegociacoes_table_container'>
+                <div className='supertabelanegociacoes_table_container overflow-x-auto'>
                     {secoesDetalhePorCategoria.length === 0 ? (
                         <p>Nenhum procedimento ativo nesta negociação.</p>
                     ) : (

@@ -14,6 +14,7 @@ import {
 import PrestadorVinculoBusca from '../../Supertabela/Supertabela_negociacoes/PrestadorVinculoBusca.jsx'
 import '../Credenciamento_main/Credenciamento_main.css'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
+import { PageHeader } from '../../../components/ui'
 import './CredenciamentoImportKmz.css'
 
 const rotuloPrestador = (p) => (p?.nome ? String(p.nome) : `ID ${p?.id}`)
@@ -194,18 +195,23 @@ const CredenciamentoImportKmz = () => {
     )
 
     return (
-        <div className="credenciamento_main cred_import_kmz">
-            <div className="cred_import_kmz_header">
-                <h1>Importar coordenadas (KMZ)</h1>
-                <Link to="/credenciamento/mapa" className="credenciamento_main_action_btn secondary">
-                    Voltar ao mapa
-                </Link>
-            </div>
-            <p className="pcad_muted cred_import_kmz_lead">
-                Exporte o mapa do Google My Maps como <strong>KMZ</strong>. Cada pin deve ter o{' '}
-                <strong>nome</strong> igual ao cadastro do credenciado LOCAL. Sem match exato, escolha o
-                credenciado entre as sugestões.
-            </p>
+        <div className="el-legacy-wrap credenciamento_main cred_import_kmz">
+            <PageHeader
+                kicker="Credenciamento"
+                title="Importar coordenadas (KMZ)"
+                description={
+                    <>
+                        Exporte o mapa do Google My Maps como <strong>KMZ</strong>. Cada pin deve ter o{' '}
+                        <strong>nome</strong> igual ao cadastro do credenciado LOCAL. Sem match exato, escolha o
+                        credenciado entre as sugestões.
+                    </>
+                }
+                actions={
+                    <Link to="/credenciamento/mapa" className="credenciamento_main_action_btn secondary min-h-touch">
+                        Voltar ao mapa
+                    </Link>
+                }
+            />
 
             <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
             <CredenciamentoMainAlert message={feedback} onClose={() => setFeedback('')} role="status" />
@@ -249,7 +255,7 @@ const CredenciamentoImportKmz = () => {
 
             {linhas.length > 0 && (
                 <>
-                    <div className="cred_import_kmz_table_wrap">
+                    <div className="cred_import_kmz_table_wrap overflow-x-auto">
                         <table className="cred_import_kmz_table">
                             <thead>
                                 <tr>

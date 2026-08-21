@@ -4,8 +4,9 @@
     --dev-tools-drawer-top: 8px;
     --dev-tools-drawer-width: 300px;
     --dev-tools-drawer-max-height: 480px;
+    /* fixed: mesma base que a gaveta e fora da scrollbar do documento */
     position: fixed;
-    z-index: 10050;
+    z-index: 45;
     width: var(--dev-tools-btn);
     height: var(--dev-tools-btn);
     pointer-events: none;
@@ -46,6 +47,18 @@
     touch-action: none;
 }
 
+.dev_tools_float.is-open {
+    z-index: 47;
+}
+
+.dev_tools_float.is-open .dev_tools_float_drawer {
+    z-index: 4;
+}
+
+.dev_tools_float.is-open .dev_tools_float_btn {
+    z-index: 3;
+}
+
 .dev_tools_float.is-compact .dev_tools_float_btn {
     width: 24px;
     height: 54px;
@@ -53,16 +66,12 @@
     border-color: #5a8fb4;
     background: linear-gradient(145deg, #f7fbfe 0%, #e4f0f8 100%);
     box-shadow: 0 4px 14px rgba(30, 49, 72, 0.16);
+    border-radius: 12px;
 }
 
-.dev_tools_float.is-compact.is-anchor-left .dev_tools_float_btn {
-    border-left: 0;
-    border-radius: 0 12px 12px 0;
-}
-
+.dev_tools_float.is-compact.is-anchor-left .dev_tools_float_btn,
 .dev_tools_float.is-compact.is-anchor-right .dev_tools_float_btn {
-    border-right: 0;
-    border-radius: 12px 0 0 12px;
+    border-radius: 12px;
 }
 
 .dev_tools_float_btn:active {
@@ -340,4 +349,25 @@ body.dark-mode .dev_tools_float_modo {
     .dev_tools_float_drawer {
         width: min(280px, calc(100% - 20px));
     }
+}
+
+.dev_tools_float--dock {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    height: auto;
+    z-index: 45;
+    pointer-events: none;
+}
+
+.dev_tools_float_drawer--dock {
+    left: 0 !important;
+    right: 0;
+    top: auto !important;
+    bottom: calc(4.25rem + 2.75rem);
+    width: 100% !important;
+    max-width: none;
+    border-radius: 14px 14px 0 0;
+    transform-origin: center bottom;
+    pointer-events: auto;
 }

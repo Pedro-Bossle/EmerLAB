@@ -19,6 +19,7 @@ import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMai
 import PrestadorVinculoBusca from '../../Supertabela/Supertabela_negociacoes/PrestadorVinculoBusca.jsx'
 import '../../Credenciamento/Credenciamento_main/Credenciamento_main.css'
 import './ConfigImportarCredenciados.css'
+import { PageHeader } from '../../../components/ui'
 
 const ROTULO_STATUS = {
     ja_vinculado: 'No perfil',
@@ -558,14 +559,12 @@ const ConfigImportarCredenciados = () => {
     }
 
     return (
-        <div className='credenciamento_main config_import_cred'>
-            <h1>Importar Credenciados</h1>
-            <hr />
-
-            <p className='config_import_cred_lead'>
-                Compare uma planilha com o perfil dos veterinários: o sistema cruza nome e código do
-                procedimento e mostra o que já está no perfil, o que falta e o que precisa revisar.
-            </p>
+        <div className='el-page credenciamento_main config_import_cred'>
+            <PageHeader
+                kicker="Configurações"
+                title="Importar Credenciados"
+                description="Compare uma planilha com o perfil dos veterinários: o sistema cruza nome e código do procedimento e mostra o que já está no perfil, o que falta e o que precisa revisar."
+            />
 
             {erro ? (
                 <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role='alert' />
@@ -697,7 +696,7 @@ const ConfigImportarCredenciados = () => {
                         'Linhas',
                     )}
 
-                    <div className='config_import_cred_table_wrap'>
+                    <div className='config_import_cred_table_wrap overflow-x-auto'>
                         <table className='config_import_cred_table'>
                             <thead>
                                 <tr>
@@ -882,7 +881,7 @@ const ConfigImportarCredenciados = () => {
                                 orfaos.length,
                                 'Orfãos',
                             )}
-                            <div className='config_import_cred_table_wrap'>
+                            <div className='config_import_cred_table_wrap overflow-x-auto'>
                                 <table className='config_import_cred_table'>
                                     <thead>
                                         <tr>

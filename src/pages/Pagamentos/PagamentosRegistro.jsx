@@ -40,6 +40,7 @@ import {
 import './PagamentosRegistro.css'
 import PagamentosExportarModal from './PagamentosExportarModal.jsx'
 import { useSfscExclusaoConfirm } from '../../hooks/useSfscExclusaoConfirm.jsx'
+import { PageHeader } from '../../components/ui'
 
 const hoje = new Date()
 const MES_ATUAL = hoje.getMonth() + 1
@@ -989,9 +990,12 @@ export default function PagamentosRegistro() {
     const resumoMassaTemSemMatch = Boolean(resumoMassa?.adicionados?.some((a) => a.semCadastro))
 
     return (
-        <div className="pag_reg">
-            <h1>Registro de pagamentos</h1>
-            <hr />
+        <div className="el-legacy-wrap pag_reg">
+            <PageHeader
+                kicker="Pagamentos"
+                title="Registro de pagamentos"
+                description="Filtre por competência e prestador, inclua registros e acompanhe respostas e pagamentos."
+            />
             <header
                 className="pag_reg_header"
                 style={{ '--compact-progress': headerCompactProgress }}
@@ -1206,7 +1210,7 @@ export default function PagamentosRegistro() {
                     {resumoMassa.adicionados.length > 0 && (
                         <div className="pag_reg_resumo_massa_sec">
                             <h3>Incluídos</h3>
-                            <div className="pag_reg_resumo_massa_scroll">
+                            <div className="pag_reg_resumo_massa_scroll overflow-x-auto">
                                 <table
                                     className={[
                                         'pag_reg_resumo_tabela',
@@ -1357,7 +1361,7 @@ export default function PagamentosRegistro() {
                     {resumoMassa.falhas.length > 0 && (
                         <div className="pag_reg_resumo_massa_sec pag_reg_resumo_massa_sec--erro">
                             <h3>Falhas</h3>
-                            <div className="pag_reg_resumo_massa_scroll">
+                            <div className="pag_reg_resumo_massa_scroll overflow-x-auto">
                                 <table className="pag_reg_resumo_tabela pag_reg_resumo_tabela--erro">
                                     <thead>
                                         <tr>
@@ -1398,7 +1402,7 @@ export default function PagamentosRegistro() {
                 <p className="pag_reg_loading">A carregar…</p>
             ) : (
                 <>
-                    <div className="pag_reg_table_wrap">
+                    <div className="pag_reg_table_wrap overflow-x-auto">
                         <table className="pag_reg_table">
                             <thead>
                                 <tr>

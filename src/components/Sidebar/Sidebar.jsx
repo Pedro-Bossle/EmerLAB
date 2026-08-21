@@ -1,346 +1,225 @@
-import React, { useEffect, useState } from 'react'
-import './Sidebar.css'
-import iconShow from "../../assets/sidepanel-ico-show.png";
-import iconHide from "../../assets/sidepanel-ico-hide.png";
-import logoBranco from "../../assets/logo_branco.png";
-import logoE from "../../assets/logo_E.png";
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import logoBranco from '../../assets/logo_branco.png'
+import logoE from '../../assets/logo_E.png'
 import {
-    PERMISSION_KEYS,
-    hasPermission,
-    podeLerFerramenta,
-    useStoredAccessProfile,
-} from '../../lib/accessControl';
-import { getToolIdForHref } from '../../lib/permissionCatalog';
-import { supabase } from '../../lib/supabase';
-import { logoutSessao } from '../../lib/authSession';
+  PERMISSION_KEYS,
+  hasPermission,
+  podeLerFerramenta,
+  useStoredAccessProfile,
+} from '../../lib/accessControl'
+import { getToolIdForHref } from '../../lib/permissionCatalog'
+import { SIDEBAR_GROUPS, filtrarChildrenNav } from '../../lib/navConfig'
+import { cn } from '../../lib/cn'
+import { supabase } from '../../lib/supabase'
+import { logoutSessao } from '../../lib/authSession'
+import { lerDarkModeAtivo, salvarDarkModeAtivo } from '../../lib/sidebarPrefs'
 
-/**
- * Como adicionar novos grupos:
- * 1) Adicione um objeto no array `menuItems` com:
- *    - id: identificador único
- *    - label: texto do item pai
- *    - children: array com os subitens
- *
- * Exemplo:
- * {
- *   id: 'financeiro',
- *   label: 'Financeiro',
- *   children: [
- *     { label: 'Faturas', href: '/financeiro/faturas' },
- *     { label: 'Reembolsos', href: '/financeiro/reembolsos' },
- *   ],
- * }
- */
-const menuItems = [
-    {
-        id: 'inicio',
-        label: 'Início',
-        href: '/home',
-    },
-    {
-        id: 'supertabela',
-        label: 'Tabelas de Valores',
-        permission: PERMISSION_KEYS.SUPERTABELA_VIEW,
-        children: [
-            { label: 'Visão geral', href: '/supertabelamain', permission: PERMISSION_KEYS.SUPERTABELA_VIEW },
-            { label: 'Cidades', href: '/supertabela/cidades', permission: PERMISSION_KEYS.SUPERTABELA_VIEW },
-            { label: 'Planos', href: '/supertabela/planos', permission: PERMISSION_KEYS.SUPERTABELA_VIEW },
-            { label: 'Procedimentos', href: '/supertabela/procedimentos', permission: PERMISSION_KEYS.SUPERTABELA_VIEW },
-            { label: 'Negociações', href: '/supertabela/negociacoes', permission: PERMISSION_KEYS.SUPERTABELA_NEGOCIACOES_VIEW },
-            { label: 'Documentação', href: '/supertabeladoc', permission: PERMISSION_KEYS.SUPERTABELA_VIEW },
-        ],
-    },
-    {
-        id: 'credenciamento',
-        label: 'Credenciamento',
-        permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
-        children: [
-            { label: 'Processos', href: '/credenciamento/principal', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
-            { label: 'Cadastros', href: '/credenciamento/cadastro', permission: PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW },
-            { label: 'Mapa', href: '/credenciamento/mapa', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
-            {
-                label: 'Prospecção',
-                href: '/credenciamento/prospectos-osm',
-                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
-            },
-            { label: 'Quem Realiza', href: '/credenciamento/quem-realiza', permission: PERMISSION_KEYS.CREDENCIAMENTO_QUEM_REALIZA_VIEW },
-            {
-                label: 'Especialistas por Cidade',
-                href: '/credenciamento/especialidades-cidade',
-                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
-            },
-            {
-                label: 'Formulário',
-                href: '/credenciamento/formulario',
-                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
-            },
-            {
-                label: 'Inbox formulário',
-                href: '/credenciamento/formulario/entradas',
-                permission: PERMISSION_KEYS.CREDENCIAMENTO_FORMULARIO_INBOX,
-            },
-            /* Documentação credenciamento — inativo por hora
-            { label: 'Documentação', href: '/credenciamentodoc', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
-            */
+const SIDEBAR_ICONS = {
+  inicio: (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+    </svg>
+  ),
+  supertabela: (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M3.5 9.5h17M10 9.5v10" stroke="currentColor" strokeWidth="1.75" />
+    </svg>
+  ),
+  credenciamento: (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="8" r="3.25" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M5 19.5c1.6-3.2 4-4.8 7-4.8s5.4 1.6 7 4.8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  ),
+  operacoes: (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      <circle cx="18" cy="15" r="3" stroke="currentColor" strokeWidth="1.75" />
+    </svg>
+  ),
+  configuracoes: (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6.2 6.2l1.6 1.6M16.2 16.2l1.6 1.6M17.8 6.2l-1.6 1.6M7.8 16.2l-1.6 1.6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  ),
+  administrativo: (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 3.5 19 7v5.2c0 4.1-2.8 7.4-7 8.3-4.2-.9-7-4.2-7-8.3V7l7-3.5Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      <path d="M9.5 12.2 11.2 14l3.5-3.8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+}
 
-        ],
-    },
-    
-    {
-        id: 'planos',
-        label: 'Planos',
-        permission: PERMISSION_KEYS.PLANOS_VIEW,
-        children: [
-            { label: 'Impressão', href: '/planos/impressao', permission: PERMISSION_KEYS.PLANOS_VIEW },
-        ],
-    },
-    {
-        id: 'compras',
-        label: 'Compras',
-        permission: PERMISSION_KEYS.COMPRAS_VIEW,
-        children: [
-            { label: 'Valor de Venda', href: '/compras/valor-venda', permission: PERMISSION_KEYS.COMPRAS_VIEW },
-            { label: 'Orçamento', href: '/compras/orcamento', permission: PERMISSION_KEYS.COMPRAS_VIEW },
-        ],
-    },
-    {
-        id: 'contratos',
-        label: 'Contratos',
-        permission: PERMISSION_KEYS.CONTRATOS_VIEW,
-        children: [
-            { label: 'Gerar PDF', href: '/contratos/gerar', permission: PERMISSION_KEYS.CONTRATOS_VIEW },
-            { label: 'Clicksign', href: '/contratos/clicksign', permission: PERMISSION_KEYS.CONTRATOS_VIEW },
-        ],
-    },
-    {
-        id: 'pagamentos',
-        label: 'Pagamentos',
-        permission: PERMISSION_KEYS.PAGAMENTOS_VIEW,
-        children: [
-            { label: 'Registro', href: '/pagamentos/registro', permission: PERMISSION_KEYS.PAGAMENTOS_VIEW },
-            { label: 'Resumo', href: '/pagamentos/resumo', permission: PERMISSION_KEYS.PAGAMENTOS_VIEW },
-        ],
-    },
-    {
-        id: 'configuracoes',
-        label: 'Configurações',
-        children: [
-            { label: 'Importar KMZ', href: '/credenciamento/import-kmz', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
-            {
-                label: 'Especialidades (RC)',
-                href: '/credenciamento/especialidades-rc',
-                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
-            },
-            {
-                label: 'Importar Credenciados',
-                href: '/configuracoes/importar-credenciados',
-                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
-            },
-            {
-                label: 'Exportar Credenciados',
-                href: '/configuracoes/exportar-credenciados',
-                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
-            },
-            {
-                label: 'Conferência Laboratório',
-                href: '/configuracoes/conferencia-laboratorio',
-                permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
-            },
-        ],
-    },
-    {
-        id: 'sair',
-        label: 'Sair',
-        children: [
-            { label: 'Redefinir senha', action: 'reset-password' },
-            { label: 'Encerrar sessão', href: '/logout' },
-        ],
-        },
-]
+function grupoIdPorPathname(items, pathname) {
+  for (const item of items || []) {
+    if (
+      (item.children || []).some(
+        (c) => c.href && (pathname === c.href || pathname.startsWith(`${c.href}/`)),
+      )
+    ) {
+      return item.id
+    }
+  }
+  return null
+}
 
 const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
-    const navigate = useNavigate()
-    const accessProfile = useStoredAccessProfile()
-    const [darkModeAtivo, setDarkModeAtivo] = useState(() => {
-        if (typeof window === 'undefined') return false
-        return window.localStorage.getItem('emerlab-dark-mode') === '1'
-    })
-    /**
-     * Estado de submenus:
-     * { [idDoMenu]: true/false }
-     */
-    const [openMenus, setOpenMenus] = useState({})
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const accessProfile = useStoredAccessProfile()
+  const [darkModeAtivo, setDarkModeAtivo] = useState(() => lerDarkModeAtivo())
+  const [openMenus, setOpenMenus] = useState({})
 
-    const podeVerItemMenu = (child) => {
-        if (child.action) return true
-        const toolId = getToolIdForHref(child.href)
-        if (toolId) return podeLerFerramenta(accessProfile?.permissions, toolId)
-        if (child.permission) return hasPermission(accessProfile, child.permission)
-        return true
-    }
+  const podeVerItemMenu = (child) => {
+    if (child?.type === 'section') return true
+    if (child.action) return true
+    const toolId = getToolIdForHref(child.href)
+    if (toolId) return podeLerFerramenta(accessProfile?.permissions, toolId)
+    if (child.permission) return hasPermission(accessProfile, child.permission)
+    return true
+  }
 
-    const menuItemsVisiveis = menuItems
-        .map((item) => {
-            if (item.permission && !hasPermission(accessProfile, item.permission)) return null
-            if (item.href && !item.children) {
-                if (!podeVerItemMenu(item)) return null
-                return item
-            }
-            const children = (item.children || []).filter((child) => podeVerItemMenu(child))
-            if (children.length === 0) return null
-            return { ...item, children }
-        })
-        .filter(Boolean)
+  const menuItemsVisiveis = useMemo(
+    () =>
+      SIDEBAR_GROUPS.map((item) => {
+        if (item.permission && !hasPermission(accessProfile, item.permission)) return null
+        if (item.href && !item.children) {
+          if (!podeVerItemMenu(item)) return null
+          return item
+        }
+        const children = filtrarChildrenNav(item.children || [], podeVerItemMenu)
+        if (children.length === 0) return null
+        return { ...item, children }
+      }).filter(Boolean),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [accessProfile],
+  )
 
-    // Inicializa todos fechados ao montar
-    useEffect(() => {
-        const initial = {}
+  const grupoAtivoId = useMemo(
+    () => grupoIdPorPathname(menuItemsVisiveis, pathname),
+    [menuItemsVisiveis, pathname],
+  )
+
+  /** Mantém aberta a categoria da página atual (ex.: Ops) mesmo ao recolher/expandir a sidebar. */
+  useEffect(() => {
+    setOpenMenus((prev) => {
+      const next = {}
+      menuItemsVisiveis.forEach((item) => {
+        next[item.id] = false
+      })
+      if (grupoAtivoId) {
+        next[grupoAtivoId] = true
+      } else {
+        // Sem rota de grupo: preserva o que o utilizador tinha aberto, se ainda existir
         menuItemsVisiveis.forEach((item) => {
-            initial[item.id] = false
+          if (prev[item.id]) next[item.id] = true
         })
-        setOpenMenus(initial)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [accessProfile?.id])
+      }
+      return next
+    })
+  }, [grupoAtivoId, menuItemsVisiveis, accessProfile?.id])
 
-    // Se fechar a sidebar, fecha todos os submenus também
-    useEffect(() => {
-        if (!open) {
-            const reset = {}
-            menuItemsVisiveis.forEach((item) => {
-                reset[item.id] = false
-            })
-            setOpenMenus(reset)
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open])
+  useEffect(() => {
+    if (!open || !grupoAtivoId) return
+    setOpenMenus((prev) => {
+      if (prev[grupoAtivoId]) return prev
+      const next = { ...prev }
+      menuItemsVisiveis.forEach((item) => {
+        if (item.id !== grupoAtivoId) next[item.id] = false
+      })
+      next[grupoAtivoId] = true
+      return next
+    })
+  }, [open, grupoAtivoId, menuItemsVisiveis])
 
-    const toggleMenu = (id) => {
-        setOpenMenus((prev) => {
-            const wasOpen = !!prev[id]
-            const next = {}
-            menuItemsVisiveis.forEach((item) => {
-                next[item.id] = false
-            })
-            if (!wasOpen) {
-                next[id] = true
-            }
-            return next
-        })
+  const toggleMenu = (id) => {
+    setOpenMenus((prev) => {
+      const wasOpen = !!prev[id]
+      const next = {}
+      menuItemsVisiveis.forEach((item) => {
+        next[item.id] = false
+      })
+      // Não deixa fechar o grupo da página atual — só troca para outro
+      if (wasOpen && id === grupoAtivoId) {
+        next[id] = true
+        return next
+      }
+      if (!wasOpen) next[id] = true
+      else if (grupoAtivoId) next[grupoAtivoId] = true
+      return next
+    })
+  }
+
+  const handleLogout = async () => {
+    await logoutSessao({
+      navigate,
+      onError: () => alert('Erro ao sair da sessão'),
+    })
+  }
+
+  const handleResetPassword = async () => {
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+    if (userError || !userData?.user?.email) {
+      alert('Não foi possível identificar o usuário logado')
+      return
     }
-
-    const handleLogout = async () => {
-        await logoutSessao({
-            navigate,
-            onError: () => alert('Erro ao sair da sessão'),
-        })
+    const { error } = await supabase.auth.resetPasswordForEmail(userData.user.email, {
+      redirectTo: window.location.origin,
+    })
+    if (error) {
+      alert('Erro ao enviar redefinição de senha')
+      return
     }
+    alert('E-mail de redefinição enviado com sucesso')
+  }
 
-    const handleResetPassword = async () => {
-        const { data: userData, error: userError } = await supabase.auth.getUser()
-
-        if (userError || !userData?.user?.email) {
-            alert('Não foi possível identificar o usuário logado')
-            return
-        }
-
-        const { error } = await supabase.auth.resetPasswordForEmail(userData.user.email, {
-            redirectTo: window.location.origin,
-        })
-
-        if (error) {
-            alert('Erro ao enviar redefinição de senha')
-            return
-        }
-
-        alert('E-mail de redefinição enviado com sucesso')
+  const handleAction = async (child) => {
+    if (child.action === 'reset-password') {
+      await handleResetPassword()
+      return
     }
-
-    const handleAction = async (child) => {
-        if (child.action === 'reset-password') {
-            await handleResetPassword()
-            return
-        }
-
-        if (child.href === '/logout') {
-            await handleLogout()
-        }
+    if (child.action === 'logout' || child.href === '/logout') {
+      await handleLogout()
     }
+  }
 
-    useEffect(() => {
-        if (darkModeAtivo) {
-            document.body.classList.add('dark-mode')
-            window.localStorage.setItem('emerlab-dark-mode', '1')
-        } else {
-            document.body.classList.remove('dark-mode')
-            window.localStorage.setItem('emerlab-dark-mode', '0')
-        }
-    }, [darkModeAtivo])
+  useEffect(() => {
+    if (darkModeAtivo) {
+      document.body.classList.add('dark-mode')
+    } else {
+      document.body.classList.remove('dark-mode')
+    }
+    salvarDarkModeAtivo(darkModeAtivo)
+  }, [darkModeAtivo])
 
-    return (
-        <div className='layout'>
-            <aside className={`sidebar ${open ? 'open' : 'closed'}`}>
-                <div className="sidebar_logo_wrap">
-                    <img
-                        src={open ? logoBranco : logoE}
-                        alt="EmerLAB"
-                        className='logo logo_sidebar'
-                    />
-                </div>
+  const labelClass = cn(
+    'overflow-hidden whitespace-nowrap transition-[opacity,max-width] duration-150',
+    open ? 'max-w-[14rem] opacity-100' : 'max-w-0 opacity-0',
+  )
 
-                <nav className='sidebar_nav'>
-                    {menuItemsVisiveis.map((item) => (
-                        <div key={item.id} className="sidebar_group">
-                            {item.href && !item.children ? (
-                                <Link
-                                    to={item.href}
-                                    className="sidebar_group_btn sidebar_link_btn"
-                                    onClick={() => {
-                                        if (item.href === '/home') {
-                                            window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
-                                        }
-                                        onAfterNavigate?.()
-                                    }}
-                                >
-                                    <span>{item.label}</span>
-                                </Link>
-                            ) : (
-                                <>
-                                    <button
-                                        className="sidebar_group_btn"
-                                        onClick={() => toggleMenu(item.id)}
-                                    >
-                                        <span>{item.label}</span>
-                                        <span>{openMenus[item.id] ? '▾' : '▸'}</span>
-                                    </button>
-
-                                    <div className={`sidebar_submenu ${openMenus[item.id] ? 'open' : ''}`}>
-                                        {item.children.map((child) => (
-                                            child.action || child.href === '/logout' ? (
-                                                <button
-                                                    key={child.action || child.href}
-                                                    type="button"
-                                                    className="sidebar_submenu_action"
-                                                    onClick={() => handleAction(child)}
-                                                >
-                                                    {child.label}
-                                                </button>
-                                            ) : (
-                                                <Link
-                                                    key={child.href}
-                                                    to={child.href}
-                                                    onClick={() => onAfterNavigate?.()}
-                                                >
-                                                    {child.label}
-                                                </Link>
-                                            )
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    ))}
-                </nav>
+  return (
+    <aside
+      className={cn(
+        'fixed inset-y-0 right-0 z-drawer flex flex-col border-l border-white/10 bg-[#0f3a56] text-white shadow-lg lg:left-0 lg:right-auto lg:border-l-0 lg:border-r lg:shadow-none',
+        'transition-[width,transform] duration-200 ease-out',
+        open
+          ? cn('w-sidebar translate-x-0', !isPinned && 'lg:shadow-xl')
+          : 'w-sidebar translate-x-full lg:w-sidebar-collapsed lg:translate-x-0',
+      )}
+      aria-label="Navegação principal"
+      data-open={open ? 'true' : 'false'}
+      data-pinned={isPinned ? 'true' : 'false'}
+    >
+      <div className="flex h-16 shrink-0 items-center justify-center border-b border-white/10 px-2">
+        {open ? (
+          <img src={logoBranco} alt="EmerLAB" className="h-9 w-auto object-contain" />
+        ) : (
+          <img src={logoE} alt="EmerLAB" className="h-8 w-auto object-contain" />
+        )}
+      </div>
 
                 <div className='sidebar_footer'>
                     {hasPermission(accessProfile, PERMISSION_KEYS.ACCESS_MANAGE) && (
@@ -371,31 +250,93 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
                             </button>
                         </>
                     )}
+                    onClick={() => (open ? toggleMenu(item.id) : onToggleManual?.())}
+                    title={item.label}
+                  >
+                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>
+                    <span className={cn(labelClass, 'flex-1 text-left')}>{item.label}</span>
+                    {open ? (
+                      <span className="shrink-0 text-white/70" aria-hidden>
+                        {openMenus[item.id] ? '▾' : '▸'}
+                      </span>
+                    ) : null}
+                  </button>
+                  {open && openMenus[item.id] ? (
+                    <div className="ml-2 mt-1 flex flex-col gap-0.5 border-l border-white/15 pl-2">
+                      {item.children.map((child) =>
+                        child.type === 'section' ? (
+                          <div
+                            key={`section-${child.label}`}
+                            className="mt-2 px-2.5 pb-0.5 pt-1 text-[0.65rem] font-bold uppercase tracking-[0.08em] text-white/45 first:mt-0"
+                            role="presentation"
+                          >
+                            {child.label}
+                          </div>
+                        ) : child.action || child.href === '/logout' ? (
+                          <button
+                            key={child.action || child.href || child.label}
+                            type="button"
+                            className="min-h-10 whitespace-nowrap rounded-lg px-2.5 text-left text-[0.88rem] font-medium text-white/90 hover:bg-white/10 hover:text-white"
+                            onClick={() => handleAction(child)}
+                          >
+                            {child.label}
+                          </button>
+                        ) : (
+                          <Link
+                            key={child.href}
+                            to={child.href}
+                            className={cn(
+                              'min-h-10 whitespace-nowrap rounded-lg px-2.5 py-2 text-[0.88rem] font-medium text-white/90 hover:bg-white/10 hover:text-white',
+                              pathname === child.href && 'bg-white/15 text-white',
+                            )}
+                            onClick={() => onAfterNavigate?.()}
+                          >
+                            {child.label}
+                          </Link>
+                        ),
+                      )}
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+          )
+        })}
+      </nav>
 
-                    <button onClick={onToggleManual} className="toggle_btn" title={isPinned ? 'Desafixar sidebar' : 'Fixar sidebar'}>
-                        <img
-                            src={open ? iconHide : iconShow}
-                            alt={isPinned ? "Desafixar Sidebar" : "Fixar Sidebar"}
-                            className="toggle_icon"
-                        />
-                        <span className='toggle_text'>{isPinned ? 'Desafixar menu' : 'Fixar menu'}</span>
-                    </button>
+      <div className="flex shrink-0 flex-col gap-1 border-t border-white/10 p-1.5">
+        <button
+          type="button"
+          className={cn(
+            'flex min-h-11 items-center rounded-xl text-[0.88rem] font-semibold hover:bg-white/10',
+            open ? 'gap-2 px-3' : 'justify-center px-0',
+          )}
+          onClick={onToggleManual}
+          title={isPinned ? 'Recolher menu (salvar preferência)' : 'Manter menu aberto (salvar preferência)'}
+        >
+          <span className="inline-flex w-5 shrink-0 justify-center" aria-hidden>
+            {isPinned ? '«' : '»'}
+          </span>
+          <span className={labelClass}>{isPinned ? 'Recolher menu' : 'Manter aberto'}</span>
+        </button>
 
-                    <button
-                        type='button'
-                        className='sidebar_darkmode_btn'
-                        onClick={() => setDarkModeAtivo((anterior) => !anterior)}
-                        title={darkModeAtivo ? 'Desativar modo escuro' : 'Ativar modo escuro'}
-                    >
-                        <span className='sidebar_darkmode_icon'>{darkModeAtivo ? '☀️' : '🌙'}</span>
-                        <span className='sidebar_darkmode_text'>
-                            {darkModeAtivo ? 'Modo claro' : 'Modo escuro'}
-                        </span>
-                    </button>
-                </div>
-            </aside>
-        </div>
-    )
+        <button
+          type="button"
+          className={cn(
+            'flex min-h-11 items-center rounded-xl text-[0.88rem] font-semibold hover:bg-white/10',
+            open ? 'gap-2 px-3' : 'justify-center px-0',
+          )}
+          onClick={() => setDarkModeAtivo((v) => !v)}
+          title={darkModeAtivo ? 'Modo claro' : 'Modo escuro'}
+        >
+          <span className="inline-flex w-5 shrink-0 justify-center" aria-hidden>
+            {darkModeAtivo ? '☀' : '☾'}
+          </span>
+          <span className={labelClass}>{darkModeAtivo ? 'Modo claro' : 'Modo escuro'}</span>
+        </button>
+      </div>
+    </aside>
+  )
 }
 
 export default Sidebar
