@@ -136,6 +136,22 @@ body.dark-mode .cred_prospectos_osm_page .cred_prospectos_osm_top {
     display: flex;
     align-items: end;
     flex-shrink: 0;
+    gap: 10px;
+}
+
+.cred_prospectos_osm_gemini_rate {
+    display: inline-flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid #b9d4e8;
+    border-radius: 8px;
+    background: #f4f8fb;
+    color: #1e3148;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    line-height: 1;
 }
 
 .cred_prospectos_osm_cat_field {

@@ -56,6 +56,7 @@ export async function geminiGenerateJson(opts: {
   jsonSchema?: Record<string, unknown>
   temperature?: number
   maxOutputTokens?: number
+  timeoutMs?: number
 }) {
   const apiKey = String(Deno.env.get('GEMINI_API_KEY') || '').trim()
   if (!apiKey) {
@@ -77,6 +78,10 @@ export async function geminiGenerateJson(opts: {
     generationConfig,
   }
 
+  const timeoutMs = Number(opts.timeoutMs) > 0
+    ? Math.ceil(Number(opts.timeoutMs))
+    : Number(Deno.env.get('GEMINI_TIMEOUT_MS') || 90_000)
+
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -84,6 +89,7 @@ export async function geminiGenerateJson(opts: {
       'x-goog-api-key': apiKey,
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
   })
 
   const raw = await res.text()

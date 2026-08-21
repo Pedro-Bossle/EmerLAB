@@ -12,8 +12,8 @@ import { descansoGeminiParaResposta } from './geminiDescanso.js'
  * @param {{ cidade: string, uf?: string, fonte?: FonteProspectosColeta, categorias?: string[] }} opts
  */
 function fallbackOsmHabilitado() {
-    const v = String(process.env.PROSPECTOS_GEMINI_FALLBACK_OSM ?? 'true').trim().toLowerCase()
-    return v !== '0' && v !== 'false' && v !== 'no'
+    const v = String(process.env.PROSPECTOS_GEMINI_FALLBACK_OSM ?? 'false').trim().toLowerCase()
+    return v === '1' || v === 'true' || v === 'yes'
 }
 
 export { fallbackOsmHabilitado }
@@ -33,7 +33,7 @@ export async function coletarProspectosCidade(supabaseAdmin, opts) {
     const fonte = resolverFonteColeta(opts.fonte)
     const pularGemini = Boolean(opts.omitirGemini || opts.pularGemini)
 
-    if (fonte === 'auto' && pularGemini) {
+    if (fonte === 'auto' && pularGemini && fallbackOsmHabilitado()) {
         const r = await coletarProspectosOsmCidade(supabaseAdmin, opts)
         return {
             ...r,
@@ -49,11 +49,10 @@ export async function coletarProspectosCidade(supabaseAdmin, opts) {
         if (gem.ok) {
             return { ...gem, fonte: 'gemini', modoColeta: fonte }
         }
-        const podeFallback = fallbackOsmHabilitado() && fonte !== 'osm'
+        const podeFallback = fallbackOsmHabilitado() && fonte === 'auto'
         if (podeFallback) {
             const osm = await coletarProspectosOsmCidade(supabaseAdmin, opts)
             if (!osm.ok) return anexarDescansoGemini(osm, gem)
-            const avisoGemini = gem.erro || 'Gemini indisponível.'
             const avisoOsm = osm.aviso ? String(osm.aviso) : ''
             return anexarDescansoGemini(
                 {
@@ -75,8 +74,8 @@ export async function coletarProspectosCidade(supabaseAdmin, opts) {
 }
 
 /**
- * auto = Gemini primeiro, OSM se falhar (com PROSPECTOS_GEMINI_FALLBACK_OSM).
- * Sem PROSPECTOS_COLETA_FONTE: auto se GEMINI_API_KEY existir, senão osm.
+ * auto = Gemini primeiro, OSM só se PROSPECTOS_GEMINI_FALLBACK_OSM=true.
+ * Sem PROSPECTOS_COLETA_FONTE: gemini se GEMINI_API_KEY existir, senão osm.
  * @param {FonteProspectosColeta | string | undefined} pedida
  */
 export function resolverFonteColeta(pedida) {
@@ -84,6 +83,6 @@ export function resolverFonteColeta(pedida) {
     if (env === 'gemini' || env === 'osm' || env === 'auto') return env
     const p = String(pedida || '').trim().toLowerCase()
     if (p === 'gemini' || p === 'osm' || p === 'auto') return p
-    if (String(process.env.GEMINI_API_KEY || '').trim()) return 'auto'
+    if (String(process.env.GEMINI_API_KEY || '').trim()) return 'gemini'
     return 'osm'
 }

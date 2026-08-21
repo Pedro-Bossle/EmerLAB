@@ -10,8 +10,8 @@ import {
 export const TABELA_COLETA_JOBS = 'cred_prospectos_coleta_jobs'
 
 function fallbackOsmHabilitado() {
-  const v = String(Deno.env.get('PROSPECTOS_GEMINI_FALLBACK_OSM') ?? 'true').trim().toLowerCase()
-  return v !== '0' && v !== 'false' && v !== 'no'
+  const v = String(Deno.env.get('PROSPECTOS_GEMINI_FALLBACK_OSM') ?? 'false').trim().toLowerCase()
+  return v === '1' || v === 'true' || v === 'yes'
 }
 
 function resolverFonteColeta(pedida?: string) {
@@ -19,11 +19,12 @@ function resolverFonteColeta(pedida?: string) {
   if (env === 'gemini' || env === 'osm' || env === 'auto') return env
   const p = String(pedida || '').trim().toLowerCase()
   if (p === 'gemini' || p === 'osm' || p === 'auto') return p
-  if (String(Deno.env.get('GEMINI_API_KEY') || '').trim()) return 'auto'
+  if (String(Deno.env.get('GEMINI_API_KEY') || '').trim()) return 'gemini'
   return 'osm'
 }
 
 function contarPassos(payload: Record<string, unknown>) {
+  if (payload.fonte === 'gemini' || !fallbackOsmHabilitado()) return 1
   let n = 0
   if (payload.tentarGemini) n += 1
   n += 1
@@ -37,7 +38,8 @@ function metaInicial(opts: Record<string, unknown>) {
   const omitirGemini = Boolean(opts.omitirGemini)
   const fonte = resolverFonteColeta(String(opts.fonte || ''))
   const categorias = listaCategoriasColeta(opts.categorias as string[] | undefined)
-  const tentarGemini = !omitirGemini && (fonte === 'gemini' || fonte === 'auto')
+  const osmPermitido = fonte === 'osm' || (fonte === 'auto' && fallbackOsmHabilitado())
+  const tentarGemini = fonte === 'gemini' || (fonte === 'auto' && !omitirGemini)
   const payload = {
     cidade,
     uf,
@@ -45,14 +47,14 @@ function metaInicial(opts: Record<string, unknown>) {
     omitirGemini,
     tentarGemini,
     categorias,
-    fase: tentarGemini ? 'gemini' : 'bounds',
+    fase: tentarGemini ? 'gemini' : osmPermitido ? 'bounds' : 'gemini',
     catIndex: 0,
     bounds: null as null | { south: number; west: number; north: number; east: number },
     erros: [] as string[],
     avisos: [] as string[],
     geminiSnapshot: null as Record<string, unknown> | null,
     fallbackDeGemini: false,
-    coletaDiretaOsm: fonte === 'auto' && omitirGemini,
+    coletaDiretaOsm: fonte === 'auto' && omitirGemini && osmPermitido,
   }
   return { cidade, uf, payload, passos_totais: contarPassos(payload) }
 }
@@ -173,7 +175,7 @@ export async function executarPassoJobColeta(supabaseAdmin: SupabaseClient, jobI
         }
       }
       p.geminiSnapshot = { quotaExceeded: gem.quotaExceeded, erro: gem.erro || '' }
-      const podeFallback = fallbackOsmHabilitado() && p.fonte !== 'osm'
+      const podeFallback = fallbackOsmHabilitado() && p.fonte === 'auto'
       if (!podeFallback) {
         const failed = await atualizarJob(supabaseAdmin, job.id, {
           status: 'failed',

@@ -9,18 +9,13 @@
 3. `npm run dev` — front (Vite, porta padrão 5173).
 4. Opcional: `npm run dev:api` — APIs em `http://localhost:3000` (RC PDF, Clicksign proxy, CNPJ).
 
-## Gemini (prospectos)
+## Gemini (IA)
 
-O código usa a Google AI Studio via **generateContent**. **Não** coloque a chave com prefixo `VITE_` — só no servidor.
+A coleta de prospectos usa Google AI Studio via **generateContent**. A chave é só de servidor — nunca com prefixo `VITE_`. Copie as tags `GEMINI_*` / `PROSPECTOS_*` de [`env.chaves.modelo`](env.chaves.modelo) para `.env.local` (dev), Vercel ou secrets da Edge.
 
-1. Crie a chave em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (prefixos habituais: `AIza…` ou `AQ.…`).
-2. Grave `GEMINI_API_KEY` (e opcionalmente `GEMINI_MODEL=gemini-2.5-flash` ou `gemini-flash-latest`) no sítio que atende a API:
-   - **Dev (Vite, padrão):** `.env.local` na raiz → reinicie `npm run dev`.
-   - **Produção Vercel** (enquanto Edge estiver desligada): Environment Variables do projeto → redeploy.
-   - **Supabase Edge** (`VITE_SUPABASE_EDGE_API=true`): copie [`supabase/env.secrets.example`](supabase/env.secrets.example) para `supabase/env.secrets`, preencha e rode `npm run supabase:secrets` + deploy das functions. Detalhes em [`supabase/MIGRACAO_EDGE_FUNCTIONS.md`](supabase/MIGRACAO_EDGE_FUNCTIONS.md).
-3. Teste: `GET /api/prospectos-gemini-status` (legado) ou `…/functions/v1/prospectos-coletar?route=gemini-status` (Edge). Sem chave → `configurado: false`; com chave e cota → `disponivel: true`.
-
-Sem chave, a coleta de prospectos usa só OpenStreetMap.
+- Utilizadores: [`docs/ia-usuario.md`](docs/ia-usuario.md)
+- Desenvolvedores: [`docs/ia-desenvolvedor.md`](docs/ia-desenvolvedor.md)
+- Edge Functions: [`supabase/MIGRACAO_EDGE_FUNCTIONS.md`](supabase/MIGRACAO_EDGE_FUNCTIONS.md)
 
 ## Build
 

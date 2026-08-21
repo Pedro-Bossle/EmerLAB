@@ -22,6 +22,7 @@ import { formatarEnderecoLinhaTabela } from '../../../lib/credenciamento/prospec
 import { formatarLinhaTelefonesContato } from '../../../lib/telefoneBrasil.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
+import { useGeminiRate } from '../../../hooks/useGemini.js'
 import '../Credenciamento_main/Credenciamento_main.css'
 import '../Credenciamento_cadastro/CredenciamentoCadastro.css'
 import '../Credenciamento_mapa/CredenciamentoMapa.css'
@@ -94,6 +95,7 @@ const CredenciamentoProspectosOsm = () => {
     const splitPctRef = useRef(splitListaPct)
     const [ordenarColuna, setOrdenarColuna] = useState('nome')
     const [ordenarDir, setOrdenarDir] = useState('asc')
+    const { rate: geminiRate, recarregar: recarregarGeminiRate } = useGeminiRate()
 
     useEffect(() => {
         splitPctRef.current = splitListaPct
@@ -291,20 +293,14 @@ const CredenciamentoProspectosOsm = () => {
         setColetaPasso(0)
         setColetaPassosTotais(1)
         setErro('')
-        setFeedback('Coleta em andamento (Gemini, com fallback OSM se necessário)…')
+        setFeedback('Coleta em andamento (Gemini, até 20 estabelecimentos)…')
         const ctrl = new AbortController()
         const timeoutId = setTimeout(() => ctrl.abort(), 6 * 60 * 1000)
 
         const montarMsgSucesso = (body) => {
             let msg = `${body.inseridos ?? 0} local(is) atualizado(s).`
-            if (body.coletaDiretaOsm) {
-                msg += ' Modo auto: coleta via OpenStreetMap (Gemini sem cota no plano).'
-            } else if (body.fallbackDeGemini) {
-                msg += ' Modo auto: Gemini sem cota → concluído via OpenStreetMap.'
-            } else if (body.fonte === 'gemini') {
+            if (body.fonte === 'gemini') {
                 msg += ' Coleta via Gemini.'
-            } else if (body.fonte === 'osm') {
-                msg += ' Coleta via OpenStreetMap.'
             }
             if (body.aviso) msg += ` ${body.aviso}`
             return msg
@@ -317,7 +313,7 @@ const CredenciamentoProspectosOsm = () => {
                     action: 'start',
                     cidade: c,
                     uf: String(uf || '').trim(),
-                    fonte: 'auto',
+                    fonte: 'gemini',
                 },
                 { signal: ctrl.signal },
             )
@@ -355,7 +351,7 @@ const CredenciamentoProspectosOsm = () => {
         } catch (e) {
             if (e?.name === 'AbortError') {
                 setErro(
-                    'A coleta passou de 6 minutos. O servidor de mapas pode estar lento; tente de novo em instantes.',
+                    'A coleta passou de 6 minutos. Tente de novo em instantes.',
                 )
             } else {
                 setErro(e?.message || String(e))
@@ -366,6 +362,7 @@ const CredenciamentoProspectosOsm = () => {
             setColetando(false)
             setColetaPasso(0)
             setColetaPassosTotais(1)
+            void recarregarGeminiRate()
         }
     }
 
@@ -503,6 +500,18 @@ const CredenciamentoProspectosOsm = () => {
                             />
                         </label>
                         <div className="cred_prospectos_osm_linha2_acoes">
+                            <span
+                                className="cred_prospectos_osm_gemini_rate"
+                                title={
+                                    geminiRate?.bloqueadoAte
+                                        ? `Rate limit até ${geminiRate.bloqueadoAte}`
+                                        : 'Pedidos deste processo contra GEMINI_RPM / GEMINI_RPD (reset diário à meia-noite Pacific)'
+                                }
+                            >
+                                {geminiRate
+                                    ? `Gemini ${geminiRate.rpmUsados}/${geminiRate.rpmLimite} RPM · ${geminiRate.rpdUsados}/${geminiRate.rpdLimite} hoje`
+                                    : 'Gemini — RPM'}
+                            </span>
                             {podeEditar ? (
                                 <div
                                     className={`cred_prospectos_osm_prospectar_wrap${coletando ? ' is-coletando' : ''}`}

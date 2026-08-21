@@ -4,9 +4,11 @@
 import { PROSPECTOS_OSM_CATEGORIAS, labelProspectoOsmCategoria } from './prospectosOsmCategorias.js'
 import { nomeProspectoEhAmbiguo } from './prospectosOsmQualidade.js'
 import { geocodificarEnderecoNominatim } from './geocodeNominatim.js'
-import { geminiGenerateJson } from './geminiUpstream.js'
+import { generateJson, prospectosGeminiMax } from '../gemini/gemini.ts'
 
-const MAX_ITENS_POC = Number(process.env.PROSPECTOS_GEMINI_MAX || 30)
+function maxItensGemini() {
+    return prospectosGeminiMax()
+}
 
 function hashEstavelOsmId(chave) {
     const s = String(chave || '')
@@ -33,7 +35,7 @@ Regras:
 - Se não tiver certeza de um endereço exato, omita o estabelecimento.
 - categoria_id deve ser exatamente um destes ids:
 ${categoriasPermitidasPrompt()}
-- Máximo ${MAX_ITENS_POC} itens.
+- Máximo ${maxItensGemini()} itens.
 - telefone e website só se tiver alta confiança; caso contrário string vazia.
 - horario_atendimento: use formato OSM opening_hours quando souber (ex.: "24/7", "Mo-Fr 08:00-18:00"); se for atendimento 24 horas, indique "24/7".
 
@@ -126,10 +128,11 @@ export async function coletarProspectosGeminiCidade(supabaseAdmin, opts) {
         return { ok: false, erro: 'Informe a cidade.' }
     }
 
-    const gem = await geminiGenerateJson({
+    const gem = await generateJson({
         prompt: montarPromptGemini(cidade, uf),
         jsonSchema: SCHEMA_GEMINI,
         maxOutputTokens: 8192,
+        timeoutMs: 90_000,
     })
     if (!gem.ok) {
         return {
@@ -142,7 +145,10 @@ export async function coletarProspectosGeminiCidade(supabaseAdmin, opts) {
         }
     }
 
-    const lista = Array.isArray(gem.data?.estabelecimentos) ? gem.data.estabelecimentos : []
+    const lista = (Array.isArray(gem.data?.estabelecimentos) ? gem.data.estabelecimentos : []).slice(
+        0,
+        maxItensGemini(),
+    )
     const porChave = new Map()
     for (const raw of lista) {
         const row = normalizarItemGemini(raw, cidade, uf)

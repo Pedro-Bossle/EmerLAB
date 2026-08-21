@@ -11,7 +11,7 @@ import {
     hasPermission,
     normalizarProfileAcesso,
 } from '../src/lib/accessControl.js'
-import { geminiConfigSnapshot, geminiGenerateText } from '../src/lib/credenciamento/geminiUpstream.js'
+import { configSnapshot, generateText } from '../src/lib/gemini/gemini.ts'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
 dotenvConfig()
@@ -121,7 +121,7 @@ export default async function handler(req, res) {
         if (auth.error) return responderErro(res, auth.status || 401, auth.error)
 
         if (method === 'GET') {
-            return res.status(200).json(payloadStatus(geminiConfigSnapshot()))
+            return res.status(200).json(payloadStatus(configSnapshot()))
         }
 
         const body = await getJsonBody(req)
@@ -133,7 +133,7 @@ export default async function handler(req, res) {
 
         const t0 = Date.now()
         console.info('[aitest] POST generateContent', { promptChars: prompt.length })
-        const r = await geminiGenerateText({
+        const r = await generateText({
             prompt,
             maxOutputTokens: 2048,
             timeoutMs: 90_000,
