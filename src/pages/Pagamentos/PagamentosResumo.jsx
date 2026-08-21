@@ -20,6 +20,7 @@ import {
 import { rotuloMesAnoCurto, rotuloTipoRepasse } from '../../lib/pagamentosPrestador.js'
 import { formatarValorMonetarioBr } from '../../lib/pagamentosValor.js'
 import { normalizarTextoBusca } from '../../lib/prestadorCadastroHelpers.js'
+import { PageHeader } from '../../components/ui'
 import './PagamentosResumo.css'
 
 function rotuloQtdMeses(n) {
@@ -213,9 +214,16 @@ export default function PagamentosResumo() {
     }, [])
 
     return (
-        <div className="pag_res">
-            <h1 className="pag_res_page_title">Resumo — a pagar</h1>
-            <hr className="pag_res_hr" />
+        <div className="el-page pag_res">
+            <PageHeader
+                kicker="Pagamentos"
+                title="Resumo — a pagar"
+                description={
+                    podeEditar
+                        ? 'Prestadores com nota/resposta enviada e ainda não pagos. Marque o card inteiro ou cada mês para registrar o pagamento.'
+                        : 'Prestadores com nota/resposta enviada e ainda não pagos.'
+                }
+            />
 
             <header className="pag_res_header_sticky">
                 <h2 className="pag_res_filtros_titulo">Filtros</h2>
@@ -261,13 +269,6 @@ export default function PagamentosResumo() {
                 </div>
             </header>
 
-            <p className="pag_res_sub">
-                Prestadores com nota/resposta enviada e ainda não pagos.
-                {podeEditar
-                    ? ' Marque o card inteiro ou cada mês para registrar o pagamento.'
-                    : ''}
-            </p>
-
             {erro ? <p className="pag_res_erro">{erro}</p> : null}
 
             <div className="pag_res_stats">
@@ -287,7 +288,7 @@ export default function PagamentosResumo() {
             ) : filtrados.length === 0 ? (
                 <p className="pag_res_empty">Nenhuma pendência com resposta e sem pagamento.</p>
             ) : (
-                <div className="pag_res_lista_wrap">
+                <div className="pag_res_lista_wrap overflow-x-auto">
                     <div
                         className={`pag_res_col_head${podeEditar ? ' pag_res_col_head--edit' : ''}`}
                         aria-hidden

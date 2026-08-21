@@ -56,6 +56,11 @@ const REST_WRITES_PERMITIDOS_EM_SOMENTE_LEITURA = [
   'home_tarefas',
   'home_tarefas_mensagens',
   'home_bate_papo_mensagens',
+  'home_bate_papo_mensagens_v2',
+  'home_bate_papo_conversas',
+  'home_bate_papo_participantes',
+  'home_bate_papo_user_keys',
+  'home_bate_papo_dm_pares',
 ]
 
 function isEscritaPessoalPermitidaEmSomenteLeitura(url) {

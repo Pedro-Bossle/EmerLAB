@@ -1,0 +1,168 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: clip;
+  }
+
+  body {
+    @apply bg-surface-page font-sans text-ink text-[15px] leading-relaxed;
+    overflow-x: clip;
+    max-width: 100vw;
+  }
+
+  body.dark-mode {
+    @apply bg-[#0d1520] text-[#e8f1f8];
+  }
+
+  #root {
+    @apply min-h-dvh max-w-full overflow-x-clip;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-sans font-bold tracking-tight text-ink dark:text-[#e8f1f8];
+  }
+
+  h1 {
+    @apply text-[1.65rem] leading-tight md:text-[1.85rem];
+  }
+
+  h2 {
+    @apply text-lg leading-snug md:text-xl;
+  }
+
+  /* Campos nativos mais legíveis em páginas legadas */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+}
+
+@layer components {
+  .el-page,
+  .el-legacy-wrap {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1600px;
+    min-height: 100%;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 1.25rem;
+    padding-bottom: 4.25rem;
+    background-color: #f4f8fb;
+    text-align: left;
+  }
+
+  @media (min-width: 768px) {
+    .el-page,
+    .el-legacy-wrap {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+      padding-top: 1.5rem;
+      padding-bottom: 2rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .el-page,
+    .el-legacy-wrap {
+      padding-left: 2rem;
+      padding-right: 2rem;
+      padding-bottom: 2rem;
+    }
+  }
+
+  body.dark-mode .el-page,
+  body.dark-mode .el-legacy-wrap {
+    background-color: #0d1520;
+  }
+
+  .el-stage {
+    @apply rounded-2xl border border-line bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#121c2a] md:p-6;
+  }
+
+  .el-legacy-wrap .table_main {
+    @apply min-w-[640px] text-[0.92rem];
+  }
+
+  .el-legacy-wrap .table_main th {
+    @apply text-[0.8rem] font-bold uppercase tracking-wide;
+  }
+
+  .el-legacy-wrap .table_main_wrap,
+  .el-legacy-wrap [class*='_table_wrap'],
+  .el-legacy-wrap [class*='table_wrap'] {
+    @apply -mx-1 overflow-x-auto;
+  }
+
+  .el-page h1,
+  .el-legacy-wrap h1 {
+    letter-spacing: -0.02em;
+    color: #123e59;
+  }
+
+  body.dark-mode .el-page h1,
+  body.dark-mode .el-legacy-wrap h1 {
+    color: #e8f1f8;
+  }
+}
+
+@media (max-width: 767px) {
+  .conf_lab_card_cols,
+  .cl_card_cols,
+  .cl_side_by_side,
+  [class*='conferencia'][class*='cols'],
+  .compras_orc_table_wrap,
+  .pag_reg_table_wrap {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Serviços: campo "Nome alternativo" empilha abaixo do título */
+  .pcad_servicos_item {
+    grid-template-columns: 1fr !important;
+    gap: 0.45rem !important;
+    padding: 0.65rem 0 !important;
+    align-items: stretch !important;
+  }
+
+  .pcad_servicos_nome_alt {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .pcad_servicos_item_titulo {
+    display: block !important;
+  }
+
+  .pcad_servicos_item_titulo strong {
+    display: block;
+    font-size: 1rem;
+    margin-bottom: 0.15rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

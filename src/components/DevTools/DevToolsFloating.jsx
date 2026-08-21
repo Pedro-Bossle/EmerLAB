@@ -14,6 +14,7 @@ const BTN = 52
 const BTN_COMPACT_W = 24
 const BTN_COMPACT_H = 54
 const MARGIN = 8
+const EDGE_GUTTER = 14
 const DRAWER_GAP = 8
 const DRAWER_W = 300
 const DRAWER_MAX_H = 480
@@ -43,12 +44,6 @@ const ITENS_CADASTRO = [
         chave: 'procs',
         rotulo: 'Coluna Procedimentos',
         descricao: 'Cadastro de prestadores: quantidade de procedimentos (vets e clínicas).',
-    },
-    {
-        chave: 'copiarCodigosProcs',
-        rotulo: 'Copiar códigos do perfil',
-        descricao:
-            'Cadastro: botão para copiar só os códigos dos procedimentos do perfil (lista e ficha do prestador).',
     },
     {
         chave: 'ocultarVetsClinica',
@@ -109,10 +104,11 @@ function posicaoPadrao() {
 function clamparPosicao(x, y, compacto = false) {
     const { w, h } = tamanhoBotao(compacto)
     const { width, height } = viewportUtil()
-    const maxX = Math.max(MARGIN, width - w - MARGIN)
+    const edge = compacto ? EDGE_GUTTER : MARGIN
+    const maxX = Math.max(edge, width - w - edge)
     const maxY = Math.max(MARGIN, height - h - MARGIN)
     return {
-        x: Math.min(maxX, Math.max(MARGIN, x)),
+        x: Math.min(maxX, Math.max(edge, x)),
         y: Math.min(maxY, Math.max(MARGIN, y)),
     }
 }
@@ -124,7 +120,7 @@ function snapPosicaoCompacta(pos) {
     const ladoDireito = pos.x + w / 2 > width / 2
     const y = clamparPosicao(pos.x, pos.y, true).y
     return {
-        x: ladoDireito ? Math.max(0, width - w) : 0,
+        x: ladoDireito ? Math.max(EDGE_GUTTER, width - w - EDGE_GUTTER) : EDGE_GUTTER,
         y,
     }
 }
@@ -183,13 +179,28 @@ function calcularDrawerStyle(pos, ancora, compacto = false) {
     }
 }
 
-export default function DevToolsFloating() {
+export default function DevToolsFloating({
+    mode = 'fab',
+    open: openControlled,
+    onOpenChange,
+} = {}) {
     const profile = useStoredAccessProfile()
     const permitido = isDevToolsEnabled(profile)
     const { pathname } = useLocation()
     const acimaRodapeFormulario = /\/credenciamento\/cadastro\/[^/]+/.test(pathname)
+    const isDock = mode === 'dock'
+    const controlled = typeof openControlled === 'boolean'
 
-    const [aberto, setAberto] = useState(false)
+    const [abertoInterno, setAbertoInterno] = useState(false)
+    const aberto = controlled ? openControlled : abertoInterno
+    const setAberto = useCallback(
+        (v) => {
+            const next = typeof v === 'function' ? v(aberto) : v
+            if (!controlled) setAbertoInterno(next)
+            onOpenChange?.(next)
+        },
+        [aberto, controlled, onOpenChange],
+    )
     const [compacto, setCompacto] = useState(() => lerModoCompacto())
     const [pos, setPos] = useState(() => {
         const compact = lerModoCompacto()
@@ -206,6 +217,7 @@ export default function DevToolsFloating() {
     const ancora = detectarAncora(pos, compacto)
 
     const aplicarClamp = useCallback(() => {
+        if (isDock) return
         setPos((p) => {
             let next = clamparPosicao(p.x, p.y, compacto)
             if (compacto) {
@@ -215,9 +227,10 @@ export default function DevToolsFloating() {
             }
             return next
         })
-    }, [acimaRodapeFormulario, compacto])
+    }, [acimaRodapeFormulario, compacto, isDock])
 
     useEffect(() => {
+        if (isDock) return undefined
         aplicarClamp()
         const onResize = () => aplicarClamp()
         window.addEventListener('resize', onResize)
@@ -232,10 +245,10 @@ export default function DevToolsFloating() {
             window.removeEventListener('resize', onResize)
             ro?.disconnect()
         }
-    }, [aplicarClamp])
+    }, [aplicarClamp, isDock])
 
     useEffect(() => {
-        if (!aberto) return undefined
+        if (!aberto || isDock) return undefined
         const onDoc = (e) => {
             if (rootRef.current?.contains(e.target)) return
             setAberto(false)
@@ -249,9 +262,10 @@ export default function DevToolsFloating() {
             document.removeEventListener('mousedown', onDoc)
             document.removeEventListener('keydown', onKey)
         }
-    }, [aberto])
+    }, [aberto, isDock, setAberto])
 
     const onPointerDown = (e) => {
+        if (isDock) return
         if (e.button != null && e.button !== 0) return
         const el = e.currentTarget
         el.setPointerCapture?.(e.pointerId)
@@ -314,54 +328,24 @@ export default function DevToolsFloating() {
         colCad.perfil ||
         colCad.crmv ||
         colCad.procs ||
-        colCad.copiarCodigosProcs ||
         colCad.ocultarVetsClinica
-    const drawerStyle = calcularDrawerStyle(pos, ancora, compacto)
+    const drawerStyle = isDock
+        ? {
+              '--dev-tools-drawer-left': '0px',
+              '--dev-tools-drawer-top': 'auto',
+              '--dev-tools-drawer-bottom': 'calc(4.25rem + 2.75rem)',
+              '--dev-tools-drawer-width': '100%',
+              '--dev-tools-drawer-max-height': 'min(70dvh, 480px)',
+          }
+        : calcularDrawerStyle(pos, ancora, compacto)
     const rotuloModo = compacto ? 'Restaurar ícone' : 'Minimizar'
 
-    return (
-        <div
-            ref={rootRef}
-            className={`dev_tools_float is-anchor-${ancora}${aberto ? ' is-open' : ''}${algumAtivo ? ' is-active' : ''}${compacto ? ' is-compact' : ''}${acimaRodapeFormulario ? ' dev_tools_float--rodape_formo' : ''}`}
-            style={{ left: pos.x, top: pos.y }}
-            aria-live="polite"
-        >
-            <button
-                type="button"
-                className="dev_tools_float_btn"
-                aria-label="Ferramentas Dev Tool"
-                aria-expanded={aberto}
-                title={compacto ? 'Dev Tool — clique para abrir, arraste para mover' : 'Dev Tool — arraste para mover, clique para abrir'}
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={onPointerUp}
-                onPointerCancel={onPointerUp}
-            >
-                {compacto ? (
-                    <span className="dev_tools_float_btn_tab" aria-hidden="true">
-                        {ancora === 'right' ? '<' : '>'}
-                    </span>
-                ) : (
-                    <>
-                        <span className="dev_tools_float_btn_ico" aria-hidden="true">
-                            🔧
-                        </span>
-                        <span className="dev_tools_float_btn_grip" aria-hidden="true" />
-                    </>
-                )}
-            </button>
-
-            <div
-                className={`dev_tools_float_drawer${aberto ? ' is-open' : ''}`}
-                style={drawerStyle}
-                role="dialog"
-                aria-label="Ferramentas de desenvolvimento"
-                aria-hidden={!aberto}
-            >
+    const drawerBody = (
                 <div className="dev_tools_float_drawer_inner">
                     <header className="dev_tools_float_drawer_head">
                         <p className="dev_tools_float_titulo">Dev Tool</p>
                         <div className="dev_tools_float_head_acoes">
+                            {!isDock ? (
                             <button
                                 type="button"
                                 className="dev_tools_float_modo"
@@ -370,6 +354,7 @@ export default function DevToolsFloating() {
                             >
                                 {rotuloModo}
                             </button>
+                            ) : null}
                             <button
                                 type="button"
                                 className="dev_tools_float_fechar"
@@ -420,6 +405,68 @@ export default function DevToolsFloating() {
                         ))}
                     </ul>
                 </div>
+    )
+
+    if (isDock) {
+        return (
+            <div
+                ref={rootRef}
+                className={`dev_tools_float dev_tools_float--dock${aberto ? ' is-open' : ''}`}
+                aria-live="polite"
+            >
+                <div
+                    className={`dev_tools_float_drawer dev_tools_float_drawer--dock${aberto ? ' is-open' : ''}`}
+                    style={drawerStyle}
+                    role="dialog"
+                    aria-label="Ferramentas de desenvolvimento"
+                    aria-hidden={!aberto}
+                >
+                    {drawerBody}
+                </div>
+            </div>
+        )
+    }
+
+    return (
+        <div
+            ref={rootRef}
+            className={`dev_tools_float is-anchor-${ancora}${aberto ? ' is-open' : ''}${algumAtivo ? ' is-active' : ''}${compacto ? ' is-compact' : ''}${acimaRodapeFormulario ? ' dev_tools_float--rodape_formo' : ''}`}
+            style={{ left: pos.x, top: pos.y }}
+            aria-live="polite"
+        >
+            <button
+                type="button"
+                className="dev_tools_float_btn"
+                aria-label="Ferramentas Dev Tool"
+                aria-expanded={aberto}
+                title={compacto ? 'Dev Tool — clique para abrir, arraste para mover' : 'Dev Tool — arraste para mover, clique para abrir'}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerUp}
+            >
+                {compacto ? (
+                    <span className="dev_tools_float_btn_tab" aria-hidden="true">
+                        {ancora === 'right' ? '<' : '>'}
+                    </span>
+                ) : (
+                    <>
+                        <span className="dev_tools_float_btn_ico" aria-hidden="true">
+                            🔧
+                        </span>
+                        <span className="dev_tools_float_btn_grip" aria-hidden="true" />
+                    </>
+                )}
+            </button>
+
+            <div
+                className={`dev_tools_float_drawer${aberto ? ' is-open' : ''}`}
+                style={drawerStyle}
+                role="dialog"
+                aria-label="Ferramentas de desenvolvimento"
+                aria-hidden={!aberto}
+            >
+                {drawerBody}
             </div>
         </div>
     )

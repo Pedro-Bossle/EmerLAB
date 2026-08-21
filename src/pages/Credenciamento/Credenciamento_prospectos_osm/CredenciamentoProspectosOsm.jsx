@@ -29,7 +29,7 @@ import { formatarLinhaTelefonesContato } from '../../../lib/telefoneBrasil.js'
 import { supabase } from '../../../lib/supabase'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
-import { useGeminiRate } from '../../../hooks/useGemini.js'
+import { PageHeader } from '../../../components/ui'
 import '../Credenciamento_main/Credenciamento_main.css'
 import '../Credenciamento_cadastro/CredenciamentoCadastro.css'
 import '../Credenciamento_mapa/CredenciamentoMapa.css'
@@ -96,6 +96,7 @@ const CredenciamentoProspectosOsm = () => {
     const [feedback, setFeedback] = useState('')
     const [destaqueId, setDestaqueId] = useState(null)
     const [mostrarMapa, setMostrarMapa] = useState(true)
+    const [painelMobile, setPainelMobile] = useState('lista')
     const [splitListaPct, setSplitListaPct] = useState(lerSplitInicial)
     const layoutRef = useRef(null)
     const arrastandoSplitRef = useRef(false)
@@ -449,17 +450,16 @@ const CredenciamentoProspectosOsm = () => {
 
     if (!podeLer) {
         return (
-            <div className="credenciamento_main">
+            <div className="el-page credenciamento_main">
                 <p className="pcad_muted">Sem permissão para o catálogo de prospectos OSM.</p>
             </div>
         )
     }
 
     return (
-        <div className="credenciamento_main cred_prospectos_osm_page">
+        <div className="el-page credenciamento_main cred_prospectos_osm_page">
             <div className="cred_prospectos_osm_top">
-                <h1>Catálogo de prospectos</h1>
-                <hr />
+                <PageHeader kicker="Credenciamento" title="Catálogo de prospectos" />
 
                 <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
                 <CredenciamentoMainAlert message={feedback} onClose={() => setFeedback('')} role="status" />
@@ -523,7 +523,7 @@ const CredenciamentoProspectosOsm = () => {
                                 </div>
                             ) : null}
                         </div>
-                        <label className="pcad_field">
+                        <label className="pcad_field cred_prospectos_osm_field_status">
                             <span>Status</span>
                             <select
                                 className="credenciamento_main_select"
@@ -634,16 +634,48 @@ const CredenciamentoProspectosOsm = () => {
                         <input
                             type="checkbox"
                             checked={mostrarMapa}
-                            onChange={(e) => setMostrarMapa(e.target.checked)}
+                            onChange={(e) => {
+                                const on = e.target.checked
+                                setMostrarMapa(on)
+                                if (on) setPainelMobile('mapa')
+                                else setPainelMobile('lista')
+                            }}
                         />
                         Mostrar mapa
                     </label>
                 </div>
+
+                {mostrarMapa ? (
+                    <div className="cred_prospectos_osm_mobile_tabs" role="group" aria-label="Lista ou mapa">
+                        <button
+                            type="button"
+                            aria-pressed={painelMobile === 'lista'}
+                            className={painelMobile === 'lista' ? 'is-ativo' : ''}
+                            onClick={() => setPainelMobile('lista')}
+                        >
+                            Lista
+                        </button>
+                        <button
+                            type="button"
+                            aria-pressed={painelMobile === 'mapa'}
+                            className={painelMobile === 'mapa' ? 'is-ativo' : ''}
+                            onClick={() => setPainelMobile('mapa')}
+                        >
+                            Mapa
+                        </button>
+                    </div>
+                ) : null}
             </div>
 
             <div
                 ref={layoutRef}
-                className={`cred_prospectos_osm_layout${mostrarMapa ? '' : ' cred_prospectos_osm_layout--sem-mapa'}`}
+                className={[
+                    'cred_prospectos_osm_layout',
+                    mostrarMapa ? '' : 'cred_prospectos_osm_layout--sem-mapa',
+                    mostrarMapa ? `cred_prospectos_osm_layout--mobile-${painelMobile}` : '',
+                ]
+                    .filter(Boolean)
+                    .join(' ')}
                 style={
                     mostrarMapa
                         ? ({ '--cred-prospectos-split-pct': `${splitListaPct}%` })
@@ -652,7 +684,7 @@ const CredenciamentoProspectosOsm = () => {
             >
                 <section className="cred_prospectos_osm_lista" aria-label="Lista de prospectos">
                     <h3 className="cred_prospectos_osm_lista_titulo">Prospectos</h3>
-                    <div className="cred_prospectos_osm_tabela_wrap">
+                    <div className="cred_prospectos_osm_tabela_wrap overflow-x-auto">
                         {!loading && !itensOrdenados.length ? (
                             <p className="pcad_muted cred_prospectos_osm_vazio">
                                 Nenhum registro para os filtros atuais. Selecione cidade/UF ou use «Prospectar».
@@ -717,7 +749,16 @@ const CredenciamentoProspectosOsm = () => {
                                         <tr
                                             key={row.id}
                                             className={destaqueId === row.id ? 'is-destaque' : ''}
-                                            onClick={() => setDestaqueId(row.id)}
+                                            onClick={() => {
+                                                setDestaqueId(row.id)
+                                                if (
+                                                    mostrarMapa &&
+                                                    Number.isFinite(row.lat) &&
+                                                    Number.isFinite(row.lng)
+                                                ) {
+                                                    setPainelMobile('mapa')
+                                                }
+                                            }}
                                         >
                                             <td>
                                                 <span className="cred_prospectos_osm_nome_cel">
@@ -799,7 +840,7 @@ const CredenciamentoProspectosOsm = () => {
                                 className="credenciamento_mapa_leaflet cred_prospectos_osm_mapa"
                                 scrollWheelZoom
                             >
-                                <MapaRedimensionar dep={splitListaPct} />
+                                <MapaRedimensionar dep={`${splitListaPct}-${painelMobile}-${mostrarMapa}`} />
                                 <TileLayer
                                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                                     url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"

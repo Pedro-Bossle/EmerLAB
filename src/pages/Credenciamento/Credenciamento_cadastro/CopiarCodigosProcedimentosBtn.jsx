@@ -12,6 +12,7 @@ export default function CopiarCodigosProcedimentosBtn({
     rotuloVazio = 'Sem códigos',
     title = 'Copiar códigos dos procedimentos do perfil (um por linha)',
     compacto = false,
+    disabled = false,
 }) {
     const [busy, setBusy] = useState(false)
     const [feedback, setFeedback] = useState('')
@@ -19,7 +20,7 @@ export default function CopiarCodigosProcedimentosBtn({
     const copiar = async (e) => {
         e.stopPropagation()
         e.preventDefault()
-        if (busy) return
+        if (busy || disabled) return
         setBusy(true)
         setFeedback('')
         try {
@@ -50,7 +51,7 @@ export default function CopiarCodigosProcedimentosBtn({
             className={className}
             title={title}
             aria-label={title}
-            disabled={busy}
+            disabled={busy || disabled}
             onClick={(e) => void copiar(e)}
         >
             {texto}

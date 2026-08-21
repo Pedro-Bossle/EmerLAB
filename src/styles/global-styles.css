@@ -1,6 +1,7 @@
 /**
  * Folha única de entrada — Vite inclui tudo no bundle de produção (Vercel).
- * Novas telas: adicione um @import abaixo.ss
+ * Novas telas: adicione um @import abaixo.
+ * Shell (Layout2/Sidebar/Login/404) migrado para Tailwind — não importar CSS legado desses.
  */
 
 @import '../index.css';
@@ -8,14 +9,10 @@
 @import './responsive-app.css';
 
 @import '../components/Layout/Layout.css';
-@import '../components/Layout2/Layout2.css';
 @import '../components/Header/Header.css';
-@import '../components/Sidebar/Sidebar.css';
 @import '../components/Footer/Footer.css';
 
 @import '../pages/Home/Home.css';
-@import '../pages/Login/Login.css';
-@import '../pages/NotFound/NotFound.css';
 
 @import '../pages/Supertabela/Supertabela_doc/Supertabeladoc.css';
 @import '../pages/Supertabela/Supertabela_main/Supertabelamain.css';

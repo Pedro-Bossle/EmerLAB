@@ -1,11 +1,8 @@
 import React, { useState } from 'react'
-import { hasStoredDevTools } from '../../../lib/accessControl.js'
-import { useDevToolsUi } from '../../../lib/devToolsUi.js'
 import {
     filtrarCodigosRemovendoCategoriasExame,
     limparProcedimentosPrestadorCategoriasExame,
 } from '../../../lib/prestadorProcedimentos.js'
-import CopiarCodigosProcedimentosBtn from './CopiarCodigosProcedimentosBtn.jsx'
 
 const ACOES = [
     { escopo: 'simples', rotulo: 'Exames simples' },
@@ -22,9 +19,6 @@ export default function CredenciamentoDevToolsPerfil({
     const [painelAberto, setPainelAberto] = useState(false)
     const [busy, setBusy] = useState('')
     const [feedback, setFeedback] = useState('')
-    const { ui: devToolsUi } = useDevToolsUi()
-    const mostrarCopiarCodigos =
-        hasStoredDevTools() && Boolean(devToolsUi.colunasCadastro?.copiarCodigosProcs)
 
     const executar = async (escopo, rotulo) => {
         if (somenteLeitura) return
@@ -47,7 +41,10 @@ export default function CredenciamentoDevToolsPerfil({
                         : 'Nenhum procedimento dessas categorias estava vinculado.',
                 )
             } else {
-                const { removidos, codigos } = await filtrarCodigosRemovendoCategoriasExame(procSelecionados, escopo)
+                const { removidos, codigos } = await filtrarCodigosRemovendoCategoriasExame(
+                    procSelecionados,
+                    escopo,
+                )
                 onChangeSelecionados(codigos)
                 setFeedback(
                     removidos
@@ -65,14 +62,6 @@ export default function CredenciamentoDevToolsPerfil({
     return (
         <div className="pcad_dev_tools_perfil">
             <div className="pcad_servicos_opcoes pcad_dev_tools_perfil_opcoes">
-                {mostrarCopiarCodigos ? (
-                    <CopiarCodigosProcedimentosBtn
-                        prestadorId={prestadorId}
-                        codigosAtuais={procSelecionados}
-                        className="credenciamento_main_action_btn secondary pcad_dev_tools_copiar_codigos"
-                        rotulo="Dev · copiar códigos do perfil"
-                    />
-                ) : null}
                 <button
                     type="button"
                     className={`credenciamento_main_action_btn secondary pcad_servicos_toggle pcad_dev_tools_perfil_toggle ${painelAberto ? 'is-on' : ''}`}
@@ -107,3 +96,4 @@ export default function CredenciamentoDevToolsPerfil({
         </div>
     )
 }
+

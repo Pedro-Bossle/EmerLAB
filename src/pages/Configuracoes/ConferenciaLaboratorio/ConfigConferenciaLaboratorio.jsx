@@ -42,6 +42,7 @@ import ComboExame from './ComboExame.jsx'
 import logoE from '../../../assets/logo_E.png'
 import '../../Credenciamento/Credenciamento_main/Credenciamento_main.css'
 import './ConfigConferenciaLaboratorio.css'
+import { PageHeader } from '../../../components/ui'
 
 const ROTULO_CAMPO = {
     codigo: 'Código',
@@ -185,7 +186,7 @@ function PreviewTabela({ titulo, linhas, colunas }) {
             <h4>
                 {titulo} ({linhas.length} linha{linhas.length === 1 ? '' : 's'})
             </h4>
-            <div className="conf_lab_table_wrap">
+            <div className="conf_lab_table_wrap overflow-x-auto">
                 <table className="conf_lab_table">
                     <thead>
                         <tr>
@@ -1120,16 +1121,12 @@ const ConfigConferenciaLaboratorio = () => {
     ]
 
     return (
-        <main className="credenciamento_main conf_lab_page">
-            <header className="conf_lab_header">
-                <p className="conf_lab_kicker">Configurações</p>
-                <h1>Conferência Laboratório × Plano</h1>
-                <p className="conf_lab_lead">
-                    O valor oficial vem da planilha Valores de Base. O Relatório Plano busca esse
-                    valor pelo nome do exame (vínculos ambíguos são manuais). O Relatório
-                    Laboratório traz o valor lançado.
-                </p>
-            </header>
+        <main className="el-page credenciamento_main conf_lab_page">
+            <PageHeader
+                kicker="Configurações"
+                title="Conferência Laboratório × Plano"
+                description="O valor oficial vem da planilha Valores de Base. O Relatório Plano busca esse valor pelo nome do exame (vínculos ambíguos são manuais). O Relatório Laboratório traz o valor lançado."
+            />
 
             {erro ? (
                 <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} />
@@ -1260,7 +1257,7 @@ const ConfigConferenciaLaboratorio = () => {
                         </div>
                     </div>
 
-                    <div className="conf_lab_uploads conf_lab_uploads_tres">
+                    <div className="conf_lab_uploads conf_lab_uploads_tres !grid !grid-cols-1 gap-4 md:!grid-cols-3">
                         <UploadZone
                             titulo="Valores de Base"
                             dica="Código | Nome | Valor (oficial)"
@@ -1290,7 +1287,7 @@ const ConfigConferenciaLaboratorio = () => {
                     {headersBase.length || headersHonorarios.length || headersMellis.length ? (
                         <div className="conf_lab_map_cols">
                             <h3>Mapear colunas</h3>
-                            <div className="conf_lab_map_cols_grid conf_lab_map_cols_tres">
+                            <div className="conf_lab_map_cols_grid conf_lab_map_cols_tres !grid !grid-cols-1 gap-4 md:!grid-cols-3">
                                 <MapaColunas
                                     titulo="Valores de Base"
                                     headers={headersBase}
@@ -1326,7 +1323,7 @@ const ConfigConferenciaLaboratorio = () => {
 
                     {passo === 'preview' ? (
                         <>
-                            <div className="conf_lab_preview_grid conf_lab_preview_tres">
+                            <div className="conf_lab_preview_grid conf_lab_preview_tres !grid !grid-cols-1 gap-4 md:!grid-cols-3">
                                 <PreviewTabela
                                     titulo="Prévia Valores de Base"
                                     linhas={linhasBase}
@@ -1521,7 +1518,7 @@ const ConfigConferenciaLaboratorio = () => {
                         </div>
                     ) : null}
 
-                    <div className="conf_lab_table_wrap conf_lab_table_wrap_compact">
+                    <div className="conf_lab_table_wrap conf_lab_table_wrap_compact overflow-x-auto">
                         <table className="conf_lab_table conf_lab_table_compact">
                             <thead>
                                 <tr>
@@ -1691,7 +1688,7 @@ const ConfigConferenciaLaboratorio = () => {
                         </table>
                     </div>
 
-                    <div className="conf_lab_orfaos_grid">
+                    <div className="conf_lab_orfaos_grid !grid !grid-cols-1 gap-4 md:!grid-cols-2">
                         <div>
                             <h3>Órfãos Laboratório</h3>
                             <ul>

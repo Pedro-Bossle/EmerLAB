@@ -518,7 +518,7 @@ export default function EtapaExamesIndividuais({
                                 </header>
 
                                 <div className="conf_lab_exame_ind_corpo">
-                                    <div className="conf_lab_orfaos_versus conf_lab_map_versus">
+                                    <div className="conf_lab_orfaos_versus conf_lab_map_versus !flex !flex-col gap-3 md:!grid md:!grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
                                         <div className="conf_lab_map_side is-lab">
                                             <div className="conf_lab_map_side_head">
                                                 <span className="conf_lab_map_side_label">
@@ -759,10 +759,10 @@ export default function EtapaExamesIndividuais({
             )}
 
             {filtrados.length > POR_PAGINA ? (
-                <div className="conf_lab_paginacao">
+                <div className="conf_lab_paginacao flex flex-wrap items-center justify-center gap-3">
                     <button
                         type="button"
-                        className="credenciamento_main_action_btn secondary"
+                        className="credenciamento_main_action_btn secondary min-h-11 px-4"
                         disabled={paginaSafe <= 1}
                         onClick={() => setPagina((p) => Math.max(1, p - 1))}
                     >
@@ -773,7 +773,7 @@ export default function EtapaExamesIndividuais({
                     </span>
                     <button
                         type="button"
-                        className="credenciamento_main_action_btn secondary"
+                        className="credenciamento_main_action_btn secondary min-h-11 px-4"
                         disabled={paginaSafe >= totalPaginas}
                         onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
                     >

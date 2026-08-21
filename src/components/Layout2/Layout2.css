@@ -10,19 +10,47 @@
     box-sizing: border-box;
 }
 
-/* Quem Realiza / Mapa: sem scroll da página; conteúdo interno com área rolável */
+/* Quem Realiza / Mapa / Prospectos: preenche a área do main sem ultrapassar o ecrã */
 .content:has(.credenciamento_main.quem_realiza),
 .content:has(.credenciamento_mapa_page),
 .content:has(.cred_esp_cidade_page),
-.content:has(.cred_prospectos_osm_page) {
-    height: 100vh;
+.content:has(.cred_prospectos_osm_page),
+main:has(.credenciamento_main.quem_realiza),
+main:has(.credenciamento_mapa_page),
+main:has(.cred_esp_cidade_page),
+main:has(.cred_prospectos_osm_page) {
     height: 100dvh;
-    max-height: 100vh;
     max-height: 100dvh;
-    min-height: 0;
+    min-height: 0 !important;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
+}
+
+.content:has(.cred_prospectos_osm_page) > *,
+main:has(.cred_prospectos_osm_page) > * {
+    flex: 1 1 0%;
+    min-height: 0;
+    max-height: none;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Mobile: main já tem pb-nav-bottom; altura útil = ecrã − bottom nav − FAB */
+@media (max-width: 1023px) {
+    main:has(.cred_prospectos_osm_page),
+    main:has(.credenciamento_mapa_page),
+    main:has(.credenciamento_main.quem_realiza),
+    main:has(.cred_esp_cidade_page) {
+        height: 100dvh;
+        max-height: 100dvh;
+        padding-top: calc(52px + env(safe-area-inset-top, 0px));
+        box-sizing: border-box;
+        overflow: hidden;
+    }
 }
 
 .content.open {
@@ -112,6 +140,17 @@ body.dark-mode .layout2_nav_fab {
     border-color: #4d7aa0;
     color: #e8f2fc;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* Gaveta flutuante aberta → esconde abas compactas das outras ferramentas */
+body:has(.bate_papo_float.is-open) .dev_tools_float:not(.is-open) .dev_tools_float_btn,
+body:has(.bate_papo_float.is-open) .notif_float:not(.is-open) .notif_float_btn,
+body:has(.dev_tools_float.is-open) .bate_papo_float:not(.is-open) .bate_papo_float_btn,
+body:has(.dev_tools_float.is-open) .notif_float:not(.is-open) .notif_float_btn,
+body:has(.notif_float.is-open) .bate_papo_float:not(.is-open) .bate_papo_float_btn,
+body:has(.notif_float.is-open) .dev_tools_float:not(.is-open) .dev_tools_float_btn {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 @media (min-width: 1024px) {

@@ -31,6 +31,7 @@ import {
 } from "../../../lib/cidadesSupertabelaVinculos.js";
 
 import { buscarTodosPaginado, supabase } from "../../../lib/supabase";
+import { PageHeader } from "../../../components/ui";
 
 import "./ComprasOrcamento.css";
 
@@ -721,10 +722,12 @@ const ComprasOrcamento = () => {
   }, [chaveQuemRealiza, cidadeCompradorNome, ufComprador]);
 
   return (
-    <div className="compras_orc">
-      <h1>Compras — Orçamento</h1>
-
-      <hr />
+    <div className="el-legacy-wrap compras_orc">
+      <PageHeader
+        kicker="Compras"
+        title="Orçamento"
+        description="Monte orçamentos com valores de compra, diferença de plano e quem realiza."
+      />
 
       <header
         className={`compras_orc_header ${headerCompacto ? "is-compact" : ""}`}
@@ -903,7 +906,7 @@ const ComprasOrcamento = () => {
               adicionar.
             </p>
           ) : (
-            <div className="compras_orc_table_wrap">
+            <div className="compras_orc_table_wrap overflow-x-auto">
               <table className="table_main compras_orc_table_orc">
                 <colgroup>
                   <col className="compras_orc_col_proc" />

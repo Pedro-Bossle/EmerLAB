@@ -64,6 +64,7 @@ import './ContratosEmerdog.css'
 import './ClicksignEmerdog.css'
 import { TOAST_AUTO_DISMISS_MS, abrirUrlDownload, formatarDataPtBr } from './contratosUi.js'
 import { useConfirmacaoExclusaoAutoDismiss } from '../../lib/toastUi.js'
+import { PageHeader } from '../../components/ui'
 
 const PDF_MAX_BYTES = 12 * 1024 * 1024
 const STORAGE_FLUXO_EID = 'emerdog_cs_fluxo_eid'
@@ -1656,9 +1657,13 @@ export default function ClicksignEmerdog() {
 
     return (
         <div
-            className={`contratos_emerdog clicksign_emerdog clicksign_emerdog_full${!podeEditarContratos ? ' clicksign_readonly' : ''}`}
+            className={`el-legacy-wrap contratos_emerdog clicksign_emerdog clicksign_emerdog_full${!podeEditarContratos ? ' clicksign_readonly' : ''}`}
         >
-            <h1>Clicksign — Assinatura Eletrônica</h1>
+            <PageHeader
+                kicker="Contratos"
+                title="Clicksign — Assinatura Eletrônica"
+                description="Monte envelopes, acompanhe assinaturas e gerencie documentos na Clicksign."
+            />
 
             {!podeEditarContratos && (
                 <p className="contratos_readonly_banner" role="status">
@@ -1697,7 +1702,7 @@ export default function ClicksignEmerdog() {
                                         </span>
                                     </nav>
                                 </header>
-                                <div className="cs_dash_grid">
+                                <div className="cs_dash_grid overflow-x-auto">
                                     <div
                                         className={`cs_dash_upload_card ${dashDropAtivo ? 'is-drag' : ''}`}
                                         role="button"
@@ -1948,7 +1953,7 @@ export default function ClicksignEmerdog() {
                                 <span className="clicksign_btn_icon_label">{mostrarIds ? 'Ocultar ID' : 'Mostrar ID'}</span>
                             </button>
                         </div>
-                        <div className="clicksign_table_wrap">
+                        <div className="clicksign_table_wrap overflow-x-auto">
                             <table className="clicksign_table clicksign_table_envelopes">
                                 <colgroup>
                                     <col className="clicksign_col_nome" />
@@ -2659,7 +2664,7 @@ export default function ClicksignEmerdog() {
                                             Favoritos
                                         </button>
                                     </div>
-                                    <div className="cs_sign_table_wrap">
+                                    <div className="cs_sign_table_wrap overflow-x-auto">
                                         <table className="cs_sign_table">
                                             <thead>
                                                 <tr>
@@ -2982,7 +2987,7 @@ export default function ClicksignEmerdog() {
                                     <p className="contratos_hint">
                                         Defina como cada contacto selecionado irá assinar. Em seguida serão adicionados ao envelope.
                                     </p>
-                                    <div className="cs_sign_table_wrap">
+                                    <div className="cs_sign_table_wrap overflow-x-auto">
                                         <table className="cs_sign_table">
                                             <thead>
                                                 <tr>
@@ -3230,7 +3235,7 @@ export default function ClicksignEmerdog() {
                                             </button>
                                         )}
                                     </div>
-                                    <div className="clicksign_detail_table_wrap">
+                                    <div className="clicksign_detail_table_wrap overflow-x-auto">
                                         <table className="clicksign_detail_table">
                                             <thead>
                                                 <tr>
@@ -3293,7 +3298,7 @@ export default function ClicksignEmerdog() {
                                         </table>
                                     </div>
                                     <h3 className="clicksign_subtitle">Documentos</h3>
-                                    <div className="clicksign_detail_table_wrap">
+                                    <div className="clicksign_detail_table_wrap overflow-x-auto">
                                         <table className="clicksign_detail_table">
                                             <thead>
                                                 <tr>

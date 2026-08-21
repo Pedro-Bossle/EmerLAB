@@ -6,8 +6,9 @@
     --notif-drawer-top: 8px;
     --notif-drawer-width: 340px;
     --notif-drawer-max-height: 480px;
+    /* fixed: mesma base que a gaveta e fora da scrollbar do documento */
     position: fixed;
-    z-index: 10040;
+    z-index: 45;
     width: var(--notif-btn);
     height: var(--notif-btn);
     pointer-events: none;
@@ -23,6 +24,18 @@
 .notif_float_btn,
 .notif_float_drawer {
     pointer-events: auto;
+}
+
+.notif_float.is-open {
+    z-index: 47;
+}
+
+.notif_float.is-open .notif_float_drawer {
+    z-index: 4;
+}
+
+.notif_float.is-open .notif_float_btn {
+    z-index: 3;
 }
 
 .notif_float_btn {
@@ -55,16 +68,12 @@
     border-color: #d4a574;
     background: linear-gradient(145deg, #fffaf4 0%, #f0dcc4 100%);
     box-shadow: 0 4px 14px rgba(92, 58, 28, 0.14);
+    border-radius: 12px;
 }
 
-.notif_float.is-compact.is-anchor-left .notif_float_btn {
-    border-left: 0;
-    border-radius: 0 12px 12px 0;
-}
-
+.notif_float.is-compact.is-anchor-left .notif_float_btn,
 .notif_float.is-compact.is-anchor-right .notif_float_btn {
-    border-right: 0;
-    border-radius: 12px 0 0 12px;
+    border-radius: 12px;
 }
 
 .notif_float_btn:active {
@@ -350,4 +359,25 @@
 
 .notif_float_link:hover {
     text-decoration: underline;
+}
+
+.notif_float--dock {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    height: auto;
+    z-index: 45;
+    pointer-events: none;
+}
+
+.notif_float_drawer--dock {
+    left: 0 !important;
+    right: 0;
+    top: auto !important;
+    bottom: calc(4.25rem + 2.75rem);
+    width: 100% !important;
+    max-width: none;
+    border-radius: 14px 14px 0 0;
+    transform-origin: center bottom;
+    pointer-events: auto;
 }
