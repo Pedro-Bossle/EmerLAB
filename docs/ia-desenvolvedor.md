@@ -43,7 +43,7 @@ API (servidor):
 
 | Função | Uso |
 | --- | --- |
-| `generateText` | Texto livre (playground `/aitest`) |
+| `generateText` | Texto livre (uso interno / scripts) |
 | `generateJson` | JSON + schema (coleta de prospectos) |
 | `configSnapshot` | Estado local da chave/modelo — **não** pinge o Google |
 | `lerRate` | RPM/RPD deste processo |
@@ -87,13 +87,6 @@ Sem Overpass nesta rota. Nominatim (pin no mapa) mantém-se.
 - Job: **1 passo**; falha Gemini = `failed` (não entra bounds/categorias OSM). [`prospectosColetaJob.js`](../src/lib/credenciamento/prospectosColetaJob.js), orquestrador [`prospectosColeta.js`](../src/lib/credenciamento/prospectosColeta.js).
 - Prompt, schema e `slice(0, 20)`: [`prospectosGeminiColeta.js`](../src/lib/credenciamento/prospectosGeminiColeta.js) (`generateJson`, `timeoutMs: 90000`).
 - POST `prospectos-osm-coletar` (`action: start` + `step`): [`api/prospectos-osm-coletar.js`](../api/prospectos-osm-coletar.js).
-
-## Playground AI Test
-
-- Página: [`src/pages/AiTest/AiTest.jsx`](../src/pages/AiTest/AiTest.jsx) — rota `/aitest`, permissão `dev.tools`.
-- `GET /api/aitest` — `configSnapshot()` (sem ping Google).
-- `POST /api/aitest` — `{ prompt }` → `generateText` (máx. 8000 chars, timeout 90s).
-- Handler: [`api/aitest.js`](../api/aitest.js). Logs `[aitest]` / `[gemini]`.
 
 ## Espelho Edge
 

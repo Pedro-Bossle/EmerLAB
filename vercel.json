@@ -37,9 +37,6 @@
     "api/cep-lookup.js": {
       "maxDuration": 15
     },
-    "api/aitest.js": {
-      "maxDuration": 60
-    },
     "api/gemini-rate.js": {
       "maxDuration": 15
     }

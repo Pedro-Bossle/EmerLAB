@@ -30,7 +30,6 @@ import ConfigExportarCredenciados from './pages/Configuracoes/ExportarCredenciad
 import ConfigConferenciaLaboratorio from './pages/Configuracoes/ConferenciaLaboratorio/ConfigConferenciaLaboratorio';
 import GerenciamentoAcessos from './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos';
 import AdminAuditoria from './pages/Administrativo/Auditoria/AdminAuditoria';
-import AiTest from './pages/AiTest/AiTest';
 import ComprasValorVenda from './pages/Compras/ValorVenda/ComprasValorVenda';
 import ComprasOrcamento from './pages/Compras/Orcamento/ComprasOrcamento';
 import ContratosEmerdog from './pages/Contratos/ContratosEmerdog';
@@ -290,14 +289,6 @@ function App() {
             element={
               <PrivateRoute permission="access.manage" toolId="admin.auditoria">
                 <AdminAuditoria />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/aitest"
-            element={
-              <PrivateRoute permission="dev.tools">
-                <AiTest />
               </PrivateRoute>
             }
           />

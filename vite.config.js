@@ -10,7 +10,6 @@ import clicksignProxyHandler from './src/lib/clicksign/clicksignProxyHandler.js'
 import clicksignDownloadHandler from './api/clicksign-download.js'
 import adminUsersHandler from './api/admin-users.js'
 import auditLogsHandler from './api/audit-logs.js'
-import aitestHandler from './api/aitest.js'
 import geminiRateHandler from './api/gemini-rate.js'
 
 /** Mesma ordem de prioridade aproximada do Vite para ficheiros .env (envDir = raiz do projeto). */
@@ -293,67 +292,6 @@ function adminUsersDevPlugin() {
     }
 }
 
-/** Em dev, atende GET/POST /api/aitest no Vite. */
-function aitestDevPlugin() {
-    return {
-        name: 'aitest-dev',
-        enforce: 'pre',
-        configureServer(server) {
-            carregarEnvParaProcesso(server.config.envDir, server.config.mode)
-            server.middlewares.use(async (req, res, next) => {
-                const url = req.url || ''
-                if (!url.startsWith('/api/aitest')) {
-                    next()
-                    return
-                }
-                const method = req.method || 'GET'
-                let body = {}
-                if (method !== 'GET' && method !== 'HEAD') {
-                    const chunks = []
-                    try {
-                        for await (const ch of req) chunks.push(ch)
-                        const raw = Buffer.concat(chunks).toString('utf8')
-                        if (raw.trim()) body = JSON.parse(raw)
-                    } catch {
-                        body = {}
-                    }
-                }
-                const reqLike = {
-                    method,
-                    url,
-                    headers: req.headers || {},
-                    body,
-                }
-                const resLike = {
-                    statusCode: 200,
-                    setHeader(name, value) {
-                        res.setHeader(name, value)
-                    },
-                    status(code) {
-                        this.statusCode = code
-                        res.statusCode = code
-                        return this
-                    },
-                    json(payload) {
-                        if (!res.getHeader('Content-Type')) {
-                            res.setHeader('Content-Type', 'application/json; charset=utf-8')
-                        }
-                        res.statusCode = this.statusCode
-                        res.end(JSON.stringify(payload))
-                    },
-                }
-                try {
-                    await aitestHandler(reqLike, resLike)
-                } catch (e) {
-                    res.statusCode = 502
-                    res.setHeader('Content-Type', 'application/json; charset=utf-8')
-                    res.end(JSON.stringify({ error: e?.message || 'Falha na API aitest.' }))
-                }
-            })
-        },
-    }
-}
-
 /** Em dev, atende GET /api/gemini-rate no Vite. */
 function geminiRateDevPlugin() {
     return {
@@ -590,7 +528,6 @@ export default defineConfig(({ command, mode }) => {
             command === 'serve' ? prospectosOsmColetarDevPlugin() : null,
             command === 'serve' ? adminUsersDevPlugin() : null,
             command === 'serve' ? auditLogsDevPlugin() : null,
-            command === 'serve' ? aitestDevPlugin() : null,
             command === 'serve' ? geminiRateDevPlugin() : null,
             command === 'serve' ? clicksignDevPlugin() : null,
             react(),

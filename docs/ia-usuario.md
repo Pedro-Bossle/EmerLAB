@@ -37,10 +37,6 @@ Se o chip mostrar 0 restantes ou a coleta falhar por cota / rate limit, espere u
 - Se a IA falhar, **não** passa automaticamente para OpenStreetMap. A coleta fica por concluir até haver cota ou o serviço voltar.
 - Não inventa coordenadas: se o endereço não geocodificar, o local pode aparecer na lista sem pin no mapa.
 
-## AI Test (só Dev Tool)
-
-Quem tem a permissão **Dev Tool** vê **AI Test** no menu (`/aitest`): um playground para enviar um prompt e ver a resposta do modelo. Serve para confirmar que a API está configurada. **Não** substitui a tela de prospectos.
-
 ## Problemas frequentes
 
 | Situação | O que fazer |
@@ -49,4 +45,4 @@ Quem tem a permissão **Dev Tool** vê **AI Test** no menu (`/aitest`): um playg
 | Coleta falhou / Gemini indisponível | Tente mais tarde; pode ser sobrecarga ou limite do plano. |
 | Chip em 0 RPM ou 0 hoje | Limite atingido neste servidor — aguarde o minuto ou o dia. |
 | Locais sem pin no mapa | O endereço não foi geocodificado; o registo na lista continua válido. |
-| Sem permissão | Peça acesso à ferramenta de prospectos (ou Dev Tool, no caso do AI Test). |
+| Sem permissão | Peça acesso à ferramenta de prospectos. |

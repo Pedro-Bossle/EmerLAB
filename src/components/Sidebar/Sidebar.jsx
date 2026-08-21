@@ -343,20 +343,6 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
                 </nav>
 
                 <div className='sidebar_footer'>
-                    {hasPermission(accessProfile, PERMISSION_KEYS.DEV_TOOLS) && (
-                        <button
-                            type='button'
-                            className='sidebar_admin_btn'
-                            onClick={() => {
-                                navigate('/aitest')
-                                onAfterNavigate?.()
-                            }}
-                            title='Playground Gemini'
-                        >
-                            <span className='sidebar_admin_icon' aria-hidden>✦</span>
-                            <span className='sidebar_admin_text'>AI Test</span>
-                        </button>
-                    )}
                     {hasPermission(accessProfile, PERMISSION_KEYS.ACCESS_MANAGE) && (
                         <>
                             <button
