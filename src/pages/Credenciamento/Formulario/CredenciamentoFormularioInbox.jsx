@@ -463,13 +463,16 @@ export default function CredenciamentoFormularioInbox() {
             <header className="credenciamento_main_header">
                 <h2 className="credenciamento_cadastro_filters_title">Filtrar entradas</h2>
                 <div className="credenciamento_main_filters fcred_inbox_filters">
-                    <div className="fcred_inbox_filtros flex flex-wrap gap-2" role="tablist" aria-label="Filtrar entradas">
+                    <div
+                        className="fcred_inbox_filtros flex flex-wrap gap-2"
+                        role="group"
+                        aria-label="Filtrar entradas"
+                    >
                         {FILTROS.map((f) => (
                             <button
                                 key={f.id}
                                 type="button"
-                                role="tab"
-                                aria-selected={filtroAtivo.id === f.id}
+                                aria-pressed={filtroAtivo.id === f.id}
                                 className={`credenciamento_main_action_btn min-h-touch ${
                                     filtroAtivo.id === f.id ? '' : 'secondary'
                                 }`}

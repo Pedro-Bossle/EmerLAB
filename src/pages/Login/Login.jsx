@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { registrarEventoAuthAuditoria } from '../../lib/auditoriaLogs.js'
 import { Button, Input } from '../../components/ui'
-import { cn } from '../../lib/cn'
 
 const DARK_MODE_KEY = 'emerlab-dark-mode'
 

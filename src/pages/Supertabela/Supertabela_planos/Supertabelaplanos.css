@@ -1797,6 +1797,15 @@
         max-width: 100%;
     }
 
+    .supertabelaplanos_sugestoes_rede {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .supertabelaplanos_sugestoes_rede .table_main {
+        min-width: 820px;
+    }
+
     .supertabelaplanos_table_stage .table_main,
     .supertabelaplanos .categoria_secao .table_main {
         min-width: 820px;

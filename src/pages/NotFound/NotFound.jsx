@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Button } from '../../components/ui'
+import { buttonClassName } from '../../components/ui/Button'
 
 const NotFound = () => {
   return (
@@ -21,13 +21,14 @@ const NotFound = () => {
           Este endereço não existe no Livro de Apoio Base — ou foi movido.
         </p>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Link to="/home">
-            <Button className="w-full sm:w-auto">Ir para a Home</Button>
+          <Link to="/home" className={buttonClassName({ className: 'w-full sm:w-auto' })}>
+            Ir para a Home
           </Link>
-          <Link to="/">
-            <Button variant="secondary" className="w-full sm:w-auto">
-              Voltar ao login
-            </Button>
+          <Link
+            to="/"
+            className={buttonClassName({ variant: 'secondary', className: 'w-full sm:w-auto' })}
+          >
+            Voltar ao login
           </Link>
         </div>
       </div>

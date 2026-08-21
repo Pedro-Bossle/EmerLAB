@@ -951,7 +951,10 @@ const Home = () => {
                                 <button
                                     type="button"
                                     className="home_dash_btn secondary home_dash_btn--export"
-                                    disabled={exportandoAfazeres || !tarefas.length}
+                                    disabled={
+                                        exportandoAfazeres ||
+                                        !(tarefas || []).some((t) => t.status !== 'cancelada')
+                                    }
                                     onClick={() => void onExportarAfazeres()}
                                     aria-label={
                                         exportandoAfazeres

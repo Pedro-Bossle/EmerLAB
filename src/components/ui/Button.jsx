@@ -25,7 +25,6 @@ export function Button({
   variant = 'primary',
   size = 'md',
   type = 'button',
-  asChild,
   children,
   ...props
 }) {
@@ -42,5 +41,15 @@ export function Button({
     >
       {children}
     </button>
+  )
+}
+
+/** Classes partilhadas do Button para usar em <Link> / <a> sem aninhar botões. */
+export function buttonClassName({ className, variant = 'primary', size = 'md' } = {}) {
+  return cn(
+    'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-not-allowed',
+    variants[variant] || variants.primary,
+    sizes[size] || sizes.md,
+    className,
   )
 }

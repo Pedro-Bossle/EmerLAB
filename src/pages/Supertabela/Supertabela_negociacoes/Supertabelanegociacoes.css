@@ -890,8 +890,13 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
         -webkit-overflow-scrolling: touch;
     }
 
-    .supertabelanegociacoes_table_container.overflow-x-auto,
-    .supertabelanegociacoes_table_container {
+    /* Lista: scroll no container. Detalhe (categoria_secao): scroll na secção. */
+    .supertabelanegociacoes_table_container:not(:has(.categoria_secao)) {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .supertabelanegociacoes_table_container:has(.categoria_secao) {
         overflow-x: visible !important;
     }
 
