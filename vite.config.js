@@ -469,7 +469,7 @@ export default defineConfig(({ command, mode }) => {
 
     return {
         // Dev local sempre na raiz. Em build, usa base do Vercel ou do GitHub Pages.
-        base: command === 'serve' ? '/' : process.env.VERCEL ? '/' : '/Emerdog_SFSC_SUPERTOOL/',
+        base: command === 'serve' ? '/' : process.env.VERCEL ? '/' : '/EmerLAB/',
         plugins: [
             command === 'serve' ? consultaCnpjDevPlugin() : null,
             command === 'serve' ? cepLookupDevPlugin() : null,

@@ -1,7 +1,7 @@
-# Emerdog SFSC — Supabase local / deploy (Edge Functions)
+# EmerLAB — Supabase local / deploy (Edge Functions)
 # Docs: https://supabase.com/docs/guides/functions
 
-project_id = "emerdog-sfsc"
+project_id = "emerlab"
 
 [api]
 enabled = true

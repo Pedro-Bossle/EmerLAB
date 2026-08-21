@@ -36,7 +36,7 @@ const Supertabeladoc = () => {
                 <h2>Como Usar?</h2>
                 <p>AUsada quando feito negociações especificas com veterinários, alteração de valores de procedimentos ou quando será aberto uma nova região no plano. Para negociações bastava adicionar uma aba nova conforme a cidade e deixar apenas os procedimentos do vet.</p>
                 <h2>Por que criar uma ferramenta para isso?</h2>
-                <p>Durante seu tempo no setor de credenciamento, irá perceber que é muito difícil manter todas as tabelas de preços e negociações em um só lugar, e que é muito difícil de manter as informações atualizadas e consistentes, por isso criamos um "Super Computador em Excel" para facilitar isso, e hoje, este super computador está aqui para facilitar o seu trabalho na plataforma própria da Emerdog.</p>
+                <p>Durante seu tempo no setor de credenciamento, irá perceber que é muito difícil manter todas as tabelas de preços e negociações em um só lugar, e que é muito difícil de manter as informações atualizadas e consistentes, por isso criamos um "Super Computador em Excel" para facilitar isso, e hoje, este super computador está aqui para facilitar o seu trabalho na plataforma EmerLAB.</p>
                 <h2>Por que sair do Excel?</h2>
                 <p>O Excel é uma baita ferramenta, isso estamos de acordo, porém a manutenção dele é dificl quando não se tem o conhecimento do funcionamento interno da “máquina”, e isso acaba prejudicando e pode desencadear erros em toda a tabela, portanto decidimos colocar tudo numa unica plataforma de fácil manutenção. Abaixo você poderá ver um trecho da “Super-Tabela MK3” e algumas informações para “Nerds” de como ela funcionava.</p>
             </div>

@@ -1,7 +1,7 @@
 /** Chave localStorage — fim do intervalo de descanso (ISO) após rate limit do Gemini. */
-export const GEMINI_DESCANSO_LS_KEY = 'sfsc-gemini-descanso-ate'
+export const GEMINI_DESCANSO_LS_KEY = 'emerlab-gemini-descanso-ate'
 /** Cota/plano Gemini esgotado — distinto do descanso curto (retry). */
-export const GEMINI_COTA_ESGOTADA_LS_KEY = 'sfsc-gemini-cota-esgotada'
+export const GEMINI_COTA_ESGOTADA_LS_KEY = 'emerlab-gemini-cota-esgotada'
 
 /**
  * Extrai segundos de mensagens como "Please retry in 6.761188213s".

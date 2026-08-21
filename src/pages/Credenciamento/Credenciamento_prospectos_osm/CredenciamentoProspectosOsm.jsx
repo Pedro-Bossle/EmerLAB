@@ -29,7 +29,7 @@ import './CredenciamentoProspectosOsm.css'
 import 'leaflet/dist/leaflet.css'
 
 const TODAS_CATEGORIAS_IDS = PROSPECTOS_OSM_CATEGORIAS.map((c) => c.id)
-const SPLIT_STORAGE_KEY = 'sfsc-prospectos-osm-split-pct'
+const SPLIT_STORAGE_KEY = 'emerlab-prospectos-osm-split-pct'
 const SPLIT_MIN = 28
 const SPLIT_MAX = 72
 

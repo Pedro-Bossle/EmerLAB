@@ -18,8 +18,8 @@ const MAX_BBOX_GRAUS = 0.45
 
 const contact = String(process.env.NOMINATIM_CONTACT_EMAIL || process.env.CONTACT_EMAIL || '').trim()
 const USER_AGENT = contact
-    ? `Emerdog-SFSC-Supertool/1.0 (${contact})`
-    : 'Emerdog-SFSC-Supertool/1.0 (prospectos OSM)'
+    ? `EmerLAB/1.0 (${contact})`
+    : 'EmerLAB/1.0 (prospectos OSM)'
 
 /** @type {Map<string, { expiresAt: number, data: unknown }>} */
 const cache = new Map()

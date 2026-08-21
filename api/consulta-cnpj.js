@@ -12,7 +12,7 @@ const UPSTREAM_HEADERS = {
     Accept: 'application/json',
     'User-Agent':
         process.env.BRASILAPI_USER_AGENT ||
-        'EmerdogSFSC/1.0 (consulta-cnpj; +https://www.emerdog.com.br)',
+        'EmerLAB/1.0 (consulta-cnpj; +https://www.emerdog.com.br)',
 }
 
 /** Cache em memória do processo (Vercel: reutilizado enquanto a instância estiver quente). */

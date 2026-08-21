@@ -26,3 +26,5 @@ dist-ssr
 *.sql
 .vercel
 .env*
+supabase/env.secrets
+supabase/.env.secrets

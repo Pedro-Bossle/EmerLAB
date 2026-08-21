@@ -76,7 +76,7 @@ function valorCelulaPlano(linha, chave) {
 export async function exportarTabelaPlanosDiferencasParaExcel(secoes, nomeArquivoBase = 'supertabela-planos') {
     const { default: ExcelJS } = await import('exceljs')
     const workbook = new ExcelJS.Workbook()
-    workbook.creator = 'Emerdog SFSC Supertool'
+    workbook.creator = 'EmerLAB'
     const ws = workbook.addWorksheet('Diferencas')
     const colunas = [
         { key: 'codigo', title: 'Código', width: 14 },
@@ -136,7 +136,7 @@ export async function exportarTabelaPlanosDiferencasParaExcel(secoes, nomeArquiv
 export async function exportarTabelaPlanosLimitesParaExcel(secoes, nomeArquivoBase = 'supertabela-limites') {
     const { default: ExcelJS } = await import('exceljs')
     const workbook = new ExcelJS.Workbook()
-    workbook.creator = 'Emerdog SFSC Supertool'
+    workbook.creator = 'EmerLAB'
     const ws = workbook.addWorksheet('Limites')
     ws.getColumn(1).width = 14
     ws.getColumn(2).width = 48

@@ -2661,7 +2661,7 @@ export async function exportarPosRelatorioConferenciaExcel(linhas, opts = {}) {
     )
 
     const workbook = new ExcelJS.Workbook()
-    workbook.creator = 'Emerdog SFSC'
+    workbook.creator = 'EmerLAB'
     const ws = workbook.addWorksheet('Pós-relatório')
 
     ws.columns = [

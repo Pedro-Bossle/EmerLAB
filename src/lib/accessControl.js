@@ -6,8 +6,8 @@ import {
   podeLerFerramenta,
 } from './permissionCatalog.js'
 
-export const ACCESS_PROFILE_STORAGE_KEY = 'sfsc-access-profile'
-export const ACCESS_PROFILE_CHANGE_EVENT = 'sfsc-access-profile-change'
+export const ACCESS_PROFILE_STORAGE_KEY = 'emerlab-access-profile'
+export const ACCESS_PROFILE_CHANGE_EVENT = 'emerlab-access-profile-change'
 
 export const PERMISSION_KEYS = {
   ACCESS_MANAGE: 'access.manage',

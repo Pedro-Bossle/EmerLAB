@@ -1,6 +1,6 @@
 /**
  * Receptor de webhooks da Clicksign (painel / API).
- * POST https://emerdogcredenciamento.vercel.app/api/clicksign-webhook
+ * POST /api/clicksign-webhook (domínio Vercel do EmerLAB)
  *
  * Variáveis (Vercel):
  * - CLICKSIGN_WEBHOOK_SECRET — HMAC SHA256 (obrigatório em produção)
@@ -177,7 +177,7 @@ export default async function handler(req, res) {
         const temSecret = Boolean((process.env.CLICKSIGN_WEBHOOK_SECRET || '').trim())
         res.status(200).json({
             ok: true,
-            message: 'Webhook Clicksign Emerdog ativo. Use POST com o payload da Clicksign.',
+            message: 'Webhook Clicksign EmerLAB ativo. Use POST com o payload da Clicksign.',
             hmacConfigured: temSecret,
         })
         return

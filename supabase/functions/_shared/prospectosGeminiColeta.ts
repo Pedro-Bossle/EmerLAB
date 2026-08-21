@@ -54,7 +54,11 @@ export async function coletarProspectosGeminiCidade(
   const uf = String(opts.uf || '').trim()
   if (!cidade) return { ok: false as const, erro: 'Informe a cidade.' }
 
-  const gem = await geminiGenerateJson({ prompt: montarPrompt(cidade, uf), jsonSchema: SCHEMA })
+  const gem = await geminiGenerateJson({
+    prompt: montarPrompt(cidade, uf),
+    jsonSchema: SCHEMA,
+    maxOutputTokens: 8192,
+  })
   if (!gem.ok) {
     return {
       ok: false as const,

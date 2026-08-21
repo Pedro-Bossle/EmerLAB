@@ -13,8 +13,8 @@ const CACHE_MAX_ENTRIES = 200
 
 const contact = String(process.env.NOMINATIM_CONTACT_EMAIL || process.env.CONTACT_EMAIL || '').trim()
 const USER_AGENT = contact
-    ? `Emerdog-SFSC-Supertool/1.0 (${contact})`
-    : 'Emerdog-SFSC-Supertool/1.0 (credenciamento mapa)'
+    ? `EmerLAB/1.0 (${contact})`
+    : 'EmerLAB/1.0 (credenciamento mapa)'
 
 /** @type {Map<string, { expiresAt: number, data: unknown }>} */
 const cache = new Map()

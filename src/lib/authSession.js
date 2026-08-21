@@ -3,9 +3,9 @@ import { normalizarProfileAcesso, setStoredAccessProfile, usuarioSomenteLeituraG
 import { registrarEventoAuthAuditoria } from './auditoriaLogs.js'
 
 /** Última atividade (compartilhada entre abas via localStorage). */
-export const SESSION_LAST_ACTIVITY_KEY = 'sfsc-last-activity'
+export const SESSION_LAST_ACTIVITY_KEY = 'emerlab-last-activity'
 
-export const SESSION_IDLE_BROADCAST = 'sfsc-session-idle-logout'
+export const SESSION_IDLE_BROADCAST = 'emerlab-session-idle-logout'
 
 const DEFAULT_IDLE_MS = 30 * 60 * 1000
 const DEFAULT_WARN_MS = 2 * 60 * 1000

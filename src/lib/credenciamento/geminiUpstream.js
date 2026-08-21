@@ -1,5 +1,5 @@
 /**
- * Cliente Gemini via Interactions API (@google/genai) — apenas servidor/Node.
+ * Cliente Gemini via generateContent (@google/genai) - apenas servidor/Node.
  * @see https://ai.google.dev/gemini-api/docs/quickstart
  */
 import { ApiError, GoogleGenAI } from '@google/genai'
@@ -7,7 +7,7 @@ import { extrairGeminiRetrySegundos, metaDescansoGemini } from './geminiDescanso
 
 const GEMINI_FETCH_TIMEOUT_MS = 120_000
 
-/** Padrão alinhado ao AI Studio / Interactions API. */
+/** Padrão alinhado ao AI Studio / generateContent. */
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
 
 /** Modelo legado da PoC — use em GEMINI_MODEL se quiser forçar o ID antigo. */
@@ -40,13 +40,13 @@ export function resolverModeloGemini(pedido) {
     return MODEL_ID_ALIASES[key] || raw
 }
 
-/** Chave do AI Studio (Interactions / generateContent) costuma começar com AIza */
+/** Chaves do AI Studio: AIza… (clássica) ou AQ.… (formato recente). */
 export function avisoFormatoChaveGemini(apiKey) {
     const k = String(apiKey || '').trim()
-    if (!k || k.startsWith('AIza')) return null
+    if (!k || k.startsWith('AIza') || k.startsWith('AQ.')) return null
     return (
-        'GEMINI_API_KEY não parece ser do Google AI Studio (esperado prefixo AIza…). ' +
-        'Crie em aistudio.google.com/apikey. Outros formatos geram 404/503 no endpoint usado pela PoC.'
+        'GEMINI_API_KEY com formato inesperado. Crie em aistudio.google.com/apikey ' +
+        '(prefixos habituais: AIza… ou AQ.…).'
     )
 }
 
@@ -57,10 +57,13 @@ function fallbacksApos404(modeloPrincipal) {
         return [resolverModeloGemini(manual)]
     }
     if (modeloPrincipal === 'gemini-2.5-flash-lite') {
-        return ['gemini-2.5-flash']
+        return ['gemini-2.5-flash', 'gemini-flash-latest']
+    }
+    if (modeloPrincipal === 'gemini-2.5-flash') {
+        return ['gemini-flash-latest']
     }
     if (modeloPrincipal === 'gemini-3.6-flash') {
-        return ['gemini-2.5-flash']
+        return ['gemini-2.5-flash', 'gemini-flash-latest']
     }
     return []
 }
@@ -159,16 +162,23 @@ export function mensagemErroGeminiAmigavel(msg, status, modeloConfigurado, model
     return raw || 'Falha na consulta Gemini.'
 }
 
-function extrairTextoInteraction(interaction) {
-    const direto = String(interaction?.output_text || '').trim()
+function limparTextoJson(texto) {
+    let t = String(texto || '').trim()
+    if (t.startsWith('```')) {
+        t = t.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '')
+    }
+    return t.trim()
+}
+
+function extrairTextoGenerateContent(response) {
+    const direto = String(response?.text || '').trim()
     if (direto) return direto
-    const steps = Array.isArray(interaction?.steps) ? interaction.steps : []
+    const parts = response?.candidates?.[0]?.content?.parts
+    if (!Array.isArray(parts)) return ''
     let out = ''
-    for (const step of steps) {
-        if (step?.type !== 'model_output') continue
-        for (const block of step.content || []) {
-            if (block?.type === 'text' && block.text) out += block.text
-        }
+    for (const part of parts) {
+        if (part?.thought) continue
+        if (typeof part?.text === 'string') out += part.text
     }
     return out.trim()
 }
@@ -204,32 +214,28 @@ async function comTimeout(promessa, ms, rotulo) {
 async function geminiGenerateJsonUmaTentativa(apiKey, model, opts) {
     const ai = new GoogleGenAI({ apiKey })
 
-    const generation_config = {
+    /** @type {Record<string, unknown>} */
+    const config = {
         temperature: opts.temperature ?? 0.25,
+        responseMimeType: 'application/json',
     }
     if (Number.isFinite(opts.maxOutputTokens) && opts.maxOutputTokens > 0) {
-        generation_config.max_output_tokens = Math.ceil(opts.maxOutputTokens)
+        config.maxOutputTokens = Math.ceil(opts.maxOutputTokens)
+    }
+    if (opts.jsonSchema) {
+        config.responseJsonSchema = opts.jsonSchema
     }
 
-    /** @type {Record<string, unknown>} */
-    const request = {
-        model,
-        input: opts.prompt,
-        store: false,
-        response_format: {
-            type: 'text',
-            mime_type: 'application/json',
-            ...(opts.jsonSchema ? { schema: opts.jsonSchema } : {}),
-        },
-        generation_config,
-    }
-
-    let interaction
+    let response
     try {
-        interaction = await comTimeout(
-            ai.interactions.create(request),
+        response = await comTimeout(
+            ai.models.generateContent({
+                model,
+                contents: opts.prompt,
+                config,
+            }),
             GEMINI_FETCH_TIMEOUT_MS,
-            'Timeout ao chamar Gemini (Interactions API).',
+            'Timeout ao chamar Gemini (generateContent).',
         )
     } catch (e) {
         const { status, message } = normalizarErroSdk(e)
@@ -242,7 +248,7 @@ async function geminiGenerateJsonUmaTentativa(apiKey, model, opts) {
         }
     }
 
-    const texto = extrairTextoInteraction(interaction)
+    const texto = limparTextoJson(extrairTextoGenerateContent(response))
     if (!texto) {
         return { ok: false, erro: 'Gemini não retornou conteúdo.', modeloUsado: model }
     }
@@ -329,7 +335,8 @@ export async function geminiVerificarDisponibilidade() {
     const r = await geminiGenerateJson({
         prompt: 'Responda apenas com JSON: {"ok":true}',
         temperature: 0,
-        maxOutputTokens: 16,
+        // Modelos com "thinking" consomem tokens internos; 16 deixa a saída vazia.
+        maxOutputTokens: 256,
         apenasModeloPrincipal: true,
         jsonSchema: {
             type: 'object',

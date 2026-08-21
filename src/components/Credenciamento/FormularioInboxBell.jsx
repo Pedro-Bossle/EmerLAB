@@ -27,7 +27,7 @@ import './FormularioInboxBell.css'
 const INTERVALO_FALLBACK_MS = 120_000
 /** Sync Clicksign API só ao focar a aba / abrir painel (webhook cobre o tempo real). */
 const INTERVALO_SYNC_CONTRATOS_MS = 60_000
-const TITULO_ABA_BASE = 'Emerdog AIO'
+const TITULO_ABA_BASE = 'EmerLAB'
 
 const POS_STORAGE_KEY = 'sfsc_notif_float_pos_v1'
 const MODE_STORAGE_KEY = 'sfsc_notif_float_mode_v1'

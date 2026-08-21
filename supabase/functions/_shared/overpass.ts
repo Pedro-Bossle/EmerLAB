@@ -9,8 +9,8 @@ const MAX_BBOX_GRAUS = 0.45
 
 const contact = String(Deno.env.get('NOMINATIM_CONTACT_EMAIL') || Deno.env.get('CONTACT_EMAIL') || '').trim()
 const USER_AGENT = contact
-  ? `Emerdog-SFSC-Supertool/1.0 (${contact})`
-  : 'Emerdog-SFSC-Supertool/1.0 (prospectos OSM)'
+  ? `EmerLAB/1.0 (${contact})`
+  : 'EmerLAB/1.0 (prospectos OSM)'
 
 let fila = Promise.resolve()
 let ultimaReqEm = 0

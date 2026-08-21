@@ -10,7 +10,7 @@ import cloudIcon from '../../assets/cloud-ico.svg'
 const Footer = () => {
     const [darkModeAtivo, setDarkModeAtivo] = useState(() => {
         if (typeof window === 'undefined') return false
-        return window.localStorage.getItem('sfsc-dark-mode') === '1'
+        return window.localStorage.getItem('emerlab-dark-mode') === '1'
     })
 
     useEffect(() => {
@@ -26,7 +26,7 @@ const Footer = () => {
             <div className='footer_container'>
                 <div className='footer_container_left'>
                     <div className='footer_container_left_logo'>
-                        <img src={darkModeAtivo ? logoBranco : logoNav} alt="Emerdog" className='logo logo_footer' />
+                        <img src={darkModeAtivo ? logoBranco : logoNav} alt="EmerLAB" className='logo logo_footer' />
                         <p>Sistema Facilitador do Setor de Credenciamentos</p>
                     </div>
                     <a href="https://www.youtube.com/@Emerdog"><img src={youtubeIcon} alt="Youtube" className='footer_icon' /></a>
@@ -39,8 +39,8 @@ const Footer = () => {
                 <div className='tutorial_wrapper'>
                     <div className='tutorial_container'>
                         <h3>Tutoriais Internos</h3>
-                        <a href="#" className='tutorial_link' ><img src={youtubeIcon} alt="Youtube" className='tutorial_icon' />Como usar o SFSC 1</a>
-                        <a href="#" className='tutorial_link' ><img src={youtubeIcon} alt="Youtube" className='tutorial_icon' />Como usar o SFSC 2</a>
+                        <a href="#" className='tutorial_link' ><img src={youtubeIcon} alt="Youtube" className='tutorial_icon' />Como usar o EmerLAB 1</a>
+                        <a href="#" className='tutorial_link' ><img src={youtubeIcon} alt="Youtube" className='tutorial_icon' />Como usar o EmerLAB 2</a>
                         <a href="https://youtu.be/Stan3e_LyjM" className='tutorial_link' ><img src={youtubeIcon} alt="Youtube" className='tutorial_icon' />Adicionar Clientes e Cobranças</a>
                         <a href="https://www.youtube.com/watch?v=rUNF0hKrO20" className='tutorial_link' ><img src={youtubeIcon} alt="Youtube" className='tutorial_icon' />O que é Emerdog?</a>
                     </div>

@@ -164,7 +164,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
     const accessProfile = useStoredAccessProfile()
     const [darkModeAtivo, setDarkModeAtivo] = useState(() => {
         if (typeof window === 'undefined') return false
-        return window.localStorage.getItem('sfsc-dark-mode') === '1'
+        return window.localStorage.getItem('emerlab-dark-mode') === '1'
     })
     /**
      * Estado de submenus:
@@ -270,10 +270,10 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
     useEffect(() => {
         if (darkModeAtivo) {
             document.body.classList.add('dark-mode')
-            window.localStorage.setItem('sfsc-dark-mode', '1')
+            window.localStorage.setItem('emerlab-dark-mode', '1')
         } else {
             document.body.classList.remove('dark-mode')
-            window.localStorage.setItem('sfsc-dark-mode', '0')
+            window.localStorage.setItem('emerlab-dark-mode', '0')
         }
     }, [darkModeAtivo])
 
@@ -283,7 +283,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
                 <div className="sidebar_logo_wrap">
                     <img
                         src={open ? logoBranco : logoE}
-                        alt="Emerdog"
+                        alt="EmerLAB"
                         className='logo logo_sidebar'
                     />
                 </div>

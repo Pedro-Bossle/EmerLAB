@@ -20,7 +20,7 @@ function assertSupabaseConfig() {
   )
 }
 
-const READ_ONLY_STORAGE_KEY = 'sfsc-read-only'
+const READ_ONLY_STORAGE_KEY = 'emerlab-read-only'
 
 export const setReadOnlyFlag = (enabled) => {
   if (typeof window === 'undefined') return

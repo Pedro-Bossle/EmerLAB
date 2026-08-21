@@ -772,7 +772,7 @@ const Home = () => {
         notifMensagensCount
 
     useEffect(() => {
-        const base = 'Emerdog AIO'
+        const base = 'EmerLAB'
         const n = totalNotificacoes > 0 ? (totalNotificacoes > 99 ? '99+' : totalNotificacoes) : ''
         document.title = n ? `(${n}) ${base}` : base
         return () => {

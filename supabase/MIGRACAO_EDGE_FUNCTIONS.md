@@ -45,7 +45,7 @@ supabase --version
 ## Passo 2 — Login e link do projeto
 
 ```bash
-cd C:\Users\loopy\Documents\GitHub\Emerdog_SFSC_SUPERTOOL
+cd C:\Users\loopy\Documents\GitHub\EmerLAB
 supabase login
 supabase link --project-ref SEU_PROJECT_REF
 ```
@@ -56,7 +56,7 @@ Ajuste `project_id` em `supabase/config.toml` se necessário (opcional para link
 
 ## Passo 3 — Secrets das Edge Functions
 
-Crie `supabase/.env.secrets` (não commitar — já está no `.gitignore`):
+Copie `supabase/env.secrets.example` para `supabase/env.secrets` (não commitar — já está no `.gitignore`):
 
 ```env
 SUPABASE_URL=https://SEU_REF.supabase.co
@@ -73,7 +73,8 @@ BRASILAPI_CNPJ_URL=https://brasilapi.com.br/api/cnpj/v1
 Enviar para o projeto remoto:
 
 ```bash
-supabase secrets set --env-file supabase/.env.secrets
+npm run supabase:secrets
+# equivalente: npx supabase secrets set --env-file supabase/env.secrets
 ```
 
 `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` são injetados automaticamente no deploy em muitos ambientes; incluí-los no secrets garante paridade local.
@@ -131,7 +132,7 @@ Erros comuns:
 ## Passo 7 — Desenvolvimento local das functions
 
 ```bash
-supabase functions serve --env-file supabase/.env.secrets
+supabase functions serve --env-file supabase/env.secrets
 ```
 
 No `.env.local` do Vite, aponte temporariamente:
@@ -162,7 +163,8 @@ VITE_SUPABASE_EDGE_API=true
 supabase/
   config.toml
   MIGRACAO_EDGE_FUNCTIONS.md
-  .env.secrets          # local, não commitar
+  env.secrets.example   # modelo (commitado)
+  env.secrets           # local, não commitar
   functions/
     _shared/            # cors, nominatim, overpass, gemini, jobs…
     cep-lookup/
@@ -174,13 +176,13 @@ src/lib/api/
   serverBackend.js      # roteamento Edge vs /api
 ```
 
-## Scripts npm (sugestão)
+## Scripts npm
 
-Adicione ao `package.json` se desejar:
+Já no `package.json`:
 
 ```json
-"supabase:secrets": "supabase secrets set --env-file supabase/.env.secrets",
-"supabase:deploy-functions": "supabase functions deploy"
+"supabase:secrets": "npx supabase secrets set --env-file supabase/env.secrets",
+"supabase:deploy-functions": "npx supabase functions deploy"
 ```
 
 ---

@@ -177,7 +177,7 @@ function sanitizarNomeArquivo(nomeArquivoBase) {
 async function baixarPlanilhaNegociacaoXlsx(secoes, mapValores, nomeArquivoBase) {
     const { default: ExcelJS } = await import('exceljs')
     const workbook = new ExcelJS.Workbook()
-    workbook.creator = 'Emerdog SFSC Supertool'
+    workbook.creator = 'EmerLAB'
     const worksheet = workbook.addWorksheet('Negociacao', {
         views: [{ showGridLines: true }],
     })

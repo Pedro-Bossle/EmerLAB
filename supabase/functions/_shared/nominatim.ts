@@ -4,8 +4,8 @@ const CACHE_TTL_MS = 15 * 60 * 1000
 
 const contact = String(Deno.env.get('NOMINATIM_CONTACT_EMAIL') || Deno.env.get('CONTACT_EMAIL') || '').trim()
 const USER_AGENT = contact
-  ? `Emerdog-SFSC-Supertool/1.0 (${contact})`
-  : 'Emerdog-SFSC-Supertool/1.0 (credenciamento mapa)'
+  ? `EmerLAB/1.0 (${contact})`
+  : 'EmerLAB/1.0 (credenciamento mapa)'
 
 const PARAMS_PERMITIDOS = new Set([
   'q',

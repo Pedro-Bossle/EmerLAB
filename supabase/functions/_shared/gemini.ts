@@ -1,4 +1,4 @@
-/** Cliente Gemini — Interactions API (REST) para Edge Functions Deno. */
+/** Cliente Gemini — generateContent (REST) para Edge Functions Deno. */
 
 const DEFAULT_MODEL = Deno.env.get('GEMINI_MODEL')?.trim() || 'gemini-2.5-flash'
 
@@ -28,18 +28,23 @@ function isModelNotFound(msg: string, status?: number) {
   return m.includes('not found') || m.includes('not_found')
 }
 
-function extrairTextoInteraction(body: {
-  output_text?: string
-  steps?: { type?: string; content?: { type?: string; text?: string }[] }[]
+function limparTextoJson(texto: string) {
+  let t = String(texto || '').trim()
+  if (t.startsWith('```')) {
+    t = t.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '')
+  }
+  return t.trim()
+}
+
+function extrairTextoGenerateContent(body: {
+  candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[]
 }) {
-  const direto = String(body?.output_text || '').trim()
-  if (direto) return direto
+  const parts = body?.candidates?.[0]?.content?.parts
+  if (!Array.isArray(parts)) return ''
   let out = ''
-  for (const step of body?.steps || []) {
-    if (step?.type !== 'model_output') continue
-    for (const block of step.content || []) {
-      if (block?.type === 'text' && block.text) out += block.text
-    }
+  for (const part of parts) {
+    if (part?.thought) continue
+    if (typeof part?.text === 'string') out += part.text
   }
   return out.trim()
 }
@@ -56,23 +61,18 @@ export async function geminiGenerateJson(opts: {
   }
 
   const model = resolverModelo()
-  const url = 'https://generativelanguage.googleapis.com/v1beta/interactions'
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`
 
-  const generation_config: Record<string, unknown> = {
+  const generationConfig: Record<string, unknown> = {
     temperature: opts.temperature ?? 0.25,
+    responseMimeType: 'application/json',
   }
-  if (opts.maxOutputTokens) generation_config.max_output_tokens = opts.maxOutputTokens
+  if (opts.maxOutputTokens) generationConfig.maxOutputTokens = opts.maxOutputTokens
+  if (opts.jsonSchema) generationConfig.responseJsonSchema = opts.jsonSchema
 
-  const body: Record<string, unknown> = {
-    model,
-    input: opts.prompt,
-    store: false,
-    response_format: {
-      type: 'text',
-      mime_type: 'application/json',
-      ...(opts.jsonSchema ? { schema: opts.jsonSchema } : {}),
-    },
-    generation_config,
+  const body = {
+    contents: [{ parts: [{ text: opts.prompt }] }],
+    generationConfig,
   }
 
   const res = await fetch(url, {
@@ -87,8 +87,7 @@ export async function geminiGenerateJson(opts: {
   const raw = await res.text()
   let parsed: {
     error?: { message?: string }
-    output_text?: string
-    steps?: { type?: string; content?: { type?: string; text?: string }[] }[]
+    candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[]
   }
   try {
     parsed = raw ? JSON.parse(raw) : {}
@@ -108,7 +107,7 @@ export async function geminiGenerateJson(opts: {
     }
   }
 
-  const texto = extrairTextoInteraction(parsed)
+  const texto = limparTextoJson(extrairTextoGenerateContent(parsed))
   if (!texto) return { ok: false as const, erro: 'Gemini não retornou conteúdo.' }
 
   try {
@@ -122,7 +121,7 @@ export async function geminiVerificarDisponibilidade() {
   const r = await geminiGenerateJson({
     prompt: 'Responda apenas com JSON: {"ok":true}',
     temperature: 0,
-    maxOutputTokens: 16,
+    maxOutputTokens: 256,
     jsonSchema: {
       type: 'object',
       properties: { ok: { type: 'boolean' } },

@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { registrarEventoAuthAuditoria } from '../../lib/auditoriaLogs.js'
 import './Login.css'
 
-const DARK_MODE_KEY = 'sfsc-dark-mode'
+const DARK_MODE_KEY = 'emerlab-dark-mode'
 
 /** Mantém o tema da sessão anterior na tela de login (body.dark-mode). */
 function aplicarTemaSalvoNoBody() {
@@ -49,7 +49,7 @@ const Login = () => {
   return (
     <div className='login'>
       <div className='login_container'>
-        <h1 className='login_title'>Emerdog All In One</h1>
+        <h1 className='login_title'>EmerLAB</h1>
         <h4 className='login_subtitle'>Seja Bem Vindo(a)!</h4>
         <p className='login_subtitle'>Faça login para continuar</p>
 

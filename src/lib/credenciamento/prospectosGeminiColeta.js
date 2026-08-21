@@ -129,6 +129,7 @@ export async function coletarProspectosGeminiCidade(supabaseAdmin, opts) {
     const gem = await geminiGenerateJson({
         prompt: montarPromptGemini(cidade, uf),
         jsonSchema: SCHEMA_GEMINI,
+        maxOutputTokens: 8192,
     })
     if (!gem.ok) {
         return {

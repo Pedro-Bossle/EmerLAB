@@ -73,7 +73,7 @@ export async function exportarConferenciaHonorariosExcel({
 } = {}) {
     const { default: ExcelJS } = await import('exceljs')
     const workbook = new ExcelJS.Workbook()
-    workbook.creator = 'Emerdog SFSC'
+    workbook.creator = 'EmerLAB'
 
     const tot = resumo || resumirConferencia(resultados)
     const wsResumo = workbook.addWorksheet('RESUMO')

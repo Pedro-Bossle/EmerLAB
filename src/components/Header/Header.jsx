@@ -13,16 +13,16 @@ const Header = ({ onNavigate }) => {
     const navigate = useNavigate()
     const [darkModeAtivo, setDarkModeAtivo] = useState(() => {
         if (typeof window === 'undefined') return false
-        return window.localStorage.getItem('sfsc-dark-mode') === '1'
+        return window.localStorage.getItem('emerlab-dark-mode') === '1'
     })
 
     useEffect(() => {
         if (darkModeAtivo) {
             document.body.classList.add('dark-mode')
-            window.localStorage.setItem('sfsc-dark-mode', '1')
+            window.localStorage.setItem('emerlab-dark-mode', '1')
         } else {
             document.body.classList.remove('dark-mode')
-            window.localStorage.setItem('sfsc-dark-mode', '0')
+            window.localStorage.setItem('emerlab-dark-mode', '0')
         }
     }, [darkModeAtivo])
 
@@ -37,7 +37,7 @@ const Header = ({ onNavigate }) => {
     return (
         <header className='header'>
             <nav className='header_nav'>
-                <img src={darkModeAtivo ? logoBranco : logoNav} alt="Emerdog" className='logo logo_header' />
+                <img src={darkModeAtivo ? logoBranco : logoNav} alt="EmerLAB" className='logo logo_header' />
                 <Link className='header_nav_link' to="/supertabelamain" onClick={onNavigate}>Super-Tabela</Link>
                 <Link className='header_nav_link' to="/credenciamento/cadastro" onClick={onNavigate}>Credenciamento</Link>
                 <Link className='header_nav_link' to="/compras/orcamento" onClick={onNavigate}>Orçamentos</Link>
