@@ -7,8 +7,8 @@ import { extrairGeminiRetrySegundos, metaDescansoGemini } from './geminiDescanso
 
 const GEMINI_FETCH_TIMEOUT_MS = 120_000
 
-/** Padrão alinhado ao AI Studio / generateContent. */
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
+/** Padrão: Gemini 3.5 Flash-Lite (generateContent). @see https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite */
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite'
 
 /** Modelo legado da PoC — use em GEMINI_MODEL se quiser forçar o ID antigo. */
 export const GEMINI_MODEL_POC_LEGADO = 'gemini-2.0-flash-001'
@@ -23,6 +23,8 @@ const MODEL_ID_ALIASES = {
     'gemini-2.0-flash-001': 'gemini-2.5-flash',
     'gemini-2.0-flash-lite': 'gemini-2.5-flash-lite',
     'gemini-2.0-flash-lite-001': 'gemini-2.5-flash-lite',
+    'gemini-3.5-flashlite': 'gemini-3.5-flash-lite',
+    'gemini-3.5-flash-lite-latest': 'gemini-3.5-flash-lite',
 }
 
 /** @type {{ modelo: string, configHash: string } | null} */
@@ -62,8 +64,15 @@ function fallbacksApos404(modeloPrincipal) {
     if (modeloPrincipal === 'gemini-2.5-flash') {
         return ['gemini-flash-latest']
     }
-    if (modeloPrincipal === 'gemini-3.6-flash') {
-        return ['gemini-2.5-flash', 'gemini-flash-latest']
+    if (modeloPrincipal === 'gemini-3.5-flash-lite') {
+        return ['gemini-2.5-flash-lite', 'gemini-2.5-flash']
+    }
+    if (
+        modeloPrincipal === 'gemini-3.7-flash' ||
+        modeloPrincipal === 'gemini-3.6-flash' ||
+        modeloPrincipal === 'gemini-3.5-flash'
+    ) {
+        return ['gemini-3.5-flash-lite', 'gemini-2.5-flash']
     }
     return []
 }
@@ -103,6 +112,22 @@ export function modeloGeminiPadrao() {
     return resolverModeloGemini(process.env.GEMINI_MODEL)
 }
 
+/** Só env local — não chama a API Google. */
+export function geminiConfigSnapshot() {
+    const apiKey = String(process.env.GEMINI_API_KEY || '').trim()
+    const modelo = modeloGeminiPadrao()
+    const aviso = avisoFormatoChaveGemini(apiKey)
+    return {
+        ok: true,
+        configurado: Boolean(apiKey),
+        ping: false,
+        disponivel: null,
+        modelo,
+        modeloEfetivo: null,
+        erro: !apiKey ? 'GEMINI_API_KEY não configurada no servidor.' : aviso || null,
+    }
+}
+
 /** @param {string} [msg] @param {number} [status] */
 export function isGeminiModelNotFound(msg, status) {
     if (status === 404) return true
@@ -116,11 +141,41 @@ export function isGeminiModelNotFound(msg, status) {
     )
 }
 
+/** 503 UNAVAILABLE — modelo sobrecarregado, não é cota. */
+export function isGeminiOverloaded(msg, status) {
+    if (status === 503) return true
+    const m = String(msg || '').toLowerCase()
+    return (
+        m.includes('overloaded') ||
+        m.includes('high demand') ||
+        m.includes('unavailable') ||
+        m.includes('temporarily unavailable')
+    )
+}
+
+function deveTentarProximoModelo(msg, status) {
+    const m = String(msg || '').toLowerCase()
+    if (status === 400 && (m.includes('thinking') || m.includes('budget'))) return true
+    if (m.includes('não retornou conteúdo') || m.includes('empty_content')) return true
+    return (
+        status === 404 ||
+        isGeminiModelNotFound(msg, status) ||
+        isGeminiOverloaded(msg, status) ||
+        isGeminiTimeout(msg)
+    )
+}
+
+export function isGeminiTimeout(msg) {
+    const m = String(msg || '').toLowerCase()
+    return m.includes('timeout') || m.includes('aborted') || m.includes('aborterror')
+}
+
 /** @param {string} [msg] @param {number} [status] */
 export function isGeminiQuotaOrRateLimit(msg, status) {
     if (isGeminiModelNotFound(msg, status)) return false
+    if (isGeminiOverloaded(msg, status)) return false
     const m = String(msg || '').toLowerCase()
-    if (status === 429 || status === 503) return true
+    if (status === 429) return true
     return (
         m.includes('quota') ||
         m.includes('resource_exhausted') ||
@@ -133,6 +188,8 @@ export function isGeminiQuotaOrRateLimit(msg, status) {
 export function classificarErroGemini(msg, status) {
     if (isGeminiModelNotFound(msg, status)) return 'modelo_nao_encontrado'
     if (isGeminiQuotaOrRateLimit(msg, status)) return 'cota_ou_rate_limit'
+    if (isGeminiOverloaded(msg, status)) return 'sobrecarregado'
+    if (isGeminiTimeout(msg)) return 'timeout'
     return 'outro'
 }
 
@@ -154,8 +211,17 @@ export function mensagemErroGeminiAmigavel(msg, status, modeloConfigurado, model
     if (isGeminiQuotaOrRateLimit(msg, status)) {
         return (
             `Cota ou limite do Gemini (HTTP ${status || 429}). ` +
-            `Modelo ${usado}. Verifique uso no AI Studio ou use coleta OSM.`
+            `Modelo ${usado}. Verifique o uso no AI Studio.`
         )
+    }
+    if (isGeminiOverloaded(msg, status)) {
+        return (
+            `Gemini temporariamente indisponível (HTTP ${status || 503}). ` +
+            `Modelo ${usado} está sobrecarregado — tente de novo ou use GEMINI_MODEL=gemini-2.5-flash.`
+        )
+    }
+    if (isGeminiTimeout(msg)) {
+        return `Timeout ao chamar o Gemini (modelo ${usado}). Tente de novo ou use GEMINI_MODEL=gemini-2.5-flash.`
     }
     const raw = String(msg || '').trim()
     if (raw.length > 280) return `${raw.slice(0, 280)}…`
@@ -192,17 +258,61 @@ function normalizarErroSdk(err) {
     return { status, message }
 }
 
-async function comTimeout(promessa, ms, rotulo) {
+async function comTimeout(factoryOuPromessa, ms, rotulo) {
+    const ctrl = new AbortController()
     let timer
+    const promessa =
+        typeof factoryOuPromessa === 'function' ? factoryOuPromessa(ctrl.signal) : factoryOuPromessa
     try {
         return await Promise.race([
             promessa,
             new Promise((_, reject) => {
-                timer = setTimeout(() => reject(new Error(rotulo)), ms)
+                timer = setTimeout(() => {
+                    ctrl.abort()
+                    reject(new Error(rotulo))
+                }, ms)
             }),
         ])
     } finally {
         if (timer) clearTimeout(timer)
+    }
+}
+
+function timeoutMsDe(opts) {
+    const n = Number(opts?.timeoutMs)
+    if (Number.isFinite(n) && n > 0) return Math.ceil(n)
+    return GEMINI_FETCH_TIMEOUT_MS
+}
+
+function aplicarConfigGeracao(config, opts) {
+    if (Number.isFinite(opts.temperature)) {
+        config.temperature = opts.temperature
+    }
+    if (Number.isFinite(opts.maxOutputTokens) && opts.maxOutputTokens > 0) {
+        config.maxOutputTokens = Math.ceil(opts.maxOutputTokens)
+    }
+    // Gemini 3.x: thinkingLevel (MINIMAL/LOW/MEDIUM/HIGH). thinkingBudget: 0 é da geração 2.5.
+    if (opts.desligarThinking) {
+        config.thinkingConfig = { thinkingLevel: 'MINIMAL' }
+    }
+}
+
+function logGemini(nivel, mensagem, extra) {
+    const fn = nivel === 'warn' ? console.warn : console.info
+    fn(`[gemini] ${mensagem}`, extra || '')
+}
+
+function resumoRespostaGemini(response, texto) {
+    const cand = response?.candidates?.[0]
+    const usage = response?.usageMetadata || {}
+    const parts = cand?.content?.parts
+    return {
+        finishReason: cand?.finishReason || null,
+        parts: Array.isArray(parts) ? parts.length : 0,
+        textoChars: String(texto || '').length,
+        promptTokens: usage.promptTokenCount ?? null,
+        candidatesTokens: usage.candidatesTokenCount ?? null,
+        thoughtsTokens: usage.thoughtsTokenCount ?? null,
     }
 }
 
@@ -219,9 +329,7 @@ async function geminiGenerateJsonUmaTentativa(apiKey, model, opts) {
         temperature: opts.temperature ?? 0.25,
         responseMimeType: 'application/json',
     }
-    if (Number.isFinite(opts.maxOutputTokens) && opts.maxOutputTokens > 0) {
-        config.maxOutputTokens = Math.ceil(opts.maxOutputTokens)
-    }
+    aplicarConfigGeracao(config, opts)
     if (opts.jsonSchema) {
         config.responseJsonSchema = opts.jsonSchema
     }
@@ -229,12 +337,15 @@ async function geminiGenerateJsonUmaTentativa(apiKey, model, opts) {
     let response
     try {
         response = await comTimeout(
-            ai.models.generateContent({
-                model,
-                contents: opts.prompt,
-                config,
-            }),
-            GEMINI_FETCH_TIMEOUT_MS,
+            (signal) => {
+                config.abortSignal = signal
+                return ai.models.generateContent({
+                    model,
+                    contents: opts.prompt,
+                    config,
+                })
+            },
+            timeoutMsDe(opts),
             'Timeout ao chamar Gemini (generateContent).',
         )
     } catch (e) {
@@ -261,9 +372,10 @@ async function geminiGenerateJsonUmaTentativa(apiKey, model, opts) {
 }
 
 /**
- * @param {{ prompt: string, jsonSchema?: object, model?: string, temperature?: number, maxOutputTokens?: number, apenasModeloPrincipal?: boolean }} opts
+ * @param {{ prompt: string, model?: string, apenasModeloPrincipal?: boolean }} opts
+ * @param {(apiKey: string, model: string, opts: object) => Promise<object>} umaTentativa
  */
-export async function geminiGenerateJson(opts) {
+async function executarGenerateComCandidatos(opts, umaTentativa) {
     const apiKey = String(process.env.GEMINI_API_KEY || '').trim()
     if (!apiKey) {
         return { ok: false, erro: 'GEMINI_API_KEY não configurada no servidor.' }
@@ -275,11 +387,12 @@ export async function geminiGenerateJson(opts) {
     const candidatos = modelosParaTentar(modeloConfigurado, {
         apenasPrincipal: Boolean(opts.apenasModeloPrincipal),
     })
+    logGemini('info', 'candidatos', { modeloConfigurado, candidatos })
     let ultimo = null
-    let algum404 = false
+    let algumFallback = false
 
     for (const model of candidatos) {
-        const tentativa = await geminiGenerateJsonUmaTentativa(apiKey, model, opts)
+        const tentativa = await umaTentativa(apiKey, model, opts)
         if (tentativa.ok) {
             gravarCacheModelo(tentativa.modeloUsado)
             return {
@@ -289,14 +402,14 @@ export async function geminiGenerateJson(opts) {
             }
         }
         ultimo = tentativa
-        if (tentativa.status === 404 || isGeminiModelNotFound(tentativa.erroOriginal, tentativa.status)) {
-            algum404 = true
+        if (deveTentarProximoModelo(tentativa.erroOriginal, tentativa.status)) {
+            algumFallback = true
             continue
         }
         break
     }
 
-    if (algum404) limparCacheModelo()
+    if (algumFallback) limparCacheModelo()
 
     const msg = ultimo?.erroOriginal || ultimo?.erro || 'Falha na consulta Gemini.'
     const status = ultimo?.status
@@ -323,27 +436,115 @@ export async function geminiGenerateJson(opts) {
     }
 }
 
-/** Ping leve — só o modelo configurado (evita rajada de 404 no gráfico do Google). */
-export async function geminiVerificarDisponibilidade() {
+/**
+ * @param {{ prompt: string, jsonSchema?: object, model?: string, temperature?: number, maxOutputTokens?: number, apenasModeloPrincipal?: boolean }} opts
+ */
+export async function geminiGenerateJson(opts) {
+    return executarGenerateComCandidatos(opts, geminiGenerateJsonUmaTentativa)
+}
+
+/**
+ * @param {string} apiKey
+ * @param {string} model
+ * @param {{ prompt: string, temperature?: number, maxOutputTokens?: number }} opts
+ */
+async function geminiGenerateTextUmaTentativa(apiKey, model, opts) {
+    const ai = new GoogleGenAI({ apiKey })
+    const timeoutMs = timeoutMsDe(opts)
+    const t0 = Date.now()
+    logGemini('info', 'pedido', {
+        model,
+        timeoutMs,
+        promptChars: String(opts.prompt || '').length,
+        maxOutputTokens: opts.maxOutputTokens ?? null,
+        thinking: opts.desligarThinking ? 'MINIMAL' : 'default',
+    })
+
+    /** @type {Record<string, unknown>} */
+    const config = {}
+    aplicarConfigGeracao(config, opts)
+
+    let response
+    try {
+        response = await comTimeout(
+            (signal) => {
+                config.abortSignal = signal
+                return ai.models.generateContent({
+                    model,
+                    contents: opts.prompt,
+                    config,
+                })
+            },
+            timeoutMs,
+            'Timeout ao chamar Gemini (generateContent).',
+        )
+    } catch (e) {
+        const { status, message } = normalizarErroSdk(e)
+        logGemini('warn', 'falha', { model, ms: Date.now() - t0, status: status || null, erro: message })
+        return {
+            ok: false,
+            status,
+            erro: message,
+            erroOriginal: message,
+            modeloUsado: model,
+        }
+    }
+
+    const texto = extrairTextoGenerateContent(response)
+    const resumo = resumoRespostaGemini(response, texto)
+    logGemini('info', 'resposta', { model, ms: Date.now() - t0, ...resumo })
+    if (!texto) {
+        return {
+            ok: false,
+            erro: resumo.finishReason
+                ? `Gemini não retornou texto (finishReason=${resumo.finishReason}).`
+                : 'Gemini não retornou conteúdo.',
+            modeloUsado: model,
+        }
+    }
+    return { ok: true, texto, modeloUsado: model, finishReason: resumo.finishReason }
+}
+
+/**
+ * generateContent em texto livre (sem JSON schema) — playground / testes.
+ * @param {{ prompt: string, model?: string, temperature?: number, maxOutputTokens?: number, apenasModeloPrincipal?: boolean }} opts
+ */
+export async function geminiGenerateText(opts) {
+    return executarGenerateComCandidatos(opts, geminiGenerateTextUmaTentativa)
+}
+
+/**
+ * Ping leve.
+ * @param {{ permitirFallback?: boolean, textoLivre?: boolean }} [opts]
+ */
+export async function geminiVerificarDisponibilidade(opts = {}) {
     const apiKey = String(process.env.GEMINI_API_KEY || '').trim()
     if (!apiKey) {
         return { ok: false, configurado: false, disponivel: false, erro: 'GEMINI_API_KEY não configurada.' }
     }
 
     const modeloConfigurado = String(process.env.GEMINI_MODEL || '').trim() || DEFAULT_GEMINI_MODEL
+    const apenasPrincipal = opts.permitirFallback ? false : true
 
-    const r = await geminiGenerateJson({
-        prompt: 'Responda apenas com JSON: {"ok":true}',
-        temperature: 0,
-        // Modelos com "thinking" consomem tokens internos; 16 deixa a saída vazia.
-        maxOutputTokens: 256,
-        apenasModeloPrincipal: true,
-        jsonSchema: {
-            type: 'object',
-            properties: { ok: { type: 'boolean' } },
-            required: ['ok'],
-        },
-    })
+    const r = opts.textoLivre
+        ? await geminiGenerateText({
+              prompt: 'Responda apenas: ok',
+              temperature: 0,
+              maxOutputTokens: 32,
+              apenasModeloPrincipal: apenasPrincipal,
+          })
+        : await geminiGenerateJson({
+              prompt: 'Responda apenas com JSON: {"ok":true}',
+              temperature: 0,
+              // Modelos com "thinking" consomem tokens internos; 16 deixa a saída vazia.
+              maxOutputTokens: 256,
+              apenasModeloPrincipal: apenasPrincipal,
+              jsonSchema: {
+                  type: 'object',
+                  properties: { ok: { type: 'boolean' } },
+                  required: ['ok'],
+              },
+          })
 
     if (r.ok) {
         return {
@@ -360,6 +561,7 @@ export async function geminiVerificarDisponibilidade() {
         configurado: true,
         disponivel: false,
         quotaExceeded: Boolean(r.quotaExceeded),
+        sobrecarregado: r.codigoErro === 'sobrecarregado',
         modeloInvalido: Boolean(r.modeloInvalido),
         chaveFormatoInvalido: r.codigoErro === 'chave_invalida',
         codigoErro: r.codigoErro || 'outro',

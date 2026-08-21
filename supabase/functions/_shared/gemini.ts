@@ -1,6 +1,6 @@
 /** Cliente Gemini — generateContent (REST) para Edge Functions Deno. */
 
-const DEFAULT_MODEL = Deno.env.get('GEMINI_MODEL')?.trim() || 'gemini-2.5-flash'
+const DEFAULT_MODEL = Deno.env.get('GEMINI_MODEL')?.trim() || 'gemini-3.5-flash-lite'
 
 const MODEL_ALIASES: Record<string, string> = {
   'gemini-1.5-flash': 'gemini-2.5-flash',
@@ -17,8 +17,10 @@ function resolverModelo(pedido?: string) {
 }
 
 function isQuota(msg: string, status?: number) {
-  if (status === 429 || status === 503) return true
+  if (status === 503) return false
+  if (status === 429) return true
   const m = msg.toLowerCase()
+  if (m.includes('overloaded') || m.includes('unavailable')) return false
   return m.includes('quota') || m.includes('resource_exhausted') || m.includes('rate limit')
 }
 
