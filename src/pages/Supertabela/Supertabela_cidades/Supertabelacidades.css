@@ -1384,6 +1384,15 @@
         overflow-x: visible !important;
     }
 
+    .supertabelacidades_sugestoes_rede {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .supertabelacidades_sugestoes_rede .table_main {
+        min-width: 760px;
+    }
+
     .supertabelacidades .categoria_secao .table_main {
         min-width: 760px;
         font-size: 0.84rem;

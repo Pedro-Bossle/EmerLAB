@@ -7,12 +7,10 @@ import whatsappIcon from '../../assets/whatsapp-ico.svg'
 import instagramIcon from '../../assets/instagram-ico.svg'
 import tiktokIcon from '../../assets/tiktok-ico.svg'
 import cloudIcon from '../../assets/cloud-ico.svg'
+import { lerDarkModeAtivo } from '../../lib/sidebarPrefs'
 
 const Footer = () => {
-  const [darkModeAtivo, setDarkModeAtivo] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return window.localStorage.getItem('emerlab-dark-mode') === '1'
-  })
+  const [darkModeAtivo, setDarkModeAtivo] = useState(() => lerDarkModeAtivo())
 
   useEffect(() => {
     const observer = new MutationObserver(() => {

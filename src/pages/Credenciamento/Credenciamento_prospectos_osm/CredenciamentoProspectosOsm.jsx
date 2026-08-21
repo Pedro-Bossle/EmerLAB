@@ -580,11 +580,10 @@ const CredenciamentoProspectosOsm = () => {
                 </div>
 
                 {mostrarMapa ? (
-                    <div className="cred_prospectos_osm_mobile_tabs" role="tablist" aria-label="Lista ou mapa">
+                    <div className="cred_prospectos_osm_mobile_tabs" role="group" aria-label="Lista ou mapa">
                         <button
                             type="button"
-                            role="tab"
-                            aria-selected={painelMobile === 'lista'}
+                            aria-pressed={painelMobile === 'lista'}
                             className={painelMobile === 'lista' ? 'is-ativo' : ''}
                             onClick={() => setPainelMobile('lista')}
                         >
@@ -592,8 +591,7 @@ const CredenciamentoProspectosOsm = () => {
                         </button>
                         <button
                             type="button"
-                            role="tab"
-                            aria-selected={painelMobile === 'mapa'}
+                            aria-pressed={painelMobile === 'mapa'}
                             className={painelMobile === 'mapa' ? 'is-ativo' : ''}
                             onClick={() => setPainelMobile('mapa')}
                         >

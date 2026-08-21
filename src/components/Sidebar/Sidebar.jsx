@@ -13,6 +13,7 @@ import { SIDEBAR_GROUPS, filtrarChildrenNav } from '../../lib/navConfig'
 import { cn } from '../../lib/cn'
 import { supabase } from '../../lib/supabase'
 import { logoutSessao } from '../../lib/authSession'
+import { lerDarkModeAtivo } from '../../lib/sidebarPrefs'
 
 const SIDEBAR_ICONS = {
   inicio: (
@@ -69,10 +70,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const accessProfile = useStoredAccessProfile()
-  const [darkModeAtivo, setDarkModeAtivo] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return window.localStorage.getItem('emerlab-dark-mode') === '1'
-  })
+  const [darkModeAtivo, setDarkModeAtivo] = useState(() => lerDarkModeAtivo())
   const [openMenus, setOpenMenus] = useState({})
 
   const podeVerItemMenu = (child) => {

@@ -33,14 +33,35 @@ function addDaysYmd(ymd, days) {
 
 function foldIcsLine(line) {
     const s = String(line)
-    if (s.length <= 75) return s
+    const encoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null
+    const byteLen = (str) => (encoder ? encoder.encode(str).length : str.length)
+
+    if (byteLen(s) <= 75) return s
+
     const parts = []
     let rest = s
-    parts.push(rest.slice(0, 75))
-    rest = rest.slice(75)
+    let first = ''
+    for (const ch of rest) {
+        const next = first + ch
+        if (byteLen(next) > 75) break
+        first = next
+    }
+    parts.push(first)
+    rest = rest.slice(first.length)
+
     while (rest.length) {
-        parts.push(` ${rest.slice(0, 74)}`)
-        rest = rest.slice(74)
+        let chunk = ''
+        for (const ch of rest) {
+            const next = chunk + ch
+            if (byteLen(next) > 74) break
+            chunk = next
+        }
+        if (!chunk) {
+            // Fallback se um code point sozinho exceder 74 bytes (improvável)
+            chunk = rest[0] || ''
+        }
+        parts.push(` ${chunk}`)
+        rest = rest.slice(chunk.length)
     }
     return parts.join('\r\n')
 }

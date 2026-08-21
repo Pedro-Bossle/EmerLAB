@@ -1,6 +1,63 @@
-import { useEffect } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { cn } from '../../lib/cn'
 import { Button } from './Button'
+
+const FOCUSABLE =
+  'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'
+
+function useDialogFocus({ open, onClose, panelRef }) {
+  useEffect(() => {
+    if (!open) return undefined
+    const panel = panelRef.current
+    if (!panel) return undefined
+
+    const previouslyFocused = document.activeElement
+    const focusables = () => [...panel.querySelectorAll(FOCUSABLE)].filter(
+      (el) => !el.hasAttribute('disabled') && el.getAttribute('aria-hidden') !== 'true',
+    )
+
+    const focusFirst = () => {
+      const list = focusables()
+      const target = list[0] || panel
+      if (typeof target.focus === 'function') target.focus()
+    }
+
+    const frame = window.requestAnimationFrame(focusFirst)
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose?.()
+        return
+      }
+      if (e.key !== 'Tab') return
+      const list = focusables()
+      if (!list.length) {
+        e.preventDefault()
+        panel.focus()
+        return
+      }
+      const first = list[0]
+      const last = list[list.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('keydown', onKey)
+      if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+        previouslyFocused.focus()
+      }
+    }
+  }, [open, onClose, panelRef])
+}
 
 export function Modal({
   open,
@@ -12,14 +69,9 @@ export function Modal({
   className,
   size = 'md',
 }) {
-  useEffect(() => {
-    if (!open) return undefined
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose?.()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  const panelRef = useRef(null)
+  const titleId = useId()
+  useDialogFocus({ open, onClose, panelRef })
 
   if (!open) return null
 
@@ -40,9 +92,12 @@ export function Modal({
         onClick={onClose}
       />
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={title ? 'el-modal-title' : undefined}
+        tabIndex={-1}
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : 'Diálogo'}
         className={cn(
           'relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-line bg-white shadow-lift dark:border-white/10 dark:bg-[#1a2838] sm:rounded-2xl',
           widths[size] || widths.md,
@@ -53,7 +108,7 @@ export function Modal({
           <div className="flex items-start justify-between gap-3 border-b border-line px-4 py-3 dark:border-white/10">
             <div className="min-w-0">
               {title ? (
-                <h2 id="el-modal-title" className="font-display text-lg font-bold text-ink dark:text-[#e8f1f8]">
+                <h2 id={titleId} className="font-display text-lg font-bold text-ink dark:text-[#e8f1f8]">
                   {title}
                 </h2>
               ) : null}
@@ -80,14 +135,9 @@ export function Modal({
 }
 
 export function Drawer({ open, onClose, title, children, side = 'bottom', className }) {
-  useEffect(() => {
-    if (!open) return undefined
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose?.()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  const panelRef = useRef(null)
+  const titleId = useId()
+  useDialogFocus({ open, onClose, panelRef })
 
   if (!open) return null
 
@@ -105,6 +155,7 @@ export function Drawer({ open, onClose, title, children, side = 'bottom', classN
         onClick={onClose}
       />
       <div
+        ref={panelRef}
         className={cn(
           'absolute flex flex-col overflow-hidden border border-line bg-white shadow-lift dark:border-white/10 dark:bg-[#1a2838]',
           sideClass,
@@ -112,9 +163,18 @@ export function Drawer({ open, onClose, title, children, side = 'bottom', classN
         )}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : 'Painel'}
       >
         <div className="flex items-center justify-between border-b border-line px-4 py-3 dark:border-white/10">
-          <h2 className="font-display text-base font-bold text-ink dark:text-[#e8f1f8]">{title}</h2>
+          {title ? (
+            <h2 id={titleId} className="font-display text-base font-bold text-ink dark:text-[#e8f1f8]">
+              {title}
+            </h2>
+          ) : (
+            <span className="sr-only">Painel</span>
+          )}
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar">
             ×
           </Button>

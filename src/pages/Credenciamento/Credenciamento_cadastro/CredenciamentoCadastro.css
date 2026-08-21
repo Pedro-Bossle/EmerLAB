@@ -236,7 +236,8 @@
 .credenciamento_cadastro_table th,
 .credenciamento_cadastro_table td {
     white-space: normal;
-    word-break: break-word;
+    word-break: normal;
+    overflow-wrap: anywhere;
 }
 
 /* Cards mobile — escondidos no desktop */
@@ -279,7 +280,8 @@
     font-weight: 800;
     color: #123e59;
     line-height: 1.25;
-    word-break: break-word;
+    word-break: normal;
+    overflow-wrap: anywhere;
     margin-bottom: 0.1rem;
 }
 
@@ -763,7 +765,8 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
     line-height: 1.4;
     text-align: left;
     color: #1e3148;
-    word-break: break-word;
+    word-break: normal;
+    overflow-wrap: anywhere;
     display: flex;
     flex-direction: column;
     gap: 0.15rem;

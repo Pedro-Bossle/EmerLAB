@@ -22,6 +22,7 @@ body.dark-mode .home_dash {
     --home-card: #1a2634;
     --home-accent: #6eb6e0;
     --home-accent-soft: rgba(47, 135, 198, 0.22);
+
     background: transparent;
 }
 
