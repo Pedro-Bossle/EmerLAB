@@ -42,13 +42,15 @@ const resolveAdminAction = (raw) => {
     const aliases = {
         list: 'list',
         invite: 'invite',
+        create: 'createUser',
+        createuser: 'createUser',
         reset: 'reset',
         updateprofile: 'updateProfile',
         listaudit: 'listAudit',
         deleteuser: 'deleteUser',
     }
     if (aliases[compact]) return aliases[compact]
-    const canon = ['list', 'invite', 'reset', 'updateProfile', 'listAudit', 'deleteUser']
+    const canon = ['list', 'invite', 'createUser', 'reset', 'updateProfile', 'listAudit', 'deleteUser']
     return canon.includes(s) ? s : ''
 }
 
@@ -273,7 +275,7 @@ export default async function handler(req, res) {
                 res,
                 400,
                 recebida
-                    ? `Ação inválida: «${recebida}». Use list, listAudit, invite, updateProfile, reset ou deleteUser.`
+                    ? `Ação inválida: «${recebida}». Use list, listAudit, invite, createUser, updateProfile, reset ou deleteUser.`
                     : 'Ação inválida. Informe action no corpo da requisição.',
             )
         }
@@ -341,6 +343,65 @@ export default async function handler(req, res) {
             return res.status(200).json({
                 ok: true,
                 conviteEnviado,
+                profile: profileNorm,
+            })
+        }
+
+        if (action === 'createUser') {
+            const email = String(body.email || '').trim().toLowerCase()
+            const name = String(body.name || '').trim()
+            const password = String(body.password || '')
+            let permissions = body.permissions && typeof body.permissions === 'object'
+                ? body.permissions
+                : DEFAULT_INVITED_PERMISSIONS
+            permissions = sanitizarPermissionsParaSalvar(permissions)
+
+            if (!email || !email.includes('@')) return responderErro(res, 400, 'Informe um email válido.')
+            if (!name) return responderErro(res, 400, 'Informe o nome do usuário.')
+            if (password.length < 8) {
+                return responderErro(res, 400, 'A senha deve ter pelo menos 8 caracteres.')
+            }
+
+            const existente = await encontrarUsuarioPorEmail(supabase, email)
+            if (existente) {
+                return responderErro(res, 409, 'Já existe um usuário com este email. Use convite/reset ou edite o perfil.')
+            }
+
+            const { data, error } = await supabase.auth.admin.createUser({
+                email,
+                password,
+                email_confirm: true,
+                user_metadata: { name },
+            })
+            if (error) return responderErro(res, 500, mensagemErroAuthSupabase(error))
+
+            const user = data?.user || null
+            if (!user?.id) return responderErro(res, 500, 'Não foi possível criar o usuário.')
+
+            const { data: profileData, error: profileError } = await upsertProfile(supabase, {
+                id: user.id,
+                name,
+                email,
+                permissions,
+            })
+
+            if (profileError) {
+                await supabase.auth.admin.deleteUser(user.id).catch(() => {})
+                return responderErro(res, 500, profileError.message)
+            }
+
+            const profileNorm = normalizarProfileAcesso(profileData)
+            await registrarAuditoria(supabase, {
+                actorUserId: admin.user.id,
+                actorName: admin.profile.name,
+                targetUserId: profileNorm.id,
+                action: 'create_user',
+                summary: `Usuário criado: ${name} (${email})`,
+                details: { permissions: profileNorm.permissions },
+            })
+
+            return res.status(200).json({
+                ok: true,
                 profile: profileNorm,
             })
         }

@@ -50,12 +50,16 @@ const GerenciamentoAcessos = () => {
     })
     const [abaDetalhe, setAbaDetalhe] = useState('permissoes')
     const [mostrarConvite, setMostrarConvite] = useState(false)
+    /** 'invite' = email de convite | 'create' = criar com senha imediata */
+    const [modoNovoUsuario, setModoNovoUsuario] = useState('create')
     const [logs, setLogs] = useState([])
     const [logsAviso, setLogsAviso] = useState('')
     const [logsLoading, setLogsLoading] = useState(false)
     const [convite, setConvite] = useState({
         name: '',
         email: '',
+        password: '',
+        passwordConfirm: '',
         permissions: permissoesPadraoNovoUsuario() })
     const [edicao, setEdicao] = useState(null)
 
@@ -207,25 +211,72 @@ const GerenciamentoAcessos = () => {
         />
     )
 
-    const convidarUsuario = async (event) => {
+    const resetFormNovoUsuario = () => {
+        setConvite({
+            name: '',
+            email: '',
+            password: '',
+            passwordConfirm: '',
+            permissions: permissoesPadraoNovoUsuario(),
+        })
+        setModoNovoUsuario('create')
+    }
+
+    const abrirNovoUsuario = (modo = 'create') => {
+        setModoNovoUsuario(modo)
+        setMostrarConvite(true)
+    }
+
+    const salvarNovoUsuario = async (event) => {
         event.preventDefault()
+        if (modoNovoUsuario === 'create') {
+            if (convite.password.length < 8) {
+                mostrarErro('A senha deve ter pelo menos 8 caracteres.')
+                return
+            }
+            if (convite.password !== convite.passwordConfirm) {
+                mostrarErro('A confirmação de senha não confere.')
+                return
+            }
+        }
+
         setLoading(true)
         try {
-            const json = await chamarAdminUsers({
-                action: 'invite',
-                name: convite.name,
-                email: convite.email,
-                permissions: convite.permissions })
+            const modo = modoNovoUsuario
+            const json =
+                modo === 'create'
+                    ? await chamarAdminUsers({
+                          action: 'createUser',
+                          name: convite.name,
+                          email: convite.email,
+                          password: convite.password,
+                          permissions: convite.permissions,
+                      })
+                    : await chamarAdminUsers({
+                          action: 'invite',
+                          name: convite.name,
+                          email: convite.email,
+                          permissions: convite.permissions,
+                      })
+
             const profile = normalizarProfileAcesso(json.profile)
             setUsuarios((atuais) => {
                 const semDuplicado = atuais.filter((item) => String(item.id) !== String(profile.id))
                 return [...semDuplicado, profile].sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'))
             })
             setUsuarioSelecionadoId(profile.id)
-            setConvite({ name: '', email: '', permissions: permissoesPadraoNovoUsuario() })
+            resetFormNovoUsuario()
             setMostrarConvite(false)
             setAbaDetalhe('permissoes')
-            mostrarMensagem(json.conviteEnviado ? 'Convite enviado.' : 'Usuário existente: reset de acesso enviado e perfil atualizado.')
+            if (modo === 'create') {
+                mostrarMensagem('Usuário criado. Já pode fazer login com o email e a senha definidos.')
+            } else {
+                mostrarMensagem(
+                    json.conviteEnviado
+                        ? 'Convite enviado.'
+                        : 'Usuário existente: reset de acesso enviado e perfil atualizado.',
+                )
+            }
         } catch (error) {
             mostrarErro(error.message)
         } finally {
@@ -312,11 +363,11 @@ const GerenciamentoAcessos = () => {
                 <div>
                     <p className='gerenciamento_acessos_kicker'>Administrativo</p>
                     <h1>Gerenciamento de Acessos</h1>
-                    <p>Convites, permissões, email, senha e histórico por usuário.</p>
+                    <p>Criar usuários, convites, permissões, email, senha e histórico.</p>
                 </div>
                 <div className='gerenciamento_acessos_header_acoes'>
-                    <button type='button' className='is-ghost' onClick={() => setMostrarConvite(true)} disabled={loading}>
-                        Convidar usuário
+                    <button type='button' className='is-ghost' onClick={() => abrirNovoUsuario('create')} disabled={loading}>
+                        Criar usuário
                     </button>
                     <button type='button' onClick={carregarUsuarios} disabled={loading}>
                         Atualizar
@@ -491,7 +542,12 @@ const GerenciamentoAcessos = () => {
                 <div
                     className='gerenciamento_acessos_modal_backdrop'
                     role='presentation'
-                    onClick={() => !loading && setMostrarConvite(false)}
+                    onClick={() => {
+                        if (!loading) {
+                            setMostrarConvite(false)
+                            resetFormNovoUsuario()
+                        }
+                    }}
                 >
                     <div
                         className='gerenciamento_acessos_card gerenciamento_acessos_modal gerenciamento_acessos_modal_convite'
@@ -503,15 +559,22 @@ const GerenciamentoAcessos = () => {
                         <div className='gerenciamento_acessos_modal_head'>
                             <div>
                                 <p className='gerenciamento_acessos_modal_kicker'>Novo acesso</p>
-                                <h2 id='ga-convite-title'>Convidar usuário</h2>
+                                <h2 id='ga-convite-title'>
+                                    {modoNovoUsuario === 'create' ? 'Criar usuário' : 'Convidar usuário'}
+                                </h2>
                                 <p id='ga-convite-desc' className='gerenciamento_acessos_modal_lead'>
-                                    Em dois passos: dados da pessoa e permissões iniciais. O convite vai por email.
+                                    {modoNovoUsuario === 'create'
+                                        ? 'Cria a conta já com senha — a pessoa pode entrar de imediato no login.'
+                                        : 'Envia convite por email para a pessoa definir a própria senha.'}
                                 </p>
                             </div>
                             <button
                                 type='button'
                                 className='gerenciamento_acessos_modal_close'
-                                onClick={() => setMostrarConvite(false)}
+                                onClick={() => {
+                                    setMostrarConvite(false)
+                                    resetFormNovoUsuario()
+                                }}
                                 disabled={loading}
                                 aria-label='Fechar'
                             >
@@ -519,13 +582,40 @@ const GerenciamentoAcessos = () => {
                             </button>
                         </div>
 
-                        <form className='gerenciamento_acessos_form gerenciamento_acessos_form_convite' onSubmit={convidarUsuario}>
+                        <div className='gerenciamento_acessos_modo_tabs' role='tablist' aria-label='Modo de criação'>
+                            <button
+                                type='button'
+                                role='tab'
+                                aria-selected={modoNovoUsuario === 'create'}
+                                className={modoNovoUsuario === 'create' ? 'is-active' : ''}
+                                onClick={() => setModoNovoUsuario('create')}
+                                disabled={loading}
+                            >
+                                Criar com senha
+                            </button>
+                            <button
+                                type='button'
+                                role='tab'
+                                aria-selected={modoNovoUsuario === 'invite'}
+                                className={modoNovoUsuario === 'invite' ? 'is-active' : ''}
+                                onClick={() => setModoNovoUsuario('invite')}
+                                disabled={loading}
+                            >
+                                Convidar por email
+                            </button>
+                        </div>
+
+                        <form className='gerenciamento_acessos_form gerenciamento_acessos_form_convite' onSubmit={salvarNovoUsuario}>
                             <section className='gerenciamento_acessos_convite_bloco' aria-labelledby='ga-convite-dados'>
                                 <div className='gerenciamento_acessos_convite_bloco_head'>
                                     <span className='gerenciamento_acessos_convite_passo' aria-hidden='true'>1</span>
                                     <div>
-                                        <h3 id='ga-convite-dados'>Quem será convidado?</h3>
-                                        <p>Nome e email usados no convite e no primeiro acesso.</p>
+                                        <h3 id='ga-convite-dados'>Dados da conta</h3>
+                                        <p>
+                                            {modoNovoUsuario === 'create'
+                                                ? 'Nome, email e senha inicial de acesso.'
+                                                : 'Nome e email usados no convite e no primeiro acesso.'}
+                                        </p>
                                     </div>
                                 </div>
                                 <div className='gerenciamento_acessos_convite_campos'>
@@ -544,7 +634,7 @@ const GerenciamentoAcessos = () => {
                                         />
                                     </label>
                                     <label>
-                                        Email corporativo
+                                        Email (login)
                                         <input
                                             type='email'
                                             value={convite.email}
@@ -556,6 +646,46 @@ const GerenciamentoAcessos = () => {
                                             disabled={loading}
                                         />
                                     </label>
+                                    {modoNovoUsuario === 'create' && (
+                                        <>
+                                            <label>
+                                                Senha inicial
+                                                <input
+                                                    type='password'
+                                                    value={convite.password}
+                                                    onChange={(event) =>
+                                                        setConvite((atual) => ({
+                                                            ...atual,
+                                                            password: event.target.value,
+                                                        }))
+                                                    }
+                                                    placeholder='Mínimo 8 caracteres'
+                                                    required
+                                                    minLength={8}
+                                                    autoComplete='new-password'
+                                                    disabled={loading}
+                                                />
+                                            </label>
+                                            <label>
+                                                Confirmar senha
+                                                <input
+                                                    type='password'
+                                                    value={convite.passwordConfirm}
+                                                    onChange={(event) =>
+                                                        setConvite((atual) => ({
+                                                            ...atual,
+                                                            passwordConfirm: event.target.value,
+                                                        }))
+                                                    }
+                                                    placeholder='Repita a senha'
+                                                    required
+                                                    minLength={8}
+                                                    autoComplete='new-password'
+                                                    disabled={loading}
+                                                />
+                                            </label>
+                                        </>
+                                    )}
                                 </div>
                             </section>
 
@@ -581,11 +711,24 @@ const GerenciamentoAcessos = () => {
                             </section>
 
                             <div className='gerenciamento_acessos_modal_footer'>
-                                <button type='button' onClick={() => setMostrarConvite(false)} disabled={loading}>
+                                <button
+                                    type='button'
+                                    onClick={() => {
+                                        setMostrarConvite(false)
+                                        resetFormNovoUsuario()
+                                    }}
+                                    disabled={loading}
+                                >
                                     Cancelar
                                 </button>
                                 <button type='submit' className='is-primary' disabled={loading}>
-                                    {loading ? 'Enviando…' : 'Enviar convite'}
+                                    {loading
+                                        ? modoNovoUsuario === 'create'
+                                            ? 'Criando…'
+                                            : 'Enviando…'
+                                        : modoNovoUsuario === 'create'
+                                          ? 'Criar usuário'
+                                          : 'Enviar convite'}
                                 </button>
                             </div>
                         </form>

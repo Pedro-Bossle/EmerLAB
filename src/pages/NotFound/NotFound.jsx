@@ -1,50 +1,33 @@
-import React from 'react'
 import { Link } from 'react-router-dom'
 import './NotFound.css'
 
-
-
 const NotFound = () => {
     return (
-        <div className='not-found'>
+        <main className="nf">
+            <div className="nf_atmosphere" aria-hidden="true" />
+            <div className="nf_glow nf_glow--a" aria-hidden="true" />
+            <div className="nf_glow nf_glow--b" aria-hidden="true" />
 
-            <div className='nf_card_header'>
-                <h1>404 - Página não encontrada</h1>
-                <p>A página que você está procurando não existe.</p>
-                <p>Mas abaixo segue algumas opções para você:</p>
-                <hr />
-                <div className='nf_cards_container'>
-                    <div className='nf_card'>
-                        <h2 className='nf_card_nome'>Super Tabela</h2>
-                        <Link className='nf_card_link' to="/supertabelamain">Acessar</Link>
-                    </div>
-                    <div className='nf_card'>
-                        <h2 className='nf_card_nome'>Credenciamento</h2>
-                        <Link className='nf_card_link' to="/credenciamento/principal">Acessar</Link>
-                    </div>
-                    <div className='nf_card'>
-                        <h2 className='nf_card_nome'>Formulários</h2>
-                        <Link className='nf_card_link' to="/formulario">Acessar</Link>
-                    </div>
-                    <div className='nf_card'>
-                        <h2 className='nf_card_nome'>Planos</h2>
-                        <Link className='nf_card_link' to="/planos">Acessar</Link>
-                    </div>
-                    <div className='nf_card'>
-                        <h2 className='nf_card_nome'>Contratos</h2>
-                        <Link className='nf_card_link' to="/contratos">Acessar</Link>
-                    </div>
-                    <div className='nf_card'>
-                        <h2 className='nf_card_nome'>Pagamentos</h2>
-                        <Link className='nf_card_link' to="/pagamentos">Acessar</Link>
-                    </div>
-                    <div className='nf_card'>
-                        <h2 className='nf_card_nome'>Emer-Cast</h2>
-                        <Link className='nf_card_link' to="/emercast">Acessar</Link>
-                    </div>
+            <p className="nf_watermark" aria-hidden="true">
+                404
+            </p>
+
+            <div className="nf_stage">
+                <p className="nf_brand">EmerLAB</p>
+                <h1 className="nf_title">Página não encontrada</h1>
+                <p className="nf_lead">
+                    Este endereço não existe no Livro de Apoio Base — ou foi movido.
+                </p>
+                <div className="nf_actions">
+                    <Link className="nf_btn nf_btn--primary" to="/home">
+                        Ir para a Home
+                    </Link>
+                    <Link className="nf_btn nf_btn--ghost" to="/">
+                        Voltar ao login
+                    </Link>
                 </div>
             </div>
-        </div>
+        </main>
     )
 }
 
