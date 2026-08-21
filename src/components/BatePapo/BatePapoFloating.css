@@ -5,9 +5,9 @@
     --bate-papo-drawer-bottom: auto;
     --bate-papo-drawer-width: 340px;
     --bate-papo-drawer-max-height: 520px;
-    /* absolute: acompanha o documento (não gruda no viewport ao scroll) */
-    position: absolute;
-    z-index: 10049;
+    /* fixed: mesma base que a gaveta e fora da scrollbar do documento */
+    position: fixed;
+    z-index: 45;
     width: var(--bate-papo-btn);
     height: var(--bate-papo-btn);
     pointer-events: none;
@@ -23,6 +23,39 @@
 .bate_papo_float_btn,
 .bate_papo_float_drawer {
     pointer-events: auto;
+}
+
+.bate_papo_float_lista_wrap,
+.bate_papo_float_chat_lista,
+.bate_papo_float_contatos {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(36, 122, 100, 0.3) transparent;
+}
+
+.bate_papo_float_lista_wrap::-webkit-scrollbar,
+.bate_papo_float_chat_lista::-webkit-scrollbar,
+.bate_papo_float_contatos::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+.bate_papo_float_lista_wrap::-webkit-scrollbar-track,
+.bate_papo_float_chat_lista::-webkit-scrollbar-track,
+.bate_papo_float_contatos::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.bate_papo_float_lista_wrap::-webkit-scrollbar-thumb,
+.bate_papo_float_chat_lista::-webkit-scrollbar-thumb,
+.bate_papo_float_contatos::-webkit-scrollbar-thumb {
+    background: rgba(36, 122, 100, 0.3);
+    border-radius: 999px;
+}
+
+.bate_papo_float_lista_wrap::-webkit-scrollbar-thumb:hover,
+.bate_papo_float_chat_lista::-webkit-scrollbar-thumb:hover,
+.bate_papo_float_contatos::-webkit-scrollbar-thumb:hover {
+    background: rgba(36, 122, 100, 0.48);
 }
 
 .bate_papo_float_btn {
@@ -48,6 +81,19 @@
     touch-action: none;
 }
 
+/* Gaveta aberta fica acima do FAB (scrollbar livre), mas a aba continua visível */
+.bate_papo_float.is-open {
+    z-index: 47;
+}
+
+.bate_papo_float.is-open .bate_papo_float_drawer {
+    z-index: 4;
+}
+
+.bate_papo_float.is-open .bate_papo_float_btn {
+    z-index: 3;
+}
+
 .bate_papo_float.is-compact .bate_papo_float_btn {
     width: 24px;
     height: 54px;
@@ -55,16 +101,12 @@
     border-color: #3d8f7a;
     background: linear-gradient(145deg, #f5fbf9 0%, #e2f3ed 100%);
     box-shadow: 0 4px 14px rgba(30, 49, 72, 0.16);
+    border-radius: 12px;
 }
 
-.bate_papo_float.is-compact.is-anchor-left .bate_papo_float_btn {
-    border-left: 0;
-    border-radius: 0 12px 12px 0;
-}
-
+.bate_papo_float.is-compact.is-anchor-left .bate_papo_float_btn,
 .bate_papo_float.is-compact.is-anchor-right .bate_papo_float_btn {
-    border-right: 0;
-    border-radius: 12px 0 0 12px;
+    border-radius: 12px;
 }
 
 .bate_papo_float_btn:active {
@@ -143,7 +185,7 @@
     bottom: var(--bate-papo-drawer-bottom);
     width: min(var(--bate-papo-drawer-width), calc(100% - 16px));
     max-height: var(--bate-papo-drawer-max-height);
-    height: auto;
+    height: var(--bate-papo-drawer-height, auto);
     overflow: hidden;
     border-radius: 14px;
     border: 1px solid #a8d4c6;
@@ -191,10 +233,13 @@
 }
 
 .bate_papo_float_drawer_inner {
+    position: relative;
     display: flex;
     flex-direction: column;
-    max-height: var(--bate-papo-drawer-max-height);
+    height: 100%;
+    max-height: 100%;
     min-height: 0;
+    overflow: hidden;
 }
 
 .bate_papo_float_drawer_head {
@@ -272,7 +317,13 @@
     flex-direction: column;
     min-height: 0;
     flex: 1;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.bate_papo_float_lista_wrap .bate_papo_float_contatos {
+    overflow: visible;
+    flex: none;
 }
 
 .bate_papo_float_busca {
@@ -418,11 +469,87 @@
 
 .bate_papo_float_form {
     display: flex;
+    align-items: flex-end;
     gap: 0.4rem;
     padding: 0.55rem 0.65rem;
     border-top: 1px solid #d7ebe3;
     background: #fff;
     flex-shrink: 0;
+}
+
+.bate_papo_float_composer_tools {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    flex-shrink: 0;
+    height: 2.1rem;
+    align-self: flex-end;
+}
+
+.bate_papo_float_anexo,
+.bate_papo_float_emoji_btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.1rem;
+    height: 2.1rem;
+    margin: 0;
+    border: 1px solid #a8d4c6;
+    border-radius: 8px;
+    background: #f2faf7;
+    color: #247a64;
+    cursor: pointer;
+    padding: 0;
+    transition:
+        background 0.12s ease,
+        border-color 0.12s ease,
+        color 0.12s ease;
+}
+
+.bate_papo_float_anexo:hover,
+.bate_papo_float_emoji_btn:hover,
+.bate_papo_float_emoji_btn.is-active {
+    background: #e5f4ee;
+    border-color: #3d8f7a;
+    color: #1e5f4f;
+}
+
+.bate_papo_float_anexo svg,
+.bate_papo_float_emoji_btn svg {
+    display: block;
+    flex-shrink: 0;
+}
+
+.bate_papo_float_emoji_menu {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 6px);
+    z-index: 6;
+    display: grid;
+    grid-template-columns: repeat(6, 1.65rem);
+    gap: 0.15rem;
+    padding: 0.4rem;
+    border-radius: 10px;
+    background: #fff;
+    border: 1px solid #c5e0d6;
+    box-shadow: 0 8px 20px rgba(30, 70, 58, 0.16);
+}
+
+.bate_papo_float_emoji_item {
+    border: none;
+    background: transparent;
+    font-size: 1.05rem;
+    line-height: 1;
+    padding: 0.1rem;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.bate_papo_float_emoji_item:hover {
+    background: #e5f4ee;
 }
 
 .bate_papo_float_input {
@@ -432,11 +559,22 @@
     border: 1px solid #b9d9ce;
     border-radius: 8px;
     font-size: 0.85rem;
+    line-height: 1.375;
     outline: none;
+    resize: none;
+    overflow-y: auto;
+    max-height: calc(22px * 3 + 16px);
+    font-family: inherit;
 }
 
 .bate_papo_float_input:focus {
     border-color: #3d8f7a;
+}
+
+a.bate_papo_float_modo {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
 }
 
 .bate_papo_float_enviar {
@@ -521,5 +659,223 @@ body.dark-mode .bate_papo_float_subtitulo,
 body.dark-mode .bate_papo_float_status,
 body.dark-mode .bate_papo_float_contato small,
 body.dark-mode .bate_papo_float_msg_meta {
+    color: #9fd0c0;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.bate_papo_float_resize {
+    position: absolute;
+    z-index: 5;
+    width: 18px;
+    height: 18px;
+    border: 0;
+    padding: 0;
+    opacity: 0.75;
+    background: transparent;
+}
+
+.bate_papo_float_resize::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: linear-gradient(
+        135deg,
+        transparent 0 42%,
+        rgba(36, 122, 100, 0.55) 42% 52%,
+        transparent 52% 62%,
+        rgba(36, 122, 100, 0.55) 62% 72%,
+        transparent 72%
+      )
+      no-repeat center / 10px 10px;
+}
+
+.bate_papo_float_resize.is-corner-se {
+    right: 2px;
+    bottom: 2px;
+    cursor: nwse-resize;
+}
+
+.bate_papo_float_resize.is-corner-se::after {
+    right: 2px;
+    bottom: 2px;
+}
+
+.bate_papo_float_resize.is-corner-sw {
+    left: 2px;
+    bottom: 2px;
+    cursor: nesw-resize;
+}
+
+.bate_papo_float_resize.is-corner-sw::after {
+    left: 2px;
+    bottom: 2px;
+    transform: scaleX(-1);
+}
+
+.bate_papo_float_resize.is-corner-ne {
+    right: 2px;
+    top: 2px;
+    cursor: nesw-resize;
+}
+
+.bate_papo_float_resize.is-corner-ne::after {
+    right: 2px;
+    top: 2px;
+    transform: scaleY(-1);
+}
+
+.bate_papo_float_resize.is-corner-nw {
+    left: 2px;
+    top: 2px;
+    cursor: nwse-resize;
+}
+
+.bate_papo_float_resize.is-corner-nw::after {
+    left: 2px;
+    top: 2px;
+    transform: scale(-1);
+}
+
+.bate_papo_float_day {
+    display: flex;
+    justify-content: center;
+    margin: 0.55rem 0;
+}
+
+.bate_papo_float_day span {
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(36, 122, 100, 0.12);
+    color: #2a5c4c;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.bate_papo_float_msg_img {
+    display: block;
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+.bate_papo_float_msg_erro {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #a94442;
+}
+
+.bate_papo_float_lista_acoes {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    padding: 0 0.65rem 0.4rem;
+}
+
+.bate_papo_float_lista_acoes .bate_papo_float_busca {
+    flex: 1;
+}
+
+.bate_papo_float_btn_grupo {
+    flex-shrink: 0;
+    border: 1px solid #3d8f7a;
+    background: #e8f6f1;
+    color: #1e5c4a;
+    border-radius: 8px;
+    padding: 0.35rem 0.55rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.bate_papo_float_grupo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem 0.65rem 0.85rem;
+    min-height: 0;
+    overflow: auto;
+}
+
+.bate_papo_float_contatos--check .bate_papo_float_contato {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.55rem;
+    cursor: pointer;
+}
+
+.bate_papo_float_contatos--check .bate_papo_float_contato input[type='checkbox'] {
+    flex-shrink: 0;
+    width: 1.05rem;
+    height: 1.05rem;
+    margin: 0;
+}
+
+.bate_papo_float_contatos--check .bate_papo_float_contato_nome {
+    flex: 1;
+    min-width: 0;
+}
+
+.bate_papo_float_preview {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.65rem;
+    border-top: 1px solid #d5ebe3;
+    background: #f7fbf9;
+}
+
+.bate_papo_float_preview img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.bate_papo_float_preview button {
+    border: 0;
+    background: transparent;
+    color: #a94442;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.bate_papo_float--dock {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    height: auto;
+    z-index: 45;
+    pointer-events: none;
+}
+
+.bate_papo_float_drawer--dock {
+    left: 0;
+    right: 0;
+    width: 100% !important;
+    max-width: none;
+    border-radius: 14px 14px 0 0;
+    transform-origin: center bottom;
+}
+
+.bate_papo_float--dock .bate_papo_float_drawer {
+    pointer-events: auto;
+}
+
+body.dark-mode .bate_papo_float_day span {
+    background: rgba(159, 208, 192, 0.15);
     color: #9fd0c0;
 }

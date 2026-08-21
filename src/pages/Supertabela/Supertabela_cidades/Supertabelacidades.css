@@ -1389,6 +1389,15 @@
         -webkit-overflow-scrolling: touch;
     }
 
+    .supertabelacidades_sugestoes_rede:focus {
+        outline: none;
+    }
+
+    .supertabelacidades_sugestoes_rede:focus-visible {
+        outline: 2px solid #2a6b5a;
+        outline-offset: 2px;
+    }
+
     .supertabelacidades_sugestoes_rede .table_main {
         min-width: 760px;
     }

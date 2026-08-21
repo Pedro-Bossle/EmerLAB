@@ -1417,8 +1417,26 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
     .pcad_span2 {
         grid-column: span 1;
     }
+
     .pcad_form_footer {
-        padding: 12px 1rem;
+        padding: 0.65rem 1rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .pcad_form_footer {
+        padding: 0.55rem 0.75rem calc(0.55rem + env(safe-area-inset-bottom, 0px));
+        gap: 0.5rem;
+    }
+
+    .pcad_form_footer .pcad_footer_btn {
+        min-width: 0;
+        width: auto;
+        flex: 1 1 auto;
+        max-width: 9.5rem;
+        height: 2.15rem;
+        padding: 0 0.65rem !important;
+        font-size: 0.8rem;
     }
 }
 

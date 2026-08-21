@@ -6,6 +6,11 @@ const FOCUSABLE =
   'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'
 
 function useDialogFocus({ open, onClose, panelRef }) {
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
   useEffect(() => {
     if (!open) return undefined
     const panel = panelRef.current
@@ -27,7 +32,7 @@ function useDialogFocus({ open, onClose, panelRef }) {
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onClose?.()
+        onCloseRef.current?.()
         return
       }
       if (e.key !== 'Tab') return
@@ -56,7 +61,7 @@ function useDialogFocus({ open, onClose, panelRef }) {
         previouslyFocused.focus()
       }
     }
-  }, [open, onClose, panelRef])
+  }, [open, panelRef])
 }
 
 export function Modal({

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { buttonClassName } from '../../components/ui/Button'
+import { buttonClassName } from '../../components/ui'
 
 const NotFound = () => {
   return (
