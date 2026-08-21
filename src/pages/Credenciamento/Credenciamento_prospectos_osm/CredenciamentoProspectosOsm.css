@@ -202,6 +202,13 @@ body.dark-mode .cred_prospectos_osm_page .cred_prospectos_osm_top {
     font-size: 0.82rem;
     cursor: pointer;
     color: #1e3148;
+    padding: 0.2rem 0.25rem;
+    margin: 0 -0.25rem;
+}
+
+.cred_prospectos_osm_cat_check:hover {
+    background: rgba(30, 49, 72, 0.06);
+    border-radius: 6px;
 }
 
 .cred_prospectos_osm_cat_check input {
@@ -770,11 +777,54 @@ body.dark-mode .cred_prospectos_osm_mobile_tabs button.is-ativo {
 
 body.dark-mode .cred_prospectos_osm_lista,
 body.dark-mode .cred_prospectos_osm_filtros_flutuantes,
-body.dark-mode .cred_prospectos_osm_cat_checks,
 body.dark-mode .cred_prospectos_osm_page .cred_prospectos_osm_mapa_box.credenciamento_mapa_container {
     background: var(--bg-surface);
     border-color: var(--border-soft);
     color: var(--text-main);
+}
+
+body.dark-mode .cred_prospectos_osm_filtros_flutuantes .pcad_field > span {
+    color: #9eb4c8;
+}
+
+body.dark-mode .cred_prospectos_osm_page .credenciamento_main_input,
+body.dark-mode .cred_prospectos_osm_page .credenciamento_main_select,
+body.dark-mode .cred_prospectos_osm_cat_trigger {
+    background: #0f1e2e;
+    color: #e8f1f8;
+    border-color: #355372;
+}
+
+body.dark-mode .cred_prospectos_osm_cat_trigger:hover {
+    background: #152838;
+    border-color: #4a6f94;
+}
+
+body.dark-mode .cred_prospectos_osm_cat_checks {
+    background: #152838;
+    border-color: #3a5775;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    color: #e8f1f8;
+    scrollbar-color: #4a6f94 #152838;
+}
+
+body.dark-mode .cred_prospectos_osm_cat_check {
+    color: #e8f1f8;
+}
+
+body.dark-mode .cred_prospectos_osm_cat_check:hover {
+    background: rgba(94, 160, 220, 0.12);
+    border-radius: 6px;
+}
+
+body.dark-mode .cred_prospectos_osm_cat_check span {
+    color: #e8f1f8;
+}
+
+body.dark-mode .cred_prospectos_osm_gemini_rate {
+    color: #9eb4c8;
+    border-color: #3a5775;
+    background: #0f1e2e;
 }
 
 body.dark-mode .cred_prospectos_osm_table thead th {
@@ -784,10 +834,6 @@ body.dark-mode .cred_prospectos_osm_table thead th {
 
 body.dark-mode .cred_prospectos_osm_table tbody tr.is-destaque {
     background: rgba(47, 128, 237, 0.18);
-}
-
-body.dark-mode .cred_prospectos_osm_cat_check {
-    color: var(--text-main);
 }
 
 body.dark-mode .cred_prospectos_osm_badge_24h {

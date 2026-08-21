@@ -77,8 +77,8 @@ export async function coletarProspectosOsmCidade(supabaseAdmin, opts) {
             ok: true,
             inseridos: 0,
             aviso: erros.length
-                ? `Nenhum local OSM encontrado. ${erros.join('; ')}`
-                : 'Nenhum local OSM encontrado para esta cidade.',
+                ? `Nenhum estabelecimento encontrado. ${erros.join('; ')}`
+                : 'Nenhum estabelecimento encontrado para esta cidade.',
         }
     }
 

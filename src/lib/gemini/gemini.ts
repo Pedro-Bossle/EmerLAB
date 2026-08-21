@@ -6,7 +6,25 @@
 import { ApiError, GoogleGenAI } from '@google/genai'
 import { extrairGeminiRetrySegundos, metaDescansoGemini } from '../credenciamento/geminiDescanso.js'
 
-function envInt(nome, fallback) {
+type GeminiModelosOpcoes = { apenasPrincipal?: boolean }
+
+type GeminiGenerateOpts = {
+    prompt?: string
+    model?: string
+    temperature?: number
+    maxOutputTokens?: number
+    timeoutMs?: number
+    jsonSchema?: object
+    desligarThinking?: boolean
+    apenasModeloPrincipal?: boolean
+}
+
+type GeminiVerificarOpcoes = {
+    permitirFallback?: boolean
+    textoLivre?: boolean
+}
+
+function envInt(nome: string, fallback: number) {
     const n = Number(process.env[nome])
     if (Number.isFinite(n) && n > 0) return Math.floor(n)
     return fallback
@@ -90,7 +108,7 @@ function fallbacksApos404(modeloPrincipal) {
  * @param {string} modeloInicial
  * @param {{ apenasPrincipal?: boolean }} [opcoes]
  */
-function modelosParaTentar(modeloInicial, opcoes = {}) {
+function modelosParaTentar(modeloInicial: string, opcoes: GeminiModelosOpcoes = {}) {
     const primeiro = resolverModeloGemini(modeloInicial)
     const hash = configHashGemini()
 
@@ -416,7 +434,7 @@ function resumoRespostaGemini(response, texto) {
  * @param {string} model
  * @param {{ prompt: string, jsonSchema?: object, temperature?: number, maxOutputTokens?: number }} opts
  */
-async function geminiGenerateJsonUmaTentativa(apiKey, model, opts) {
+async function geminiGenerateJsonUmaTentativa(apiKey: string, model: string, opts: GeminiGenerateOpts) {
     const ai = new GoogleGenAI({ apiKey })
     const timeoutMs = timeoutMsDe(opts)
     const t0 = Date.now()
@@ -427,8 +445,7 @@ async function geminiGenerateJsonUmaTentativa(apiKey, model, opts) {
         maxOutputTokens: opts.maxOutputTokens ?? null,
     })
 
-    /** @type {Record<string, unknown>} */
-    const config = {
+    const config: Record<string, unknown> = {
         temperature: opts.temperature ?? 0.25,
         responseMimeType: 'application/json',
     }
@@ -547,7 +564,7 @@ async function executarGenerateComCandidatos(opts, umaTentativa) {
 /**
  * @param {{ prompt: string, jsonSchema?: object, model?: string, temperature?: number, maxOutputTokens?: number, apenasModeloPrincipal?: boolean }} opts
  */
-export async function geminiGenerateJson(opts) {
+export async function geminiGenerateJson(opts: GeminiGenerateOpts) {
     return executarGenerateComCandidatos(opts, geminiGenerateJsonUmaTentativa)
 }
 
@@ -556,7 +573,7 @@ export async function geminiGenerateJson(opts) {
  * @param {string} model
  * @param {{ prompt: string, temperature?: number, maxOutputTokens?: number }} opts
  */
-async function geminiGenerateTextUmaTentativa(apiKey, model, opts) {
+async function geminiGenerateTextUmaTentativa(apiKey: string, model: string, opts: GeminiGenerateOpts) {
     const ai = new GoogleGenAI({ apiKey })
     const timeoutMs = timeoutMsDe(opts)
     const t0 = Date.now()
@@ -568,8 +585,7 @@ async function geminiGenerateTextUmaTentativa(apiKey, model, opts) {
         thinking: opts.desligarThinking ? 'MINIMAL' : 'default',
     })
 
-    /** @type {Record<string, unknown>} */
-    const config = {}
+    const config: Record<string, unknown> = {}
     aplicarConfigGeracao(config, opts)
 
     let response
@@ -617,7 +633,7 @@ async function geminiGenerateTextUmaTentativa(apiKey, model, opts) {
  * generateContent em texto livre (sem JSON schema) — playground / testes.
  * @param {{ prompt: string, model?: string, temperature?: number, maxOutputTokens?: number, apenasModeloPrincipal?: boolean }} opts
  */
-export async function geminiGenerateText(opts) {
+export async function geminiGenerateText(opts: GeminiGenerateOpts) {
     return executarGenerateComCandidatos(opts, geminiGenerateTextUmaTentativa)
 }
 
@@ -625,7 +641,7 @@ export async function geminiGenerateText(opts) {
  * Ping leve.
  * @param {{ permitirFallback?: boolean, textoLivre?: boolean }} [opts]
  */
-export async function geminiVerificarDisponibilidade(opts = {}) {
+export async function geminiVerificarDisponibilidade(opts: GeminiVerificarOpcoes = {}) {
     const apiKey = String(process.env.GEMINI_API_KEY || '').trim()
     if (!apiKey) {
         return { ok: false, configurado: false, disponivel: false, erro: 'GEMINI_API_KEY não configurada.' }

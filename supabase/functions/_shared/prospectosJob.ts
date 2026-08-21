@@ -14,13 +14,14 @@ function fallbackOsmHabilitado() {
   return v === '1' || v === 'true' || v === 'yes'
 }
 
+/** Pedido da UI tem prioridade; default gemini (nunca OSM por omissão). */
 function resolverFonteColeta(pedida?: string) {
-  const env = String(Deno.env.get('PROSPECTOS_COLETA_FONTE') || '').trim().toLowerCase()
-  if (env === 'gemini' || env === 'osm' || env === 'auto') return env
   const p = String(pedida || '').trim().toLowerCase()
   if (p === 'gemini' || p === 'osm' || p === 'auto') return p
+  const env = String(Deno.env.get('PROSPECTOS_COLETA_FONTE') || '').trim().toLowerCase()
+  if (env === 'gemini' || env === 'osm' || env === 'auto') return env
   if (String(Deno.env.get('GEMINI_API_KEY') || '').trim()) return 'gemini'
-  return 'osm'
+  return 'gemini'
 }
 
 function contarPassos(payload: Record<string, unknown>) {
@@ -54,7 +55,7 @@ function metaInicial(opts: Record<string, unknown>) {
     avisos: [] as string[],
     geminiSnapshot: null as Record<string, unknown> | null,
     fallbackDeGemini: false,
-    coletaDiretaOsm: fonte === 'auto' && omitirGemini && osmPermitido,
+    coletaDiretaOsm: fonte === 'osm' || (fonte === 'auto' && omitirGemini && osmPermitido),
   }
   return { cidade, uf, payload, passos_totais: contarPassos(payload) }
 }
@@ -176,13 +177,13 @@ export async function executarPassoJobColeta(supabaseAdmin: SupabaseClient, jobI
       }
       p.geminiSnapshot = { quotaExceeded: gem.quotaExceeded, erro: gem.erro || '' }
       const podeFallback = fallbackOsmHabilitado() && p.fonte === 'auto'
-      if (!podeFallback) {
+      if (!podeFallback || p.fonte === 'gemini') {
         const failed = await atualizarJob(supabaseAdmin, job.id, {
           status: 'failed',
           passo_atual: passo,
           progresso_texto: 'Gemini indisponível.',
           erro: gem.erro || 'Gemini indisponível.',
-          resultado: gem,
+          resultado: { ...gem, modoColeta: p.fonte, fonte: 'gemini' },
         })
         return { ok: false as const, jobId: failed.id, status: failed.status, erro: failed.erro, resultado: gem }
       }
@@ -251,7 +252,7 @@ export async function executarPassoJobColeta(supabaseAdmin: SupabaseClient, jobI
       const total = (job.inseridos_total || 0) + inseridosDelta
       const avisoErros = (p.erros as string[]).length ? `Parcial: ${(p.erros as string[]).join('; ')}` : ''
       const avisoVazio =
-        total === 0 ? avisoErros || 'Nenhum local OSM encontrado para esta cidade.' : avisoErros
+        total === 0 ? avisoErros || 'Nenhum estabelecimento encontrado para esta cidade.' : avisoErros
       const resultado = {
         ok: true,
         inseridos: total,

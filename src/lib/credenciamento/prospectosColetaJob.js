@@ -41,6 +41,7 @@ function metaInicial(opts) {
     const omitirGemini = Boolean(opts.omitirGemini)
     const fonte = resolverFonteColeta(opts.fonte)
     const categorias = listaCategoriasColeta(opts.categorias)
+    // OSM só se pedido explícito 'osm', ou 'auto' com fallback opt-in
     const osmPermitido = fonte === 'osm' || (fonte === 'auto' && fallbackOsmHabilitado())
     const tentarGemini = fonte === 'gemini' || (fonte === 'auto' && !omitirGemini)
     const payload = {
@@ -57,7 +58,7 @@ function metaInicial(opts) {
         avisos: [],
         geminiSnapshot: null,
         fallbackDeGemini: false,
-        coletaDiretaOsm: fonte === 'auto' && omitirGemini && osmPermitido,
+        coletaDiretaOsm: fonte === 'osm' || (fonte === 'auto' && omitirGemini && osmPermitido),
     }
     return {
         cidade,
@@ -181,9 +182,10 @@ export async function executarPassoJobColeta(supabaseAdmin, jobId) {
                 erroOriginal: gem.erroOriginal,
                 retryAfterSec: gem.retryAfterSec,
             }
-            const podeFallback = fallbackOsmHabilitado() && p.fonte === 'auto'
-            if (!podeFallback) {
-                const resultado = anexarDescansoGemini({ ...gem, modoColeta: p.fonte }, gem)
+            const podeFallback =
+                fallbackOsmHabilitado() && p.fonte === 'auto' && p.fonte !== 'gemini'
+            if (!podeFallback || p.fonte === 'gemini') {
+                const resultado = anexarDescansoGemini({ ...gem, modoColeta: p.fonte, fonte: 'gemini' }, gem)
                 const failed = await atualizarJob(supabaseAdmin, job.id, {
                     status: 'failed',
                     passo_atual: passo,
@@ -252,7 +254,7 @@ export async function executarPassoJobColeta(supabaseAdmin, jobId) {
             const avisoErros = p.erros.length ? `Parcial: ${p.erros.join('; ')}` : ''
             const avisoVazio =
                 total === 0
-                    ? avisoErros || 'Nenhum local OSM encontrado para esta cidade.'
+                    ? avisoErros || 'Nenhum estabelecimento encontrado para esta cidade.'
                     : avisoErros
             const resultado = anexarDescansoGemini(
                 {

@@ -358,11 +358,15 @@ const CredenciamentoProspectosOsm = () => {
         const timeoutId = setTimeout(() => ctrl.abort(), 6 * 60 * 1000)
 
         const montarMsgSucesso = (body) => {
-            let msg = `${body.inseridos ?? 0} local(is) atualizado(s).`
-            if (body.fonte === 'gemini') {
+            const fonte = body.fonte || body.resultado?.fonte
+            const aviso = body.aviso || body.resultado?.aviso || ''
+            let msg = `${body.inseridos ?? body.resultado?.inseridos ?? 0} local(is) atualizado(s).`
+            if (fonte === 'gemini' || !fonte) {
                 msg += ' Coleta via Gemini.'
+            } else if (fonte === 'osm') {
+                msg += ' Coleta via mapa (fallback).'
             }
-            if (body.aviso) msg += ` ${body.aviso}`
+            if (aviso) msg += ` ${aviso}`
             return msg
         }
 
