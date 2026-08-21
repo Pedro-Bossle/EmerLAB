@@ -12,9 +12,10 @@ const EDGE_ROUTE_MAP = {
   'geocode-prestador': 'geocode-prestador',
   'prospectos-osm-coletar': 'prospectos-coletar',
   'prospectos-gemini-status': 'prospectos-coletar',
+  'gemini-rate': 'prospectos-coletar',
 }
 
-/** @param {'cep-lookup'|'consulta-cnpj'|'nominatim-search'|'overpass-poi'|'geocode-prestador'|'prospectos-osm-coletar'|'prospectos-gemini-status'} routeId */
+/** @param {'cep-lookup'|'consulta-cnpj'|'nominatim-search'|'overpass-poi'|'geocode-prestador'|'prospectos-osm-coletar'|'prospectos-gemini-status'|'gemini-rate'} routeId */
 export function useSupabaseEdgeApi(routeId) {
   const env = typeof import.meta !== 'undefined' ? import.meta.env || {} : {}
   const flag = String(env.VITE_SUPABASE_EDGE_API || '').trim().toLowerCase()
@@ -51,7 +52,7 @@ function viteApiPrefix() {
 }
 
 /**
- * @param {'cep-lookup'|'consulta-cnpj'|'nominatim-search'|'overpass-poi'|'geocode-prestador'|'prospectos-osm-coletar'|'prospectos-gemini-status'} routeId
+ * @param {'cep-lookup'|'consulta-cnpj'|'nominatim-search'|'overpass-poi'|'geocode-prestador'|'prospectos-osm-coletar'|'prospectos-gemini-status'|'gemini-rate'} routeId
  * @param {Record<string, string>} [queryParams]
  */
 export function buildServerApiUrl(routeId, queryParams = {}) {
@@ -67,6 +68,9 @@ export function buildServerApiUrl(routeId, queryParams = {}) {
     if (routeId === 'prospectos-gemini-status') {
       url.searchParams.set('route', 'gemini-status')
     }
+    if (routeId === 'gemini-rate') {
+      url.searchParams.set('route', 'gemini-rate')
+    }
     for (const [k, v] of Object.entries(queryParams)) {
       if (v != null && v !== '') url.searchParams.set(k, String(v))
     }
@@ -81,6 +85,7 @@ export function buildServerApiUrl(routeId, queryParams = {}) {
     'geocode-prestador': '/api/geocode-prestador',
     'prospectos-osm-coletar': '/api/prospectos-osm-coletar',
     'prospectos-gemini-status': '/api/prospectos-gemini-status',
+    'gemini-rate': '/api/gemini-rate',
   }[routeId]
 
   const url = new URL(`${viteApiPrefix()}${legacyPath}`, window.location.origin)

@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { buildServerApiUrl, serverApiAuthHeaders, useSupabaseEdgeApi } from '../lib/api/serverBackend.js'
 
-async function authHeader() {
+async function authHeaders() {
     const { data } = await supabase.auth.getSession()
     const token = data?.session?.access_token
     if (!token) throw new Error('Sessão expirada. Faça login novamente.')
-    return { Authorization: `Bearer ${token}` }
+    const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+    }
+    // Edge Functions exigem também apikey (anon)
+    if (useSupabaseEdgeApi('gemini-rate')) {
+        Object.assign(headers, serverApiAuthHeaders())
+        // Preferir JWT do utilizador no Authorization (verify_jwt)
+        headers.Authorization = `Bearer ${token}`
+    }
+    return headers
 }
 
 /**
- * Lê RPM/RPD restantes deste processo via GET /api/gemini-rate.
- * A chave Gemini nunca sai do servidor.
+ * Lê RPM/RPD — Edge (`prospectos-coletar?route=gemini-rate`) ou Vite `/api/gemini-rate`.
  */
 export function useGeminiRate() {
     const [rate, setRate] = useState(null)
@@ -21,12 +31,10 @@ export function useGeminiRate() {
         setLoading(true)
         setErro('')
         try {
-            const resp = await fetch('/api/gemini-rate', {
+            const url = buildServerApiUrl('gemini-rate')
+            const resp = await fetch(url, {
                 method: 'GET',
-                headers: {
-                    Accept: 'application/json',
-                    ...(await authHeader()),
-                },
+                headers: await authHeaders(),
             })
             const json = await resp.json().catch(() => ({}))
             if (!resp.ok) {

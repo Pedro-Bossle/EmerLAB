@@ -1,6 +1,6 @@
 import { handleOptions, jsonResponse } from '../_shared/cors.ts'
 import { createServiceClient } from '../_shared/supabaseAdmin.ts'
-import { geminiVerificarDisponibilidade } from '../_shared/gemini.ts'
+import { geminiVerificarDisponibilidade, lerRate } from '../_shared/gemini.ts'
 import { executarPassoJobColeta, iniciarJobColeta } from '../_shared/prospectosJob.ts'
 
 Deno.serve(async (req) => {
@@ -9,6 +9,10 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url)
   const route = url.searchParams.get('route') || ''
+
+  if (req.method === 'GET' && (route === 'gemini-rate' || url.pathname.endsWith('gemini-rate'))) {
+    return jsonResponse(lerRate())
+  }
 
   if (req.method === 'GET' && (route === 'gemini-status' || url.pathname.endsWith('gemini-status'))) {
     const r = await geminiVerificarDisponibilidade()

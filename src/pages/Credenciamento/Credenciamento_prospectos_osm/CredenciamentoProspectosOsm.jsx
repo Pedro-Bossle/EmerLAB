@@ -106,7 +106,8 @@ const CredenciamentoProspectosOsm = () => {
     const [ordenarDir, setOrdenarDir] = useState('asc')
     const [credenciadosBase, setCredenciadosBase] = useState([])
     const [alertaDismissed, setAlertaDismissed] = useState(() => lerAlertasCredenciadoDismissed())
-    const { rate: geminiRate, recarregar: recarregarGeminiRate } = useGeminiRate()
+    const { rate: geminiRate, erro: erroGeminiRate, loading: loadingGeminiRate, recarregar: recarregarGeminiRate } =
+        useGeminiRate()
 
     useEffect(() => {
         splitPctRef.current = splitListaPct
@@ -564,16 +565,22 @@ const CredenciamentoProspectosOsm = () => {
                         </label>
                         <div className="cred_prospectos_osm_linha2_acoes">
                             <span
-                                className="cred_prospectos_osm_gemini_rate"
+                                className={`cred_prospectos_osm_gemini_rate${geminiRate?.bloqueadoAte ? ' is-bloqueado' : ''}`}
                                 title={
                                     geminiRate?.bloqueadoAte
                                         ? `Rate limit até ${geminiRate.bloqueadoAte}`
-                                        : 'Pedidos deste processo contra GEMINI_RPM / GEMINI_RPD (reset diário à meia-noite Pacific)'
+                                        : erroGeminiRate
+                                          ? erroGeminiRate
+                                          : 'Pedidos deste processo contra GEMINI_RPM / GEMINI_RPD (reset diário à meia-noite Pacific)'
                                 }
                             >
                                 {geminiRate
-                                    ? `Gemini ${geminiRate.rpmUsados}/${geminiRate.rpmLimite} RPM · ${geminiRate.rpdUsados}/${geminiRate.rpdLimite} hoje`
-                                    : 'Gemini — RPM'}
+                                    ? `Gemini ${geminiRate.rpmUsados ?? 0}/${geminiRate.rpmLimite ?? '—'} RPM · ${geminiRate.rpdUsados ?? 0}/${geminiRate.rpdLimite ?? '—'} hoje`
+                                    : loadingGeminiRate
+                                      ? 'Gemini — …'
+                                      : erroGeminiRate
+                                        ? 'Gemini — indisponível'
+                                        : 'Gemini — RPM'}
                             </span>
                             {podeEditar ? (
                                 <div

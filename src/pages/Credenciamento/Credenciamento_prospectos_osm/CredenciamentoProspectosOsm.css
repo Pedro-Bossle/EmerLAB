@@ -154,6 +154,7 @@ body.dark-mode .cred_prospectos_osm_page .cred_prospectos_osm_top {
 .cred_prospectos_osm_gemini_rate {
     display: inline-flex;
     align-items: center;
+    flex-shrink: 0;
     height: 30px;
     padding: 0 10px;
     border: 1px solid #b9d4e8;
@@ -164,6 +165,12 @@ body.dark-mode .cred_prospectos_osm_page .cred_prospectos_osm_top {
     font-weight: 600;
     white-space: nowrap;
     line-height: 1;
+}
+
+.cred_prospectos_osm_gemini_rate.is-bloqueado {
+    border-color: #c9896a;
+    background: #fff4ee;
+    color: #8a3d1c;
 }
 
 .cred_prospectos_osm_cat_field {
@@ -474,7 +481,11 @@ body.cred_prospectos_osm_arrastando_split .cred_prospectos_osm_split {
 }
 
 .cred_prospectos_osm_table tbody tr.is-destaque {
-    background: rgba(47, 128, 237, 0.1);
+    background: #dceefc;
+}
+
+.cred_prospectos_osm_table tbody tr.is-destaque td {
+    color: #1e3148;
 }
 
 .cred_prospectos_osm_status_sel {
@@ -833,7 +844,15 @@ body.dark-mode .cred_prospectos_osm_table thead th {
 }
 
 body.dark-mode .cred_prospectos_osm_table tbody tr.is-destaque {
-    background: rgba(47, 128, 237, 0.18);
+    background: #1e4a72;
+}
+
+body.dark-mode .cred_prospectos_osm_table tbody tr.is-destaque:hover {
+    background: #245582;
+}
+
+body.dark-mode .cred_prospectos_osm_table tbody tr.is-destaque td {
+    color: var(--text-main, #eaf2fa);
 }
 
 body.dark-mode .cred_prospectos_osm_badge_24h {
