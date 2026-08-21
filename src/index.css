@@ -27,6 +27,49 @@ body {
     background-color: var(--bg-page);
 }
 
+/* Scrollbar da página mais fina / discreta */
+html {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(96, 110, 126, 0.45) transparent;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+    background: rgba(96, 110, 126, 0.4);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover {
+    background: rgba(96, 110, 126, 0.62);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+body.dark-mode {
+    scrollbar-color: rgba(160, 180, 200, 0.4) transparent;
+}
+
+body.dark-mode::-webkit-scrollbar-thumb,
+html:has(body.dark-mode)::-webkit-scrollbar-thumb {
+    background: rgba(160, 180, 200, 0.35);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
 
 
 @media (prefers-reduced-motion: reduce) {

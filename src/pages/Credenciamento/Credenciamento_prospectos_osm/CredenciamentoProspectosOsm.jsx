@@ -19,7 +19,14 @@ import { exportarProspectosOsmParaExcel } from '../../../lib/credenciamento/expo
 import { postServerApiJson } from '../../../lib/api/serverBackend.js'
 import { prospectoIndicaAtendimento24h } from '../../../lib/credenciamento/prospectosOsmHorario.js'
 import { formatarEnderecoLinhaTabela } from '../../../lib/credenciamento/prospectosOsmQualidade.js'
+import { filtrarPrestadoresParaImportCoordenadas } from '../../../lib/credenciamento/prestadorEnderecoGeocode.js'
+import {
+    lerAlertasCredenciadoDismissed,
+    mapearAlertasCredenciadoProspectos,
+    salvarAlertasCredenciadoDismissed,
+} from '../../../lib/credenciamento/prospectosOsmSimilaridadeCredenciados.js'
 import { formatarLinhaTelefonesContato } from '../../../lib/telefoneBrasil.js'
+import { supabase } from '../../../lib/supabase'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import { useGeminiRate } from '../../../hooks/useGemini.js'
@@ -95,6 +102,8 @@ const CredenciamentoProspectosOsm = () => {
     const splitPctRef = useRef(splitListaPct)
     const [ordenarColuna, setOrdenarColuna] = useState('nome')
     const [ordenarDir, setOrdenarDir] = useState('asc')
+    const [credenciadosBase, setCredenciadosBase] = useState([])
+    const [alertaDismissed, setAlertaDismissed] = useState(() => lerAlertasCredenciadoDismissed())
     const { rate: geminiRate, recarregar: recarregarGeminiRate } = useGeminiRate()
 
     useEffect(() => {
@@ -225,6 +234,55 @@ const CredenciamentoProspectosOsm = () => {
     useEffect(() => {
         void carregar()
     }, [carregar])
+
+    useEffect(() => {
+        if (!podeLer) return undefined
+        let cancelado = false
+        void (async () => {
+            try {
+                const [{ data: prestadores }, { data: situacoes }, { data: especialidades }] = await Promise.all([
+                    supabase
+                        .from('prestadores')
+                        .select('id, nome, especialidade_id, situacao_id, ativo, endereco_cidade, endereco_uf')
+                        .eq('ativo', true),
+                    supabase.from('situacoes').select('id, descricao, ativo').eq('ativo', true),
+                    supabase.from('especialidades').select('id, descricao, tipo').eq('ativo', true),
+                ])
+                if (cancelado) return
+                const base = filtrarPrestadoresParaImportCoordenadas(prestadores || [], especialidades || [], {
+                    apenasLocal: true,
+                    apenasCredenciados: true,
+                    situacoes: situacoes || [],
+                })
+                setCredenciadosBase(base)
+            } catch {
+                if (!cancelado) setCredenciadosBase([])
+            }
+        })()
+        return () => {
+            cancelado = true
+        }
+    }, [podeLer])
+
+    const alertasCredenciado = useMemo(
+        () =>
+            mapearAlertasCredenciadoProspectos(itens, credenciadosBase, {
+                dismissedIds: alertaDismissed,
+            }),
+        [itens, credenciadosBase, alertaDismissed],
+    )
+
+    const limparAlertaCredenciado = useCallback((prospectoId, e) => {
+        e?.stopPropagation?.()
+        const id = String(prospectoId || '')
+        if (!id) return
+        setAlertaDismissed((prev) => {
+            const next = new Set(prev)
+            next.add(id)
+            salvarAlertasCredenciadoDismissed(next)
+            return next
+        })
+    }, [])
 
     const alternarOrdenacao = (coluna) => {
         if (ordenarColuna === coluna) {
@@ -676,6 +734,17 @@ const CredenciamentoProspectosOsm = () => {
                                                             24h
                                                         </span>
                                                     ) : null}
+                                                    {alertasCredenciado.has(String(row.id)) ? (
+                                                        <button
+                                                            type="button"
+                                                            className="cred_prospectos_osm_badge_cred"
+                                                            title={`Talvez já credenciado: ${alertasCredenciado.get(String(row.id)).nome}. Clique para limpar.`}
+                                                            aria-label="Talvez já credenciado. Clique para limpar a flag."
+                                                            onClick={(e) => limparAlertaCredenciado(row.id, e)}
+                                                        >
+                                                            ⚑
+                                                        </button>
+                                                    ) : null}
                                                 </span>
                                             </td>
                                             <td>{row.categoria_label || row.categoria_id}</td>
@@ -751,6 +820,20 @@ const CredenciamentoProspectosOsm = () => {
                                         <>
                                             {' '}
                                             <span className="cred_prospectos_osm_badge_24h">24h</span>
+                                        </>
+                                    ) : null}
+                                    {alertasCredenciado.has(String(row.id)) ? (
+                                        <>
+                                            {' '}
+                                            <button
+                                                type="button"
+                                                className="cred_prospectos_osm_badge_cred"
+                                                title={`Talvez já credenciado: ${alertasCredenciado.get(String(row.id)).nome}. Clique para limpar.`}
+                                                aria-label="Talvez já credenciado. Clique para limpar a flag."
+                                                onClick={(e) => limparAlertaCredenciado(row.id, e)}
+                                            >
+                                                ⚑
+                                            </button>
                                         </>
                                     ) : null}
                                     <br />

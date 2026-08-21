@@ -525,6 +525,29 @@ body.cred_prospectos_osm_arrastando_split {
     flex-shrink: 0;
 }
 
+.cred_prospectos_osm_badge_cred {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    height: 1.25rem;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    line-height: 1;
+    color: #7a2e12;
+    background: #ffe4d6;
+    border: 1px solid #e8a888;
+    cursor: pointer;
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+
+.cred_prospectos_osm_badge_cred:hover {
+    background: #ffd4be;
+    border-color: #d4885e;
+}
+
 .cred_prospectos_osm_pin {
     width: 12px;
     height: 12px;
@@ -599,4 +622,10 @@ body.dark-mode .cred_prospectos_osm_badge_24h {
     color: #ffe8b8;
     background: #5c4518;
     border-color: #8a6a2a;
+}
+
+body.dark-mode .cred_prospectos_osm_badge_cred {
+    color: #ffd2bc;
+    background: #5c2e1c;
+    border-color: #8a4a32;
 }
