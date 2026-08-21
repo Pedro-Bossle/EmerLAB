@@ -1934,6 +1934,24 @@ body.dark-mode .conf_lab_orfao_exames li.is-mescla-sel {
     gap: 0;
 }
 
+/* Tailwind-friendly: stack comparison cards on small screens */
+@media (max-width: 767px) {
+    .conf_lab_pair_grid {
+        grid-template-columns: 1fr;
+    }
+
+    .conf_lab_pair_grid > div + div {
+        border-left: none;
+        border-top: 1px solid var(--conf-line);
+    }
+
+    .conf_lab_map_versus,
+    .conf_lab_orfaos_versus {
+        display: flex;
+        flex-direction: column;
+    }
+}
+
 .conf_lab_pair_grid > div {
     padding: 0.75rem 0.9rem;
     min-width: 0;

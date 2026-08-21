@@ -56,8 +56,28 @@ import {
     listarPagamentosPendentesNota,
 } from '../../lib/pagamentosRegistros'
 import { formatarCpfCnpjEntrada } from '../../lib/prestadorCadastroHelpers'
+import { exportarTarefasIcs } from '../../lib/calendarExport'
 import { supabase } from '../../lib/supabase'
 import './Home.css'
+
+function IconCalendarioAdd({ className }) {
+    return (
+        <svg
+            className={className}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <rect x="3" y="5" width="18" height="16" rx="2" />
+            <path d="M8 3v4M16 3v4M3 10h18" />
+            <path d="M12 13v5M9.5 15.5h5" />
+        </svg>
+    )
+}
 
 const FILTRO_TAREFAS = [
     { id: 'abertas', label: 'Abertas', labelCurto: 'Abertas' },
@@ -106,6 +126,7 @@ const Home = () => {
     const [anexoBusyId, setAnexoBusyId] = useState(null)
     const [anexoDragOverModal, setAnexoDragOverModal] = useState(false)
     const [anexoDragOverTarefaId, setAnexoDragOverTarefaId] = useState(null)
+    const [exportandoAfazeres, setExportandoAfazeres] = useState(false)
     const inputAnexoTarefaRef = useRef(null)
     const anexoDragDepthModalRef = useRef(0)
     const anexoDragDepthTarefaRef = useRef(0)
@@ -717,6 +738,22 @@ const Home = () => {
         setTarefaExcluir(tarefa)
     }
 
+    const onExportarAfazeres = async () => {
+        setExportandoAfazeres(true)
+        setErro('')
+        try {
+            const lista =
+                tarefasFiltradas.length > 0
+                    ? tarefasFiltradas
+                    : (tarefas || []).filter((t) => t.status !== 'cancelada')
+            await exportarTarefasIcs(lista)
+        } catch (err) {
+            setErro(err?.message || String(err))
+        } finally {
+            setExportandoAfazeres(false)
+        }
+    }
+
     const confirmarExcluirTarefa = async () => {
         if (!tarefaExcluir) return
         setExcluindoTarefa(true)
@@ -781,13 +818,15 @@ const Home = () => {
     }, [totalNotificacoes])
 
     return (
-        <div className={`home_dash${temNotificacoes ? ' home_dash--tem-notif' : ''}`}>
-            <header className="home_dash_hero">
-                <div>
-                    <p className="home_dash_kicker">Início</p>
-                    <h1>Olá, {loading ? '…' : primeiroNome}</h1>
-                    <p className="home_dash_lead">O que faremos hoje?</p>
-                </div>
+        <div className={`el-page home_dash${temNotificacoes ? ' home_dash--tem-notif' : ''}`}>
+            <header className="mb-6 border-b border-line/60 pb-5 text-center dark:border-white/10 sm:text-left">
+                <p className="mb-1.5 text-[0.7rem] font-bold uppercase tracking-[0.12em] text-brand">Início</p>
+                <h1 className="font-sans text-[1.75rem] font-extrabold leading-tight tracking-tight text-[#123e59] dark:text-[#e8f1f8] md:text-[2.1rem]">
+                    Olá, {loading ? '…' : primeiroNome}
+                </h1>
+                <p className="mt-2 text-[0.98rem] font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
+                    O que faremos hoje?
+                </p>
             </header>
 
             {erro ? <div className="home_dash_alerta is-erro">{erro}</div> : null}
@@ -804,8 +843,35 @@ const Home = () => {
                             type="button"
                             className="home_dash_btn secondary home_dash_bookmarks_edit"
                             onClick={() => setEditandoFavoritos((v) => !v)}
+                            aria-label={editandoFavoritos ? 'Concluir edição de favoritos' : 'Editar favoritos'}
+                            title={editandoFavoritos ? 'Pronto' : 'Editar'}
                         >
-                            {editandoFavoritos ? 'Pronto' : 'Editar'}
+                            {editandoFavoritos ? (
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2.25"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M5 12.5 10 17.5 19 7.5" />
+                                </svg>
+                            ) : (
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M12 20h9" />
+                                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                </svg>
+                            )}
                         </button>
                     </div>
                     {!editandoFavoritos ? (
@@ -825,7 +891,7 @@ const Home = () => {
                             ))}
                             {!favoritos.length ? (
                                 <span className="home_dash_bookmarks_empty">
-                                    Nenhum favorito — toque em Editar
+                                    Nenhum favorito — toque no ícone de editar
                                 </span>
                             ) : null}
                         </div>
@@ -881,16 +947,38 @@ const Home = () => {
                     <section className="home_dash_card home_dash_card--tarefas" aria-label="Afazeres">
                         <div className="home_dash_card_head home_dash_card_head--tarefas">
                             <h2>Afazeres</h2>
-                            <button
-                                type="button"
-                                className="home_dash_btn home_dash_btn--nova_tarefa"
-                                onClick={() => setModalTarefaAberto(true)}
-                            >
-                                <span className="home_dash_btn_nova_full">Nova tarefa</span>
-                                <span className="home_dash_btn_nova_short" aria-hidden="true">
-                                    + Nova
-                                </span>
-                            </button>
+                            <div className="home_dash_card_head_actions">
+                                <button
+                                    type="button"
+                                    className="home_dash_btn secondary home_dash_btn--export"
+                                    disabled={exportandoAfazeres || !tarefas.length}
+                                    onClick={() => void onExportarAfazeres()}
+                                    aria-label={
+                                        exportandoAfazeres
+                                            ? 'A exportar para o calendário'
+                                            : 'Adicionar afazeres ao calendário'
+                                    }
+                                    title="Adicionar ao calendário (.ics — iPhone, Google, Outlook)"
+                                >
+                                    {exportandoAfazeres ? (
+                                        <span className="home_dash_btn_export_busy" aria-hidden="true">
+                                            …
+                                        </span>
+                                    ) : (
+                                        <IconCalendarioAdd />
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="home_dash_btn home_dash_btn--nova_tarefa"
+                                    onClick={() => setModalTarefaAberto(true)}
+                                >
+                                    <span className="home_dash_btn_nova_full">Nova tarefa</span>
+                                    <span className="home_dash_btn_nova_short" aria-hidden="true">
+                                        + Nova
+                                    </span>
+                                </button>
+                            </div>
                         </div>
                         <div className="home_dash_tabs" role="tablist" aria-label="Filtros de afazeres">
                             {FILTRO_TAREFAS.map((f) => (

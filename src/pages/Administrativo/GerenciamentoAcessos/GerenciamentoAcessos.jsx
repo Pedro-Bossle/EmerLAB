@@ -11,6 +11,7 @@ import { supabase } from '../../../lib/supabase'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
 import './GerenciamentoAcessos.css'
 import './PermissoesCascade.css'
+import { PageHeader } from '../../../components/ui'
 
 function contarFerramentasComAcesso(permissions) {
     let total = 0
@@ -358,22 +359,22 @@ const GerenciamentoAcessos = () => {
     }
 
     return (
-        <main className='gerenciamento_acessos'>
-            <header className='gerenciamento_acessos_header'>
-                <div>
-                    <p className='gerenciamento_acessos_kicker'>Administrativo</p>
-                    <h1>Gerenciamento de Acessos</h1>
-                    <p>Criar usuários, convites, permissões, email, senha e histórico.</p>
-                </div>
-                <div className='gerenciamento_acessos_header_acoes'>
-                    <button type='button' className='is-ghost' onClick={() => abrirNovoUsuario('create')} disabled={loading}>
-                        Criar usuário
-                    </button>
-                    <button type='button' onClick={carregarUsuarios} disabled={loading}>
-                        Atualizar
-                    </button>
-                </div>
-            </header>
+        <main className='el-page gerenciamento_acessos'>
+            <PageHeader
+                kicker="Administrativo"
+                title="Gerenciamento de Acessos"
+                description="Criar usuários, convites, permissões, email, senha e histórico."
+                actions={
+                    <div className='gerenciamento_acessos_header_acoes'>
+                        <button type='button' className='is-ghost' onClick={() => abrirNovoUsuario('create')} disabled={loading}>
+                            Criar usuário
+                        </button>
+                        <button type='button' onClick={carregarUsuarios} disabled={loading}>
+                            Atualizar
+                        </button>
+                    </div>
+                }
+            />
 
             {(mensagem || erro) && (
                 <div className={`gerenciamento_acessos_alerta ${erro ? 'is-error' : 'is-success'}`}>{erro || mensagem}</div>

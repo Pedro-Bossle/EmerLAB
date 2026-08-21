@@ -1,25 +1,37 @@
 .cred_prospectos_osm_page.credenciamento_main {
-    flex: 1;
-    min-height: 0;
+    flex: 1 1 0%;
+    min-height: 0 !important;
+    max-height: 100%;
+    height: auto;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
     text-align: left;
-    margin: 0;
-    padding: 0.5rem 0.75rem 0.65rem;
+    margin: 0 !important;
+    max-width: none;
     width: 100%;
-    max-width: 100%;
+    padding: 0.5rem 0.75rem 0.5rem;
     background: #f0f4f8;
+    /* Página fixa: só a lista faz scroll */
+    overscroll-behavior: none;
+}
+
+@media (min-width: 1024px) {
+    .cred_prospectos_osm_page.credenciamento_main {
+        padding: 0.65rem 1.1rem 0.75rem;
+    }
 }
 
 .cred_prospectos_osm_page .cred_prospectos_osm_top {
+    flex: 0 0 auto;
     flex-shrink: 0;
     text-align: center;
     position: relative;
     z-index: 30;
     background: transparent;
     padding-bottom: 0;
+    overflow: visible;
 }
 
 body.dark-mode .cred_prospectos_osm_page.credenciamento_main {
@@ -325,7 +337,7 @@ body.dark-mode .cred_prospectos_osm_coleta_progress_fill {
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    flex: 1;
+    flex: 1 1 0%;
     min-height: 0;
     position: relative;
     z-index: 0;
@@ -334,7 +346,7 @@ body.dark-mode .cred_prospectos_osm_coleta_progress_fill {
 }
 
 .cred_prospectos_osm_layout--sem-mapa .cred_prospectos_osm_lista {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     width: 100%;
     max-width: none;
 }
@@ -391,14 +403,17 @@ body.cred_prospectos_osm_arrastando_split .cred_prospectos_osm_split {
     font-size: 16px;
     font-weight: 700;
     color: var(--azul-escuro);
-    flex-shrink: 0;
+    flex: 0 0 auto;
 }
 
+/* Único scroll vertical da página: a tabela de prospectos */
 .cred_prospectos_osm_tabela_wrap {
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
-    overflow: auto;
+    overflow-x: auto;
+    overflow-y: auto;
     overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: #9ab4cf #eef3f9;
 }
@@ -452,7 +467,7 @@ body.cred_prospectos_osm_arrastando_split .cred_prospectos_osm_split {
 }
 
 .cred_prospectos_osm_page .cred_prospectos_osm_mapa_box.credenciamento_mapa_container {
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
     height: auto;
     max-height: none;
@@ -461,6 +476,17 @@ body.cred_prospectos_osm_arrastando_split .cred_prospectos_osm_split {
     z-index: 0;
     border-radius: 10px;
     border-color: #d8e1ec;
+    display: flex;
+    flex-direction: column;
+}
+
+.cred_prospectos_osm_mapa.credenciamento_mapa_leaflet {
+    flex: 1 1 auto;
+    position: absolute !important;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0;
 }
 
 /* Leaflet usa z-index alto; mantém o mapa contido abaixo dos filtros */
@@ -480,11 +506,6 @@ body.cred_prospectos_osm_arrastando_split .cred_prospectos_osm_split {
 body.cred_prospectos_osm_arrastando_split {
     cursor: col-resize;
     user-select: none;
-}
-
-.cred_prospectos_osm_mapa.credenciamento_mapa_leaflet {
-    height: 100% !important;
-    min-height: 0;
 }
 
 .cred_prospectos_osm_nome_cel {
@@ -518,43 +539,194 @@ body.cred_prospectos_osm_arrastando_split {
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
 }
 
+.cred_prospectos_osm_mobile_tabs {
+    display: none;
+}
+
 @media (max-width: 980px) {
+    .cred_prospectos_osm_page.credenciamento_main {
+        padding: 0.45rem 0.55rem 0.35rem;
+    }
+
     .cred_prospectos_osm_filtros_bar {
         flex-direction: column;
         align-items: stretch;
+        max-width: none;
+        margin-bottom: 0.4rem;
+    }
+
+    .cred_prospectos_osm_filtros_flutuantes {
+        padding: 0.55rem 0.65rem;
     }
 
     .cred_prospectos_osm_filtro_linha1 {
-        grid-template-columns: 5.5rem 1fr;
+        grid-template-columns: 4.75rem minmax(0, 1fr);
+        gap: 8px 10px;
     }
 
     .cred_prospectos_osm_filtro_linha1 .cred_prospectos_osm_cat_field,
-    .cred_prospectos_osm_filtro_linha1 .pcad_field:nth-child(4),
+    .cred_prospectos_osm_filtro_linha1 .cred_prospectos_osm_field_status {
+        grid-column: span 1;
+    }
+
+    .cred_prospectos_osm_filtro_linha1 .cred_prospectos_osm_cat_field {
+        grid-column: 1 / 2;
+    }
+
+    .cred_prospectos_osm_filtro_linha1 .cred_prospectos_osm_field_status {
+        grid-column: 2 / 3;
+    }
+
     .cred_prospectos_osm_btn_xls {
         grid-column: 1 / -1;
+        width: 100%;
+        min-height: 40px;
+        height: auto;
+    }
+
+    .cred_prospectos_osm_filtro_linha2 {
+        grid-template-columns: 1fr;
+        margin-top: 8px;
+        padding-top: 8px;
+        gap: 8px;
+    }
+
+    .cred_prospectos_osm_linha2_acoes,
+    .cred_prospectos_osm_prospectar_wrap,
+    .cred_prospectos_osm_btn_prospectar {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .cred_prospectos_osm_btn_prospectar {
+        min-height: 40px;
+        height: auto;
+    }
+
+    .cred_prospectos_osm_header {
+        gap: 6px;
+        margin-bottom: 6px;
+        justify-content: flex-start;
+    }
+
+    .cred_prospectos_osm_header .credenciamento_mapa_kpi {
+        padding: 6px 8px;
+        font-size: 0.82rem;
+    }
+
+    .cred_prospectos_osm_toggle_mapa {
+        margin-left: auto;
+        min-height: 36px;
+    }
+
+    .cred_prospectos_osm_mobile_tabs {
+        display: flex;
+        gap: 6px;
+        margin: 0 0 8px;
+        padding: 4px;
+        border-radius: 10px;
+        background: #e8eef5;
+        border: 1px solid #d8e1ec;
+        flex-shrink: 0;
+    }
+
+    .cred_prospectos_osm_mobile_tabs button {
+        flex: 1 1 50%;
+        margin: 0;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        cursor: pointer;
+        background: transparent;
+        color: #4a6278;
+        min-height: 40px;
+        font-family: inherit;
+    }
+
+    .cred_prospectos_osm_mobile_tabs button.is-ativo {
+        background: #fff;
+        color: #1f4b82;
+        box-shadow: 0 1px 4px rgba(30, 49, 72, 0.12);
     }
 
     .cred_prospectos_osm_layout {
         flex-direction: column;
-        overflow: auto;
+        overflow: hidden;
+        min-height: 0;
+        flex: 1 1 0;
+        height: auto;
     }
 
     .cred_prospectos_osm_split {
         display: none;
     }
 
-    .cred_prospectos_osm_lista {
-        flex: none;
-        width: 100% !important;
-        max-width: none;
-        max-height: 45vh;
+    .cred_prospectos_osm_lista_titulo {
+        display: none;
     }
 
-    .cred_prospectos_osm_mapa_col {
-        flex: none;
-        width: 100%;
-        min-height: 38vh;
+    .cred_prospectos_osm_layout--mobile-lista .cred_prospectos_osm_mapa_col,
+    .cred_prospectos_osm_layout--mobile-mapa .cred_prospectos_osm_lista {
+        display: none !important;
     }
+
+    .cred_prospectos_osm_layout--mobile-lista .cred_prospectos_osm_lista,
+    .cred_prospectos_osm_layout--mobile-mapa .cred_prospectos_osm_mapa_col,
+    .cred_prospectos_osm_layout--sem-mapa .cred_prospectos_osm_lista {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0;
+        width: 100% !important;
+        max-width: none;
+        max-height: none;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .cred_prospectos_osm_layout--mobile-mapa .cred_prospectos_osm_mapa_col,
+    .cred_prospectos_osm_layout--mobile-mapa .cred_prospectos_osm_mapa_box {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .cred_prospectos_osm_layout--mobile-mapa .cred_prospectos_osm_mapa {
+        min-height: 0;
+    }
+
+    .cred_prospectos_osm_table.table_main {
+        min-width: 640px;
+        font-size: 0.84rem;
+    }
+
+    .cred_prospectos_osm_status_sel {
+        min-width: 7.5rem;
+        min-height: 36px;
+        height: auto;
+    }
+}
+
+@media (max-width: 640px) {
+    .cred_prospectos_osm_filtro_linha1 .cred_prospectos_osm_cat_field,
+    .cred_prospectos_osm_filtro_linha1 .cred_prospectos_osm_field_status {
+        grid-column: 1 / -1;
+    }
+}
+
+body.dark-mode .cred_prospectos_osm_mobile_tabs {
+    background: #152433;
+    border-color: var(--border-soft);
+}
+
+body.dark-mode .cred_prospectos_osm_mobile_tabs button {
+    color: #9eb4c8;
+}
+
+body.dark-mode .cred_prospectos_osm_mobile_tabs button.is-ativo {
+    background: #1c2e40;
+    color: #e8f1f8;
 }
 
 body.dark-mode .cred_prospectos_osm_lista,

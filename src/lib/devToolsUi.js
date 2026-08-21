@@ -13,7 +13,6 @@ export const DEFAULT_COLUNAS_CADASTRO = {
     perfil: false,
     crmv: false,
     procs: false,
-    copiarCodigosProcs: false,
     ocultarVetsClinica: false,
     /** Padrão do produto (não é mais toggle Dev Tool). */
     coordenadasMapa: true,
@@ -49,7 +48,6 @@ function normalizarColunasCadastro(raw) {
         base.perfil = !!raw.perfil
         base.crmv = !!raw.crmv
         base.procs = !!raw.procs
-        base.copiarCodigosProcs = !!raw.copiarCodigosProcs
         base.ocultarVetsClinica = !!(raw.ocultarVetsClinica ?? raw.ocultarVets)
         // Sempre ativo: recurso padrão do produto.
         base.coordenadasMapa = true
@@ -93,7 +91,6 @@ export function lerDevToolsUi() {
                     perfil: true,
                     crmv: true,
                     procs: true,
-                    copiarCodigosProcs: false,
                     ocultarVetsClinica: false,
                     coordenadasMapa: true,
                 },
@@ -216,7 +213,7 @@ export function devToolsAlgumRecursoAtivo(ui) {
     if (u.exclusaoMassa) return true
     if (Object.values(u.colunasProcessos || {}).some(Boolean)) return true
     const cad = u.colunasCadastro || {}
-    if (cad.perfil || cad.crmv || cad.procs || cad.copiarCodigosProcs || cad.ocultarVetsClinica) {
+    if (cad.perfil || cad.crmv || cad.procs || cad.ocultarVetsClinica) {
         return true
     }
     return false

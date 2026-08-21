@@ -473,9 +473,17 @@ export default function CredenciamentoFormularioPublico() {
 
     if (enviado) {
         return (
-            <div className="fcred_public_wrap fcred_public_page">
+            <div className="el-page fcred_public_wrap fcred_public_page">
+                <header className="mb-5">
+                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-brand">EmerLAB</p>
+                    <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink dark:text-[#e8f1f8] md:text-3xl">
+                        Solicitação enviada
+                    </h1>
+                </header>
                 <div className="fcred_public_card">
-                    <h1>Solicitação enviada com sucesso!</h1>
+                    <h2 className="font-display text-xl font-bold text-ink dark:text-[#e8f1f8]">
+                        Solicitação enviada com sucesso!
+                    </h2>
                     <p>
                         {docModo === 'atualizacao'
                             ? 'Recebemos sua atualização. Nossa equipe revisará e aplicará ao seu cadastro de credenciado em breve.'
@@ -487,10 +495,15 @@ export default function CredenciamentoFormularioPublico() {
     }
 
     return (
-        <div className="fcred_public_wrap fcred_public_page">
+        <div className="el-page fcred_public_wrap fcred_public_page">
+            <header className="mb-5">
+                <p className="mb-1 text-xs font-bold uppercase tracking-wider text-brand">EmerLAB</p>
+                <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink dark:text-[#e8f1f8] md:text-3xl">
+                    {config?.titulo || 'Cadastro de parceiros'}
+                </h1>
+            </header>
             <div className="fcred_public_card">
                 <header className="fcred_public_header">
-                    <h1>{config?.titulo || 'Cadastro de parceiros'}</h1>
                     <p className="fcred_public_step">
                         Passo {passo + 1} de {totalPassos}
                     </p>

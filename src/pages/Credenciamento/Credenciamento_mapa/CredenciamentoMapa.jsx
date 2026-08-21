@@ -40,6 +40,7 @@ import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi'
 import { formatarContatoSeTelefone, formatarLinhaTelefonesContato } from '../../../lib/telefoneBrasil.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
+import { PageHeader } from '../../../components/ui'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoMapa.css'
 import 'leaflet/dist/leaflet.css'
@@ -979,17 +980,19 @@ const CredenciamentoMapa = () => {
     const previewLng = parseCoordenadaEntrada(lngInput)
 
     return (
-        <div className="credenciamento_main credenciamento_mapa_page">
+        <div className="el-page credenciamento_main credenciamento_mapa_page">
             <div className="credenciamento_mapa_top">
-            <h1>Mapa de credenciados</h1>
-            {podeImportarKmz && (
-                <p className="pcad_muted credenciamento_mapa_import_link">
-                    <Link to="/credenciamento/import-kmz" className="credenciamento_main_action_btn secondary">
-                        Importar coordenadas (KMZ)
-                    </Link>
-                </p>
-            )}
-            <hr />
+            <PageHeader
+                kicker="Credenciamento"
+                title="Mapa de credenciados"
+                actions={
+                    podeImportarKmz ? (
+                        <Link to="/credenciamento/import-kmz" className="credenciamento_main_action_btn secondary min-h-touch">
+                            Importar coordenadas (KMZ)
+                        </Link>
+                    ) : null
+                }
+            />
 
             {semCoordenadas.length > 0 && (
                 <CredenciamentoMainAlert
@@ -1008,7 +1011,7 @@ const CredenciamentoMapa = () => {
             <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
             <CredenciamentoMainAlert message={feedback} onClose={() => setFeedback('')} role="status" />
 
-            <div className="credenciamento_mapa_header">
+            <div className="credenciamento_mapa_header flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
                 <div className="credenciamento_mapa_kpi">
                     <strong>{marcadores.length}</strong> com coordenadas
                 </div>
@@ -1020,7 +1023,7 @@ const CredenciamentoMapa = () => {
                 <div className="credenciamento_mapa_kpi">
                     <strong>{especialidadesMapa.length}</strong> especialidade(s) no mapa
                 </div>
-                <label className="credenciamento_mapa_filtro">
+                <label className="credenciamento_mapa_filtro w-full md:ml-auto md:w-auto">
                     Especialidade
                     <select
                         className="credenciamento_main_select"
@@ -1435,7 +1438,7 @@ const CredenciamentoMapa = () => {
                 </aside>
 
                 <section
-                    className="credenciamento_mapa_container"
+                    className="credenciamento_mapa_container min-h-[60vh] md:min-h-[70vh]"
                     id="cred_mapa_panel_mapa"
                     role="tabpanel"
                     aria-labelledby="cred_mapa_tab_mapa"

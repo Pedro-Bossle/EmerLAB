@@ -15,6 +15,7 @@ import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/sup
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 import { calcularJanelaVirtualTabela, criarHandlerScrollVirtualTabela } from '../../../lib/tabelaVirtualScroll.js'
 import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planosHierarquia.js'
+import { PageHeader } from '../../../components/ui'
 
 const Supertabelamain = () => {
     const ALTURA_LINHA_TABELA = 42
@@ -845,9 +846,12 @@ const Supertabelamain = () => {
     }, [])
 
     return (
-        <div className='supertabelamain'>
-            <h1>Supertabela - Visão Geral</h1>
-            <hr />
+        <div className='el-page supertabelamain'>
+            <PageHeader
+                kicker="SuperTabela"
+                title="Visão Geral"
+                description="Consulta e edição de valores por cidade, plano e porte."
+            />
             <header
                 className='supertabelamain_header'
                 style={{ '--compact-progress': headerCompactProgress }}
@@ -949,7 +953,7 @@ const Supertabelamain = () => {
                 </div>
             )}
 
-            <div className='table_container'>
+            <div className='table_container overflow-x-auto'>
                 {secoesPorCategoria.length === 0 ? (
                     <p>Nenhum registro encontrado para os filtros selecionados.</p>
                 ) : (

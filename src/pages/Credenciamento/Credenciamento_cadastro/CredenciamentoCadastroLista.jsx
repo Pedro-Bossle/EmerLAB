@@ -30,10 +30,10 @@ import {
     montarLinhasRelatorioCadastros,
 } from '../../../lib/credenciamento/gerarRelatorioCadastrosPdf.js'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
-import CopiarCodigosProcedimentosBtn from './CopiarCodigosProcedimentosBtn.jsx'
 import CadastroExportarPdfModal from './CadastroExportarPdfModal.jsx'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
+import { PageHeader } from '../../../components/ui'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 
@@ -86,6 +86,7 @@ const CredenciamentoCadastroLista = () => {
     const [rcCidadeBusca, setRcCidadeBusca] = useState('')
     const [rcCidadesSelecionadas, setRcCidadesSelecionadas] = useState([])
     const [rcGerando, setRcGerando] = useState(false)
+    const [filtrosMaisAberto, setFiltrosMaisAberto] = useState(false)
 
     const [modalSimplesAberto, setModalSimplesAberto] = useState(false)
     const [simplesNome, setSimplesNome] = useState('')
@@ -106,7 +107,6 @@ const CredenciamentoCadastroLista = () => {
     const mostrarColunaPerfil = podeDevTool && colCad.perfil
     const mostrarColunaCrmv = podeDevTool && colCad.crmv
     const mostrarColunaProcs = podeDevTool && colCad.procs
-    const mostrarColunaCopiarCodigos = podeDevTool && colCad.copiarCodigosProcs
     const ocultarVetsClinica = podeDevTool && colCad.ocultarVetsClinica
 
     const somenteLeitura = useMemo(() => {
@@ -414,9 +414,8 @@ const CredenciamentoCadastroLista = () => {
         if (mostrarColunaPerfil) n += 1
         if (mostrarColunaCrmv) n += 1
         if (mostrarColunaProcs) n += 1
-        if (mostrarColunaCopiarCodigos) n += 1
         return n
-    }, [mostrarColunaPerfil, mostrarColunaCrmv, mostrarColunaProcs, mostrarColunaCopiarCodigos])
+    }, [mostrarColunaPerfil, mostrarColunaCrmv, mostrarColunaProcs])
 
     const alternarOrdenacao = (coluna) => {
         if (ordenarColuna === coluna) {
@@ -778,110 +777,120 @@ const CredenciamentoCadastroLista = () => {
     }
 
     return (
-        <div className={`credenciamento_main credenciamento_cadastro_lista${somenteLeitura ? ' somente_leitura_lista' : ''}`}>
-            <h1>Cadastro de prestadores</h1>
-            <hr />
+        <div className={`el-legacy-wrap credenciamento_main credenciamento_cadastro_lista${somenteLeitura ? ' somente_leitura_lista' : ''}`}>
+            <PageHeader kicker="Credenciamento" title="Cadastro de prestadores" />
 
             <header className={`credenciamento_main_header ${headerCompacto ? 'is-compact' : ''}`}>
                 <h2 className="credenciamento_cadastro_filters_title">Filtros</h2>
-                <div className="credenciamento_main_filters">
-                    <div className="credenciamento_main_filters_layout credenciamento_cadastro_filters_layout">
-                        <div className="credenciamento_main_filters_selectors">
-                            <div className="credenciamento_main_filters_row credenciamento_cadastro_filters_row">
-                                <div className="credenciamento_main_filter_item credenciamento_main_filter_busca">
-                                    <p>Busca</p>
-                                    <CampoBuscaComLimpar
-                                        className="credenciamento_main_input"
-                                        placeholder="Nome, cidade, tipo…"
-                                        value={termoBusca1}
-                                        onChange={(e) => setTermoBusca1(e.target.value)}
-                                    />
-                                </div>
-                                <div className="credenciamento_main_filter_item credenciamento_main_filter_busca">
-                                    <p>Refinar busca</p>
-                                    <CampoBuscaComLimpar
-                                        className="credenciamento_main_input"
-                                        placeholder="Refinar busca (2º critério)"
-                                        value={termoBusca2}
-                                        onChange={(e) => setTermoBusca2(e.target.value)}
-                                    />
-                                </div>
-                                <div className="credenciamento_main_filter_item">
-                                    <p>Situação</p>
-                                    <select
-                                        className="credenciamento_main_select"
-                                        value={filtroSituacao}
-                                        onChange={(e) => setFiltroSituacao(e.target.value)}
-                                    >
-                                        <option value="">Todas</option>
-                                        {situacoes.map((s) => (
-                                            <option key={s.id} value={s.id}>
-                                                {s.descricao}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="credenciamento_main_filter_item credenciamento_cadastro_filters_action">
-                                    <div className="credenciamento_cadastro_lista_acoes">
-                                        <button
-                                            type="button"
-                                            className="credenciamento_main_action_btn secondary"
-                                            disabled={exportandoPdf || loading}
-                                            onClick={() => setModalExportPdfAberto(true)}
-                                            title="Exporta PDF pelos critérios do modal (período e situações), independente da busca na tela"
-                                        >
-                                            Exportar PDF
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="credenciamento_main_action_btn secondary"
-                                            onClick={abrirModalRc}
-                                        >
-                                            Imprimir RC
-                                        </button>
-                                        {!somenteLeitura && (
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    className="credenciamento_main_action_btn secondary"
-                                                    onClick={abrirModalSimples}
-                                                >
-                                                    Novo Simples
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className="credenciamento_main_action_btn credenciamento_cadastro_btn_novo"
-                                                    onClick={() => navigate('/credenciamento/cadastro/novo')}
-                                                >
-                                                    ＋ Incluir novo
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            {podeDevTool && !somenteLeitura && (
-                <div className="credenciamento_cadastro_dev_massa">
-                    <div className="credenciamento_cadastro_dev_massa_acoes">
+                <div className="credenciamento_main_filters credenciamento_cadastro_filters">
+                    <div className="credenciamento_cadastro_filters_row_busca">
+                        <label className="credenciamento_cadastro_field">
+                            <span>Busca 1</span>
+                            <CampoBuscaComLimpar
+                                className="credenciamento_main_input"
+                                placeholder="Nome, cidade, tipo…"
+                                value={termoBusca1}
+                                onChange={(e) => setTermoBusca1(e.target.value)}
+                            />
+                        </label>
+                        <label className="credenciamento_cadastro_field">
+                            <span>Busca 2</span>
+                            <CampoBuscaComLimpar
+                                className="credenciamento_main_input"
+                                placeholder="2º critério…"
+                                value={termoBusca2}
+                                onChange={(e) => setTermoBusca2(e.target.value)}
+                            />
+                        </label>
+                        <label className="credenciamento_cadastro_field credenciamento_cadastro_field--situacao">
+                            <span>Situação</span>
+                            <select
+                                className="credenciamento_main_select"
+                                value={filtroSituacao}
+                                onChange={(e) => setFiltroSituacao(e.target.value)}
+                            >
+                                <option value="">Todas</option>
+                                {situacoes.map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                        {s.descricao}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
                         <button
                             type="button"
-                            className="credenciamento_main_action_btn secondary"
-                            disabled={labsMassaBusy}
-                            onClick={() => void vincularLaboratoriosEmMassa()}
+                            className={`credenciamento_main_action_btn secondary credenciamento_cadastro_mais_btn${filtrosMaisAberto ? ' is-open' : ''}`}
+                            aria-expanded={filtrosMaisAberto}
+                            aria-controls="credenciamento-cadastro-acoes"
+                            onClick={() => setFiltrosMaisAberto((v) => !v)}
                         >
-                            {labsMassaBusy ? 'Vinculando…' : 'Dev · vincular labs por cidade-tabela (todos)'}
+                            Mais
+                            <span className="credenciamento_cadastro_mais_chevron" aria-hidden="true">
+                                {filtrosMaisAberto ? '▴' : '▾'}
+                            </span>
                         </button>
                     </div>
-                    {feedbackLabsMassa ? (
-                        <p className="pcad_muted pcad_servicos_massa_feedback">{feedbackLabsMassa}</p>
+
+                    {filtrosMaisAberto ? (
+                        <div
+                            id="credenciamento-cadastro-acoes"
+                            className="credenciamento_cadastro_filters_row_acoes"
+                        >
+                            <button
+                                type="button"
+                                className="credenciamento_main_action_btn secondary"
+                                disabled={exportandoPdf || loading}
+                                onClick={() => setModalExportPdfAberto(true)}
+                                title="Exporta PDF pelos critérios do modal (período e situações)"
+                            >
+                                Relatório
+                            </button>
+                            <button
+                                type="button"
+                                className="credenciamento_main_action_btn secondary"
+                                onClick={abrirModalRc}
+                                title="Imprimir rede credenciada (RC)"
+                            >
+                                Rede Cred.
+                            </button>
+                            {!somenteLeitura ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        className="credenciamento_main_action_btn secondary"
+                                        onClick={abrirModalSimples}
+                                    >
+                                        Novo Simples
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="credenciamento_main_action_btn credenciamento_cadastro_btn_novo"
+                                        onClick={() => navigate('/credenciamento/cadastro/novo')}
+                                    >
+                                        Novo
+                                    </button>
+                                </>
+                            ) : null}
+                            {podeDevTool && !somenteLeitura ? (
+                                <button
+                                    type="button"
+                                    className="credenciamento_main_action_btn secondary credenciamento_cadastro_btn_dev_labs"
+                                    disabled={labsMassaBusy}
+                                    onClick={() => void vincularLaboratoriosEmMassa()}
+                                    title="Dev: vincular laboratórios por cidade-tabela em todos os prestadores"
+                                >
+                                    {labsMassaBusy ? 'Vinculando…' : 'Dev · vincular labs'}
+                                </button>
+                            ) : null}
+                            {podeDevTool && feedbackLabsMassa ? (
+                                <p className="pcad_muted pcad_servicos_massa_feedback credenciamento_cadastro_dev_labs_feedback">
+                                    {feedbackLabsMassa}
+                                </p>
+                            ) : null}
+                        </div>
                     ) : null}
                 </div>
-            )}
+            </header>
 
             <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
 
@@ -890,10 +899,11 @@ const CredenciamentoCadastroLista = () => {
                     <p>Carregando…</p>
                 ) : (
                     <>
+                        <div className="credenciamento_cadastro_table_wrap">
                         <table className="table_main credenciamento_cadastro_table">
                             <thead>
                                 <tr>
-                                    <th className="table_header credenciamento_cadastro_th_sortable">
+                                    <th className="table_header credenciamento_cadastro_th_sortable cred_col_pin cred_col_pin--nome">
                                         <button
                                             type="button"
                                             className="credenciamento_cadastro_th_sort_btn"
@@ -902,7 +912,7 @@ const CredenciamentoCadastroLista = () => {
                                             Nome{indicadorOrdenacao('nome')}
                                         </button>
                                     </th>
-                                    <th className="table_header credenciamento_cadastro_th_sortable">
+                                    <th className="table_header credenciamento_cadastro_th_sortable cred_col_pin cred_col_pin--cidade">
                                         <button
                                             type="button"
                                             className="credenciamento_cadastro_th_sort_btn"
@@ -911,7 +921,7 @@ const CredenciamentoCadastroLista = () => {
                                             Cidade{indicadorOrdenacao('cidade')}
                                         </button>
                                     </th>
-                                    <th className="table_header credenciamento_cadastro_th_sortable">
+                                    <th className="table_header credenciamento_cadastro_th_sortable cred_col_pin cred_col_pin--especialidade">
                                         <button
                                             type="button"
                                             className="credenciamento_cadastro_th_sort_btn"
@@ -947,12 +957,7 @@ const CredenciamentoCadastroLista = () => {
                                             </button>
                                         </th>
                                     )}
-                                    {mostrarColunaCopiarCodigos && (
-                                        <th className="table_header credenciamento_cadastro_th_copiar_codigos">
-                                            Códigos
-                                        </th>
-                                    )}
-                                    <th className="table_header credenciamento_cadastro_th_sortable">
+                                    <th className="table_header credenciamento_cadastro_th_sortable cred_col_situacao">
                                         <button
                                             type="button"
                                             className="credenciamento_cadastro_th_sort_btn"
@@ -975,9 +980,15 @@ const CredenciamentoCadastroLista = () => {
                                         className="credenciamento_main_clickrow"
                                         onClick={() => navigate(`/credenciamento/cadastro/${l.id}`)}
                                     >
-                                        <td className="table_text_left credenciamento_main_nome_click">{l.nome}</td>
-                                        <td className="table_text_left">{l.cidadeNome}</td>
-                                        <td className="table_text_left">{l.tipoLabel}</td>
+                                        <td className="table_text_left credenciamento_main_nome_click cred_col_pin cred_col_pin--nome">
+                                            {l.nome}
+                                        </td>
+                                        <td className="table_text_left cred_col_pin cred_col_pin--cidade">
+                                            {l.cidadeNome}
+                                        </td>
+                                        <td className="table_text_left cred_col_pin cred_col_pin--especialidade">
+                                            {l.tipoLabel}
+                                        </td>
                                         {mostrarColunaPerfil && (
                                             <td className="table_text_left credenciamento_cadastro_perfil_pct">
                                                 <span
@@ -1002,21 +1013,58 @@ const CredenciamentoCadastroLista = () => {
                                                 {l.qtdProcedimentos ?? 0}
                                             </td>
                                         )}
-                                        {mostrarColunaCopiarCodigos && (
-                                            <td className="table_text_left credenciamento_cadastro_td_copiar_codigos">
-                                                <CopiarCodigosProcedimentosBtn
-                                                    prestadorId={l.id}
-                                                    compacto
-                                                    rotulo="Copiar"
-                                                    className="credenciamento_main_action_btn secondary credenciamento_cadastro_copiar_codigos_btn"
-                                                />
-                                            </td>
-                                        )}
-                                        <td className="table_text_left">{l.situacao}</td>
+                                        <td className="table_text_left cred_col_situacao">{l.situacao}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
+                        </div>
+
+                        <ul className="credenciamento_cadastro_cards" aria-label="Lista de prestadores">
+                            {linhasPaginadas.length === 0 ? (
+                                <li className="credenciamento_cadastro_card is-empty">
+                                    Nenhum prestador encontrado.
+                                </li>
+                            ) : (
+                                linhasPaginadas.map((l) => (
+                                    <li key={`card-${l.id}`}>
+                                        <button
+                                            type="button"
+                                            className="credenciamento_cadastro_card"
+                                            onClick={() => navigate(`/credenciamento/cadastro/${l.id}`)}
+                                        >
+                                            <span className="credenciamento_cadastro_card_nome">{l.nome}</span>
+                                            <span className="credenciamento_cadastro_card_meta">
+                                                <span className="credenciamento_cadastro_card_label">Cidade</span>
+                                                <span>{l.cidadeNome || '—'}</span>
+                                            </span>
+                                            <span className="credenciamento_cadastro_card_meta">
+                                                <span className="credenciamento_cadastro_card_label">Especialidade</span>
+                                                <span>{l.tipoLabel || '—'}</span>
+                                            </span>
+                                            <span className="credenciamento_cadastro_card_meta credenciamento_cadastro_card_meta--situacao">
+                                                <span className="credenciamento_cadastro_card_label">Situação</span>
+                                                <span className="credenciamento_cadastro_card_situacao">
+                                                    {l.situacao || '—'}
+                                                </span>
+                                            </span>
+                                            {mostrarColunaPerfil ? (
+                                                <span className="credenciamento_cadastro_card_meta">
+                                                    <span className="credenciamento_cadastro_card_label">Perfil</span>
+                                                    <span>{l.perfilCompletoPct}%</span>
+                                                </span>
+                                            ) : null}
+                                            {mostrarColunaCrmv ? (
+                                                <span className="credenciamento_cadastro_card_meta">
+                                                    <span className="credenciamento_cadastro_card_label">CRMV</span>
+                                                    <span>{l.crmv || '—'}</span>
+                                                </span>
+                                            ) : null}
+                                        </button>
+                                    </li>
+                                ))
+                            )}
+                        </ul>
 
                         {linhasFiltradasOrdenadas.length > 0 && (
                             <div className="credenciamento_main_paginacao">
@@ -1029,54 +1077,68 @@ const CredenciamentoCadastroLista = () => {
                                     de <strong>{linhasFiltradasOrdenadas.length}</strong>
                                 </div>
                                 <div className="credenciamento_main_paginacao_controles">
-                                    <label className="credenciamento_main_paginacao_label">
-                                        Por página
-                                        <select
-                                            className="credenciamento_main_select"
-                                            value={itensPorPagina}
-                                            onChange={(e) => setItensPorPagina(Number(e.target.value))}
+                                    <div className="credenciamento_main_paginacao_grupo">
+                                        <label className="credenciamento_main_paginacao_label">
+                                            Por página
+                                            <select
+                                                className="credenciamento_main_select"
+                                                value={itensPorPagina}
+                                                onChange={(e) => setItensPorPagina(Number(e.target.value))}
+                                            >
+                                                <option value={20}>20</option>
+                                                <option value={30}>30</option>
+                                                <option value={40}>40</option>
+                                                <option value={100}>100</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <div className="credenciamento_main_paginacao_grupo credenciamento_main_paginacao_grupo--nav">
+                                        <button
+                                            type="button"
+                                            className="credenciamento_main_action_btn secondary"
+                                            onClick={() => setPaginaAtual((anterior) => Math.max(1, anterior - 1))}
+                                            disabled={paginaAjustada <= 1}
                                         >
-                                            <option value={20}>20</option>
-                                            <option value={30}>30</option>
-                                            <option value={40}>40</option>
-                                            <option value={100}>100</option>
-                                        </select>
-                                    </label>
-                                    <button
-                                        type="button"
-                                        className="credenciamento_main_action_btn secondary"
-                                        onClick={() => setPaginaAtual((anterior) => Math.max(1, anterior - 1))}
-                                        disabled={paginaAjustada <= 1}
-                                    >
-                                        Anterior
-                                    </button>
-                                    <span className="credenciamento_main_paginacao_page">
-                                        Página {paginaAjustada} de {totalPaginas}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className="credenciamento_main_action_btn secondary"
-                                        onClick={() => setPaginaAtual((anterior) => Math.min(totalPaginas, anterior + 1))}
-                                        disabled={paginaAjustada >= totalPaginas}
-                                    >
-                                        Próxima
-                                    </button>
-                                    <label className="credenciamento_main_paginacao_label credenciamento_main_paginacao_ir_label">
-                                        Ir para
-                                        <input
-                                            type="text"
-                                            inputMode="numeric"
-                                            className="credenciamento_main_input credenciamento_main_paginacao_ir_input"
-                                            value={paginaAlvoInput}
-                                            onChange={(e) => setPaginaAlvoInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') irParaPagina()
-                                            }}
-                                        />
-                                    </label>
-                                    <button type="button" className="credenciamento_main_action_btn secondary" onClick={irParaPagina}>
-                                        Ir
-                                    </button>
+                                            Anterior
+                                        </button>
+                                        <span className="credenciamento_main_paginacao_page">
+                                            Página {paginaAjustada} de {totalPaginas}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            className="credenciamento_main_action_btn secondary"
+                                            onClick={() =>
+                                                setPaginaAtual((anterior) => Math.min(totalPaginas, anterior + 1))
+                                            }
+                                            disabled={paginaAjustada >= totalPaginas}
+                                        >
+                                            Próxima
+                                        </button>
+                                    </div>
+                                    <div className="credenciamento_main_paginacao_grupo credenciamento_main_paginacao_grupo--ir">
+                                        <label className="credenciamento_main_paginacao_label credenciamento_main_paginacao_ir_label">
+                                            Ir para
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                className="credenciamento_main_input credenciamento_main_paginacao_ir_input"
+                                                value={paginaAlvoInput}
+                                                onChange={(e) =>
+                                                    setPaginaAlvoInput(e.target.value.replace(/\D/g, '').slice(0, 4))
+                                                }
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') irParaPagina()
+                                                }}
+                                            />
+                                        </label>
+                                        <button
+                                            type="button"
+                                            className="credenciamento_main_action_btn secondary"
+                                            onClick={irParaPagina}
+                                        >
+                                            Ir
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )}

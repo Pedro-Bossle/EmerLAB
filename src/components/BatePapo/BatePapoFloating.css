@@ -5,7 +5,8 @@
     --bate-papo-drawer-bottom: auto;
     --bate-papo-drawer-width: 340px;
     --bate-papo-drawer-max-height: 520px;
-    position: fixed;
+    /* absolute: acompanha o documento (não gruda no viewport ao scroll) */
+    position: absolute;
     z-index: 10049;
     width: var(--bate-papo-btn);
     height: var(--bate-papo-btn);

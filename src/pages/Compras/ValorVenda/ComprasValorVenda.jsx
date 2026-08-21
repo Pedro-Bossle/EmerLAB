@@ -11,6 +11,7 @@ import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMa
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
+import { PageHeader } from '../../../components/ui'
 import './ComprasValorVenda.css'
 
 const normalizarTexto = (texto) =>
@@ -626,10 +627,12 @@ const ComprasValorVenda = () => {
     const colSpanTabela = !somenteLeitura ? 4 : 3
 
     return (
-        <div className='compras_vv'>
-            <h1>Compras — Valor de Venda</h1>
-            
-            <hr />
+        <div className='el-legacy-wrap compras_vv'>
+            <PageHeader
+                kicker='Compras'
+                title='Valor de Venda'
+                description='Gerencie os valores de venda da lojinha por procedimento e categoria.'
+            />
 
             <header className={`compras_vv_header ${headerCompacto ? 'is-compact' : ''}`}>
                 <h2>Filtros</h2>
@@ -748,7 +751,7 @@ const ComprasValorVenda = () => {
                 </div>
             )}
 
-            <div className='compras_vv_table_container'>
+            <div className='compras_vv_table_container overflow-x-auto'>
                 {loading ? (
                     <p>Carregando...</p>
                 ) : linhasFiltradas.length === 0 ? (

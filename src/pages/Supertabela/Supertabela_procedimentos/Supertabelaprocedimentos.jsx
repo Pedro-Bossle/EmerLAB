@@ -27,6 +27,7 @@ import {
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaprocedimentos.css'
+import { PageHeader } from '../../../components/ui'
 import SupertabelaBeneficiosCatalogo from './SupertabelaBeneficiosCatalogo.jsx'
 
 const normalizarTextoBusca = (texto) =>
@@ -928,10 +929,13 @@ const Supertabelaprocedimentos = () => {
 
     return (
         <div
-            className={`supertabelaprocedimentos ${modoCategorias && !modoDescontos ? 'is-modo-categorias' : ''}`}
+            className={`el-page supertabelaprocedimentos ${modoCategorias && !modoDescontos ? 'is-modo-categorias' : ''}`}
         >
-            <h1>Supertabela - Procedimentos</h1>
-            <hr />
+            <PageHeader
+                kicker="SuperTabela"
+                title="Procedimentos"
+                description="Catálogo de procedimentos, categorias e benefícios."
+            />
 
             <div className="supertabelaprocedimentos_catalogo_modo" role="tablist" aria-label="Catálogo">
                 <button
@@ -1184,7 +1188,7 @@ const Supertabelaprocedimentos = () => {
             )}
 
             <div
-                className={`supertabelaprocedimentos_table_container ${
+                className={`supertabelaprocedimentos_table_container overflow-x-auto ${
                     modoCategorias && !modoDescontos ? 'is-categorias-full' : ''
                 }`}
             >

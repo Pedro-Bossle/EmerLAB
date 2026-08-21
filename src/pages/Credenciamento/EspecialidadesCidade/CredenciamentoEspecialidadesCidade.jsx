@@ -18,6 +18,7 @@ import { buscarTodosPaginado, supabase } from '../../../lib/supabase.js'
 import '../Credenciamento_main/Credenciamento_main.css'
 import '../QuemRealiza/CredenciamentoQuemRealiza.css'
 import './CredenciamentoEspecialidadesCidade.css'
+import { PageHeader } from '../../../components/ui'
 
 function usarContagemColunasEspecialidade() {
     const [cols, setCols] = useState(() => {
@@ -350,9 +351,8 @@ export default function CredenciamentoEspecialidadesCidade() {
     }
 
     return (
-        <div className="credenciamento_main cred_esp_cidade_page">
-            <h1>Credenciamento — Especialidades por cidade</h1>
-            <hr />
+        <div className="el-page credenciamento_main cred_esp_cidade_page">
+            <PageHeader kicker="Credenciamento" title="Especialidades por cidade" />
 
             <section className="cred_esp_cidade_filtros_flutuantes quem_realiza_filtros quem_realiza_filtros_center">
                 <div className="quem_realiza_row quem_realiza_row_center">

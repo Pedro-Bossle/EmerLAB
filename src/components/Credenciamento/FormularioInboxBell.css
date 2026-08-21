@@ -6,7 +6,8 @@
     --notif-drawer-top: 8px;
     --notif-drawer-width: 340px;
     --notif-drawer-max-height: 480px;
-    position: fixed;
+    /* absolute: acompanha o documento (não gruda no viewport ao scroll) */
+    position: absolute;
     z-index: 10040;
     width: var(--notif-btn);
     height: var(--notif-btn);

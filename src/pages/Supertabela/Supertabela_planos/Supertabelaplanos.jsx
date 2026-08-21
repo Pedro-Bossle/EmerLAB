@@ -49,6 +49,7 @@ import {
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaplanos.css'
+import { PageHeader } from '../../../components/ui'
 
 const COLUNAS_PLANO = [
     { chave: 'basico', titulo: 'Básico', match: (n) => n.includes('BASICO') || n.includes('BASIC') },
@@ -2060,9 +2061,12 @@ const Supertabelaplanos = () => {
     }
 
     return (
-        <div className='supertabelaplanos'>
-            <h1>Supertabela - Planos</h1>
-            <hr />
+        <div className='el-page supertabelaplanos'>
+            <PageHeader
+                kicker="SuperTabela"
+                title="Planos"
+                description="Cobertura, limites e valores por plano e cidade."
+            />
             <header className={`supertabelaplanos_header ${headerCompacto ? 'is-compact' : ''}`}>
                 <h2>Filtros</h2>
                 <div className='supertabelaplanos_filters'>
@@ -2448,7 +2452,7 @@ ou um código por linha`}
                 />
             )}
 
-            <div className='supertabelaplanos_table_container'>
+            <div className='supertabelaplanos_table_container overflow-x-auto'>
                 {loading && <p>Carregando...</p>}
                 {!loading && secoesPorCategoria.length === 0 ? (
                     <div className='supertabelaplanos_cidade_vazia_wrap'>

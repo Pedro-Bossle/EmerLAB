@@ -14,6 +14,7 @@ import {
     urlPublicaFormularioCredenciamento,
 } from '../../../lib/formularioCredenciamento'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
+import { PageHeader } from '../../../components/ui'
 
 const AUTOSAVE_MS = 650
 
@@ -293,14 +294,27 @@ export default function CredenciamentoFormularioConfig() {
                 : ''
 
     return (
-        <div className="credenciamento_main fcred_config">
+        <div className="el-page credenciamento_main fcred_config">
             {exclusaoToast}
-            <h1>Credenciamento — Formulário público</h1>
-            <p className="pcad_muted fcred_config_sub">
-                {ultimaAlteracao
-                    ? `Última alteração: ${formatarUltimaAlteracao(ultimaAlteracao)}`
-                    : 'Páginas do wizard e categorias exibidas ao parceiro'}
-            </p>
+            <PageHeader
+                kicker="Credenciamento"
+                title="Formulário público"
+                description={
+                    ultimaAlteracao
+                        ? `Última alteração: ${formatarUltimaAlteracao(ultimaAlteracao)}`
+                        : 'Páginas do wizard e categorias exibidas ao parceiro'
+                }
+                actions={
+                    mostrarLinkInbox ? (
+                        <Link
+                            to="/credenciamento/formulario/entradas"
+                            className="credenciamento_main_action_btn secondary min-h-touch"
+                        >
+                            Inbox de pré-cadastros
+                        </Link>
+                    ) : null
+                }
+            />
             <p className="fcred_config_nav">
                 {(!somenteLeituraLink || !somenteLeituraPaginas) && rotuloAutoEstado && (
                     <span
@@ -310,16 +324,7 @@ export default function CredenciamentoFormularioConfig() {
                         {rotuloAutoEstado}
                     </span>
                 )}
-                {mostrarLinkInbox && (
-                    <Link
-                        to="/credenciamento/formulario/entradas"
-                        className="credenciamento_main_action_btn secondary"
-                    >
-                        Inbox de pré-cadastros
-                    </Link>
-                )}
             </p>
-            <hr />
 
             <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
             <CredenciamentoMainAlert message={okMsg} onClose={() => setOkMsg('')} role="status" />

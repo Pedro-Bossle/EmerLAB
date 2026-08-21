@@ -7,6 +7,7 @@ import {
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import '../../Credenciamento/Credenciamento_main/Credenciamento_main.css'
 import './ConfigExportarCredenciados.css'
+import { PageHeader } from '../../../components/ui'
 
 const CAMPOS_POR_GRUPO = CAMPOS_EXPORT_CREDENCIADOS.reduce((acc, campo) => {
     const grupo = campo.grupo || 'Campos'
@@ -64,14 +65,12 @@ const ConfigExportarCredenciados = () => {
     }
 
     return (
-        <div className='credenciamento_main config_export_cred'>
-            <h1>Exportar Credenciados</h1>
-            <hr />
-
-            <p className='config_export_cred_lead'>
-                Excel com prestadores <strong>credenciados</strong> — uma linha por procedimento do
-                perfil. Escolha os campos e baixe.
-            </p>
+        <div className='el-page credenciamento_main config_export_cred'>
+            <PageHeader
+                kicker="Configurações"
+                title="Exportar Credenciados"
+                description="Excel com prestadores credenciados — uma linha por procedimento do perfil. Escolha os campos e baixe."
+            />
 
             {erro ? (
                 <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role='alert' />

@@ -11,6 +11,7 @@ import {
 import { downloadPdf, gerarPdfBlob, nomeArquivoContrato } from '../../../lib/contratos/pdf/gerarContratoPdf.js'
 import { errosValidacao } from '../../../lib/contratos/validarDocumentos.js'
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
+import CopiarCodigosProcedimentosBtn from './CopiarCodigosProcedimentosBtn.jsx'
 
 const MODELOS_CONTRATO = [
     { id: 'clinica', label: 'Clínica' },
@@ -252,6 +253,14 @@ export default function PrestadorHonorariosContratos({
                 >
                     Imprimir honorários
                 </button>
+                <CopiarCodigosProcedimentosBtn
+                    prestadorId={prestadorId}
+                    codigosAtuais={codigosSelecionados}
+                    className="credenciamento_main_action_btn secondary pcad_copiar_codigos_perfil"
+                    rotulo="Copiar códigos"
+                    title="Copiar códigos dos procedimentos do perfil (um por linha)"
+                    disabled={disabled || !prestadorId}
+                />
                 <div className="pcad_contrato_menu_wrap" ref={menuRef}>
                     <button
                         type="button"
