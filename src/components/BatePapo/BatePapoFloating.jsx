@@ -10,13 +10,15 @@ import {
   enviarMensagemTexto,
   garantirChavesUsuario,
   listarConversasBatePapo,
-  listarMensagensConversa,
+  listarParticipantesConversa,
   listarUsuariosBatePapo,
   marcarConversaComoLida,
   obterOuCriarDm,
   tentarMigrarDmsLegado,
 } from '../../lib/homeBatePapo'
 import EmerzapComposer from './EmerzapComposer'
+import EmerzapChaveContaModal, { useEmerzapChaveConta } from './EmerzapChaveContaModal'
+import { observarThreadEmerzap } from './observarThreadEmerzap'
 import './BatePapoFloating.css'
 
 const POS_STORAGE_KEY = 'sfsc_bate_papo_float_pos_v1'
@@ -275,6 +277,7 @@ export default function BatePapoFloating({
 } = {}) {
   const profile = useStoredAccessProfile()
   const permitido = isBatePapoEnabled(profile)
+  const chaveConta = useEmerzapChaveConta(permitido)
   const { pathname } = useLocation()
   const emerzapHref = useHref('/emerzap')
   const acimaRodapeFormulario = /\/credenciamento\/cadastro\/[^/]+/.test(pathname)
@@ -309,6 +312,10 @@ export default function BatePapoFloating({
   const [busca, setBusca] = useState('')
   const [conversaId, setConversaId] = useState(null)
   const [tituloThread, setTituloThread] = useState('')
+  const [tipoThread, setTipoThread] = useState(null)
+  const [mostrarInfo, setMostrarInfo] = useState(false)
+  const [participantes, setParticipantes] = useState([])
+  const [carregandoInfo, setCarregandoInfo] = useState(false)
   const [mensagens, setMensagens] = useState([])
   const [texto, setTexto] = useState('')
   const [carregandoLista, setCarregandoLista] = useState(false)
@@ -378,6 +385,9 @@ export default function BatePapoFloating({
         if (conversaIdRef.current) {
           setConversaId(null)
           setTituloThread('')
+          setTipoThread(null)
+          setMostrarInfo(false)
+          setParticipantes([])
           setMensagens([])
           setModoGrupo(false)
           return
@@ -400,17 +410,28 @@ export default function BatePapoFloating({
       const { data } = await supabase.auth.getUser()
       if (cancelado) return
       setUserId(data?.user?.id || null)
-      try {
-        await garantirChavesUsuario()
-        await tentarMigrarDmsLegado()
-      } catch {
-        /* schema pode ainda não existir */
-      }
     })()
     return () => {
       cancelado = true
     }
   }, [permitido])
+
+  useEffect(() => {
+    if (!permitido || !chaveConta.chavePronta) return undefined
+    let cancelado = false
+    void (async () => {
+      try {
+        await garantirChavesUsuario()
+        if (cancelado) return
+        await tentarMigrarDmsLegado()
+      } catch {
+        /* setup/unlock no modal */
+      }
+    })()
+    return () => {
+      cancelado = true
+    }
+  }, [permitido, chaveConta.chavePronta])
 
   const atualizarBadge = useCallback(async () => {
     try {
@@ -477,9 +498,9 @@ export default function BatePapoFloating({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'home_bate_papo_mensagens_v2' },
         () => {
-          if (conversaIdRef.current) {
-            void listarMensagensConversa(conversaIdRef.current).then(setMensagens).catch(() => {})
-            void marcarConversaComoLida(conversaIdRef.current)
+          if (conversaIdRef.current && abertoRef.current) {
+            void carregarListaRef.current({ silencioso: true })
+            return
           }
           if (abertoRef.current) void carregarListaRef.current({ silencioso: true })
           else void atualizarBadge()
@@ -497,30 +518,39 @@ export default function BatePapoFloating({
       setCarregandoChat(false)
       return undefined
     }
-    let cancelado = false
-    setCarregandoChat(true)
-    void (async () => {
-      try {
-        const lista = await listarMensagensConversa(conversaId)
-        if (cancelado) return
-        setMensagens(lista)
+    return observarThreadEmerzap({
+      conversaId,
+      userId,
+      ativo: true,
+      onMensagens: setMensagens,
+      onErro: setErro,
+      onCarregando: setCarregandoChat,
+      onAposOk: async () => {
         await marcarConversaComoLida(conversaId)
-        if (cancelado) return
         setConversas((prev) =>
           prev.map((c) => (c.conversaId === conversaId ? { ...c, naoLidas: 0 } : c)),
         )
         await atualizarBadge()
         await carregarListaRef.current({ silencioso: true })
-      } catch (e) {
-        if (!cancelado) setErro(e?.message || String(e))
-      } finally {
-        if (!cancelado) setCarregandoChat(false)
+      },
+    })
+  }, [conversaId, aberto, userId, atualizarBadge])
+
+  useEffect(() => {
+    if (!conversaId || !aberto || tipoThread !== 'grupo') return undefined
+    let cancelado = false
+    void (async () => {
+      try {
+        const lista = await listarParticipantesConversa(conversaId)
+        if (!cancelado) setParticipantes(lista)
+      } catch {
+        /* info sob demanda */
       }
     })()
     return () => {
       cancelado = true
     }
-  }, [conversaId, aberto, atualizarBadge])
+  }, [conversaId, aberto, tipoThread])
 
   useEffect(() => {
     if (carregandoChat || !conversaId) return
@@ -606,6 +636,8 @@ export default function BatePapoFloating({
 
   const abrirConversa = async (c) => {
     setModoGrupo(false)
+    setMostrarInfo(false)
+    setParticipantes([])
     setErro('')
     setTexto('')
     setPreviewImg(null)
@@ -622,6 +654,7 @@ export default function BatePapoFloating({
     if (c.conversaId) {
       setConversaId(c.conversaId)
       setTituloThread(c.nome)
+      setTipoThread(c.tipo || null)
       return
     }
     if (c.peerId) {
@@ -629,6 +662,7 @@ export default function BatePapoFloating({
         const id = await obterOuCriarDm(c.peerId)
         setConversaId(id)
         setTituloThread(c.nome)
+        setTipoThread('dm')
         void carregarListaRef.current({ silencioso: true })
       } catch (e) {
         setErro(e?.message || String(e))
@@ -642,6 +676,8 @@ export default function BatePapoFloating({
       const id = await obterOuCriarDm(user.id)
       setConversaId(id)
       setTituloThread(user.nome)
+      setTipoThread('dm')
+      setMostrarInfo(false)
       setModoGrupo(false)
       void carregarListaRef.current({ silencioso: true })
     } catch (e) {
@@ -650,13 +686,34 @@ export default function BatePapoFloating({
   }
 
   const voltarLista = () => {
+    if (mostrarInfo) {
+      setMostrarInfo(false)
+      return
+    }
     setConversaId(null)
     setTituloThread('')
+    setTipoThread(null)
+    setParticipantes([])
     setMensagens([])
     setTexto('')
     setPreviewImg(null)
     setModoGrupo(false)
     void carregarLista({ silencioso: true })
+  }
+
+  const abrirInfoConversa = async () => {
+    if (!conversaId) return
+    setMostrarInfo(true)
+    setCarregandoInfo(true)
+    try {
+      const lista = await listarParticipantesConversa(conversaId)
+      setParticipantes(lista)
+    } catch (e) {
+      setErro(e?.message || String(e))
+      setParticipantes([])
+    } finally {
+      setCarregandoInfo(false)
+    }
   }
 
   const onEnviar = async (e) => {
@@ -696,6 +753,8 @@ export default function BatePapoFloating({
       setMembrosGrupo(new Set())
       setConversaId(id)
       setTituloThread(nomeGrupo.trim())
+      setTipoThread('grupo')
+      setMostrarInfo(false)
       void carregarListaRef.current({ silencioso: true })
     } catch (err) {
       setErro(err?.message || String(err))
@@ -755,6 +814,12 @@ export default function BatePapoFloating({
 
   const drawerInner = (
     <div className="bate_papo_float_drawer_inner">
+      <EmerzapChaveContaModal
+        open={chaveConta.modalAberto}
+        modo={chaveConta.modo}
+        mensagem={chaveConta.mensagem}
+        onResolvido={chaveConta.onResolvido}
+      />
       <header className="bate_papo_float_drawer_head">
         {conversaId || modoGrupo ? (
           <button type="button" className="bate_papo_float_voltar" onClick={voltarLista} aria-label="Voltar">
@@ -762,7 +827,37 @@ export default function BatePapoFloating({
           </button>
         ) : null}
         <p className="bate_papo_float_titulo">
-          {modoGrupo ? 'Novo grupo' : conversaId ? tituloThread || 'Conversa' : 'Emer-zap'}
+          {modoGrupo ? (
+            'Novo grupo'
+          ) : conversaId ? (
+            <button
+              type="button"
+              className="bate_papo_float_titulo_btn"
+              onClick={() => {
+                if (mostrarInfo) setMostrarInfo(false)
+                else void abrirInfoConversa()
+              }}
+              title={tipoThread === 'grupo' ? 'Ver participantes' : 'Info da conversa'}
+            >
+              <span className="bate_papo_float_titulo_main">
+                {tipoThread === 'grupo' ? '👥 ' : ''}
+                {tituloThread || 'Conversa'}
+              </span>
+              {tipoThread === 'grupo' ? (
+                <small>
+                  {mostrarInfo
+                    ? 'Dados do grupo'
+                    : participantes.length
+                      ? `${participantes.length} participantes`
+                      : 'Toque para ver participantes'}
+                </small>
+              ) : (
+                <small>{mostrarInfo ? 'Dados da conversa' : 'Toque para info'}</small>
+              )}
+            </button>
+          ) : (
+            'Emer-zap'
+          )}
         </p>
         <div className="bate_papo_float_head_acoes">
           {!conversaId && !modoGrupo ? (
@@ -866,7 +961,11 @@ export default function BatePapoFloating({
                             </span>
                           ) : null}
                         </span>
-                        <small>{c.ultimaMensagem || 'Sem mensagens'}</small>
+                        <small>
+                          {c.tipo === 'grupo' && c.participantesCount
+                            ? `${c.participantesCount} participantes · ${c.ultimaMensagem || 'Sem mensagens'}`
+                            : c.ultimaMensagem || 'Sem mensagens'}
+                        </small>
                       </button>
                     </li>
                   ))}
@@ -892,45 +991,70 @@ export default function BatePapoFloating({
         </div>
       ) : (
         <div className="bate_papo_float_chat">
-          <div className="bate_papo_float_chat_lista">
-            {carregandoChat ? (
-              <p className="bate_papo_float_status">Carregando…</p>
-            ) : mensagensComDias.length === 0 ? (
-              <p className="bate_papo_float_status">Nenhuma mensagem ainda.</p>
-            ) : (
-              mensagensComDias.map((item) => {
-                if (item.kind === 'day') {
-                  return (
-                    <div key={item.id} className="bate_papo_float_day">
-                      <span>{item.label}</span>
-                    </div>
-                  )
-                }
-                const minha = item.remetenteId === userId
-                return (
-                  <div key={item.id} className={`bate_papo_float_msg${minha ? ' is-mine' : ''}`}>
-                    <div className="bate_papo_float_msg_meta">
-                      <span>{minha ? 'Você' : item.remetenteNome}</span>
-                      <time dateTime={item.criadoEm || undefined}>{formatarHoraMensagem(item.criadoEm)}</time>
-                    </div>
-                    {item.tipo === 'imagem' ? <MensagemImagem msg={item} /> : <p>{item.corpo}</p>}
-                  </div>
-                )
-              })
-            )}
-            <div ref={fimRef} />
-          </div>
-          <EmerzapComposer
-            variant="float"
-            texto={texto}
-            onTextoChange={setTexto}
-            previewImg={previewImg}
-            onPreviewChange={setPreviewImg}
-            enviando={enviando}
-            onSubmit={onEnviar}
-            fileRef={fileRef}
-            inputRef={inputRef}
-          />
+          {mostrarInfo ? (
+            <div className="bate_papo_float_info">
+              <p className="bate_papo_float_subtitulo">
+                Participantes
+                {participantes.length ? ` · ${participantes.length}` : ''}
+              </p>
+              {carregandoInfo ? (
+                <p className="bate_papo_float_status">Carregando…</p>
+              ) : participantes.length === 0 ? (
+                <p className="bate_papo_float_status">Nenhum participante encontrado.</p>
+              ) : (
+                <ul className="bate_papo_float_info_list">
+                  {participantes.map((p) => (
+                    <li key={p.id} className="bate_papo_float_info_item">
+                      <span className="bate_papo_float_contato_nome">{p.nome}</span>
+                      <small>{p.papel === 'admin' ? 'Admin' : 'Participante'}</small>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="bate_papo_float_chat_lista">
+                {carregandoChat ? (
+                  <p className="bate_papo_float_status">Carregando…</p>
+                ) : mensagensComDias.length === 0 ? (
+                  <p className="bate_papo_float_status">Nenhuma mensagem ainda.</p>
+                ) : (
+                  mensagensComDias.map((item) => {
+                    if (item.kind === 'day') {
+                      return (
+                        <div key={item.id} className="bate_papo_float_day">
+                          <span>{item.label}</span>
+                        </div>
+                      )
+                    }
+                    const minha = item.remetenteId === userId
+                    return (
+                      <div key={item.id} className={`bate_papo_float_msg${minha ? ' is-mine' : ''}`}>
+                        <div className="bate_papo_float_msg_meta">
+                          <span>{minha ? 'Você' : item.remetenteNome}</span>
+                          <time dateTime={item.criadoEm || undefined}>{formatarHoraMensagem(item.criadoEm)}</time>
+                        </div>
+                        {item.tipo === 'imagem' ? <MensagemImagem msg={item} /> : <p>{item.corpo}</p>}
+                      </div>
+                    )
+                  })
+                )}
+                <div ref={fimRef} />
+              </div>
+              <EmerzapComposer
+                variant="float"
+                texto={texto}
+                onTextoChange={setTexto}
+                previewImg={previewImg}
+                onPreviewChange={setPreviewImg}
+                enviando={enviando}
+                onSubmit={onEnviar}
+                fileRef={fileRef}
+                inputRef={inputRef}
+              />
+            </>
+          )}
         </div>
       )}
     </div>

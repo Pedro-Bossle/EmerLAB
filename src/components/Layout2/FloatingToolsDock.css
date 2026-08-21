@@ -1,6 +1,6 @@
 .floating_tools_dock {
   position: fixed;
-  z-index: 45; /* z-fab — abaixo de drawer/modal (50/60) */
+  z-index: 55; /* acima da sidebar; abaixo de modal */
   left: 0;
   right: 0;
   bottom: 4.25rem;

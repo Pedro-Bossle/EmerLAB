@@ -1,20 +1,31 @@
-import React, { useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import EmerzapComposer from '../../components/BatePapo/EmerzapComposer'
-import { MensagemImagem, formatarHoraMensagem } from '../../components/BatePapo/batePapoUi'
-import { useEmerzapChat } from '../../components/BatePapo/useEmerzapChat'
-import './Emerzap.css'
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import EmerzapComposer from "../../components/BatePapo/EmerzapComposer";
+import EmerzapChaveContaModal from "../../components/BatePapo/EmerzapChaveContaModal";
+import {
+  MensagemImagem,
+  formatarHoraMensagem,
+} from "../../components/BatePapo/batePapoUi";
+import { useEmerzapChat } from "../../components/BatePapo/useEmerzapChat";
+import { lerDarkModeAtivo, salvarDarkModeAtivo } from "../../lib/sidebarPrefs";
+import "./Emerzap.css";
 
 export default function Emerzap() {
-  const chat = useEmerzapChat({ ativo: true })
+  const chat = useEmerzapChat({ ativo: true });
+  const [darkModeAtivo, setDarkModeAtivo] = useState(() => lerDarkModeAtivo());
 
   useEffect(() => {
-    const prev = document.title
-    document.title = 'Emerzap'
+    const prev = document.title;
+    document.title = "EmerLAB";
     return () => {
-      document.title = prev
-    }
-  }, [])
+      document.title = prev;
+    };
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle("dark-mode", darkModeAtivo);
+    salvarDarkModeAtivo(darkModeAtivo);
+  }, [darkModeAtivo]);
 
   if (!chat.permitido) {
     return (
@@ -22,27 +33,47 @@ export default function Emerzap() {
         <p>Sem permissão para o Emerzap.</p>
         <Link to="/home">Voltar ao início</Link>
       </div>
-    )
+    );
   }
 
   return (
     <div className="emerzap_web">
+      <EmerzapChaveContaModal
+        open={chat.chaveConta.modalAberto}
+        modo={chat.chaveConta.modo}
+        mensagem={chat.chaveConta.mensagem}
+        onResolvido={chat.chaveConta.onResolvido}
+      />
       <aside className="emerzap_web_sidebar" aria-label="Conversas">
         <header className="emerzap_web_side_head">
           <div className="emerzap_web_brand">
             <span className="emerzap_web_brand_mark" aria-hidden="true">
               💬
             </span>
-            <h1>Emerzap</h1>
+            <div className="emerzap_web_brand_text">
+              <p className="emerzap_web_brand_kicker">EmerLAB</p>
+              <h1>Emerzap</h1>
+            </div>
           </div>
-          <button
-            type="button"
-            className="emerzap_web_btn_grupo"
-            onClick={() => chat.setModoGrupo(true)}
-            title="Novo grupo"
-          >
-            + Grupo
-          </button>
+          <div className="emerzap_web_side_acoes">
+            <button
+              type="button"
+              className="emerzap_web_btn_tema"
+              onClick={() => setDarkModeAtivo((v) => !v)}
+              title={darkModeAtivo ? "Modo claro" : "Modo escuro"}
+              aria-label={darkModeAtivo ? "Modo claro" : "Modo escuro"}
+            >
+              {darkModeAtivo ? "☀" : "☾"}
+            </button>
+            <button
+              type="button"
+              className="emerzap_web_btn_grupo"
+              onClick={() => chat.setModoGrupo(true)}
+              title="Novo grupo"
+            >
+              + Grupo
+            </button>
+          </div>
         </header>
 
         <div className="emerzap_web_busca_wrap">
@@ -63,28 +94,36 @@ export default function Emerzap() {
           ) : (
             <>
               {chat.listaFiltrada.conversasFiltradas.map((c) => {
-                const ativa = c.conversaId && c.conversaId === chat.conversaId
+                const ativa = c.conversaId && c.conversaId === chat.conversaId;
                 return (
                   <button
                     key={c.conversaId || c.peerId}
                     type="button"
-                    className={`emerzap_web_contato${ativa ? ' is-active' : ''}`}
+                    className={`emerzap_web_contato${ativa ? " is-active" : ""}`}
                     onClick={() => void chat.abrirConversa(c)}
                   >
                     <span className="emerzap_web_avatar" aria-hidden="true">
-                      {c.tipo === 'grupo' ? '👥' : iniciais(c.nome)}
+                      {c.tipo === "grupo" ? "👥" : iniciais(c.nome)}
                     </span>
                     <span className="emerzap_web_contato_body">
                       <span className="emerzap_web_contato_top">
-                        <span className="emerzap_web_contato_nome">{c.nome}</span>
+                        <span className="emerzap_web_contato_nome">
+                          {c.nome}
+                        </span>
                         {c.naoLidas > 0 ? (
-                          <span className="emerzap_web_badge">{c.naoLidas > 99 ? '99+' : c.naoLidas}</span>
+                          <span className="emerzap_web_badge">
+                            {c.naoLidas > 99 ? "99+" : c.naoLidas}
+                          </span>
                         ) : null}
                       </span>
-                      <small>{c.ultimaMensagem || 'Sem mensagens'}</small>
+                      <small>
+                        {c.tipo === "grupo" && c.participantesCount
+                          ? `${c.participantesCount} participantes · ${c.ultimaMensagem || "Sem mensagens"}`
+                          : c.ultimaMensagem || "Sem mensagens"}
+                      </small>
                     </span>
                   </button>
-                )
+                );
               })}
               {chat.listaFiltrada.semConversa.length > 0 ? (
                 <>
@@ -100,15 +139,20 @@ export default function Emerzap() {
                         {iniciais(u.nome)}
                       </span>
                       <span className="emerzap_web_contato_body">
-                        <span className="emerzap_web_contato_nome">{u.nome}</span>
+                        <span className="emerzap_web_contato_nome">
+                          {u.nome}
+                        </span>
                         <small>Nova conversa</small>
                       </span>
                     </button>
                   ))}
                 </>
               ) : null}
-              {!chat.listaFiltrada.conversasFiltradas.length && !chat.listaFiltrada.semConversa.length ? (
-                <p className="emerzap_web_status">Nenhuma conversa encontrada.</p>
+              {!chat.listaFiltrada.conversasFiltradas.length &&
+              !chat.listaFiltrada.semConversa.length ? (
+                <p className="emerzap_web_status">
+                  Nenhuma conversa encontrada.
+                </p>
               ) : null}
             </>
           )}
@@ -119,7 +163,12 @@ export default function Emerzap() {
         {chat.modoGrupo ? (
           <form className="emerzap_web_grupo" onSubmit={chat.onCriarGrupo}>
             <header className="emerzap_web_chat_head">
-              <button type="button" className="emerzap_web_voltar" onClick={chat.voltarLista} aria-label="Fechar grupo">
+              <button
+                type="button"
+                className="emerzap_web_voltar"
+                onClick={chat.voltarLista}
+                aria-label="Fechar grupo"
+              >
                 ×
               </button>
               <h2>Novo grupo</h2>
@@ -142,11 +191,11 @@ export default function Emerzap() {
                         checked={chat.membrosGrupo.has(u.id)}
                         onChange={() => {
                           chat.setMembrosGrupo((prev) => {
-                            const next = new Set(prev)
-                            if (next.has(u.id)) next.delete(u.id)
-                            else next.add(u.id)
-                            return next
-                          })
+                            const next = new Set(prev);
+                            if (next.has(u.id)) next.delete(u.id);
+                            else next.add(u.id);
+                            return next;
+                          });
                         }}
                       />
                       <span>{u.nome}</span>
@@ -157,7 +206,11 @@ export default function Emerzap() {
               <button
                 type="submit"
                 className="emerzap_web_enviar"
-                disabled={chat.enviando || !chat.nomeGrupo.trim() || !chat.membrosGrupo.size}
+                disabled={
+                  chat.enviando ||
+                  !chat.nomeGrupo.trim() ||
+                  !chat.membrosGrupo.size
+                }
               >
                 Criar grupo
               </button>
@@ -166,56 +219,153 @@ export default function Emerzap() {
         ) : chat.conversaId ? (
           <div className="emerzap_web_chat">
             <header className="emerzap_web_chat_head">
-              <span className="emerzap_web_avatar emerzap_web_avatar--sm" aria-hidden="true">
-                {iniciais(chat.tituloThread)}
-              </span>
-              <h2>{chat.tituloThread || 'Conversa'}</h2>
+              {chat.mostrarInfo ? (
+                <button
+                  type="button"
+                  className="emerzap_web_voltar"
+                  onClick={chat.fecharInfoConversa}
+                  aria-label="Voltar ao chat"
+                >
+                  ←
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="emerzap_web_chat_head_btn"
+                onClick={() => {
+                  if (chat.mostrarInfo) chat.fecharInfoConversa();
+                  else void chat.abrirInfoConversa();
+                }}
+                title={
+                  chat.tipoThread === "grupo"
+                    ? "Ver participantes"
+                    : "Info da conversa"
+                }
+              >
+                <span
+                  className="emerzap_web_avatar emerzap_web_avatar--sm"
+                  aria-hidden="true"
+                >
+                  {chat.tipoThread === "grupo"
+                    ? "👥"
+                    : iniciais(chat.tituloThread)}
+                </span>
+                <span className="emerzap_web_chat_head_text">
+                  <h2>{chat.tituloThread || "Conversa"}</h2>
+                  {chat.tipoThread === "grupo" ? (
+                    <small>
+                      {chat.mostrarInfo
+                        ? "Dados do grupo"
+                        : chat.participantes.length
+                          ? `${chat.participantes.length} participantes`
+                          : "Toque para ver participantes"}
+                    </small>
+                  ) : (
+                    <small>
+                      {chat.mostrarInfo
+                        ? "Dados da conversa"
+                        : "Toque para info"}
+                    </small>
+                  )}
+                </span>
+              </button>
             </header>
 
-            <div className="emerzap_web_msgs">
-              {chat.carregandoChat ? (
-                <p className="emerzap_web_status">Carregando…</p>
-              ) : chat.mensagensComDias.length === 0 ? (
-                <p className="emerzap_web_status">Nenhuma mensagem ainda. Diga oi!</p>
-              ) : (
-                chat.mensagensComDias.map((item) => {
-                  if (item.kind === 'day') {
-                    return (
-                      <div key={item.id} className="emerzap_web_day">
-                        <span>{item.label}</span>
-                      </div>
-                    )
-                  }
-                  const minha = item.remetenteId === chat.userId
-                  return (
-                    <div key={item.id} className={`emerzap_web_msg${minha ? ' is-mine' : ''}`}>
-                      <div className="emerzap_web_msg_meta">
-                        <span>{minha ? 'Você' : item.remetenteNome}</span>
-                        <time dateTime={item.criadoEm || undefined}>{formatarHoraMensagem(item.criadoEm)}</time>
-                      </div>
-                      {item.tipo === 'imagem' ? (
-                        <MensagemImagem msg={item} className="emerzap_web_msg_img" />
-                      ) : (
-                        <p>{item.corpo}</p>
-                      )}
-                    </div>
-                  )
-                })
-              )}
-              <div ref={chat.fimRef} />
-            </div>
+            {chat.mostrarInfo ? (
+              <div className="emerzap_web_info">
+                <p className="emerzap_web_secao">
+                  Participantes
+                  {chat.participantes.length
+                    ? ` · ${chat.participantes.length}`
+                    : ""}
+                </p>
+                {chat.carregandoInfo ? (
+                  <p className="emerzap_web_status">Carregando…</p>
+                ) : chat.participantes.length === 0 ? (
+                  <p className="emerzap_web_status">
+                    Nenhum participante encontrado.
+                  </p>
+                ) : (
+                  <ul className="emerzap_web_info_list">
+                    {chat.participantes.map((p) => (
+                      <li key={p.id} className="emerzap_web_info_item">
+                        <span
+                          className="emerzap_web_avatar emerzap_web_avatar--sm"
+                          aria-hidden="true"
+                        >
+                          {iniciais(p.nome)}
+                        </span>
+                        <span className="emerzap_web_info_item_body">
+                          <span className="emerzap_web_contato_nome">
+                            {p.nome}
+                          </span>
+                          <small>
+                            {p.papel === "admin" ? "Admin" : "Participante"}
+                          </small>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="emerzap_web_msgs">
+                  {chat.carregandoChat ? (
+                    <p className="emerzap_web_status">Carregando…</p>
+                  ) : chat.mensagensComDias.length === 0 ? (
+                    <p className="emerzap_web_status">
+                      Nenhuma mensagem ainda. Diga oi!
+                    </p>
+                  ) : (
+                    chat.mensagensComDias.map((item) => {
+                      if (item.kind === "day") {
+                        return (
+                          <div key={item.id} className="emerzap_web_day">
+                            <span>{item.label}</span>
+                          </div>
+                        );
+                      }
+                      const minha = item.remetenteId === chat.userId;
+                      return (
+                        <div
+                          key={item.id}
+                          className={`emerzap_web_msg${minha ? " is-mine" : ""}`}
+                        >
+                          <div className="emerzap_web_msg_meta">
+                            <span>{minha ? "Você" : item.remetenteNome}</span>
+                            <time dateTime={item.criadoEm || undefined}>
+                              {formatarHoraMensagem(item.criadoEm)}
+                            </time>
+                          </div>
+                          {item.tipo === "imagem" ? (
+                            <MensagemImagem
+                              msg={item}
+                              className="emerzap_web_msg_img"
+                            />
+                          ) : (
+                            <p>{item.corpo}</p>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={chat.fimRef} />
+                </div>
 
-            <EmerzapComposer
-              variant="web"
-              texto={chat.texto}
-              onTextoChange={chat.setTexto}
-              previewImg={chat.previewImg}
-              onPreviewChange={chat.setPreviewImg}
-              enviando={chat.enviando}
-              onSubmit={chat.onEnviar}
-              fileRef={chat.fileRef}
-              inputRef={chat.inputRef}
-            />
+                <EmerzapComposer
+                  variant="web"
+                  texto={chat.texto}
+                  onTextoChange={chat.setTexto}
+                  previewImg={chat.previewImg}
+                  onPreviewChange={chat.setPreviewImg}
+                  enviando={chat.enviando}
+                  onSubmit={chat.onEnviar}
+                  fileRef={chat.fileRef}
+                  inputRef={chat.inputRef}
+                />
+              </>
+            )}
           </div>
         ) : (
           <div className="emerzap_web_empty">
@@ -223,22 +373,26 @@ export default function Emerzap() {
               <span className="emerzap_web_empty_ico" aria-hidden="true">
                 💬
               </span>
+              <p className="emerzap_web_empty_brand">EmerLAB</p>
               <h2>Emerzap</h2>
-              <p>Selecione uma conversa à esquerda para começar — no estilo WhatsApp Web.</p>
+              <p>
+                Selecione uma conversa à esquerda para começar — no estilo
+                WhatsApp Web.
+              </p>
             </div>
           </div>
         )}
       </main>
     </div>
-  )
+  );
 }
 
 function iniciais(nome) {
-  const parts = String(nome || '')
+  const parts = String(nome || "")
     .trim()
     .split(/\s+/)
-    .filter(Boolean)
-  if (!parts.length) return '?'
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return `${parts[0][0] || ''}${parts[parts.length - 1][0] || ''}`.toUpperCase()
+    .filter(Boolean);
+  if (!parts.length) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] || ""}${parts[parts.length - 1][0] || ""}`.toUpperCase();
 }

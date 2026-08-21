@@ -19,6 +19,11 @@ function destinoPosLogin(nextRaw) {
   return next
 }
 
+function isDestinoEmerzap(destino) {
+  const path = String(destino || '').split('?')[0].split('#')[0]
+  return path === '/emerzap' || path.startsWith('/emerzap/')
+}
+
 const IconEye = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path
@@ -52,10 +57,21 @@ const Login = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const destino = destinoPosLogin(searchParams.get('next'))
+  const loginEmerzap = isDestinoEmerzap(destino)
+  const marca = loginEmerzap ? 'Emerzap' : 'EmerLAB'
+  const marcaFundo = loginEmerzap ? 'ZAP' : 'LAB'
+  const textoApoio = loginEmerzap
+    ? 'Entre com sua conta para continuar no Emerzap.'
+    : 'Entre com sua conta para continuar no Livro de Apoio Base.'
 
   useEffect(() => {
     aplicarTemaSalvoNoBody()
-  }, [])
+    const prev = document.title
+    document.title = marca
+    return () => {
+      document.title = prev
+    }
+  }, [marca])
 
   useEffect(() => {
     let ativo = true
@@ -100,18 +116,18 @@ const Login = () => {
         className="pointer-events-none absolute left-1/2 top-[46%] -translate-x-1/2 -translate-y-1/2 font-display text-[clamp(8rem,28vw,16rem)] font-extrabold leading-none tracking-tighter text-ink/[0.05] dark:text-white/[0.04]"
         aria-hidden
       >
-        LAB
+        {marcaFundo}
       </p>
 
       <div className="el-stage relative z-10 w-full max-w-md animate-[fadeRise_0.7s_cubic-bezier(0.22,1,0.36,1)_both]">
         <p className="mb-4 font-display text-[clamp(1.85rem,4.5vw,2.5rem)] font-extrabold leading-none tracking-tight text-ink dark:text-[#e8f1f8]">
-          EmerLAB
+          {marca}
         </p>
         <h1 className="mb-2 font-sans text-xl font-extrabold tracking-tight text-[#123e59] dark:text-[#e8f1f8]">
           Bem-vindo de volta
         </h1>
         <p className="mb-6 max-w-[34ch] text-[0.95rem] font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
-          Entre com sua conta para continuar no Livro de Apoio Base.
+          {textoApoio}
         </p>
 
         <form className="flex flex-col gap-4" onSubmit={handleLogin} noValidate>

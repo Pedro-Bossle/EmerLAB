@@ -153,6 +153,17 @@ body:has(.notif_float.is-open) .dev_tools_float:not(.is-open) .dev_tools_float_b
     pointer-events: none;
 }
 
+/* Camada flutuante (também em FloatingToolsDock.css se carregado) */
+.el-floating-layer {
+    position: relative;
+    z-index: 55;
+    pointer-events: none;
+}
+
+.el-floating-layer > * {
+    pointer-events: auto;
+}
+
 @media (min-width: 1024px) {
     .layout2_nav_backdrop,
     .layout2_nav_fab {

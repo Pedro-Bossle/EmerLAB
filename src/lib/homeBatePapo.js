@@ -1,19 +1,263 @@
 import { supabase } from './supabase.js'
 import {
-  carregarOuCriarParChaves,
   desenrolarChaveConversa,
+  desenrolarPrivComSenha,
   desencriptarBytes,
   desencriptarTexto,
   encriptarBytes,
   encriptarTexto,
   envolverChaveConversa,
+  envolverPrivComSenha,
   gerarChaveConversaAes,
+  gerarNovoParChaves,
+  importarParDePrivJwk,
   importarPublicaJwk,
+  lerPrivJwkLocal,
   montarMetaImagem,
   parseAnexoMeta,
+  privadaCorrespondePublica,
+  salvarPrivJwkLocal,
 } from './batePapoCrypto.js'
 
 const MSG_INDISPONIVEL = 'Mensagem indisponível neste dispositivo'
+
+/** Códigos de UI para senha da chave de conta (multi-dispositivo). */
+export const CHAVE_CONTA_SETUP = 'CHAVE_CONTA_SETUP'
+export const CHAVE_CONTA_UNLOCK = 'CHAVE_CONTA_UNLOCK'
+export const CHAVE_CONTA_ATIVAR_SYNC = 'CHAVE_CONTA_ATIVAR_SYNC'
+export const CHAVE_CONTA_BLOQUEADO = 'CHAVE_CONTA_BLOQUEADO'
+
+export function isErroChaveConta(err) {
+  const code = err?.code || ''
+  return (
+    code === CHAVE_CONTA_SETUP ||
+    code === CHAVE_CONTA_UNLOCK ||
+    code === CHAVE_CONTA_ATIVAR_SYNC ||
+    code === CHAVE_CONTA_BLOQUEADO ||
+    String(err?.message || '').includes('CHAVE_CONTA_')
+  )
+}
+
+function erroChaveConta(code, message) {
+  const err = new Error(message || code)
+  err.code = code
+  return err
+}
+
+async function buscarRowChaveConta(uid) {
+  const { data, error } = await supabase
+    .from('home_bate_papo_user_keys')
+    .select('user_id, public_jwk, priv_cipher, chave_reset_pedido_em, atualizado_em')
+    .eq('user_id', uid)
+    .maybeSingle()
+  if (error) {
+    // Colunas novas ainda não existem → fallback
+    if (/priv_cipher|chave_reset_pedido_em|column/i.test(String(error.message || ''))) {
+      const { data: legacy, error: err2 } = await supabase
+        .from('home_bate_papo_user_keys')
+        .select('user_id, public_jwk, atualizado_em')
+        .eq('user_id', uid)
+        .maybeSingle()
+      if (err2) throw new Error(mensagemErroBatePapo(err2))
+      return legacy ? { ...legacy, priv_cipher: null, chave_reset_pedido_em: null } : null
+    }
+    throw new Error(mensagemErroBatePapo(error))
+  }
+  return data
+}
+
+async function upsertChaveConta({ uid, publicJwk, privCipher, manterPrivCipher = false }) {
+  const payload = {
+    user_id: uid,
+    public_jwk: publicJwk,
+    atualizado_em: new Date().toISOString(),
+  }
+  if (!manterPrivCipher) {
+    payload.priv_cipher = privCipher ?? null
+    if (privCipher) {
+      payload.chave_reset_pedido_em = null
+    }
+  }
+  const { error } = await supabase.from('home_bate_papo_user_keys').upsert(payload, { onConflict: 'user_id' })
+  if (error) {
+    if (privCipher != null && /priv_cipher|column/i.test(String(error.message || ''))) {
+      throw new Error(
+        'Execute o SQL scripts/sql/home_bate_papo_chave_conta.sql no Supabase para ativar sync multi-dispositivo.',
+      )
+    }
+    // Sem coluna chave_reset_pedido_em: tenta sem o campo
+    if (/chave_reset_pedido_em/i.test(String(error.message || ''))) {
+      delete payload.chave_reset_pedido_em
+      const { error: err2 } = await supabase
+        .from('home_bate_papo_user_keys')
+        .upsert(payload, { onConflict: 'user_id' })
+      if (err2) throw new Error(mensagemErroBatePapo(err2))
+      return
+    }
+    throw new Error(mensagemErroBatePapo(error))
+  }
+}
+
+/**
+ * Inspeciona se a identidade E2EE está pronta neste aparelho.
+ * @returns {{ status: 'ok'|'setup'|'unlock'|'ativar_sync'|'bloqueado', pair?: object, message?: string }}
+ */
+export async function inspecionarChaveConta() {
+  const uid = await uidAtual()
+  const row = await buscarRowChaveConta(uid)
+  const local = lerPrivJwkLocal()
+  const temCipher = Boolean(row?.priv_cipher)
+  const temPublica = Boolean(row?.public_jwk?.n)
+
+  if (temCipher) {
+    if (local && privadaCorrespondePublica(local, row.public_jwk)) {
+      const pair = await importarParDePrivJwk(local)
+      return { status: 'ok', pair }
+    }
+    return {
+      status: 'unlock',
+      message: 'Desbloqueie a chave Emerzap com a senha definida noutro aparelho.',
+    }
+  }
+
+  const resetPedido = Boolean(row?.chave_reset_pedido_em)
+  const msgReset =
+    'Um administrador pediu a redefinição da senha da chave Emerzap. Defina uma nova senha para continuar.'
+
+  if (local) {
+    if (temPublica && !privadaCorrespondePublica(local, row.public_jwk)) {
+      return {
+        status: 'bloqueado',
+        message:
+          'Este aparelho tem uma chave antiga diferente da conta. No aparelho onde o Emerzap já funciona, defina a senha da chave. Depois volte aqui e desbloqueie.',
+      }
+    }
+    const pair = await importarParDePrivJwk(local)
+    if (!temPublica) {
+      await upsertChaveConta({ uid, publicJwk: pair.publicJwk, privCipher: null })
+    }
+    return {
+      status: 'ativar_sync',
+      pair,
+      message: resetPedido
+        ? msgReset
+        : 'Defina uma senha da chave para usar o Emerzap noutros aparelhos (obrigatório).',
+    }
+  }
+
+  if (temPublica && !temCipher) {
+    return {
+      status: 'bloqueado',
+      message: resetPedido
+        ? `${msgReset} Se este não for o aparelho original, use o dispositivo onde o Emerzap já lia as conversas.`
+        : 'A conta já tem chave pública, mas a sincronização ainda não foi ativada. Abra o Emerzap no aparelho original e defina a senha da chave.',
+    }
+  }
+
+  return {
+    status: 'setup',
+    message: resetPedido
+      ? msgReset
+      : 'Crie a senha da chave Emerzap (protege o histórico entre aparelhos).',
+  }
+}
+
+/** Configura senha (setup ou ativar_sync) e grava priv_cipher na cloud. */
+export async function configurarChaveContaComSenha(senha, senhaConfirm) {
+  const s = String(senha || '')
+  const c = String(senhaConfirm || '')
+  if (s.length < 6) throw new Error('A senha da chave deve ter pelo menos 6 caracteres.')
+  if (s !== c) throw new Error('As senhas não coincidem.')
+
+  const uid = await uidAtual()
+  const row = await buscarRowChaveConta(uid)
+  let pair
+
+  if (row?.priv_cipher) {
+    throw erroChaveConta(CHAVE_CONTA_UNLOCK, 'Esta conta já tem chave sincronizada. Use desbloquear.')
+  }
+
+  const local = lerPrivJwkLocal()
+  if (local && (!row?.public_jwk || privadaCorrespondePublica(local, row.public_jwk))) {
+    pair = await importarParDePrivJwk(local)
+  } else if (row?.public_jwk && !row?.priv_cipher) {
+    throw erroChaveConta(
+      CHAVE_CONTA_BLOQUEADO,
+      'Não é possível criar nova chave: a conta já publicou uma pública sem sync. Use o aparelho original.',
+    )
+  } else {
+    pair = await gerarNovoParChaves()
+  }
+
+  const privCipher = await envolverPrivComSenha(pair.privJwk || lerPrivJwkLocal(), s)
+  await upsertChaveConta({ uid, publicJwk: pair.publicJwk, privCipher })
+  return pair
+}
+
+/** Desbloqueia a privada da cloud com a senha e grava em localStorage. */
+export async function desbloquearChaveContaComSenha(senha) {
+  const uid = await uidAtual()
+  const row = await buscarRowChaveConta(uid)
+  if (!row?.priv_cipher) {
+    throw erroChaveConta(CHAVE_CONTA_SETUP, 'Ainda não há chave sincronizada. Configure a senha primeiro.')
+  }
+  const privJwk = await desenrolarPrivComSenha(row.priv_cipher, senha)
+  if (!privadaCorrespondePublica(privJwk, row.public_jwk)) {
+    throw new Error('A chave desbloqueada não corresponde à pública da conta.')
+  }
+  salvarPrivJwkLocal(privJwk)
+  return importarParDePrivJwk(privJwk)
+}
+
+/**
+ * Garante par RSA utilizável neste aparelho.
+ * Não regenera chave se a cloud já tiver identidade (evita “mensagem indisponível” multi-device).
+ */
+export async function garantirChavesUsuario() {
+  const est = await inspecionarChaveConta()
+  if (est.status === 'ok' && est.pair) {
+    const uid = await uidAtual()
+    await upsertChaveConta({
+      uid,
+      publicJwk: est.pair.publicJwk,
+      manterPrivCipher: true,
+    })
+    return est.pair
+  }
+  if (est.status === 'ativar_sync') {
+    throw erroChaveConta(CHAVE_CONTA_ATIVAR_SYNC, est.message)
+  }
+  if (est.status === 'setup') {
+    throw erroChaveConta(CHAVE_CONTA_SETUP, est.message)
+  }
+  if (est.status === 'unlock') {
+    throw erroChaveConta(CHAVE_CONTA_UNLOCK, est.message)
+  }
+  throw erroChaveConta(CHAVE_CONTA_BLOQUEADO, est.message || 'Chave de conta indisponível.')
+}
+
+async function buscarPublicas(userIds) {
+  const ids = [...new Set((userIds || []).filter(Boolean))]
+  if (!ids.length) return new Map()
+  const { data, error } = await supabase.rpc('home_bate_papo_publicas', { uids: ids })
+  if (!error) {
+    return new Map((data || []).map((r) => [r.user_id, r.public_jwk]))
+  }
+  // Fallback: view ou tabela (antes do SQL de chave de conta)
+  const { data: rows, error: err2 } = await supabase
+    .from('home_bate_papo_user_public_keys')
+    .select('user_id, public_jwk')
+    .in('user_id', ids)
+  if (!err2) {
+    return new Map((rows || []).map((r) => [r.user_id, r.public_jwk]))
+  }
+  const { data: legacy, error: err3 } = await supabase
+    .from('home_bate_papo_user_keys')
+    .select('user_id, public_jwk')
+    .in('user_id', ids)
+  if (err3) throw new Error(mensagemErroBatePapo(error || err2 || err3))
+  return new Map((legacy || []).map((r) => [r.user_id, r.public_jwk]))
+}
 
 function previewBatePapo(texto, max = 80) {
   const limpo = String(texto || '')
@@ -45,31 +289,67 @@ function mensagemErroBatePapo(err) {
   return msg || 'Erro no bate-papo.'
 }
 
-/** Garante par local + publica JWK no servidor. */
-export async function garantirChavesUsuario() {
-  const uid = await uidAtual()
-  const pair = await carregarOuCriarParChaves()
-  const { error } = await supabase.from('home_bate_papo_user_keys').upsert(
-    {
-      user_id: uid,
-      public_jwk: pair.publicJwk,
-      atualizado_em: new Date().toISOString(),
-    },
-    { onConflict: 'user_id' },
+export const MSG_CHAVE_PENDENTE =
+  'A sincronizar a chave desta conversa… Se outro participante tiver o Emerzap aberto, deve concluir em poucos segundos.'
+
+export function isErroChavePendente(err) {
+  const msg = String(err?.message || err || '')
+  return (
+    msg.includes('ainda não está neste dispositivo') ||
+    msg.includes('A sincronizar a chave') ||
+    msg.includes('CHAVE_PENDENTE')
   )
-  if (error) throw new Error(mensagemErroBatePapo(error))
-  return pair
 }
 
-async function buscarPublicas(userIds) {
-  const ids = [...new Set((userIds || []).filter(Boolean))]
-  if (!ids.length) return new Map()
-  const { data, error } = await supabase
-    .from('home_bate_papo_user_keys')
-    .select('user_id, public_jwk')
-    .in('user_id', ids)
-  if (error) throw new Error(mensagemErroBatePapo(error))
-  return new Map((data || []).map((r) => [r.user_id, r.public_jwk]))
+function chaveEstaPendente(wrapped) {
+  return !wrapped || String(wrapped).startsWith('legado:')
+}
+
+function chaveEstaV1(wrapped) {
+  return String(wrapped || '').startsWith('v1:')
+}
+
+/** Com AES válida, re-envolve a chave para todos os participantes com pública conhecida. */
+async function reenveloparParticipantes(conversaId, aesKey, pair) {
+  const uid = await uidAtual()
+  const { data: parts, error } = await supabase
+    .from('home_bate_papo_participantes')
+    .select('user_id, chave_conversa_envolvida')
+    .eq('conversa_id', conversaId)
+  if (error) throw new Error(error.message)
+
+  const pubs = await buscarPublicas((parts || []).map((p) => p.user_id))
+  pubs.set(uid, pair.publicJwk)
+
+  for (const p of parts || []) {
+    const jwk = pubs.get(p.user_id)
+    if (!jwk) continue
+    // Só re-envolve quem está pendente (ou o próprio, para validar o wrap local)
+    if (p.user_id !== uid && !chaveEstaPendente(p.chave_conversa_envolvida)) continue
+    try {
+      const pub = p.user_id === uid ? pair.publicKey : await importarPublicaJwk(jwk)
+      const wrapped = await envolverChaveConversa(aesKey, pub)
+      const { error: upErr } = await supabase
+        .from('home_bate_papo_participantes')
+        .update({ chave_conversa_envolvida: wrapped })
+        .eq('conversa_id', conversaId)
+        .eq('user_id', p.user_id)
+      if (upErr) {
+        console.warn('[emerzap] reenvelopar', p.user_id, upErr.message)
+      }
+    } catch (e) {
+      console.warn('[emerzap] reenvelopar falhou', p.user_id, e?.message || e)
+    }
+  }
+}
+
+async function marcarMinhaChavePendente(conversaId) {
+  const uid = await uidAtual()
+  await supabase
+    .from('home_bate_papo_participantes')
+    .update({ chave_conversa_envolvida: 'legado:pending' })
+    .eq('conversa_id', conversaId)
+    .eq('user_id', uid)
 }
 
 async function obterChaveConversa(conversaId, pair) {
@@ -84,14 +364,26 @@ async function obterChaveConversa(conversaId, pair) {
   const wrapped = data?.chave_conversa_envolvida
   if (!wrapped) throw new Error('Não é participante desta conversa.')
 
-  if (String(wrapped).startsWith('legado:')) {
-    return provisionarChaveLegado(conversaId, pair)
+  if (chaveEstaPendente(wrapped)) {
+    return provisionarOuAguardarChave(conversaId, pair)
   }
-  return desenrolarChaveConversa(wrapped, pair.privateKey)
+
+  try {
+    const aes = await desenrolarChaveConversa(wrapped, pair.privateKey)
+    await reenveloparParticipantes(conversaId, aes, pair)
+    return aes
+  } catch {
+    // OperationError típico: privada local ≠ pública com que a chave foi envolvida
+    await marcarMinhaChavePendente(conversaId)
+    throw new Error(MSG_CHAVE_PENDENTE)
+  }
 }
 
-/** Primeira abertura de DM migrado: gera AES e envolve para quem já tem public_jwk. */
-async function provisionarChaveLegado(conversaId, pair) {
+/**
+ * Se ninguém tem chave v1 ainda → gera AES (migração / conversa nova).
+ * Se já existe v1 noutro participante → NÃO gerar AES nova (destruiria o histórico).
+ */
+async function provisionarOuAguardarChave(conversaId, pair) {
   const uid = await uidAtual()
   const { data: parts, error } = await supabase
     .from('home_bate_papo_participantes')
@@ -102,40 +394,45 @@ async function provisionarChaveLegado(conversaId, pair) {
   const me = (parts || []).find((p) => p.user_id === uid)
   if (!me) throw new Error('Não é participante.')
 
-  // Só admin (ou qualquer se ambos pending) provisiona uma vez
-  const aes = await gerarChaveConversaAes()
-  const pubs = await buscarPublicas((parts || []).map((p) => p.user_id))
-
-  for (const p of parts || []) {
-    const jwk = pubs.get(p.user_id)
-    if (!jwk) continue
-    const pub = await importarPublicaJwk(jwk)
-    const wrapped = await envolverChaveConversa(aes, pub)
-    const { error: upErr } = await supabase
-      .from('home_bate_papo_participantes')
-      .update({ chave_conversa_envolvida: wrapped })
-      .eq('conversa_id', conversaId)
-      .eq('user_id', p.user_id)
-    if (upErr) throw new Error(upErr.message)
+  const alguemComChave = (parts || []).some((p) => chaveEstaV1(p.chave_conversa_envolvida))
+  if (alguemComChave) {
+    throw new Error(MSG_CHAVE_PENDENTE)
   }
 
-  // Se o próprio user não tinha pública (improvável pós garantirChaves), envolve agora
+  // Ninguém tem v1: — primeira provisionação (DM migrado / grupo ainda sem cifra ativa)
+  const aes = await gerarChaveConversaAes()
+  await reenveloparParticipantes(conversaId, aes, pair)
+
   const { data: meRow } = await supabase
     .from('home_bate_papo_participantes')
     .select('chave_conversa_envolvida')
     .eq('conversa_id', conversaId)
     .eq('user_id', uid)
     .maybeSingle()
-  if (meRow?.chave_conversa_envolvida?.startsWith('legado:')) {
+  if (chaveEstaPendente(meRow?.chave_conversa_envolvida)) {
     const wrappedMe = await envolverChaveConversa(aes, pair.publicKey)
-    await supabase
+    const { error: upErr } = await supabase
       .from('home_bate_papo_participantes')
       .update({ chave_conversa_envolvida: wrappedMe })
       .eq('conversa_id', conversaId)
       .eq('user_id', uid)
+    if (upErr) throw new Error(upErr.message)
   }
 
   return aes
+}
+
+/** Quem já tem a AES re-envolve os outros; útil em realtime quando alguém fica pendente. */
+export async function sincronizarChavesConversaSePossivel(conversaId) {
+  const cid = String(conversaId || '').trim()
+  if (!cid) return false
+  try {
+    const pair = await garantirChavesUsuario()
+    await obterChaveConversa(cid, pair)
+    return true
+  } catch {
+    return false
+  }
 }
 
 async function mapMensagem(row, aesKey, nomesPorId) {
@@ -238,6 +535,47 @@ export async function obterOuCriarDm(outroUserId) {
   if (dErr && !/duplicate|unique/i.test(dErr.message)) throw new Error(dErr.message)
 
   return conv.id
+}
+
+/**
+ * Lista participantes de uma conversa (DM ou grupo) da qual o utilizador faz parte.
+ * Não devolve chaves envolvidas — só id, nome e papel.
+ */
+export async function listarParticipantesConversa(conversaId) {
+  const uid = await uidAtual()
+  const cid = String(conversaId || '').trim()
+  if (!cid) return []
+
+  const { data: parts, error } = await supabase
+    .from('home_bate_papo_participantes')
+    .select('user_id, papel, entrou_em')
+    .eq('conversa_id', cid)
+  if (error) throw new Error(error.message)
+
+  const ids = [...new Set((parts || []).map((p) => p.user_id).filter(Boolean))]
+  let nomes = new Map()
+  if (ids.length) {
+    const { data: perfis } = await supabase.from('profiles').select('id, name').in('id', ids)
+    nomes = new Map((perfis || []).map((p) => [p.id, p.name || p.id]))
+  }
+
+  return (parts || [])
+    .map((p) => {
+      const souEu = p.user_id === uid
+      return {
+        id: p.user_id,
+        nome: souEu ? 'Você' : nomes.get(p.user_id) || 'Usuário',
+        papel: p.papel || 'membro',
+        souEu,
+        entrouEm: p.entrou_em || null,
+      }
+    })
+    .sort((a, b) => {
+      if (a.papel === 'admin' && b.papel !== 'admin') return -1
+      if (b.papel === 'admin' && a.papel !== 'admin') return 1
+      if (a.souEu !== b.souEu) return a.souEu ? -1 : 1
+      return String(a.nome).localeCompare(String(b.nome), 'pt-BR')
+    })
 }
 
 export async function criarGrupo({ nome, memberIds }) {
@@ -362,11 +700,14 @@ export async function listarConversasBatePapo({ userId } = {}) {
       if (!leitura || new Date(m.criado_em) > new Date(leitura)) naoLidas += 1
     }
 
+    const participantesCount = (allParts || []).filter((x) => x.conversa_id === conv.id).length
+
     out.push({
       conversaId: conv.id,
       tipo: conv.tipo,
       nome: titulo,
       peerId,
+      participantesCount,
       ultimaMensagem: preview,
       ultimaEm: ultima?.criado_em || conv.criado_em,
       naoLidas,
@@ -425,9 +766,11 @@ export async function listarMensagensConversa(conversaId) {
 
   const pair = await garantirChavesUsuario()
   let aes = null
+  let avisoChave = ''
   try {
     aes = await obterChaveConversa(cid, pair)
-  } catch {
+  } catch (e) {
+    avisoChave = e?.message || MSG_CHAVE_PENDENTE
     aes = null
   }
 
@@ -453,6 +796,14 @@ export async function listarMensagensConversa(conversaId) {
   for (const row of data || []) {
     mapped.push(await mapMensagem(row, aes, nomes))
   }
+
+  const temCifradas = (data || []).some((r) => Number(r.cipher_version) !== 0)
+  if (!aes && temCifradas && avisoChave) {
+    const err = new Error(avisoChave)
+    err.mensagensParciais = mapped
+    throw err
+  }
+
   return mapped
 }
 

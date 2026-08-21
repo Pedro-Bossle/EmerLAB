@@ -60,10 +60,11 @@ export default {
       },
       zIndex: {
         nav: '40',
+        sidebar: '30',
+        fab: '55',
         drawer: '50',
         modal: '60',
         toast: '70',
-        fab: '45',
       },
     },
   },

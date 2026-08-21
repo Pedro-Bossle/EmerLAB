@@ -45,6 +45,8 @@ const resolveAdminAction = (raw) => {
         create: 'createUser',
         createuser: 'createUser',
         reset: 'reset',
+        resetemerzapkey: 'resetEmerzapKey',
+        resetemerzap: 'resetEmerzapKey',
         updateprofile: 'updateProfile',
         listaudit: 'listAudit',
         deleteuser: 'deleteUser',
@@ -512,6 +514,80 @@ export default async function handler(req, res) {
             })
 
             return res.status(200).json({ ok: true })
+        }
+
+        if (action === 'resetEmerzapKey') {
+            const userId = String(body.userId || '').trim()
+            if (!userId) return responderErro(res, 400, 'Usuário não informado.')
+
+            const { data: alvo, error: errAlvo } = await buscarProfile(supabase, userId)
+            if (errAlvo) return responderErro(res, 500, errAlvo.message)
+            if (!alvo?.id) return responderErro(res, 404, 'Usuário não encontrado.')
+
+            const agora = new Date().toISOString()
+            const { data: chaveExistente } = await supabase
+                .from('home_bate_papo_user_keys')
+                .select('user_id, public_jwk')
+                .eq('user_id', userId)
+                .maybeSingle()
+
+            const payload = {
+                user_id: userId,
+                public_jwk: chaveExistente?.public_jwk ?? null,
+                priv_cipher: null,
+                chave_reset_pedido_em: agora,
+                atualizado_em: agora,
+            }
+
+            const { error: upErr } = await supabase
+                .from('home_bate_papo_user_keys')
+                .upsert(payload, { onConflict: 'user_id' })
+            if (upErr) {
+                // Sem coluna nova: limpa só priv_cipher
+                if (/chave_reset_pedido_em|column/i.test(String(upErr.message || ''))) {
+                    const { error: upErr2 } = await supabase
+                        .from('home_bate_papo_user_keys')
+                        .upsert(
+                            {
+                                user_id: userId,
+                                public_jwk: chaveExistente?.public_jwk ?? null,
+                                priv_cipher: null,
+                                atualizado_em: agora,
+                            },
+                            { onConflict: 'user_id' },
+                        )
+                    if (upErr2) {
+                        return responderErro(
+                            res,
+                            500,
+                            `${upErr2.message}. Execute scripts/sql/home_bate_papo_chave_conta.sql no Supabase.`,
+                        )
+                    }
+                } else {
+                    return responderErro(
+                        res,
+                        500,
+                        `${upErr.message}. Execute scripts/sql/home_bate_papo_chave_conta.sql no Supabase.`,
+                    )
+                }
+            }
+
+            const nome = String(alvo.name || '').trim() || 'Sem nome'
+            const email = String(alvo.email || '').trim().toLowerCase()
+            await registrarAuditoria(supabase, {
+                actorUserId: admin.user.id,
+                actorName: admin.profile.name,
+                targetUserId: userId,
+                action: 'reset_emerzap_key',
+                summary: `Pedido de redefinição da senha Emerzap para ${nome}${email ? ` (${email})` : ''}`,
+                details: { email, chave_reset_pedido_em: agora },
+            })
+
+            return res.status(200).json({
+                ok: true,
+                message:
+                    'Notificação registada. Ao abrir o Emerzap, o utilizador verá o modal obrigatório para definir uma nova senha da chave.',
+            })
         }
 
         if (action === 'deleteUser') {

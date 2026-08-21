@@ -1,12 +1,11 @@
-.dev_tools_float {
+﻿.dev_tools_float {
     --dev-tools-btn: 52px;
     --dev-tools-drawer-left: 8px;
     --dev-tools-drawer-top: 8px;
     --dev-tools-drawer-width: 300px;
     --dev-tools-drawer-max-height: 480px;
-    /* fixed: mesma base que a gaveta e fora da scrollbar do documento */
     position: fixed;
-    z-index: 45;
+    z-index: 55;
     width: var(--dev-tools-btn);
     height: var(--dev-tools-btn);
     pointer-events: none;
@@ -17,6 +16,7 @@
     --dev-tools-btn: 24px;
     width: 24px;
     height: 54px;
+    z-index: 55;
 }
 
 .dev_tools_float_btn,
@@ -48,7 +48,7 @@
 }
 
 .dev_tools_float.is-open {
-    z-index: 47;
+    z-index: 56;
 }
 
 .dev_tools_float.is-open .dev_tools_float_drawer {
@@ -356,7 +356,7 @@ body.dark-mode .dev_tools_float_modo {
     inset: 0;
     width: auto;
     height: auto;
-    z-index: 45;
+    z-index: 55;
     pointer-events: none;
 }
 

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   hasPermission,
@@ -11,6 +11,7 @@ import { cn } from '../../lib/cn'
 import { Drawer } from '../ui'
 import { supabase } from '../../lib/supabase'
 import { logoutSessao } from '../../lib/authSession'
+import { lerDarkModeAtivo, salvarDarkModeAtivo } from '../../lib/sidebarPrefs'
 
 const HubIcon = ({ name }) => {
   const common = 'h-5 w-5'
@@ -59,6 +60,13 @@ export default function BottomNav() {
   const navigate = useNavigate()
   const accessProfile = useStoredAccessProfile()
   const [drawerHub, setDrawerHub] = useState(null)
+  const [darkModeAtivo, setDarkModeAtivo] = useState(() => lerDarkModeAtivo())
+
+  useEffect(() => {
+    if (darkModeAtivo) document.body.classList.add('dark-mode')
+    else document.body.classList.remove('dark-mode')
+    salvarDarkModeAtivo(darkModeAtivo)
+  }, [darkModeAtivo])
 
   const podeVer = (child) => {
     if (child?.type === 'section') return true
@@ -160,14 +168,25 @@ export default function BottomNav() {
               <li key={child.action + child.label}>
                 <button
                   type="button"
-                  className="flex min-h-touch w-full items-center rounded-xl px-3 text-left text-sm font-bold text-ink hover:bg-brand-pale dark:text-[#e8f1f8] dark:hover:bg-white/5"
+                  className={cn(
+                    'flex min-h-touch w-full items-center rounded-xl px-3 text-left text-sm font-bold text-ink hover:bg-brand-pale dark:text-[#e8f1f8] dark:hover:bg-white/5',
+                    child.action === 'logout' && 'text-status-erro hover:bg-status-erro-bg dark:text-red-300',
+                  )}
                   onClick={async () => {
+                    if (child.action === 'toggle-dark-mode') {
+                      setDarkModeAtivo((v) => !v)
+                      return
+                    }
                     setDrawerHub(null)
                     if (child.action === 'logout') await handleLogout()
                     if (child.action === 'reset-password') await handleResetPassword()
                   }}
                 >
-                  {child.label}
+                  {child.action === 'toggle-dark-mode'
+                    ? darkModeAtivo
+                      ? 'Modo claro'
+                      : 'Modo escuro'
+                    : child.label}
                 </button>
               </li>
             ) : (

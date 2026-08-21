@@ -1559,6 +1559,10 @@ a.home_dash_agenda_link:hover {
     border-radius: 0;
 }
 
+body.dark-mode .home_dash_footer_wrap {
+    background: #0d1520;
+}
+
 .home_dash_notif_badge_total {
     display: inline-flex;
     align-items: center;
@@ -1648,6 +1652,8 @@ a.home_dash_agenda_link:hover {
     .home_dash_footer_wrap {
         margin-left: -1rem;
         margin-right: -1rem;
+        margin-top: 1.5rem;
+        width: calc(100% + 2rem);
     }
 
     /* Compacto: seletor único no lugar das abas roláveis */
@@ -2101,15 +2107,17 @@ a.home_dash_agenda_link:hover {
     }
 
     .home_dash_footer_wrap {
-        margin-left: 0;
-        margin-right: 0;
-        margin-top: 1.75rem;
+        margin-left: calc(-1 * max(0.85rem, env(safe-area-inset-left)));
+        margin-right: calc(-1 * max(0.85rem, env(safe-area-inset-right)));
+        margin-top: 1.25rem;
         margin-bottom: 0;
+        width: auto;
     }
 
     .home_dash_footer_wrap footer,
     .home_dash_footer_wrap .el_footer {
-        padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+        /* Espaço real fica no .home_dash (pb para bottom nav); evita padding duplicado */
+        padding-bottom: 0.5rem;
     }
 }
 
