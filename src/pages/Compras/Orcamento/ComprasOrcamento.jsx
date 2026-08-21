@@ -56,6 +56,50 @@ const normalizarNomeCidade = (texto) =>
     .trim()
     .toLowerCase();
 
+const formatarValorOrcamento = (valor) => {
+  if (valor == null || Number.isNaN(Number(valor))) return "—";
+  return Number(valor).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+};
+
+const montarTextoCopiaRapidaOrcamento = ({ linhas, nomePlano }) => {
+  const itens = Array.isArray(linhas) ? linhas : [];
+  const planoLabel = String(nomePlano || "").trim() || "—";
+
+  const linhasCompra = itens.map((row) => {
+    const nome = String(row.nome || row.codigo || "Procedimento").trim();
+    const q = Math.max(1, Number(row.quantidade || 1));
+    const rotulo = q > 1 ? `${nome} (x${q})` : nome;
+    return `${rotulo} - ${formatarValorOrcamento(row.totalCompra)}`;
+  });
+
+  const linhasDiff = itens.map((row) => {
+    const nome = String(row.nome || row.codigo || "Procedimento").trim();
+    const q = Math.max(1, Number(row.quantidade || 1));
+    const rotulo = q > 1 ? `${nome} (x${q})` : nome;
+    return `${rotulo} - ${formatarValorOrcamento(row.totalCoparticipacao)}`;
+  });
+
+  const totalGasto = itens.reduce((acc, row) => {
+    const compra = row.totalCompra != null ? Number(row.totalCompra) : 0;
+    const cop = row.totalCoparticipacao != null ? Number(row.totalCoparticipacao) : 0;
+    return acc + compra + cop;
+  }, 0);
+
+  return [
+    "Segue o seu orçamento de compra de procedimentos:",
+    "Valor de Compra:",
+    ...linhasCompra,
+    "",
+    `Valor de Diferença Plano [${planoLabel}]:`,
+    ...linhasDiff,
+    "",
+    `Total gasto: ${formatarValorOrcamento(totalGasto)}`,
+  ].join("\n");
+};
+
 const ComprasOrcamento = () => {
   const calcLiveIdRef = useRef(0);
 
@@ -99,6 +143,8 @@ const ComprasOrcamento = () => {
 
   /** Rascunho da quantidade por cartId enquanto o utilizador digita (evita estado inválido no carrinho). */
   const [quantidadeRascunho, setQuantidadeRascunho] = useState({});
+
+  const [copiaFeedback, setCopiaFeedback] = useState("");
 
   const mapaPlanos = useMemo(() => mapearPlanos(planos), [planos]);
 
@@ -575,6 +621,32 @@ const ComprasOrcamento = () => {
     [resultado],
   );
 
+  const nomePlanoComprador = useMemo(
+    () =>
+      planoCompradorId
+        ? nomePlanoPorId(Number(planoCompradorId), planos, mapaPlanos)
+        : "",
+    [planoCompradorId, planos, mapaPlanos],
+  );
+
+  const podeCopiarOrcamento =
+    Boolean(resultado?.length) && !gerando && !loading;
+
+  const copiarOrcamentoRapido = async () => {
+    if (!podeCopiarOrcamento) return;
+    const texto = montarTextoCopiaRapidaOrcamento({
+      linhas: resultado,
+      nomePlano: nomePlanoComprador,
+    });
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiaFeedback("Copiado!");
+      window.setTimeout(() => setCopiaFeedback(""), 2000);
+    } catch {
+      setErro("Não foi possível copiar o orçamento. Verifique a permissão da área de transferência.");
+    }
+  };
+
   const mensagemContexto = () => {
     if (!ufComprador || !cidadeCompradorId || !planoCompradorId)
       return "Selecione UF, cidade e plano do comprador para preencher coparticipação e totais.";
@@ -782,6 +854,26 @@ const ComprasOrcamento = () => {
               {gerando && (
                 <span className="compras_orc_calc_badge">Calculando…</span>
               )}
+
+              {copiaFeedback && (
+                <span className="compras_orc_copia_feedback" role="status">
+                  {copiaFeedback}
+                </span>
+              )}
+
+              <button
+                type="button"
+                className="compras_orc_btn"
+                disabled={!podeCopiarOrcamento}
+                onClick={() => void copiarOrcamentoRapido()}
+                title={
+                  podeCopiarOrcamento
+                    ? "Copiar orçamento formatado para colar no WhatsApp / email"
+                    : "Calcule o orçamento (UF, cidade, plano e itens) para copiar"
+                }
+              >
+                Copiar orçamento
+              </button>
 
               <button
                 type="button"

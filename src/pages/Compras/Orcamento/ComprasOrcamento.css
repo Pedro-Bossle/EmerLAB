@@ -364,6 +364,18 @@
 
 
 
+.compras_orc_copia_feedback {
+
+    font-size: 0.82rem;
+
+    font-weight: 700;
+
+    color: #0a7a4a;
+
+}
+
+
+
 .compras_orc_calc_badge {
 
     font-size: 0.82rem;
@@ -979,6 +991,14 @@ body.dark-mode .compras_orc_sugestoes li button:hover {
 body.dark-mode .compras_orc_calc_badge {
 
     color: #9fd4ff;
+
+}
+
+
+
+body.dark-mode .compras_orc_copia_feedback {
+
+    color: #6dcea0;
 
 }
 
