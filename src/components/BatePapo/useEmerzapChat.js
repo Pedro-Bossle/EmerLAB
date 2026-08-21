@@ -8,13 +8,15 @@ import {
   enviarMensagemTexto,
   garantirChavesUsuario,
   listarConversasBatePapo,
-  listarMensagensConversa,
+  listarParticipantesConversa,
   listarUsuariosBatePapo,
   marcarConversaComoLida,
   obterOuCriarDm,
   tentarMigrarDmsLegado,
 } from '../../lib/homeBatePapo'
 import { chaveDia, rotuloDia } from './batePapoUi'
+import { observarThreadEmerzap } from './observarThreadEmerzap'
+import { useEmerzapChaveConta } from './EmerzapChaveContaModal'
 
 /**
  * Estado e ações do Emerzap (gaveta ou página web).
@@ -24,6 +26,7 @@ import { chaveDia, rotuloDia } from './batePapoUi'
 export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
   const profile = useStoredAccessProfile()
   const permitido = isBatePapoEnabled(profile)
+  const chaveConta = useEmerzapChaveConta(permitido)
 
   const [userId, setUserId] = useState(null)
   const [naoLidas, setNaoLidas] = useState(0)
@@ -32,6 +35,10 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
   const [busca, setBusca] = useState('')
   const [conversaId, setConversaId] = useState(null)
   const [tituloThread, setTituloThread] = useState('')
+  const [tipoThread, setTipoThread] = useState(null)
+  const [mostrarInfo, setMostrarInfo] = useState(false)
+  const [participantes, setParticipantes] = useState([])
+  const [carregandoInfo, setCarregandoInfo] = useState(false)
   const [mensagens, setMensagens] = useState([])
   const [texto, setTexto] = useState('')
   const [carregandoLista, setCarregandoLista] = useState(false)
@@ -67,17 +74,28 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
       const { data } = await supabase.auth.getUser()
       if (cancelado) return
       setUserId(data?.user?.id || null)
-      try {
-        await garantirChavesUsuario()
-        await tentarMigrarDmsLegado()
-      } catch {
-        /* schema pode ainda não existir */
-      }
     })()
     return () => {
       cancelado = true
     }
   }, [permitido])
+
+  useEffect(() => {
+    if (!permitido || !chaveConta.chavePronta) return undefined
+    let cancelado = false
+    void (async () => {
+      try {
+        await garantirChavesUsuario()
+        if (cancelado) return
+        await tentarMigrarDmsLegado()
+      } catch {
+        /* setup/unlock tratado pelo modal */
+      }
+    })()
+    return () => {
+      cancelado = true
+    }
+  }, [permitido, chaveConta.chavePronta])
 
   const atualizarBadge = useCallback(async () => {
     try {
@@ -132,9 +150,9 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
   }, [permitido, userId, atualizarBadge])
 
   useEffect(() => {
-    if (!ativo || !userId) return
+    if (!ativo || !userId || !chaveConta.chavePronta) return
     void carregarLista()
-  }, [ativo, userId, carregarLista])
+  }, [ativo, userId, carregarLista, chaveConta.chavePronta])
 
   useEffect(() => {
     if (!permitido || !userId) return undefined
@@ -144,9 +162,10 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'home_bate_papo_mensagens_v2' },
         () => {
-          if (conversaIdRef.current) {
-            void listarMensagensConversa(conversaIdRef.current).then(setMensagens).catch(() => {})
-            void marcarConversaComoLida(conversaIdRef.current)
+          // Thread aberta: observarThreadEmerzap já atualiza mensagens
+          if (conversaIdRef.current && ativoRef.current) {
+            void carregarListaRef.current({ silencioso: true })
+            return
           }
           if (ativoRef.current) void carregarListaRef.current({ silencioso: true })
           else void atualizarBadge()
@@ -166,30 +185,39 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
       }
       return undefined
     }
-    let cancelado = false
-    setCarregandoChat(true)
-    void (async () => {
-      try {
-        const lista = await listarMensagensConversa(conversaId)
-        if (cancelado) return
-        setMensagens(lista)
+    return observarThreadEmerzap({
+      conversaId,
+      userId,
+      ativo: true,
+      onMensagens: setMensagens,
+      onErro: setErro,
+      onCarregando: setCarregandoChat,
+      onAposOk: async () => {
         await marcarConversaComoLida(conversaId)
-        if (cancelado) return
         setConversas((prev) =>
           prev.map((c) => (c.conversaId === conversaId ? { ...c, naoLidas: 0 } : c)),
         )
         await atualizarBadge()
         await carregarListaRef.current({ silencioso: true })
-      } catch (e) {
-        if (!cancelado) setErro(e?.message || String(e))
-      } finally {
-        if (!cancelado) setCarregandoChat(false)
+      },
+    })
+  }, [conversaId, ativo, userId, atualizarBadge])
+
+  useEffect(() => {
+    if (!conversaId || !ativo || tipoThread !== 'grupo') return undefined
+    let cancelado = false
+    void (async () => {
+      try {
+        const lista = await listarParticipantesConversa(conversaId)
+        if (!cancelado) setParticipantes(lista)
+      } catch {
+        /* info sob demanda */
       }
     })()
     return () => {
       cancelado = true
     }
-  }, [conversaId, ativo, atualizarBadge])
+  }, [conversaId, ativo, tipoThread])
 
   useEffect(() => {
     if (carregandoChat || !conversaId) return
@@ -202,8 +230,27 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
     el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [mensagens.length, carregandoChat, conversaId])
 
+  const carregarParticipantes = useCallback(async (cid) => {
+    if (!cid) {
+      setParticipantes([])
+      return
+    }
+    setCarregandoInfo(true)
+    try {
+      const lista = await listarParticipantesConversa(cid)
+      setParticipantes(lista)
+    } catch (e) {
+      setErro(e?.message || String(e))
+      setParticipantes([])
+    } finally {
+      setCarregandoInfo(false)
+    }
+  }, [])
+
   const abrirConversa = async (c) => {
     setModoGrupo(false)
+    setMostrarInfo(false)
+    setParticipantes([])
     setErro('')
     setTexto('')
     setPreviewImg(null)
@@ -220,6 +267,7 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
     if (c.conversaId) {
       setConversaId(c.conversaId)
       setTituloThread(c.nome)
+      setTipoThread(c.tipo || null)
       return
     }
     if (c.peerId) {
@@ -227,6 +275,7 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
         const id = await obterOuCriarDm(c.peerId)
         setConversaId(id)
         setTituloThread(c.nome)
+        setTipoThread('dm')
         void carregarListaRef.current({ silencioso: true })
       } catch (e) {
         setErro(e?.message || String(e))
@@ -240,6 +289,8 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
       const id = await obterOuCriarDm(user.id)
       setConversaId(id)
       setTituloThread(user.nome)
+      setTipoThread('dm')
+      setMostrarInfo(false)
       setModoGrupo(false)
       void carregarListaRef.current({ silencioso: true })
     } catch (e) {
@@ -250,11 +301,24 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
   const voltarLista = () => {
     setConversaId(null)
     setTituloThread('')
+    setTipoThread(null)
+    setMostrarInfo(false)
+    setParticipantes([])
     setMensagens([])
     setTexto('')
     setPreviewImg(null)
     setModoGrupo(false)
     void carregarLista({ silencioso: true })
+  }
+
+  const abrirInfoConversa = async () => {
+    if (!conversaId) return
+    setMostrarInfo(true)
+    await carregarParticipantes(conversaId)
+  }
+
+  const fecharInfoConversa = () => {
+    setMostrarInfo(false)
   }
 
   const onEnviar = async (e) => {
@@ -294,6 +358,8 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
       setMembrosGrupo(new Set())
       setConversaId(id)
       setTituloThread(nomeGrupo.trim())
+      setTipoThread('grupo')
+      setMostrarInfo(false)
       void carregarLista({ silencioso: true })
     } catch (err) {
       setErro(err?.message || String(err))
@@ -337,6 +403,7 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
 
   return {
     permitido,
+    chaveConta,
     userId,
     naoLidas,
     erro,
@@ -347,6 +414,10 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
     setBusca,
     conversaId,
     tituloThread,
+    tipoThread,
+    mostrarInfo,
+    participantes,
+    carregandoInfo,
     mensagensComDias,
     texto,
     setTexto,
@@ -368,6 +439,8 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
     abrirConversa,
     iniciarDm,
     voltarLista,
+    abrirInfoConversa,
+    fecharInfoConversa,
     onEnviar,
     onCriarGrupo,
     carregarLista,

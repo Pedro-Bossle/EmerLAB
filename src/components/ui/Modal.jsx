@@ -94,7 +94,7 @@ export function Modal({
         type="button"
         className="absolute inset-0 bg-ink/50 backdrop-blur-[2px]"
         aria-label="Fechar"
-        onClick={onClose}
+        onClick={() => onClose?.()}
       />
       <div
         ref={panelRef}

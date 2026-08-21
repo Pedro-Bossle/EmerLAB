@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import logoBranco from '../../assets/logo_branco.png'
 import logoE from '../../assets/logo_E.png'
 import {
-  PERMISSION_KEYS,
   hasPermission,
   podeLerFerramenta,
   useStoredAccessProfile,
@@ -203,7 +202,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
   return (
     <aside
       className={cn(
-        'fixed inset-y-0 right-0 z-drawer flex flex-col border-l border-white/10 bg-[#0f3a56] text-white shadow-lg lg:left-0 lg:right-auto lg:border-l-0 lg:border-r lg:shadow-none',
+        'fixed inset-y-0 right-0 z-drawer flex flex-col border-l border-white/10 bg-[#0f3a56] text-white shadow-lg lg:left-0 lg:right-auto lg:!z-[30] lg:border-l-0 lg:border-r lg:shadow-none',
         'transition-[width,transform] duration-200 ease-out',
         open
           ? cn('w-sidebar translate-x-0', !isPinned && 'lg:shadow-xl')
@@ -221,34 +220,41 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
         )}
       </div>
 
-                <div className='sidebar_footer'>
-                    {hasPermission(accessProfile, PERMISSION_KEYS.ACCESS_MANAGE) && (
-                        <>
-                            <button
-                                type='button'
-                                className='sidebar_admin_btn'
-                                onClick={() => {
-                                    navigate('/administrativo/auditoria')
-                                    onAfterNavigate?.()
-                                }}
-                                title='Auditoria de alterações'
-                            >
-                                <span className='sidebar_admin_icon' aria-hidden>📋</span>
-                                <span className='sidebar_admin_text'>Auditoria</span>
-                            </button>
-                            <button
-                                type='button'
-                                className='sidebar_admin_btn'
-                                onClick={() => {
-                                    navigate('/administrativo/acessos')
-                                    onAfterNavigate?.()
-                                }}
-                                title='Gerenciamento de acessos'
-                            >
-                                <span className='sidebar_admin_icon' aria-hidden>🛡️</span>
-                                <span className='sidebar_admin_text'>Admin</span>
-                            </button>
-                        </>
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-1.5 py-3">
+        {menuItemsVisiveis.map((item) => {
+          const icon = SIDEBAR_ICONS[item.id] || SIDEBAR_ICONS.configuracoes
+          const active =
+            (item.href && (pathname === item.href || pathname.startsWith(`${item.href}/`))) ||
+            (item.children || []).some(
+              (c) => c.href && (pathname === c.href || pathname.startsWith(`${c.href}/`)),
+            )
+          return (
+            <div key={item.id} className="mb-1">
+              {item.href && !item.children ? (
+                <Link
+                  to={item.href}
+                  className={cn(
+                    'flex min-h-11 items-center rounded-xl text-[0.92rem] font-semibold transition-colors duration-100 hover:bg-white/10',
+                    open ? 'gap-3 px-3' : 'justify-center px-0',
+                    active && 'bg-white/15',
+                  )}
+                  onClick={() => {
+                    if (item.href === '/home') window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+                    onAfterNavigate?.()
+                  }}
+                  title={item.label}
+                >
+                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>
+                  <span className={labelClass}>{item.label}</span>
+                </Link>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex min-h-11 w-full items-center rounded-xl text-[0.92rem] font-semibold transition-colors duration-100 hover:bg-white/10',
+                      open ? 'gap-3 px-3' : 'justify-center px-0',
+                      active && 'bg-white/10',
                     )}
                     onClick={() => (open ? toggleMenu(item.id) : onToggleManual?.())}
                     title={item.label}

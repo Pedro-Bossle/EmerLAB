@@ -1,13 +1,13 @@
-.bate_papo_float {
+﻿.bate_papo_float {
     --bate-papo-btn: 52px;
     --bate-papo-drawer-left: 8px;
     --bate-papo-drawer-top: 8px;
     --bate-papo-drawer-bottom: auto;
     --bate-papo-drawer-width: 340px;
     --bate-papo-drawer-max-height: 520px;
-    /* fixed: mesma base que a gaveta e fora da scrollbar do documento */
+    /* fixed no body (portal): acima da sidebar (~30), abaixo do modal (60) */
     position: fixed;
-    z-index: 45;
+    z-index: 55;
     width: var(--bate-papo-btn);
     height: var(--bate-papo-btn);
     pointer-events: none;
@@ -18,6 +18,7 @@
     --bate-papo-btn: 24px;
     width: 24px;
     height: 54px;
+    z-index: 55;
 }
 
 .bate_papo_float_btn,
@@ -81,9 +82,9 @@
     touch-action: none;
 }
 
-/* Gaveta aberta fica acima do FAB (scrollbar livre), mas a aba continua visível */
+/* Gaveta aberta fica acima do FAB (scrollbar livre), mas a aba continua visÃ­vel */
 .bate_papo_float.is-open {
-    z-index: 47;
+    z-index: 56;
 }
 
 .bate_papo_float.is-open .bate_papo_float_drawer {
@@ -262,6 +263,71 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.bate_papo_float_titulo_btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.05rem;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+    min-width: 0;
+}
+
+.bate_papo_float_titulo_main {
+    display: block;
+    width: 100%;
+    font-size: 0.95rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bate_papo_float_titulo_btn small {
+    color: #5a7a70;
+    font-size: 0.7rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.bate_papo_float_info {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 0.65rem 0.75rem 1rem;
+}
+
+.bate_papo_float_info_list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.bate_papo_float_info_item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.5rem 0.35rem;
+    border-bottom: 1px solid #e4f0eb;
+}
+
+.bate_papo_float_info_item small {
+    color: #5a7a70;
+    font-size: 0.72rem;
 }
 
 .bate_papo_float_head_acoes {
@@ -858,7 +924,7 @@ body.dark-mode .bate_papo_float_msg_meta {
     inset: 0;
     width: auto;
     height: auto;
-    z-index: 45;
+    z-index: 55;
     pointer-events: none;
 }
 
@@ -873,6 +939,40 @@ body.dark-mode .bate_papo_float_msg_meta {
 
 .bate_papo_float--dock .bate_papo_float_drawer {
     pointer-events: auto;
+}
+
+body.dark-mode .bate_papo_float_info {
+    background: #15201c;
+}
+
+body.dark-mode .bate_papo_float_info_item {
+    border-bottom-color: #2f4a42;
+}
+
+body.dark-mode .bate_papo_float_titulo_btn small {
+    color: #9fd0c0;
+}
+
+body.dark-mode .bate_papo_float_lista_wrap {
+    background: #15201c;
+}
+
+body.dark-mode .bate_papo_float_anexo,
+body.dark-mode .bate_papo_float_emoji_btn {
+    color: #9fd0c0;
+}
+
+body.dark-mode .bate_papo_float_emoji_menu {
+    background: #1a2421;
+    border-color: #2f4a42;
+}
+
+body.dark-mode .bate_papo_float_enviar {
+    background: #2a6b55;
+}
+
+body.dark-mode .bate_papo_float_erro {
+    color: #f0a0a0;
 }
 
 body.dark-mode .bate_papo_float_day span {

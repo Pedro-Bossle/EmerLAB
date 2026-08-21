@@ -7,6 +7,7 @@ import FormularioInboxBell from '../Credenciamento/FormularioInboxBell'
 import SessionSecurity from '../SessionSecurity/SessionSecurity'
 import BottomNav from './BottomNav'
 import FloatingToolsDock from './FloatingToolsDock'
+import FloatingLayerPortal from './FloatingLayerPortal'
 import { cn } from '../../lib/cn'
 import { lerSidebarFixada, salvarSidebarFixada } from '../../lib/sidebarPrefs'
 import {
@@ -174,56 +175,58 @@ const Layout2 = () => {
 
       {isCompact ? <BottomNav /> : null}
 
-      {isCompact ? (
-        <FloatingToolsDock
-          expanded={dockExpanded}
-          onExpandedChange={(v) => {
-            setDockExpanded(v)
-            if (!v) setActiveFloatingTool(null)
-          }}
-          tools={dockTools}
-          activeToolId={activeFloatingTool}
-          onSelectTool={onSelectTool}
-        />
-      ) : null}
+      <FloatingLayerPortal>
+        {isCompact ? (
+          <FloatingToolsDock
+            expanded={dockExpanded}
+            onExpandedChange={(v) => {
+              setDockExpanded(v)
+              if (!v) setActiveFloatingTool(null)
+            }}
+            tools={dockTools}
+            activeToolId={activeFloatingTool}
+            onSelectTool={onSelectTool}
+          />
+        ) : null}
 
-      <div className={cn(isCompact && 'pb-nav-bottom')}>
-        {showBatePapo ? (
-          <BatePapoFloating
-            mode={floatMode}
-            open={isCompact ? activeFloatingTool === 'emerzap' : undefined}
-            onOpenChange={
-              isCompact
-                ? (v) => setActiveFloatingTool(v ? 'emerzap' : null)
-                : undefined
-            }
-            onBadgeChange={setBadgeBatePapo}
-          />
-        ) : null}
-        {showDevTools ? (
-          <DevToolsFloating
-            mode={floatMode}
-            open={isCompact ? activeFloatingTool === 'devtools' : undefined}
-            onOpenChange={
-              isCompact
-                ? (v) => setActiveFloatingTool(v ? 'devtools' : null)
-                : undefined
-            }
-          />
-        ) : null}
-        {showNotif ? (
-          <FormularioInboxBell
-            mode={floatMode}
-            open={isCompact ? activeFloatingTool === 'notif' : undefined}
-            onOpenChange={
-              isCompact
-                ? (v) => setActiveFloatingTool(v ? 'notif' : null)
-                : undefined
-            }
-            onBadgeChange={setBadgeNotif}
-          />
-        ) : null}
-      </div>
+        <div className={cn('el-floating-layer', isCompact && 'el-floating-layer--compact')}>
+          {showBatePapo ? (
+            <BatePapoFloating
+              mode={floatMode}
+              open={isCompact ? activeFloatingTool === 'emerzap' : undefined}
+              onOpenChange={
+                isCompact
+                  ? (v) => setActiveFloatingTool(v ? 'emerzap' : null)
+                  : undefined
+              }
+              onBadgeChange={setBadgeBatePapo}
+            />
+          ) : null}
+          {showDevTools ? (
+            <DevToolsFloating
+              mode={floatMode}
+              open={isCompact ? activeFloatingTool === 'devtools' : undefined}
+              onOpenChange={
+                isCompact
+                  ? (v) => setActiveFloatingTool(v ? 'devtools' : null)
+                  : undefined
+              }
+            />
+          ) : null}
+          {showNotif ? (
+            <FormularioInboxBell
+              mode={floatMode}
+              open={isCompact ? activeFloatingTool === 'notif' : undefined}
+              onOpenChange={
+                isCompact
+                  ? (v) => setActiveFloatingTool(v ? 'notif' : null)
+                  : undefined
+              }
+              onBadgeChange={setBadgeNotif}
+            />
+          ) : null}
+        </div>
+      </FloatingLayerPortal>
     </div>
   )
 }

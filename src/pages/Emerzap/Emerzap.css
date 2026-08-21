@@ -110,11 +110,50 @@ body:has(.emerzap_web) {
   line-height: 1;
 }
 
+.emerzap_web_brand_text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.emerzap_web_brand_kicker {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(244, 251, 248, 0.75);
+}
+
 .emerzap_web_brand h1 {
   margin: 0;
   font-size: 1.2rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.emerzap_web_side_acoes {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.emerzap_web_btn_tema {
+  width: 2.15rem;
+  height: 2.15rem;
+  border: 1px solid rgba(244, 251, 248, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #f4fbf8;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.emerzap_web_btn_tema:hover {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .emerzap_web_btn_grupo {
@@ -127,6 +166,7 @@ body:has(.emerzap_web) {
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .emerzap_web_btn_grupo:hover {
@@ -306,6 +346,79 @@ body:has(.emerzap_web) {
   text-overflow: ellipsis;
 }
 
+.emerzap_web_chat_head_btn {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.emerzap_web_chat_head_btn:hover h2 {
+  color: var(--ez-teal);
+}
+
+.emerzap_web_chat_head_text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.emerzap_web_chat_head_text small {
+  color: var(--ez-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.emerzap_web_info {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0.75rem 1rem 1.25rem;
+  position: relative;
+  z-index: 1;
+}
+
+.emerzap_web_info_list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.emerzap_web_info_item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.35rem;
+  border-bottom: 1px solid rgba(11, 92, 77, 0.08);
+}
+
+.emerzap_web_info_item_body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.emerzap_web_info_item_body small {
+  color: var(--ez-muted);
+  font-size: 0.75rem;
+}
+
 .emerzap_web_voltar {
   display: none;
   border: none;
@@ -315,6 +428,10 @@ body:has(.emerzap_web) {
   cursor: pointer;
   color: var(--ez-teal);
   padding: 0.2rem 0.35rem;
+}
+
+.emerzap_web_chat_head > .emerzap_web_voltar {
+  display: inline-flex;
 }
 
 .emerzap_web_msgs {
@@ -547,6 +664,15 @@ body:has(.emerzap_web) {
   margin-bottom: 0.5rem;
 }
 
+.emerzap_web_empty_brand {
+  margin: 0 0 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ez-muted);
+}
+
 .emerzap_web_empty_card h2 {
   margin: 0 0 0.5rem;
   font-size: 1.75rem;
@@ -636,6 +762,9 @@ body:has(.emerzap_web) {
 }
 
 body.dark-mode .emerzap_web {
+  --ez-teal: #5ec4a8;
+  --ez-teal-mid: #3da88c;
+  --ez-mint: rgba(94, 196, 168, 0.16);
   --ez-panel: #1c2623;
   --ez-chat-bg: #15201c;
   --ez-bubble: #24332e;
@@ -646,18 +775,86 @@ body.dark-mode .emerzap_web {
   background: linear-gradient(160deg, #121a17 0%, #1a2823 100%);
 }
 
+body.dark-mode .emerzap_web_sidebar {
+  background: var(--ez-panel);
+  border-right-color: var(--ez-line);
+}
+
 body.dark-mode .emerzap_web_busca_wrap,
 body.dark-mode .emerzap_web_chat_head,
 body.dark-mode .emerzap_web_composer {
   background: #1a2420;
+  border-color: var(--ez-line);
+}
+
+body.dark-mode .emerzap_web_btn_tema {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(244, 251, 248, 0.3);
+  color: #f4fbf8;
+}
+
+body.dark-mode .emerzap_web_btn_tema:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 body.dark-mode .emerzap_web_busca,
 body.dark-mode .emerzap_web_input {
   background: #121a17;
+  border-color: var(--ez-line);
   color: var(--ez-ink);
 }
 
+body.dark-mode .emerzap_web_contato:hover {
+  background: rgba(94, 196, 168, 0.1);
+}
+
+body.dark-mode .emerzap_web_contato.is-active {
+  background: rgba(94, 196, 168, 0.18);
+}
+
+body.dark-mode .emerzap_web_msg {
+  background: var(--ez-bubble);
+  border-color: var(--ez-line);
+  color: var(--ez-ink);
+}
+
+body.dark-mode .emerzap_web_msg.is-mine {
+  background: var(--ez-bubble-mine);
+}
+
+body.dark-mode .emerzap_web_day span {
+  background: #1a2420;
+  color: var(--ez-muted);
+  border-color: var(--ez-line);
+}
+
 body.dark-mode .emerzap_web_empty_card {
-  background: rgba(28, 38, 35, 0.9);
+  background: rgba(28, 38, 35, 0.92);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .emerzap_web_check:hover {
+  background: rgba(94, 196, 168, 0.1);
+}
+
+body.dark-mode .emerzap_web_info_item {
+  border-bottom-color: rgba(125, 185, 160, 0.12);
+}
+
+body.dark-mode .emerzap_web_erro {
+  color: #f0a0a0;
+}
+
+body.dark-mode .emerzap_web_emoji_menu {
+  background: #1a2420;
+  border-color: var(--ez-line);
+}
+
+body.dark-mode .emerzap_web_anexo,
+body.dark-mode .emerzap_web_emoji_btn {
+  color: #9fd0c0;
+}
+
+body.dark-mode:has(.emerzap_web) {
+  background: #121a17;
 }

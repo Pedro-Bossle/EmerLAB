@@ -1,12 +1,13 @@
 .el_footer {
   margin-top: 2rem;
-  padding: 1.75rem 0 1.25rem;
+  padding: 1.75rem 1.25rem 1.25rem;
   border-top: 1px solid rgba(47, 135, 198, 0.16);
   background: transparent;
   color: #3d5168;
 }
 
 body.dark-mode .el_footer {
+  background: #0d1520;
   border-top-color: rgba(125, 185, 225, 0.18);
   color: #9eb4c8;
 }
@@ -17,6 +18,8 @@ body.dark-mode .el_footer {
   gap: 2rem 2.5rem;
   align-items: start;
   width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
 }
 
 .el_footer_brand {
@@ -142,8 +145,9 @@ body.dark-mode .el_footer_link:hover {
 }
 
 .el_footer_copy {
-  margin: 1.5rem 0 0;
+  margin: 1.5rem auto 0;
   padding-top: 1rem;
+  max-width: 72rem;
   border-top: 1px solid rgba(47, 135, 198, 0.12);
   text-align: center;
   font-size: 0.82rem;
@@ -170,21 +174,94 @@ body.dark-mode .el_footer_copy a {
   color: #6eb6e0;
 }
 
+/* Tablet: brand em cima, tutoriais em 2 colunas */
 @media (max-width: 960px) {
+  .el_footer {
+    padding: 1.5rem 1.15rem 1.25rem;
+  }
+
   .el_footer_inner {
     grid-template-columns: 1fr;
-    gap: 1.5rem;
+    gap: 1.35rem;
+  }
+
+  .el_footer_cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem 1.35rem;
+  }
+
+  .el_footer_col:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Mobile + bottom nav */
+@media (max-width: 640px) {
+  .el_footer {
+    padding: 1.25rem 1rem 0.85rem;
+  }
+
+  .el_footer_inner {
+    gap: 1.15rem;
+  }
+
+  .el_footer_logo {
+    height: 2rem;
+  }
+
+  .el_footer_tagline {
+    font-size: 0.82rem;
+    max-width: none;
+  }
+
+  .el_footer_social a {
+    width: 2.5rem;
+    height: 2.5rem;
   }
 
   .el_footer_cols {
     grid-template-columns: 1fr;
-    gap: 1.35rem;
+    gap: 0;
+  }
+
+  .el_footer_col {
+    padding: 0.85rem 0;
+    border-top: 1px solid rgba(47, 135, 198, 0.12);
+  }
+
+  body.dark-mode .el_footer_col {
+    border-top-color: rgba(125, 185, 225, 0.14);
+  }
+
+  .el_footer_col:last-child {
+    grid-column: auto;
+    padding-bottom: 0.35rem;
+  }
+
+  .el_footer_col h3 {
+    font-size: 0.88rem;
+  }
+
+  .el_footer_link {
+    font-size: 0.86rem;
+    padding: 0.35rem 0;
+    min-height: 2.25rem;
+    align-items: center;
+  }
+
+  .el_footer_link img {
+    margin-top: 0;
+  }
+
+  .el_footer_copy {
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    font-size: 0.78rem;
   }
 }
 
 @media (max-width: 1023px) {
   .el_footer {
-    margin-top: 1.5rem;
-    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    margin-top: 1.25rem;
   }
 }

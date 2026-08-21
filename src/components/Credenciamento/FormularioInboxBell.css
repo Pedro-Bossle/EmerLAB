@@ -1,4 +1,4 @@
-/* Notificações flutuantes — sininho arrastável (âmbar), distinto do chat/Dev Tool */
+﻿/* NotificaÃ§Ãµes flutuantes â€” sininho arrastÃ¡vel (Ã¢mbar), distinto do chat/Dev Tool */
 
 .notif_float {
     --notif-btn: 52px;
@@ -6,9 +6,8 @@
     --notif-drawer-top: 8px;
     --notif-drawer-width: 340px;
     --notif-drawer-max-height: 480px;
-    /* fixed: mesma base que a gaveta e fora da scrollbar do documento */
     position: fixed;
-    z-index: 45;
+    z-index: 55;
     width: var(--notif-btn);
     height: var(--notif-btn);
     pointer-events: none;
@@ -19,6 +18,7 @@
     --notif-btn: 24px;
     width: 24px;
     height: 54px;
+    z-index: 55;
 }
 
 .notif_float_btn,
@@ -27,7 +27,7 @@
 }
 
 .notif_float.is-open {
-    z-index: 47;
+    z-index: 56;
 }
 
 .notif_float.is-open .notif_float_drawer {
@@ -366,7 +366,7 @@
     inset: 0;
     width: auto;
     height: auto;
-    z-index: 45;
+    z-index: 55;
     pointer-events: none;
 }
 
