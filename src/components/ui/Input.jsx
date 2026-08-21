@@ -8,7 +8,7 @@ function composeDescribedBy(existing, ...ids) {
 
 export function Input({ className, label, hint, error, id, 'aria-describedby': ariaDescribedBy, ...props }) {
   const reactId = useId()
-  const controlId = id || props.name || `${reactId}-input`
+  const controlId = id || `${reactId}-input`
   const errorId = `${reactId}-error`
   const hintId = `${reactId}-hint`
   const describedBy = composeDescribedBy(

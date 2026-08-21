@@ -1,4 +1,5 @@
-export { Button, buttonClassName } from './Button'
+export { Button } from './Button'
+export { buttonClassName } from './buttonStyles'
 export { Input, Select, Textarea } from './Input'
 export { Badge } from './Badge'
 export { Card, PageHeader } from './Card'

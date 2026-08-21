@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { registrarEventoAuthAuditoria } from '../../lib/auditoriaLogs.js'
 import { Button, Input } from '../../components/ui'
+import { carregarSessaoEPerfilAcesso } from '../../lib/authSession'
 
 const DARK_MODE_KEY = 'emerlab-dark-mode'
 
@@ -10,6 +11,12 @@ function aplicarTemaSalvoNoBody() {
   if (typeof window === 'undefined') return
   const ativo = window.localStorage.getItem(DARK_MODE_KEY) === '1'
   document.body.classList.toggle('dark-mode', ativo)
+}
+
+function destinoPosLogin(nextRaw) {
+  const next = String(nextRaw || '').trim()
+  if (!next.startsWith('/') || next.startsWith('//')) return '/home'
+  return next
 }
 
 const IconEye = () => (
@@ -43,10 +50,28 @@ const Login = () => {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const destino = destinoPosLogin(searchParams.get('next'))
 
   useEffect(() => {
     aplicarTemaSalvoNoBody()
   }, [])
+
+  useEffect(() => {
+    let ativo = true
+    void (async () => {
+      try {
+        const { session } = await carregarSessaoEPerfilAcesso()
+        if (!ativo || !session?.user?.id) return
+        navigate(destino, { replace: true })
+      } catch {
+        /* fica no login */
+      }
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [destino, navigate])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -62,7 +87,7 @@ const Login = () => {
     }
 
     void registrarEventoAuthAuditoria('LOGIN')
-    navigate('/home')
+    navigate(destino)
   }
 
   return (

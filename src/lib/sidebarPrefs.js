@@ -33,3 +33,7 @@ export function salvarSidebarFixada(fixada) {
 export function lerDarkModeAtivo() {
   return lerStorage(DARK_MODE_KEY, null) === '1'
 }
+
+export function salvarDarkModeAtivo(ativo) {
+  escreverStorage(DARK_MODE_KEY, ativo ? '1' : '0')
+}

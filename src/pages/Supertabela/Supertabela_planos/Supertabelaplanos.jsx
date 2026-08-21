@@ -2928,7 +2928,13 @@ ou um código por linha`}
                 )}
 
                 {mostrarContagemRealizadores && !loading && (
-                    <section className='supertabelaplanos_sugestoes_rede' aria-live='polite'>
+                    <section
+                        className='supertabelaplanos_sugestoes_rede'
+                        aria-live='polite'
+                        tabIndex={0}
+                        role='region'
+                        aria-label='Sugestões com realizador — tabela com rolagem horizontal'
+                    >
                         <div className='supertabelaplanos_sugestoes_rede_head'>
                             <h2 className='categoria_titulo'>Sugestões — com realizador, fora da tabela</h2>
                             <p className='supertabelaplanos_sugestoes_rede_hint'>

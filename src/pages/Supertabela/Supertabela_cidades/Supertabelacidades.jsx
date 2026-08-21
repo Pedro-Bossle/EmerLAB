@@ -1967,7 +1967,13 @@ ou um código por linha`}
                 )}
 
                 {mostrarContagemRealizadores && !loading && cidadeId ? (
-                    <section className='supertabelacidades_sugestoes_rede' aria-live='polite'>
+                    <section
+                        className='supertabelacidades_sugestoes_rede'
+                        aria-live='polite'
+                        tabIndex={0}
+                        role='region'
+                        aria-label='Sugestões com realizador — tabela com rolagem horizontal'
+                    >
                         <div className='supertabelacidades_sugestoes_rede_head'>
                             <h2 className='categoria_titulo'>Sugestões — com realizador, fora da tabela</h2>
                             <p className='supertabelacidades_sugestoes_rede_hint'>

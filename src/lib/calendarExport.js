@@ -31,10 +31,11 @@ function addDaysYmd(ymd, days) {
     return formatIcsDateLocal(d)
 }
 
+const icsTextEncoder = new TextEncoder()
+
 function foldIcsLine(line) {
     const s = String(line)
-    const encoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null
-    const byteLen = (str) => (encoder ? encoder.encode(str).length : str.length)
+    const byteLen = (str) => icsTextEncoder.encode(str).length
 
     if (byteLen(s) <= 75) return s
 

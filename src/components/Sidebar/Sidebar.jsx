@@ -13,7 +13,7 @@ import { SIDEBAR_GROUPS, filtrarChildrenNav } from '../../lib/navConfig'
 import { cn } from '../../lib/cn'
 import { supabase } from '../../lib/supabase'
 import { logoutSessao } from '../../lib/authSession'
-import { lerDarkModeAtivo } from '../../lib/sidebarPrefs'
+import { lerDarkModeAtivo, salvarDarkModeAtivo } from '../../lib/sidebarPrefs'
 
 const SIDEBAR_ICONS = {
   inicio: (
@@ -189,11 +189,10 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
   useEffect(() => {
     if (darkModeAtivo) {
       document.body.classList.add('dark-mode')
-      window.localStorage.setItem('emerlab-dark-mode', '1')
     } else {
       document.body.classList.remove('dark-mode')
-      window.localStorage.setItem('emerlab-dark-mode', '0')
     }
+    salvarDarkModeAtivo(darkModeAtivo)
   }, [darkModeAtivo])
 
   const labelClass = cn(

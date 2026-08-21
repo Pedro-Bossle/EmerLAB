@@ -443,6 +443,11 @@ const Home = () => {
         return buscarTarefasTexto(porAba, buscaTarefa)
     }, [tarefas, filtroTarefas, userId, buscaTarefa])
 
+    const tarefasExportaveis = useMemo(
+        () => (tarefas || []).filter((t) => t.status !== 'cancelada'),
+        [tarefas],
+    )
+
     const totalPaginasTarefas = Math.max(
         1,
         Math.ceil(tarefasFiltradas.length / TAREFAS_POR_PAGINA),
@@ -742,11 +747,7 @@ const Home = () => {
         setExportandoAfazeres(true)
         setErro('')
         try {
-            const lista =
-                tarefasFiltradas.length > 0
-                    ? tarefasFiltradas
-                    : (tarefas || []).filter((t) => t.status !== 'cancelada')
-            await exportarTarefasIcs(lista)
+            await exportarTarefasIcs(tarefasExportaveis)
         } catch (err) {
             setErro(err?.message || String(err))
         } finally {
@@ -952,8 +953,7 @@ const Home = () => {
                                     type="button"
                                     className="home_dash_btn secondary home_dash_btn--export"
                                     disabled={
-                                        exportandoAfazeres ||
-                                        !(tarefas || []).some((t) => t.status !== 'cancelada')
+                                        exportandoAfazeres || tarefasExportaveis.length === 0
                                     }
                                     onClick={() => void onExportarAfazeres()}
                                     aria-label={

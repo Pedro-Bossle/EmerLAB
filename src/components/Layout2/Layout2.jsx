@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from '../Sidebar/Sidebar'
 import DevToolsFloating from '../DevTools/DevToolsFloating'
@@ -6,14 +6,25 @@ import BatePapoFloating from '../BatePapo/BatePapoFloating'
 import FormularioInboxBell from '../Credenciamento/FormularioInboxBell'
 import SessionSecurity from '../SessionSecurity/SessionSecurity'
 import BottomNav from './BottomNav'
+import FloatingToolsDock from './FloatingToolsDock'
 import { cn } from '../../lib/cn'
 import { lerSidebarFixada, salvarSidebarFixada } from '../../lib/sidebarPrefs'
+import {
+  isBatePapoEnabled,
+  isDevToolsEnabled,
+  PERMISSION_KEYS,
+  useStoredAccessProfile,
+  useStoredPermission,
+} from '../../lib/accessControl'
 import './Layout2.css'
 
 const MQ_COMPACT = '(max-width: 1023px)'
 
 const Layout2 = () => {
   const { pathname } = useLocation()
+  const profile = useStoredAccessProfile()
+  const podeNotifForm = useStoredPermission(PERMISSION_KEYS.NOTIFICACOES_FORMULARIO)
+  const podeNotifContratos = useStoredPermission(PERMISSION_KEYS.NOTIFICACOES_CONTRATOS)
   const [openManual, setOpenManual] = useState(() => {
     if (typeof window !== 'undefined' && window.matchMedia(MQ_COMPACT).matches) return false
     return lerSidebarFixada()
@@ -23,6 +34,14 @@ const Layout2 = () => {
   const [isCompact, setIsCompact] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia(MQ_COMPACT).matches : false,
   )
+  const [dockExpanded, setDockExpanded] = useState(false)
+  const [activeFloatingTool, setActiveFloatingTool] = useState(null)
+  const [badgeBatePapo, setBadgeBatePapo] = useState(0)
+  const [badgeNotif, setBadgeNotif] = useState(0)
+
+  const showBatePapo = isBatePapoEnabled(profile)
+  const showDevTools = isDevToolsEnabled(profile)
+  const showNotif = (podeNotifForm || podeNotifContratos) && pathname !== '/home'
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
@@ -47,7 +66,13 @@ const Layout2 = () => {
     return () => window.removeEventListener('keydown', onKey)
   }, [isCompact, openManual])
 
-  /** Desktop: fixada OU hover. Conteúdo só empurra quando fixada. */
+  useEffect(() => {
+    if (!isCompact) {
+      setDockExpanded(false)
+      setActiveFloatingTool(null)
+    }
+  }, [isCompact])
+
   const navOpen = isCompact ? openManual : openManual || isHovering
   const contentPushed = !isCompact && openManual
 
@@ -87,6 +112,21 @@ const Layout2 = () => {
       if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current)
     }
   }, [])
+
+  const dockTools = useMemo(() => {
+    const list = []
+    if (showBatePapo) list.push({ id: 'emerzap', label: 'Emerzap', badge: badgeBatePapo })
+    if (showDevTools) list.push({ id: 'devtools', label: 'Dev Tools', badge: 0 })
+    if (showNotif) list.push({ id: 'notif', label: 'Notificações', badge: badgeNotif })
+    return list
+  }, [showBatePapo, showDevTools, showNotif, badgeBatePapo, badgeNotif])
+
+  const onSelectTool = useCallback((id) => {
+    setActiveFloatingTool(id)
+    if (id) setDockExpanded(true)
+  }, [])
+
+  const floatMode = isCompact ? 'dock' : 'fab'
 
   return (
     <div className="relative min-h-dvh max-w-[100vw] overflow-x-clip bg-surface-page dark:bg-[#0d1520]">
@@ -134,10 +174,55 @@ const Layout2 = () => {
 
       {isCompact ? <BottomNav /> : null}
 
+      {isCompact ? (
+        <FloatingToolsDock
+          expanded={dockExpanded}
+          onExpandedChange={(v) => {
+            setDockExpanded(v)
+            if (!v) setActiveFloatingTool(null)
+          }}
+          tools={dockTools}
+          activeToolId={activeFloatingTool}
+          onSelectTool={onSelectTool}
+        />
+      ) : null}
+
       <div className={cn(isCompact && 'pb-nav-bottom')}>
-        <BatePapoFloating />
-        <DevToolsFloating />
-        {pathname !== '/home' ? <FormularioInboxBell /> : null}
+        {showBatePapo ? (
+          <BatePapoFloating
+            mode={floatMode}
+            open={isCompact ? activeFloatingTool === 'emerzap' : undefined}
+            onOpenChange={
+              isCompact
+                ? (v) => setActiveFloatingTool(v ? 'emerzap' : null)
+                : undefined
+            }
+            onBadgeChange={setBadgeBatePapo}
+          />
+        ) : null}
+        {showDevTools ? (
+          <DevToolsFloating
+            mode={floatMode}
+            open={isCompact ? activeFloatingTool === 'devtools' : undefined}
+            onOpenChange={
+              isCompact
+                ? (v) => setActiveFloatingTool(v ? 'devtools' : null)
+                : undefined
+            }
+          />
+        ) : null}
+        {showNotif ? (
+          <FormularioInboxBell
+            mode={floatMode}
+            open={isCompact ? activeFloatingTool === 'notif' : undefined}
+            onOpenChange={
+              isCompact
+                ? (v) => setActiveFloatingTool(v ? 'notif' : null)
+                : undefined
+            }
+            onBadgeChange={setBadgeNotif}
+          />
+        ) : null}
       </div>
     </div>
   )

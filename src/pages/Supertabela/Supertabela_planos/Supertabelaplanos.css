@@ -1802,6 +1802,15 @@
         -webkit-overflow-scrolling: touch;
     }
 
+    .supertabelaplanos_sugestoes_rede:focus {
+        outline: none;
+    }
+
+    .supertabelaplanos_sugestoes_rede:focus-visible {
+        outline: 2px solid #2a6b8a;
+        outline-offset: 2px;
+    }
+
     .supertabelaplanos_sugestoes_rede .table_main {
         min-width: 820px;
     }

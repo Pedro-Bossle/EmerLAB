@@ -142,6 +142,17 @@ body.dark-mode .layout2_nav_fab {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
+/* Gaveta flutuante aberta → esconde abas compactas das outras ferramentas */
+body:has(.bate_papo_float.is-open) .dev_tools_float:not(.is-open) .dev_tools_float_btn,
+body:has(.bate_papo_float.is-open) .notif_float:not(.is-open) .notif_float_btn,
+body:has(.dev_tools_float.is-open) .bate_papo_float:not(.is-open) .bate_papo_float_btn,
+body:has(.dev_tools_float.is-open) .notif_float:not(.is-open) .notif_float_btn,
+body:has(.notif_float.is-open) .bate_papo_float:not(.is-open) .bate_papo_float_btn,
+body:has(.notif_float.is-open) .dev_tools_float:not(.is-open) .dev_tools_float_btn {
+    visibility: hidden;
+    pointer-events: none;
+}
+
 @media (min-width: 1024px) {
     .layout2_nav_backdrop,
     .layout2_nav_fab {
