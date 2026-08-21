@@ -3,7 +3,7 @@ import { PROSPECTOS_OSM_CATEGORIAS, labelProspectoOsmCategoria } from './osmCate
 import { geocodificarEnderecoNominatim } from './geocodePrestador.ts'
 import { geminiGenerateJson } from './gemini.ts'
 
-const MAX_ITENS = Number(Deno.env.get('PROSPECTOS_GEMINI_MAX') || 30)
+const MAX_ITENS = Number(Deno.env.get('PROSPECTOS_GEMINI_MAX') || 20)
 
 const SCHEMA = {
   type: 'object',
@@ -58,6 +58,7 @@ export async function coletarProspectosGeminiCidade(
     prompt: montarPrompt(cidade, uf),
     jsonSchema: SCHEMA,
     maxOutputTokens: 8192,
+    timeoutMs: 90_000,
   })
   if (!gem.ok) {
     return {
@@ -68,9 +69,10 @@ export async function coletarProspectosGeminiCidade(
     }
   }
 
-  const lista = Array.isArray((gem.data as { estabelecimentos?: unknown[] })?.estabelecimentos)
+  const listaRaw = Array.isArray((gem.data as { estabelecimentos?: unknown[] })?.estabelecimentos)
     ? (gem.data as { estabelecimentos: Record<string, unknown>[] }).estabelecimentos
     : []
+  const lista = listaRaw.slice(0, MAX_ITENS)
 
   const rows: Record<string, unknown>[] = []
   for (const raw of lista) {

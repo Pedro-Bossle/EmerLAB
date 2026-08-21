@@ -221,39 +221,34 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-1.5 py-3">
-        {menuItemsVisiveis.map((item) => {
-          const icon = SIDEBAR_ICONS[item.id] || SIDEBAR_ICONS.configuracoes
-          const active =
-            (item.href && pathname === item.href) ||
-            (item.children || []).some((c) => c.href && (pathname === c.href || pathname.startsWith(`${c.href}/`)))
-          return (
-            <div key={item.id} className="mb-1">
-              {item.href && !item.children ? (
-                <Link
-                  to={item.href}
-                  className={cn(
-                    'flex min-h-11 items-center rounded-xl text-[0.92rem] font-semibold transition-colors duration-100 hover:bg-white/10',
-                    open ? 'gap-3 px-3' : 'justify-center px-0',
-                    active && 'bg-white/15',
-                  )}
-                  onClick={() => {
-                    if (item.href === '/home') window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
-                    onAfterNavigate?.()
-                  }}
-                  title={item.label}
-                >
-                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>
-                  <span className={labelClass}>{item.label}</span>
-                </Link>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className={cn(
-                      'flex min-h-11 w-full items-center rounded-xl text-[0.92rem] font-semibold transition-colors duration-100 hover:bg-white/10',
-                      open ? 'gap-3 px-3' : 'justify-center px-0',
-                      active && 'bg-white/10',
+                <div className='sidebar_footer'>
+                    {hasPermission(accessProfile, PERMISSION_KEYS.ACCESS_MANAGE) && (
+                        <>
+                            <button
+                                type='button'
+                                className='sidebar_admin_btn'
+                                onClick={() => {
+                                    navigate('/administrativo/auditoria')
+                                    onAfterNavigate?.()
+                                }}
+                                title='Auditoria de alterações'
+                            >
+                                <span className='sidebar_admin_icon' aria-hidden>📋</span>
+                                <span className='sidebar_admin_text'>Auditoria</span>
+                            </button>
+                            <button
+                                type='button'
+                                className='sidebar_admin_btn'
+                                onClick={() => {
+                                    navigate('/administrativo/acessos')
+                                    onAfterNavigate?.()
+                                }}
+                                title='Gerenciamento de acessos'
+                            >
+                                <span className='sidebar_admin_icon' aria-hidden>🛡️</span>
+                                <span className='sidebar_admin_text'>Admin</span>
+                            </button>
+                        </>
                     )}
                     onClick={() => (open ? toggleMenu(item.id) : onToggleManual?.())}
                     title={item.label}

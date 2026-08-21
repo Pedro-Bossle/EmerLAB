@@ -36,6 +36,9 @@
     },
     "api/cep-lookup.js": {
       "maxDuration": 15
+    },
+    "api/gemini-rate.js": {
+      "maxDuration": 15
     }
   },
   "rewrites": [

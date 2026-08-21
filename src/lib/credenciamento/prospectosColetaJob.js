@@ -25,6 +25,9 @@ function anexarDescansoGemini(resultado, gem) {
 }
 
 function contarPassos(payload) {
+    if (payload.fonte === 'gemini' || !fallbackOsmHabilitado()) {
+        return 1
+    }
     let n = 0
     if (payload.tentarGemini) n += 1
     n += 1 // bounds
@@ -38,7 +41,8 @@ function metaInicial(opts) {
     const omitirGemini = Boolean(opts.omitirGemini)
     const fonte = resolverFonteColeta(opts.fonte)
     const categorias = listaCategoriasColeta(opts.categorias)
-    const tentarGemini = !omitirGemini && (fonte === 'gemini' || fonte === 'auto')
+    const osmPermitido = fonte === 'osm' || (fonte === 'auto' && fallbackOsmHabilitado())
+    const tentarGemini = fonte === 'gemini' || (fonte === 'auto' && !omitirGemini)
     const payload = {
         cidade,
         uf,
@@ -46,14 +50,14 @@ function metaInicial(opts) {
         omitirGemini,
         tentarGemini,
         categorias,
-        fase: tentarGemini ? 'gemini' : 'bounds',
+        fase: tentarGemini ? 'gemini' : osmPermitido ? 'bounds' : 'gemini',
         catIndex: 0,
         bounds: null,
         erros: [],
         avisos: [],
         geminiSnapshot: null,
         fallbackDeGemini: false,
-        coletaDiretaOsm: fonte === 'auto' && omitirGemini,
+        coletaDiretaOsm: fonte === 'auto' && omitirGemini && osmPermitido,
     }
     return {
         cidade,
@@ -177,7 +181,7 @@ export async function executarPassoJobColeta(supabaseAdmin, jobId) {
                 erroOriginal: gem.erroOriginal,
                 retryAfterSec: gem.retryAfterSec,
             }
-            const podeFallback = fallbackOsmHabilitado() && p.fonte !== 'osm'
+            const podeFallback = fallbackOsmHabilitado() && p.fonte === 'auto'
             if (!podeFallback) {
                 const resultado = anexarDescansoGemini({ ...gem, modoColeta: p.fonte }, gem)
                 const failed = await atualizarJob(supabaseAdmin, job.id, {

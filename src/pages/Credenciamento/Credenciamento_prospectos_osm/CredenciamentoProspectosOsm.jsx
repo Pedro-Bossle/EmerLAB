@@ -19,7 +19,14 @@ import { exportarProspectosOsmParaExcel } from '../../../lib/credenciamento/expo
 import { postServerApiJson } from '../../../lib/api/serverBackend.js'
 import { prospectoIndicaAtendimento24h } from '../../../lib/credenciamento/prospectosOsmHorario.js'
 import { formatarEnderecoLinhaTabela } from '../../../lib/credenciamento/prospectosOsmQualidade.js'
+import { filtrarPrestadoresParaImportCoordenadas } from '../../../lib/credenciamento/prestadorEnderecoGeocode.js'
+import {
+    lerAlertasCredenciadoDismissed,
+    mapearAlertasCredenciadoProspectos,
+    salvarAlertasCredenciadoDismissed,
+} from '../../../lib/credenciamento/prospectosOsmSimilaridadeCredenciados.js'
 import { formatarLinhaTelefonesContato } from '../../../lib/telefoneBrasil.js'
+import { supabase } from '../../../lib/supabase'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import { PageHeader } from '../../../components/ui'
@@ -96,6 +103,9 @@ const CredenciamentoProspectosOsm = () => {
     const splitPctRef = useRef(splitListaPct)
     const [ordenarColuna, setOrdenarColuna] = useState('nome')
     const [ordenarDir, setOrdenarDir] = useState('asc')
+    const [credenciadosBase, setCredenciadosBase] = useState([])
+    const [alertaDismissed, setAlertaDismissed] = useState(() => lerAlertasCredenciadoDismissed())
+    const { rate: geminiRate, recarregar: recarregarGeminiRate } = useGeminiRate()
 
     useEffect(() => {
         splitPctRef.current = splitListaPct
@@ -226,6 +236,55 @@ const CredenciamentoProspectosOsm = () => {
         void carregar()
     }, [carregar])
 
+    useEffect(() => {
+        if (!podeLer) return undefined
+        let cancelado = false
+        void (async () => {
+            try {
+                const [{ data: prestadores }, { data: situacoes }, { data: especialidades }] = await Promise.all([
+                    supabase
+                        .from('prestadores')
+                        .select('id, nome, especialidade_id, situacao_id, ativo, endereco_cidade, endereco_uf')
+                        .eq('ativo', true),
+                    supabase.from('situacoes').select('id, descricao, ativo').eq('ativo', true),
+                    supabase.from('especialidades').select('id, descricao, tipo').eq('ativo', true),
+                ])
+                if (cancelado) return
+                const base = filtrarPrestadoresParaImportCoordenadas(prestadores || [], especialidades || [], {
+                    apenasLocal: true,
+                    apenasCredenciados: true,
+                    situacoes: situacoes || [],
+                })
+                setCredenciadosBase(base)
+            } catch {
+                if (!cancelado) setCredenciadosBase([])
+            }
+        })()
+        return () => {
+            cancelado = true
+        }
+    }, [podeLer])
+
+    const alertasCredenciado = useMemo(
+        () =>
+            mapearAlertasCredenciadoProspectos(itens, credenciadosBase, {
+                dismissedIds: alertaDismissed,
+            }),
+        [itens, credenciadosBase, alertaDismissed],
+    )
+
+    const limparAlertaCredenciado = useCallback((prospectoId, e) => {
+        e?.stopPropagation?.()
+        const id = String(prospectoId || '')
+        if (!id) return
+        setAlertaDismissed((prev) => {
+            const next = new Set(prev)
+            next.add(id)
+            salvarAlertasCredenciadoDismissed(next)
+            return next
+        })
+    }, [])
+
     const alternarOrdenacao = (coluna) => {
         if (ordenarColuna === coluna) {
             setOrdenarDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -293,20 +352,14 @@ const CredenciamentoProspectosOsm = () => {
         setColetaPasso(0)
         setColetaPassosTotais(1)
         setErro('')
-        setFeedback('Coleta em andamento (Gemini, com fallback OSM se necessário)…')
+        setFeedback('Coleta em andamento (Gemini, até 20 estabelecimentos)…')
         const ctrl = new AbortController()
         const timeoutId = setTimeout(() => ctrl.abort(), 6 * 60 * 1000)
 
         const montarMsgSucesso = (body) => {
             let msg = `${body.inseridos ?? 0} local(is) atualizado(s).`
-            if (body.coletaDiretaOsm) {
-                msg += ' Modo auto: coleta via OpenStreetMap (Gemini sem cota no plano).'
-            } else if (body.fallbackDeGemini) {
-                msg += ' Modo auto: Gemini sem cota → concluído via OpenStreetMap.'
-            } else if (body.fonte === 'gemini') {
+            if (body.fonte === 'gemini') {
                 msg += ' Coleta via Gemini.'
-            } else if (body.fonte === 'osm') {
-                msg += ' Coleta via OpenStreetMap.'
             }
             if (body.aviso) msg += ` ${body.aviso}`
             return msg
@@ -319,7 +372,7 @@ const CredenciamentoProspectosOsm = () => {
                     action: 'start',
                     cidade: c,
                     uf: String(uf || '').trim(),
-                    fonte: 'auto',
+                    fonte: 'gemini',
                 },
                 { signal: ctrl.signal },
             )
@@ -357,7 +410,7 @@ const CredenciamentoProspectosOsm = () => {
         } catch (e) {
             if (e?.name === 'AbortError') {
                 setErro(
-                    'A coleta passou de 6 minutos. O servidor de mapas pode estar lento; tente de novo em instantes.',
+                    'A coleta passou de 6 minutos. Tente de novo em instantes.',
                 )
             } else {
                 setErro(e?.message || String(e))
@@ -368,6 +421,7 @@ const CredenciamentoProspectosOsm = () => {
             setColetando(false)
             setColetaPasso(0)
             setColetaPassosTotais(1)
+            void recarregarGeminiRate()
         }
     }
 
@@ -504,6 +558,18 @@ const CredenciamentoProspectosOsm = () => {
                             />
                         </label>
                         <div className="cred_prospectos_osm_linha2_acoes">
+                            <span
+                                className="cred_prospectos_osm_gemini_rate"
+                                title={
+                                    geminiRate?.bloqueadoAte
+                                        ? `Rate limit até ${geminiRate.bloqueadoAte}`
+                                        : 'Pedidos deste processo contra GEMINI_RPM / GEMINI_RPD (reset diário à meia-noite Pacific)'
+                                }
+                            >
+                                {geminiRate
+                                    ? `Gemini ${geminiRate.rpmUsados}/${geminiRate.rpmLimite} RPM · ${geminiRate.rpdUsados}/${geminiRate.rpdLimite} hoje`
+                                    : 'Gemini — RPM'}
+                            </span>
                             {podeEditar ? (
                                 <div
                                     className={`cred_prospectos_osm_prospectar_wrap${coletando ? ' is-coletando' : ''}`}
@@ -709,6 +775,17 @@ const CredenciamentoProspectosOsm = () => {
                                                             24h
                                                         </span>
                                                     ) : null}
+                                                    {alertasCredenciado.has(String(row.id)) ? (
+                                                        <button
+                                                            type="button"
+                                                            className="cred_prospectos_osm_badge_cred"
+                                                            title={`Talvez já credenciado: ${alertasCredenciado.get(String(row.id)).nome}. Clique para limpar.`}
+                                                            aria-label="Talvez já credenciado. Clique para limpar a flag."
+                                                            onClick={(e) => limparAlertaCredenciado(row.id, e)}
+                                                        >
+                                                            ⚑
+                                                        </button>
+                                                    ) : null}
                                                 </span>
                                             </td>
                                             <td>{row.categoria_label || row.categoria_id}</td>
@@ -784,6 +861,20 @@ const CredenciamentoProspectosOsm = () => {
                                         <>
                                             {' '}
                                             <span className="cred_prospectos_osm_badge_24h">24h</span>
+                                        </>
+                                    ) : null}
+                                    {alertasCredenciado.has(String(row.id)) ? (
+                                        <>
+                                            {' '}
+                                            <button
+                                                type="button"
+                                                className="cred_prospectos_osm_badge_cred"
+                                                title={`Talvez já credenciado: ${alertasCredenciado.get(String(row.id)).nome}. Clique para limpar.`}
+                                                aria-label="Talvez já credenciado. Clique para limpar a flag."
+                                                onClick={(e) => limparAlertaCredenciado(row.id, e)}
+                                            >
+                                                ⚑
+                                            </button>
                                         </>
                                     ) : null}
                                     <br />
