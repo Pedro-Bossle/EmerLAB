@@ -333,7 +333,7 @@ export default function DevToolsFloating({
         ? {
               '--dev-tools-drawer-left': '0px',
               '--dev-tools-drawer-top': 'auto',
-              '--dev-tools-drawer-bottom': 'calc(4.25rem + 2.75rem)',
+              '--dev-tools-drawer-bottom': 'var(--el-float-above-dock, calc(4.25rem + 2.75rem + env(safe-area-inset-bottom, 0px)))',
               '--dev-tools-drawer-width': '100%',
               '--dev-tools-drawer-max-height': 'min(70dvh, 480px)',
           }

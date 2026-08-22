@@ -1,9 +1,17 @@
+/* Altura da bottom nav (sem safe-area) + faixa dos chips do dock */
+:root {
+  --el-bottom-nav: 4.25rem;
+  --el-dock-chips: 2.75rem;
+  --el-float-above-nav: calc(var(--el-bottom-nav) + env(safe-area-inset-bottom, 0px));
+  --el-float-above-dock: calc(var(--el-float-above-nav) + var(--el-dock-chips));
+}
+
 .floating_tools_dock {
   position: fixed;
-  z-index: 55; /* acima da sidebar; abaixo de modal */
+  z-index: 55; /* acima da sidebar; abaixo de modal e da gaveta da bottom nav */
   left: 0;
   right: 0;
-  bottom: 4.25rem;
+  bottom: var(--el-float-above-nav);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -17,7 +25,9 @@
   pointer-events: auto;
 }
 
+/* Seta colada à bottom nav; chips ficam acima (não entram na gaveta da tool) */
 .floating_tools_dock_toggle {
+  order: 2;
   width: 2.5rem;
   height: 1.35rem;
   border: 1px solid #a8c0b4;
@@ -32,6 +42,7 @@
 }
 
 .floating_tools_dock_chips {
+  order: 1;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -45,6 +56,18 @@
   background: rgba(248, 252, 250, 0.96);
   backdrop-filter: blur(8px);
   box-shadow: 0 -4px 18px rgba(30, 49, 72, 0.14);
+}
+
+/* Com tool aberta: só os chips sob a gaveta — esconde a seta para não clipar */
+.floating_tools_dock.has-open-tool .floating_tools_dock_toggle {
+  display: none;
+}
+
+/* Gaveta da bottom nav aberta: esconde seta/chips para não clipar no meio da lista */
+body.el-nav-drawer-open .floating_tools_dock,
+body.el-nav-drawer-open .el-floating-layer {
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .floating_tools_dock_chip {

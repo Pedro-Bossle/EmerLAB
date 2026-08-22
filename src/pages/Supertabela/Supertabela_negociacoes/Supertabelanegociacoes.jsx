@@ -1881,11 +1881,12 @@ ou um código por linha`}
             )}
 
             {!negociacaoSelecionada ? (
-                <div className='supertabelanegociacoes_table_container overflow-x-auto'>
+                <div className='supertabelanegociacoes_table_container supertabelanegociacoes_lista_wrap'>
                     {loading ? (
                         <p>Carregando...</p>
                     ) : (
                         <>
+                            <div className='supertabelanegociacoes_lista_table_wrap'>
                             <table className='table_main'>
                                 <colgroup>
                                     <col
@@ -2033,6 +2034,99 @@ ou um código por linha`}
                                     )}
                                 </tbody>
                             </table>
+                            </div>
+
+                            <ul className='supertabelanegociacoes_cards' aria-label='Lista de negociações'>
+                                {negociacoesListaPaginada.length === 0 ? (
+                                    <li className='supertabelanegociacoes_card is-empty'>
+                                        Nenhuma negociação encontrada.
+                                    </li>
+                                ) : (
+                                    negociacoesListaPaginada.map((item) => (
+                                        <li key={`neg-card-${item.id}`} className='supertabelanegociacoes_card_item'>
+                                            <button
+                                                type='button'
+                                                className='supertabelanegociacoes_card'
+                                                onClick={() => setNegociacaoSelecionadaId(item.id)}
+                                            >
+                                                <span className='supertabelanegociacoes_card_nome'>
+                                                    {item.nome || '—'}
+                                                </span>
+                                                <span className='supertabelanegociacoes_card_meta'>
+                                                    <span className='supertabelanegociacoes_card_label'>Tipo</span>
+                                                    <span>{item.tipo || '—'}</span>
+                                                </span>
+                                                <span className='supertabelanegociacoes_card_meta'>
+                                                    <span className='supertabelanegociacoes_card_label'>Cidade</span>
+                                                    <span>{item.cidadeNome || '—'}</span>
+                                                </span>
+                                                {mostrarColunaVinculoLista ? (
+                                                    <span className='supertabelanegociacoes_card_meta'>
+                                                        <span className='supertabelanegociacoes_card_label'>
+                                                            Prestador
+                                                        </span>
+                                                        <span>
+                                                            {item.prestadorVinculoNome?.trim()
+                                                                ? item.prestadorVinculoNome
+                                                                : '—'}
+                                                        </span>
+                                                    </span>
+                                                ) : null}
+                                            </button>
+                                            {!somenteLeitura ? (
+                                                <div
+                                                    className='supertabelanegociacoes_card_footer'
+                                                    onClick={(event) => event.stopPropagation()}
+                                                >
+                                                    {mostrarColunaVinculoLista ? (
+                                                        <div className='supertabelanegociacoes_card_vinculo'>
+                                                            <span className='supertabelanegociacoes_card_label'>
+                                                                Vincular prestador
+                                                            </span>
+                                                            <PrestadorVinculoBusca
+                                                                usePortal
+                                                                titleValor={item.prestadorVinculoNome || ''}
+                                                                prestadores={prestadoresParaVinculo}
+                                                                prestadorId={
+                                                                    item.prestadorId != null
+                                                                        ? String(item.prestadorId)
+                                                                        : ''
+                                                                }
+                                                                rotuloFn={rotuloOpcaoPrestador}
+                                                                disabled={
+                                                                    !suportaPrestadorId ||
+                                                                    salvandoVinculoListaId === item.id
+                                                                }
+                                                                placeholder={
+                                                                    salvandoVinculoListaId === item.id
+                                                                        ? 'A guardar…'
+                                                                        : 'Buscar prestador…'
+                                                                }
+                                                                onChange={(p) =>
+                                                                    void salvarVinculoPrestadorNaLista(item, p)
+                                                                }
+                                                            />
+                                                        </div>
+                                                    ) : null}
+                                                    <button
+                                                        type='button'
+                                                        className='table_delete_btn supertabelanegociacoes_card_delete'
+                                                        onClick={(event) =>
+                                                            excluirNegociacao(item, {
+                                                                ignorarConfirmacao: event.shiftKey,
+                                                            })
+                                                        }
+                                                        title='Excluir negociação, SHIFT = Excluir rápido'
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                </div>
+                                            ) : null}
+                                        </li>
+                                    ))
+                                )}
+                            </ul>
+
                             {!loading && negociacoesListaOrdenada.length > 0 && (
                                 <div className='supertabelanegociacoes_paginacao'>
                                     <div className='supertabelanegociacoes_paginacao_info'>

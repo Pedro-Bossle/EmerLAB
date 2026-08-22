@@ -802,7 +802,7 @@ export default function BatePapoFloating({
     ? {
         '--bate-papo-drawer-left': '0px',
         '--bate-papo-drawer-top': 'auto',
-        '--bate-papo-drawer-bottom': 'calc(4.25rem + 2.75rem)',
+        '--bate-papo-drawer-bottom': 'var(--el-float-above-dock, calc(4.25rem + 2.75rem + env(safe-area-inset-bottom, 0px)))',
         '--bate-papo-drawer-width': '100%',
         '--bate-papo-drawer-max-height': 'min(70dvh, 520px)',
         '--bate-papo-drawer-height': 'min(70dvh, 520px)',

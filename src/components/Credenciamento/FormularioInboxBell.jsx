@@ -546,7 +546,7 @@ export default function FormularioInboxBell({
         ? {
               '--notif-drawer-left': '0px',
               '--notif-drawer-top': 'auto',
-              '--notif-drawer-bottom': 'calc(4.25rem + 2.75rem)',
+              '--notif-drawer-bottom': 'var(--el-float-above-dock, calc(4.25rem + 2.75rem + env(safe-area-inset-bottom, 0px)))',
               '--notif-drawer-width': '100%',
               '--notif-drawer-max-height': 'min(70dvh, 480px)',
           }

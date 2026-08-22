@@ -374,10 +374,13 @@
     left: 0 !important;
     right: 0;
     top: auto !important;
-    bottom: calc(4.25rem + 2.75rem);
+    bottom: var(--el-float-above-dock, calc(4.25rem + 2.75rem + env(safe-area-inset-bottom, 0px)));
     width: 100% !important;
     max-width: none;
     border-radius: 14px 14px 0 0;
     transform-origin: center bottom;
+}
+
+.notif_float--dock .notif_float_drawer.is-open {
     pointer-events: auto;
 }

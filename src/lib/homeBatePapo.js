@@ -126,6 +126,13 @@ export async function inspecionarChaveConta() {
 
   if (local) {
     if (temPublica && !privadaCorrespondePublica(local, row.public_jwk)) {
+      // Reset admin: descarta chave local antiga e permite criar nova senha neste aparelho
+      if (resetPedido) {
+        return {
+          status: 'setup',
+          message: msgReset,
+        }
+      }
       return {
         status: 'bloqueado',
         message:
@@ -146,11 +153,17 @@ export async function inspecionarChaveConta() {
   }
 
   if (temPublica && !temCipher) {
+    // Reset admin: sem cipher na cloud → utilizador deve definir nova senha (nova chave)
+    if (resetPedido) {
+      return {
+        status: 'setup',
+        message: `${msgReset} Se este não for o aparelho original, as conversas antigas podem ficar ilegíveis neste dispositivo.`,
+      }
+    }
     return {
       status: 'bloqueado',
-      message: resetPedido
-        ? `${msgReset} Se este não for o aparelho original, use o dispositivo onde o Emerzap já lia as conversas.`
-        : 'A conta já tem chave pública, mas a sincronização ainda não foi ativada. Abra o Emerzap no aparelho original e defina a senha da chave.',
+      message:
+        'A conta já tem chave pública, mas a sincronização ainda não foi ativada. Abra o Emerzap no aparelho original e defina a senha da chave.',
     }
   }
 
@@ -178,14 +191,17 @@ export async function configurarChaveContaComSenha(senha, senhaConfirm) {
   }
 
   const local = lerPrivJwkLocal()
+  const resetPedido = Boolean(row?.chave_reset_pedido_em)
+
   if (local && (!row?.public_jwk || privadaCorrespondePublica(local, row.public_jwk))) {
     pair = await importarParDePrivJwk(local)
-  } else if (row?.public_jwk && !row?.priv_cipher) {
+  } else if (row?.public_jwk && !row?.priv_cipher && !resetPedido) {
     throw erroChaveConta(
       CHAVE_CONTA_BLOQUEADO,
       'Não é possível criar nova chave: a conta já publicou uma pública sem sync. Use o aparelho original.',
     )
   } else {
+    // Setup limpo, ou reset admin (substitui chave pública antiga)
     pair = await gerarNovoParChaves()
   }
 

@@ -62,9 +62,10 @@ export default {
         nav: '40',
         sidebar: '30',
         fab: '55',
-        drawer: '50',
-        modal: '60',
-        toast: '70',
+        /* Acima dos FABs/dock (55) e da bottom nav (40) */
+        drawer: '80',
+        modal: '90',
+        toast: '100',
       },
     },
   },

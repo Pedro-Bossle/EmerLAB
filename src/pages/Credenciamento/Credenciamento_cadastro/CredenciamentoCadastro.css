@@ -1213,33 +1213,55 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
     justify-content: center;
 }
 
-.pcad_form_footer .pcad_footer_btn_apagar_bd {
-    margin-right: auto;
-    width: 2.15rem;
-    min-width: 2.15rem;
-    max-width: 2.15rem;
-    height: 2.15rem;
-    padding: 0 !important;
+.pcad_perfil_acoes_finais {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e4eef5;
+}
+
+.pcad_btn_apagar_bd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 2.15rem;
+    padding: 0.4rem 0.75rem !important;
     border-radius: 8px;
     color: #b3261e !important;
     border-color: #e8b4b0 !important;
     background: #fff8f7 !important;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
 }
 
-.pcad_form_footer .pcad_footer_btn_apagar_bd svg {
+.pcad_btn_apagar_bd svg {
     width: 1.05rem;
     height: 1.05rem;
     display: block;
+    flex-shrink: 0;
     pointer-events: none;
 }
 
-.pcad_form_footer .pcad_footer_btn_apagar_bd:hover:not(:disabled) {
+.pcad_btn_apagar_bd:hover:not(:disabled) {
     background: #fdecea !important;
     border-color: #d18c8c !important;
+}
+
+body.dark-mode .pcad_perfil_acoes_finais {
+    border-top-color: #3a5775;
+}
+
+body.dark-mode .pcad_btn_apagar_bd {
+    color: #f08a8a !important;
+    border-color: #7a3a3a !important;
+    background: #2a1818 !important;
+}
+
+body.dark-mode .pcad_btn_apagar_bd:hover:not(:disabled) {
+    background: #3a2020 !important;
+    border-color: #a05050 !important;
 }
 
 .pcad_cidades_virtual {
@@ -1561,18 +1583,6 @@ body.dark-mode .pcad_link_btn.danger {
 body.dark-mode .pcad_form_footer {
     background: var(--bg-surface);
     border-top-color: var(--border-soft);
-}
-
-body.dark-mode .pcad_form_footer .pcad_footer_btn_apagar_bd {
-    color: #f0a0a0 !important;
-    border-color: #8a3d3d !important;
-    background: #3a1f24 !important;
-}
-
-body.dark-mode .pcad_form_footer .pcad_footer_btn_apagar_bd:hover:not(:disabled) {
-    color: #ffc9c9 !important;
-    border-color: #b05050 !important;
-    background: #4a282e !important;
 }
 
 body.dark-mode .credenciamento_cadastro_dev_massa {

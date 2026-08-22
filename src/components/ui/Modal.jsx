@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '../../lib/cn'
 import { Button } from './Button'
 
@@ -79,6 +80,7 @@ export function Modal({
   useDialogFocus({ open, onClose, panelRef })
 
   if (!open) return null
+  if (typeof document === 'undefined') return null
 
   const widths = {
     sm: 'max-w-md',
@@ -88,7 +90,7 @@ export function Modal({
     full: 'max-w-[min(96vw,56rem)]',
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-modal flex items-end justify-center p-0 sm:items-center sm:p-4">
       <button
         type="button"
@@ -135,7 +137,8 @@ export function Modal({
           </div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -144,14 +147,21 @@ export function Drawer({ open, onClose, title, children, side = 'bottom', classN
   const titleId = useId()
   useDialogFocus({ open, onClose, panelRef })
 
+  useEffect(() => {
+    if (!open) return undefined
+    document.body.classList.add('el-nav-drawer-open')
+    return () => document.body.classList.remove('el-nav-drawer-open')
+  }, [open])
+
   if (!open) return null
+  if (typeof document === 'undefined') return null
 
   const sideClass =
     side === 'right'
       ? 'inset-y-0 right-0 h-full w-[min(100%,24rem)] rounded-l-2xl'
       : 'inset-x-0 bottom-0 max-h-[88dvh] w-full rounded-t-2xl'
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-drawer">
       <button
         type="button"
@@ -186,6 +196,7 @@ export function Drawer({ open, onClose, title, children, side = 'bottom', classN
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

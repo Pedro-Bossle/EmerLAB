@@ -966,4 +966,172 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
     }
 }
 
+/* Cards mobile — lista de negociações (padrão Cadastros) */
+.supertabelanegociacoes_cards {
+    display: none;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.supertabelanegociacoes_card_item {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #d7e8f2;
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.supertabelanegociacoes_card {
+    display: grid;
+    gap: 0.2rem;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.55rem 0.7rem;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+.supertabelanegociacoes_card.is-empty,
+.supertabelanegociacoes_card_item.is-empty,
+li.supertabelanegociacoes_card.is-empty {
+    cursor: default;
+    color: #5a7085;
+    text-align: center;
+    padding: 0.85rem;
+    border: 1px solid #d7e8f2;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.supertabelanegociacoes_card:active {
+    background: #f0f7fc;
+}
+
+.supertabelanegociacoes_card_nome {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #123e59;
+    line-height: 1.25;
+    word-break: normal;
+    overflow-wrap: anywhere;
+    margin-bottom: 0.1rem;
+}
+
+.supertabelanegociacoes_card_meta {
+    display: grid;
+    grid-template-columns: 5.75rem minmax(0, 1fr);
+    gap: 0.1rem 0.45rem;
+    align-items: baseline;
+    font-size: 0.82rem;
+    line-height: 1.25;
+    color: #35556d;
+}
+
+.supertabelanegociacoes_card_label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #6a8499;
+    line-height: 1.25;
+}
+
+.supertabelanegociacoes_card_footer {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    padding: 0.45rem 0.7rem 0.55rem;
+    border-top: 1px solid #e4eef5;
+    background: #f8fbfd;
+}
+
+.supertabelanegociacoes_card_vinculo {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.supertabelanegociacoes_card_vinculo .prestador_vinculo_busca.row_add_suggest_wrap {
+    width: 100%;
+    max-width: none;
+}
+
+.supertabelanegociacoes_card_vinculo .prestador_vinculo_busca_input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.supertabelanegociacoes_card_delete {
+    flex-shrink: 0;
+    align-self: flex-end;
+}
+
+@media (max-width: 1023px) {
+    .supertabelanegociacoes_lista_wrap {
+        overflow: visible;
+        border: none;
+        background: transparent;
+        border-radius: 0;
+    }
+
+    .supertabelanegociacoes_lista_table_wrap {
+        display: none;
+    }
+
+    .supertabelanegociacoes_cards {
+        display: grid;
+        gap: 0.4rem;
+        width: 100%;
+    }
+
+    .supertabelanegociacoes_paginacao {
+        margin-top: 0.85rem;
+    }
+}
+
+body.dark-mode .supertabelanegociacoes_card_item {
+    background: #132335;
+    border-color: #3a5775;
+}
+
+body.dark-mode .supertabelanegociacoes_card {
+    color: #e8f1f8;
+}
+
+body.dark-mode .supertabelanegociacoes_card:active {
+    background: #1a2d40;
+}
+
+body.dark-mode .supertabelanegociacoes_card_nome {
+    color: #e8f1f8;
+}
+
+body.dark-mode .supertabelanegociacoes_card_meta {
+    color: #9eb4c8;
+}
+
+body.dark-mode .supertabelanegociacoes_card_label {
+    color: #7a93a8;
+}
+
+body.dark-mode .supertabelanegociacoes_card_footer {
+    border-top-color: #3a5775;
+    background: #0f1e2e;
+}
+
+body.dark-mode li.supertabelanegociacoes_card.is-empty {
+    background: #132335;
+    border-color: #3a5775;
+    color: #9eb4c8;
+}
+
 

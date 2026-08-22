@@ -525,15 +525,10 @@ export default async function handler(req, res) {
             if (!alvo?.id) return responderErro(res, 404, 'Usuário não encontrado.')
 
             const agora = new Date().toISOString()
-            const { data: chaveExistente } = await supabase
-                .from('home_bate_papo_user_keys')
-                .select('user_id, public_jwk')
-                .eq('user_id', userId)
-                .maybeSingle()
-
             const payload = {
                 user_id: userId,
-                public_jwk: chaveExistente?.public_jwk ?? null,
+                // Limpa pública + cipher para o utilizador poder definir nova senha em qualquer aparelho
+                public_jwk: null,
                 priv_cipher: null,
                 chave_reset_pedido_em: agora,
                 atualizado_em: agora,
@@ -550,7 +545,7 @@ export default async function handler(req, res) {
                         .upsert(
                             {
                                 user_id: userId,
-                                public_jwk: chaveExistente?.public_jwk ?? null,
+                                public_jwk: null,
                                 priv_cipher: null,
                                 atualizado_em: agora,
                             },

@@ -935,9 +935,10 @@ body.dark-mode .bate_papo_float_msg_meta {
     max-width: none;
     border-radius: 14px 14px 0 0;
     transform-origin: center bottom;
+    bottom: var(--el-float-above-dock, calc(4.25rem + 2.75rem + env(safe-area-inset-bottom, 0px)));
 }
 
-.bate_papo_float--dock .bate_papo_float_drawer {
+.bate_papo_float--dock .bate_papo_float_drawer.is-open {
     pointer-events: auto;
 }
 

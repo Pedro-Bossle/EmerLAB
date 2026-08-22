@@ -153,15 +153,19 @@ body:has(.notif_float.is-open) .dev_tools_float:not(.is-open) .dev_tools_float_b
     pointer-events: none;
 }
 
-/* Camada flutuante (também em FloatingToolsDock.css se carregado) */
+/* Camada flutuante (também em FloatingToolsDock.css se carregado).
+   NÃO forçar pointer-events:auto nos filhos: no mobile os docks usam
+   inset:0 + pointer-events:none para não roubar toques da página. */
 .el-floating-layer {
     position: relative;
     z-index: 55;
     pointer-events: none;
 }
 
-.el-floating-layer > * {
-    pointer-events: auto;
+.el-floating-layer > .bate_papo_float--dock,
+.el-floating-layer > .dev_tools_float--dock,
+.el-floating-layer > .notif_float--dock {
+    pointer-events: none;
 }
 
 @media (min-width: 1024px) {
