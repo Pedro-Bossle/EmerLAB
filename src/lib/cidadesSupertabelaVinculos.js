@@ -324,3 +324,100 @@ export async function salvarVinculosDaCidade(supabase, cidadeId, uf, municipioPr
     const { error: errIns } = await supabase.from('cidades_municipios_vinculo').insert(rows)
     if (errIns) throw errIns
 }
+
+/**
+ * Extrai pares { nome, uf } a partir de prestadores (endereço do cadastro)
+ * e, opcionalmente, cidades secundárias (`prestador_cidades` → `cidades_credenciamento`).
+ * UF das secundárias: `endereco_uf` do prestador (única pista disponível no cadastro).
+ *
+ * @param {Array<{ id?: number, endereco_cidade?: string, endereco_uf?: string, ativo?: boolean }>} prestadores
+ * @param {{
+ *   prestadorCidades?: Array<{ prestador_id?: number, cidade_id?: number }>,
+ *   cidadesCredenciamento?: Array<{ id?: number, nome?: string }>,
+ * }} [opcoes]
+ * @returns {Array<{ nome: string, uf: string }>}
+ */
+export function extrairMunicipiosCredenciadosDePrestadores(prestadores, opcoes = {}) {
+    const prestadorCidades = opcoes.prestadorCidades || []
+    const cidadesCredenciamento = opcoes.cidadesCredenciamento || []
+
+    const mapaCredNome = new Map()
+    for (const c of cidadesCredenciamento) {
+        const id = Number(c?.id)
+        const nome = String(c?.nome || '').trim()
+        if (id && nome) mapaCredNome.set(id, nome)
+    }
+
+    const mapa = new Map()
+    const adicionar = (nomeRaw, ufRaw) => {
+        const nome = String(nomeRaw || '').trim()
+        const uf = String(ufRaw || '').trim().toUpperCase()
+        if (!nome || !uf) return
+        const chaveMun = normalizarMunicipioChave(nome)
+        if (!chaveMun) return
+        const chave = `${uf}|${chaveMun}`
+        if (!mapa.has(chave)) mapa.set(chave, { nome, uf })
+    }
+
+    /** @type {Map<number, string>} */
+    const ufPorPrestadorId = new Map()
+
+    for (const p of prestadores || []) {
+        if (p?.ativo === false) continue
+        const pid = Number(p?.id)
+        const uf = String(p?.endereco_uf || '').trim().toUpperCase()
+        const nomeEndereco = String(p?.endereco_cidade || '').trim()
+        if (pid && uf) ufPorPrestadorId.set(pid, uf)
+        if (nomeEndereco && uf) adicionar(nomeEndereco, uf)
+    }
+
+    for (const rel of prestadorCidades) {
+        const pid = Number(rel?.prestador_id)
+        const cidadeId = Number(rel?.cidade_id)
+        if (!pid || !cidadeId) continue
+        const uf = ufPorPrestadorId.get(pid)
+        if (!uf) continue
+        const nome = mapaCredNome.get(cidadeId)
+        if (nome) adicionar(nome, uf)
+    }
+
+    return [...mapa.values()]
+}
+
+/**
+ * Municípios da UF presentes no credenciamento mas ainda fora da malha
+ * (`cidades.nome` + `cidades_municipios_vinculo` nessa UF).
+ * @returns {string[]} nomes únicos ordenados
+ */
+export function listarMunicipiosForaDaMalhaPorUf({
+    uf,
+    cidades,
+    vinculos,
+    municipiosCredenciados,
+} = {}) {
+    const ufNorm = String(uf || '').trim().toUpperCase()
+    if (!ufNorm) return []
+
+    const cobertos = new Set()
+    for (const c of cidades || []) {
+        if (String(c.uf || '').trim().toUpperCase() !== ufNorm) continue
+        const chave = normalizarMunicipioChave(c.nome)
+        if (chave) cobertos.add(chave)
+    }
+    for (const v of vinculos || []) {
+        if (String(v.uf || '').trim().toUpperCase() !== ufNorm) continue
+        const chave = normalizarMunicipioChave(v.municipio_nome)
+        if (chave) cobertos.add(chave)
+    }
+
+    const fora = new Map()
+    for (const m of municipiosCredenciados || []) {
+        if (String(m.uf || '').trim().toUpperCase() !== ufNorm) continue
+        const nome = String(m.nome || '').trim()
+        const chave = normalizarMunicipioChave(nome)
+        if (!chave || cobertos.has(chave) || fora.has(chave)) continue
+        fora.set(chave, nome)
+    }
+
+    return [...fora.values()].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }))
+}

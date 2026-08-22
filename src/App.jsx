@@ -301,6 +301,10 @@ function App() {
               </PrivateRoute>
             }
           />
+          <Route
+            path="/administrativo/qualidade"
+            element={<Navigate to="/administrativo/auditoria?aba=qualidade" replace />}
+          />
         </Route>
         <Route element={<Layout2 />}>
           <Route

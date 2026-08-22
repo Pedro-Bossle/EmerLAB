@@ -525,47 +525,56 @@ export default async function handler(req, res) {
             if (!alvo?.id) return responderErro(res, 404, 'Usuário não encontrado.')
 
             const agora = new Date().toISOString()
-            const payload = {
-                user_id: userId,
-                // Limpa pública + cipher para o utilizador poder definir nova senha em qualquer aparelho
-                public_jwk: null,
-                priv_cipher: null,
-                chave_reset_pedido_em: agora,
-                atualizado_em: agora,
+            const { data: chaveExistente, error: errChave } = await supabase
+                .from('home_bate_papo_user_keys')
+                .select('user_id, public_jwk')
+                .eq('user_id', userId)
+                .maybeSingle()
+            if (errChave) {
+                return responderErro(
+                    res,
+                    500,
+                    `${errChave.message}. Execute scripts/sql/home_bate_papo_chave_conta.sql no Supabase.`,
+                )
             }
 
-            const { error: upErr } = await supabase
-                .from('home_bate_papo_user_keys')
-                .upsert(payload, { onConflict: 'user_id' })
-            if (upErr) {
-                // Sem coluna nova: limpa só priv_cipher
-                if (/chave_reset_pedido_em|column/i.test(String(upErr.message || ''))) {
-                    const { error: upErr2 } = await supabase
-                        .from('home_bate_papo_user_keys')
-                        .upsert(
-                            {
-                                user_id: userId,
-                                public_jwk: null,
+            if (chaveExistente?.user_id) {
+                // public_jwk é NOT NULL: não apagar. Só limpa o cipher e marca o pedido de reset.
+                const payloadUpdate = {
+                    priv_cipher: null,
+                    chave_reset_pedido_em: agora,
+                    atualizado_em: agora,
+                }
+                const { error: upErr } = await supabase
+                    .from('home_bate_papo_user_keys')
+                    .update(payloadUpdate)
+                    .eq('user_id', userId)
+                if (upErr) {
+                    if (/chave_reset_pedido_em|column/i.test(String(upErr.message || ''))) {
+                        const { error: upErr2 } = await supabase
+                            .from('home_bate_papo_user_keys')
+                            .update({
                                 priv_cipher: null,
                                 atualizado_em: agora,
-                            },
-                            { onConflict: 'user_id' },
-                        )
-                    if (upErr2) {
+                            })
+                            .eq('user_id', userId)
+                        if (upErr2) {
+                            return responderErro(
+                                res,
+                                500,
+                                `${upErr2.message}. Execute scripts/sql/home_bate_papo_chave_conta.sql no Supabase.`,
+                            )
+                        }
+                    } else {
                         return responderErro(
                             res,
                             500,
-                            `${upErr2.message}. Execute scripts/sql/home_bate_papo_chave_conta.sql no Supabase.`,
+                            `${upErr.message}. Execute scripts/sql/home_bate_papo_chave_conta.sql no Supabase.`,
                         )
                     }
-                } else {
-                    return responderErro(
-                        res,
-                        500,
-                        `${upErr.message}. Execute scripts/sql/home_bate_papo_chave_conta.sql no Supabase.`,
-                    )
                 }
             }
+            // Sem linha de chave: não há o que limpar; o utilizador fará setup normal ao abrir o Emerzap.
 
             const nome = String(alvo.name || '').trim() || 'Sem nome'
             const email = String(alvo.email || '').trim().toLowerCase()
@@ -575,7 +584,7 @@ export default async function handler(req, res) {
                 targetUserId: userId,
                 action: 'reset_emerzap_key',
                 summary: `Pedido de redefinição da senha Emerzap para ${nome}${email ? ` (${email})` : ''}`,
-                details: { email, chave_reset_pedido_em: agora },
+                details: { email, chave_reset_pedido_em: agora, tinha_chave: Boolean(chaveExistente?.user_id) },
             })
 
             return res.status(200).json({

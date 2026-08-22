@@ -112,11 +112,16 @@ const Home = () => {
     const [dragOverTarefaId, setDragOverTarefaId] = useState(null)
     const dragMovedRef = useRef(false)
     const [modalTarefaAberto, setModalTarefaAberto] = useState(false)
+    const [tarefaEditando, setTarefaEditando] = useState(null)
+    const [tarefaConcluir, setTarefaConcluir] = useState(null)
+    const [resolucaoConclusao, setResolucaoConclusao] = useState('')
+    const [concluindoTarefa, setConcluindoTarefa] = useState(false)
     const [tarefaExcluir, setTarefaExcluir] = useState(null)
     const [excluindoTarefa, setExcluindoTarefa] = useState(false)
     const [formTarefa, setFormTarefa] = useState({
         titulo: '',
         observacoes: '',
+        resolucao: '',
         prazo: '',
         prioridade: 'normal',
         atribuidoA: '',
@@ -257,8 +262,7 @@ const Home = () => {
         if (!modalTarefaAberto) return undefined
         const onKey = (e) => {
             if (e.key === 'Escape') {
-                setModalTarefaAberto(false)
-                setAnexosPendentes([])
+                fecharModalTarefa()
             }
         }
         window.addEventListener('keydown', onKey)
@@ -267,9 +271,59 @@ const Home = () => {
 
     const fecharModalTarefa = () => {
         setModalTarefaAberto(false)
+        setTarefaEditando(null)
         setAnexosPendentes([])
         setAnexoDragOverModal(false)
         anexoDragDepthModalRef.current = 0
+        setFormTarefa((f) => ({
+            ...f,
+            titulo: '',
+            observacoes: '',
+            resolucao: '',
+            prazo: '',
+            prioridade: 'normal',
+            atribuidoA: userId || f.atribuidoA,
+        }))
+    }
+
+    const abrirModalNovaTarefa = () => {
+        setTarefaEditando(null)
+        setAnexosPendentes([])
+        setFormTarefa((f) => ({
+            ...f,
+            titulo: '',
+            observacoes: '',
+            resolucao: '',
+            prazo: '',
+            prioridade: 'normal',
+            atribuidoA: userId || f.atribuidoA,
+        }))
+        setModalTarefaAberto(true)
+    }
+
+    const abrirModalEditarTarefa = (tarefa) => {
+        setTarefaEditando(tarefa)
+        setAnexosPendentes([])
+        setFormTarefa({
+            titulo: tarefa.titulo || '',
+            observacoes: tarefa.observacoes || '',
+            resolucao: tarefa.resolucao || '',
+            prazo: tarefa.prazo || '',
+            prioridade: tarefa.prioridade || 'normal',
+            atribuidoA: tarefa.atribuidoA || userId,
+        })
+        setModalTarefaAberto(true)
+    }
+
+    const abrirModalConcluirTarefa = (tarefa) => {
+        setTarefaConcluir(tarefa)
+        setResolucaoConclusao(tarefa.resolucao || '')
+    }
+
+    const fecharModalConcluir = () => {
+        if (concluindoTarefa) return
+        setTarefaConcluir(null)
+        setResolucaoConclusao('')
     }
 
     const adicionarAnexosPendentes = (fileList) => {
@@ -698,28 +752,36 @@ const Home = () => {
         })
     }
 
-    const onCriarTarefa = async (e) => {
+    const onSalvarTarefa = async (e) => {
         e.preventDefault()
         setSalvandoTarefa(true)
         setErro('')
         try {
-            await criarTarefaHome({
-                titulo: formTarefa.titulo,
-                observacoes: formTarefa.observacoes,
-                prazo: formTarefa.prazo || null,
-                prioridade: formTarefa.prioridade,
-                atribuidoA: formTarefa.atribuidoA || userId,
-                anexosFiles: anexosPendentes,
-            })
-            setFormTarefa((f) => ({
-                ...f,
-                titulo: '',
-                observacoes: '',
-                prazo: '',
-                prioridade: 'normal',
-            }))
-            setAnexosPendentes([])
-            setModalTarefaAberto(false)
+            if (tarefaEditando?.id) {
+                await atualizarTarefaHome(tarefaEditando.id, {
+                    titulo: formTarefa.titulo,
+                    observacoes: formTarefa.observacoes,
+                    prazo: formTarefa.prazo || null,
+                    prioridade: formTarefa.prioridade,
+                    atribuidoA: formTarefa.atribuidoA || userId,
+                    ...(tarefaEditando.status === 'concluida'
+                        ? { resolucao: formTarefa.resolucao || '' }
+                        : {}),
+                })
+                if (anexosPendentes.length) {
+                    await anexarArquivosTarefa(tarefaEditando.id, anexosPendentes)
+                }
+            } else {
+                await criarTarefaHome({
+                    titulo: formTarefa.titulo,
+                    observacoes: formTarefa.observacoes,
+                    prazo: formTarefa.prazo || null,
+                    prioridade: formTarefa.prioridade,
+                    atribuidoA: formTarefa.atribuidoA || userId,
+                    anexosFiles: anexosPendentes,
+                })
+            }
+            fecharModalTarefa()
             const { tarefas: lista } = await listarTarefasHome({ userId })
             aplicarListaTarefas(lista)
         } catch (err) {
@@ -736,6 +798,26 @@ const Home = () => {
             aplicarListaTarefas(lista)
         } catch (err) {
             setErro(err?.message || String(err))
+        }
+    }
+
+    const confirmarConcluirTarefa = async () => {
+        if (!tarefaConcluir) return
+        setConcluindoTarefa(true)
+        setErro('')
+        try {
+            await atualizarTarefaHome(tarefaConcluir.id, {
+                status: 'concluida',
+                resolucao: resolucaoConclusao,
+            })
+            setTarefaConcluir(null)
+            setResolucaoConclusao('')
+            const { tarefas: lista } = await listarTarefasHome({ userId })
+            aplicarListaTarefas(lista)
+        } catch (err) {
+            setErro(err?.message || String(err))
+        } finally {
+            setConcluindoTarefa(false)
         }
     }
 
@@ -974,7 +1056,7 @@ const Home = () => {
                                 <button
                                     type="button"
                                     className="home_dash_btn home_dash_btn--nova_tarefa"
-                                    onClick={() => setModalTarefaAberto(true)}
+                                    onClick={abrirModalNovaTarefa}
                                 >
                                     <span className="home_dash_btn_nova_full">Nova tarefa</span>
                                     <span className="home_dash_btn_nova_short" aria-hidden="true">
@@ -1147,6 +1229,12 @@ const Home = () => {
                                                                     {t.observacoes}
                                                                 </p>
                                                             ) : null}
+                                                            {t.resolucao ? (
+                                                                <p className="home_dash_tarefa_resolucao">
+                                                                    <strong>Resolução:</strong>{' '}
+                                                                    {t.resolucao}
+                                                                </p>
+                                                            ) : null}
                                                             <div
                                                                 className={`home_dash_tarefa_anexos home_dash_tarefa_anexos--lista${
                                                                     String(anexoDragOverTarefaId) ===
@@ -1254,10 +1342,7 @@ const Home = () => {
                                                                         type="button"
                                                                         className="home_dash_btn secondary"
                                                                         onClick={() =>
-                                                                            void onStatusTarefa(
-                                                                                t,
-                                                                                'concluida',
-                                                                            )
+                                                                            abrirModalConcluirTarefa(t)
                                                                         }
                                                                     >
                                                                         Concluir
@@ -1292,6 +1377,15 @@ const Home = () => {
                                                                         Reabrir
                                                                     </button>
                                                                 ) : null}
+                                                                <button
+                                                                    type="button"
+                                                                    className="home_dash_btn secondary"
+                                                                    onClick={() =>
+                                                                        abrirModalEditarTarefa(t)
+                                                                    }
+                                                                >
+                                                                    Editar
+                                                                </button>
                                                                 {t.criadoPor === userId ? (
                                                                     <button
                                                                         type="button"
@@ -1635,9 +1729,11 @@ const Home = () => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="home_dash_modal_head">
-                            <h3 id="home-dash-modal-tarefa-title">Nova tarefa</h3>
+                            <h3 id="home-dash-modal-tarefa-title">
+                                {tarefaEditando ? 'Editar tarefa' : 'Nova tarefa'}
+                            </h3>
                         </div>
-                        <form className="home_dash_tarefa_form" onSubmit={onCriarTarefa}>
+                        <form className="home_dash_tarefa_form" onSubmit={onSalvarTarefa}>
                             <div className="home_dash_tarefa_form_topo">
                                 <label className="home_dash_tarefa_campo home_dash_tarefa_campo--titulo">
                                     <span>Título</span>
@@ -1721,6 +1817,23 @@ const Home = () => {
                                     }
                                 />
                             </label>
+                            {tarefaEditando?.status === 'concluida' ? (
+                                <label className="home_dash_tarefa_campo">
+                                    <span>Resolução</span>
+                                    <textarea
+                                        className="home_dash_textarea"
+                                        placeholder="Resolução (opcional)"
+                                        rows={4}
+                                        value={formTarefa.resolucao || ''}
+                                        onChange={(e) =>
+                                            setFormTarefa((f) => ({
+                                                ...f,
+                                                resolucao: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </label>
+                            ) : null}
                             <div
                                 className={`home_dash_tarefa_anexos${anexoDragOverModal ? ' is-dragover' : ''}`}
                                 onDragEnter={onDragEnterAnexosModal}
@@ -1806,10 +1919,66 @@ const Home = () => {
                                     className="home_dash_btn"
                                     disabled={salvandoTarefa}
                                 >
-                                    {salvandoTarefa ? 'Salvando…' : 'Adicionar'}
+                                    {salvandoTarefa
+                                        ? 'Salvando…'
+                                        : tarefaEditando
+                                          ? 'Salvar'
+                                          : 'Adicionar'}
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            ) : null}
+
+            {tarefaConcluir ? (
+                <div
+                    className="home_dash_modal_backdrop"
+                    role="presentation"
+                    onClick={fecharModalConcluir}
+                >
+                    <div
+                        className="home_dash_modal home_dash_modal_concluir"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="home-dash-concluir-tarefa-title"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="home_dash_modal_head">
+                            <h3 id="home-dash-concluir-tarefa-title">Concluir tarefa</h3>
+                        </div>
+                        <p className="home_dash_concluir_titulo">
+                            <strong>{tarefaConcluir.titulo}</strong>
+                        </p>
+                        <label className="home_dash_tarefa_campo">
+                            <span>Resolução (opcional)</span>
+                            <textarea
+                                className="home_dash_textarea"
+                                rows={5}
+                                placeholder="O que foi feito / resultado…"
+                                value={resolucaoConclusao}
+                                onChange={(e) => setResolucaoConclusao(e.target.value)}
+                                autoFocus
+                            />
+                        </label>
+                        <div className="home_dash_modal_actions">
+                            <button
+                                type="button"
+                                className="home_dash_btn secondary"
+                                disabled={concluindoTarefa}
+                                onClick={fecharModalConcluir}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                className="home_dash_btn"
+                                disabled={concluindoTarefa}
+                                onClick={() => void confirmarConcluirTarefa()}
+                            >
+                                {concluindoTarefa ? 'A concluir…' : 'Concluir'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             ) : null}

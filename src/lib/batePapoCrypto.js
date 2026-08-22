@@ -9,8 +9,18 @@ const PBKDF2_ITERS = 210_000
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
+/** Normaliza senha da chave (trim + NFC) para comparação/cifragem consistentes. */
+export function normalizarSenhaChave(senha) {
+  return String(senha || '')
+    .normalize('NFC')
+    .trim()
+}
+
 function bufToB64(buf) {
-  const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : new Uint8Array(buf.buffer || buf)
+  let bytes
+  if (buf instanceof ArrayBuffer) bytes = new Uint8Array(buf)
+  else if (ArrayBuffer.isView(buf)) bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength)
+  else bytes = new Uint8Array(buf)
   let s = ''
   for (let i = 0; i < bytes.length; i += 1) s += String.fromCharCode(bytes[i])
   return btoa(s)
@@ -115,8 +125,9 @@ async function derivarChaveDaSenha(senha, saltBuf) {
 
 /** Cifra a privada JWK com senha da conta → `v1:salt:iv:cipher` (só o servidor guarda isto). */
 export async function envolverPrivComSenha(privJwk, senha) {
-  const s = String(senha || '')
+  const s = normalizarSenhaChave(senha)
   if (s.length < 6) throw new Error('A senha da chave deve ter pelo menos 6 caracteres.')
+  if (!privJwk?.n || !privJwk?.d) throw new Error('Chave privada inválida para cifrar.')
   const salt = crypto.getRandomValues(new Uint8Array(16))
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const key = await derivarChaveDaSenha(s, salt)
@@ -129,15 +140,16 @@ export async function envolverPrivComSenha(privJwk, senha) {
 }
 
 export async function desenrolarPrivComSenha(blob, senha) {
-  const s = String(blob || '')
-  const parts = s.split(':')
+  const raw = typeof blob === 'string' ? blob : blob == null ? '' : String(blob)
+  const s = normalizarSenhaChave(senha)
+  const parts = raw.split(':')
   if (parts[0] !== 'v1' || parts.length < 4) {
     throw new Error('Formato de chave de conta inválido.')
   }
   const salt = new Uint8Array(b64ToBuf(parts[1]))
   const iv = new Uint8Array(b64ToBuf(parts[2]))
   const data = b64ToBuf(parts.slice(3).join(':'))
-  const key = await derivarChaveDaSenha(String(senha || ''), salt)
+  const key = await derivarChaveDaSenha(s, salt)
   try {
     const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data)
     return JSON.parse(decoder.decode(plain))

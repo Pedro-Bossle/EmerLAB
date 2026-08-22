@@ -1013,6 +1013,56 @@
     color: #40617a;
 }
 
+.cidade_tabela_fora_malha {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px dashed #c4a35a;
+    border-radius: 10px;
+    background: #fffbf3;
+}
+
+.cidade_tabela_fora_malha_titulo {
+    margin: 0 0 8px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #7a5a20;
+}
+
+.cidade_tabela_fora_malha_chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.cidade_tabela_fora_malha_chip {
+    border: 1px solid #d4b06a;
+    background: #fff;
+    color: #5c4518;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.12s ease, transform 0.12s ease;
+}
+
+.cidade_tabela_fora_malha_chip:hover:not(:disabled) {
+    background: #fff3d6;
+    transform: translateY(-1px);
+}
+
+.cidade_tabela_fora_malha_chip:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.cidade_tabela_fora_malha_vazio {
+    margin: 0;
+    font-size: 0.84rem;
+    color: #8a7040;
+}
+
 .manager_modal_header h3 {
     margin: 0;
     color: var(--azul-escuro);

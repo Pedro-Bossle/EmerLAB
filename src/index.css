@@ -745,6 +745,29 @@ body.dark-mode .cidade_tabela_englobados_item {
     color: #dce7f2;
 }
 
+body.dark-mode .cidade_tabela_fora_malha {
+    background: #2a2418;
+    border-color: #7a6230;
+}
+
+body.dark-mode .cidade_tabela_fora_malha_titulo {
+    color: #e0c080;
+}
+
+body.dark-mode .cidade_tabela_fora_malha_chip {
+    background: #1a3048;
+    border-color: #8a7040;
+    color: #f0e0b8;
+}
+
+body.dark-mode .cidade_tabela_fora_malha_chip:hover:not(:disabled) {
+    background: #243548;
+}
+
+body.dark-mode .cidade_tabela_fora_malha_vazio {
+    color: #c4a870;
+}
+
 body.dark-mode .manager_add_city_btn,
 body.dark-mode .manager_close_btn,
 body.dark-mode .manager_action_btn {

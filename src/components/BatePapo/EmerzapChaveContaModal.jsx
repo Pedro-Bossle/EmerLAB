@@ -18,6 +18,23 @@ const TITULOS = {
 }
 
 /**
+ * Lê senha do DOM (FormData) para não falhar com autofill mobile
+ * que preenche o input sem disparar onChange no React.
+ */
+function lerSenhasDoForm(formEl, senhaState, senha2State) {
+  const fd = formEl ? new FormData(formEl) : null
+  const doDom = (name, fallback) => {
+    const v = fd?.get(name)
+    if (v != null && String(v).length > 0) return String(v)
+    return String(fallback || '')
+  }
+  return {
+    senha: doDom('emerzap_senha_chave', senhaState),
+    senha2: doDom('emerzap_senha_chave_confirm', senha2State),
+  }
+}
+
+/**
  * Modal de setup / unlock da chave de conta (obrigatório — sem skip).
  */
 export default function EmerzapChaveContaModal({ open, modo, mensagem, onResolvido }) {
@@ -46,10 +63,13 @@ export default function EmerzapChaveContaModal({ open, modo, mensagem, onResolvi
     setErro('')
     setLoading(true)
     try {
+      const { senha: s1, senha2: s2 } = lerSenhasDoForm(e.currentTarget, senha, senha2)
+      setSenha(s1)
+      if (precisaConfirm) setSenha2(s2)
       if (modo === CHAVE_CONTA_UNLOCK) {
-        await desbloquearChaveContaComSenha(senha)
+        await desbloquearChaveContaComSenha(s1)
       } else {
-        await configurarChaveContaComSenha(senha, senha2)
+        await configurarChaveContaComSenha(s1, s2)
       }
       onResolvido?.()
     } catch (err) {
@@ -85,9 +105,10 @@ export default function EmerzapChaveContaModal({ open, modo, mensagem, onResolvi
       {soLeitura ? (
         <p className="text-sm text-ink-soft dark:text-[#9eb4c8]">{mensagem}</p>
       ) : (
-        <form id="emerzap-chave-conta-form" className="flex flex-col gap-3" onSubmit={onSubmit}>
+        <form id="emerzap-chave-conta-form" className="flex flex-col gap-3" onSubmit={onSubmit} autoComplete="off">
           <Input
             label="Senha da chave"
+            name="emerzap_senha_chave"
             type="password"
             autoComplete="new-password"
             value={senha}
@@ -99,6 +120,7 @@ export default function EmerzapChaveContaModal({ open, modo, mensagem, onResolvi
           {precisaConfirm ? (
             <Input
               label="Confirmar senha da chave"
+              name="emerzap_senha_chave_confirm"
               type="password"
               autoComplete="new-password"
               value={senha2}
@@ -172,8 +194,6 @@ export function useEmerzapChaveConta(permitido) {
     modalAberto: Boolean(modo),
     revalidar,
     onResolvido: async () => {
-      setModo(null)
-      setChavePronta(true)
       await revalidar()
     },
   }

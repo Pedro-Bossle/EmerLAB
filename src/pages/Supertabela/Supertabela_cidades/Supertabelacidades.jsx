@@ -14,7 +14,9 @@ import {
     buildOpcoesFiltroSupertabela,
     buscarCidadeIdsFiltroPlanoCredenciados,
     carregarVinculosMunicipios,
+    extrairMunicipiosCredenciadosDePrestadores,
     isMissingVinculosTableError,
+    listarMunicipiosForaDaMalhaPorUf,
     municipiosPorCidadeId,
     normalizarMunicipioChave,
     salvarVinculosDaCidade } from '../../../lib/cidadesSupertabelaVinculos.js'
@@ -38,6 +40,7 @@ const Supertabelacidades = () => {
     const mostrarContagemRealizadores = true
     const [cidades, setCidades] = useState([])
     const [municipiosVinculos, setMunicipiosVinculos] = useState([])
+    const [municipiosCredenciados, setMunicipiosCredenciados] = useState([])
     const [suportaVinculosMunicipios, setSuportaVinculosMunicipios] = useState(true)
     const [valorFiltroCidade, setValorFiltroCidade] = useState('')
     const [cidadeIdsFiltroPlano, setCidadeIdsFiltroPlano] = useState(null)
@@ -1124,6 +1127,12 @@ const Supertabelacidades = () => {
                         onMunicipioPrincipalChange={setNovaCidadeMunicipio}
                         municipiosEnglobados={novaCidadeEnglobados}
                         onMunicipiosEnglobadosChange={setNovaCidadeEnglobados}
+                        municipiosForaMalha={listarMunicipiosForaDaMalhaPorUf({
+                            uf: novaCidadeUf,
+                            cidades,
+                            vinculos: municipiosVinculos,
+                            municipiosCredenciados,
+                        })}
                         disabled={!suportaVinculosMunicipios}
                     />
                     {!suportaVinculosMunicipios && (
@@ -1199,6 +1208,12 @@ const Supertabelacidades = () => {
                         onMunicipioPrincipalChange={setCidadeEdicaoMunicipio}
                         municipiosEnglobados={cidadeEdicaoEnglobados}
                         onMunicipiosEnglobadosChange={setCidadeEdicaoEnglobados}
+                        municipiosForaMalha={listarMunicipiosForaDaMalhaPorUf({
+                            uf: cidadeEdicaoUf,
+                            cidades,
+                            vinculos: municipiosVinculos,
+                            municipiosCredenciados,
+                        })}
                         disabled={!suportaVinculosMunicipios}
                     />
                     <div className='manager_add_bar_actions'>
@@ -1518,6 +1533,44 @@ const Supertabelacidades = () => {
     useEffect(() => {
         if (!mostrarGerenciarModal) return
         carregarResumoRepasses()
+        let cancelado = false
+        ;(async () => {
+            try {
+                const [
+                    { data: prestadoresData, error: errP },
+                    { data: pcData, error: errPc },
+                    { data: credData, error: errCred },
+                ] = await Promise.all([
+                    buscarTodosPaginado(() =>
+                        supabase
+                            .from('prestadores')
+                            .select('id, endereco_cidade, endereco_uf, ativo')
+                            .eq('ativo', true),
+                    ),
+                    buscarTodosPaginado(() =>
+                        supabase.from('prestador_cidades').select('prestador_id, cidade_id'),
+                    ),
+                    buscarTodosPaginado(() =>
+                        supabase.from('cidades_credenciamento').select('id, nome'),
+                    ),
+                ])
+                const erro = errP || errPc || errCred
+                if (erro) throw erro
+                if (!cancelado) {
+                    setMunicipiosCredenciados(
+                        extrairMunicipiosCredenciadosDePrestadores(prestadoresData || [], {
+                            prestadorCidades: pcData || [],
+                            cidadesCredenciamento: credData || [],
+                        }),
+                    )
+                }
+            } catch {
+                if (!cancelado) setMunicipiosCredenciados([])
+            }
+        })()
+        return () => {
+            cancelado = true
+        }
     }, [mostrarGerenciarModal, carregarResumoRepasses])
 
     useEffect(() => {

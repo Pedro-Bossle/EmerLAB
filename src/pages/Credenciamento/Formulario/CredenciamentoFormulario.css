@@ -1205,3 +1205,146 @@
         padding-right: 0.65rem;
     }
 }
+
+/* ——— Dark mode: configuração do formulário público ——— */
+body.dark-mode .fcred_config .fcred_paginas,
+body.dark-mode .fcred_config .fcred_detalhe {
+    background: var(--bg-surface);
+    border-color: var(--border-soft);
+    color: var(--text-main);
+}
+
+body.dark-mode .fcred_config .fcred_paginas_head h2,
+body.dark-mode .fcred_config .fcred_detalhe_tit,
+body.dark-mode .fcred_config .fcred_detalhe h2,
+body.dark-mode .fcred_config .fcred_detalhe h3,
+body.dark-mode .fcred_config .fcred_pool h3 {
+    color: var(--text-main);
+}
+
+body.dark-mode .fcred_config_sub,
+body.dark-mode .fcred_hint,
+body.dark-mode .fcred_hint_compact,
+body.dark-mode .fcred_detalhe_resumo,
+body.dark-mode .fcred_proc_count,
+body.dark-mode .fcred_config .fcred_item .fcred_proc_count,
+body.dark-mode .fcred_config .fcred_item .fcred_ordem,
+body.dark-mode .fcred_link_collapse_meta,
+body.dark-mode .fcred_link_collapse_chevron,
+body.dark-mode .fcred_link_collapse_hint {
+    color: var(--cinza-medio);
+}
+
+body.dark-mode .fcred_link_collapse {
+    background: var(--bg-surface);
+    border-color: var(--border-soft);
+}
+
+body.dark-mode .fcred_link_collapse_btn {
+    color: var(--text-main);
+}
+
+body.dark-mode .fcred_link_collapse .fcred_link_box {
+    background: #0e1a28;
+    border-top-color: var(--border-soft);
+}
+
+body.dark-mode .fcred_link_box {
+    background: var(--bg-surface);
+    border-color: var(--border-soft);
+}
+
+body.dark-mode .fcred_config_link_box h2 {
+    color: var(--text-main);
+}
+
+body.dark-mode .fcred_autosave {
+    background: #1a3048;
+    border-color: var(--border-soft);
+    color: var(--cinza-medio);
+}
+
+body.dark-mode .fcred_autosave.is-ok {
+    background: #163528;
+    border-color: #2f6b45;
+    color: #8fd4a0;
+}
+
+body.dark-mode .fcred_autosave.is-error {
+    background: #3a1c1c;
+    border-color: #8a3d3d;
+    color: #f0a0a0;
+}
+
+body.dark-mode .fcred_config .fcred_item {
+    background: #0e1a28;
+    border-color: var(--border-soft);
+    color: var(--text-main);
+}
+
+body.dark-mode .fcred_config .fcred_item.is-on {
+    background: #1a3048;
+    border-color: var(--azul-destaque);
+}
+
+body.dark-mode .fcred_config .fcred_item.is-empty {
+    background: #2a2418;
+    border-color: #7a6230;
+}
+
+body.dark-mode .fcred_config .fcred_titulo_input,
+body.dark-mode .fcred_titulo_input {
+    background: transparent;
+    color: var(--text-main);
+    border-color: transparent;
+}
+
+body.dark-mode .fcred_config .fcred_item.is-on .fcred_titulo_input:focus {
+    background: var(--bg-page);
+    color: var(--text-main);
+}
+
+body.dark-mode .fcred_config .fcred_item_cat {
+    background: #0e1a28;
+    border-color: var(--border-soft);
+    color: var(--text-main);
+}
+
+body.dark-mode .fcred_cat_nome {
+    color: var(--text-main);
+}
+
+body.dark-mode .fcred_grip {
+    color: var(--cinza-medio);
+}
+
+body.dark-mode .fcred_config .fcred_rem,
+body.dark-mode .fcred_config .fcred_rem_cat {
+    background: #2a1a1a;
+    border-color: #8a3d3d;
+    color: #f0a0a0;
+}
+
+body.dark-mode .fcred_config .fcred_rem_cat:hover,
+body.dark-mode .fcred_config .fcred_rem:hover {
+    background: #3a2222;
+}
+
+body.dark-mode .fcred_proc_count.is-zero {
+    color: #e0a85c;
+}
+
+body.dark-mode .fcred_config .fcred_pool {
+    border-top-color: var(--border-soft);
+}
+
+body.dark-mode .fcred_config_meta .credenciamento_main_input,
+body.dark-mode .fcred_link_input {
+    background: var(--bg-page);
+    border-color: var(--border-soft);
+    color: var(--text-main);
+}
+
+body.dark-mode .fcred_ativo_label {
+    color: var(--text-main);
+}

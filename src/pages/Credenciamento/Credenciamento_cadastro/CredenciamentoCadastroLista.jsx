@@ -24,6 +24,12 @@ import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.
 import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
 import { montarNomeArquivoRc } from '../../../lib/rc/rcPdfNomeArquivo.js'
 import {
+    agruparCidadesRcPorMalha,
+    carregarMalhaRc,
+    listarUfsRcDisponiveis,
+} from '../../../lib/rc/agruparCidadesRcPorMalha.js'
+import { normalizarMunicipioChave } from '../../../lib/cidadesSupertabelaVinculos.js'
+import {
     downloadRelatorioCadastrosPdf,
     formatarPeriodoYmdPtBr,
     gerarRelatorioCadastrosPdf,
@@ -84,8 +90,13 @@ const CredenciamentoCadastroLista = () => {
 
     const [modalRcAberto, setModalRcAberto] = useState(false)
     const [rcCidadeBusca, setRcCidadeBusca] = useState('')
+    const [rcUfFiltro, setRcUfFiltro] = useState('')
     const [rcCidadesSelecionadas, setRcCidadesSelecionadas] = useState([])
     const [rcGerando, setRcGerando] = useState(false)
+    const [rcMalhaLoading, setRcMalhaLoading] = useState(false)
+    const [rcMalhaCarregada, setRcMalhaCarregada] = useState(false)
+    const [rcCidadesTabela, setRcCidadesTabela] = useState([])
+    const [rcVinculosMalha, setRcVinculosMalha] = useState([])
     const [filtrosMaisAberto, setFiltrosMaisAberto] = useState(false)
 
     const [modalSimplesAberto, setModalSimplesAberto] = useState(false)
@@ -309,9 +320,11 @@ const CredenciamentoCadastroLista = () => {
         return mapa
     }, [prestadorCidades])
 
-    const opcoesCidadesRc = useMemo(() => {
-        const termo = normalizarTextoBusca(rcCidadeBusca)
+    /** Municípios com credenciados (nomes usados no PDF da RC). */
+    const nomesCidadesRcBase = useMemo(() => {
         const nomes = new Set()
+        /** @type {Map<string, string>} */
+        const ufPorNome = new Map()
         for (const p of prestadores) {
             if (!prestadorEhCredenciado(p, situacoes)) continue
             const pid = Number(p.id)
@@ -319,28 +332,66 @@ const CredenciamentoCadastroLista = () => {
                 p,
                 estabelecimentoPorVeterinario,
             )
+            const ufPrestador = String(pLoc?.endereco_uf || p?.endereco_uf || '')
+                .trim()
+                .toUpperCase()
             const rels = cidadesPorPrestador.get(prestadorIdCidades) || cidadesPorPrestador.get(pid) || []
             const principal = resolverCidadePrincipalNome(pLoc, {
                 mapaCidadeNomePorId: cidadePorId,
                 relacoesCidades: rels,
             })
-            if (principal && principal !== '—') nomes.add(principal)
+            const registrar = (nome) => {
+                const n = String(nome || '').trim()
+                if (!n || n === '—') return
+                nomes.add(n)
+                const chave = normalizarMunicipioChave(n)
+                if (chave && ufPrestador && !ufPorNome.has(chave)) ufPorNome.set(chave, ufPrestador)
+            }
+            registrar(principal)
             for (const rel of rels) {
-                const nome = String(cidadePorId.get(Number(rel.cidade_id))?.nome || '').trim()
-                if (nome) nomes.add(nome)
+                registrar(cidadePorId.get(Number(rel.cidade_id))?.nome)
             }
         }
-        return [...nomes]
-            .filter((nome) => !termo || normalizarTextoBusca(nome).includes(termo))
-            .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }))
+        return {
+            nomes: [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })),
+            ufPorNome,
+        }
     }, [
         prestadores,
         situacoes,
         estabelecimentoPorVeterinario,
         cidadesPorPrestador,
         cidadePorId,
-        rcCidadeBusca,
     ])
+
+    const ufsRcDisponiveis = useMemo(
+        () =>
+            listarUfsRcDisponiveis(
+                nomesCidadesRcBase.nomes,
+                nomesCidadesRcBase.ufPorNome,
+                rcCidadesTabela,
+                rcVinculosMalha,
+            ),
+        [nomesCidadesRcBase, rcCidadesTabela, rcVinculosMalha],
+    )
+
+    const gruposCidadesRc = useMemo(
+        () =>
+            agruparCidadesRcPorMalha(
+                nomesCidadesRcBase.nomes,
+                nomesCidadesRcBase.ufPorNome,
+                rcCidadesTabela,
+                rcVinculosMalha,
+                { uf: rcUfFiltro, termo: rcCidadeBusca },
+            ),
+        [
+            nomesCidadesRcBase,
+            rcCidadesTabela,
+            rcVinculosMalha,
+            rcUfFiltro,
+            rcCidadeBusca,
+        ],
+    )
 
     const linhas = useMemo(() => {
         const temVinculoClinicaPorVet = new Map()
@@ -482,8 +533,21 @@ const CredenciamentoCadastroLista = () => {
 
     const abrirModalRc = () => {
         setRcCidadeBusca('')
+        setRcUfFiltro('')
         setRcCidadesSelecionadas([])
         setModalRcAberto(true)
+        if (rcMalhaCarregada) return
+        setRcMalhaLoading(true)
+        void carregarMalhaRc()
+            .then(({ cidadesTabela, vinculos }) => {
+                setRcCidadesTabela(cidadesTabela)
+                setRcVinculosMalha(vinculos)
+                setRcMalhaCarregada(true)
+            })
+            .catch((e) => {
+                setErro(e?.message || 'Falha ao carregar malha de cidades para a RC.')
+            })
+            .finally(() => setRcMalhaLoading(false))
     }
 
     const alternarCidadeRc = (nomeCidade) => {
@@ -492,6 +556,21 @@ const CredenciamentoCadastroLista = () => {
                 ? anteriores.filter((nome) => nome !== nomeCidade)
                 : [...anteriores, nomeCidade],
         )
+    }
+
+    const alternarRegiaoRc = (cidadesDaRegiao) => {
+        const lista = (cidadesDaRegiao || []).map((c) => String(c || '').trim()).filter(Boolean)
+        if (!lista.length) return
+        setRcCidadesSelecionadas((anteriores) => {
+            const set = new Set(anteriores)
+            const todasMarcadas = lista.every((c) => set.has(c))
+            if (todasMarcadas) {
+                lista.forEach((c) => set.delete(c))
+            } else {
+                lista.forEach((c) => set.add(c))
+            }
+            return [...set]
+        })
     }
 
     const exportarPdfCadastros = async ({ periodoDe, periodoAte, situacaoIds }) => {
@@ -1162,33 +1241,111 @@ const CredenciamentoCadastroLista = () => {
                         onClick={(event) => event.stopPropagation()}
                     >
                         <h3>Gerar RC por cidades</h3>
-                        <label className="credenciamento_modal_full">
-                            <span>Buscar cidades</span>
-                            <CampoBuscaComLimpar
-                                value={rcCidadeBusca}
-                                onChange={(event) => setRcCidadeBusca(event.target.value)}
-                                placeholder="Digite para filtrar cidades"
-                                className="credenciamento_main_input"
-                            />
-                        </label>
+                        <p className="credenciamento_rc_modal_hint">
+                            Cidades agrupadas por região da malha (Super-Tabela). Filtre por estado ou
+                            pesquise a região / município.
+                        </p>
+                        <div className="credenciamento_rc_filtros">
+                            <label className="credenciamento_rc_filtro_uf">
+                                <span>Estado (UF)</span>
+                                <select
+                                    className="credenciamento_main_select"
+                                    value={rcUfFiltro}
+                                    onChange={(e) => setRcUfFiltro(e.target.value)}
+                                    disabled={rcMalhaLoading}
+                                >
+                                    <option value="">Todos</option>
+                                    {ufsRcDisponiveis.map((uf) => (
+                                        <option key={uf} value={uf}>
+                                            {uf}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="credenciamento_modal_full credenciamento_rc_filtro_busca">
+                                <span>Buscar região ou cidade</span>
+                                <CampoBuscaComLimpar
+                                    value={rcCidadeBusca}
+                                    onChange={(event) => setRcCidadeBusca(event.target.value)}
+                                    placeholder="Ex.: Curitiba, Litoral, PR…"
+                                    className="credenciamento_main_input"
+                                />
+                            </label>
+                        </div>
+                        {rcCidadesSelecionadas.length > 0 ? (
+                            <p className="credenciamento_rc_selecao_resumo">
+                                {rcCidadesSelecionadas.length} cidade
+                                {rcCidadesSelecionadas.length === 1 ? '' : 's'} selecionada
+                                {rcCidadesSelecionadas.length === 1 ? '' : 's'}
+                            </p>
+                        ) : null}
                         <div className="credenciamento_rc_cidades_lista">
-                            {opcoesCidadesRc.map((cidade) => (
-                                <label key={`rc-cidade-${cidade}`} className="credenciamento_rc_cidade_item">
-                                    <input
-                                        type="checkbox"
-                                        checked={rcCidadesSelecionadas.includes(cidade)}
-                                        onChange={() => alternarCidadeRc(cidade)}
-                                    />
-                                    <span>{cidade}</span>
-                                </label>
-                            ))}
+                            {rcMalhaLoading ? (
+                                <p className="credenciamento_rc_lista_vazio">A carregar malha…</p>
+                            ) : gruposCidadesRc.length === 0 ? (
+                                <p className="credenciamento_rc_lista_vazio">
+                                    Nenhuma cidade encontrada com os filtros atuais.
+                                </p>
+                            ) : (
+                                gruposCidadesRc.map((grupo) => {
+                                    const todasMarcadas =
+                                        grupo.cidades.length > 0 &&
+                                        grupo.cidades.every((c) => rcCidadesSelecionadas.includes(c))
+                                    const algumasMarcadas =
+                                        !todasMarcadas &&
+                                        grupo.cidades.some((c) => rcCidadesSelecionadas.includes(c))
+                                    const tituloRegiao = grupo.uf
+                                        ? `${grupo.regiaoNome} (${grupo.uf})`
+                                        : grupo.regiaoNome
+                                    return (
+                                        <section
+                                            key={grupo.regiaoKey}
+                                            className="credenciamento_rc_regiao"
+                                        >
+                                            <label className="credenciamento_rc_regiao_head">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={todasMarcadas}
+                                                    ref={(el) => {
+                                                        if (el) el.indeterminate = algumasMarcadas
+                                                    }}
+                                                    onChange={() => alternarRegiaoRc(grupo.cidades)}
+                                                />
+                                                <span className="credenciamento_rc_regiao_titulo">
+                                                    {tituloRegiao}
+                                                </span>
+                                                <span className="credenciamento_rc_regiao_count">
+                                                    {grupo.cidades.length}
+                                                </span>
+                                            </label>
+                                            <div className="credenciamento_rc_regiao_cidades">
+                                                {grupo.cidades.map((cidade) => (
+                                                    <label
+                                                        key={`rc-cidade-${grupo.regiaoKey}-${cidade}`}
+                                                        className="credenciamento_rc_cidade_item"
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={rcCidadesSelecionadas.includes(
+                                                                cidade,
+                                                            )}
+                                                            onChange={() => alternarCidadeRc(cidade)}
+                                                        />
+                                                        <span>{cidade}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </section>
+                                    )
+                                })
+                            )}
                         </div>
                         <div className="credenciamento_modal_actions">
                             <button
                                 type="button"
                                 className="credenciamento_main_action_btn"
                                 onClick={() => void gerarPdfRc()}
-                                disabled={rcGerando}
+                                disabled={rcGerando || !rcCidadesSelecionadas.length}
                             >
                                 {rcGerando ? 'Gerando...' : 'Gerar RC'}
                             </button>

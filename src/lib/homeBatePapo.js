@@ -13,7 +13,9 @@ import {
   importarParDePrivJwk,
   importarPublicaJwk,
   lerPrivJwkLocal,
+  limparPrivJwkLocal,
   montarMetaImagem,
+  normalizarSenhaChave,
   parseAnexoMeta,
   privadaCorrespondePublica,
   salvarPrivJwkLocal,
@@ -177,10 +179,10 @@ export async function inspecionarChaveConta() {
 
 /** Configura senha (setup ou ativar_sync) e grava priv_cipher na cloud. */
 export async function configurarChaveContaComSenha(senha, senhaConfirm) {
-  const s = String(senha || '')
-  const c = String(senhaConfirm || '')
+  const s = normalizarSenhaChave(senha)
+  const c = normalizarSenhaChave(senhaConfirm)
   if (s.length < 6) throw new Error('A senha da chave deve ter pelo menos 6 caracteres.')
-  if (s !== c) throw new Error('As senhas não coincidem.')
+  if (s !== c) throw new Error('As senhas não coincidem. Confirme a mesma senha nos dois campos.')
 
   const uid = await uidAtual()
   const row = await buscarRowChaveConta(uid)
@@ -193,19 +195,29 @@ export async function configurarChaveContaComSenha(senha, senhaConfirm) {
   const local = lerPrivJwkLocal()
   const resetPedido = Boolean(row?.chave_reset_pedido_em)
 
-  if (local && (!row?.public_jwk || privadaCorrespondePublica(local, row.public_jwk))) {
+  if (resetPedido) {
+    // Reset admin: gera chave nova (não reutiliza privada antiga que pode divergir)
+    limparPrivJwkLocal()
+    pair = await gerarNovoParChaves()
+  } else if (local && (!row?.public_jwk || privadaCorrespondePublica(local, row.public_jwk))) {
     pair = await importarParDePrivJwk(local)
-  } else if (row?.public_jwk && !row?.priv_cipher && !resetPedido) {
+  } else if (row?.public_jwk && !row?.priv_cipher) {
     throw erroChaveConta(
       CHAVE_CONTA_BLOQUEADO,
       'Não é possível criar nova chave: a conta já publicou uma pública sem sync. Use o aparelho original.',
     )
   } else {
-    // Setup limpo, ou reset admin (substitui chave pública antiga)
     pair = await gerarNovoParChaves()
   }
 
-  const privCipher = await envolverPrivComSenha(pair.privJwk || lerPrivJwkLocal(), s)
+  const privJwk = pair.privJwk || lerPrivJwkLocal()
+  const privCipher = await envolverPrivComSenha(privJwk, s)
+  // Garante que a mesma senha consegue abrir o blob antes de gravar na cloud
+  const roundTrip = await desenrolarPrivComSenha(privCipher, s)
+  if (!privadaCorrespondePublica(roundTrip, pair.publicJwk)) {
+    throw new Error('Falha ao validar a senha da chave. Tente novamente.')
+  }
+  salvarPrivJwkLocal(privJwk)
   await upsertChaveConta({ uid, publicJwk: pair.publicJwk, privCipher })
   return pair
 }

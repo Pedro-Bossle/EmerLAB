@@ -315,6 +315,13 @@ export const PERMISSION_CATALOG = [
                 href: '/administrativo/auditoria',
             },
             {
+                id: 'admin.qualidade',
+                label: 'Qualidade de dados',
+                descricao: 'Aba em Auditoria: CNPJ, geocode LOCAL, RC e duplicatas.',
+                actions: R,
+                href: '/administrativo/auditoria?aba=qualidade',
+            },
+            {
                 id: 'admin.dev_tools',
                 label: 'Ferramentas Dev',
                 descricao: 'Colunas extras e exclusão por lista.',
@@ -480,6 +487,7 @@ export function expandLegacyToAcl(perms) {
     if (p[L.ACCESS_MANAGE]) {
         setTool('admin.acessos', { read: true, create: true, update: true, delete: true })
         setTool('admin.auditoria', { read: true })
+        setTool('admin.qualidade', { read: true })
     }
     if (p[L.DEV_TOOLS]) {
         setTool('admin.dev_tools', { read: true })
@@ -534,6 +542,12 @@ export function completarAclFerramentasCredenciamento(perms) {
     if (!p[kAud]) {
         if (hasAcl(p, 'admin.acessos', 'read') || p[L.ACCESS_MANAGE]) {
             p[kAud] = true
+        }
+    }
+    const kQual = aclKey('admin.qualidade', 'read')
+    if (!p[kQual]) {
+        if (hasAcl(p, 'admin.auditoria', 'read') || hasAcl(p, 'admin.acessos', 'read') || p[L.ACCESS_MANAGE]) {
+            p[kQual] = true
         }
     }
 
@@ -686,6 +700,7 @@ export const LEGACY_SCREEN_TO_TOOL = {
     'credenciamento.formulario.inbox': 'credenciamento.formulario_inbox',
     'access.manage': 'admin.acessos',
     'admin.auditoria': 'admin.auditoria',
+    'admin.qualidade': 'admin.qualidade',
 }
 
 export function podeLerFerramenta(permissions, toolId) {

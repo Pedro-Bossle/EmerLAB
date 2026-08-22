@@ -1,0 +1,339 @@
+.admin_qualidade {
+    width: 100%;
+    min-height: 100%;
+    color: #1f3a4f;
+    box-sizing: border-box;
+}
+
+.admin_qualidade_painel {
+    padding: 0;
+}
+
+.admin_qualidade_painel_topo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.admin_qualidade_painel_desc {
+    margin: 0;
+    max-width: 52rem;
+    font-size: 0.9rem;
+    color: #547084;
+    line-height: 1.45;
+}
+
+.admin_qualidade_card.is-arquivo .admin_qualidade_card_n {
+    color: #7a5b12;
+}
+
+.admin_qualidade_acoes_cel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.admin_qualidade_btn_ignorar {
+    border: 1px solid #bfd7e8;
+    background: #fff;
+    color: #174964;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.admin_qualidade_btn_ignorar:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.admin_qualidade_motivo.motivo-crmv,
+.admin_qualidade_motivo.motivo-nome {
+    background: #eef4f8;
+    color: #174964;
+}
+
+.admin_qualidade_motivo.motivo-cpf {
+    background: #fdeeee;
+    color: #8a2f2f;
+}
+
+.admin_qualidade_motivo.motivo-email {
+    background: #fff8e8;
+    color: #7a5b12;
+}
+
+.admin_qualidade_motivo.motivo-telefone {
+    background: #eaf5fc;
+    color: #0f74b9;
+}
+
+body.dark-mode .admin_qualidade_painel_desc {
+    color: #9bb0bf;
+}
+
+body.dark-mode .admin_qualidade_btn_ignorar {
+    background: #152530;
+    border-color: #2a3f4e;
+    color: #d7e6f0;
+}
+
+.admin_qualidade_header_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.admin_qualidade_header_acoes button {
+    border: 1px solid #bfd7e8;
+    background: #fff;
+    color: #174964;
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.admin_qualidade_header_acoes .is-primary {
+    background: #0f74b9;
+    border-color: #0f74b9;
+    color: #fff;
+}
+
+.admin_qualidade_header_acoes button:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.admin_qualidade_erro {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    background: #fdeeee;
+    border: 1px solid #efc1c1;
+    color: #8a2f2f;
+}
+
+.admin_qualidade_cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.admin_qualidade_card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 14px 16px;
+    border: 1px solid #d7e8f2;
+    border-radius: 12px;
+    background: #f8fbfd;
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+}
+
+.admin_qualidade_card.is-active {
+    border-color: #0f74b9;
+    background: #eaf5fc;
+    box-shadow: inset 0 0 0 1px #0f74b9;
+}
+
+.admin_qualidade_card_n {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #123e59;
+    line-height: 1.1;
+}
+
+.admin_qualidade_card_label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #547084;
+}
+
+.admin_qualidade_toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.admin_qualidade_filtro_q {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: min(320px, 100%);
+}
+
+.admin_qualidade_filtro_q span {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #547084;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.admin_qualidade_filtro_q input {
+    border: 1px solid #bfd7e8;
+    border-radius: 10px;
+    padding: 9px 12px;
+    font: inherit;
+}
+
+.admin_qualidade_meta {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #547084;
+}
+
+.admin_qualidade_table_wrap {
+    border: 1px solid #d7e8f2;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.admin_qualidade_table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+}
+
+.admin_qualidade_table th,
+.admin_qualidade_table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e6eef4;
+    text-align: left;
+    vertical-align: top;
+}
+
+.admin_qualidade_table th {
+    background: #f3f8fb;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #547084;
+}
+
+.admin_qualidade_empty {
+    text-align: center;
+    color: #547084;
+    padding: 28px 12px !important;
+}
+
+.admin_qualidade_id {
+    font-size: 0.78rem;
+    color: #7a93a5;
+    font-weight: 500;
+}
+
+.admin_qualidade_mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    word-break: break-all;
+}
+
+.admin_qualidade_link {
+    color: #0f74b9;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.admin_qualidade_link:hover {
+    text-decoration: underline;
+}
+
+.admin_qualidade_dup_list {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+
+.admin_qualidade_motivo {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: #eef4f8;
+    color: #174964;
+}
+
+.admin_qualidade_motivo.motivo-documento {
+    background: #fdeeee;
+    color: #8a2f2f;
+}
+
+.admin_qualidade_motivo.motivo-cep {
+    background: #fff8e8;
+    color: #7a5b12;
+}
+
+.admin_qualidade_motivo.motivo-coordenadas,
+.admin_qualidade_motivo.motivo-geocode_hash {
+    background: #eaf5fc;
+    color: #0f74b9;
+}
+
+body.dark-mode .admin_qualidade {
+    color: #d7e6f0;
+}
+
+body.dark-mode .admin_qualidade_card {
+    background: #152530;
+    border-color: #2a3f4e;
+    color: #d7e6f0;
+}
+
+body.dark-mode .admin_qualidade_card.is-active {
+    background: #1a3344;
+    border-color: #3d8fc4;
+}
+
+body.dark-mode .admin_qualidade_card_n {
+    color: #e8f4fc;
+}
+
+body.dark-mode .admin_qualidade_card_label,
+body.dark-mode .admin_qualidade_meta,
+body.dark-mode .admin_qualidade_id {
+    color: #9bb0bf;
+}
+
+body.dark-mode .admin_qualidade_filtro_q input,
+body.dark-mode .admin_qualidade_header_acoes button {
+    background: #152530;
+    border-color: #2a3f4e;
+    color: #d7e6f0;
+}
+
+body.dark-mode .admin_qualidade_header_acoes .is-primary {
+    background: #0f74b9;
+    border-color: #0f74b9;
+    color: #fff;
+}
+
+body.dark-mode .admin_qualidade_table_wrap {
+    background: #101c24;
+    border-color: #2a3f4e;
+}
+
+body.dark-mode .admin_qualidade_table th {
+    background: #152530;
+    color: #9bb0bf;
+}
+
+body.dark-mode .admin_qualidade_table th,
+body.dark-mode .admin_qualidade_table td {
+    border-bottom-color: #243744;
+}

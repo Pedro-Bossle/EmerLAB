@@ -939,6 +939,44 @@ body.dark-mode .home_dash_tarefa_anexos.is-dragover .home_dash_tarefa_anexo_ico_
     word-break: break-word;
 }
 
+.home_dash_tarefa_resolucao {
+    margin: 0.45rem 0 0;
+    padding: 0.55rem 0.6rem;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, #2e7d32 28%, var(--home-line));
+    background: color-mix(in srgb, #e8f5e9 70%, var(--home-card));
+    font-size: 0.84rem;
+    line-height: 1.35;
+    color: var(--home-ink);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.home_dash_tarefa_resolucao strong {
+    color: #2e7d32;
+    font-weight: 700;
+}
+
+.home_dash_modal_concluir {
+    max-width: 32rem;
+}
+
+.home_dash_concluir_titulo {
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+    color: var(--home-ink);
+    line-height: 1.35;
+}
+
+body.dark-mode .home_dash_tarefa_resolucao {
+    background: color-mix(in srgb, #163528 80%, var(--home-card));
+    border-color: #2f6b45;
+}
+
+body.dark-mode .home_dash_tarefa_resolucao strong {
+    color: #8fd4a0;
+}
+
 .home_dash_tarefa_chat {
     margin-top: 0.65rem;
     padding: 0.55rem 0.6rem 0.6rem;

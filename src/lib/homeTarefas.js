@@ -19,10 +19,14 @@ export const MAX_TAMANHO_ANEXO_TAREFA_BYTES = 10 * 1024 * 1024
 
 const COLS_TAREFA_BASE =
     'id, titulo, observacoes, prazo, status, prioridade, criado_por, atribuido_a, criado_em, atualizado_em, concluido_em'
-const COLS_TAREFA_COM_ANEXOS = `${COLS_TAREFA_BASE}, anexos`
+const COLS_TAREFA_COM_RESOLUCAO = `${COLS_TAREFA_BASE}, resolucao`
+const COLS_TAREFA_COM_ANEXOS = `${COLS_TAREFA_COM_RESOLUCAO}, anexos`
+const COLS_TAREFA_ANEXOS_SEM_RESOLUCAO = `${COLS_TAREFA_BASE}, anexos`
 
 /** @type {boolean | null} */
 let homeTarefasTemAnexos = null
+/** @type {boolean | null} */
+let homeTarefasTemResolucao = null
 
 function isErroColunaAnexos(error) {
     if (!error) return false
@@ -36,6 +40,31 @@ function isErroColunaAnexos(error) {
             error.code === '42703' ||
             error.code === 'PGRST204')
     )
+}
+
+function isErroColunaResolucao(error) {
+    if (!error) return false
+    const blob = `${error.message || ''} ${error.details || ''} ${error.hint || ''} ${error.code || ''}`.toLowerCase()
+    return (
+        blob.includes('resolucao') &&
+        (blob.includes('does not exist') ||
+            blob.includes('schema cache') ||
+            blob.includes('could not find') ||
+            blob.includes('column') ||
+            error.code === '42703' ||
+            error.code === 'PGRST204')
+    )
+}
+
+function colsSelectTarefa() {
+    if (homeTarefasTemAnexos === false && homeTarefasTemResolucao === false) return COLS_TAREFA_BASE
+    if (homeTarefasTemAnexos === false && homeTarefasTemResolucao !== false) {
+        return COLS_TAREFA_COM_RESOLUCAO
+    }
+    if (homeTarefasTemAnexos !== false && homeTarefasTemResolucao === false) {
+        return COLS_TAREFA_ANEXOS_SEM_RESOLUCAO
+    }
+    return COLS_TAREFA_COM_ANEXOS
 }
 
 export function normalizarAnexosTarefa(raw) {
@@ -83,6 +112,7 @@ export function mapRowTarefa(row, nomesPorId = new Map()) {
         id: row.id,
         titulo: row.titulo || '',
         observacoes: row.observacoes || '',
+        resolucao: row.resolucao || '',
         prazo: row.prazo || null,
         status: row.status || 'pendente',
         prioridade: row.prioridade || 'normal',
@@ -155,19 +185,28 @@ function montarStoragePathAnexoTarefa(tarefaId, nomeArquivo) {
 }
 
 async function selectTarefaPorId(id) {
-    if (homeTarefasTemAnexos !== false) {
-        const res = await supabase.from('home_tarefas').select(COLS_TAREFA_COM_ANEXOS).eq('id', id).single()
+    const tentativas = [
+        COLS_TAREFA_COM_ANEXOS,
+        COLS_TAREFA_ANEXOS_SEM_RESOLUCAO,
+        COLS_TAREFA_COM_RESOLUCAO,
+        COLS_TAREFA_BASE,
+    ]
+    let ultimo = null
+    for (const cols of tentativas) {
+        if (homeTarefasTemAnexos === false && cols.includes('anexos')) continue
+        if (homeTarefasTemResolucao === false && cols.includes('resolucao')) continue
+        const res = await supabase.from('home_tarefas').select(cols).eq('id', id).single()
         if (!res.error) {
-            homeTarefasTemAnexos = true
+            if (cols.includes('anexos')) homeTarefasTemAnexos = true
+            if (cols.includes('resolucao')) homeTarefasTemResolucao = true
             return res
         }
-        if (isErroColunaAnexos(res.error)) {
-            homeTarefasTemAnexos = false
-        } else {
-            return res
-        }
+        ultimo = res
+        if (isErroColunaAnexos(res.error)) homeTarefasTemAnexos = false
+        else if (isErroColunaResolucao(res.error)) homeTarefasTemResolucao = false
+        else return res
     }
-    return supabase.from('home_tarefas').select(COLS_TAREFA_BASE).eq('id', id).single()
+    return ultimo || supabase.from('home_tarefas').select(COLS_TAREFA_BASE).eq('id', id).single()
 }
 
 async function atualizarAnexosNaTarefa(tarefaId, anexos) {
@@ -371,6 +410,7 @@ export function buscarTarefasTexto(tarefas, termo) {
         const blob = [
             t.titulo,
             t.observacoes,
+            t.resolucao,
             t.atribuidoNome,
             t.criadorNome,
             t.status,
@@ -451,33 +491,41 @@ export async function listarTarefasHome({ userId } = {}) {
     const uid = userId || userData?.user?.id
     if (!uid) throw new Error('Sessão ausente.')
 
-    let data
-    let error
-    if (homeTarefasTemAnexos !== false) {
+    const tentativas = [
+        COLS_TAREFA_COM_ANEXOS,
+        COLS_TAREFA_ANEXOS_SEM_RESOLUCAO,
+        COLS_TAREFA_COM_RESOLUCAO,
+        COLS_TAREFA_BASE,
+    ]
+
+    let data = null
+    let error = null
+    for (const cols of tentativas) {
+        if (homeTarefasTemAnexos === false && cols.includes('anexos')) continue
+        if (homeTarefasTemResolucao === false && cols.includes('resolucao')) continue
         const res = await supabase
             .from('home_tarefas')
-            .select(COLS_TAREFA_COM_ANEXOS)
+            .select(cols)
             .or(`criado_por.eq.${uid},atribuido_a.eq.${uid}`)
             .order('prazo', { ascending: true, nullsFirst: false })
             .order('criado_em', { ascending: false })
-        data = res.data
-        error = res.error
-        if (!error) homeTarefasTemAnexos = true
-        else if (isErroColunaAnexos(error)) {
-            homeTarefasTemAnexos = false
+        if (!res.error) {
+            data = res.data
             error = null
-            data = null
+            if (cols.includes('anexos')) homeTarefasTemAnexos = true
+            if (cols.includes('resolucao')) homeTarefasTemResolucao = true
+            break
         }
-    }
-    if (homeTarefasTemAnexos === false || (data == null && !error)) {
-        const res = await supabase
-            .from('home_tarefas')
-            .select(COLS_TAREFA_BASE)
-            .or(`criado_por.eq.${uid},atribuido_a.eq.${uid}`)
-            .order('prazo', { ascending: true, nullsFirst: false })
-            .order('criado_em', { ascending: false })
-        data = res.data
         error = res.error
+        if (isErroColunaAnexos(res.error)) {
+            homeTarefasTemAnexos = false
+            continue
+        }
+        if (isErroColunaResolucao(res.error)) {
+            homeTarefasTemResolucao = false
+            continue
+        }
+        break
     }
 
     if (error) {
@@ -508,7 +556,10 @@ export async function listarTarefasHome({ userId } = {}) {
 
     return {
         tarefas,
-        aviso: '',
+        aviso:
+            homeTarefasTemResolucao === false
+                ? 'Coluna resolução ausente. Execute scripts/sql/home_tarefas_resolucao.sql no Supabase.'
+                : '',
     }
 }
 
@@ -594,33 +645,55 @@ export async function atualizarTarefaHome(id, patch) {
     if (patch.prazo !== undefined) payload.prazo = patch.prazo || null
     if (patch.prioridade !== undefined) payload.prioridade = patch.prioridade
     if (patch.atribuidoA !== undefined) payload.atribuido_a = patch.atribuidoA
+    if (patch.resolucao !== undefined) {
+        payload.resolucao = String(patch.resolucao || '').trim() || null
+    }
     if (patch.status !== undefined) {
         payload.status = patch.status
         payload.concluido_em = patch.status === 'concluida' ? new Date().toISOString() : null
-    }
-
-    const cols = homeTarefasTemAnexos === false ? COLS_TAREFA_BASE : COLS_TAREFA_COM_ANEXOS
-    const { data, error } = await supabase
-        .from('home_tarefas')
-        .update(payload)
-        .eq('id', id)
-        .select(cols)
-        .single()
-
-    if (error) {
-        if (isErroColunaAnexos(error)) {
-            homeTarefasTemAnexos = false
-            const retry = await supabase
-                .from('home_tarefas')
-                .update(payload)
-                .eq('id', id)
-                .select(COLS_TAREFA_BASE)
-                .single()
-            if (retry.error) throw new Error(retry.error.message)
-            return mapRowTarefa(retry.data)
+        if (patch.status !== 'concluida' && patch.resolucao === undefined) {
+            // ao reabrir, mantém resolução histórica (não limpa)
         }
-        throw new Error(error.message)
     }
+
+    if (payload.titulo !== undefined && !payload.titulo) {
+        throw new Error('Informe o título da tarefa.')
+    }
+
+    const tentarUpdate = async (cols, body) => {
+        const { data, error } = await supabase
+            .from('home_tarefas')
+            .update(body)
+            .eq('id', id)
+            .select(cols)
+            .single()
+        return { data, error }
+    }
+
+    let cols = colsSelectTarefa()
+    let body = { ...payload }
+    let { data, error } = await tentarUpdate(cols, body)
+
+    if (error && isErroColunaResolucao(error) && body.resolucao !== undefined) {
+        homeTarefasTemResolucao = false
+        delete body.resolucao
+        cols = colsSelectTarefa()
+        ;({ data, error } = await tentarUpdate(cols, body))
+        if (!error && String(patch.resolucao || '').trim()) {
+            throw new Error(
+                'Coluna resolução ausente. Execute scripts/sql/home_tarefas_resolucao.sql no Supabase.',
+            )
+        }
+    }
+    if (error && isErroColunaAnexos(error)) {
+        homeTarefasTemAnexos = false
+        cols = colsSelectTarefa()
+        ;({ data, error } = await tentarUpdate(cols, body))
+    }
+
+    if (error) throw new Error(error.message)
+    if (cols.includes('resolucao')) homeTarefasTemResolucao = true
+    if (cols.includes('anexos')) homeTarefasTemAnexos = true
     return mapRowTarefa(data)
 }
 

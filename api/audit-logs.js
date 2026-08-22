@@ -180,8 +180,40 @@ export default async function handler(req, res) {
             })
         }
 
+        // Resumo semanal leve: sem valor_antigo/novo (menos payload; sem IA).
+        if (action === 'resumoSemana') {
+            const dias = Math.min(30, Math.max(1, Number(body.dias) || 7))
+            const dataInicio = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString()
+            const pageSize = Math.min(5000, Math.max(100, Number(body.pageSize) || 3000))
+            const { data, error } = await supabase
+                .from('audit_logs')
+                .select('id, data_hora, usuario_id, usuario_nome, acao, tabela, registro_id, severidade')
+                .gte('data_hora', dataInicio)
+                .order('data_hora', { ascending: false })
+                .limit(pageSize)
+
+            if (error) {
+                if (tabelaIndisponivel(error.message)) {
+                    return res.status(200).json({
+                        ok: true,
+                        logs: [],
+                        dias,
+                        aviso: 'Tabela audit_logs não configurada.',
+                    })
+                }
+                return responderErro(res, 500, error.message)
+            }
+
+            return res.status(200).json({
+                ok: true,
+                logs: data || [],
+                dias,
+                geradoEm: new Date().toISOString(),
+            })
+        }
+
         if (action !== 'list' && action !== 'export') {
-            return responderErro(res, 400, 'Ação inválida. Use list, export, meta ou recordAuth.')
+            return responderErro(res, 400, 'Ação inválida. Use list, export, meta, resumoSemana ou recordAuth.')
         }
 
         const page = Math.max(1, Number(body.page) || 1)
@@ -203,7 +235,14 @@ export default async function handler(req, res) {
 
         if (body.usuarioId) query = query.eq('usuario_id', String(body.usuarioId).trim())
         if (body.acao) query = query.eq('acao', String(body.acao).trim().toUpperCase())
-        if (body.tabela) query = query.eq('tabela', String(body.tabela).trim())
+        const tabelasMulti = Array.isArray(body.tabelas)
+            ? body.tabelas.map((t) => String(t || '').trim()).filter(Boolean)
+            : []
+        if (tabelasMulti.length > 0) {
+            query = query.in('tabela', tabelasMulti)
+        } else if (body.tabela) {
+            query = query.eq('tabela', String(body.tabela).trim())
+        }
         if (body.severidade) query = query.eq('severidade', String(body.severidade).trim().toLowerCase())
         if (body.dataInicio) query = query.gte('data_hora', String(body.dataInicio))
         if (body.dataFim) query = query.lte('data_hora', String(body.dataFim))
