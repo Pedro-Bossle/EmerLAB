@@ -1,4 +1,42 @@
 const GRAPH_ROOT = 'https://graph.microsoft.com/v1.0'
+const GRAPH_FETCH_TIMEOUT_MS = 30000
+
+/** Timezones IANA comuns → Windows (Microsoft Graph). */
+const IANA_TO_GRAPH_TZ = {
+    'America/Sao_Paulo': 'E. South America Standard Time',
+    'America/Fortaleza': 'SA Eastern Standard Time',
+    'America/Manaus': 'SA Western Standard Time',
+}
+
+async function fetchGraph(url, options = {}, timeoutMs = GRAPH_FETCH_TIMEOUT_MS) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+        return await fetch(url, { ...options, signal: controller.signal })
+    } finally {
+        clearTimeout(timer)
+    }
+}
+
+function resolverTimeZoneGraph(optsTimeZone) {
+    const explicito = String(optsTimeZone || '').trim()
+    if (explicito) return explicito
+    try {
+        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone
+        if (browserTz && IANA_TO_GRAPH_TZ[browserTz]) return IANA_TO_GRAPH_TZ[browserTz]
+    } catch {
+        /* fallback abaixo */
+    }
+    return 'E. South America Standard Time'
+}
+
+export function escapeHtmlBasico(s) {
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+}
 
 function parseGraphDateTime(dateTime, timeZone) {
     if (!dateTime) return null
@@ -58,9 +96,9 @@ export async function listarEventosOutlook(accessToken, { dias = 7, limite = 20 
     url.searchParams.set('endDateTime', end.toISOString())
     url.searchParams.set('$orderby', 'start/dateTime')
     url.searchParams.set('$top', String(limite))
-    url.searchParams.set('$select', 'subject,start,end,location,isAllDay,webLink')
+    url.searchParams.set('$select', 'subject,start,end,location,isAllDay,webLink,onlineMeeting')
 
-    const res = await fetch(url.toString(), {
+    const res = await fetchGraph(url.toString(), {
         headers: {
             Authorization: `Bearer ${accessToken}`,
             Prefer: 'outlook.timezone="E. South America Standard Time"',
@@ -110,7 +148,7 @@ export async function criarEventoOutlook(accessToken, opts = {}) {
         throw new Error('A data/hora de fim deve ser depois do início.')
     }
 
-    const timeZone = String(opts.timeZone || 'E. South America Standard Time').trim()
+    const timeZone = resolverTimeZoneGraph(opts.timeZone)
     const attendees = normalizarConvidadosOutlook(opts.attendees)
 
     const payload = {
@@ -146,7 +184,7 @@ export async function criarEventoOutlook(accessToken, opts = {}) {
     if (!payload.location) delete payload.location
     if (!payload.isOnlineMeeting) delete payload.onlineMeetingProvider
 
-    const res = await fetch(`${GRAPH_ROOT}/me/events`, {
+    const res = await fetchGraph(`${GRAPH_ROOT}/me/events`, {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -174,14 +212,6 @@ export async function criarEventoOutlook(accessToken, opts = {}) {
 function formatGraphLocalDateTime(d) {
     const pad = (n) => String(n).padStart(2, '0')
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
-
-function escapeHtmlBasico(s) {
-    return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
 }
 
 export function normalizarConvidadosOutlook(lista) {

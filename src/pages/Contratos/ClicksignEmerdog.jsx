@@ -249,6 +249,11 @@ export default function ClicksignEmerdog() {
     const [sugestoesKanbanLoading, setSugestoesKanbanLoading] = useState(false)
     const [sugestoesKanbanBusca, setSugestoesKanbanBusca] = useState('')
 
+    const abrirSignModalKanban = useCallback((modal) => {
+        setSugestoesKanbanLoading(true)
+        setSignModal(modal)
+    }, [])
+
     const [detailOpen, setDetailOpen] = useState(false)
     const [detailId, setDetailId] = useState('')
     const [detailJson, setDetailJson] = useState(null)
@@ -269,7 +274,6 @@ export default function ClicksignEmerdog() {
     useEffect(() => {
         if (signModal !== 'novo' && signModal !== 'agenda') return undefined
         let cancel = false
-        setSugestoesKanbanLoading(true)
         listarSugestoesSignatarioKanbanAssinatura()
             .then((lista) => {
                 if (!cancel) setSugestoesKanban(lista)
@@ -829,7 +833,7 @@ export default function ClicksignEmerdog() {
                 phone: raw.phone || '',
                 nome: raw.name || '',
                 saveAgenda: false })
-            setSignModal('novo')
+            abrirSignModalKanban('novo')
             fecharDetalheModal()
             setTab('montar')
             setFluxoEdicaoLista(true)
@@ -845,7 +849,7 @@ export default function ClicksignEmerdog() {
             phone: raw.phone || '',
             nome: raw.name || '',
             saveAgenda: false })
-        setSignModal('novo')
+        abrirSignModalKanban('novo')
     }
 
     const adicionarSignatarioDesdeDetalhe = () => {
@@ -860,7 +864,7 @@ export default function ClicksignEmerdog() {
             phone: '',
             nome: '',
             saveAgenda: true })
-        setSignModal('novo')
+        abrirSignModalKanban('novo')
         if (statusDetalheEnvelope === 'draft') {
             fecharDetalheModal()
             setTab('montar')
@@ -2373,7 +2377,7 @@ export default function ClicksignEmerdog() {
                                                         phone: fluxoPhone,
                                                         nome: fluxoSignNome,
                                                         saveAgenda: true })
-                                                    setSignModal('novo')
+                                                    abrirSignModalKanban('novo')
                                                 }}
                                             >
                                                 <span className="cs_sig_pill_icon" aria-hidden>
@@ -2394,7 +2398,7 @@ export default function ClicksignEmerdog() {
                                                     setSignModalAgendaTab('todos')
                                                     setSignModalAgendaSel([])
                                                     setAgendaQualPorId({})
-                                                    setSignModal('agenda')
+                                                    abrirSignModalKanban('agenda')
                                                 }}
                                             >
                                                 <span className="cs_sig_pill_icon" aria-hidden>
@@ -2476,7 +2480,7 @@ export default function ClicksignEmerdog() {
                                                             phone: maskTelefoneBr(ph),
                                                             nome: String(s.name || '').trim(),
                                                             saveAgenda: false })
-                                                        setSignModal('novo')
+                                                        abrirSignModalKanban('novo')
                                                     }}
                                                 >
                                                     ✎
@@ -2539,8 +2543,8 @@ export default function ClicksignEmerdog() {
                                     <div className="cs_sign_kanban_sugestoes" aria-label="Sugestões do Kanban">
                                         <h3 className="cs_sign_section_label">Kanban — Aguardando Assinatura</h3>
                                         <p className="contratos_hint cs_sign_kanban_hint">
-                                            Prestadores com perfil vinculado na coluna de minuta. Clique para preencher
-                                            razão social / e-mail.
+                                            Prestadores com perfil vinculado na coluna aguardando_assinatura.
+                                            Clique para preencher razão social / e-mail.
                                         </p>
                                         <input
                                             className="contratos_input cs_input cs_sign_kanban_busca"
@@ -2814,7 +2818,7 @@ export default function ClicksignEmerdog() {
                                                                         className="contratos_btn contratos_btn_secondary clicksign_btn_sm"
                                                                         onClick={() => {
                                                                             aplicarSugestaoKanban(s)
-                                                                            setSignModal('novo')
+                                                                            abrirSignModalKanban('novo')
                                                                         }}
                                                                     >
                                                                         Usar
@@ -3097,7 +3101,7 @@ export default function ClicksignEmerdog() {
                                     <button type="button" className="contratos_btn contratos_btn_secondary" disabled={fluxoBusy} onClick={() => fecharSignModal()}>
                                         Cancelar
                                     </button>
-                                    <button type="button" className="contratos_btn cs_sign_btn_outline" disabled={fluxoBusy} onClick={() => setSignModal('agenda')}>
+                                    <button type="button" className="contratos_btn cs_sign_btn_outline" disabled={fluxoBusy} onClick={() => abrirSignModalKanban('agenda')}>
                                         Voltar à lista
                                     </button>
                                     <button
@@ -3131,7 +3135,7 @@ export default function ClicksignEmerdog() {
                                             )
                                             pushToast('info', 'Agenda', 'Contacto atualizado.')
                                             setSignAgendaEditId(null)
-                                            setSignModal('agenda')
+                                            abrirSignModalKanban('agenda')
                                         }}
                                     >
                                         Guardar
@@ -3202,7 +3206,7 @@ export default function ClicksignEmerdog() {
                                         type="button"
                                         className="contratos_btn cs_sign_btn_outline"
                                         disabled={fluxoBusy}
-                                        onClick={() => setSignModal('agenda')}
+                                        onClick={() => abrirSignModalKanban('agenda')}
                                     >
                                         Voltar
                                     </button>
@@ -3298,7 +3302,7 @@ export default function ClicksignEmerdog() {
                                         className="contratos_btn cs_sign_btn_outline"
                                         disabled={fluxoBusy}
                                         onClick={() => {
-                                            setSignModal(signPending.source === 'novo' ? 'novo' : 'agenda')
+                                            abrirSignModalKanban(signPending.source === 'novo' ? 'novo' : 'agenda')
                                             setSignDraft((d) => ({
                                                 ...d,
                                                 channel: canalSignatario(signPending.channel) }))

@@ -1,10 +1,11 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { InteractionStatus } from '@azure/msal-browser'
+import { InteractionRequiredAuthError, InteractionStatus } from '@azure/msal-browser'
 import { useMsal } from '@azure/msal-react'
 import { graphTokenRequest, isMsalConfigured, loginRequest } from '../../lib/msal/msalConfig'
 import { useMsalReady } from './MsalAppProvider'
 import {
     criarEventoOutlook,
+    escapeHtmlBasico,
     parseEmailsConvidados,
 } from '../../lib/outlookCalendar'
 import {
@@ -55,11 +56,15 @@ function KanbanOutlookReuniaoInner({ card, usuarios = [], corpoAtual, onSalvarCo
                 account,
             })
             return silent.accessToken
-        } catch {
+        } catch (e) {
+            if (!(e instanceof InteractionRequiredAuthError)) throw e
+            if (inProgress !== InteractionStatus.None) {
+                throw new Error('Autenticação Microsoft em andamento. Tente novamente em instantes.')
+            }
             const popup = await instance.acquireTokenPopup(graphTokenRequest)
             return popup.accessToken
         }
-    }, [account, instance])
+    }, [account, instance, inProgress])
 
     const toggleConvidado = (id) => {
         setConvidadosIds((prev) => {
@@ -97,11 +102,11 @@ function KanbanOutlookReuniaoInner({ card, usuarios = [], corpoAtual, onSalvarCo
             const start = new Date(inicio)
             const end = new Date(fim)
             const bodyHtml = [
-                `<p>Reunião de credenciamento: <strong>${escape(card.nome || '')}</strong></p>`,
+                `<p>Reunião de credenciamento: <strong>${escapeHtmlBasico(card.nome || '')}</strong></p>`,
                 card.cidade || card.uf
-                    ? `<p>Local do prestador: ${escape([card.cidade, card.uf].filter(Boolean).join(' / '))}</p>`
+                    ? `<p>Local do prestador: ${escapeHtmlBasico([card.cidade, card.uf].filter(Boolean).join(' / '))}</p>`
                     : '',
-                card.telefone ? `<p>Telefone: ${escape(card.telefone)}</p>` : '',
+                card.telefone ? `<p>Telefone: ${escapeHtmlBasico(card.telefone)}</p>` : '',
                 card.prestadorId
                     ? `<p>Prestador vinculado: #${card.prestadorId}</p>`
                     : '',
@@ -129,12 +134,17 @@ function KanbanOutlookReuniaoInner({ card, usuarios = [], corpoAtual, onSalvarCo
                 end: ev.end?.toISOString?.() || end.toISOString(),
                 attendees: attendees.map((a) => a.email),
             })
-            await onSalvarCorpo(novoCorpo)
-            setOkMsg(
-                attendees.length
-                    ? `Evento criado no Outlook. Convite enviado a ${attendees.length} pessoa(s).`
-                    : 'Evento criado no Outlook.',
-            )
+            const msgConvites = attendees.length
+                ? `Evento criado no Outlook. Convite enviado a ${attendees.length} pessoa(s).`
+                : 'Evento criado no Outlook.'
+            try {
+                await onSalvarCorpo(novoCorpo)
+                setOkMsg(msgConvites)
+            } catch (saveErr) {
+                const link = ev.webLink ? ` Link: ${ev.webLink}` : ''
+                setOkMsg(`Evento criado no Outlook, mas falhou ao gravar no card.${link}`)
+                setErro(saveErr?.message || String(saveErr))
+            }
         } catch (e) {
             setErro(e?.message || String(e))
         } finally {
@@ -275,13 +285,6 @@ function KanbanOutlookReuniaoInner({ card, usuarios = [], corpoAtual, onSalvarCo
             {okMsg ? <p className="cred_kanban_outlook_sucesso">{okMsg}</p> : null}
         </section>
     )
-}
-
-function escape(s) {
-    return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
 }
 
 export default function KanbanOutlookReuniao(props) {

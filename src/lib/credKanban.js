@@ -218,6 +218,7 @@ export async function atualizarCardKanban(id, patch = {}) {
         .select(COLS)
         .maybeSingle()
     if (error) throw new Error(error.message)
+    if (!data) throw new Error('Card não encontrado após atualização.')
     return mapearCardRow(data)
 }
 
@@ -226,8 +227,13 @@ export async function atribuirCardsKanbanEmMassa(ids, atribuidoA) {
     const lista = [...new Set((ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))]
     if (!lista.length) return []
     const uid = atribuidoA || null
-    const results = await Promise.all(lista.map((id) => atualizarCardKanban(id, { atribuidoA: uid })))
-    return results
+    const { data, error } = await supabase
+        .from('cred_kanban_cards')
+        .update({ atribuido_a: uid, atualizado_em: new Date().toISOString() })
+        .in('id', lista)
+        .select(COLS)
+    if (error) throw new Error(error.message)
+    return enriquecerCardsKanbanComEspecialidade((data || []).map(mapearCardRow))
 }
 
 export async function excluirCardKanban(id) {
@@ -261,6 +267,12 @@ export async function moverCardKanban(cardId, colunaDestino, ordemDestino, { sit
 async function aplicarSideEffectsColuna(card, de, para, situacoes) {
     if (!card?.prestadorId) return
     const pid = Number(card.prestadorId)
+    const failures = []
+
+    const registrarUpdate = async (rotulo, resultPromise) => {
+        const { error } = await resultPromise
+        if (error) failures.push(`${rotulo}: ${error.message}`)
+    }
 
     if (para === 'credenciado' && de === 'aguardando_assinatura') {
         const credId = acharSituacaoCredenciadoId(situacoes)
@@ -275,15 +287,21 @@ async function aplicarSideEffectsColuna(card, de, para, situacoes) {
                 ...patchCredenciadoEmSeTransicao(prest?.situacao_id, credId, situacoes),
                 data_atualizacao: new Date().toISOString(),
             }
-            await supabase.from('prestadores').update(patch).eq('id', pid)
+            await registrarUpdate(
+                'situação credenciado',
+                supabase.from('prestadores').update(patch).eq('id', pid),
+            )
         }
     }
 
     if (para === 'adicionar_site') {
-        await supabase
-            .from('prestadores')
-            .update({ no_site: true, data_atualizacao: new Date().toISOString() })
-            .eq('id', pid)
+        await registrarUpdate(
+            'no_site',
+            supabase
+                .from('prestadores')
+                .update({ no_site: true, data_atualizacao: new Date().toISOString() })
+                .eq('id', pid),
+        )
     }
 
     const mapaSituacao = {
@@ -297,11 +315,18 @@ async function aplicarSideEffectsColuna(card, de, para, situacoes) {
     if (resolver && para !== 'credenciado') {
         const sid = resolver(situacoes)
         if (sid) {
-            await supabase
-                .from('prestadores')
-                .update({ situacao_id: Number(sid), data_atualizacao: new Date().toISOString() })
-                .eq('id', pid)
+            await registrarUpdate(
+                `situação ${para}`,
+                supabase
+                    .from('prestadores')
+                    .update({ situacao_id: Number(sid), data_atualizacao: new Date().toISOString() })
+                    .eq('id', pid),
+            )
         }
+    }
+
+    if (failures.length) {
+        throw new Error(`Falha ao atualizar prestador vinculado: ${failures.join('; ')}`)
     }
 }
 
@@ -364,22 +389,44 @@ export async function importarSituacoesParaKanban({ forcar = false } = {}) {
         .not('prestador_id', 'is', null)
     const ja = new Set((existentes || []).map((r) => Number(r.prestador_id)))
 
-    let criados = 0
+    const { data: auth } = await supabase.auth.getUser()
+    const uid = auth?.user?.id || null
+
+    const { data: ordensExistentes } = await supabase
+        .from('cred_kanban_cards')
+        .select('coluna, ordem')
+    const maxOrdemPorColuna = Object.fromEntries(COLUNAS_KANBAN.map((c) => [c.id, 0]))
+    for (const r of ordensExistentes || []) {
+        const col = r.coluna
+        if (!(col in maxOrdemPorColuna)) continue
+        maxOrdemPorColuna[col] = Math.max(maxOrdemPorColuna[col], Number(r.ordem) || 0)
+    }
+
+    const rows = []
     for (const p of prestadores || []) {
         if (ja.has(Number(p.id))) continue
         const coluna = mapa.get(Number(p.situacao_id))
         if (!coluna) continue
         const espNome = especialidadeVisivelKanban(mapaEsp.get(Number(p.especialidade_id)))
-        await criarCardKanban({
+        maxOrdemPorColuna[coluna] = (maxOrdemPorColuna[coluna] || 0) + 1
+        rows.push({
             coluna,
-            nome: p.nome,
-            uf: p.endereco_uf,
-            cidade: p.endereco_cidade,
-            telefone: p.telefone || p.celular,
+            ordem: maxOrdemPorColuna[coluna],
+            nome: String(p.nome || '').trim() || 'Sem nome',
+            uf: String(p.endereco_uf || '').trim().toUpperCase().slice(0, 2) || null,
+            cidade: String(p.endereco_cidade || '').trim() || null,
+            telefone: String(p.telefone || p.celular || '').trim() || null,
             tipo: espNome || null,
-            prestadorId: p.id,
+            prestador_id: Number(p.id),
+            criado_por: uid,
         })
-        criados += 1
+    }
+
+    let criados = 0
+    if (rows.length) {
+        const { error: errInsert } = await supabase.from('cred_kanban_cards').insert(rows)
+        if (errInsert) throw new Error(errInsert.message)
+        criados = rows.length
     }
 
     await supabase.from('cred_kanban_meta').upsert({
@@ -524,6 +571,7 @@ export async function criarPrestadorMinimoParaCard(card, { situacoes = [] } = {}
         .select('id')
         .maybeSingle()
     if (error) throw new Error(error.message)
+    if (!data?.id) throw new Error('Prestador não foi criado.')
 
     const atualizado = await atualizarCardKanban(card.id, {
         prestadorId: data.id,
@@ -531,6 +579,15 @@ export async function criarPrestadorMinimoParaCard(card, { situacoes = [] } = {}
         tipo: espNome || null,
     })
     return { prestadorId: data.id, card: atualizado }
+}
+
+function dataLocalIso(iso) {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return ''
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
 }
 
 export function filtrarCardsKanban(cards, filtros = {}) {
@@ -550,8 +607,9 @@ export function filtrarCardsKanban(cards, filtros = {}) {
             if (!esp.includes(tipo)) return false
         }
         if (assignee && String(c.atribuidoA || '') !== String(assignee)) return false
-        if (de && c.criadoEm && String(c.criadoEm).slice(0, 10) < de) return false
-        if (ate && c.criadoEm && String(c.criadoEm).slice(0, 10) > ate) return false
+        const criadoLocal = c.criadoEm ? dataLocalIso(c.criadoEm) : ''
+        if (de && criadoLocal && criadoLocal < de) return false
+        if (ate && criadoLocal && criadoLocal > ate) return false
         if (busca) {
             const blob = `${c.nome} ${c.telefone} ${c.cidade} ${c.uf} ${c.especialidade || c.tipo} ${c.corpo}`.toLowerCase()
             if (!blob.includes(busca)) return false
