@@ -95,10 +95,15 @@ export function filtrarSugestoesSignatarioKanban(lista, termo) {
         .trim()
     if (!t) return lista || []
     return (lista || []).filter((s) => {
+        const tel = String(s.telefone || '').replace(/\D/g, '')
+        const qDigits = t.replace(/\D/g, '')
         const blob = `${s.nome} ${s.email} ${s.cidade} ${s.uf} ${s.telefone}`
             .normalize('NFD')
             .replace(/\p{M}/gu, '')
             .toLowerCase()
-        return blob.includes(t)
+        return (
+            blob.includes(t) ||
+            (qDigits.length > 0 && tel.includes(qDigits))
+        )
     })
 }

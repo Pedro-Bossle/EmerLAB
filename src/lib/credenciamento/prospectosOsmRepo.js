@@ -67,8 +67,13 @@ export async function atualizarStatusProspectoOsm(id, { status_prospeccao, obser
         try {
             const { enviarProspectoOsmParaKanban } = await import('../credKanban.js')
             await enviarProspectoOsmParaKanban(data)
-        } catch {
-            /* kanban opcional se tabela ainda não existir */
+        } catch (e) {
+            const msg = String(e?.message || e || '')
+            if (/cred_kanban|schema cache|does not exist|relation.*does not exist/i.test(msg)) {
+                /* kanban opcional se tabela ainda não existir */
+            } else {
+                throw e
+            }
         }
     }
 

@@ -876,6 +876,15 @@ body.dark-mode .cred_kanban_nome_sugestoes button:hover {
     position: relative;
 }
 
+.cred_kanban_gh_check:focus-visible + .cred_kanban_gh_box {
+    outline: 2px solid #0f74b9;
+    outline-offset: 2px;
+}
+
+body.dark-mode .cred_kanban_gh_check:focus-visible + .cred_kanban_gh_box {
+    outline-color: #3d9fd8;
+}
+
 .cred_kanban_gh_task.is-done .cred_kanban_gh_box {
     background: #1f883d;
     border-color: #1f883d;
@@ -896,7 +905,7 @@ body.dark-mode .cred_kanban_nome_sugestoes button:hover {
 .cred_kanban_gh_text {
     flex: 1;
     line-height: 1.4;
-    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .cred_kanban_gh_task.is-done .cred_kanban_gh_text {

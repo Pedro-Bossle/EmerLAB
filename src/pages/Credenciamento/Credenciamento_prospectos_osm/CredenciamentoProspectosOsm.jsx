@@ -110,6 +110,7 @@ const CredenciamentoProspectosOsm = () => {
     const [ordenarDir, setOrdenarDir] = useState('asc')
     const [credenciadosBase, setCredenciadosBase] = useState([])
     const [alertaDismissed, setAlertaDismissed] = useState(() => lerAlertasCredenciadoDismissed())
+    const [enviandoKanbanId, setEnviandoKanbanId] = useState(null)
     const { rate: geminiRate, erro: erroGeminiRate, loading: loadingGeminiRate, recarregar: recarregarGeminiRate } =
         useGeminiRate()
 
@@ -460,7 +461,8 @@ const CredenciamentoProspectosOsm = () => {
 
     const enviarAoKanban = async (row, e) => {
         e?.stopPropagation?.()
-        if (!row?.id) return
+        if (!row?.id || enviandoKanbanId === row.id) return
+        setEnviandoKanbanId(row.id)
         try {
             setErro('')
             const card = await enviarProspectoOsmParaKanban(row)
@@ -475,6 +477,8 @@ const CredenciamentoProspectosOsm = () => {
             setFeedback(`«${row.nome || 'Prospecto'}» enviado ao Kanban → ${colLabel}.`)
         } catch (err) {
             setErro(err?.message || String(err))
+        } finally {
+            setEnviandoKanbanId(null)
         }
     }
 
@@ -857,6 +861,7 @@ const CredenciamentoProspectosOsm = () => {
                                                     <button
                                                         type="button"
                                                         className="credenciamento_main_action_btn secondary cred_prospectos_osm_btn_kanban"
+                                                        disabled={enviandoKanbanId === row.id}
                                                         title={
                                                             colunaKanbanParaStatusProspecto(row.status_prospeccao) ===
                                                             'contatado'

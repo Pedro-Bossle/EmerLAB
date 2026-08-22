@@ -136,6 +136,7 @@ export default function CredenciamentoKanban() {
     const [assignBusy, setAssignBusy] = useState(false)
     const [colunaMobile, setColunaMobile] = useState(COLUNAS_KANBAN[0].id)
     const [filtrosAbertos, setFiltrosAbertos] = useState(false)
+    const realtimeDebounceRef = useRef(null)
 
     const podeRelatorio = podeLerFerramenta(
         getStoredAccessProfile()?.permissions,
@@ -182,10 +183,19 @@ export default function CredenciamentoKanban() {
     }, [carregar])
 
     useEffect(() => {
+        return () => {
+            if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current)
+        }
+    }, [])
+
+    useEffect(() => {
         return assinarCardsKanbanLive(() => {
-            void listarCardsKanban()
-                .then(setCards)
-                .catch(() => {})
+            if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current)
+            realtimeDebounceRef.current = setTimeout(() => {
+                void listarCardsKanban()
+                    .then(setCards)
+                    .catch(() => {})
+            }, 300)
         })
     }, [])
 
@@ -381,10 +391,18 @@ export default function CredenciamentoKanban() {
         return (
             <article
                 key={card.id}
+                role="button"
+                tabIndex={0}
                 className={`cred_kanban_card${dragId === card.id ? ' is-dragging' : ''}${marcado ? ' is-selected' : ''}${compact ? ' is-compact' : ''}`}
                 draggable={!compact}
                 onDragStart={compact ? undefined : (e) => onDragStart(e, card.id)}
                 onClick={() => setCardAberto(card)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setCardAberto(card)
+                    }
+                }}
             >
                 <div className="cred_kanban_card_topo">
                     <label
@@ -806,10 +824,15 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
     useEffect(() => {
         const prevOverflow = document.body.style.overflow
         document.body.style.overflow = 'hidden'
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') onClose()
+        }
+        window.addEventListener('keydown', onKeyDown)
         return () => {
             document.body.style.overflow = prevOverflow
+            window.removeEventListener('keydown', onKeyDown)
         }
-    }, [])
+    }, [onClose])
 
     useEffect(() => {
         const mostrar = espFoco && sugestoesEsp.length > 0

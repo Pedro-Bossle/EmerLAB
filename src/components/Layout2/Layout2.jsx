@@ -162,8 +162,7 @@ const Layout2 = () => {
 
       <main
         className={cn(
-          /* z-0 isola stacking: z-index internos (headers sticky etc.) não pintam por cima da sidebar */
-          'relative z-0 min-h-dvh max-w-full overflow-x-clip bg-surface-page transition-[margin,width] duration-200 ease-out dark:bg-[#0d1520]',
+          'relative min-h-dvh max-w-full overflow-x-clip bg-surface-page transition-[margin,width] duration-200 ease-out dark:bg-[#0d1520]',
           isCompact
             ? 'w-full pb-nav-bottom'
             : contentPushed

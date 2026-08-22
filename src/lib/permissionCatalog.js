@@ -125,7 +125,6 @@ export const PERMISSION_CATALOG = [
                 label: 'Relatório Processos',
                 descricao: 'Relatório gerencial do funil Kanban (CSV/contagens).',
                 actions: R,
-                href: '/credenciamento/principal',
             },
             {
                 id: 'credenciamento.cadastro',
