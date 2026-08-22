@@ -13,7 +13,8 @@ import Supertabelanegociacoes from './pages/Supertabela/Supertabela_negociacoes/
 /* Credenciamento documentação — inativo por hora
 import Credenciamento_doc from './pages/Credenciamento/Credenciamento_doc/Credenciamento_doc';
 */
-import Credenciamento_main from './pages/Credenciamento/Credenciamento_main/Credenciamento_main';
+import CredenciamentoKanban from './pages/Credenciamento/CredenciamentoKanban/CredenciamentoKanban';
+/* Credenciamento_main (Processos tabela) substituído pelo Kanban */
 import CredenciamentoCadastroLista from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroLista';
 import CredenciamentoCadastroForm from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroForm';
 import CredenciamentoMapa from './pages/Credenciamento/Credenciamento_mapa/CredenciamentoMapa';
@@ -150,7 +151,7 @@ function App() {
             path="/credenciamento/principal"
             element={
               <PrivateRoute permission="credenciamento.view" toolId="credenciamento.processos">
-                <Credenciamento_main />
+                <CredenciamentoKanban />
               </PrivateRoute>
             }
           />

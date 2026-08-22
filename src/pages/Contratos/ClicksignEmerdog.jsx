@@ -54,6 +54,10 @@ import {
     removerContatoAgendaPorId,
     upsertContatoAgenda } from '../../lib/clicksign/agendaSignatarios.js'
 import {
+    filtrarSugestoesSignatarioKanban,
+    listarSugestoesSignatarioKanbanAssinatura,
+} from '../../lib/clicksign/sugestoesSignatarioKanban.js'
+import {
     carregarNotificacoes,
     limparTodasNotificacoesContratos,
     sincronizarNotificacoesClicksign } from '../../lib/clicksign/clicksignNotificacoes.js'
@@ -241,6 +245,9 @@ export default function ClicksignEmerdog() {
     const [agendaQualPorId, setAgendaQualPorId] = useState({})
     const [signAgendaEditId, setSignAgendaEditId] = useState(null)
     const [signQualPapel, setSignQualPapel] = useState('sign')
+    const [sugestoesKanban, setSugestoesKanban] = useState([])
+    const [sugestoesKanbanLoading, setSugestoesKanbanLoading] = useState(false)
+    const [sugestoesKanbanBusca, setSugestoesKanbanBusca] = useState('')
 
     const [detailOpen, setDetailOpen] = useState(false)
     const [detailId, setDetailId] = useState('')
@@ -258,6 +265,43 @@ export default function ClicksignEmerdog() {
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
 
     useConfirmacaoExclusaoAutoDismiss(confirmacaoExclusao, setConfirmacaoExclusao)
+
+    useEffect(() => {
+        if (signModal !== 'novo' && signModal !== 'agenda') return undefined
+        let cancel = false
+        setSugestoesKanbanLoading(true)
+        listarSugestoesSignatarioKanbanAssinatura()
+            .then((lista) => {
+                if (!cancel) setSugestoesKanban(lista)
+            })
+            .catch(() => {
+                if (!cancel) setSugestoesKanban([])
+            })
+            .finally(() => {
+                if (!cancel) setSugestoesKanbanLoading(false)
+            })
+        return () => {
+            cancel = true
+        }
+    }, [signModal])
+
+    const sugestoesKanbanFiltradas = useMemo(
+        () => filtrarSugestoesSignatarioKanban(sugestoesKanban, sugestoesKanbanBusca).slice(0, 12),
+        [sugestoesKanban, sugestoesKanbanBusca],
+    )
+
+    const aplicarSugestaoKanban = useCallback((s) => {
+        if (!s) return
+        setSignDraft((d) => ({
+            ...d,
+            nome: s.nome || d.nome,
+            email: s.email || d.email,
+            phone: s.telefone || d.phone,
+            channel: d.channel === 'whatsapp' || (s.telefone && !s.email) ? 'whatsapp' : 'email',
+            saveAgenda: d.saveAgenda,
+        }))
+        setSugestoesKanbanBusca('')
+    }, [])
 
     const fluxoEidRef = useRef('')
     const montarEdicaoEnvelopeIdRef = useRef('')
@@ -1236,6 +1280,7 @@ export default function ClicksignEmerdog() {
         setAgendaQualPorId({})
         setSignModalAgendaBusca('')
         setSignModalAgendaTab('todos')
+        setSugestoesKanbanBusca('')
         setSignAgendaEditId(null)
     }, [])
 
@@ -1636,6 +1681,7 @@ export default function ClicksignEmerdog() {
     }, [agendaSigs])
 
     const agendaModalFiltrada = useMemo(() => {
+        if (signModalAgendaTab === 'kanban') return []
         let list = [...agendaOrdenada]
         if (signModalAgendaTab === 'favoritos') list = list.filter((c) => c.favorite)
         const q = signModalAgendaBusca.trim().toLowerCase()
@@ -1650,6 +1696,11 @@ export default function ClicksignEmerdog() {
         }
         return list
     }, [agendaOrdenada, signModalAgendaTab, signModalAgendaBusca])
+
+    const agendaKanbanFiltrada = useMemo(() => {
+        if (signModalAgendaTab !== 'kanban') return []
+        return filtrarSugestoesSignatarioKanban(sugestoesKanban, signModalAgendaBusca)
+    }, [signModalAgendaTab, sugestoesKanban, signModalAgendaBusca])
 
     const mesNome = new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' })
     const secaoLista = vistaPainel !== 'hub' ? SECOES_PAINEL[vistaPainel] : null
@@ -2485,6 +2536,57 @@ export default function ClicksignEmerdog() {
                                     </h2>
                                 </div>
                                 <div className="contratos_modal_body cs_sign_modal_body">
+                                    <div className="cs_sign_kanban_sugestoes" aria-label="Sugestões do Kanban">
+                                        <h3 className="cs_sign_section_label">Kanban — Aguardando Assinatura</h3>
+                                        <p className="contratos_hint cs_sign_kanban_hint">
+                                            Prestadores com perfil vinculado na coluna de minuta. Clique para preencher
+                                            razão social / e-mail.
+                                        </p>
+                                        <input
+                                            className="contratos_input cs_input cs_sign_kanban_busca"
+                                            type="search"
+                                            placeholder="Filtrar sugestões…"
+                                            value={sugestoesKanbanBusca}
+                                            onChange={(e) => setSugestoesKanbanBusca(e.target.value)}
+                                            aria-label="Filtrar sugestões do Kanban"
+                                        />
+                                        {sugestoesKanbanLoading ? (
+                                            <p className="contratos_hint">A carregar sugestões…</p>
+                                        ) : sugestoesKanbanFiltradas.length === 0 ? (
+                                            <p className="contratos_hint">
+                                                Nenhuma sugestão (cards em «Aguardando Assinatura» com prestador
+                                                vinculado).
+                                            </p>
+                                        ) : (
+                                            <ul className="cs_sign_kanban_lista">
+                                                {sugestoesKanbanFiltradas.map((s) => (
+                                                    <li key={`${s.prestadorId}-${s.cardId}`}>
+                                                        <button
+                                                            type="button"
+                                                            className="cs_sign_kanban_item"
+                                                            onClick={() => aplicarSugestaoKanban(s)}
+                                                            title={
+                                                                s.email
+                                                                    ? 'Preencher formulário'
+                                                                    : 'Sem e-mail no cadastro — complete manualmente'
+                                                            }
+                                                        >
+                                                            <span className="cs_sign_kanban_item_nome">
+                                                                {s.nome || `Prestador #${s.prestadorId}`}
+                                                            </span>
+                                                            <span className="cs_sign_kanban_item_meta">
+                                                                {s.email || 'sem e-mail'}
+                                                                {[s.cidade, s.uf].filter(Boolean).length
+                                                                    ? ` · ${[s.cidade, s.uf].filter(Boolean).join('/')}`
+                                                                    : ''}
+                                                            </span>
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+
                                     <div className="cs_sign_field_group">
                                         <h3 className="cs_sign_section_label">Envio</h3>
                                         <div className="contratos_field cs_sign_field_full">
@@ -2663,9 +2765,68 @@ export default function ClicksignEmerdog() {
                                         >
                                             Favoritos
                                         </button>
+                                        <button
+                                            type="button"
+                                            role="tab"
+                                            className={`cs_sign_tab ${signModalAgendaTab === 'kanban' ? 'is-active' : ''}`}
+                                            aria-selected={signModalAgendaTab === 'kanban'}
+                                            onClick={() => setSignModalAgendaTab('kanban')}
+                                        >
+                                            Kanban
+                                        </button>
                                     </div>
                                     <div className="cs_sign_table_wrap overflow-x-auto">
-                                        <table className="cs_sign_table">
+                                        {signModalAgendaTab === 'kanban' ? (
+                                            <table className="cs_sign_table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Razão social / nome</th>
+                                                        <th>E-mail</th>
+                                                        <th>Local</th>
+                                                        <th className="cs_sign_th_icon" aria-label="Usar" />
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {sugestoesKanbanLoading ? (
+                                                        <tr>
+                                                            <td colSpan={4} className="clicksign_td_empty">
+                                                                A carregar…
+                                                            </td>
+                                                        </tr>
+                                                    ) : agendaKanbanFiltrada.length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={4} className="clicksign_td_empty">
+                                                                Nenhum prestador em «Aguardando Assinatura» com perfil
+                                                                vinculado.
+                                                            </td>
+                                                        </tr>
+                                                    ) : (
+                                                        agendaKanbanFiltrada.map((s) => (
+                                                            <tr key={`${s.prestadorId}-${s.cardId}`}>
+                                                                <td>{s.nome || `Prestador #${s.prestadorId}`}</td>
+                                                                <td>{s.email || '—'}</td>
+                                                                <td>
+                                                                    {[s.cidade, s.uf].filter(Boolean).join('/') || '—'}
+                                                                </td>
+                                                                <td>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="contratos_btn contratos_btn_secondary clicksign_btn_sm"
+                                                                        onClick={() => {
+                                                                            aplicarSugestaoKanban(s)
+                                                                            setSignModal('novo')
+                                                                        }}
+                                                                    >
+                                                                        Usar
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        ) : (
+                                            <table className="cs_sign_table">
                                             <thead>
                                                 <tr>
                                                     <th className="cs_sign_th_sel" aria-label="Selecionar" />
@@ -2779,12 +2940,14 @@ export default function ClicksignEmerdog() {
                                                 ))}
                                             </tbody>
                                         </table>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="contratos_modal_foot cs_sign_modal_foot">
                                     <button type="button" className="contratos_btn contratos_btn_secondary" disabled={fluxoBusy} onClick={() => fecharSignModal()}>
                                         Cancelar
                                     </button>
+                                    {signModalAgendaTab !== 'kanban' ? (
                                     <button
                                         type="button"
                                         className="contratos_btn contratos_btn_primary cs_sign_btn_fwd"
@@ -2829,6 +2992,7 @@ export default function ClicksignEmerdog() {
                                     >
                                         Avançar ({signModalAgendaSel.length}) <span aria-hidden>→</span>
                                     </button>
+                                    ) : null}
                                 </div>
                             </>
                         )}

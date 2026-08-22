@@ -15,6 +15,10 @@ import {
     listarProspectosOsm,
     atualizarStatusProspectoOsm,
 } from '../../../lib/credenciamento/prospectosOsmRepo.js'
+import {
+    colunaKanbanParaStatusProspecto,
+    enviarProspectoOsmParaKanban,
+} from '../../../lib/credKanban.js'
 import { exportarProspectosOsmParaExcel } from '../../../lib/credenciamento/exportProspectosOsmExcel.js'
 import { postServerApiJson } from '../../../lib/api/serverBackend.js'
 import { prospectoIndicaAtendimento24h } from '../../../lib/credenciamento/prospectosOsmHorario.js'
@@ -454,6 +458,26 @@ const CredenciamentoProspectosOsm = () => {
         setItens((prev) => prev.map((row) => (row.id === id ? { ...row, ...r.item } : row)))
     }
 
+    const enviarAoKanban = async (row, e) => {
+        e?.stopPropagation?.()
+        if (!row?.id) return
+        try {
+            setErro('')
+            const card = await enviarProspectoOsmParaKanban(row)
+            const colLabel =
+                card?.coluna === 'contatado'
+                    ? 'Contatado'
+                    : card?.coluna === 'nao_contatado'
+                      ? 'Não contatado'
+                      : colunaKanbanParaStatusProspecto(row.status_prospeccao) === 'contatado'
+                        ? 'Contatado'
+                        : 'Não contatado'
+            setFeedback(`«${row.nome || 'Prospecto'}» enviado ao Kanban → ${colLabel}.`)
+        } catch (err) {
+            setErro(err?.message || String(err))
+        }
+    }
+
     if (!podeLer) {
         return (
             <div className="el-page credenciamento_main">
@@ -754,6 +778,9 @@ const CredenciamentoProspectosOsm = () => {
                                                 {indicadorOrdenacao(ordenarColuna, ordenarDir, 'status')}
                                             </button>
                                         </th>
+                                        {podeEditar ? (
+                                            <th className="table_header">Kanban</th>
+                                        ) : null}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -825,6 +852,26 @@ const CredenciamentoProspectosOsm = () => {
                                                     row.status_prospeccao
                                                 )}
                                             </td>
+                                            {podeEditar ? (
+                                                <td>
+                                                    <button
+                                                        type="button"
+                                                        className="credenciamento_main_action_btn secondary cred_prospectos_osm_btn_kanban"
+                                                        title={
+                                                            colunaKanbanParaStatusProspecto(row.status_prospeccao) ===
+                                                            'contatado'
+                                                                ? 'Envia para coluna Contatado (com dados do prospecto)'
+                                                                : 'Envia para coluna Não contatado (com dados do prospecto)'
+                                                        }
+                                                        onClick={(e) => void enviarAoKanban(row, e)}
+                                                    >
+                                                        {colunaKanbanParaStatusProspecto(row.status_prospeccao) ===
+                                                        'contatado'
+                                                            ? '→ Contatado'
+                                                            : '→ Não contatado'}
+                                                    </button>
+                                                </td>
+                                            ) : null}
                                         </tr>
                                     ))}
                                 </tbody>
