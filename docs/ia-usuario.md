@@ -1,6 +1,9 @@
 # IA no EmerLAB — guia do utilizador
 
-A IA (Gemini, Google) ajuda a **sugerir estabelecimentos veterinários e pet** para o catálogo de prospectos. A chave da Google fica no servidor: o browser nunca a recebe.
+A IA (Gemini, Google) aparece em dois sítios:
+
+- **Pedro Bot** (`/pedrobot`) — dúvidas de como usar o EmerLAB (onboarding). Ver [pedro-bot-conhecimento.md](./pedro-bot-conhecimento.md).
+- **Catálogo de prospectos** — sugerir estabelecimentos veterinários e pet. A chave da Google fica no servidor: o browser nunca a recebe.
 
 ## Onde usar
 

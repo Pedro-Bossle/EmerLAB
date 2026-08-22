@@ -59,6 +59,13 @@ export const PERMISSION_CATALOG = [
                 actions: R,
                 href: '/home',
             },
+            {
+                id: 'inicio.pedro_bot',
+                label: 'Pedro Bot',
+                descricao: 'Assistente de onboarding: como usar o EmerLAB e a ordem dos processos.',
+                actions: R,
+                href: '/pedrobot',
+            },
         ],
     },
     {
@@ -515,6 +522,7 @@ export function expandLegacyToAcl(perms) {
     }
 
     setTool('inicio.dashboard', { read: true })
+    setTool('inicio.pedro_bot', { read: true })
 
     return p
 }
@@ -557,6 +565,11 @@ export function completarAclFerramentasCredenciamento(perms) {
             p[kQual] = true
         }
     }
+    const kPedro = aclKey('inicio.pedro_bot', 'read')
+    if (!p[kPedro]) {
+        p[kPedro] = true
+    }
+
     const kKanbanRel = aclKey('credenciamento.processos_relatorio', 'read')
     if (!p[kKanbanRel]) {
         if (

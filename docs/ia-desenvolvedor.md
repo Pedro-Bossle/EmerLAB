@@ -79,6 +79,15 @@ Limitação: em **várias instâncias Vercel** o contador não é global. Em `np
 - UI: [`src/hooks/useGemini.js`](../src/hooks/useGemini.js) (`useGeminiRate`) — a UI **não** fala com o Google. Chip em [`CredenciamentoProspectosOsm.jsx`](../src/pages/Credenciamento/Credenciamento_prospectos_osm/CredenciamentoProspectosOsm.jsx); recarrega após cada coleta.
 - Dev Vite: plugin em [`vite.config.js`](../vite.config.js). Vercel: `api/gemini-rate.js` em [`vercel.json`](../vercel.json).
 
+## Pedro Bot (onboarding)
+
+Chat em `/pedrobot` para novos contratados. **Não** usa [`src/hooks/useGemini.js`](../src/hooks/useGemini.js) (esse hook é só o chip de rate dos prospectos).
+
+- UI: [`src/pages/PedroBot/PedroBot.jsx`](../src/pages/PedroBot/PedroBot.jsx) + [`src/hooks/usePedroBot.js`](../src/hooks/usePedroBot.js)
+- API: [`api/pedro-bot.js`](../api/pedro-bot.js) — JWT + ferramenta `inicio.pedro_bot`; `POST` `{ action: 'chat', mensagens }` chama `generateText` no mesmo [`gemini.ts`](../src/lib/gemini/gemini.ts)
+- Conhecimento: seed [`docs/pedro-bot-conhecimento.md`](./pedro-bot-conhecimento.md) + [`docs/ia-usuario.md`](./ia-usuario.md) + tabela `pedro_bot_conhecimento` ([`scripts/sql/pedro_bot_conhecimento.sql`](../scripts/sql/pedro_bot_conhecimento.sql)). Editor na app: constante `PEDRO_BOT_EDITOR_ABERTO` em [`pedroBotAcl.js`](../src/lib/pedroBot/pedroBotAcl.js) (hoje `true`; `false` = só `access.manage`)
+- **Quota partilhada:** cada mensagem do Pedro Bot incrementa o mesmo RPM/RPD dos prospectos (`registarChamada`). O chip na tela de prospecção reflecte as duas utilizações.
+
 ## Coleta de prospectos (só Gemini)
 
 Sem Overpass nesta rota. Nominatim (pin no mapa) mantém-se.

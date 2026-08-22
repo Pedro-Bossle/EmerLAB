@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 
 *.sql
+!scripts/sql/pedro_bot_conhecimento.sql
 .vercel
 .env*
 supabase/env.secrets

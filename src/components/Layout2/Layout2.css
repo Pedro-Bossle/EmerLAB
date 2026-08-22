@@ -15,10 +15,12 @@
 .content:has(.credenciamento_mapa_page),
 .content:has(.cred_esp_cidade_page),
 .content:has(.cred_prospectos_osm_page),
+.content:has(.pedro_bot_page),
 main:has(.credenciamento_main.quem_realiza),
 main:has(.credenciamento_mapa_page),
 main:has(.cred_esp_cidade_page),
-main:has(.cred_prospectos_osm_page) {
+main:has(.cred_prospectos_osm_page),
+main:has(.pedro_bot_page) {
     height: 100dvh;
     max-height: 100dvh;
     min-height: 0 !important;
@@ -29,7 +31,9 @@ main:has(.cred_prospectos_osm_page) {
 }
 
 .content:has(.cred_prospectos_osm_page) > *,
-main:has(.cred_prospectos_osm_page) > * {
+.content:has(.pedro_bot_page) > *,
+main:has(.cred_prospectos_osm_page) > *,
+main:has(.pedro_bot_page) > * {
     flex: 1 1 0%;
     min-height: 0;
     max-height: none;
@@ -42,6 +46,7 @@ main:has(.cred_prospectos_osm_page) > * {
 /* Mobile: main já tem pb-nav-bottom; altura útil = ecrã − bottom nav − FAB */
 @media (max-width: 1023px) {
     main:has(.cred_prospectos_osm_page),
+    main:has(.pedro_bot_page),
     main:has(.credenciamento_mapa_page),
     main:has(.credenciamento_main.quem_realiza),
     main:has(.cred_esp_cidade_page) {

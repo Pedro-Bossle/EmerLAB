@@ -292,6 +292,7 @@ export const usuarioTemAlgumaPermissaoDeEscrita = (profileOrPermissions) => {
     if (!permissions[chave]) return false
     // Dashboard/Home não conta: afazeres são liberados à parte no client Supabase
     if (chave.startsWith('inicio.dashboard.')) return false
+    if (chave.startsWith('inicio.pedro_bot.')) return false
     return (
       chave.endsWith('.create') ||
       chave.endsWith('.update') ||

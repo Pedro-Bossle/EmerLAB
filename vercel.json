@@ -39,6 +39,10 @@
     },
     "api/gemini-rate.js": {
       "maxDuration": 15
+    },
+    "api/pedro-bot.js": {
+      "maxDuration": 60,
+      "includeFiles": "docs/**"
     }
   },
   "rewrites": [

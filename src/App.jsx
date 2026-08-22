@@ -39,6 +39,7 @@ import PagamentosRegistro from './pages/Pagamentos/PagamentosRegistro';
 import PagamentosResumo from './pages/Pagamentos/PagamentosResumo';
 import NotFound from './pages/NotFound/NotFound';
 import Emerzap from './pages/Emerzap/Emerzap';
+import PedroBot from './pages/PedroBot/PedroBot';
 function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
@@ -64,6 +65,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Home />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/pedrobot"
+            element={
+              <PrivateRoute toolId="inicio.pedro_bot">
+                <PedroBot />
               </PrivateRoute>
             }
           />

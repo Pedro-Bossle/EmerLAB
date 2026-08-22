@@ -15,6 +15,7 @@ A coleta de prospectos usa Google AI Studio via **generateContent**. A chave é 
 
 - Utilizadores: [`docs/ia-usuario.md`](docs/ia-usuario.md)
 - Desenvolvedores: [`docs/ia-desenvolvedor.md`](docs/ia-desenvolvedor.md)
+- Pedro Bot (onboarding, `/pedrobot`): [`docs/pedro-bot-conhecimento.md`](docs/pedro-bot-conhecimento.md)
 - Edge Functions: [`supabase/MIGRACAO_EDGE_FUNCTIONS.md`](supabase/MIGRACAO_EDGE_FUNCTIONS.md)
 
 ## Build

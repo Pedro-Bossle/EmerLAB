@@ -106,6 +106,11 @@ export const MAIS_CHILDREN = [...CONFIG_TOOLS, ...ADMIN_CHILDREN, ...SESSION_CHI
 
 
 
+export const INICIO_CHILDREN = [
+  { label: 'Início', href: '/home' },
+  { label: 'Pedro Bot', href: '/pedrobot' },
+]
+
 export const NAV_HUBS = [
 
   {
@@ -119,6 +124,8 @@ export const NAV_HUBS = [
     href: '/home',
 
     icon: 'home',
+
+    children: INICIO_CHILDREN,
 
   },
 
@@ -270,7 +277,7 @@ export const NAV_HUBS = [
 
 export const SIDEBAR_GROUPS = [
 
-  { id: 'inicio', label: 'Início', href: '/home' },
+  { id: 'inicio', label: 'Início', children: INICIO_CHILDREN },
 
   {
 
@@ -358,7 +365,7 @@ export function filtrarChildrenNav(children, podeVerChild) {
 
 export function hubMatchesPath(hub, pathname) {
 
-  if (hub.href) return pathname === hub.href || pathname.startsWith(`${hub.href}/`)
+  if (hub.href && (pathname === hub.href || pathname.startsWith(`${hub.href}/`))) return true
 
   return (hub.children || []).some(
 
