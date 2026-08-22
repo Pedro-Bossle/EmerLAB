@@ -115,9 +115,16 @@ export const PERMISSION_CATALOG = [
         tools: [
             {
                 id: 'credenciamento.processos',
-                label: 'Processos',
-                descricao: 'Lista operacional e geração do PDF da Rede Credenciada.',
-                actions: RC,
+                label: 'Processos (Kanban)',
+                descricao: 'Funil Kanban de credenciamento: contato inicial e cadastro/pós.',
+                actions: RCUD,
+                href: '/credenciamento/principal',
+            },
+            {
+                id: 'credenciamento.processos_relatorio',
+                label: 'Relatório Processos',
+                descricao: 'Relatório gerencial do funil Kanban (CSV/contagens).',
+                actions: R,
                 href: '/credenciamento/principal',
             },
             {
@@ -438,7 +445,8 @@ export function expandLegacyToAcl(perms) {
         setTool('credenciamento.formulario_inbox', { read: true, update: true })
     }
     if (p[L.CREDENCIAMENTO_EDIT]) {
-        setTool('credenciamento.processos', { read: true, create: true })
+        setTool('credenciamento.processos', { read: true, create: true, update: true, delete: true })
+        setTool('credenciamento.processos_relatorio', { read: true })
         setTool('credenciamento.cadastro', { read: true, create: true, update: true, delete: true })
         setTool('credenciamento.especialidades_rc', { read: true, create: true, update: true, delete: true })
         setTool('credenciamento.formulario_inbox', { read: true, update: true })
@@ -548,6 +556,17 @@ export function completarAclFerramentasCredenciamento(perms) {
     if (!p[kQual]) {
         if (hasAcl(p, 'admin.auditoria', 'read') || hasAcl(p, 'admin.acessos', 'read') || p[L.ACCESS_MANAGE]) {
             p[kQual] = true
+        }
+    }
+    const kKanbanRel = aclKey('credenciamento.processos_relatorio', 'read')
+    if (!p[kKanbanRel]) {
+        if (
+            hasAcl(p, 'credenciamento.processos', 'update') ||
+            hasAcl(p, 'credenciamento.processos', 'create') ||
+            p[L.CREDENCIAMENTO_EDIT] ||
+            p[L.ACCESS_MANAGE]
+        ) {
+            p[kKanbanRel] = true
         }
     }
 

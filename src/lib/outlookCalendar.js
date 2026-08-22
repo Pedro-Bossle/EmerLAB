@@ -24,6 +24,7 @@ export function mapEventoOutlook(row) {
         isAllDay: Boolean(row.isAllDay),
         location: row.location?.displayName || '',
         webLink: row.webLink || '',
+        onlineMeetingUrl: row.onlineMeeting?.joinUrl || '',
     }
 }
 
@@ -80,3 +81,136 @@ export async function listarEventosOutlook(accessToken, { dias = 7, limite = 20 
     const data = await res.json()
     return (data.value || []).map(mapEventoOutlook).filter(Boolean)
 }
+
+/**
+ * Cria evento no calendário Outlook e envia convites aos convidados.
+ * @param {string} accessToken
+ * @param {{
+ *   subject: string,
+ *   start: Date|string,
+ *   end: Date|string,
+ *   timeZone?: string,
+ *   body?: string,
+ *   location?: string,
+ *   attendees?: Array<string|{ email: string, name?: string }>,
+ *   isOnlineMeeting?: boolean,
+ * }} opts
+ */
+export async function criarEventoOutlook(accessToken, opts = {}) {
+    if (!accessToken) throw new Error('Token Microsoft ausente.')
+    const subject = String(opts.subject || '').trim()
+    if (!subject) throw new Error('Informe o assunto da reunião.')
+
+    const start = opts.start instanceof Date ? opts.start : new Date(opts.start)
+    const end = opts.end instanceof Date ? opts.end : new Date(opts.end)
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
+        throw new Error('Datas da reunião inválidas.')
+    }
+    if (end.getTime() <= start.getTime()) {
+        throw new Error('A data/hora de fim deve ser depois do início.')
+    }
+
+    const timeZone = String(opts.timeZone || 'E. South America Standard Time').trim()
+    const attendees = normalizarConvidadosOutlook(opts.attendees)
+
+    const payload = {
+        subject,
+        body: {
+            contentType: 'HTML',
+            content: String(opts.body || '').trim() || `<p>${escapeHtmlBasico(subject)}</p>`,
+        },
+        start: {
+            dateTime: formatGraphLocalDateTime(start),
+            timeZone,
+        },
+        end: {
+            dateTime: formatGraphLocalDateTime(end),
+            timeZone,
+        },
+        location: opts.location
+            ? { displayName: String(opts.location).trim() }
+            : undefined,
+        attendees: attendees.map((a) => ({
+            emailAddress: {
+                address: a.email,
+                name: a.name || a.email,
+            },
+            type: 'required',
+        })),
+        isOnlineMeeting: Boolean(opts.isOnlineMeeting),
+        onlineMeetingProvider: opts.isOnlineMeeting ? 'teamsForBusiness' : undefined,
+        allowNewTimeProposals: true,
+        responseRequested: attendees.length > 0,
+    }
+
+    if (!payload.location) delete payload.location
+    if (!payload.isOnlineMeeting) delete payload.onlineMeetingProvider
+
+    const res = await fetch(`${GRAPH_ROOT}/me/events`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            Prefer: `outlook.timezone="${timeZone}"`,
+        },
+        body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+        let msg = `Microsoft Graph (${res.status})`
+        try {
+            const err = await res.json()
+            msg = err?.error?.message || msg
+        } catch {
+            /* ignore */
+        }
+        throw new Error(msg)
+    }
+
+    const row = await res.json()
+    return mapEventoOutlook(row)
+}
+
+function formatGraphLocalDateTime(d) {
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+function escapeHtmlBasico(s) {
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+}
+
+export function normalizarConvidadosOutlook(lista) {
+    const out = []
+    const visto = new Set()
+    for (const raw of lista || []) {
+        let email = ''
+        let name = ''
+        if (typeof raw === 'string') {
+            email = raw.trim().toLowerCase()
+        } else if (raw && typeof raw === 'object') {
+            email = String(raw.email || raw.address || '').trim().toLowerCase()
+            name = String(raw.name || raw.nome || '').trim()
+        }
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) continue
+        if (visto.has(email)) continue
+        visto.add(email)
+        out.push({ email, name })
+    }
+    return out
+}
+
+/** Parseia e-mails de uma linha (vírgula / ; / espaço). */
+export function parseEmailsConvidados(texto) {
+    return normalizarConvidadosOutlook(
+        String(texto || '')
+            .split(/[,;\s]+/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+    )
+}
+

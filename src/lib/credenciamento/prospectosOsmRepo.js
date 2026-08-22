@@ -62,6 +62,16 @@ export async function atualizarStatusProspectoOsm(id, { status_prospeccao, obser
         .maybeSingle()
 
     if (error) return { ok: false, erro: error.message }
+
+    if (String(status_prospeccao || data?.status_prospeccao || '') === 'contactado' && data) {
+        try {
+            const { enviarProspectoOsmParaKanban } = await import('../credKanban.js')
+            await enviarProspectoOsmParaKanban(data)
+        } catch {
+            /* kanban opcional se tabela ainda não existir */
+        }
+    }
+
     return { ok: true, item: data }
 }
 

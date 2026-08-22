@@ -28,7 +28,8 @@
     flex-shrink: 0;
     text-align: center;
     position: relative;
-    z-index: 30;
+    /* Abaixo da sidebar (z-30); só precisa ficar acima do mapa (z-0) */
+    z-index: 5;
     background: transparent;
     padding-bottom: 0;
     overflow: visible;
@@ -82,7 +83,7 @@ body.dark-mode .cred_prospectos_osm_page .cred_prospectos_osm_top {
     box-shadow: none;
     text-align: left;
     position: relative;
-    z-index: 31;
+    z-index: 6;
 }
 
 .cred_prospectos_osm_filtros_flutuantes .pcad_field {
@@ -492,6 +493,12 @@ body.cred_prospectos_osm_arrastando_split .cred_prospectos_osm_split {
     font-size: 0.82rem;
     min-width: 8.5rem;
     height: 28px;
+}
+
+.cred_prospectos_osm_btn_kanban {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    white-space: nowrap;
 }
 
 .cred_prospectos_osm_vazio {
