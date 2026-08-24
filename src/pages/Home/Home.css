@@ -10,7 +10,6 @@
     --home-ok: #15803d;
     box-sizing: border-box;
     min-height: 100%;
-    padding: 0;
     color: var(--home-ink);
     background: transparent;
 }
@@ -1615,6 +1614,81 @@ body.dark-mode .home_dash_footer_wrap {
     font-size: 0.72rem;
     font-weight: 700;
     vertical-align: middle;
+}
+
+@media (min-width: 1024px) {
+    .el-page.home_dash {
+        padding: 1.25rem 2rem 2rem;
+    }
+}
+
+/* Notebook / laptop: compacto no topo, folga à esquerda da sidebar */
+@media (min-width: 1024px) and (max-width: 1440px) {
+    .el-page.home_dash {
+        padding: 0.9rem 1.5rem 1.15rem 2.35rem;
+        max-width: none;
+    }
+
+    .home_dash_hero_wrap {
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.65rem;
+    }
+
+    .home_dash_bookmarks {
+        margin-bottom: 0.75rem;
+    }
+
+    .home_dash_bookmarks_bar {
+        min-height: 2.1rem;
+        padding: 0.22rem 0.4rem 0.22rem 0.5rem;
+    }
+
+    .home_dash_grid {
+        gap: 0.9rem;
+        min-height: 0;
+    }
+
+    .home_dash_card {
+        padding: 0.8rem 0.9rem 0.95rem;
+    }
+
+    .home_dash_card + .home_dash_card {
+        margin-top: 0.85rem;
+    }
+
+    .home_dash_card_head {
+        margin-bottom: 0.65rem;
+    }
+
+    .home_dash_footer_wrap {
+        margin-top: 1.15rem;
+    }
+
+    .home_dash_footer_wrap .el_footer {
+        margin-top: 0;
+        padding: 1.15rem 0.85rem 0.85rem;
+    }
+}
+
+@media (min-width: 1024px) and (max-height: 900px) {
+    .el-page.home_dash {
+        padding-top: 0.6rem;
+        padding-bottom: 0.85rem;
+    }
+
+    .home_dash_hero_wrap {
+        margin-bottom: 0.6rem;
+        padding-bottom: 0.5rem;
+    }
+
+    .home_dash_grid {
+        min-height: 0;
+        gap: 0.8rem;
+    }
+
+    .home_dash_footer_wrap {
+        margin-top: 0.85rem;
+    }
 }
 
 @media (max-width: 1100px) {
