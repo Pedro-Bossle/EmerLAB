@@ -11,7 +11,8 @@ import {
 import { supabase } from '../../../lib/supabase'
 import { buscarEnderecoPorCep } from '../../../lib/viacepClient'
 import {
-    TIPOS_REPASSE,
+    TIPO_REPASSE_DICA,
+    opcoesTipoRepasse,
     TIPOS_CHAVE_PIX,
     acharSituacaoCredenciadoId,
     patchCredenciadoEmSeTransicao,
@@ -1202,21 +1203,25 @@ const CredenciamentoCadastroForm = () => {
                                 }
                             />
                         </label>
-                        <label className="pcad_field">
-                            Nota / RPA
+                        <div className="pcad_field">
+                            <label className="pcad_field_label" htmlFor="pcad_tipo_repasse">
+                                Nota / RPA
+                            </label>
                             <select
+                                id="pcad_tipo_repasse"
                                 className="credenciamento_main_select"
                                 value={form.tipo_repasse}
                                 onChange={(e) => setCampo('tipo_repasse', e.target.value)}
                                 disabled={somenteLeitura}
                             >
-                                {TIPOS_REPASSE.map((t) => (
+                                {opcoesTipoRepasse(form.tipo_repasse).map((t) => (
                                     <option key={t.value || 'vazio'} value={t.value}>
                                         {t.label}
                                     </option>
                                 ))}
                             </select>
-                        </label>
+                            <p className="pcad_field_tip">{TIPO_REPASSE_DICA}</p>
+                        </div>
                     </div>
                 </section>
 

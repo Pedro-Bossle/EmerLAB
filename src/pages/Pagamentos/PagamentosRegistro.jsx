@@ -49,6 +49,7 @@ const ANO_ATUAL = hoje.getFullYear()
 const OPCOES_TIPO_FILTRO = [
     { value: '', label: 'Todos os tipos' },
     ...TIPOS_REPASSE.filter((t) => t.value),
+    { value: 'boleto', label: 'Boleto' },
 ]
 
 const OPCOES_FILTRO_SIM_NAO = [

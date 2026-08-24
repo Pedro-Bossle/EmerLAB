@@ -23,6 +23,7 @@ import {
     normalizarEmailParaSalvar,
 } from '../../../lib/prestadorCadastroHelpers'
 import FormularioPublicoPassoDados from './FormularioPublicoPassoDados.jsx'
+import { lerDarkModeAtivo, salvarDarkModeAtivo } from '../../../lib/sidebarPrefs'
 import { responsaveisParaPayload } from '../../../lib/prestadorVeterinarioCadastro.js'
 import {
     validarCertificadosConclusaoObrigatorios,
@@ -44,11 +45,50 @@ const TIPOS = FORMULARIO_PUBLICO_COMERCIO_ATIVO
 
 const normCod = (c) => String(c || '').trim().toUpperCase()
 
+function CabecalhoPublico({ titulo, darkModeAtivo, onToggleTema }) {
+    return (
+        <header className="fcred_public_top">
+            <div>
+                <p className="fcred_public_kicker">EmerLAB</p>
+                <h1 className="fcred_public_titulo">{titulo}</h1>
+            </div>
+            <button
+                type="button"
+                className="fcred_public_tema"
+                onClick={onToggleTema}
+                title={darkModeAtivo ? 'Modo claro' : 'Modo escuro'}
+                aria-label={darkModeAtivo ? 'Ativar modo claro' : 'Ativar modo escuro'}
+            >
+                {darkModeAtivo ? '☀' : '☾'}
+            </button>
+        </header>
+    )
+}
+
 export default function CredenciamentoFormularioPublico() {
     const { slug } = useParams()
 
+    const [darkModeAtivo, setDarkModeAtivo] = useState(() => lerDarkModeAtivo())
+
     useEffect(() => {
         setReadOnlyFlag(false)
+    }, [])
+
+    useEffect(() => {
+        document.body.classList.toggle('dark-mode', darkModeAtivo)
+        salvarDarkModeAtivo(darkModeAtivo)
+    }, [darkModeAtivo])
+
+    useEffect(() => {
+        const prev = document.title
+        document.title = 'Cadastro de parceiros · EmerLAB'
+        document.documentElement.classList.add('fcred-public-html')
+        document.body.classList.add('fcred-public-body')
+        return () => {
+            document.title = prev
+            document.documentElement.classList.remove('fcred-public-html')
+            document.body.classList.remove('fcred-public-body')
+        }
     }, [])
     const [loading, setLoading] = useState(true)
     const [erro, setErro] = useState('')
@@ -473,17 +513,14 @@ export default function CredenciamentoFormularioPublico() {
 
     if (enviado) {
         return (
-            <div className="el-page fcred_public_wrap fcred_public_page">
-                <header className="mb-5">
-                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-brand">EmerLAB</p>
-                    <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink dark:text-[#e8f1f8] md:text-3xl">
-                        Solicitação enviada
-                    </h1>
-                </header>
+            <div className="fcred_public_wrap fcred_public_page">
+                <CabecalhoPublico
+                    titulo="Solicitação enviada"
+                    darkModeAtivo={darkModeAtivo}
+                    onToggleTema={() => setDarkModeAtivo((v) => !v)}
+                />
                 <div className="fcred_public_card">
-                    <h2 className="font-display text-xl font-bold text-ink dark:text-[#e8f1f8]">
-                        Solicitação enviada com sucesso!
-                    </h2>
+                    <h2 className="fcred_public_ok_tit">Solicitação enviada com sucesso!</h2>
                     <p>
                         {docModo === 'atualizacao'
                             ? 'Recebemos sua atualização. Nossa equipe revisará e aplicará ao seu cadastro de credenciado em breve.'
@@ -495,13 +532,12 @@ export default function CredenciamentoFormularioPublico() {
     }
 
     return (
-        <div className="el-page fcred_public_wrap fcred_public_page">
-            <header className="mb-5">
-                <p className="mb-1 text-xs font-bold uppercase tracking-wider text-brand">EmerLAB</p>
-                <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink dark:text-[#e8f1f8] md:text-3xl">
-                    {config?.titulo || 'Cadastro de parceiros'}
-                </h1>
-            </header>
+        <div className="fcred_public_wrap fcred_public_page">
+            <CabecalhoPublico
+                titulo={config?.titulo || 'Cadastro de parceiros'}
+                darkModeAtivo={darkModeAtivo}
+                onToggleTema={() => setDarkModeAtivo((v) => !v)}
+            />
             <div className="fcred_public_card">
                 <header className="fcred_public_header">
                     <p className="fcred_public_step">

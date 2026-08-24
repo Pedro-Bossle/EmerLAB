@@ -3,7 +3,8 @@ import { documentoCpfCnpjEstaCompleto } from '../../../lib/formularioCredenciame
 import MultiEspecialidadesInput from '../Credenciamento_cadastro/MultiEspecialidadesInput.jsx'
 import {
     TIPOS_CHAVE_PIX,
-    TIPOS_REPASSE,
+    TIPO_REPASSE_DICA,
+    opcoesTipoRepasse,
     formatarChavePixEntrada,
     formatarCpfCnpjEntrada,
     formatarCrmvEntrada,
@@ -272,20 +273,21 @@ export default function FormularioPublicoPassoDados({
                             onChange={(e) => onChavePixChange(e.target.value)}
                         />
                     </label>
-                    <label className="fcred_field">
+                    <div className="fcred_field">
                         <span>Nota / RPA</span>
                         <select
                             className="fcred_select credenciamento_main_select"
                             value={tipoRepasse}
                             onChange={(e) => setTipoRepasse(e.target.value)}
                         >
-                            {TIPOS_REPASSE.map((t) => (
+                            {opcoesTipoRepasse(tipoRepasse).map((t) => (
                                 <option key={t.value || 'vazio'} value={t.value}>
                                     {t.label}
                                 </option>
                             ))}
                         </select>
-                    </label>
+                        <p className="fcred_field_hint fcred_doc_muted">{TIPO_REPASSE_DICA}</p>
+                    </div>
                 </div>
             </Bloco>
 

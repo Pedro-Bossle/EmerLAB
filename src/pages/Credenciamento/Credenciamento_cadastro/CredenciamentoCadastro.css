@@ -1049,6 +1049,18 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
     font-weight: 500;
 }
 
+.pcad_field_tip {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.35;
+    color: #5a6f86;
+}
+
+body.dark-mode .pcad_field_tip {
+    color: #9db0c4;
+}
+
 .pcad_multi_esp_cell {
     display: flex;
     flex-direction: column;

@@ -560,12 +560,76 @@
     min-width: 0;
 }
 
-/* Público */
+/* Público — fundo a preencher o ecrã (sem moldura branca do el-page) */
+html.fcred-public-html,
+html.fcred-public-html body,
+body.fcred-public-body,
+#root:has(.fcred_public_wrap) {
+    background: #e8f2f9;
+}
+
 .fcred_public_wrap {
-    min-height: 100vh;
-    background: linear-gradient(160deg, #e8f2f9 0%, #f4f8fb 45%, #fff 100%);
-    padding: 1.5rem 1rem 3rem;
+    width: 100%;
+    max-width: none;
+    min-height: 100dvh;
+    margin: 0;
+    background: #e8f2f9;
+    padding: 1.5rem 1.25rem 3rem;
     box-sizing: border-box;
+}
+
+.fcred_public_top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    max-width: min(1140px, calc(100vw - 2rem));
+    margin: 0 auto 1.25rem;
+}
+
+.fcred_public_kicker {
+    margin: 0 0 0.25rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #1f7eb8;
+}
+
+.fcred_public_titulo {
+    margin: 0;
+    font-size: clamp(1.45rem, 2.4vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: #123e59;
+}
+
+.fcred_public_ok_tit {
+    margin: 0 0 0.5rem;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #123e59;
+}
+
+.fcred_public_tema {
+    flex-shrink: 0;
+    width: 2.4rem;
+    height: 2.4rem;
+    border: 1px solid #b9cfde;
+    border-radius: 10px;
+    background: #fff;
+    color: #1e3148;
+    font-size: 1.05rem;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(30, 49, 72, 0.08);
+}
+
+.fcred_public_tema:hover {
+    background: #eef6fc;
+    border-color: #7eb6db;
 }
 
 .fcred_public_card {
@@ -582,8 +646,8 @@
 
 @media (min-width: 900px) {
     .fcred_public_wrap {
-        padding-left: 1.5rem;
-        padding-right: 1.5rem;
+        padding-left: 1.75rem;
+        padding-right: 1.75rem;
     }
 
     .fcred_public_card {
@@ -1347,4 +1411,145 @@ body.dark-mode .fcred_link_input {
 
 body.dark-mode .fcred_ativo_label {
     color: var(--text-main);
+}
+
+/* Formulário público — modo escuro */
+html.fcred-public-html:has(body.dark-mode),
+html.fcred-public-html body.dark-mode,
+body.dark-mode.fcred-public-body,
+body.dark-mode #root:has(.fcred_public_wrap) {
+    background: #0b1420;
+}
+
+body.dark-mode .fcred_public_wrap {
+    background: #0b1420;
+    color: #e8eef5;
+}
+
+body.dark-mode .fcred_public_kicker {
+    color: #6eb6e0;
+}
+
+body.dark-mode .fcred_public_titulo,
+body.dark-mode .fcred_public_ok_tit,
+body.dark-mode .fcred_public_card,
+body.dark-mode .fcred_bloco_tit,
+body.dark-mode .fcred_pagina_titulo,
+body.dark-mode .fcred_public_lead,
+body.dark-mode .fcred_proc_nome,
+body.dark-mode .fcred_proc_categoria_tit,
+body.dark-mode .fcred_field > span {
+    color: #e8f1f8;
+}
+
+body.dark-mode .fcred_public_step,
+body.dark-mode .fcred_public_muted,
+body.dark-mode .fcred_doc_muted {
+    color: #9db0c4;
+}
+
+body.dark-mode .fcred_public_tema {
+    background: #1a2634;
+    border-color: #3d5470;
+    color: #e8f1f8;
+}
+
+body.dark-mode .fcred_public_tema:hover {
+    background: #243445;
+    border-color: #6eb6e0;
+}
+
+body.dark-mode .fcred_public_card {
+    background: #132335;
+    border-color: #3a5775;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .fcred_bloco {
+    border-bottom-color: #3a5775;
+}
+
+body.dark-mode .fcred_bloco_nested {
+    border-top-color: #3a5775;
+}
+
+body.dark-mode .fcred_proc_categoria_tit {
+    border-bottom-color: #3a5775;
+}
+
+body.dark-mode .fcred_tipo_btn {
+    background: #0f1e2e;
+    border-color: #3d5470;
+    color: #e8f1f8;
+}
+
+body.dark-mode .fcred_tipo_btn.is-on {
+    background: rgba(47, 135, 198, 0.2);
+    border-color: #6eb6e0;
+}
+
+body.dark-mode .fcred_field input,
+body.dark-mode .fcred_field select,
+body.dark-mode .fcred_select,
+body.dark-mode .fcred_public_card .credenciamento_main_select,
+body.dark-mode .fcred_public_card .credenciamento_main_input {
+    background: #0f1e2e;
+    border-color: #3d5470;
+    color: #e8f1f8;
+}
+
+body.dark-mode .fcred_field input::placeholder,
+body.dark-mode .fcred_public_card input::placeholder {
+    color: #7a90a6;
+}
+
+body.dark-mode .fcred_field input:focus,
+body.dark-mode .fcred_field select:focus {
+    border-color: #6eb6e0;
+    box-shadow: 0 0 0 2px rgba(110, 182, 224, 0.2);
+}
+
+body.dark-mode .fcred_field input.fcred_input_invalid {
+    background: #2a1a1a;
+    border-color: #c45a5a;
+}
+
+body.dark-mode .fcred_aviso_terceiros {
+    background: #3a2e14;
+    border-color: #8a6a2a;
+    color: #ffe8b8;
+}
+
+body.dark-mode .fcred_public_erro {
+    background: #3a2222;
+    color: #f0b4b4;
+}
+
+body.dark-mode .fcred_proc_item {
+    background: #0f1e2e;
+    border-color: #3d5470;
+    color: #e8f1f8;
+}
+
+body.dark-mode .fcred_proc_item.is-on {
+    background: rgba(47, 135, 198, 0.18);
+    border-color: #6eb6e0;
+}
+
+body.dark-mode .fcred_public_nav {
+    border-top-color: #3a5775;
+}
+
+body.dark-mode .fcred_btn.secondary {
+    background: #243445;
+    color: #e8f1f8;
+    border: 1px solid #3d5470;
+}
+
+body.dark-mode .fcred_public_card .pcad_multi_esp_toggle,
+body.dark-mode .fcred_public_card .pcad_multi_esp_panel,
+body.dark-mode .fcred_public_card .pcad_sugestoes {
+    background: #0f1e2e;
+    border-color: #3d5470;
+    color: #e8f1f8;
 }

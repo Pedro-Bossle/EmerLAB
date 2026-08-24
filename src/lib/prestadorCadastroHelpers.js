@@ -29,8 +29,19 @@ export const TIPOS_REPASSE = [
     { value: '', label: '— Selecione —' },
     { value: 'rpa', label: 'RPA' },
     { value: 'nota', label: 'Nota' },
-    { value: 'boleto', label: 'Boleto' },
 ]
+
+export const TIPO_REPASSE_DICA =
+    'Se o atendimento é feito pelo CPF, escolha RPA. Se o veterinário possui CNPJ, escolha Nota.'
+
+/** Inclui valores antigos (ex.: boleto) só para exibir o que já está gravado. */
+export function opcoesTipoRepasse(valorAtual) {
+    const base = TIPOS_REPASSE
+    const v = String(valorAtual || '').trim().toLowerCase()
+    if (!v || base.some((t) => t.value === v)) return base
+    const legado = { boleto: 'Boleto' }[v]
+    return [...base, { value: v, label: legado || v }]
+}
 
 export const normalizarTextoBusca = (texto) =>
     String(texto || '')
