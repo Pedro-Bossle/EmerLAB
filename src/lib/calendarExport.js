@@ -170,7 +170,7 @@ export function tarefasParaIcsEvents(tarefas) {
     const hoje = new Date()
     hoje.setHours(12, 0, 0, 0)
     return (tarefas || [])
-        .filter((t) => t && t.status !== 'cancelada')
+        .filter((t) => t && t.status !== 'cancelada' && t.status !== 'concluida')
         .map((t) => {
             let start = hoje
             if (t.prazo) {

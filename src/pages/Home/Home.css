@@ -266,14 +266,14 @@ body.dark-mode .home_dash_card_head h2 {
 
 .home_dash_tarefa_form_topo {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
-  gap: 0.85rem 1.15rem;
-  align-items: end;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  align-items: stretch;
 }
 
 .home_dash_tarefa_form_meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.35fr) minmax(9.5rem, 0.9fr) minmax(7.5rem, 0.75fr);
   gap: 0.75rem;
   align-items: end;
 }
@@ -300,7 +300,22 @@ body.dark-mode .home_dash_card_head h2 {
 .home_dash_tarefa_campo--titulo .home_dash_input {
   height: 2.45rem;
   min-height: 2.45rem;
+  width: 100%;
+  max-width: 100%;
   box-sizing: border-box;
+}
+
+/* Evita clipping do date/select (ícone nativo + texto) */
+.home_dash_tarefa_form_meta select.home_dash_input,
+.home_dash_tarefa_form_meta input[type='date'].home_dash_input {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 0.55rem;
+}
+
+.home_dash_tarefa_form_meta input[type='date'].home_dash_input {
+  padding-inline: 0.55rem 0.35rem;
 }
 
 .home_dash_tarefa_campo .home_dash_input,
@@ -1311,7 +1326,7 @@ body.dark-mode .home_dash_bookmarks_bar {
   padding: 0;
   display: grid;
   gap: 0.4rem;
-  max-height: 320px;
+  max-height: 280px;
   overflow-y: auto;
 }
 
@@ -1362,6 +1377,126 @@ a.home_dash_agenda_link:hover {
   grid-column: 2;
   font-size: 0.72rem;
   color: var(--home-muted);
+}
+
+.home_dash_agenda_semana {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.home_dash_agenda_semana_rotulo {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--home-muted);
+}
+
+.home_dash_agenda_dias {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.3rem;
+}
+
+.home_dash_agenda_dia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.4rem 0.15rem;
+  border: 1px solid var(--home-line);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.home_dash_agenda_dia:hover {
+  background: var(--home-accent-soft);
+}
+
+.home_dash_agenda_dia.is-active {
+  border-color: var(--home-accent, #0f74b9);
+  background: var(--home-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--home-accent, #0f74b9);
+}
+
+.home_dash_agenda_dia.is-hoje .home_dash_agenda_dia_num {
+  color: var(--home-accent, #0f74b9);
+}
+
+.home_dash_agenda_dia_wd {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--home-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.home_dash_agenda_dia_num {
+  font-size: 0.95rem;
+  line-height: 1.1;
+}
+
+.home_dash_agenda_dia_count {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--home-muted);
+  min-height: 0.9rem;
+}
+
+.home_dash_agenda_dia.is-active .home_dash_agenda_dia_count {
+  color: var(--home-accent, #0f74b9);
+}
+
+.home_dash_agenda_dia_painel {
+  border: 1px solid var(--home-line);
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem 0.7rem;
+}
+
+.home_dash_agenda_dia_titulo {
+  margin: 0 0 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  text-transform: capitalize;
+}
+
+.home_dash_agenda_hoje_tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--home-accent, #0f74b9);
+  background: var(--home-accent-soft, #e8f5ff);
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+}
+
+@media (max-width: 640px) {
+  .home_dash_agenda_dias {
+    gap: 0.2rem;
+  }
+
+  .home_dash_agenda_dia {
+    padding: 0.35rem 0.1rem;
+  }
+
+  .home_dash_agenda_dia_wd {
+    font-size: 0.55rem;
+  }
+
+  .home_dash_agenda_dia_num {
+    font-size: 0.85rem;
+  }
 }
 
 .home_dash_notif_grid {
@@ -1740,7 +1875,7 @@ body.dark-mode .home_dash_footer_wrap {
   }
 
   .home_dash_tarefa_form_meta {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.2fr) minmax(8.5rem, 0.85fr) minmax(7rem, 0.7fr);
     gap: 0.65rem;
   }
 

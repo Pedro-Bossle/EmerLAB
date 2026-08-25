@@ -36,6 +36,7 @@ import {
     sincronizarPrestadorProcedimentos,
 } from '../../../lib/prestadorProcedimentos.js'
 import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanenteCredenciamento.js'
+import { sincronizarCardKanbanComSituacao } from '../../../lib/credKanban.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import { UFS_BRASIL, buscarMunicipiosPorUf, resolverUfPorNomeMunicipio } from '../../../lib/ibgeLocalidades.js'
 import PrestadorServicosAbas from './PrestadorServicosAbas.jsx'
@@ -808,6 +809,14 @@ const CredenciamentoCadastroForm = () => {
                 solicitarGeocodePrestador(pid)
             }
 
+            if (form.situacao_id) {
+                try {
+                    await sincronizarCardKanbanComSituacao(pid, form.situacao_id, { situacoes })
+                } catch {
+                    /* Kanban ausente ou falha de sync não bloqueia o save do perfil */
+                }
+            }
+
             navigate('/credenciamento/cadastro', { replace: true })
         } catch (e) {
             setErro(e?.message || String(e))
@@ -1259,6 +1268,7 @@ const CredenciamentoCadastroForm = () => {
                                 codigosSelecionados={procSelecionados}
                                 form={form}
                                 nomeEspecialidade={nomeEspecialidadePrincipal}
+                                responsaveis={responsaveis}
                                 podeGerarContrato={podeGerarContrato}
                                 disabled={somenteLeitura || isNovo}
                             />

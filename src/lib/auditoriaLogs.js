@@ -50,6 +50,9 @@ const LIMIARES_SUSPEITO = {
     deletesHoraUsuario: 15,
     massaHoraUsuarioTabela: 40,
     rajada15minUsuario: 60,
+    loginsHoraUsuario: 20,
+    permissionChangesSemana: 15,
+    logoutsHoraUsuario: 30,
 }
 
 function inicioSemanaIso(agora = new Date()) {
@@ -210,6 +213,58 @@ export function detectarPadroesSuspeitosAuditoria(logs = [], { agora = new Date(
                 detalhe: `${nome}: ${n} eventos em ~15 minutos.`,
             })
         }
+    }
+
+    const porLoginHora = new Map()
+    const porLogoutHora = new Map()
+    let permissionChanges = 0
+    for (const l of naSemana) {
+        const acao = String(l.acao || '').toUpperCase()
+        const uid = l.usuario_id || l.usuario_nome || 'desconhecido'
+        const nome = l.usuario_nome || uid
+        const t = new Date(l.data_hora).getTime()
+        if (!Number.isFinite(t)) continue
+        const horaKey = `${uid}|${Math.floor(t / (60 * 60 * 1000))}`
+        if (acao === 'LOGIN') {
+            const cur = porLoginHora.get(horaKey) || { nome, n: 0 }
+            cur.n += 1
+            porLoginHora.set(horaKey, cur)
+        }
+        if (acao === 'LOGOUT') {
+            const cur = porLogoutHora.get(horaKey) || { nome, n: 0 }
+            cur.n += 1
+            porLogoutHora.set(horaKey, cur)
+        }
+        if (acao === 'PERMISSION_CHANGE') permissionChanges += 1
+    }
+
+    for (const { nome, n } of porLoginHora.values()) {
+        if (n >= LIMIARES_SUSPEITO.loginsHoraUsuario) {
+            alertas.push({
+                id: `login-hora-${nome}-${n}`,
+                severidade: 'warning',
+                titulo: 'Muitos logins em 1 h',
+                detalhe: `${nome}: ${n} logins em cerca de 1 hora (possível partilha de conta ou script).`,
+            })
+        }
+    }
+    for (const { nome, n } of porLogoutHora.values()) {
+        if (n >= LIMIARES_SUSPEITO.logoutsHoraUsuario) {
+            alertas.push({
+                id: `logout-hora-${nome}-${n}`,
+                severidade: 'info',
+                titulo: 'Muitos logouts em 1 h',
+                detalhe: `${nome}: ${n} logouts em cerca de 1 hora.`,
+            })
+        }
+    }
+    if (permissionChanges >= LIMIARES_SUSPEITO.permissionChangesSemana) {
+        alertas.push({
+            id: 'permissoes-semana',
+            severidade: 'warning',
+            titulo: 'Muitas alterações de permissão',
+            detalhe: `${permissionChanges} mudanças de permissão nos últimos 7 dias (limite ${LIMIARES_SUSPEITO.permissionChangesSemana}).`,
+        })
     }
 
     // Dedup por titulo+detalhe

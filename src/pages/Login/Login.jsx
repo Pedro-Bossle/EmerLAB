@@ -77,8 +77,16 @@ const Login = () => {
     let ativo = true
     void (async () => {
       try {
-        const { session } = await carregarSessaoEPerfilAcesso()
+        const { session, profile } = await carregarSessaoEPerfilAcesso()
         if (!ativo || !session?.user?.id) return
+        if (profile?.forcePasswordChange) {
+          const next =
+            destino && destino !== '/' && destino !== '/alterar-senha'
+              ? `/alterar-senha?next=${encodeURIComponent(destino)}`
+              : '/alterar-senha'
+          navigate(next, { replace: true })
+          return
+        }
         navigate(destino, { replace: true })
       } catch {
         /* fica no login */
@@ -95,15 +103,35 @@ const Login = () => {
     setLoading(true)
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
-
     if (error) {
-      setErrorMsg('Email ou senha inválidos.')
+      setLoading(false)
+      const msg = String(error.message || '').toLowerCase()
+      if (msg.includes('rate') || msg.includes('too many') || error.status === 429) {
+        setErrorMsg('Demasiadas tentativas de login. Aguarde alguns minutos e tente de novo.')
+      } else {
+        setErrorMsg('Email ou senha inválidos.')
+      }
       return
     }
 
     void registrarEventoAuthAuditoria('LOGIN')
-    navigate(destino)
+
+    try {
+      const { profile } = await carregarSessaoEPerfilAcesso()
+      setLoading(false)
+      if (profile?.forcePasswordChange) {
+        const next =
+          destino && destino !== '/' && destino !== '/alterar-senha'
+            ? `/alterar-senha?next=${encodeURIComponent(destino)}`
+            : '/alterar-senha'
+        navigate(next)
+        return
+      }
+      navigate(destino)
+    } catch {
+      setLoading(false)
+      navigate(destino)
+    }
   }
 
   return (

@@ -12,6 +12,11 @@ import { useAutoDismiss } from '../../../lib/toastUi.js'
 import './GerenciamentoAcessos.css'
 import './PermissoesCascade.css'
 import { PageHeader } from '../../../components/ui'
+import {
+    PASSWORD_MIN_LENGTH,
+    textoAjudaPoliticaSenha,
+    validarPoliticaSenha,
+} from '../../../lib/passwordPolicy'
 
 function contarFerramentasComAcesso(permissions) {
     let total = 0
@@ -231,8 +236,8 @@ const GerenciamentoAcessos = () => {
     const salvarNovoUsuario = async (event) => {
         event.preventDefault()
         if (modoNovoUsuario === 'create') {
-            if (convite.password.length < 8) {
-                mostrarErro('A senha deve ter pelo menos 8 caracteres.')
+            if (!validarPoliticaSenha(convite.password).ok) {
+                mostrarErro(validarPoliticaSenha(convite.password).error || textoAjudaPoliticaSenha())
                 return
             }
             if (convite.password !== convite.passwordConfirm) {
@@ -378,6 +383,48 @@ const GerenciamentoAcessos = () => {
         }
     }
 
+    const alternarExigirTrocaSenha = async () => {
+        if (!edicao?.id) {
+            mostrarErro('Selecione um usuário.')
+            return
+        }
+        const forcar = !usuarioSelecionado?.forcePasswordChange
+        if (forcar) {
+            const rotulo = edicao.name || edicao.email || edicao.id
+            const confirmar = window.confirm(
+                `Exigir troca de senha no próximo acesso de «${rotulo}»?\n\nNo próximo login, a pessoa será obrigada a definir uma nova senha antes de usar o app.`,
+            )
+            if (!confirmar) return
+        }
+
+        setLoading(true)
+        try {
+            const json = await chamarAdminUsers({
+                action: 'forcePasswordChange',
+                userId: edicao.id,
+                force: forcar,
+            })
+            const profile = normalizarProfileAcesso(json.profile || {
+                ...usuarioSelecionado,
+                force_password_change: forcar,
+            })
+            setUsuarios((atuais) =>
+                atuais.map((item) => (String(item.id) === String(profile.id) ? { ...item, ...profile } : item)),
+            )
+            if (abaDetalhe === 'historico') await carregarLogs(edicao.id)
+            mostrarMensagem(
+                json?.message ||
+                    (forcar
+                        ? 'Troca de senha exigida no próximo acesso.'
+                        : 'Exigência de troca de senha cancelada.'),
+            )
+        } catch (error) {
+            mostrarErro(error.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     return (
         <main className='el-page gerenciamento_acessos'>
             <PageHeader
@@ -424,6 +471,9 @@ const GerenciamentoAcessos = () => {
                             >
                                 <strong>{usuario.name || 'Sem nome'}</strong>
                                 <span>{usuario.email || usuario.id}</span>
+                                {usuario.forcePasswordChange ? (
+                                    <em className='gerenciamento_acessos_usuario_badge'>Troca de senha pendente</em>
+                                ) : null}
                             </button>
                         ))}
                         {!loading && usuariosFiltrados.length === 0 && (
@@ -507,10 +557,30 @@ const GerenciamentoAcessos = () => {
                                     </div>
                                     <p className='gerenciamento_acessos_hint'>
                                         Somente «Ver» nas ferramentas bloqueia criar, editar e excluir linhas nas tabelas.
+                                        A senha de login deve ser renovada a cada 90 dias.
                                     </p>
+                                    {usuarioSelecionado?.forcePasswordChange ? (
+                                        <p className='gerenciamento_acessos_hint gerenciamento_acessos_hint_aviso'>
+                                            Troca de senha pendente: no próximo login este usuário deverá definir uma nova senha.
+                                        </p>
+                                    ) : null}
                                     <div className='gerenciamento_acessos_acoes gerenciamento_acessos_acoes_conta'>
                                         <button type='button' onClick={redefinirSenha} disabled={loading || !edicao.email}>
                                             Redefinir senha
+                                        </button>
+                                        <button
+                                            type='button'
+                                            onClick={alternarExigirTrocaSenha}
+                                            disabled={loading}
+                                            title={
+                                                usuarioSelecionado?.forcePasswordChange
+                                                    ? 'Remove a exigência de troca no próximo acesso'
+                                                    : 'Obriga o usuário a definir nova senha no próximo login'
+                                            }
+                                        >
+                                            {usuarioSelecionado?.forcePasswordChange
+                                                ? 'Cancelar troca no próximo acesso'
+                                                : 'Exigir troca no próximo acesso'}
                                         </button>
                                         <button
                                             type='button'
@@ -688,9 +758,9 @@ const GerenciamentoAcessos = () => {
                                                             password: event.target.value,
                                                         }))
                                                     }
-                                                    placeholder='Mínimo 8 caracteres'
+                                                    placeholder={textoAjudaPoliticaSenha()}
                                                     required
-                                                    minLength={8}
+                                                    minLength={PASSWORD_MIN_LENGTH}
                                                     autoComplete='new-password'
                                                     disabled={loading}
                                                 />
@@ -708,7 +778,7 @@ const GerenciamentoAcessos = () => {
                                                     }
                                                     placeholder='Repita a senha'
                                                     required
-                                                    minLength={8}
+                                                    minLength={PASSWORD_MIN_LENGTH}
                                                     autoComplete='new-password'
                                                     disabled={loading}
                                                 />

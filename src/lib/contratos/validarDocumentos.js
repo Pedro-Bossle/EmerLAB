@@ -36,6 +36,16 @@ export function validarEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)
 }
 
+/** Um ou mais e-mails separados por `;` ou `,` (ex.: vários responsáveis no contrato de desconto). */
+export function validarEmailsLista(valor) {
+    const partes = String(valor || '')
+        .split(/[;,]/)
+        .map((p) => p.trim())
+        .filter(Boolean)
+    if (!partes.length) return false
+    return partes.every((p) => validarEmail(p))
+}
+
 export function errosValidacao(tipo, d) {
     const e = []
     const req = (ok, msg) => {
@@ -69,7 +79,7 @@ export function errosValidacao(tipo, d) {
         req(String(d.razaoSocial || '').trim(), 'Razão Social é obrigatória.')
         req(String(d.enderecoCompleto || '').trim(), 'Endereço é obrigatório.')
         req(String(d.responsavelLegal || '').trim(), 'Responsável legal é obrigatório.')
-        req(validarEmail(d.emailResponsavel), 'E-mail do responsável inválido ou vazio.')
+        req(validarEmailsLista(d.emailResponsavel), 'E-mail do responsável inválido ou vazio.')
         req(String(d.contatoResponsavel || '').trim(), 'Contato do responsável é obrigatório.')
     }
 

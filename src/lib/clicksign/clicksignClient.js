@@ -27,9 +27,11 @@ async function parseJson(res) {
  */
 export async function clicksignRequest(method, path, body = null) {
     const p = path.startsWith('/') ? path : `/${path}`
+    const { userAccessTokenHeaders } = await import('../api/serverBackend.js')
+    const auth = await userAccessTokenHeaders()
     const opts = {
         method,
-        headers: { Accept: 'application/vnd.api+json' },
+        headers: { Accept: 'application/vnd.api+json', ...auth },
     }
     if (body != null && method !== 'GET' && method !== 'HEAD') {
         opts.headers['Content-Type'] = 'application/vnd.api+json'
@@ -956,7 +958,7 @@ export function urlVisualizarDocumentoProxy(envelopeId, documentId, variant = 'a
     return `/api/clicksign-download?${q.toString()}`
 }
 
-export function abrirVisualizacaoDocumento(envelopeId, doc, opts = {}) {
+export async function abrirVisualizacaoDocumento(envelopeId, doc, opts = {}) {
     const eid = String(envelopeId || opts.envelopeId || '').trim()
     const did = String(doc?.id || '').trim()
     if (!eid || !did) return { ok: false, reason: 'missing_id' }
@@ -965,9 +967,22 @@ export function abrirVisualizacaoDocumento(envelopeId, doc, opts = {}) {
         window.open(direct, '_blank', 'noopener,noreferrer')
         return { ok: true, mode: 'direct' }
     }
-    const proxied = urlVisualizarDocumentoProxy(eid, did, opts.variant || 'auto')
-    window.open(proxied, '_blank', 'noopener,noreferrer')
-    return { ok: true, mode: 'proxy' }
+    try {
+        const { userAccessTokenHeaders } = await import('../api/serverBackend.js')
+        const auth = await userAccessTokenHeaders()
+        const proxied = urlVisualizarDocumentoProxy(eid, did, opts.variant || 'auto')
+        const res = await fetch(proxied, { headers: { ...auth, Accept: 'application/pdf' } })
+        if (!res.ok) {
+            return { ok: false, reason: 'proxy_failed', status: res.status }
+        }
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        window.open(url, '_blank', 'noopener,noreferrer')
+        setTimeout(() => URL.revokeObjectURL(url), 120_000)
+        return { ok: true, mode: 'proxy-blob' }
+    } catch {
+        return { ok: false, reason: 'proxy_error' }
+    }
 }
 
 export function rotuloEstadoDocumento(status) {

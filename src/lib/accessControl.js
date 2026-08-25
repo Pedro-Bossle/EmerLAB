@@ -258,12 +258,36 @@ export const normalizarPermissions = (profile = {}) => {
   return syncLegacyFromAcl(comAcl)
 }
 
-export const normalizarProfileAcesso = (profile = {}) => ({
-  id: profile?.id || null,
-  name: profile?.name || '',
-  email: profile?.email || '',
-  permissions: normalizarPermissions(profile),
-})
+export const PASSWORD_MAX_AGE_DAYS = 90
+
+const PASSWORD_MAX_AGE_MS = PASSWORD_MAX_AGE_DAYS * 24 * 60 * 60 * 1000
+
+/**
+ * True se há data de troca e já passaram 90 dias.
+ * Sem data registrada: não força (evita loop quando a coluna ainda não existe / não foi migrada).
+ */
+export const senhaExpiradaPorPrazo = (profile = {}) => {
+  const raw = profile?.password_changed_at ?? profile?.passwordChangedAt
+  if (!raw) return false
+  const t = new Date(raw).getTime()
+  if (!Number.isFinite(t)) return false
+  return Date.now() - t >= PASSWORD_MAX_AGE_MS
+}
+
+export const normalizarProfileAcesso = (profile = {}) => {
+  const forceAdmin = Boolean(profile?.force_password_change ?? profile?.forcePasswordChange)
+  const passwordChangedAt = profile?.password_changed_at ?? profile?.passwordChangedAt ?? null
+  const forceByAge = senhaExpiradaPorPrazo({ password_changed_at: passwordChangedAt })
+  return {
+    id: profile?.id || null,
+    name: profile?.name || '',
+    email: profile?.email || '',
+    permissions: normalizarPermissions(profile),
+    passwordChangedAt,
+    forcePasswordChange: forceAdmin || forceByAge,
+    forcePasswordChangeReason: forceAdmin ? 'admin' : forceByAge ? 'expired' : null,
+  }
+}
 
 export const hasPermission = (profileOrPermissions, key) => {
   const permissions = profileOrPermissions?.permissions || profileOrPermissions || {}

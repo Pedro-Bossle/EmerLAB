@@ -57,6 +57,7 @@ import {
     filtrarSugestoesSignatarioKanban,
     listarSugestoesSignatarioKanbanAssinatura,
 } from '../../lib/clicksign/sugestoesSignatarioKanban.js'
+import { buscarDadosCNPJ, ORIGENS_CONSULTA_CNPJ } from '../../lib/contratos/consultaCnpj.js'
 import {
     carregarNotificacoes,
     limparTodasNotificacoesContratos,
@@ -231,6 +232,7 @@ export default function ClicksignEmerdog() {
 
     /** Modais de signatários: `novo` | `agenda` | `agenda_edit` | `qual` (assinar como). */
     const [signModal, setSignModal] = useState(null)
+    const [signModalCliquesFora, setSignModalCliquesFora] = useState(0)
     const [signDraft, setSignDraft] = useState({
         channel: 'email',
         email: '',
@@ -289,16 +291,32 @@ export default function ClicksignEmerdog() {
         }
     }, [signModal])
 
+    useEffect(() => {
+        setSignModalCliquesFora(0)
+    }, [signModal])
+
     const sugestoesKanbanFiltradas = useMemo(
         () => filtrarSugestoesSignatarioKanban(sugestoesKanban, sugestoesKanbanBusca).slice(0, 12),
         [sugestoesKanban, sugestoesKanbanBusca],
     )
 
-    const aplicarSugestaoKanban = useCallback((s) => {
+    const aplicarSugestaoKanban = useCallback(async (s) => {
         if (!s) return
+        let nome = String(s.nome || '').trim()
+        if (s.temCnpj && s.cpfCnpj) {
+            try {
+                const dados = await buscarDadosCNPJ(s.cpfCnpj, {
+                    origem: ORIGENS_CONSULTA_CNPJ.CONTRATOS_EMERDOG,
+                })
+                const razao = String(dados?.razaoSocial || '').trim()
+                if (razao) nome = razao
+            } catch {
+                /* mantém razão social do cadastro / nome já resolvido na lista */
+            }
+        }
         setSignDraft((d) => ({
             ...d,
-            nome: s.nome || d.nome,
+            nome: nome || d.nome,
             email: s.email || d.email,
             phone: s.telefone || d.phone,
             channel: d.channel === 'whatsapp' || (s.telefone && !s.email) ? 'whatsapp' : 'email',
@@ -1279,6 +1297,7 @@ export default function ClicksignEmerdog() {
     const fecharSignModal = useCallback(() => {
         signReplaceSignerIdRef.current = ''
         setSignModal(null)
+        setSignModalCliquesFora(0)
         setSignPending(null)
         setSignModalAgendaSel([])
         setAgendaQualPorId({})
@@ -1287,6 +1306,18 @@ export default function ClicksignEmerdog() {
         setSugestoesKanbanBusca('')
         setSignAgendaEditId(null)
     }, [])
+
+    const onSignModalBackdropClick = useCallback(() => {
+        if (fluxoBusy) return
+        setSignModalCliquesFora((n) => {
+            const next = n + 1
+            if (next >= 2) {
+                fecharSignModal()
+                return 0
+            }
+            return next
+        })
+    }, [fluxoBusy, fecharSignModal])
 
     const adicionarSignatarioComParametros = useCallback(
         async ({ nome, email, phone, channel, papel, gravarNaAgenda }) => {
@@ -2523,15 +2554,23 @@ export default function ClicksignEmerdog() {
                 <div
                     className="contratos_modal_backdrop cs_sign_modal_layer"
                     role="presentation"
-                    onClick={() => !fluxoBusy && fecharSignModal()}
+                    onClick={onSignModalBackdropClick}
                 >
                     <div
                         className={`contratos_modal cs_sign_modal ${signModal === 'novo' ? 'cs_sign_modal--novo' : ''} ${signModal === 'agenda' || signModal === 'agenda_edit' || signModal === 'agenda_multi_qual' ? 'cs_sign_modal--wide' : ''}`}
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="cs-sign-modal-title"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            setSignModalCliquesFora(0)
+                        }}
                     >
+                        {signModalCliquesFora === 1 ? (
+                            <p className="cs_sign_fechar_dica" role="status">
+                                Clique outra vez fora para fechar
+                            </p>
+                        ) : null}
                         {signModal === 'novo' && (
                             <>
                                 <div className="contratos_modal_head">
@@ -2568,17 +2607,20 @@ export default function ClicksignEmerdog() {
                                                         <button
                                                             type="button"
                                                             className="cs_sign_kanban_item"
-                                                            onClick={() => aplicarSugestaoKanban(s)}
+                                                            onClick={() => void aplicarSugestaoKanban(s)}
                                                             title={
-                                                                s.email
-                                                                    ? 'Preencher formulário'
-                                                                    : 'Sem e-mail no cadastro — complete manualmente'
+                                                                s.temCnpj
+                                                                    ? 'Preencher com razão social (CNPJ)'
+                                                                    : s.email
+                                                                      ? 'Preencher com o nome do card'
+                                                                      : 'Sem e-mail no cadastro — complete manualmente'
                                                             }
                                                         >
                                                             <span className="cs_sign_kanban_item_nome">
                                                                 {s.nome || `Prestador #${s.prestadorId}`}
                                                             </span>
                                                             <span className="cs_sign_kanban_item_meta">
+                                                                {s.temCnpj ? 'CNPJ · ' : ''}
                                                                 {s.email || 'sem e-mail'}
                                                                 {[s.cidade, s.uf].filter(Boolean).length
                                                                     ? ` · ${[s.cidade, s.uf].filter(Boolean).join('/')}`
@@ -2817,8 +2859,10 @@ export default function ClicksignEmerdog() {
                                                                         type="button"
                                                                         className="contratos_btn contratos_btn_secondary clicksign_btn_sm"
                                                                         onClick={() => {
-                                                                            aplicarSugestaoKanban(s)
-                                                                            abrirSignModalKanban('novo')
+                                                                            void (async () => {
+                                                                                await aplicarSugestaoKanban(s)
+                                                                                abrirSignModalKanban('novo')
+                                                                            })()
                                                                         }}
                                                                     >
                                                                         Usar

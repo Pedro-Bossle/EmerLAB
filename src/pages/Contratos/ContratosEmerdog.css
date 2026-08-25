@@ -7,14 +7,14 @@
 }
 
 .contratos_emerdog h1 {
-    text-align: center;
+    text-align: left;
     font-size: 1.45rem;
     margin: 0.5rem 0 0.25rem;
     font-weight: 700;
 }
 
 .contratos_emerdog_sub {
-    text-align: center;
+    text-align: left;
     font-size: 0.92rem;
     color: #5e7188;
     margin: 0 0 1.25rem;

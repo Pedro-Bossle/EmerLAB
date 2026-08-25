@@ -1,0 +1,48 @@
+name: Security checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-and-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: npm audit (high+)
+        run: npm audit --audit-level=high
+
+      - name: Guard — no VITE_ secrets for server keys
+        run: |
+          set -e
+          if git grep -nE 'VITE_(GEMINI_API_KEY|SUPABASE_SERVICE_ROLE|CLICKSIGN_ACCESS_TOKEN|CLICKSIGN_WEBHOOK_SECRET|TURNSTILE_SECRET)' -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.env*' '*.md' '*.modelo' 2>/dev/null; then
+            echo "::error::Encontrado prefixo VITE_ em segredo de servidor."
+            exit 1
+          fi
+          echo "OK: sem VITE_ em chaves sensíveis conhecidas."
+
+      - name: Guard — .env.local not committed
+        run: |
+          if git ls-files --error-unmatch .env.local >/dev/null 2>&1; then
+            echo "::error::.env.local não deve estar no git."
+            exit 1
+          fi
+          echo "OK: .env.local fora do versionamento."

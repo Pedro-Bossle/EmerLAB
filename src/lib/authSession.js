@@ -71,26 +71,45 @@ export function obterSessaoSupabase() {
 
 const perfilInflightPorUsuario = new Map()
 
+/** Invalida cache curto de perfil (ex.: após troca de senha). */
+export function invalidarCachePerfilAcesso(userId) {
+  if (userId) perfilInflightPorUsuario.delete(userId)
+  else perfilInflightPorUsuario.clear()
+}
+
 async function buscarPerfilSupabasePorUserId(userId) {
-  let { data: profileData, error } = await supabase
-    .from('profiles')
-    .select('id, name, email, permissions')
-    .eq('id', userId)
-    .maybeSingle()
-  if (error && String(error.message || '').includes('email')) {
-    const fallback = await supabase
+  const selects = [
+    'id, name, email, permissions, force_password_change, password_changed_at',
+    'id, name, email, permissions, force_password_change',
+    'id, name, email, permissions',
+    'id, name, permissions, force_password_change, password_changed_at',
+    'id, name, permissions, force_password_change',
+    'id, name, permissions',
+  ]
+  let ultimoErro = null
+  for (const select of selects) {
+    const { data: profileData, error } = await supabase
       .from('profiles')
-      .select('id, name, permissions')
+      .select(select)
       .eq('id', userId)
       .maybeSingle()
-    profileData = fallback.data
-    error = fallback.error
+    if (!error) {
+      if (!profileData) {
+        return { profile: null, error: new Error('Perfil não encontrado.') }
+      }
+      return { profile: normalizarProfileAcesso(profileData), error: null }
+    }
+    ultimoErro = error
+    const msg = String(error.message || '').toLowerCase()
+    if (
+      !msg.includes('email') &&
+      !msg.includes('force_password_change') &&
+      !msg.includes('password_changed_at')
+    ) {
+      return { profile: null, error }
+    }
   }
-  if (error || !profileData) {
-    return { profile: null, error: error ?? new Error('Perfil não encontrado.') }
-  }
-  const profile = normalizarProfileAcesso(profileData)
-  return { profile, error: null }
+  return { profile: null, error: ultimoErro ?? new Error('Perfil não encontrado.') }
 }
 
 /**

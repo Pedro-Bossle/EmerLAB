@@ -24,27 +24,29 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        'mb-6 flex flex-col gap-4 border-b border-line/70 pb-5 dark:border-white/10 sm:flex-row sm:items-end sm:justify-between',
+        'el-page-header mb-6 flex w-full flex-col gap-4 border-b border-line/70 pb-5 text-left dark:border-white/10 sm:flex-row sm:items-end sm:justify-between',
         className,
       )}
     >
-      <div className="min-w-0 text-left sm:text-left">
+      <div className="el-page-header__text min-w-0 flex-1 text-left">
         {kicker ? (
-          <p className="mb-1.5 text-[0.7rem] font-bold uppercase tracking-[0.12em] text-brand">
+          <p className="el-page-header__kicker mb-1.5 text-[0.7rem] font-bold uppercase tracking-[0.12em] text-brand">
             {kicker}
           </p>
         ) : null}
-        <h1 className="font-sans text-[1.7rem] font-extrabold leading-tight tracking-tight text-[#123e59] dark:text-[#e8f1f8] md:text-[2rem]">
+        <h1 className="el-page-header__title font-sans text-[1.7rem] font-extrabold leading-tight tracking-tight text-[#123e59] dark:text-[#e8f1f8] md:text-[2rem]">
           {title}
         </h1>
         {description ? (
-          <p className="mt-2 max-w-2xl text-[0.95rem] font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
+          <p className="el-page-header__desc mt-2 max-w-2xl text-[0.95rem] font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
             {description}
           </p>
         ) : null}
       </div>
       {actions ? (
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">{actions}</div>
+        <div className="el-page-header__actions flex flex-wrap items-center justify-start gap-2 sm:justify-end">
+          {actions}
+        </div>
       ) : null}
     </header>
   )

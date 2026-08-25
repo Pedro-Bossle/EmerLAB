@@ -22,3 +22,7 @@ A coleta de prospectos usa Google AI Studio via **generateContent**. A chave é 
 ```bash
 npm run build
 ```
+
+## Segurança
+
+Ver [`docs/seguranca.md`](docs/seguranca.md) — auth nas APIs, RLS, rate limits, headers Vercel, política de senha e CI.

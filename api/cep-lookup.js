@@ -1,6 +1,10 @@
 /**
  * Proxy ViaCEP. GET /api/cep-lookup?cep=8digitos
+ * Público (formulário de credenciamento) — rate limit por IP.
  */
+import { getClientIp } from '../src/lib/api/serverAuth.js'
+import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
+
 const apenasDigitos = (v) => String(v || '').replace(/\D/g, '')
 
 const formatarCep = (cepDigits) => {
@@ -14,6 +18,9 @@ export default async function handler(req, res) {
         res.status(405).json({ error: 'Método não permitido.' })
         return
     }
+
+    const ip = getClientIp(req)
+    if (!aplicarRateLimit(res, `cep:${ip}`, RATE_LIMITS.cep)) return
 
     const url = new URL(req.url || '/', 'http://localhost')
     const cep = apenasDigitos(url.searchParams.get('cep') || '')

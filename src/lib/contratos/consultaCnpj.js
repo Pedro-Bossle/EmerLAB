@@ -67,7 +67,8 @@ export async function buscarDadosCNPJ(cnpj, opcoes = {}) {
 
     const promessa = (async () => {
         const url = buildServerApiUrl('consulta-cnpj', { cnpj: digits })
-        const res = await fetch(url, { headers: { Accept: 'application/json', ...serverApiAuthHeaders() } })
+        const auth = await serverApiAuthHeaders('consulta-cnpj')
+        const res = await fetch(url, { headers: { Accept: 'application/json', ...auth } })
         const data = await res.json().catch(() => ({}))
         if (!res.ok) {
             throw new Error(data?.error || 'CNPJ não encontrado ou erro na API.')

@@ -1,6 +1,12 @@
 import { handleOptions, jsonResponse } from '../_shared/cors.ts'
 import { createServiceClient } from '../_shared/supabaseAdmin.ts'
 import { geocodificarESalvarPrestador } from '../_shared/geocodePrestador.ts'
+import {
+  clientIp,
+  podeCredenciamentoView,
+  rateLimitOk,
+  requireUserProfile,
+} from '../_shared/requireUser.ts'
 
 Deno.serve(async (req) => {
   const opt = handleOptions(req)
@@ -8,6 +14,20 @@ Deno.serve(async (req) => {
 
   if (req.method !== 'POST') {
     return jsonResponse({ ok: false, error: 'Método não permitido.' }, 405)
+  }
+
+  const ip = clientIp(req)
+  if (!rateLimitOk(`geocode:${ip}`, 30, 60_000)) {
+    return jsonResponse({ ok: false, error: 'Demasiados pedidos. Aguarde um momento.' }, 429)
+  }
+
+  const auth = await requireUserProfile(req)
+  if ('error' in auth && auth.error) {
+    return jsonResponse({ ok: false, error: auth.error }, auth.status || 401)
+  }
+  const permissions = (auth.profile?.permissions || {}) as Record<string, unknown>
+  if (!podeCredenciamentoView(permissions)) {
+    return jsonResponse({ ok: false, error: 'Sem permissão para geocodificar.' }, 403)
   }
 
   try {

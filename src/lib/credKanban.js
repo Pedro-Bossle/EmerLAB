@@ -4,6 +4,7 @@
 
 import { supabase } from './supabase.js'
 import {
+    acharSituacaoAguardandoFormularioId,
     acharSituacaoCredenciadoId,
     acharSituacaoPreenchendoFormularioId,
     patchCredenciadoEmSeTransicao,
@@ -17,11 +18,17 @@ export const COLUNAS_KANBAN = [
     { id: 'preenchendo_form', label: 'Preenchendo Form', etapa: 'cadastro' },
     { id: 'aguardando_ok_minuta', label: 'Aguardando OK minuta', etapa: 'cadastro' },
     { id: 'aguardando_assinatura', label: 'Aguardando Assinatura', etapa: 'cadastro' },
-    { id: 'credenciado', label: 'Credenciado', etapa: 'cadastro' },
     { id: 'adicionar_site', label: 'Adicionar em SITE', etapa: 'cadastro' },
 ]
 
 export const COLUNA_IDS = new Set(COLUNAS_KANBAN.map((c) => c.id))
+
+/** Coluna legada «Credenciado» → agora fundida em Adicionar em SITE. */
+export function normalizarColunaKanban(coluna) {
+    const c = String(coluna || '').trim()
+    if (c === 'credenciado') return 'adicionar_site'
+    return c
+}
 
 const COLS =
     'id, coluna, ordem, nome, uf, cidade, telefone, tipo, prestador_id, prospecto_osm_id, atribuido_a, corpo, checklist, criado_em, atualizado_em, criado_por'
@@ -44,7 +51,7 @@ export function mapearCardRow(row) {
     const especialidade = especialidadeVisivelKanban(row.tipo)
     return {
         id: row.id,
-        coluna: row.coluna,
+        coluna: normalizarColunaKanban(row.coluna),
         ordem: Number(row.ordem) || 0,
         nome: row.nome || '',
         uf: row.uf || '',
@@ -132,10 +139,14 @@ export async function enriquecerCardsKanbanComEspecialidade(cards) {
 
 /** Pode mover card de `de` para `para`? */
 export function podeMoverColunaKanban(de, para) {
-    if (!COLUNA_IDS.has(de) || !COLUNA_IDS.has(para)) return false
-    if (de === para) return true
-    if (para === 'credenciado' && de !== 'aguardando_assinatura') return false
-    if (para === 'adicionar_site' && de !== 'credenciado' && de !== 'adicionar_site') return false
+    const origem = normalizarColunaKanban(de)
+    const destino = normalizarColunaKanban(para)
+    if (!COLUNA_IDS.has(origem) || !COLUNA_IDS.has(destino)) return false
+    if (origem === destino) return true
+    // Pós-assinatura → direto para Site (credenciamento + fila SITE)
+    if (destino === 'adicionar_site' && origem !== 'aguardando_assinatura' && origem !== 'adicionar_site') {
+        return false
+    }
     return true
 }
 
@@ -152,7 +163,10 @@ export async function listarCardsKanban() {
 export async function criarCardKanban(payload = {}) {
     const { data: auth } = await supabase.auth.getUser()
     const uid = auth?.user?.id || null
-    const coluna = COLUNA_IDS.has(payload.coluna) ? payload.coluna : 'nao_contatado'
+    const colunaRaw = COLUNA_IDS.has(payload.coluna)
+        ? payload.coluna
+        : normalizarColunaKanban(payload.coluna)
+    const coluna = COLUNA_IDS.has(colunaRaw) ? colunaRaw : 'nao_contatado'
     const maxOrdem = await proximaOrdemColuna(coluna)
 
     const row = {
@@ -189,8 +203,9 @@ async function proximaOrdemColuna(coluna) {
 export async function atualizarCardKanban(id, patch = {}) {
     const payload = { atualizado_em: new Date().toISOString() }
     if (patch.coluna !== undefined) {
-        if (!COLUNA_IDS.has(patch.coluna)) throw new Error('Coluna inválida.')
-        payload.coluna = patch.coluna
+        const col = normalizarColunaKanban(patch.coluna)
+        if (!COLUNA_IDS.has(col)) throw new Error('Coluna inválida.')
+        payload.coluna = col
     }
     if (patch.ordem !== undefined) payload.ordem = Number(patch.ordem) || 0
     if (patch.nome !== undefined) payload.nome = String(patch.nome || '').trim() || 'Sem nome'
@@ -253,8 +268,8 @@ export async function moverCardKanban(cardId, colunaDestino, ordemDestino, { sit
     if (errGet) throw new Error(errGet.message)
     if (!atual) throw new Error('Card não encontrado.')
 
-    const de = atual.coluna
-    const para = colunaDestino
+    const de = normalizarColunaKanban(atual.coluna)
+    const para = normalizarColunaKanban(colunaDestino)
     if (!podeMoverColunaKanban(de, para)) {
         throw new Error('Movimento de coluna não permitido neste funil.')
     }
@@ -264,9 +279,76 @@ export async function moverCardKanban(cardId, colunaDestino, ordemDestino, { sit
     return card
 }
 
+/** Mapa situação_id → coluna do Kanban (etapa cadastro). */
+export function montarMapaSituacaoParaColunaKanban(situacoes = []) {
+    const mapa = new Map()
+    const idAguardandoForm = acharSituacaoAguardandoFormularioId(situacoes)
+    const idPreenchendo = acharSituacaoPreenchendoFormularioId(situacoes)
+    const idOk = (situacoes || []).find((s) =>
+        /ok.*minuta|aguardando ok/i.test(String(s.descricao || '')),
+    )?.id
+    const idAss = (situacoes || []).find((s) => /assinatura/i.test(String(s.descricao || '')))?.id
+    const idCred = acharSituacaoCredenciadoId(situacoes)
+
+    if (idAguardandoForm) mapa.set(Number(idAguardandoForm), 'preenchendo_form')
+    if (idPreenchendo) mapa.set(Number(idPreenchendo), 'preenchendo_form')
+    if (idOk) mapa.set(Number(idOk), 'aguardando_ok_minuta')
+    if (idAss) mapa.set(Number(idAss), 'aguardando_assinatura')
+    if (idCred) mapa.set(Number(idCred), 'adicionar_site')
+    return mapa
+}
+
+export function colunaKanbanParaSituacaoId(situacaoId, situacoes = []) {
+    const sid = Number(situacaoId)
+    if (!Number.isFinite(sid) || sid <= 0) return null
+    return montarMapaSituacaoParaColunaKanban(situacoes).get(sid) || null
+}
+
+/**
+ * Após mudar a situação no perfil/cadastro: move o card vinculado (sem reaplicar side-effects).
+ * Não cria card novo; situação Credenciado → coluna Adicionar em SITE.
+ */
+export async function sincronizarCardKanbanComSituacao(prestadorId, situacaoId, { situacoes = [] } = {}) {
+    const pid = Number(prestadorId)
+    if (!Number.isFinite(pid) || pid <= 0) return null
+
+    let listaSit = situacoes
+    if (!Array.isArray(listaSit) || !listaSit.length) {
+        const { data, error } = await supabase.from('situacoes').select('id, descricao, codigo')
+        if (error) throw new Error(error.message)
+        listaSit = data || []
+    }
+
+    const colunaAlvo = colunaKanbanParaSituacaoId(situacaoId, listaSit)
+    if (!colunaAlvo) return null
+
+    const { data: rows, error } = await supabase
+        .from('cred_kanban_cards')
+        .select(COLS)
+        .eq('prestador_id', pid)
+        .order('id', { ascending: true })
+        .limit(1)
+    if (error) {
+        if (/cred_kanban_cards|schema cache|does not exist/i.test(String(error.message || ''))) {
+            return null
+        }
+        throw new Error(error.message)
+    }
+    const row = rows?.[0]
+    if (!row) return null
+
+    const card = mapearCardRow(row)
+    if (card.coluna === colunaAlvo) return card
+
+    const ordem = await proximaOrdemColuna(colunaAlvo)
+    return atualizarCardKanban(card.id, { coluna: colunaAlvo, ordem })
+}
+
 async function aplicarSideEffectsColuna(card, de, para, situacoes) {
     if (!card?.prestadorId) return
     const pid = Number(card.prestadorId)
+    const origem = normalizarColunaKanban(de)
+    const destino = normalizarColunaKanban(para)
     const failures = []
 
     const registrarUpdate = async (rotulo, resultPromise) => {
@@ -274,7 +356,8 @@ async function aplicarSideEffectsColuna(card, de, para, situacoes) {
         if (error) failures.push(`${rotulo}: ${error.message}`)
     }
 
-    if (para === 'credenciado' && de === 'aguardando_assinatura') {
+    // Credenciamento: Assinatura → Site (marca situação Credenciado)
+    if (destino === 'adicionar_site' && origem === 'aguardando_assinatura') {
         const credId = acharSituacaoCredenciadoId(situacoes)
         if (credId) {
             const { data: prest } = await supabase
@@ -294,7 +377,7 @@ async function aplicarSideEffectsColuna(card, de, para, situacoes) {
         }
     }
 
-    if (para === 'adicionar_site') {
+    if (destino === 'adicionar_site' && origem !== 'adicionar_site') {
         await registrarUpdate(
             'no_site',
             supabase
@@ -311,12 +394,12 @@ async function aplicarSideEffectsColuna(card, de, para, situacoes) {
         aguardando_assinatura: (lista) =>
             (lista || []).find((s) => /assinatura/i.test(String(s.descricao || '')))?.id,
     }
-    const resolver = mapaSituacao[para]
-    if (resolver && para !== 'credenciado') {
+    const resolver = mapaSituacao[destino]
+    if (resolver) {
         const sid = resolver(situacoes)
         if (sid) {
             await registrarUpdate(
-                `situação ${para}`,
+                `situação ${destino}`,
                 supabase
                     .from('prestadores')
                     .update({ situacao_id: Number(sid), data_atualizacao: new Date().toISOString() })
@@ -397,7 +480,7 @@ export async function importarSituacoesParaKanban({ forcar = false } = {}) {
         .select('coluna, ordem')
     const maxOrdemPorColuna = Object.fromEntries(COLUNAS_KANBAN.map((c) => [c.id, 0]))
     for (const r of ordensExistentes || []) {
-        const col = r.coluna
+        const col = normalizarColunaKanban(r.coluna)
         if (!(col in maxOrdemPorColuna)) continue
         maxOrdemPorColuna[col] = Math.max(maxOrdemPorColuna[col], Number(r.ordem) || 0)
     }
@@ -480,7 +563,6 @@ function montarCorpoDeProspectoOsm(prospecto) {
     }
     const cat = especialidadeDeProspectoOsm(prospecto)
     if (cat) linhas.push(`**Categoria OSM:** ${cat}`)
-    linhas.push('_Origem: catálogo de prospectos (OSM / prospecção)_')
     return linhas.join('\n\n')
 }
 
@@ -642,7 +724,7 @@ export function montarResumoRelatorioKanban(cards = []) {
         tempos[col.id] = dias.reduce((a, b) => a + b, 0) / dias.length
     }
 
-    const sitePendentes = (porColuna.credenciado?.total || 0)
+    const sitePendentes = porColuna.adicionar_site?.total || 0
     const porAssignee = new Map()
     for (const c of cards) {
         const k = c.atribuidoA || '(sem assign)'
@@ -654,8 +736,9 @@ export function montarResumoRelatorioKanban(cards = []) {
         total: cards.length,
         porColuna,
         tempoMedioDiasNaColuna: tempos,
+        /** @deprecated use adicionarSite — coluna Credenciado removida */
         siteAposCredenciadoPendentes: sitePendentes,
-        adicionarSite: porColuna.adicionar_site?.total || 0,
+        adicionarSite: sitePendentes,
         porAssignee: [...porAssignee.entries()].map(([id, total]) => ({ id, total })),
     }
 }

@@ -2,6 +2,7 @@
  * Overpass API (OSM) — somente servidor.
  */
 import { getProspectoOsmCategoriaPorId } from './prospectosOsmCategorias.js'
+import { estabelecimentoIndicaInativo } from './prospectosOsmQualidade.js'
 import { fetchComTimeout } from './fetchComTimeout.js'
 
 const OVERPASS_FETCH_TIMEOUT_MS = 90_000
@@ -60,10 +61,13 @@ export function limitarBoundsOverpass(bounds) {
 function montarQueryOverpass(categoriaId, south, west, north, east) {
     const cat = getProspectoOsmCategoriaPorId(categoriaId)
     if (!cat) return ''
+    // Exclui tags comuns de local desativado no OSM
+    const excluirInativos =
+        '["disused"!="yes"]["abandoned"!="yes"]["ruins"!="yes"]["vacant"!="yes"]'
     const bloco = cat.overpass
         .map(([k, v]) => {
             const esc = (s) => String(s).replace(/"/g, '\\"')
-            const tag = `["${esc(k)}"="${esc(v)}"]`
+            const tag = `["${esc(k)}"="${esc(v)}"]${excluirInativos}`
             return `node${tag}(${south},${west},${north},${east});way${tag}(${south},${west},${north},${east});`
         })
         .join('')
@@ -86,9 +90,10 @@ export function elementoOverpassParaProspecto(el, categoriaId, categoriaLabel, c
     const tags = el.tags || {}
     const nome = String(tags.name || tags.brand || tags.operator || '').trim()
     if (!nome) return null
+    const horario = String(tags.opening_hours || '').trim()
+    if (estabelecimentoIndicaInativo(tags, nome, horario)) return null
     const endereco = tagsParaEndereco(tags, cidade, uf) || nome
     const telefone = String(tags.phone || tags['contact:phone'] || tags.mobile || '').trim()
-    const horario = String(tags.opening_hours || '').trim()
     const website = String(tags.website || tags['contact:website'] || '').trim()
     return {
         osm_type: String(el.type || 'node'),

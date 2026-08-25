@@ -8,6 +8,7 @@ import {
     buildPayloadContratoFromPrestadorForm,
     tipoPdfContratoFromModelo,
 } from '../../../lib/credenciamento/prestadorFormParaContrato.js'
+import { responsaveisParaPayload } from '../../../lib/prestadorVeterinarioCadastro.js'
 import { downloadPdf, gerarPdfBlob, nomeArquivoContrato } from '../../../lib/contratos/pdf/gerarContratoPdf.js'
 import { errosValidacao } from '../../../lib/contratos/validarDocumentos.js'
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
@@ -48,6 +49,7 @@ export default function PrestadorHonorariosContratos({
     codigosSelecionados,
     form,
     nomeEspecialidade,
+    responsaveis = [],
     podeGerarContrato,
     disabled,
 }) {
@@ -210,9 +212,19 @@ export default function PrestadorHonorariosContratos({
         try {
             let dados
             try {
-                dados = await buildPayloadContratoFromPrestadorForm(form, modelo, { nomeEspecialidade })
+                dados = await buildPayloadContratoFromPrestadorForm(form, modelo, {
+                    nomeEspecialidade,
+                    responsaveis,
+                })
             } catch (e) {
                 pushToast(`Contrato — ${rotulo}`, e?.message || 'Erro ao consultar CNPJ.')
+                return
+            }
+            if (modelo === 'desconto' && !responsaveisParaPayload(responsaveis).length) {
+                pushToast(
+                    `Contrato — ${rotulo}`,
+                    'Preencha ao menos um responsável no perfil (nome, e-mail e telefone) para o contrato de desconto.',
+                )
                 return
             }
             const erros = errosValidacao(tipo, dados)

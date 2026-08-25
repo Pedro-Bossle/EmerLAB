@@ -9,11 +9,15 @@ import {
     usuarioPodeEditarFerramenta,
     useStoredAccessProfile,
 } from '../../../lib/accessControl'
-import { PROSPECTOS_OSM_CATEGORIAS } from '../../../lib/credenciamento/prospectosOsmCategorias.js'
+import {
+    PROSPECTOS_OSM_CATEGORIAS,
+    labelProspectoOsmCategoria,
+} from '../../../lib/credenciamento/prospectosOsmCategorias.js'
 import {
     STATUS_PROSPECCAO_OPCOES,
     listarProspectosOsm,
     atualizarStatusProspectoOsm,
+    atualizarProspectoOsm,
 } from '../../../lib/credenciamento/prospectosOsmRepo.js'
 import {
     colunaKanbanParaStatusProspecto,
@@ -30,6 +34,10 @@ import {
     salvarAlertasCredenciadoDismissed,
 } from '../../../lib/credenciamento/prospectosOsmSimilaridadeCredenciados.js'
 import { formatarLinhaTelefonesContato } from '../../../lib/telefoneBrasil.js'
+import {
+    preencherPinsProspectosOsm,
+    prospectoSemPin,
+} from '../../../lib/credenciamento/prospectosOsmGeocode.js'
 import { supabase } from '../../../lib/supabase'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
@@ -96,6 +104,8 @@ const CredenciamentoProspectosOsm = () => {
     const [coletando, setColetando] = useState(false)
     const [coletaPasso, setColetaPasso] = useState(0)
     const [coletaPassosTotais, setColetaPassosTotais] = useState(1)
+    const [preenchendoPins, setPreenchendoPins] = useState(false)
+    const abortPinsRef = useRef(null)
     const [exportando, setExportando] = useState(false)
     const [erro, setErro] = useState('')
     const [feedback, setFeedback] = useState('')
@@ -111,6 +121,9 @@ const CredenciamentoProspectosOsm = () => {
     const [credenciadosBase, setCredenciadosBase] = useState([])
     const [alertaDismissed, setAlertaDismissed] = useState(() => lerAlertasCredenciadoDismissed())
     const [enviandoKanbanId, setEnviandoKanbanId] = useState(null)
+    const [editando, setEditando] = useState(null)
+    const [editForm, setEditForm] = useState(null)
+    const [salvandoEdit, setSalvandoEdit] = useState(false)
     const { rate: geminiRate, erro: erroGeminiRate, loading: loadingGeminiRate, recarregar: recarregarGeminiRate } =
         useGeminiRate()
 
@@ -323,9 +336,11 @@ const CredenciamentoProspectosOsm = () => {
     }, [itens, ordenarColuna, ordenarDir])
 
     const comCoordenadas = useMemo(
-        () => itensOrdenados.filter((i) => Number.isFinite(i.lat) && Number.isFinite(i.lng)),
+        () => itensOrdenados.filter((i) => !prospectoSemPin(i)),
         [itensOrdenados],
     )
+
+    const semPin = useMemo(() => itensOrdenados.filter((i) => prospectoSemPin(i)), [itensOrdenados])
 
     const centroMapa = useMemo(() => {
         if (!comCoordenadas.length) return [-29.7, -53.2]
@@ -450,6 +465,51 @@ const CredenciamentoProspectosOsm = () => {
         }
     }
 
+    const preencherPinsSemCoordenadas = async () => {
+        if (!podeEditar || preenchendoPins || coletando) return
+        const pendentes = itensOrdenados.filter((i) => prospectoSemPin(i))
+        if (!pendentes.length) {
+            setFeedback('Todos os registros filtrados já têm pin no mapa.')
+            return
+        }
+        abortPinsRef.current?.abort()
+        const ctrl = new AbortController()
+        abortPinsRef.current = ctrl
+        setPreenchendoPins(true)
+        setErro('')
+        setFeedback(`Preenchendo pins: 0/${pendentes.length}…`)
+        try {
+            const r = await preencherPinsProspectosOsm(pendentes, {
+                signal: ctrl.signal,
+                onProgress: ({ msg, atual, total }) => {
+                    setFeedback(msg || `Preenchendo pins: ${atual}/${total}…`)
+                },
+            })
+            if (r.itensAtualizados?.length) {
+                const porId = new Map(r.itensAtualizados.map((it) => [it.id, it]))
+                setItens((prev) => prev.map((row) => (porId.has(row.id) ? { ...row, ...porId.get(row.id) } : row)))
+            }
+            let msg = `Pins: ${r.preenchidos}/${r.total} preenchido(s).`
+            if (r.aproximados) msg += ` ${r.aproximados} com centro da cidade.`
+            if (r.falhas) msg += ` ${r.falhas} sem resultado.`
+            setFeedback(msg)
+        } catch (e) {
+            if (e?.name === 'AbortError') {
+                setFeedback('Preenchimento de pins cancelado.')
+            } else {
+                setErro(e?.message || String(e))
+                setFeedback('')
+            }
+        } finally {
+            if (abortPinsRef.current === ctrl) abortPinsRef.current = null
+            setPreenchendoPins(false)
+        }
+    }
+
+    const cancelarPreencherPins = () => {
+        abortPinsRef.current?.abort()
+    }
+
     const salvarStatus = async (id, status_prospeccao, observacao) => {
         const r = await atualizarStatusProspectoOsm(id, { status_prospeccao, observacao })
         if (!r.ok) {
@@ -457,6 +517,78 @@ const CredenciamentoProspectosOsm = () => {
             return
         }
         setItens((prev) => prev.map((row) => (row.id === id ? { ...row, ...r.item } : row)))
+    }
+
+    const abrirEdicao = (row, e) => {
+        e?.stopPropagation?.()
+        if (!row?.id) return
+        setErro('')
+        setEditando(row)
+        setEditForm({
+            nome: row.nome || '',
+            categoria_id: row.categoria_id || '',
+            endereco: row.endereco || '',
+            cidade: row.cidade || '',
+            uf: row.uf || '',
+            telefone: row.telefone || '',
+            website: row.website || '',
+            horario_atendimento: row.horario_atendimento || '',
+            status_prospeccao: row.status_prospeccao || 'novo',
+            observacao: row.observacao || '',
+            lat: row.lat != null && Number.isFinite(Number(row.lat)) ? String(row.lat) : '',
+            lng: row.lng != null && Number.isFinite(Number(row.lng)) ? String(row.lng) : '',
+        })
+    }
+
+    const fecharEdicao = () => {
+        if (salvandoEdit) return
+        setEditando(null)
+        setEditForm(null)
+    }
+
+    const setCampoEdit = (campo, valor) => {
+        setEditForm((prev) => (prev ? { ...prev, [campo]: valor } : prev))
+    }
+
+    const salvarEdicao = async () => {
+        if (!editando?.id || !editForm) return
+        const nome = String(editForm.nome || '').trim()
+        if (!nome) {
+            setErro('Informe o nome do prospecto.')
+            return
+        }
+        setSalvandoEdit(true)
+        setErro('')
+        try {
+            const catId = String(editForm.categoria_id || '').trim()
+            const r = await atualizarProspectoOsm(editando.id, {
+                nome,
+                categoria_id: catId,
+                categoria_label: labelProspectoOsmCategoria(catId) || editando.categoria_label || catId,
+                endereco: editForm.endereco,
+                cidade: editForm.cidade,
+                uf: String(editForm.uf || '').trim().toUpperCase(),
+                telefone: editForm.telefone,
+                website: editForm.website,
+                horario_atendimento: editForm.horario_atendimento,
+                status_prospeccao: editForm.status_prospeccao || 'novo',
+                observacao: editForm.observacao,
+                lat: editForm.lat,
+                lng: editForm.lng,
+            })
+            if (!r.ok) {
+                setErro(r.erro || 'Não foi possível salvar o prospecto.')
+                return
+            }
+            setItens((prev) => prev.map((row) => (row.id === editando.id ? { ...row, ...r.item } : row)))
+            setFeedback(`«${r.item?.nome || nome}» atualizado.`)
+            setEditando(null)
+            setEditForm(null)
+        } catch (err) {
+            setErro(err?.message || String(err))
+        } finally {
+            setSalvandoEdit(false)
+        }
     }
 
     const enviarAoKanban = async (row, e) => {
@@ -572,14 +704,41 @@ const CredenciamentoProspectosOsm = () => {
                                 ))}
                             </select>
                         </label>
-                        <button
-                            type="button"
-                            className="credenciamento_main_action_btn secondary cred_prospectos_osm_btn_xls"
-                            disabled={exportando || !itensOrdenados.length}
-                            onClick={() => void exportarXls()}
-                        >
-                            {exportando ? 'Exportando…' : 'Exportar XLS'}
-                        </button>
+                        <div className="cred_prospectos_osm_linha1_acoes">
+                            <button
+                                type="button"
+                                className="credenciamento_main_action_btn secondary cred_prospectos_osm_btn_xls"
+                                disabled={exportando || !itensOrdenados.length}
+                                onClick={() => void exportarXls()}
+                            >
+                                {exportando ? 'Exportando…' : 'Exportar XLS'}
+                            </button>
+                            {podeEditar ? (
+                                preenchendoPins ? (
+                                    <button
+                                        type="button"
+                                        className="credenciamento_main_action_btn secondary cred_prospectos_osm_btn_pins"
+                                        onClick={cancelarPreencherPins}
+                                    >
+                                        Cancelar pins
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="credenciamento_main_action_btn secondary cred_prospectos_osm_btn_pins"
+                                        disabled={coletando || !semPin.length}
+                                        title={
+                                            semPin.length
+                                                ? `Geocodificar ${semPin.length} registro(s) sem coordenadas`
+                                                : 'Nenhum registro filtrado sem pin'
+                                        }
+                                        onClick={() => void preencherPinsSemCoordenadas()}
+                                    >
+                                        Preencher pins{semPin.length ? ` (${semPin.length})` : ''}
+                                    </button>
+                                )
+                            ) : null}
+                        </div>
                     </div>
                     <div className="cred_prospectos_osm_filtro_linha2">
                         <label className="pcad_field cred_prospectos_osm_field_busca">
@@ -617,7 +776,7 @@ const CredenciamentoProspectosOsm = () => {
                                     <button
                                         type="button"
                                         className={`credenciamento_main_action_btn cred_prospectos_osm_btn_prospectar${coletando ? ' is-coletando' : ''}`}
-                                        disabled={coletando || !cidade.trim()}
+                                        disabled={coletando || preenchendoPins || !cidade.trim()}
                                         onClick={() => void coletarCidade()}
                                         aria-busy={coletando}
                                     >
@@ -668,6 +827,11 @@ const CredenciamentoProspectosOsm = () => {
                     {comCoordenadas.length > 0 ? (
                         <div className="credenciamento_mapa_kpi">
                             <strong>{comCoordenadas.length}</strong> no mapa
+                        </div>
+                    ) : null}
+                    {semPin.length > 0 ? (
+                        <div className="credenciamento_mapa_kpi">
+                            <strong>{semPin.length}</strong> sem pin
                         </div>
                     ) : null}
                     <label className="cred_prospectos_osm_toggle_mapa">
@@ -783,7 +947,10 @@ const CredenciamentoProspectosOsm = () => {
                                             </button>
                                         </th>
                                         {podeEditar ? (
-                                            <th className="table_header">Kanban</th>
+                                            <>
+                                                <th className="table_header">Editar</th>
+                                                <th className="table_header">Kanban</th>
+                                            </>
                                         ) : null}
                                     </tr>
                                 </thead>
@@ -801,6 +968,9 @@ const CredenciamentoProspectosOsm = () => {
                                                 ) {
                                                     setPainelMobile('mapa')
                                                 }
+                                            }}
+                                            onDoubleClick={(e) => {
+                                                if (podeEditar) abrirEdicao(row, e)
                                             }}
                                         >
                                             <td>
@@ -857,25 +1027,37 @@ const CredenciamentoProspectosOsm = () => {
                                                 )}
                                             </td>
                                             {podeEditar ? (
-                                                <td>
-                                                    <button
-                                                        type="button"
-                                                        className="credenciamento_main_action_btn secondary cred_prospectos_osm_btn_kanban"
-                                                        disabled={enviandoKanbanId === row.id}
-                                                        title={
-                                                            colunaKanbanParaStatusProspecto(row.status_prospeccao) ===
+                                                <>
+                                                    <td>
+                                                        <button
+                                                            type="button"
+                                                            className="credenciamento_main_action_btn secondary cred_prospectos_osm_btn_edit"
+                                                            title="Editar prospecto"
+                                                            onClick={(e) => abrirEdicao(row, e)}
+                                                        >
+                                                            Editar
+                                                        </button>
+                                                    </td>
+                                                    <td>
+                                                        <button
+                                                            type="button"
+                                                            className="credenciamento_main_action_btn secondary cred_prospectos_osm_btn_kanban"
+                                                            disabled={enviandoKanbanId === row.id}
+                                                            title={
+                                                                colunaKanbanParaStatusProspecto(row.status_prospeccao) ===
+                                                                'contatado'
+                                                                    ? 'Envia para coluna Contatado (com dados do prospecto)'
+                                                                    : 'Envia para coluna Não contatado (com dados do prospecto)'
+                                                            }
+                                                            onClick={(e) => void enviarAoKanban(row, e)}
+                                                        >
+                                                            {colunaKanbanParaStatusProspecto(row.status_prospeccao) ===
                                                             'contatado'
-                                                                ? 'Envia para coluna Contatado (com dados do prospecto)'
-                                                                : 'Envia para coluna Não contatado (com dados do prospecto)'
-                                                        }
-                                                        onClick={(e) => void enviarAoKanban(row, e)}
-                                                    >
-                                                        {colunaKanbanParaStatusProspecto(row.status_prospeccao) ===
-                                                        'contatado'
-                                                            ? '→ Contatado'
-                                                            : '→ Não contatado'}
-                                                    </button>
-                                                </td>
+                                                                ? '→ Contatado'
+                                                                : '→ Não contatado'}
+                                                        </button>
+                                                    </td>
+                                                </>
                                             ) : null}
                                         </tr>
                                     ))}
@@ -960,6 +1142,173 @@ const CredenciamentoProspectosOsm = () => {
                     </>
                 ) : null}
             </div>
+
+            {editando && editForm ? (
+                <div className="credenciamento_modal_backdrop" onClick={fecharEdicao}>
+                    <div
+                        className="credenciamento_modal cred_prospectos_osm_edit_modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="cred-prospectos-edit-title"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 id="cred-prospectos-edit-title">Editar prospecto</h3>
+                        <div className="credenciamento_modal_grid">
+                            <label>
+                                <span>Nome *</span>
+                                <input
+                                    type="text"
+                                    className="credenciamento_main_input"
+                                    value={editForm.nome}
+                                    onChange={(e) => setCampoEdit('nome', e.target.value)}
+                                />
+                            </label>
+                            <label>
+                                <span>Categoria</span>
+                                <select
+                                    className="credenciamento_main_input"
+                                    value={editForm.categoria_id}
+                                    onChange={(e) => setCampoEdit('categoria_id', e.target.value)}
+                                >
+                                    {PROSPECTOS_OSM_CATEGORIAS.map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.label}
+                                        </option>
+                                    ))}
+                                    {editForm.categoria_id &&
+                                    !PROSPECTOS_OSM_CATEGORIAS.some((c) => c.id === editForm.categoria_id) ? (
+                                        <option value={editForm.categoria_id}>
+                                            {editando.categoria_label || editForm.categoria_id}
+                                        </option>
+                                    ) : null}
+                                </select>
+                            </label>
+                            <label className="credenciamento_modal_full">
+                                <span>Endereço</span>
+                                <input
+                                    type="text"
+                                    className="credenciamento_main_input"
+                                    value={editForm.endereco}
+                                    onChange={(e) => setCampoEdit('endereco', e.target.value)}
+                                />
+                            </label>
+                            <label>
+                                <span>Cidade</span>
+                                <input
+                                    type="text"
+                                    className="credenciamento_main_input"
+                                    value={editForm.cidade}
+                                    onChange={(e) => setCampoEdit('cidade', e.target.value)}
+                                />
+                            </label>
+                            <label>
+                                <span>UF</span>
+                                <select
+                                    className="credenciamento_main_input"
+                                    value={editForm.uf}
+                                    onChange={(e) => setCampoEdit('uf', e.target.value)}
+                                >
+                                    <option value="">—</option>
+                                    {UFS_BRASIL.map((sigla) => (
+                                        <option key={sigla} value={sigla}>
+                                            {sigla}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label>
+                                <span>Telefone</span>
+                                <input
+                                    type="text"
+                                    className="credenciamento_main_input"
+                                    value={editForm.telefone}
+                                    onChange={(e) => setCampoEdit('telefone', e.target.value)}
+                                />
+                            </label>
+                            <label>
+                                <span>Website</span>
+                                <input
+                                    type="text"
+                                    className="credenciamento_main_input"
+                                    value={editForm.website}
+                                    onChange={(e) => setCampoEdit('website', e.target.value)}
+                                />
+                            </label>
+                            <label className="credenciamento_modal_full">
+                                <span>Horário de atendimento</span>
+                                <input
+                                    type="text"
+                                    className="credenciamento_main_input"
+                                    value={editForm.horario_atendimento}
+                                    onChange={(e) => setCampoEdit('horario_atendimento', e.target.value)}
+                                    placeholder="Ex.: Seg–Sex 8h–18h / 24h"
+                                />
+                            </label>
+                            <label>
+                                <span>Latitude</span>
+                                <input
+                                    type="text"
+                                    className="credenciamento_main_input"
+                                    value={editForm.lat}
+                                    onChange={(e) => setCampoEdit('lat', e.target.value)}
+                                    inputMode="decimal"
+                                />
+                            </label>
+                            <label>
+                                <span>Longitude</span>
+                                <input
+                                    type="text"
+                                    className="credenciamento_main_input"
+                                    value={editForm.lng}
+                                    onChange={(e) => setCampoEdit('lng', e.target.value)}
+                                    inputMode="decimal"
+                                />
+                            </label>
+                            <label>
+                                <span>Status</span>
+                                <select
+                                    className="credenciamento_main_input"
+                                    value={editForm.status_prospeccao}
+                                    onChange={(e) => setCampoEdit('status_prospeccao', e.target.value)}
+                                >
+                                    {STATUS_PROSPECCAO_OPCOES.map((s) => (
+                                        <option key={s.id} value={s.id}>
+                                            {s.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="credenciamento_modal_full">
+                                <span>Observação</span>
+                                <textarea
+                                    className="credenciamento_main_input"
+                                    rows={3}
+                                    value={editForm.observacao}
+                                    onChange={(e) => setCampoEdit('observacao', e.target.value)}
+                                />
+                            </label>
+                        </div>
+                        <div className="credenciamento_modal_actions">
+                            <button
+                                type="button"
+                                className="credenciamento_main_action_btn secondary"
+                                disabled={salvandoEdit}
+                                onClick={fecharEdicao}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                className="credenciamento_main_action_btn"
+                                disabled={salvandoEdit}
+                                onClick={() => void salvarEdicao()}
+                            >
+                                {salvandoEdit ? 'A guardar…' : 'Guardar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     )
 }

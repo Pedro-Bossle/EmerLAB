@@ -3,6 +3,7 @@ import { montarEnderecoUmaLinha, tipoDocumentoCpfCnpj } from '../prestadorCadast
 import { apenasDigitos } from '../contratos/validarDocumentos.js'
 import { maskCNPJ, maskCPF } from '../contratos/mascarasDocumento.js'
 import { buscarDadosCNPJ, ORIGENS_CONSULTA_CNPJ } from '../contratos/consultaCnpj.js'
+import { responsaveisParaPayload } from '../prestadorVeterinarioCadastro.js'
 
 /** `tipoDocumentoCpfCnpj` devolve CPF/CNPJ em maiúsculas; contratos usam minúsculas. */
 function docTipoContrato(cpfCnpj) {
@@ -13,9 +14,37 @@ function docTipoContrato(cpfCnpj) {
 }
 
 /**
- * @param {'clinica'|'volante_pj'|'volante_pf'|'desconto'} modelo
+ * Campos do contrato de desconto a partir dos responsáveis do perfil.
+ * @param {Array<{ nome?: string, email?: string, telefone?: string }>} responsaveis
+ * @param {{ email?: string, contato?: string, nomeFallback?: string }} fallback
  */
-export function payloadContratoFromPrestadorForm(form, modelo, { nomeEspecialidade = '' } = {}) {
+export function camposResponsaveisContratoDesconto(responsaveis, fallback = {}) {
+    const lista = responsaveisParaPayload(responsaveis)
+    if (!lista.length) {
+        return {
+            responsavelLegal: String(fallback.nomeFallback || '').trim(),
+            emailResponsavel: String(fallback.email || '').trim(),
+            contatoResponsavel: formatarContatoSeTelefone(String(fallback.contato || '').trim()),
+        }
+    }
+    const nomes = lista.map((r) => r.nome).filter(Boolean)
+    const emails = lista.map((r) => String(r.email || '').trim()).filter(Boolean)
+    const contatos = lista
+        .map((r) => formatarContatoSeTelefone(String(r.telefone || '').trim()))
+        .filter(Boolean)
+    return {
+        responsavelLegal: nomes.join('; '),
+        emailResponsavel: emails.join('; ') || String(fallback.email || '').trim(),
+        contatoResponsavel:
+            contatos.join('; ') || formatarContatoSeTelefone(String(fallback.contato || '').trim()),
+    }
+}
+
+/**
+ * @param {'clinica'|'volante_pj'|'volante_pf'|'desconto'} modelo
+ * @param {{ nomeEspecialidade?: string, responsaveis?: Array<{ nome?: string, email?: string, telefone?: string }> }} [opts]
+ */
+export function payloadContratoFromPrestadorForm(form, modelo, { nomeEspecialidade = '', responsaveis = [] } = {}) {
     const f = form || {}
     const enderecoCompleto = montarEnderecoUmaLinha(f) || String(f.endereco || '').trim()
     const email = String(f.email || '').trim()
@@ -68,13 +97,19 @@ export function payloadContratoFromPrestadorForm(form, modelo, { nomeEspecialida
         }
     }
 
+    // desconto / parceria — responsável legal vem do bloco Responsáveis do perfil
+    const resp = camposResponsaveisContratoDesconto(responsaveis, {
+        nomeFallback: String(f.nome || '').trim(),
+        email,
+        contato,
+    })
     return {
         cnpj: docTipo === 'cnpj' ? maskCNPJ(digitos) : '',
         razaoSocial: String(f.nome || '').trim(),
         enderecoCompleto,
-        responsavelLegal: String(f.nome || '').trim(),
-        emailResponsavel: email,
-        contatoResponsavel: contato,
+        responsavelLegal: resp.responsavelLegal,
+        emailResponsavel: resp.emailResponsavel,
+        contatoResponsavel: resp.contatoResponsavel,
     }
 }
 

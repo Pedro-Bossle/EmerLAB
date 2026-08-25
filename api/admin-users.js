@@ -9,6 +9,7 @@ import {
     resumirAlteracoesPermissoes,
 } from '../src/lib/accessControl.js'
 import { sanitizarPermissionsParaSalvar } from '../src/lib/permissionCatalog.js'
+import { validarPoliticaSenha } from '../src/lib/passwordPolicy.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
 dotenvConfig()
@@ -50,9 +51,21 @@ const resolveAdminAction = (raw) => {
         updateprofile: 'updateProfile',
         listaudit: 'listAudit',
         deleteuser: 'deleteUser',
+        forcepasswordchange: 'forcePasswordChange',
+        clearownforcepassword: 'clearOwnForcePassword',
     }
     if (aliases[compact]) return aliases[compact]
-    const canon = ['list', 'invite', 'createUser', 'reset', 'updateProfile', 'listAudit', 'deleteUser']
+    const canon = [
+        'list',
+        'invite',
+        'createUser',
+        'reset',
+        'updateProfile',
+        'listAudit',
+        'deleteUser',
+        'forcePasswordChange',
+        'clearOwnForcePassword',
+    ]
     return canon.includes(s) ? s : ''
 }
 
@@ -105,54 +118,91 @@ const mensagemErroAuthSupabase = (error) => {
     return msg || 'Falha na autenticação Supabase.'
 }
 
+const PROFILE_SELECT_CANDIDATES = [
+    'id, name, email, permissions, force_password_change, password_changed_at',
+    'id, name, email, permissions, force_password_change',
+    'id, name, email, permissions',
+    'id, name, permissions, force_password_change, password_changed_at',
+    'id, name, permissions, force_password_change',
+    'id, name, permissions',
+]
+
+const colunaAusenteNoErro = (mensagem, coluna) => {
+    const msg = String(mensagem || '').toLowerCase()
+    return msg.includes(String(coluna || '').toLowerCase())
+}
+
+const perfilErroPorColunaOpcional = (mensagem) => {
+    const msg = String(mensagem || '')
+    return (
+        colunaAusenteNoErro(msg, 'email') ||
+        colunaAusenteNoErro(msg, 'force_password_change') ||
+        colunaAusenteNoErro(msg, 'password_changed_at')
+    )
+}
+
 const buscarProfile = async (supabase, userId) => {
-    const selectCompleto = await supabase
-        .from('profiles')
-        .select('id, name, email, permissions')
-        .eq('id', userId)
-        .maybeSingle()
-
-    if (!selectCompleto.error) return selectCompleto
-
-    const mensagem = String(selectCompleto.error.message || '')
-    if (!mensagem.includes('email')) return selectCompleto
-
-    const fallback = await supabase
-        .from('profiles')
-        .select('id, name, permissions')
-        .eq('id', userId)
-        .maybeSingle()
-
-    return fallback
+    let ultimo = null
+    for (const select of PROFILE_SELECT_CANDIDATES) {
+        const result = await supabase.from('profiles').select(select).eq('id', userId).maybeSingle()
+        if (!result.error) return result
+        ultimo = result
+        if (!perfilErroPorColunaOpcional(result.error.message)) return result
+    }
+    return ultimo
 }
 
 const listarProfiles = async (supabase) => {
-    const selectCompleto = await supabase
-        .from('profiles')
-        .select('id, name, email, permissions')
-        .order('name', { ascending: true })
+    let ultimo = null
+    for (const select of PROFILE_SELECT_CANDIDATES) {
+        const result = await supabase.from('profiles').select(select).order('name', { ascending: true })
+        if (!result.error) return result
+        ultimo = result
+        if (!perfilErroPorColunaOpcional(result.error.message)) return result
+    }
+    return ultimo
+}
 
-    if (!selectCompleto.error) return selectCompleto
+const validarUsuarioAutenticado = async (supabase, req) => {
+    const authHeader = getHeader(req, 'authorization')
+    const token = String(Array.isArray(authHeader) ? authHeader[0] : authHeader || '')
+        .replace(/^Bearer\s+/i, '')
+        .trim()
+    if (!token) {
+        return { error: 'Sessão ausente. Faça login novamente.' }
+    }
 
-    const mensagem = String(selectCompleto.error.message || '')
-    if (!mensagem.includes('email')) return selectCompleto
+    const authClient = getSupabaseAuth() || supabase
+    const { data: userData, error: userError } = await authClient.auth.getUser(token)
+    if (userError || !userData?.user?.id) {
+        return { error: 'Sessão inválida ou expirada. Faça login novamente.' }
+    }
 
-    return supabase
-        .from('profiles')
-        .select('id, name, permissions')
-        .order('name', { ascending: true })
+    return { user: userData.user }
 }
 
 const upsertProfile = async (supabase, payload) => {
-    const completo = await supabase.from('profiles').upsert(payload, { onConflict: 'id' }).select().single()
-    if (!completo.error) return completo
-
-    const mensagem = String(completo.error.message || '')
-    if (!mensagem.includes('email')) return completo
-
-    const semEmail = { ...payload }
-    delete semEmail.email
-    return supabase.from('profiles').upsert(semEmail, { onConflict: 'id' }).select().single()
+    let atual = { ...payload }
+    for (let tentativa = 0; tentativa < 4; tentativa += 1) {
+        const result = await supabase.from('profiles').upsert(atual, { onConflict: 'id' }).select().single()
+        if (!result.error) return result
+        const mensagem = String(result.error.message || '')
+        let removeu = false
+        if (colunaAusenteNoErro(mensagem, 'email') && 'email' in atual) {
+            delete atual.email
+            removeu = true
+        }
+        if (colunaAusenteNoErro(mensagem, 'password_changed_at') && 'password_changed_at' in atual) {
+            delete atual.password_changed_at
+            removeu = true
+        }
+        if (colunaAusenteNoErro(mensagem, 'force_password_change') && 'force_password_change' in atual) {
+            delete atual.force_password_change
+            removeu = true
+        }
+        if (!removeu) return result
+    }
+    return supabase.from('profiles').upsert(atual, { onConflict: 'id' }).select().single()
 }
 
 const encontrarUsuarioPorEmail = async (supabase, email) => {
@@ -266,9 +316,6 @@ export default async function handler(req, res) {
 
     try {
         const supabase = getSupabaseAdmin()
-        const admin = await validarAdmin(supabase, req)
-        if (admin.error) return responderErro(res, 403, admin.error)
-
         const body = await getJsonBody(req)
         const action = resolveAdminAction(body.action)
         if (!action) {
@@ -277,10 +324,73 @@ export default async function handler(req, res) {
                 res,
                 400,
                 recebida
-                    ? `Ação inválida: «${recebida}». Use list, listAudit, invite, createUser, updateProfile, reset ou deleteUser.`
+                    ? `Ação inválida: «${recebida}». Use list, listAudit, invite, createUser, updateProfile, reset, forcePasswordChange, clearOwnForcePassword ou deleteUser.`
                     : 'Ação inválida. Informe action no corpo da requisição.',
             )
         }
+
+        // Qualquer usuário autenticado pode limpar a própria exigência após trocar a senha.
+        if (action === 'clearOwnForcePassword') {
+            const auth = await validarUsuarioAutenticado(supabase, req)
+            if (auth.error) return responderErro(res, 403, auth.error)
+
+            const { data: atual, error: errAtual } = await buscarProfile(supabase, auth.user.id)
+            if (errAtual) return responderErro(res, 500, errAtual.message)
+            if (!atual?.id) return responderErro(res, 404, 'Perfil não encontrado.')
+
+            const agora = new Date().toISOString()
+            const uid = auth.user.id
+
+            let profileData = null
+            let error = null
+
+            // 1) limpa flag + registra data da troca
+            ;({ data: profileData, error } = await supabase
+                .from('profiles')
+                .update({ force_password_change: false, password_changed_at: agora })
+                .eq('id', uid)
+                .select()
+                .maybeSingle())
+
+            // 2) se a coluna de data não existir, limpa só a flag (não prender o usuário)
+            if (error && colunaAusenteNoErro(error.message, 'password_changed_at')) {
+                ;({ data: profileData, error } = await supabase
+                    .from('profiles')
+                    .update({ force_password_change: false })
+                    .eq('id', uid)
+                    .select()
+                    .maybeSingle())
+            }
+
+            // 3) se a flag também não existir, considera liberado
+            if (error && colunaAusenteNoErro(error.message, 'force_password_change')) {
+                return res.status(200).json({
+                    ok: true,
+                    profile: normalizarProfileAcesso({
+                        ...atual,
+                        force_password_change: false,
+                        password_changed_at: agora,
+                    }),
+                    aviso: `${error.message}. Execute scripts/sql/profiles_force_password_change.sql no Supabase.`,
+                })
+            }
+
+            if (error) return responderErro(res, 500, error.message)
+
+            return res.status(200).json({
+                ok: true,
+                profile: normalizarProfileAcesso(
+                    profileData || {
+                        ...atual,
+                        force_password_change: false,
+                        password_changed_at: agora,
+                    },
+                ),
+            })
+        }
+
+        const admin = await validarAdmin(supabase, req)
+        if (admin.error) return responderErro(res, 403, admin.error)
 
         if (action === 'list') {
             const { data, error } = await listarProfiles(supabase)
@@ -328,6 +438,7 @@ export default async function handler(req, res) {
                 name,
                 email,
                 permissions,
+                password_changed_at: new Date().toISOString(),
             })
 
             if (profileError) return responderErro(res, 500, profileError.message)
@@ -360,8 +471,9 @@ export default async function handler(req, res) {
 
             if (!email || !email.includes('@')) return responderErro(res, 400, 'Informe um email válido.')
             if (!name) return responderErro(res, 400, 'Informe o nome do usuário.')
-            if (password.length < 8) {
-                return responderErro(res, 400, 'A senha deve ter pelo menos 8 caracteres.')
+            const checkSenha = validarPoliticaSenha(password)
+            if (!checkSenha.ok) {
+                return responderErro(res, 400, checkSenha.error)
             }
 
             const existente = await encontrarUsuarioPorEmail(supabase, email)
@@ -385,6 +497,7 @@ export default async function handler(req, res) {
                 name,
                 email,
                 permissions,
+                password_changed_at: new Date().toISOString(),
             })
 
             if (profileError) {
@@ -591,6 +704,58 @@ export default async function handler(req, res) {
                 ok: true,
                 message:
                     'Notificação registada. Ao abrir o Emerzap, o utilizador verá o modal obrigatório para definir uma nova senha da chave.',
+            })
+        }
+
+        if (action === 'forcePasswordChange') {
+            const userId = String(body.userId || '').trim()
+            const forcar = body.force !== false && body.force !== 'false' && body.force !== 0
+            if (!userId) return responderErro(res, 400, 'Usuário não informado.')
+
+            const { data: alvo, error: errAlvo } = await buscarProfile(supabase, userId)
+            if (errAlvo) return responderErro(res, 500, errAlvo.message)
+            if (!alvo?.id) return responderErro(res, 404, 'Usuário não encontrado.')
+
+            const { data: profileData, error } = await supabase
+                .from('profiles')
+                .update({ force_password_change: forcar })
+                .eq('id', userId)
+                .select()
+                .maybeSingle()
+
+            if (error) {
+                if (colunaAusenteNoErro(error.message, 'force_password_change')) {
+                    return responderErro(
+                        res,
+                        500,
+                        `${error.message}. Execute scripts/sql/profiles_force_password_change.sql no Supabase.`,
+                    )
+                }
+                return responderErro(res, 500, error.message)
+            }
+
+            const profileNorm = normalizarProfileAcesso(
+                profileData || { ...alvo, force_password_change: forcar },
+            )
+            const nome = String(alvo.name || '').trim() || 'Sem nome'
+            const email = String(alvo.email || '').trim().toLowerCase()
+            await registrarAuditoria(supabase, {
+                actorUserId: admin.user.id,
+                actorName: admin.profile.name,
+                targetUserId: userId,
+                action: forcar ? 'force_password_change' : 'cancel_force_password_change',
+                summary: forcar
+                    ? `Exigida troca de senha no próximo acesso de ${nome}${email ? ` (${email})` : ''}`
+                    : `Cancelada exigência de troca de senha de ${nome}${email ? ` (${email})` : ''}`,
+                details: { email, force_password_change: forcar },
+            })
+
+            return res.status(200).json({
+                ok: true,
+                profile: profileNorm,
+                message: forcar
+                    ? 'No próximo acesso, o usuário deverá definir uma nova senha antes de usar o app.'
+                    : 'Exigência de troca de senha cancelada.',
             })
         }
 

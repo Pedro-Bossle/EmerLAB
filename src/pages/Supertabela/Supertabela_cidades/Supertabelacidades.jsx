@@ -12,7 +12,6 @@ import GerenciarTabelasModal from '../../../components/Supertabela/GerenciarTabe
 import { mapCidadeParaGerenciador, payloadCidadeComUf } from '../../../lib/cidadesSupertabelaHelpers.js'
 import {
     buildOpcoesFiltroSupertabela,
-    buscarCidadeIdsFiltroPlanoCredenciados,
     carregarVinculosMunicipios,
     extrairMunicipiosCredenciadosDePrestadores,
     isMissingVinculosTableError,
@@ -43,7 +42,6 @@ const Supertabelacidades = () => {
     const [municipiosCredenciados, setMunicipiosCredenciados] = useState([])
     const [suportaVinculosMunicipios, setSuportaVinculosMunicipios] = useState(true)
     const [valorFiltroCidade, setValorFiltroCidade] = useState('')
-    const [cidadeIdsFiltroPlano, setCidadeIdsFiltroPlano] = useState(null)
     const [categorias, setCategorias] = useState([])
     const [portes, setPortes] = useState([])
     const [procedimentos, setProcedimentos] = useState([])
@@ -212,13 +210,8 @@ const Supertabelacidades = () => {
             setProcedimentos(procedimentosData || [])
             setPlanosTodos(planosData || [])
 
-            const idsFiltro = await buscarCidadeIdsFiltroPlanoCredenciados(
-                supabase,
-                null,
-                buscarTodosPaginado,
-            )
-            setCidadeIdsFiltroPlano(idsFiltro)
-            const opcoes = buildOpcoesFiltroSupertabela(listaCidades, vinculos, idsFiltro)
+            // Lista todas as tabelas (inclui vazias / recém-criadas)
+            const opcoes = buildOpcoesFiltroSupertabela(listaCidades, vinculos, null)
             if (!valorFiltroCidade && opcoes.length > 0) {
                 setValorFiltroCidade(opcoes[0].value)
                 setCidadeId(String(opcoes[0].cidadeId))
@@ -227,8 +220,13 @@ const Supertabelacidades = () => {
                 if (hit) {
                     setValorFiltroCidade(hit.value)
                 } else {
-                    setValorFiltroCidade(opcoes[0].value)
-                    setCidadeId(String(opcoes[0].cidadeId))
+                    const aindaExiste = listaCidades.some((c) => String(c.id) === String(cidadeId))
+                    if (aindaExiste) {
+                        setValorFiltroCidade(`c-${cidadeId}`)
+                    } else {
+                        setValorFiltroCidade(opcoes[0].value)
+                        setCidadeId(String(opcoes[0].cidadeId))
+                    }
                 }
             }
         } catch (error) {
@@ -765,8 +763,8 @@ const Supertabelacidades = () => {
     const mapaMunicipiosPorCidade = useMemo(() => municipiosPorCidadeId(municipiosVinculos), [municipiosVinculos])
 
     const opcoesFiltroCidade = useMemo(
-        () => buildOpcoesFiltroSupertabela(cidades, municipiosVinculos, cidadeIdsFiltroPlano),
-        [cidades, municipiosVinculos, cidadeIdsFiltroPlano],
+        () => buildOpcoesFiltroSupertabela(cidades, municipiosVinculos, null),
+        [cidades, municipiosVinculos],
     )
 
     const baixarExcelCidadeGerenciador = async (cidade) => {
@@ -1278,8 +1276,11 @@ const Supertabelacidades = () => {
 
             await carregarBase()
             setCidadeId(String(data.id))
+            setValorFiltroCidade(`c-${data.id}`)
             setCodigosInicializacaoCidade('')
+            setAdicaoMassaAtiva(false)
             setMostrarAdicionarCidade(false)
+            setMostrarGerenciarModal(false)
             setNovaCidadeUf('')
             setNovaCidadeMunicipio('')
             setNovaCidadeEnglobados([])
@@ -1790,7 +1791,12 @@ ou um código por linha`}
                     <p>Carregando...</p>
                 ) : secoesPorCategoria.length === 0 ? (
                     <div className='cidade_vazia_wrap'>
-                        <p>Nenhum procedimento encontrado para a cidade selecionada.</p>
+                        <p>Esta tabela ainda não tem procedimentos.</p>
+                        <p className='cidade_vazia_tip'>
+                            Cole os códigos abaixo para <strong>inclusão em massa</strong>, ou marque
+                            «Adição em massa» no topo. Com a edição ativa, também dá para incluir um a um
+                            por categoria.
+                        </p>
                         <div className='cidade_vazia_form'>
                             <label htmlFor='codigos-cidade-vazia'>
                                 IDs de procedimentos (um por linha ou separados por vírgula)
@@ -1807,6 +1813,7 @@ ou um código por linha`}
                                 type='button'
                                 className='cidade_vazia_btn'
                                 onClick={preencherProcedimentosCidadeAtual}
+                                disabled={somenteLeitura || !cidadeId}
                             >
                                 Criar lista de procedimentos para a cidade
                             </button>

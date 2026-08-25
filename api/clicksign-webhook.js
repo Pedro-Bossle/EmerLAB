@@ -64,8 +64,17 @@ function igualHexSeguro(esperado, recebido) {
 
 function verificarHmac(req, rawBody) {
     const secret = (process.env.CLICKSIGN_WEBHOOK_SECRET || '').trim()
+    const allowInsecureDev =
+        String(process.env.CLICKSIGN_WEBHOOK_ALLOW_INSECURE_DEV || '')
+            .trim()
+            .toLowerCase() === '1' ||
+        String(process.env.CLICKSIGN_WEBHOOK_ALLOW_INSECURE_DEV || '')
+            .trim()
+            .toLowerCase() === 'true'
+
     if (!secret) {
-        if (process.env.VERCEL) {
+        // Em produção (Vercel) ou sem opt-in explícito: rejeitar.
+        if (process.env.VERCEL || !allowInsecureDev) {
             return { ok: false, reason: 'secret_not_configured' }
         }
         return { ok: true, skipped: true }
@@ -189,6 +198,11 @@ export default async function handler(req, res) {
     }
 
     const rawBody = await readRawBody(req)
+
+    const { getClientIp } = await import('../src/lib/api/serverAuth.js')
+    const { aplicarRateLimit, RATE_LIMITS } = await import('../src/lib/api/rateLimit.js')
+    if (!aplicarRateLimit(res, `webhook-clicksign:${getClientIp(req)}`, RATE_LIMITS.webhook)) return
+
     const auth = verificarHmac(req, rawBody)
     if (!auth.ok) {
         res.status(401).json({ error: 'Assinatura HMAC inválida ou ausente.', reason: auth.reason })

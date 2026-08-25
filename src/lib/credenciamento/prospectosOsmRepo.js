@@ -49,10 +49,47 @@ export async function listarProspectosOsm(filtros = {}) {
     return { ok: true, itens }
 }
 
-export async function atualizarStatusProspectoOsm(id, { status_prospeccao, observacao }) {
+const CAMPOS_EDITAVEIS = new Set([
+    'nome',
+    'categoria_id',
+    'categoria_label',
+    'endereco',
+    'cidade',
+    'uf',
+    'telefone',
+    'website',
+    'horario_atendimento',
+    'status_prospeccao',
+    'observacao',
+    'lat',
+    'lng',
+])
+
+/**
+ * Atualiza campos editáveis do prospecto (nome, contacto, endereço, status, etc.).
+ * @param {string} id
+ * @param {Record<string, unknown>} campos
+ */
+export async function atualizarProspectoOsm(id, campos = {}) {
     const payload = { atualizado_em: new Date().toISOString() }
-    if (status_prospeccao !== undefined) payload.status_prospeccao = status_prospeccao
-    if (observacao !== undefined) payload.observacao = observacao
+    for (const [k, v] of Object.entries(campos || {})) {
+        if (!CAMPOS_EDITAVEIS.has(k)) continue
+        if (k === 'lat' || k === 'lng') {
+            if (v === '' || v === null || v === undefined) {
+                payload[k] = null
+            } else {
+                const n = Number(v)
+                payload[k] = Number.isFinite(n) ? n : null
+            }
+            continue
+        }
+        if (typeof v === 'string') payload[k] = v.trim()
+        else if (v !== undefined) payload[k] = v
+    }
+
+    if (Object.keys(payload).length <= 1) {
+        return { ok: false, erro: 'Nenhum campo para atualizar.' }
+    }
 
     const { data, error } = await supabase
         .from(TABELA)
@@ -63,7 +100,7 @@ export async function atualizarStatusProspectoOsm(id, { status_prospeccao, obser
 
     if (error) return { ok: false, erro: error.message }
 
-    if (String(status_prospeccao || data?.status_prospeccao || '') === 'contactado' && data) {
+    if (String(payload.status_prospeccao || data?.status_prospeccao || '') === 'contactado' && data) {
         try {
             const { enviarProspectoOsmParaKanban } = await import('../credKanban.js')
             await enviarProspectoOsmParaKanban(data)
@@ -78,6 +115,10 @@ export async function atualizarStatusProspectoOsm(id, { status_prospeccao, obser
     }
 
     return { ok: true, item: data }
+}
+
+export async function atualizarStatusProspectoOsm(id, { status_prospeccao, observacao }) {
+    return atualizarProspectoOsm(id, { status_prospeccao, observacao })
 }
 
 export async function listarCidadesUfProspectosOsm() {

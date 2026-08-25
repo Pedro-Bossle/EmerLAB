@@ -1,10 +1,11 @@
-import path from 'node:path'
-import { createClient } from '@supabase/supabase-js'
-import { config as dotenvConfig } from 'dotenv'
 import { geocodificarESalvarPrestador } from '../src/lib/credenciamento/geocodePrestadorServer.js'
-
-dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
-dotenvConfig()
+import { PERMISSION_KEYS } from '../src/lib/accessControl.js'
+import {
+    createSupabaseAdminClient,
+    getClientIp,
+    validarJwtComPermissao,
+} from '../src/lib/api/serverAuth.js'
+import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
 
 const getJsonBody = async (req) => {
     if (req.body !== undefined && req.body !== null) {
@@ -27,28 +28,31 @@ const getJsonBody = async (req) => {
     }
 }
 
-const getSupabaseAdmin = () => {
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!supabaseUrl || !serviceRoleKey) {
-        throw new Error('Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY para geocodificar prestadores.')
-    }
-    return createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-}
-
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         res.status(405).json({ ok: false, error: 'Método não permitido.' })
         return
     }
     try {
+        const ip = getClientIp(req)
+        if (!aplicarRateLimit(res, `geocode:${ip}`, RATE_LIMITS.geocode)) return
+
+        const auth = await validarJwtComPermissao(req, [
+            PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+            PERMISSION_KEYS.CREDENCIAMENTO_EDIT,
+        ])
+        if (auth.error) {
+            res.status(auth.status || 401).json({ ok: false, error: auth.error })
+            return
+        }
+
         const body = await getJsonBody(req)
         const prestadorId = Number(body.prestadorId)
         if (!prestadorId) {
             res.status(400).json({ ok: false, error: 'Informe prestadorId.' })
             return
         }
-        const supabase = getSupabaseAdmin()
+        const supabase = createSupabaseAdminClient()
         const resultado = await geocodificarESalvarPrestador(supabase, prestadorId, {
             forcar: Boolean(body.forcar),
         })

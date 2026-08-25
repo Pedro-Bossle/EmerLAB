@@ -10,10 +10,9 @@ async function authHeaders() {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
     }
-    // Edge Functions exigem também apikey (anon)
     if (useSupabaseEdgeApi('gemini-rate')) {
-        Object.assign(headers, serverApiAuthHeaders())
-        // Preferir JWT do utilizador no Authorization (verify_jwt)
+        const edge = await serverApiAuthHeaders('gemini-rate')
+        Object.assign(headers, edge)
         headers.Authorization = `Bearer ${token}`
     }
     return headers

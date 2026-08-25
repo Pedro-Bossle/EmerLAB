@@ -85,6 +85,22 @@ export default async function handler(req, res) {
         return
     }
 
+    const { PERMISSION_KEYS } = await import('../src/lib/accessControl.js')
+    const { getClientIp, validarJwtComPermissao } = await import('../src/lib/api/serverAuth.js')
+    const { aplicarRateLimit, RATE_LIMITS } = await import('../src/lib/api/rateLimit.js')
+
+    if (!aplicarRateLimit(res, `clicksign-dl:${getClientIp(req)}`, RATE_LIMITS.clicksign)) return
+
+    const auth = await validarJwtComPermissao(req, [
+        PERMISSION_KEYS.CONTRATOS_VIEW,
+        PERMISSION_KEYS.CONTRATOS_EDIT,
+        PERMISSION_KEYS.ACCESS_MANAGE,
+    ])
+    if (auth.error) {
+        res.status(auth.status || 401).json({ error: auth.error })
+        return
+    }
+
     const token = (process.env.CLICKSIGN_ACCESS_TOKEN || process.env.CLICKSIGN_TOKEN || '').trim()
     if (!token) {
         res.status(503).json({ error: 'CLICKSIGN_ACCESS_TOKEN não configurado.' })

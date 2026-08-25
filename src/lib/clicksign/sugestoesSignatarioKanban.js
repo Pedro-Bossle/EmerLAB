@@ -1,10 +1,15 @@
 /**
  * Sugestões de signatário Clicksign a partir do Kanban
  * (coluna Aguardando Assinatura + prestador vinculado).
+ *
+ * Nome para o formulário:
+ * - prestador com CNPJ → razão social (campo nome do cadastro)
+ * - caso contrário → nome inserido no card do Kanban
  */
 
 import { supabase } from '../supabase.js'
 import { maskTelefoneBr } from '../telefoneBrasil.js'
+import { tipoDocumentoCpfCnpj } from '../prestadorCadastroHelpers.js'
 
 /**
  * @typedef {{
@@ -15,11 +20,13 @@ import { maskTelefoneBr } from '../telefoneBrasil.js'
  *   telefone: string,
  *   cidade: string,
  *   uf: string,
+ *   cpfCnpj: string,
+ *   temCnpj: boolean,
  * }} SugestaoSignatarioKanban
  */
 
 /**
- * Cards em «Aguardando Assinatura» com prestador vinculado → nome (razão social) / e-mail / telefone.
+ * Cards em «Aguardando Assinatura» com prestador vinculado.
  * @returns {Promise<SugestaoSignatarioKanban[]>}
  */
 export async function listarSugestoesSignatarioKanbanAssinatura() {
@@ -51,7 +58,7 @@ export async function listarSugestoesSignatarioKanbanAssinatura() {
 
     const { data: prestadores, error: errP } = await supabase
         .from('prestadores')
-        .select('id, nome, email, telefone, celular, endereco_cidade, endereco_uf')
+        .select('id, nome, email, telefone, celular, endereco_cidade, endereco_uf, cpf_cnpj')
         .in('id', ids)
 
     if (errP) throw new Error(errP.message)
@@ -67,7 +74,15 @@ export async function listarSugestoesSignatarioKanbanAssinatura() {
         if (!p) continue
         vistoPrestador.add(pid)
 
-        const nome = String(p.nome || card.nome || '').trim()
+        const cpfCnpj = String(p.cpf_cnpj || '').trim()
+        const temCnpj = tipoDocumentoCpfCnpj(cpfCnpj) === 'CNPJ'
+        const razaoSocial = String(p.nome || '').trim()
+        const nomeInserido = String(card.nome || '').trim()
+        // CNPJ → razão social do cadastro; senão → nome digitado no card do Kanban
+        const nome = temCnpj
+            ? razaoSocial || nomeInserido
+            : nomeInserido || razaoSocial
+
         const email = String(p.email || '').trim().toLowerCase()
         const telBruto = String(p.celular || p.telefone || card.telefone || '').trim()
         const telefone = telBruto ? maskTelefoneBr(telBruto) : ''
@@ -80,13 +95,15 @@ export async function listarSugestoesSignatarioKanbanAssinatura() {
             telefone,
             cidade: String(p.endereco_cidade || card.cidade || '').trim(),
             uf: String(p.endereco_uf || card.uf || '').trim().toUpperCase(),
+            cpfCnpj,
+            temCnpj,
         })
     }
 
     return out.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
 }
 
-/** Filtra sugestões por texto (nome, e-mail, cidade). */
+/** Filtra sugestões por texto (nome, e-mail, cidade, CNPJ). */
 export function filtrarSugestoesSignatarioKanban(lista, termo) {
     const t = String(termo || '')
         .normalize('NFD')
@@ -96,14 +113,15 @@ export function filtrarSugestoesSignatarioKanban(lista, termo) {
     if (!t) return lista || []
     return (lista || []).filter((s) => {
         const tel = String(s.telefone || '').replace(/\D/g, '')
+        const doc = String(s.cpfCnpj || '').replace(/\D/g, '')
         const qDigits = t.replace(/\D/g, '')
-        const blob = `${s.nome} ${s.email} ${s.cidade} ${s.uf} ${s.telefone}`
+        const blob = `${s.nome} ${s.email} ${s.cidade} ${s.uf} ${s.telefone} ${s.cpfCnpj}`
             .normalize('NFD')
             .replace(/\p{M}/gu, '')
             .toLowerCase()
         return (
             blob.includes(t) ||
-            (qDigits.length > 0 && tel.includes(qDigits))
+            (qDigits.length > 0 && (tel.includes(qDigits) || doc.includes(qDigits)))
         )
     })
 }

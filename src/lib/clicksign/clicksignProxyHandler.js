@@ -47,6 +47,22 @@ function sendRawResponse(res, status, contentType, body) {
 }
 
 export default async function clicksignProxyHandler(req, res) {
+    const { PERMISSION_KEYS } = await import('../accessControl.js')
+    const { getClientIp, validarJwtComPermissao } = await import('../api/serverAuth.js')
+    const { aplicarRateLimit, RATE_LIMITS } = await import('../api/rateLimit.js')
+
+    if (!aplicarRateLimit(res, `clicksign:${getClientIp(req)}`, RATE_LIMITS.clicksign)) return
+
+    const auth = await validarJwtComPermissao(req, [
+        PERMISSION_KEYS.CONTRATOS_VIEW,
+        PERMISSION_KEYS.CONTRATOS_EDIT,
+        PERMISSION_KEYS.ACCESS_MANAGE,
+    ])
+    if (auth.error) {
+        res.status(auth.status || 401).json({ error: auth.error })
+        return
+    }
+
     const token = (process.env.CLICKSIGN_ACCESS_TOKEN || process.env.CLICKSIGN_TOKEN || '').trim()
     if (!token) {
         res.status(503).json({

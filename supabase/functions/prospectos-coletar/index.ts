@@ -2,10 +2,30 @@ import { handleOptions, jsonResponse } from '../_shared/cors.ts'
 import { createServiceClient } from '../_shared/supabaseAdmin.ts'
 import { geminiVerificarDisponibilidade, lerRate } from '../_shared/gemini.ts'
 import { executarPassoJobColeta, iniciarJobColeta } from '../_shared/prospectosJob.ts'
+import {
+  clientIp,
+  podeFerramentaProspectos,
+  rateLimitOk,
+  requireUserProfile,
+} from '../_shared/requireUser.ts'
 
 Deno.serve(async (req) => {
   const opt = handleOptions(req)
   if (opt) return opt
+
+  const ip = clientIp(req)
+  if (!rateLimitOk(`prospectos:${ip}`, 12, 60_000)) {
+    return jsonResponse({ error: 'Demasiados pedidos. Aguarde um momento.' }, 429)
+  }
+
+  const auth = await requireUserProfile(req)
+  if ('error' in auth && auth.error) {
+    return jsonResponse({ error: auth.error }, auth.status || 401)
+  }
+  const permissions = (auth.profile?.permissions || {}) as Record<string, unknown>
+  if (!podeFerramentaProspectos(permissions)) {
+    return jsonResponse({ error: 'Sem permissão para prospectos / Gemini.' }, 403)
+  }
 
   const url = new URL(req.url)
   const route = url.searchParams.get('route') || ''

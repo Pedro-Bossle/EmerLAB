@@ -20,6 +20,7 @@ const SCHEMA = {
           website: { type: 'string' },
           horario_atendimento: { type: 'string' },
           nota: { type: 'string' },
+          ativo: { type: 'boolean' },
         },
         required: ['nome', 'categoria_id', 'endereco'],
       },
@@ -39,11 +40,13 @@ function hashId(chave: string) {
 function montarPrompt(cidade: string, uf: string) {
   const cats = PROSPECTOS_OSM_CATEGORIAS.map((c) => `${c.id}: ${c.label}`).join('\n')
   const loc = uf ? `${cidade}, ${uf}, Brasil` : `${cidade}, Brasil`
-  return `Liste estabelecimentos REAIS em ${loc} voltados a animais / veterinária.
+  return `Liste estabelecimentos REAIS, ATIVOS e em funcionamento em ${loc} voltados a animais / veterinária.
+Inclua SOMENTE locais abertos e operando hoje. NÃO incluir fechados, desativados, abandonados, demolidos, “antigo …”, inexistentes ou com dúvida se ainda funcionam — nesse caso OMITA.
 categoria_id deve ser um destes:
 ${cats}
 Máximo ${MAX_ITENS} itens.
-Retorne JSON: { "estabelecimentos": [ { "nome", "categoria_id", "endereco", "telefone", "website", "horario_atendimento" } ] }`
+Retorne JSON: { "estabelecimentos": [ { "nome", "categoria_id", "endereco", "telefone", "website", "horario_atendimento", "ativo" } ] }
+Campo ativo=true apenas se estiver em operação.`
 }
 
 export async function coletarProspectosGeminiCidade(
@@ -81,6 +84,16 @@ export async function coletarProspectosGeminiCidade(
     const endereco = String(raw?.endereco || '').trim()
     if (!nome || !endereco) continue
     if (!PROSPECTOS_OSM_CATEGORIAS.some((c) => c.id === categoria_id)) continue
+    if (raw?.ativo === false) continue
+    const horario = String(raw?.horario_atendimento || '').trim()
+    const nota = String(raw?.nota || '').trim()
+    const nomeLow = nome.toLowerCase()
+    if (
+      /\b(fechado|fechada|desativado|abandonado|inexistente|antig[oa])\b/i.test(nomeLow) ||
+      /^(closed|off|fechado)$/i.test(horario)
+    ) {
+      continue
+    }
     const chave = `${nome}|${endereco}|${cidade}|${uf}|${categoria_id}`
     const row = {
       osm_type: 'gemini_poc',
@@ -94,9 +107,9 @@ export async function coletarProspectosGeminiCidade(
       lat: null,
       lng: null,
       telefone: String(raw?.telefone || '').trim(),
-      horario_atendimento: String(raw?.horario_atendimento || '').trim(),
+      horario_atendimento: horario,
       website: String(raw?.website || '').trim(),
-      tags: { fonte: 'gemini_poc', nota: String(raw?.nota || '').trim() },
+      tags: { fonte: 'gemini_poc', nota, ativo: true },
       coletado_em: new Date().toISOString(),
       atualizado_em: new Date().toISOString(),
     }
