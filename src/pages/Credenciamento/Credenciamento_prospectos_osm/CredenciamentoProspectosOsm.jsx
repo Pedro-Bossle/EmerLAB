@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
+import { buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
 import {
     PERMISSION_KEYS,
     hasPermission,
@@ -42,6 +42,7 @@ import { supabase } from '../../../lib/supabase'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
+import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 import { PageHeader } from '../../../components/ui'
 import { useGeminiRate } from '../../../hooks/useGemini.js'
 import '../Credenciamento_main/Credenciamento_main.css'
@@ -94,6 +95,8 @@ const CredenciamentoProspectosOsm = () => {
     const [uf, setUf] = useState('RS')
     const [cidade, setCidade] = useState('')
     const [municipios, setMunicipios] = useState([])
+    const [municipiosEdit, setMunicipiosEdit] = useState([])
+    const [loadingMunEdit, setLoadingMunEdit] = useState(false)
     const [loadingMun, setLoadingMun] = useState(false)
     const [catsAtivas, setCatsAtivas] = useState(() => new Set(TODAS_CATEGORIAS_IDS))
     const [catPainelAberto, setCatPainelAberto] = useState(false)
@@ -208,6 +211,29 @@ const CredenciamentoProspectosOsm = () => {
             .catch(() => setMunicipios([]))
             .finally(() => setLoadingMun(false))
     }, [uf])
+
+    useEffect(() => {
+        const ufEdit = String(editForm?.uf || '').trim().toUpperCase()
+        if (!editForm || !ufEdit) {
+            setMunicipiosEdit([])
+            return undefined
+        }
+        let cancel = false
+        setLoadingMunEdit(true)
+        buscarMunicipiosPorUf(ufEdit)
+            .then((lista) => {
+                if (!cancel) setMunicipiosEdit(lista || [])
+            })
+            .catch(() => {
+                if (!cancel) setMunicipiosEdit([])
+            })
+            .finally(() => {
+                if (!cancel) setLoadingMunEdit(false)
+            })
+        return () => {
+            cancel = true
+        }
+    }, [editForm?.uf])
 
     useEffect(() => {
         if (!cidade) return
@@ -561,7 +587,11 @@ const CredenciamentoProspectosOsm = () => {
     }
 
     const setCampoEdit = (campo, valor) => {
-        setEditForm((prev) => (prev ? { ...prev, [campo]: valor } : prev))
+        setEditForm((prev) => {
+            if (!prev) return prev
+            if (campo === 'uf') return { ...prev, uf: valor, cidade: '' }
+            return { ...prev, [campo]: valor }
+        })
     }
 
     const salvarEdicao = async () => {
@@ -669,18 +699,15 @@ const CredenciamentoProspectosOsm = () => {
                     <div className="cred_prospectos_osm_filtro_linha1">
                         <label className="pcad_field cred_prospectos_osm_field_uf">
                             <span>UF</span>
-                            <select
-                                className="credenciamento_main_input"
+                            <SelectUfBusca
                                 value={uf}
-                                onChange={(e) => setUf(e.target.value)}
-                            >
-                                <option value="">—</option>
-                                {UFS_BRASIL.map((sigla) => (
-                                    <option key={sigla} value={sigla}>
-                                        {sigla}
-                                    </option>
-                                ))}
-                            </select>
+                                inputClassName="credenciamento_main_input"
+                                emptyLabel="—"
+                                onChange={(u) => {
+                                    setUf(u)
+                                    setCidade('')
+                                }}
+                            />
                         </label>
                         <label className="pcad_field cred_prospectos_osm_field_cidade">
                             <span>Cidade</span>
@@ -1222,28 +1249,28 @@ const CredenciamentoProspectosOsm = () => {
                                 />
                             </label>
                             <label>
-                                <span>Cidade</span>
-                                <input
-                                    type="text"
-                                    className="credenciamento_main_input"
-                                    value={editForm.cidade}
-                                    onChange={(e) => setCampoEdit('cidade', e.target.value)}
+                                <span>UF</span>
+                                <SelectUfBusca
+                                    value={editForm.uf}
+                                    inputClassName="credenciamento_main_input"
+                                    emptyLabel="—"
+                                    onChange={(u) => {
+                                        setCampoEdit('uf', u)
+                                        setCampoEdit('cidade', '')
+                                    }}
                                 />
                             </label>
                             <label>
-                                <span>UF</span>
-                                <select
-                                    className="credenciamento_main_input"
-                                    value={editForm.uf}
-                                    onChange={(e) => setCampoEdit('uf', e.target.value)}
-                                >
-                                    <option value="">—</option>
-                                    {UFS_BRASIL.map((sigla) => (
-                                        <option key={sigla} value={sigla}>
-                                            {sigla}
-                                        </option>
-                                    ))}
-                                </select>
+                                <span>Cidade</span>
+                                <SelectMunicipioBusca
+                                    value={editForm.cidade}
+                                    options={municipiosEdit}
+                                    disabled={!editForm.uf?.trim() || loadingMunEdit}
+                                    loading={loadingMunEdit}
+                                    inputClassName="credenciamento_main_input"
+                                    placeholder={!editForm.uf?.trim() ? 'Selecione a UF' : 'Buscar cidade…'}
+                                    onChange={(nome) => setCampoEdit('cidade', nome)}
+                                />
                             </label>
                             <label>
                                 <span>Telefone</span>

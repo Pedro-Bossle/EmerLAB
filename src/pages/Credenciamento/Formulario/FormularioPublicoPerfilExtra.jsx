@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { obterOuCriarCidadeCredenciamentoPorMunicipio } from '../../../lib/cidadesCredenciamento.js'
-import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades'
+import { buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades'
 import { formatarCrmvEntrada, normalizarCrmvParaSalvar } from '../../../lib/prestadorCadastroHelpers'
 import {
     filtrarEspecialidadesVeterinario,
@@ -10,6 +10,7 @@ import MultiEspecialidadesInput from '../Credenciamento_cadastro/MultiEspecialid
 import PrestadorCertificadosConclusaoInput from '../Credenciamento_cadastro/PrestadorCertificadosConclusaoInput.jsx'
 import PrestadorResponsaveisInput from '../Credenciamento_cadastro/PrestadorResponsaveisInput.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
+import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 
 const PLACEHOLDER_CRMV = 'PF/PJ - 123456 - UF'
 
@@ -161,17 +162,14 @@ export default function FormularioPublicoPerfilExtra({
                     <div className="fcred_grid fcred_grid_3 fcred_grid_cidades">
                         <label className="fcred_field">
                             <span>UF</span>
-                            <select
-                                className="fcred_select"
+                            <SelectUfBusca
                                 value={ufAtende}
-                                onChange={(e) => setUfAtende(e.target.value)}
-                            >
-                                {UFS_BRASIL.map((u) => (
-                                    <option key={u} value={u}>
-                                        {u}
-                                    </option>
-                                ))}
-                            </select>
+                                inputClassName="fcred_select"
+                                onChange={(u) => {
+                                    setUfAtende(u)
+                                    setMunicipioIbgeId('')
+                                }}
+                            />
                         </label>
                         <label className="fcred_field fcred_field_grow">
                             <span>Cidade</span>

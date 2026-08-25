@@ -19,14 +19,20 @@ export const MAX_TAMANHO_ANEXO_TAREFA_BYTES = 10 * 1024 * 1024
 
 const COLS_TAREFA_BASE =
     'id, titulo, observacoes, prazo, status, prioridade, criado_por, atribuido_a, criado_em, atualizado_em, concluido_em'
-const COLS_TAREFA_COM_RESOLUCAO = `${COLS_TAREFA_BASE}, resolucao`
+const COLS_TAREFA_COM_HORARIO = `${COLS_TAREFA_BASE}, horario`
+const COLS_TAREFA_COM_RESOLUCAO = `${COLS_TAREFA_COM_HORARIO}, resolucao`
 const COLS_TAREFA_COM_ANEXOS = `${COLS_TAREFA_COM_RESOLUCAO}, anexos`
-const COLS_TAREFA_ANEXOS_SEM_RESOLUCAO = `${COLS_TAREFA_BASE}, anexos`
+const COLS_TAREFA_ANEXOS_SEM_RESOLUCAO = `${COLS_TAREFA_COM_HORARIO}, anexos`
+const COLS_TAREFA_RESOLUCAO_SEM_HORARIO = `${COLS_TAREFA_BASE}, resolucao`
+const COLS_TAREFA_ANEXOS_SEM_HORARIO = `${COLS_TAREFA_BASE}, resolucao, anexos`
+const COLS_TAREFA_ANEXOS_SEM_RESOLUCAO_SEM_HORARIO = `${COLS_TAREFA_BASE}, anexos`
 
 /** @type {boolean | null} */
 let homeTarefasTemAnexos = null
 /** @type {boolean | null} */
 let homeTarefasTemResolucao = null
+/** @type {boolean | null} */
+let homeTarefasTemHorario = null
 
 function isErroColunaAnexos(error) {
     if (!error) return false
@@ -56,15 +62,50 @@ function isErroColunaResolucao(error) {
     )
 }
 
+function isErroColunaHorario(error) {
+    if (!error) return false
+    const blob = `${error.message || ''} ${error.details || ''} ${error.hint || ''} ${error.code || ''}`.toLowerCase()
+    return (
+        blob.includes('horario') &&
+        (blob.includes('does not exist') ||
+            blob.includes('schema cache') ||
+            blob.includes('could not find') ||
+            blob.includes('column') ||
+            error.code === '42703' ||
+            error.code === 'PGRST204')
+    )
+}
+
+/** Normaliza valor TIME / string para «HH:MM» ou ''. */
+export function normalizarHorarioTarefa(valor) {
+    if (valor == null || valor === '') return ''
+    const s = String(valor).trim()
+    const m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?/)
+    if (!m) return ''
+    const h = Math.min(23, Math.max(0, Number(m[1])))
+    const min = Math.min(59, Math.max(0, Number(m[2])))
+    if (!Number.isFinite(h) || !Number.isFinite(min)) return ''
+    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
+}
+
+/** Para gravar no Postgres TIME (ou null). */
+export function horarioParaDb(valor) {
+    const h = normalizarHorarioTarefa(valor)
+    return h ? `${h}:00` : null
+}
+
 function colsSelectTarefa() {
-    if (homeTarefasTemAnexos === false && homeTarefasTemResolucao === false) return COLS_TAREFA_BASE
+    const comHorario = homeTarefasTemHorario !== false
+    if (homeTarefasTemAnexos === false && homeTarefasTemResolucao === false) {
+        return comHorario ? COLS_TAREFA_COM_HORARIO : COLS_TAREFA_BASE
+    }
     if (homeTarefasTemAnexos === false && homeTarefasTemResolucao !== false) {
-        return COLS_TAREFA_COM_RESOLUCAO
+        return comHorario ? COLS_TAREFA_COM_RESOLUCAO : COLS_TAREFA_RESOLUCAO_SEM_HORARIO
     }
     if (homeTarefasTemAnexos !== false && homeTarefasTemResolucao === false) {
-        return COLS_TAREFA_ANEXOS_SEM_RESOLUCAO
+        return comHorario ? COLS_TAREFA_ANEXOS_SEM_RESOLUCAO : COLS_TAREFA_ANEXOS_SEM_RESOLUCAO_SEM_HORARIO
     }
-    return COLS_TAREFA_COM_ANEXOS
+    return comHorario ? COLS_TAREFA_COM_ANEXOS : COLS_TAREFA_ANEXOS_SEM_HORARIO
 }
 
 export function normalizarAnexosTarefa(raw) {
@@ -114,6 +155,7 @@ export function mapRowTarefa(row, nomesPorId = new Map()) {
         observacoes: row.observacoes || '',
         resolucao: row.resolucao || '',
         prazo: row.prazo || null,
+        horario: normalizarHorarioTarefa(row.horario),
         status: row.status || 'pendente',
         prioridade: row.prioridade || 'normal',
         criadoPor: row.criado_por,
@@ -187,23 +229,30 @@ function montarStoragePathAnexoTarefa(tarefaId, nomeArquivo) {
 async function selectTarefaPorId(id) {
     const tentativas = [
         COLS_TAREFA_COM_ANEXOS,
+        COLS_TAREFA_ANEXOS_SEM_HORARIO,
         COLS_TAREFA_ANEXOS_SEM_RESOLUCAO,
+        COLS_TAREFA_ANEXOS_SEM_RESOLUCAO_SEM_HORARIO,
         COLS_TAREFA_COM_RESOLUCAO,
+        COLS_TAREFA_RESOLUCAO_SEM_HORARIO,
+        COLS_TAREFA_COM_HORARIO,
         COLS_TAREFA_BASE,
     ]
     let ultimo = null
     for (const cols of tentativas) {
         if (homeTarefasTemAnexos === false && cols.includes('anexos')) continue
         if (homeTarefasTemResolucao === false && cols.includes('resolucao')) continue
+        if (homeTarefasTemHorario === false && /\bhorario\b/.test(cols)) continue
         const res = await supabase.from('home_tarefas').select(cols).eq('id', id).single()
         if (!res.error) {
             if (cols.includes('anexos')) homeTarefasTemAnexos = true
             if (cols.includes('resolucao')) homeTarefasTemResolucao = true
+            if (/\bhorario\b/.test(cols)) homeTarefasTemHorario = true
             return res
         }
         ultimo = res
         if (isErroColunaAnexos(res.error)) homeTarefasTemAnexos = false
         else if (isErroColunaResolucao(res.error)) homeTarefasTemResolucao = false
+        else if (isErroColunaHorario(res.error)) homeTarefasTemHorario = false
         else return res
     }
     return ultimo || supabase.from('home_tarefas').select(COLS_TAREFA_BASE).eq('id', id).single()
@@ -343,20 +392,44 @@ export async function removerAnexoTarefa(tarefaId, storagePath) {
     return mapRowTarefa(data)
 }
 
-export function formatarPrazoTarefa(prazo) {
+export function formatarPrazoTarefa(prazo, horario = null) {
     if (!prazo) return 'Sem prazo'
-    const d = new Date(`${prazo}T12:00:00`)
+    const dataStr = String(prazo).slice(0, 10)
+    const d = new Date(`${dataStr}T12:00:00`)
     if (Number.isNaN(d.getTime())) return String(prazo)
-    return d.toLocaleDateString('pt-BR')
+    const dataFmt = d.toLocaleDateString('pt-BR')
+    const hora = normalizarHorarioTarefa(horario)
+    return hora ? `${dataFmt} · ${hora}` : dataFmt
+}
+
+/** Instantâneo local do prazo (+ horário opcional), ou null. */
+export function dataHoraPrazoTarefa(tarefaOuPrazo, horarioArg = null) {
+    const prazo = typeof tarefaOuPrazo === 'object' ? tarefaOuPrazo?.prazo : tarefaOuPrazo
+    const horario =
+        typeof tarefaOuPrazo === 'object'
+            ? tarefaOuPrazo?.horario ?? horarioArg
+            : horarioArg
+    if (!prazo) return null
+    const dataStr = String(prazo).slice(0, 10)
+    const hora = normalizarHorarioTarefa(horario)
+    const iso = hora ? `${dataStr}T${hora}:00` : `${dataStr}T12:00:00`
+    const d = new Date(iso)
+    return Number.isNaN(d.getTime()) ? null : d
 }
 
 export function tarefaAtrasada(tarefa) {
     if (!tarefa?.prazo) return false
     if (tarefa.status === 'concluida' || tarefa.status === 'cancelada') return false
+    const p = dataHoraPrazoTarefa(tarefa)
+    if (!p) return false
+    if (normalizarHorarioTarefa(tarefa.horario)) {
+        return p.getTime() < Date.now()
+    }
     const hoje = new Date()
     hoje.setHours(0, 0, 0, 0)
-    const p = new Date(`${tarefa.prazo}T12:00:00`)
-    return p < hoje
+    const diaPrazo = new Date(p)
+    diaPrazo.setHours(0, 0, 0, 0)
+    return diaPrazo < hoje
 }
 
 /** Só criador ou destinatário enxergam a tarefa. */
@@ -415,7 +488,7 @@ export function buscarTarefasTexto(tarefas, termo) {
             t.criadorNome,
             t.status,
             t.prioridade,
-            formatarPrazoTarefa(t.prazo),
+            formatarPrazoTarefa(t.prazo, t.horario),
             anexosNomes,
         ]
             .map(norm)
@@ -493,8 +566,12 @@ export async function listarTarefasHome({ userId } = {}) {
 
     const tentativas = [
         COLS_TAREFA_COM_ANEXOS,
+        COLS_TAREFA_ANEXOS_SEM_HORARIO,
         COLS_TAREFA_ANEXOS_SEM_RESOLUCAO,
+        COLS_TAREFA_ANEXOS_SEM_RESOLUCAO_SEM_HORARIO,
         COLS_TAREFA_COM_RESOLUCAO,
+        COLS_TAREFA_RESOLUCAO_SEM_HORARIO,
+        COLS_TAREFA_COM_HORARIO,
         COLS_TAREFA_BASE,
     ]
 
@@ -503,6 +580,7 @@ export async function listarTarefasHome({ userId } = {}) {
     for (const cols of tentativas) {
         if (homeTarefasTemAnexos === false && cols.includes('anexos')) continue
         if (homeTarefasTemResolucao === false && cols.includes('resolucao')) continue
+        if (homeTarefasTemHorario === false && /\bhorario\b/.test(cols)) continue
         const res = await supabase
             .from('home_tarefas')
             .select(cols)
@@ -514,6 +592,7 @@ export async function listarTarefasHome({ userId } = {}) {
             error = null
             if (cols.includes('anexos')) homeTarefasTemAnexos = true
             if (cols.includes('resolucao')) homeTarefasTemResolucao = true
+            if (/\bhorario\b/.test(cols)) homeTarefasTemHorario = true
             break
         }
         error = res.error
@@ -523,6 +602,10 @@ export async function listarTarefasHome({ userId } = {}) {
         }
         if (isErroColunaResolucao(res.error)) {
             homeTarefasTemResolucao = false
+            continue
+        }
+        if (isErroColunaHorario(res.error)) {
+            homeTarefasTemHorario = false
             continue
         }
         break
@@ -554,12 +637,17 @@ export async function listarTarefasHome({ userId } = {}) {
         .map((r) => mapRowTarefa(r, nomesPorId))
         .filter((t) => usuarioPodeVerTarefa(t, uid))
 
+    const avisos = []
+    if (homeTarefasTemResolucao === false) {
+        avisos.push('Coluna resolução ausente. Execute scripts/sql/home_tarefas_resolucao.sql no Supabase.')
+    }
+    if (homeTarefasTemHorario === false) {
+        avisos.push('Coluna horário ausente. Execute scripts/sql/home_tarefas_horario.sql no Supabase.')
+    }
+
     return {
         tarefas,
-        aviso:
-            homeTarefasTemResolucao === false
-                ? 'Coluna resolução ausente. Execute scripts/sql/home_tarefas_resolucao.sql no Supabase.'
-                : '',
+        aviso: avisos.join(' '),
     }
 }
 
@@ -567,6 +655,7 @@ export async function criarTarefaHome({
     titulo,
     observacoes = '',
     prazo = null,
+    horario = null,
     prioridade = 'normal',
     atribuidoA,
     anexosFiles = [],
@@ -599,6 +688,9 @@ export async function criarTarefaHome({
     if (homeTarefasTemAnexos !== false) {
         insertPayload.anexos = []
     }
+    if (homeTarefasTemHorario !== false) {
+        insertPayload.horario = horarioParaDb(horario)
+    }
 
     let data
     let error
@@ -606,22 +698,36 @@ export async function criarTarefaHome({
         const res = await supabase
             .from('home_tarefas')
             .insert(insertPayload)
-            .select(homeTarefasTemAnexos === false ? COLS_TAREFA_BASE : COLS_TAREFA_COM_ANEXOS)
+            .select(colsSelectTarefa())
             .single()
         data = res.data
         error = res.error
+        if (error && isErroColunaHorario(error) && insertPayload.horario !== undefined) {
+            homeTarefasTemHorario = false
+            delete insertPayload.horario
+            const retry = await supabase
+                .from('home_tarefas')
+                .insert(insertPayload)
+                .select(colsSelectTarefa())
+                .single()
+            data = retry.data
+            error = retry.error
+        }
         if (error && isErroColunaAnexos(error) && insertPayload.anexos !== undefined) {
             homeTarefasTemAnexos = false
             delete insertPayload.anexos
             const retry = await supabase
                 .from('home_tarefas')
                 .insert(insertPayload)
-                .select(COLS_TAREFA_BASE)
+                .select(colsSelectTarefa())
                 .single()
             data = retry.data
             error = retry.error
         } else if (!error) {
             homeTarefasTemAnexos = homeTarefasTemAnexos === false ? false : true
+            if (insertPayload.horario !== undefined) {
+                homeTarefasTemHorario = homeTarefasTemHorario === false ? false : true
+            }
         }
     }
 
@@ -643,6 +749,9 @@ export async function atualizarTarefaHome(id, patch) {
         payload.observacoes = String(patch.observacoes || '').trim() || null
     }
     if (patch.prazo !== undefined) payload.prazo = patch.prazo || null
+    if (patch.horario !== undefined && homeTarefasTemHorario !== false) {
+        payload.horario = horarioParaDb(patch.horario)
+    }
     if (patch.prioridade !== undefined) payload.prioridade = patch.prioridade
     if (patch.atribuidoA !== undefined) payload.atribuido_a = patch.atribuidoA
     if (patch.resolucao !== undefined) {
@@ -685,6 +794,17 @@ export async function atualizarTarefaHome(id, patch) {
             )
         }
     }
+    if (error && isErroColunaHorario(error) && body.horario !== undefined) {
+        homeTarefasTemHorario = false
+        delete body.horario
+        cols = colsSelectTarefa()
+        ;({ data, error } = await tentarUpdate(cols, body))
+        if (!error && normalizarHorarioTarefa(patch.horario)) {
+            throw new Error(
+                'Coluna horário ausente. Execute scripts/sql/home_tarefas_horario.sql no Supabase.',
+            )
+        }
+    }
     if (error && isErroColunaAnexos(error)) {
         homeTarefasTemAnexos = false
         cols = colsSelectTarefa()
@@ -694,6 +814,7 @@ export async function atualizarTarefaHome(id, patch) {
     if (error) throw new Error(error.message)
     if (cols.includes('resolucao')) homeTarefasTemResolucao = true
     if (cols.includes('anexos')) homeTarefasTemAnexos = true
+    if (/\bhorario\b/.test(cols)) homeTarefasTemHorario = true
     return mapRowTarefa(data)
 }
 

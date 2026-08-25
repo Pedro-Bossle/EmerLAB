@@ -23,6 +23,7 @@ import {
     textoCelulaLimiteGrupo } from '../../../lib/categoriaLimitesGrupo'
 import CidadeTabelaIbgeForm from '../../../components/Supertabela/CidadeTabelaIbgeForm.jsx'
 import GerenciarTabelasModal from '../../../components/Supertabela/GerenciarTabelasModal.jsx'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import { mapCidadeParaGerenciador, payloadCidadeComUf } from '../../../lib/cidadesSupertabelaHelpers.js'
 import {
     buildOpcoesFiltroSupertabela,
@@ -2145,22 +2146,24 @@ const Supertabelaplanos = () => {
                     {!modoLimitacoes && (
                         <div className='supertabelaplanos_filter_item'>
                             <p>Cidade</p>
-                            <select
-                                className='supertabelaplanos_select'
+                            <SelectMunicipioBusca
+                                className="supertabelaplanos_select_cidade"
+                                inputClassName="supertabelaplanos_select"
                                 value={valorFiltroCidade}
-                                onChange={(e) => {
-                                    const valor = e.target.value
+                                valueKey="id"
+                                options={opcoesFiltroCidade.map((op) => ({
+                                    id: op.value,
+                                    nome: op.label,
+                                }))}
+                                onChange={(valor) => {
                                     setValorFiltroCidade(valor)
                                     const op = opcoesFiltroCidade.find((o) => o.value === valor)
                                     if (op) setCidadeId(String(op.cidadeId))
                                 }}
-                            >
-                                {opcoesFiltroCidade.map((op) => (
-                                    <option key={op.value} value={op.value}>
-                                        {op.label}
-                                    </option>
-                                ))}
-                            </select>
+                                placeholder="Selecionar cidade…"
+                                searchPlaceholder="Buscar cidade…"
+                                aria-label="Filtrar por cidade"
+                            />
                         </div>
                     )}
 

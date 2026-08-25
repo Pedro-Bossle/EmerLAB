@@ -22,6 +22,7 @@ import {
 import './CredenciamentoQuemRealiza.css'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
+import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 import { PageHeader } from '../../../components/ui'
 
 const CATEGORIA_MIN = 3
@@ -493,14 +494,16 @@ export default function CredenciamentoQuemRealiza() {
                 <div className="quem_realiza_row quem_realiza_row_center">
                     <label className="pcad_field">
                         <span>UF</span>
-                        <select className="credenciamento_main_input" value={uf} onChange={(e) => setUf(e.target.value)}>
-                            <option value="">—</option>
-                            {ufsPermitidasCredenciamento.map((sigla) => (
-                                <option key={sigla} value={sigla}>
-                                    {sigla}
-                                </option>
-                            ))}
-                        </select>
+                        <SelectUfBusca
+                            value={uf}
+                            ufs={ufsPermitidasCredenciamento}
+                            inputClassName="credenciamento_main_input"
+                            emptyLabel="—"
+                            onChange={(u) => {
+                                setUf(u)
+                                setCidadeNome('')
+                            }}
+                        />
                     </label>
                     <label className="pcad_field">
                         <span>Cidade</span>

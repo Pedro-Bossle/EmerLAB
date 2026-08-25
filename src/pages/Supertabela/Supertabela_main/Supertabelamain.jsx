@@ -16,6 +16,7 @@ import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 import { calcularJanelaVirtualTabela, criarHandlerScrollVirtualTabela } from '../../../lib/tabelaVirtualScroll.js'
 import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planosHierarquia.js'
 import { PageHeader } from '../../../components/ui'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 
 const Supertabelamain = () => {
     const ALTURA_LINHA_TABELA = 42
@@ -872,19 +873,19 @@ const Supertabelamain = () => {
 
                     <div className='supertabelamain_filters_select'>
                         <p>Cidade</p>
-                        <select
-                            className='supertabelamain_filters_select_select'
-                            name="cidade"
-                            id="cidade"
+                        <SelectMunicipioBusca
                             value={cidadeId}
-                            onChange={(event) => setCidadeId(event.target.value)}
-                        >
-                            {cidadesNoFiltroPlano.map((cidade) => (
-                                <option key={cidade.id} value={cidade.id}>
-                                    {cidade.uf ? `${cidade.nome} (${cidade.uf})` : cidade.nome}
-                                </option>
-                            ))}
-                        </select>
+                            valueKey="id"
+                            options={cidadesNoFiltroPlano.map((cidade) => ({
+                                id: cidade.id,
+                                nome: cidade.uf ? `${cidade.nome} (${cidade.uf})` : cidade.nome,
+                            }))}
+                            onChange={setCidadeId}
+                            inputClassName="supertabelamain_filters_select_select"
+                            placeholder="Selecionar cidade…"
+                            searchPlaceholder="Buscar cidade…"
+                            aria-label="Filtrar por cidade"
+                        />
                     </div>
 
                     <div className='supertabelamain_filters_select'>

@@ -113,6 +113,19 @@
   color: #1f3a4f;
 }
 
+.cred_kanban_filtros .select_municipio_busca_trigger,
+.cred_kanban_modal .select_municipio_busca_trigger {
+  border: 1px solid #bfd7e8;
+  border-radius: 8px;
+  padding: 5px 8px 5px 9px;
+  min-height: 32px;
+  height: 32px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1f3a4f;
+  background: #fff;
+}
+
 .cred_kanban_modal textarea {
   border: 1px solid #bfd7e8;
   border-radius: 8px;
@@ -1383,6 +1396,8 @@ body.dark-mode .cred_kanban_filtros input,
 body.dark-mode .cred_kanban_filtros select,
 body.dark-mode .cred_kanban_modal input,
 body.dark-mode .cred_kanban_modal select,
+body.dark-mode .cred_kanban_filtros .select_municipio_busca_trigger,
+body.dark-mode .cred_kanban_modal .select_municipio_busca_trigger,
 body.dark-mode .cred_kanban_modal textarea,
 body.dark-mode .cred_kanban_bulk button,
 body.dark-mode .cred_kanban_col_add,

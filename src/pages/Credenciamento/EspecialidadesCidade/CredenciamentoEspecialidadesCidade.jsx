@@ -20,6 +20,7 @@ import '../QuemRealiza/CredenciamentoQuemRealiza.css'
 import './CredenciamentoEspecialidadesCidade.css'
 import { PageHeader } from '../../../components/ui'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
+import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 
 function usarContagemColunasEspecialidade() {
     const [cols, setCols] = useState(() => {
@@ -359,22 +360,17 @@ export default function CredenciamentoEspecialidadesCidade() {
                 <div className="quem_realiza_row quem_realiza_row_center">
                     <label className="pcad_field">
                         <span>UF</span>
-                        <select
-                            className="credenciamento_main_input"
+                        <SelectUfBusca
                             value={uf}
-                            onChange={(e) => {
-                                setUf(e.target.value)
+                            ufs={ufsPermitidasCredenciamento}
+                            inputClassName="credenciamento_main_input"
+                            emptyLabel="—"
+                            onChange={(u) => {
+                                setUf(u)
                                 setCidadeNome('')
                                 setExpandidas({})
                             }}
-                        >
-                            <option value="">—</option>
-                            {ufsPermitidasCredenciamento.map((sigla) => (
-                                <option key={sigla} value={sigla}>
-                                    {sigla}
-                                </option>
-                            ))}
-                        </select>
+                        />
                     </label>
                     <label className="pcad_field">
                         <span>Cidade</span>

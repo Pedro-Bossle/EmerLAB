@@ -33,6 +33,7 @@ import {
 import { buscarTodosPaginado, supabase } from "../../../lib/supabase";
 import { PageHeader } from "../../../components/ui";
 import SelectMunicipioBusca from "../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx";
+import SelectUfBusca from "../../../components/SelectUfBusca/SelectUfBusca.jsx";
 
 import "./ComprasOrcamento.css";
 
@@ -772,21 +773,17 @@ const ComprasOrcamento = () => {
 
             <label className="compras_orc_filtro_item">
               <span className="compras_orc_filtro_label">UF</span>
-              <select
-                className="compras_orc_select"
+              <SelectUfBusca
                 value={ufComprador}
-                onChange={(e) => {
-                  setUfComprador(e.target.value);
+                ufs={ufsPermitidasCredenciamento}
+                inputClassName="compras_orc_select"
+                emptyLabel="Selecione"
+                placeholder="Selecione"
+                onChange={(u) => {
+                  setUfComprador(u);
                   setCidadeCompradorId("");
                 }}
-              >
-                <option value="">Selecione</option>
-                {ufsPermitidasCredenciamento.map((sigla) => (
-                  <option key={sigla} value={sigla}>
-                    {sigla}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
 
             <label className="compras_orc_filtro_item">
