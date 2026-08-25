@@ -50,10 +50,13 @@ export function limitarBoundsOverpass(bounds: {
 function montarQueryOverpass(categoriaId: string, south: number, west: number, north: number, east: number) {
   const cat = getProspectoOsmCategoriaPorId(categoriaId)
   if (!cat) return ''
+  const excluirInativos =
+    '["disused"!="yes"]["abandoned"!="yes"]["ruins"!="yes"]["vacant"!="yes"]'
   const bloco = cat.overpass
     .map(([k, v]) => {
       const esc = (s: string) => String(s).replace(/"/g, '\\"')
-      return `node["${esc(k)}"="${esc(v)}"](${south},${west},${north},${east});way["${esc(k)}"="${esc(v)}"](${south},${west},${north},${east});`
+      const tag = `["${esc(k)}"="${esc(v)}"]${excluirInativos}`
+      return `node${tag}(${south},${west},${north},${east});way${tag}(${south},${west},${north},${east});`
     })
     .join('')
   return `[out:json][timeout:45];(${bloco});out center tags;`
@@ -66,6 +69,24 @@ function tagsParaEndereco(tags: Record<string, string>, cidadeFallback = '', ufF
   const uf = tags['addr:state'] || ufFallback || ''
   const partes = [rua, bairro, [cidade, uf].filter(Boolean).join(' / ')].filter(Boolean)
   return partes.join(' — ')
+}
+
+function indicaInativo(tags: Record<string, string>, nome: string, horario: string) {
+  if (
+    tags.disused === 'yes' ||
+    tags.abandoned === 'yes' ||
+    tags.ruins === 'yes' ||
+    tags.vacant === 'yes' ||
+    tags.shop === 'vacant' ||
+    /^(yes|true|permanent)/i.test(String(tags.closed || '')) ||
+    /^(yes|true|permanent)/i.test(String(tags.permanently_closed || ''))
+  ) {
+    return true
+  }
+  const oh = String(horario || '').trim().toLowerCase()
+  if (oh === 'closed' || oh === 'off' || oh === 'fechado' || oh.startsWith('permanently closed')) return true
+  if (/\b(fechado|fechada|desativado|abandonado|inexistente|antig[oa]|demolid)\b/i.test(nome)) return true
+  return false
 }
 
 function elementoParaProspecto(
@@ -81,6 +102,8 @@ function elementoParaProspecto(
   const tags = el.tags || {}
   const nome = String(tags.name || tags.brand || tags.operator || '').trim()
   if (!nome) return null
+  const horario = String(tags.opening_hours || '').trim()
+  if (indicaInativo(tags, nome, horario)) return null
   return {
     osm_type: String(el.type || 'node'),
     osm_id: Number(el.id),
@@ -93,7 +116,7 @@ function elementoParaProspecto(
     lat,
     lng,
     telefone: String(tags.phone || tags['contact:phone'] || tags.mobile || '').trim(),
-    horario_atendimento: String(tags.opening_hours || '').trim(),
+    horario_atendimento: horario,
     website: String(tags.website || tags['contact:website'] || '').trim(),
     tags,
   }

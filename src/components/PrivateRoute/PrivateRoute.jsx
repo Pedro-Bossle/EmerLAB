@@ -47,7 +47,15 @@ const PrivateRoute = ({ children, permission, screenPermission, toolId }) => {
     const dest = next && next !== '/' ? `/?next=${encodeURIComponent(next)}` : '/'
     return <Navigate to={dest} replace />
   }
-  if ((permission || screenPermission || toolId) && profile === undefined) return <p>Carregando...</p>
+  if (profile === undefined) return <p>Carregando...</p>
+  if (profile?.forcePasswordChange && location.pathname !== '/alterar-senha') {
+    const next = `${location.pathname}${location.search || ''}`
+    const dest =
+      next && next !== '/' && next !== '/alterar-senha'
+        ? `/alterar-senha?next=${encodeURIComponent(next)}`
+        : '/alterar-senha'
+    return <Navigate to={dest} replace />
+  }
   if (permission && (!profile || !hasPermission(profile, permission))) return <Navigate to="/home" replace />
   if (screenPermission && (!profile || !hasPermission(profile, screenPermission))) {
     return <Navigate to="/home" replace />

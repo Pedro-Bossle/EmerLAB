@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '../../../components/ui'
 import { supabase } from '../../../lib/supabase.js'
 import { listarUsuariosParaAtribuicao } from '../../../lib/homeTarefas.js'
@@ -25,6 +25,12 @@ import {
     moverCardKanban,
     podeMoverColunaKanban,
 } from '../../../lib/credKanban.js'
+import {
+    marcarMencoesKanbanCardLidas,
+    notificarMencoesKanban,
+    queryMencaoUsuarioNoCorpo,
+    tokenMencaoUsuario,
+} from '../../../lib/credenciamento/kanbanMencoes.js'
 import { baixarTextoComoArquivo } from '../../../lib/auditoriaLogs.js'
 import { getStoredAccessProfile, podeLerFerramenta } from '../../../lib/accessControl.js'
 import KanbanOutlookReuniao from '../../../components/Outlook/KanbanOutlookReuniao.jsx'
@@ -33,6 +39,12 @@ import {
     lerMetaOutlookReuniao,
     escreverMetaOutlookReuniao,
 } from '../../../lib/credenciamento/kanbanOutlookMeta.js'
+import {
+    anexarContatosAdicionaisNaDescricao,
+    formatarTelefoneBrExibicao,
+    maskTelefoneBr,
+    separarTelefonePrincipalEExtras,
+} from '../../../lib/telefoneBrasil.js'
 import './CredenciamentoKanban.css'
 
 async function listarUsuariosParaAtribuicaoComEmail() {
@@ -112,6 +124,7 @@ function alternarChecklistNaLinha(texto, lineIndex) {
 }
 
 export default function CredenciamentoKanban() {
+    const [searchParams, setSearchParams] = useSearchParams()
     const [cards, setCards] = useState([])
     const [usuarios, setUsuarios] = useState([])
     const [situacoes, setSituacoes] = useState([])
@@ -126,7 +139,7 @@ export default function CredenciamentoKanban() {
     const [filtroUf, setFiltroUf] = useState('')
     const [filtroCidade, setFiltroCidade] = useState('')
     const [filtroEsp, setFiltroEsp] = useState('')
-    const [filtroAssignee, setFiltroAssignee] = useState('')
+    const [filtroAssignee, setFiltroAssignee] = useState(() => getStoredAccessProfile()?.id || '')
     const [filtroBusca, setFiltroBusca] = useState('')
     const [filtroDe, setFiltroDe] = useState('')
     const [filtroAte, setFiltroAte] = useState('')
@@ -137,6 +150,8 @@ export default function CredenciamentoKanban() {
     const [colunaMobile, setColunaMobile] = useState(COLUNAS_KANBAN[0].id)
     const [filtrosAbertos, setFiltrosAbertos] = useState(false)
     const realtimeDebounceRef = useRef(null)
+    const assigneeDefaultRef = useRef(Boolean(getStoredAccessProfile()?.id))
+    const cardDeepLinkFeitoRef = useRef(false)
 
     const podeRelatorio = podeLerFerramenta(
         getStoredAccessProfile()?.permissions,
@@ -148,6 +163,20 @@ export default function CredenciamentoKanban() {
         for (const u of usuarios) m.set(u.id, u.nome)
         return m
     }, [usuarios])
+
+    useEffect(() => {
+        if (assigneeDefaultRef.current) return
+        let ativo = true
+        void supabase.auth.getUser().then(({ data }) => {
+            const id = data?.user?.id
+            if (!ativo || !id) return
+            assigneeDefaultRef.current = true
+            setFiltroAssignee(id)
+        })
+        return () => {
+            ativo = false
+        }
+    }, [])
 
     const carregar = useCallback(async () => {
         setLoading(true)
@@ -181,6 +210,23 @@ export default function CredenciamentoKanban() {
     useEffect(() => {
         void carregar()
     }, [carregar])
+
+    useEffect(() => {
+        if (loading || cardDeepLinkFeitoRef.current) return
+        const raw = searchParams.get('card')
+        if (!raw) return
+        const id = Number(raw)
+        if (!Number.isFinite(id) || id <= 0) return
+        const card = cards.find((c) => Number(c.id) === id)
+        if (!card) return
+        cardDeepLinkFeitoRef.current = true
+        setCardAberto(card)
+        setFiltroAssignee('')
+        void marcarMencoesKanbanCardLidas(id).catch(() => {})
+        const next = new URLSearchParams(searchParams)
+        next.delete('card')
+        setSearchParams(next, { replace: true })
+    }, [loading, cards, searchParams, setSearchParams])
 
     useEffect(() => {
         return () => {
@@ -348,9 +394,26 @@ export default function CredenciamentoKanban() {
 
     const salvarCard = async (patch) => {
         if (!cardAberto) return
+        const corpoAnterior = cardAberto.corpo || ''
         const atualizado = await atualizarCardKanban(cardAberto.id, patch)
         setCardAberto(atualizado)
         setCards((prev) => prev.map((c) => (Number(c.id) === Number(atualizado.id) ? atualizado : c)))
+        if (patch.corpo !== undefined) {
+            const r = await notificarMencoesKanban({
+                cardId: atualizado.id,
+                cardNome: atualizado.nome || cardAberto.nome,
+                corpoNovo: atualizado.corpo,
+                corpoAnterior,
+            })
+            if (r?.aviso) setAviso(r.aviso)
+            else if (r?.criados > 0) {
+                setAviso(
+                    r.criados === 1
+                        ? '1 utilizador notificado por menção.'
+                        : `${r.criados} utilizadores notificados por menção.`,
+                )
+            }
+        }
     }
 
     const exportarRelatorio = () => {
@@ -367,7 +430,7 @@ export default function CredenciamentoKanban() {
                 ].join(','),
             ),
             '',
-            'assignee,total',
+            'responsavel,total',
             ...resumo.porAssignee.map((a) => `${a.id},${a.total}`),
         ]
         baixarTextoComoArquivo(
@@ -420,7 +483,9 @@ export default function CredenciamentoKanban() {
                     <strong>{card.nome}</strong>
                 </div>
                 <p>{[card.cidade, card.uf].filter(Boolean).join(' / ') || '—'}</p>
-                {!compact ? <p>{card.telefone || '—'}</p> : null}
+                {!compact ? (
+                    <p>{card.telefone ? formatarTelefoneBrExibicao(card.telefone) : '—'}</p>
+                ) : null}
                 {card.especialidade || especialidadeVisivelKanban(card.tipo) ? (
                     <span className="cred_kanban_tag" title="Especialidade principal">
                         {card.especialidade || especialidadeVisivelKanban(card.tipo)}
@@ -525,6 +590,39 @@ export default function CredenciamentoKanban() {
                     className={`cred_kanban_filtros${filtrosAbertos ? ' is-open' : ''}`}
                     aria-label="Filtros"
                 >
+                <label className="cred_kanban_filtro_busca">
+                    <span>Busca</span>
+                    <input
+                        value={filtroBusca}
+                        onChange={(e) => setFiltroBusca(e.target.value)}
+                        placeholder="Nome, telefone…"
+                    />
+                </label>
+                <label>
+                    <span>Tipo</span>
+                    <input
+                        value={filtroEsp}
+                        onChange={(e) => setFiltroEsp(e.target.value)}
+                        list="cred_kanban_esp_filtro"
+                        placeholder="Especialidade…"
+                    />
+                    <datalist id="cred_kanban_esp_filtro">
+                        {especialidades.map((e) => (
+                            <option key={e.id} value={e.nome} />
+                        ))}
+                    </datalist>
+                </label>
+                <label>
+                    <span>Responsável</span>
+                    <select value={filtroAssignee} onChange={(e) => setFiltroAssignee(e.target.value)}>
+                        <option value="">Todos</option>
+                        {usuarios.map((u) => (
+                            <option key={u.id} value={u.id}>
+                                {u.nome}
+                            </option>
+                        ))}
+                    </select>
+                </label>
                 <label>
                     <span>UF</span>
                     <select value={filtroUf} onChange={(e) => setFiltroUf(e.target.value)}>
@@ -540,47 +638,28 @@ export default function CredenciamentoKanban() {
                     <span>Cidade</span>
                     <input value={filtroCidade} onChange={(e) => setFiltroCidade(e.target.value)} />
                 </label>
-                <label>
-                    <span>Especialidade</span>
-                    <input
-                        value={filtroEsp}
-                        onChange={(e) => setFiltroEsp(e.target.value)}
-                        list="cred_kanban_esp_filtro"
-                        placeholder="Principal…"
-                    />
-                    <datalist id="cred_kanban_esp_filtro">
-                        {especialidades.map((e) => (
-                            <option key={e.id} value={e.nome} />
-                        ))}
-                    </datalist>
-                </label>
-                <label>
-                    <span>Assignee</span>
-                    <select value={filtroAssignee} onChange={(e) => setFiltroAssignee(e.target.value)}>
-                        <option value="">Todos</option>
-                        {usuarios.map((u) => (
-                            <option key={u.id} value={u.id}>
-                                {u.nome}
-                            </option>
-                        ))}
-                    </select>
-                </label>
-                <label>
-                    <span>Adicionado de</span>
-                    <input type="date" value={filtroDe} onChange={(e) => setFiltroDe(e.target.value)} />
-                </label>
-                <label>
-                    <span>Até</span>
-                    <input type="date" value={filtroAte} onChange={(e) => setFiltroAte(e.target.value)} />
-                </label>
-                <label className="cred_kanban_filtro_busca">
-                    <span>Busca</span>
-                    <input
-                        value={filtroBusca}
-                        onChange={(e) => setFiltroBusca(e.target.value)}
-                        placeholder="Nome, telefone…"
-                    />
-                </label>
+                <div className="cred_kanban_filtro_datas" role="group" aria-label="Datas">
+                    <span>Datas</span>
+                    <div className="cred_kanban_filtro_datas_campos">
+                        <input
+                            type="date"
+                            value={filtroDe}
+                            onChange={(e) => setFiltroDe(e.target.value)}
+                            aria-label="Data inicial"
+                            title="De"
+                        />
+                        <span className="cred_kanban_filtro_datas_sep" aria-hidden="true">
+                            –
+                        </span>
+                        <input
+                            type="date"
+                            value={filtroAte}
+                            onChange={(e) => setFiltroAte(e.target.value)}
+                            aria-label="Data final"
+                            title="Até"
+                        />
+                    </div>
+                </div>
                 </section>
             </div>
 
@@ -770,7 +849,7 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
     const [nome, setNome] = useState(card.nome)
     const [uf, setUf] = useState(card.uf || '')
     const [cidade, setCidade] = useState(card.cidade || '')
-    const [telefone, setTelefone] = useState(card.telefone || '')
+    const [telefone, setTelefone] = useState(() => maskTelefoneBr(card.telefone || ''))
     const [especialidade, setEspecialidade] = useState(
         () => especialidadeVisivelKanban(card.especialidade || card.tipo) || '',
     )
@@ -782,6 +861,8 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
     const [confirmarExclusao, setConfirmarExclusao] = useState(false)
     const [cliquesFora, setCliquesFora] = useState(0)
     const [autocompleteColchete, setAutocompleteColchete] = useState(null)
+    const [mencaoUsuario, setMencaoUsuario] = useState(null)
+    const [sugestoesMencao, setSugestoesMencao] = useState([])
     const corpoRef = useRef(null)
     const espInputRef = useRef(null)
     const [espFoco, setEspFoco] = useState(false)
@@ -808,12 +889,14 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
         setNome(card.nome)
         setUf(card.uf || '')
         setCidade(card.cidade || '')
-        setTelefone(card.telefone || '')
+        setTelefone(maskTelefoneBr(card.telefone || ''))
         setEspecialidade(especialidadeVisivelKanban(card.especialidade || card.tipo) || '')
         setCorpo(corpoVisivelSemMetaOutlook(card.corpo || ''))
         setAtribuidoA(card.atribuidoA || '')
         setSugestoesNome([])
         setAutocompleteColchete(null)
+        setMencaoUsuario(null)
+        setSugestoesMencao([])
         setConfirmarExclusao(false)
         setCliquesFora(0)
         setEspFoco(false)
@@ -923,24 +1006,86 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
         return escreverMetaOutlookReuniao(textoVisivel, meta)
     }
 
+    const aplicarTelefoneComExtras = (valorBruto) => {
+        const { principal, extras } = separarTelefonePrincipalEExtras(valorBruto)
+        setTelefone(principal)
+        if (extras.length) {
+            setCorpo((prev) => anexarContatosAdicionaisNaDescricao(prev, extras))
+        }
+    }
+
     const aplicarPrestadorMencao = (p) => {
         const nomeFinal = aplicarMencaoNoNome(nome, p.nome)
         setNome(nomeFinal)
         setSugestoesNome([])
+        const telPrest = String(p.telefone || '').trim()
+        let telPrincipal = telefone
+        if (telPrest) {
+            const { principal, extras } = separarTelefonePrincipalEExtras(telPrest)
+            telPrincipal = principal
+            setTelefone(principal)
+            if (extras.length) {
+                setCorpo((prev) => anexarContatosAdicionaisNaDescricao(prev, extras))
+            }
+        }
         void onSave({
             prestadorId: p.id,
             nome: nomeSemArroba(nomeFinal),
             uf: p.endereco_uf || uf,
             cidade: p.endereco_cidade || cidade,
-            telefone: p.telefone || telefone,
+            telefone: telPrincipal || telefone,
             tipo: p.especialidadePrincipal || especialidade,
         })
         if (p.endereco_uf) setUf(p.endereco_uf)
         if (p.endereco_cidade) setCidade(p.endereco_cidade)
-        if (p.telefone) setTelefone(p.telefone)
         if (p.especialidadePrincipal) {
             setEspecialidade(p.especialidadePrincipal)
         }
+    }
+
+    const aplicarMencaoUsuario = (user) => {
+        const el = corpoRef.current
+        if (!mencaoUsuario || !user) return
+        const token = `${tokenMencaoUsuario(user)} `
+        const val = String(corpo)
+        const next = `${val.slice(0, mencaoUsuario.start)}${token}${val.slice(mencaoUsuario.end)}`
+        setCorpo(next)
+        setMencaoUsuario(null)
+        setSugestoesMencao([])
+        setAutocompleteColchete(null)
+        requestAnimationFrame(() => {
+            if (!el) return
+            el.focus()
+            const pos = mencaoUsuario.start + token.length
+            el.setSelectionRange(pos, pos)
+        })
+    }
+
+    const atualizarSugestoesMencao = (texto, cursor) => {
+        const hit = queryMencaoUsuarioNoCorpo(texto, cursor)
+        if (!hit) {
+            setMencaoUsuario(null)
+            setSugestoesMencao([])
+            return
+        }
+        setMencaoUsuario(hit)
+        const q = String(hit.query || '')
+            .normalize('NFD')
+            .replace(/\p{M}/gu, '')
+            .toLowerCase()
+        const meuId = getStoredAccessProfile()?.id
+        const lista = (usuarios || [])
+            .filter((u) => u?.id && u.id !== meuId)
+            .filter((u) => {
+                if (!q) return true
+                const nome = String(u.nome || '')
+                    .normalize('NFD')
+                    .replace(/\p{M}/gu, '')
+                    .toLowerCase()
+                return nome.includes(q)
+            })
+            .slice(0, 8)
+        setSugestoesMencao(lista)
     }
 
     const inserirChecklistMarkdown = () => {
@@ -981,6 +1126,19 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
     }
 
     const onCorpoKeyDown = (e) => {
+        if (sugestoesMencao.length > 0 && mencaoUsuario) {
+            if (e.key === 'Escape') {
+                e.preventDefault()
+                setMencaoUsuario(null)
+                setSugestoesMencao([])
+                return
+            }
+            if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault()
+                aplicarMencaoUsuario(sugestoesMencao[0])
+                return
+            }
+        }
         if (autocompleteColchete && (e.key === 'Tab' || e.key === 'Enter' || e.key === ']')) {
             e.preventDefault()
             aplicarAutocompleteColchete()
@@ -1016,6 +1174,8 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
             const next = `${val.slice(0, start)}${insert}${val.slice(end)}`
             setCorpo(next)
             setAutocompleteColchete(null)
+            setMencaoUsuario(null)
+            setSugestoesMencao([])
             requestAnimationFrame(() => {
                 el.focus()
                 const pos = start + insert.length
@@ -1028,6 +1188,8 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
             const next = `${val.slice(0, start)}${insert}${val.slice(end)}`
             setCorpo(next)
             setAutocompleteColchete(null)
+            setMencaoUsuario(null)
+            setSugestoesMencao([])
             requestAnimationFrame(() => {
                 el.focus()
                 const pos = start + insert.length
@@ -1039,6 +1201,8 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
         // Autocomplete: digita `[` e sugere `]` (fecha o checkbox)
         const next = `${val.slice(0, start)}[${val.slice(end)}`
         setCorpo(next)
+        setMencaoUsuario(null)
+        setSugestoesMencao([])
         setAutocompleteColchete({
             start: start + 1,
             insert: ']',
@@ -1052,8 +1216,17 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
     }
 
     const onCorpoChange = (e) => {
-        setCorpo(e.target.value)
+        const val = e.target.value
+        const cursor = e.target.selectionStart ?? val.length
+        setCorpo(val)
         if (autocompleteColchete) setAutocompleteColchete(null)
+        atualizarSugestoesMencao(val, cursor)
+    }
+
+    const onCorpoSelect = (e) => {
+        const val = e.target.value
+        const cursor = e.target.selectionStart ?? val.length
+        atualizarSugestoesMencao(val, cursor)
     }
 
     const toggleChecklistGh = (lineIndex) => {
@@ -1065,11 +1238,13 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
         try {
             const nomeLimpo = nomeSemArroba(nome)
             setNome(nomeLimpo)
+            const telSalvar = maskTelefoneBr(telefone)
+            setTelefone(telSalvar)
             await onSave({
                 nome: nomeLimpo,
                 uf,
                 cidade,
-                telefone,
+                telefone: telSalvar,
                 tipo: especialidade,
                 corpo: corpoComMeta(corpo),
                 checklist: checklistDeMarkdown(corpo),
@@ -1183,7 +1358,20 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                         </label>
                         <label className="cred_kanban_campo_telefone">
                             <span>Telefone</span>
-                            <input value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+                            <input
+                                value={telefone}
+                                inputMode="tel"
+                                autoComplete="tel"
+                                placeholder="(00) 00000-0000"
+                                title="Um número aqui. Contatos extras vão para a Descrição."
+                                onChange={(e) => aplicarTelefoneComExtras(e.target.value)}
+                                onPaste={(e) => {
+                                    const texto = e.clipboardData?.getData('text')
+                                    if (!texto) return
+                                    e.preventDefault()
+                                    aplicarTelefoneComExtras(texto)
+                                }}
+                            />
                         </label>
                         <label className="cred_kanban_span_2 cred_kanban_esp_ac_wrap">
                             <span>Especialidade principal</span>
@@ -1235,7 +1423,7 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                                 : null}
                         </label>
                         <label>
-                            <span>Assignee</span>
+                            <span>Responsável</span>
                             <select value={atribuidoA} onChange={(e) => setAtribuidoA(e.target.value)}>
                                 <option value="">—</option>
                                 {usuarios.map((u) => (
@@ -1274,9 +1462,10 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                         </button>
                     </div>
                     <p className="cred_kanban_modal_tip" role="note">
-                        <strong>Tip:</strong> digite <code>[</code> para criar item (
-                        <code>- [ ]</code>) ou completar com <code>]</code> (Tab/Enter). Checklist vira checkbox
-                        estilo GitHub Issues abaixo. Vincule prestador com <code>@</code> no nome (mín. 4 letras).
+                        <strong>Tip:</strong> digite <code>@</code> na descrição para mencionar um
+                        utilizador (notifica na Home). <code>[</code> cria checklist (
+                        <code>- [ ]</code>). No campo Nome, <code>@</code> vincula prestador (mín. 4
+                        letras).
                     </p>
                     {checklistGh.length > 0 ? (
                         <ul className="cred_kanban_gh_tasks" aria-label="Checklist">
@@ -1305,9 +1494,38 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                             rows={12}
                             value={corpo}
                             onChange={onCorpoChange}
+                            onKeyUp={onCorpoSelect}
+                            onClick={onCorpoSelect}
                             onKeyDown={onCorpoKeyDown}
-                            placeholder={'Notas…\n\n- [ ] Enviar tabela\n- [ ] Agendar reunião'}
+                            placeholder={
+                                'Notas…\n\n@ para mencionar alguém\n- [ ] Enviar tabela\n- [ ] Agendar reunião'
+                            }
                         />
+                        {sugestoesMencao.length > 0 && mencaoUsuario ? (
+                            <ul
+                                className="cred_kanban_nome_sugestoes cred_kanban_mencao_sugestoes"
+                                role="listbox"
+                                aria-label="Mencionar utilizador"
+                            >
+                                {sugestoesMencao.map((u) => (
+                                    <li key={u.id}>
+                                        <button
+                                            type="button"
+                                            role="option"
+                                            onMouseDown={(e) => {
+                                                e.preventDefault()
+                                                aplicarMencaoUsuario(u)
+                                            }}
+                                        >
+                                            {u.nome}
+                                            {u.email ? (
+                                                <span className="cred_kanban_mencao_email">{u.email}</span>
+                                            ) : null}
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : null}
                         {autocompleteColchete ? (
                             <div className="cred_kanban_md_ac" role="listbox" aria-label="Autocomplete markdown">
                                 <button
@@ -1415,8 +1633,7 @@ function RelatorioKanbanModal({ cards, mapaUsuarios, onClose, onExport }) {
                     </button>
                 </header>
                 <p>Total de cards (filtro atual): {resumo.total}</p>
-                <p>Em Credenciado (pendentes de SITE): {resumo.siteAposCredenciadoPendentes}</p>
-                <p>Já em Adicionar em SITE: {resumo.adicionarSite}</p>
+                <p>Em Adicionar em SITE: {resumo.adicionarSite}</p>
                 <table className="cred_kanban_relatorio_table">
                     <thead>
                         <tr>
@@ -1439,7 +1656,7 @@ function RelatorioKanbanModal({ cards, mapaUsuarios, onClose, onExport }) {
                         ))}
                     </tbody>
                 </table>
-                <h3>Por assignee</h3>
+                <h3>Por responsável</h3>
                 <ul>
                     {resumo.porAssignee.map((a) => (
                         <li key={a.id}>

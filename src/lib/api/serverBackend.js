@@ -15,6 +15,14 @@ const EDGE_ROUTE_MAP = {
   'gemini-rate': 'prospectos-coletar',
 }
 
+/** Rotas que exigem JWT do utilizador (não só anon key). */
+const ROTAS_COM_JWT_UTILIZADOR = new Set([
+  'geocode-prestador',
+  'prospectos-osm-coletar',
+  'prospectos-gemini-status',
+  'gemini-rate',
+])
+
 /** @param {'cep-lookup'|'consulta-cnpj'|'nominatim-search'|'overpass-poi'|'geocode-prestador'|'prospectos-osm-coletar'|'prospectos-gemini-status'|'gemini-rate'} routeId */
 export function useSupabaseEdgeApi(routeId) {
   const env = typeof import.meta !== 'undefined' ? import.meta.env || {} : {}
@@ -95,14 +103,44 @@ export function buildServerApiUrl(routeId, queryParams = {}) {
   return url.toString()
 }
 
-export function serverApiAuthHeaders() {
-  if (!useSupabaseEdgeApi('geocode-prestador')) return {}
-  const key = anonKey()
-  if (!key) return {}
-  return {
-    Authorization: `Bearer ${key}`,
-    apikey: key,
+/** Headers com JWT do utilizador logado (quando existir). */
+export async function userAccessTokenHeaders() {
+  try {
+    const { supabase } = await import('../supabase.js')
+    if (!supabase) return {}
+    const { data } = await supabase.auth.getSession()
+    const token = data?.session?.access_token
+    if (!token) return {}
+    return { Authorization: `Bearer ${token}` }
+  } catch {
+    return {}
   }
+}
+
+/**
+ * Headers de auth para APIs de servidor.
+ * Edge: anon key + (se rota protegida) JWT do user.
+ * Legacy /api: JWT do user nas rotas protegidas.
+ */
+export async function serverApiAuthHeaders(routeId = 'geocode-prestador') {
+  const headers = {}
+  if (useSupabaseEdgeApi(routeId)) {
+    const key = anonKey()
+    if (key) {
+      headers.Authorization = `Bearer ${key}`
+      headers.apikey = key
+    }
+  }
+  if (ROTAS_COM_JWT_UTILIZADOR.has(routeId) || !useSupabaseEdgeApi(routeId)) {
+    const user = await userAccessTokenHeaders()
+    if (user.Authorization) {
+      headers.Authorization = user.Authorization
+      if (useSupabaseEdgeApi(routeId) && anonKey()) {
+        headers.apikey = anonKey()
+      }
+    }
+  }
+  return headers
 }
 
 /**
@@ -111,10 +149,11 @@ export function serverApiAuthHeaders() {
  */
 export async function postServerApiJson(routeId, body, init = {}) {
   const url = buildServerApiUrl(routeId)
+  const authHeaders = await serverApiAuthHeaders(routeId)
   const headers = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
-    ...serverApiAuthHeaders(),
+    ...authHeaders,
     ...(init.headers || {}),
   }
   return fetch(url, { ...init, method: 'POST', headers, body: JSON.stringify(body ?? {}) })

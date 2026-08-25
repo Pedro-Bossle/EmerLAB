@@ -1265,6 +1265,26 @@
     font-weight: 600;
 }
 
+.cidade_vazia_tip {
+    font-weight: 500 !important;
+    color: #4a6b82 !important;
+    line-height: 1.45;
+    font-size: 0.92rem;
+}
+
+body.dark-mode .cidade_vazia_wrap {
+    background: #152433;
+    border-color: #2a4258;
+}
+
+body.dark-mode .cidade_vazia_wrap p {
+    color: #e7f4fc;
+}
+
+body.dark-mode .cidade_vazia_tip {
+    color: #9fb4c8 !important;
+}
+
 .cidade_vazia_form {
     display: flex;
     flex-direction: column;

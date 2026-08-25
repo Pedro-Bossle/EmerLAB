@@ -651,9 +651,14 @@ const CredenciamentoCadastroLista = () => {
         try {
             setRcGerando(true)
             setErro('')
+            const { data: sess } = await (await import('../../../lib/supabase')).supabase.auth.getSession()
+            const token = sess?.session?.access_token
             const response = await fetch('/api/rc-pdf', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({ cidades: rcCidadesSelecionadas }),
             })
             const erroJson = await response.clone().json().catch(() => null)

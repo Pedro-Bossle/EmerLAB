@@ -9,6 +9,7 @@ import { supabase } from '../../../lib/supabase'
 import './Credenciamento_main.css'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import { solicitarGeocodePrestador } from '../../../lib/credenciamento/solicitarGeocodePrestador'
+import { sincronizarCardKanbanComSituacao } from '../../../lib/credKanban.js'
 import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanenteCredenciamento.js'
 import { useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
@@ -652,6 +653,13 @@ const Credenciamento_main = () => {
         setPrestadores((anteriores) =>
             anteriores.map((item) => (Number(item.id) === idNum ? { ...item, ...payload } : item))
         )
+        if (campos.situacao_id !== undefined) {
+            try {
+                await sincronizarCardKanbanComSituacao(idNum, campos.situacao_id, { situacoes })
+            } catch {
+                /* sync Kanban opcional */
+            }
+        }
     }
 
     const alternarCampoBooleano = (event, item, campo) => {
@@ -920,6 +928,13 @@ const Credenciamento_main = () => {
             }
             if (tipoAtual === 'LOCAL' && prestadorId) {
                 solicitarGeocodePrestador(prestadorId)
+            }
+            if (prestadorId && novaSituacaoId) {
+                try {
+                    await sincronizarCardKanbanComSituacao(prestadorId, novaSituacaoId, { situacoes })
+                } catch {
+                    /* sync Kanban opcional */
+                }
             }
             resetarModal()
         } catch (error) {

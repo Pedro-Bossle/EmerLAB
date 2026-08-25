@@ -121,6 +121,39 @@
   }
 }
 
+/* Títulos de página: sempre alinhados à esquerda (vence text-align:center legado) */
+.el-page-header,
+.el-page .el-page-header,
+.el-legacy-wrap .el-page-header {
+  width: 100%;
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  text-align: left !important;
+  align-self: stretch;
+}
+
+.el-page-header .el-page-header__text,
+.el-page-header .el-page-header__kicker,
+.el-page-header .el-page-header__title,
+.el-page-header .el-page-header__desc,
+.el-page .el-page-header h1,
+.el-page .el-page-header p,
+.el-legacy-wrap .el-page-header h1,
+.el-legacy-wrap .el-page-header p {
+  text-align: left !important;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+@media (min-width: 768px) {
+  .el-page-header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+
 @media (max-width: 767px) {
   .conf_lab_card_cols,
   .cl_card_cols,

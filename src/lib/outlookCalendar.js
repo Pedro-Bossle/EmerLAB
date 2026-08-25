@@ -40,14 +40,97 @@ export function escapeHtmlBasico(s) {
 
 function parseGraphDateTime(dateTime, timeZone) {
     if (!dateTime) return null
-    const s = String(dateTime)
+    const s = String(dateTime).trim()
+    if (!s) return null
+
     const hasOffset = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s)
-    const normalized = hasOffset ? s : `${s.replace(/\.\d+$/, '')}Z`
-    const d = new Date(normalized)
+    // Com Prefer outlook.timezone, o Graph devolve data/hora local SEM offset.
+    // Não anexar "Z" (isso trataria o horário local como UTC e desloca o dia).
+    if (!hasOffset) {
+        const m = s.match(
+            /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?)?/,
+        )
+        if (m) {
+            const date = new Date(
+                Number(m[1]),
+                Number(m[2]) - 1,
+                Number(m[3]),
+                Number(m[4] || 0),
+                Number(m[5] || 0),
+                Number(m[6] || 0),
+            )
+            if (!Number.isNaN(date.getTime())) {
+                return { date, timeZone: timeZone || null }
+            }
+        }
+    }
+
+    const d = new Date(s)
     if (Number.isNaN(d.getTime())) {
         return { date: null, timeZone: timeZone || null }
     }
     return { date: d, timeZone: timeZone || null }
+}
+
+/** Segunda 00:00 → domingo 23:59:59 da semana que contém `ref` (locale pt-BR). */
+export function intervaloSemanaAtual(ref = new Date()) {
+    const base = ref instanceof Date ? new Date(ref) : new Date(ref)
+    if (Number.isNaN(base.getTime())) {
+        return intervaloSemanaAtual(new Date())
+    }
+    const start = new Date(base)
+    start.setHours(0, 0, 0, 0)
+    const dow = start.getDay() // 0=dom … 6=sáb
+    const diffToMon = dow === 0 ? -6 : 1 - dow
+    start.setDate(start.getDate() + diffToMon)
+    const end = new Date(start)
+    end.setDate(end.getDate() + 6)
+    end.setHours(23, 59, 59, 999)
+    return { start, end }
+}
+
+export function chaveDiaLocal(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return ''
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+/** Dias da semana (seg→dom) com eventos agrupados. */
+export function montarDiasSemanaAgenda(eventos, { start, end } = intervaloSemanaAtual()) {
+    const dias = []
+    const cursor = new Date(start)
+    cursor.setHours(0, 0, 0, 0)
+    const fim = new Date(end)
+    fim.setHours(0, 0, 0, 0)
+
+    while (cursor.getTime() <= fim.getTime()) {
+        dias.push({
+            key: chaveDiaLocal(cursor),
+            date: new Date(cursor),
+            labelCurto: cursor.toLocaleDateString('pt-BR', { weekday: 'short' }),
+            labelDia: cursor.toLocaleDateString('pt-BR', { day: '2-digit' }),
+            labelMes: cursor.toLocaleDateString('pt-BR', { month: 'short' }),
+            isHoje: chaveDiaLocal(cursor) === chaveDiaLocal(new Date()),
+            eventos: [],
+        })
+        cursor.setDate(cursor.getDate() + 1)
+    }
+
+    const porDia = new Map(dias.map((d) => [d.key, d]))
+    for (const ev of eventos || []) {
+        if (!ev?.start) continue
+        const key = chaveDiaLocal(ev.start)
+        const bucket = porDia.get(key)
+        if (bucket) bucket.eventos.push(ev)
+    }
+    for (const d of dias) {
+        d.eventos.sort((a, b) => {
+            if (a.isAllDay && !b.isAllDay) return -1
+            if (!a.isAllDay && b.isAllDay) return 1
+            return (a.start?.getTime() || 0) - (b.start?.getTime() || 0)
+        })
+    }
+    return dias
 }
 
 export function mapEventoOutlook(row) {
@@ -82,14 +165,27 @@ export function formatarDataEvento(ev) {
     })
 }
 
-export async function listarEventosOutlook(accessToken, { dias = 7, limite = 20 } = {}) {
+export async function listarEventosOutlook(accessToken, opts = {}) {
     if (!accessToken) throw new Error('Token Microsoft ausente.')
 
-    const start = new Date()
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(start)
-    end.setDate(end.getDate() + Math.max(1, dias))
-    end.setHours(23, 59, 59, 999)
+    const dias = Math.max(1, Number(opts.dias) || 7)
+    const limite = Math.min(Math.max(Number(opts.limite) || 50, 1), 100)
+    const timeZone = resolverTimeZoneGraph(opts.timeZone)
+
+    let start
+    let end
+    if (opts.start && opts.end) {
+        start = opts.start instanceof Date ? opts.start : new Date(opts.start)
+        end = opts.end instanceof Date ? opts.end : new Date(opts.end)
+    } else if (opts.semanaAtual) {
+        ;({ start, end } = intervaloSemanaAtual(opts.refDate))
+    } else {
+        start = new Date()
+        start.setHours(0, 0, 0, 0)
+        end = new Date(start)
+        end.setDate(end.getDate() + dias - 1)
+        end.setHours(23, 59, 59, 999)
+    }
 
     const url = new URL(`${GRAPH_ROOT}/me/calendarView`)
     url.searchParams.set('startDateTime', start.toISOString())
@@ -101,7 +197,7 @@ export async function listarEventosOutlook(accessToken, { dias = 7, limite = 20 
     const res = await fetchGraph(url.toString(), {
         headers: {
             Authorization: `Bearer ${accessToken}`,
-            Prefer: 'outlook.timezone="E. South America Standard Time"',
+            Prefer: `outlook.timezone="${timeZone}"`,
         },
     })
 
@@ -139,13 +235,31 @@ export async function criarEventoOutlook(accessToken, opts = {}) {
     const subject = String(opts.subject || '').trim()
     if (!subject) throw new Error('Informe o assunto da reunião.')
 
+    const isAllDay = Boolean(opts.isAllDay)
     const start = opts.start instanceof Date ? opts.start : new Date(opts.start)
-    const end = opts.end instanceof Date ? opts.end : new Date(opts.end)
-    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
+    let end = opts.end instanceof Date ? opts.end : opts.end != null ? new Date(opts.end) : null
+
+    if (!Number.isFinite(start.getTime())) {
         throw new Error('Datas da reunião inválidas.')
     }
-    if (end.getTime() <= start.getTime()) {
-        throw new Error('A data/hora de fim deve ser depois do início.')
+
+    if (isAllDay) {
+        const diaInicio = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0, 0)
+        const diaFim = end && Number.isFinite(end.getTime())
+            ? new Date(end.getFullYear(), end.getMonth(), end.getDate(), 0, 0, 0, 0)
+            : new Date(diaInicio.getFullYear(), diaInicio.getMonth(), diaInicio.getDate() + 1)
+        if (diaFim.getTime() <= diaInicio.getTime()) {
+            diaFim.setDate(diaInicio.getDate() + 1)
+        }
+        start.setTime(diaInicio.getTime())
+        end = diaFim
+    } else {
+        if (!end || !Number.isFinite(end.getTime())) {
+            end = new Date(start.getTime() + 60 * 60 * 1000)
+        }
+        if (end.getTime() <= start.getTime()) {
+            throw new Error('A data/hora de fim deve ser depois do início.')
+        }
     }
 
     const timeZone = resolverTimeZoneGraph(opts.timeZone)
@@ -153,6 +267,7 @@ export async function criarEventoOutlook(accessToken, opts = {}) {
 
     const payload = {
         subject,
+        isAllDay,
         body: {
             contentType: 'HTML',
             content: String(opts.body || '').trim() || `<p>${escapeHtmlBasico(subject)}</p>`,
@@ -207,6 +322,67 @@ export async function criarEventoOutlook(accessToken, opts = {}) {
 
     const row = await res.json()
     return mapEventoOutlook(row)
+}
+
+/**
+ * Cria eventos Outlook (dia inteiro) a partir de afazeres da Home.
+ * @returns {{ criados: number, falhas: Array<{ titulo: string, erro: string }> }}
+ */
+export async function adicionarTarefasAoOutlook(accessToken, tarefas = []) {
+    if (!accessToken) throw new Error('Token Microsoft ausente.')
+    const lista = (tarefas || []).filter(
+        (t) => t && t.status !== 'cancelada' && t.status !== 'concluida',
+    )
+    if (!lista.length) throw new Error('Nenhum afazer para adicionar ao calendário.')
+
+    const hoje = new Date()
+    hoje.setHours(12, 0, 0, 0)
+
+    let criados = 0
+    const falhas = []
+
+    for (const t of lista) {
+        let start = new Date(hoje)
+        if (t.prazo) {
+            const d = new Date(`${String(t.prazo).slice(0, 10)}T12:00:00`)
+            if (!Number.isNaN(d.getTime())) start = d
+        }
+        const partes = [
+            t.observacoes ? escapeHtmlBasico(String(t.observacoes).trim()) : '',
+            t.atribuidoNome ? `Atribuído: ${escapeHtmlBasico(t.atribuidoNome)}` : '',
+            t.status ? `Status: ${escapeHtmlBasico(t.status)}` : '',
+            'Origem: EmerLAB Afazeres',
+        ].filter(Boolean)
+
+        try {
+            await criarEventoOutlook(accessToken, {
+                subject: String(t.titulo || 'Afazer').trim() || 'Afazer',
+                start,
+                isAllDay: true,
+                body: `<p>${partes.join('</p><p>')}</p>`,
+            })
+            criados += 1
+        } catch (e) {
+            falhas.push({
+                titulo: t.titulo || 'Afazer',
+                erro: e?.message || String(e),
+            })
+        }
+    }
+
+    if (!criados && falhas.length) {
+        throw new Error(falhas[0].erro || 'Falha ao criar eventos no Outlook.')
+    }
+
+    return { criados, falhas }
+}
+
+/** Dispara refresh da agenda na Home após criar eventos. */
+export const OUTLOOK_AGENDA_REFRESH_EVENT = 'emerlab-outlook-agenda-refresh'
+
+export function solicitarRefreshAgendaOutlook() {
+    if (typeof window === 'undefined') return
+    window.dispatchEvent(new CustomEvent(OUTLOOK_AGENDA_REFRESH_EVENT))
 }
 
 function formatGraphLocalDateTime(d) {

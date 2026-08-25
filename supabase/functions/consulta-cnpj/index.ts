@@ -1,4 +1,5 @@
 import { handleOptions, jsonResponse } from '../_shared/cors.ts'
+import { clientIp, rateLimitOk } from '../_shared/requireUser.ts'
 
 const apenasDigitos = (v: string) => String(v || '').replace(/\D/g, '')
 
@@ -54,6 +55,10 @@ Deno.serve(async (req) => {
 
   if (req.method !== 'GET') {
     return jsonResponse({ error: 'Método não permitido.' }, 405)
+  }
+
+  if (!rateLimitOk(`cnpj:${clientIp(req)}`, 30, 60_000)) {
+    return jsonResponse({ error: 'Demasiados pedidos. Aguarde um momento.' }, 429)
   }
 
   const url = new URL(req.url)

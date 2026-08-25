@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Footer from '../../components/Footer/Footer'
 import OutlookAgendaCard from '../../components/Outlook/OutlookAgendaCard'
+import AfazeresCalendarioBtn from '../../components/Outlook/AfazeresCalendarioBtn'
 import HomeNotifHelp from './HomeNotifHelp'
 import HomeTarefaChat from './HomeTarefaChat'
 import {
@@ -52,32 +53,16 @@ import {
     podeRemoverAnexoTarefa,
 } from '../../lib/homeTarefas'
 import {
+    listarNotificacoesMencoesKanban,
+    marcarMencaoKanbanLida,
+} from '../../lib/credenciamento/kanbanMencoes'
+import {
     agruparPendenciasPorPrestador,
     listarPagamentosPendentesNota,
 } from '../../lib/pagamentosRegistros'
 import { formatarCpfCnpjEntrada } from '../../lib/prestadorCadastroHelpers'
-import { exportarTarefasIcs } from '../../lib/calendarExport'
 import { supabase } from '../../lib/supabase'
 import './Home.css'
-
-function IconCalendarioAdd({ className }) {
-    return (
-        <svg
-            className={className}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
-            <rect x="3" y="5" width="18" height="16" rx="2" />
-            <path d="M8 3v4M16 3v4M3 10h18" />
-            <path d="M12 13v5M9.5 15.5h5" />
-        </svg>
-    )
-}
 
 const FILTRO_TAREFAS = [
     { id: 'abertas', label: 'Abertas', labelCurto: 'Abertas' },
@@ -131,7 +116,6 @@ const Home = () => {
     const [anexoBusyId, setAnexoBusyId] = useState(null)
     const [anexoDragOverModal, setAnexoDragOverModal] = useState(false)
     const [anexoDragOverTarefaId, setAnexoDragOverTarefaId] = useState(null)
-    const [exportandoAfazeres, setExportandoAfazeres] = useState(false)
     const inputAnexoTarefaRef = useRef(null)
     const anexoDragDepthModalRef = useRef(0)
     const anexoDragDepthTarefaRef = useRef(0)
@@ -140,6 +124,7 @@ const Home = () => {
     const [recentesForm, setRecentesForm] = useState([])
     const [envelopesAtualizacoes, setEnvelopesAtualizacoes] = useState([])
     const [notifMensagensTarefas, setNotifMensagensTarefas] = useState([])
+    const [notifMencoesKanban, setNotifMencoesKanban] = useState([])
     const [pendenciasPag, setPendenciasPag] = useState(0)
     const [pendenciasPagNomes, setPendenciasPagNomes] = useState([])
 
@@ -199,6 +184,12 @@ const Home = () => {
                 listarNotificacoesMensagensTarefas({ userId: uid })
                     .then((lista) => setNotifMensagensTarefas(lista || []))
                     .catch(() => setNotifMensagensTarefas([])),
+            )
+
+            jobs.push(
+                listarNotificacoesMencoesKanban({ userId: uid })
+                    .then((lista) => setNotifMencoesKanban(lista || []))
+                    .catch(() => setNotifMencoesKanban([])),
             )
 
             if (podeForm) {
@@ -498,8 +489,14 @@ const Home = () => {
     }, [tarefas, filtroTarefas, userId, buscaTarefa])
 
     const tarefasExportaveis = useMemo(
-        () => (tarefas || []).filter((t) => t.status !== 'cancelada'),
-        [tarefas],
+        () =>
+            (tarefas || []).filter(
+                (t) =>
+                    t.atribuidoA === userId &&
+                    t.status !== 'concluida' &&
+                    t.status !== 'cancelada',
+            ),
+        [tarefas, userId],
     )
 
     const totalPaginasTarefas = Math.max(
@@ -564,6 +561,29 @@ const Home = () => {
             /* ignore */
         }
     }, [userId])
+
+    const refreshNotifMencoesKanban = useCallback(async () => {
+        try {
+            const lista = await listarNotificacoesMencoesKanban({ userId })
+            setNotifMencoesKanban(lista || [])
+        } catch {
+            /* ignore */
+        }
+    }, [userId])
+
+    const abrirMencaoKanban = async (n) => {
+        if (n?.id) {
+            try {
+                await marcarMencaoKanbanLida(n.id)
+                setNotifMencoesKanban((prev) => prev.filter((x) => x.id !== n.id))
+            } catch {
+                /* ignore */
+            }
+        }
+        if (n?.cardId) {
+            window.location.assign(`/credenciamento/principal?card=${n.cardId}`)
+        }
+    }
 
     const refreshNotifForm = useCallback(async () => {
         if (!podeForm) return
@@ -662,6 +682,15 @@ const Home = () => {
             )
             .on(
                 'postgres_changes',
+                { event: '*', schema: 'public', table: 'cred_kanban_mencoes' },
+                (payload) => {
+                    const row = payload?.new || payload?.old
+                    if (row?.mencionado_id && row.mencionado_id !== userId) return
+                    void refreshNotifMencoesKanban()
+                },
+            )
+            .on(
+                'postgres_changes',
                 { event: '*', schema: 'public', table: 'home_tarefas' },
                 () => {
                     agendar('tarefas', refreshListaTarefas)
@@ -727,6 +756,7 @@ const Home = () => {
         podeContratos,
         podePagamentos,
         refreshNotifMensagens,
+        refreshNotifMencoesKanban,
         refreshNotifForm,
         refreshNotifContratos,
         refreshNotifPagamentos,
@@ -825,18 +855,6 @@ const Home = () => {
         setTarefaExcluir(tarefa)
     }
 
-    const onExportarAfazeres = async () => {
-        setExportandoAfazeres(true)
-        setErro('')
-        try {
-            await exportarTarefasIcs(tarefasExportaveis)
-        } catch (err) {
-            setErro(err?.message || String(err))
-        } finally {
-            setExportandoAfazeres(false)
-        }
-    }
-
     const confirmarExcluirTarefa = async () => {
         if (!tarefaExcluir) return
         setExcluindoTarefa(true)
@@ -876,20 +894,23 @@ const Home = () => {
         (acc, n) => acc + (Number(n.quantidade) || 1),
         0,
     )
+    const notifMencoesKanbanCount = notifMencoesKanban.length
 
     const temNotificacoes =
         (podeForm && notifForm > 0) ||
         (podeContratos && notifEnvelopes > 0) ||
         (podePagamentos && pendenciasPag > 0) ||
         notifTarefasParaMim > 0 ||
-        notifMensagensCount > 0
+        notifMensagensCount > 0 ||
+        notifMencoesKanbanCount > 0
 
     const totalNotificacoes =
         (podeForm ? notifForm : 0) +
         (podeContratos ? notifEnvelopes : 0) +
         (podePagamentos ? pendenciasPag : 0) +
         notifTarefasParaMim +
-        notifMensagensCount
+        notifMensagensCount +
+        notifMencoesKanbanCount
 
     useEffect(() => {
         const base = 'EmerLAB'
@@ -1031,28 +1052,17 @@ const Home = () => {
                         <div className="home_dash_card_head home_dash_card_head--tarefas">
                             <h2>Afazeres</h2>
                             <div className="home_dash_card_head_actions">
-                                <button
-                                    type="button"
-                                    className="home_dash_btn secondary home_dash_btn--export"
-                                    disabled={
-                                        exportandoAfazeres || tarefasExportaveis.length === 0
-                                    }
-                                    onClick={() => void onExportarAfazeres()}
-                                    aria-label={
-                                        exportandoAfazeres
-                                            ? 'A exportar para o calendário'
-                                            : 'Adicionar afazeres ao calendário'
-                                    }
-                                    title="Adicionar ao calendário (.ics — iPhone, Google, Outlook)"
-                                >
-                                    {exportandoAfazeres ? (
-                                        <span className="home_dash_btn_export_busy" aria-hidden="true">
-                                            …
-                                        </span>
-                                    ) : (
-                                        <IconCalendarioAdd />
-                                    )}
-                                </button>
+                                <AfazeresCalendarioBtn
+                                    tarefas={tarefasExportaveis}
+                                    onErro={(msg) => {
+                                        setAvisoTarefas('')
+                                        setErro(msg)
+                                    }}
+                                    onOk={(msg) => {
+                                        setErro('')
+                                        setAvisoTarefas(msg)
+                                    }}
+                                />
                                 <button
                                     type="button"
                                     className="home_dash_btn home_dash_btn--nova_tarefa"
@@ -1656,6 +1666,48 @@ const Home = () => {
                                                 onClick={() => abrirTarefaDaNotificacao(n.tarefaId)}
                                             >
                                                 Abrir tarefa
+                                            </button>
+                                        </HomeNotifHelp>
+                                    </div>
+                                ))}
+
+                                {notifMencoesKanban.map((n) => (
+                                    <div
+                                        key={n.id}
+                                        className="home_dash_notif home_dash_notif_pag"
+                                    >
+                                        <button
+                                            type="button"
+                                            className="home_dash_notif_main"
+                                            onClick={() => void abrirMencaoKanban(n)}
+                                        >
+                                            <span className="home_dash_notif_n">1</span>
+                                            <div>
+                                                <strong>{n.deNome} mencionou você</strong>
+                                                <span>{n.cardNome}</span>
+                                            </div>
+                                        </button>
+                                        <HomeNotifHelp
+                                            title="Ver card"
+                                            ariaLabel={`Menção no Kanban: ${n.cardNome}`}
+                                        >
+                                            <p className="home_dash_notif_help_title">
+                                                Menção no Kanban
+                                            </p>
+                                            <ul>
+                                                <li>
+                                                    <strong>{n.cardNome}</strong>
+                                                    <span className="home_dash_notif_help_sub">
+                                                        {n.preview || 'Sem preview'}
+                                                    </span>
+                                                </li>
+                                            </ul>
+                                            <button
+                                                type="button"
+                                                className="home_dash_notif_help_link"
+                                                onClick={() => void abrirMencaoKanban(n)}
+                                            >
+                                                Abrir card no Kanban
                                             </button>
                                         </HomeNotifHelp>
                                     </div>

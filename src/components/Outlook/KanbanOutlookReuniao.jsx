@@ -78,7 +78,9 @@ function KanbanOutlookReuniaoInner({ card, usuarios = [], corpoAtual, onSalvarCo
     const onConectar = async () => {
         setErro('')
         try {
-            await instance.loginPopup(loginRequest)
+            const result = await instance.loginPopup(loginRequest)
+            const acc = result?.account || instance.getAllAccounts()[0]
+            if (acc) instance.setActiveAccount(acc)
         } catch (e) {
             if (e?.errorCode === 'user_cancelled') return
             setErro(e?.message || String(e))

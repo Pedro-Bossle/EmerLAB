@@ -3,24 +3,35 @@
  * GET  /api/prospectos-gemini-status (rewrite) — ping Gemini
  * POST /api/prospectos-osm-coletar — coleta (async por etapas: start + step)
  */
-import path from 'node:path'
-
-import { createClient } from '@supabase/supabase-js'
-import { config as dotenvConfig } from 'dotenv'
-
 import { descansoGeminiParaResposta, previsaoRetornoGemini } from '../src/lib/credenciamento/geminiDescanso.js'
 import { geminiVerificarDisponibilidade } from '../src/lib/credenciamento/geminiUpstream.js'
 import { isGeminiStatusRequest } from '../src/lib/api/vercelUnifiedRoute.js'
 import { executarPassoJobColeta, iniciarJobColeta } from '../src/lib/credenciamento/prospectosColetaJob.js'
-
-dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
-dotenvConfig()
+import {
+    createSupabaseAdminClient,
+    getClientIp,
+    validarJwtFerramentaCredenciamento,
+} from '../src/lib/api/serverAuth.js'
+import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
+import { PERMISSION_KEYS } from '../src/lib/accessControl.js'
 
 function supabaseAdmin() {
-    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!url || !key) throw new Error('SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são obrigatórios.')
-    return createClient(url, key, { auth: { persistSession: false } })
+    return createSupabaseAdminClient()
+}
+
+async function exigirAuthProspectos(req, res) {
+    const ip = getClientIp(req)
+    if (!aplicarRateLimit(res, `prospectos:${ip}`, RATE_LIMITS.prospectos)) return null
+    const auth = await validarJwtFerramentaCredenciamento(
+        req,
+        'credenciamento.prospectos_osm',
+        PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+    )
+    if (auth.error) {
+        res.status(auth.status || 401).json({ ok: false, error: auth.error })
+        return null
+    }
+    return auth
 }
 
 async function readJsonBody(req) {
@@ -154,10 +165,14 @@ async function handleColeta(req, res) {
 export default async function handler(req, res) {
     try {
         if (req.method === 'GET' && isGeminiStatusRequest(req)) {
+            const auth = await exigirAuthProspectos(req, res)
+            if (!auth) return
             await handleGeminiStatus(res)
             return
         }
         if (req.method === 'POST') {
+            const auth = await exigirAuthProspectos(req, res)
+            if (!auth) return
             await handleColeta(req, res)
             return
         }

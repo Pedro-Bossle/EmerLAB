@@ -2239,6 +2239,27 @@ body.dark-mode .cs_details summary {
     max-width: min(94vw, 480px);
 }
 
+.cs_sign_fechar_dica {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: 0 0 0.65rem;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #fff8e8;
+    border: 1px solid #f0dca0;
+    color: #7a5b12;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+body.dark-mode .cs_sign_fechar_dica {
+    background: #3d3420;
+    border-color: #6b5a2e;
+    color: #f0e0a8;
+}
+
 .cs_sign_modal--wide {
     max-width: min(94vw, 720px);
 }

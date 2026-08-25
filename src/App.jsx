@@ -31,6 +31,7 @@ import ConfigExportarCredenciados from './pages/Configuracoes/ExportarCredenciad
 import ConfigConferenciaLaboratorio from './pages/Configuracoes/ConferenciaLaboratorio/ConfigConferenciaLaboratorio';
 import GerenciamentoAcessos from './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos';
 import AdminAuditoria from './pages/Administrativo/Auditoria/AdminAuditoria';
+import AlterarSenha from './pages/AlterarSenha/AlterarSenha';
 import ComprasValorVenda from './pages/Compras/ValorVenda/ComprasValorVenda';
 import ComprasOrcamento from './pages/Compras/Orcamento/ComprasOrcamento';
 import ContratosEmerdog from './pages/Contratos/ContratosEmerdog';
@@ -45,6 +46,14 @@ function App() {
       <Routes>
         {/* Sem layout */}
         <Route path="/" element={<Login />} />
+        <Route
+          path="/alterar-senha"
+          element={
+            <PrivateRoute>
+              <AlterarSenha />
+            </PrivateRoute>
+          }
+        />
         <Route path="/ser_parceiro" element={<CredenciamentoFormularioPublico />} />
         <Route path="/ser-parceiro" element={<Navigate to="/ser_parceiro" replace />} />
         <Route path="/credenciamento/cadastro-publico" element={<CredenciamentoFormularioPublico />} />

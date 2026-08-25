@@ -6,6 +6,8 @@
 import { nominatimSearchJson, normalizarParamsNominatim } from '../src/lib/credenciamento/nominatimUpstream.js'
 import { overpassPoisNaArea } from '../src/lib/credenciamento/overpassUpstream.js'
 import { isOverpassOsmRequest, queryParamsSemRota } from '../src/lib/api/vercelUnifiedRoute.js'
+import { getClientIp } from '../src/lib/api/serverAuth.js'
+import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
 
 async function handleNominatim(req, res) {
     const params = queryParamsSemRota(req)
@@ -49,6 +51,9 @@ export default async function handler(req, res) {
         res.status(405).json({ error: 'Método não permitido.' })
         return
     }
+    const ip = getClientIp(req)
+    if (!aplicarRateLimit(res, `map-osm:${ip}`, RATE_LIMITS.mapOsm)) return
+
     if (req.method === 'HEAD') {
         res.status(200).end()
         return

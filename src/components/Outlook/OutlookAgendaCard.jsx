@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { InteractionStatus } from '@azure/msal-browser'
 import { useMsal } from '@azure/msal-react'
-import { graphTokenRequest, isMsalConfigured, loginRequest } from '../../lib/msal/msalConfig'
+import { isMsalConfigured, buildLoginRequest, buildGraphTokenRequest, resolveMsalRedirectUri } from '../../lib/msal/msalConfig'
 import { exportarAgendaIcs } from '../../lib/calendarExport'
 import {
-    formatarDataEvento,
+    OUTLOOK_AGENDA_REFRESH_EVENT,
     formatarHorarioEvento,
+    intervaloSemanaAtual,
     listarEventosOutlook,
+    montarDiasSemanaAgenda,
 } from '../../lib/outlookCalendar'
 import { useMsalReady } from './MsalAppProvider'
 
@@ -30,67 +32,154 @@ function IconCalendarioAdd() {
 
 const OutlookAgendaCardInner = () => {
     const { instance, accounts, inProgress } = useMsal()
-    const account = accounts[0]
+    const account = instance.getActiveAccount() || accounts[0] || null
 
+    const semana = useMemo(() => intervaloSemanaAtual(), [])
     const [eventos, setEventos] = useState([])
     const [loading, setLoading] = useState(false)
     const [erro, setErro] = useState('')
     const [exportando, setExportando] = useState(false)
+    const [diaFoco, setDiaFoco] = useState(() => {
+        const dias = montarDiasSemanaAgenda([], semana)
+        return dias.find((d) => d.isHoje)?.key || dias[0]?.key || ''
+    })
 
-    const obterToken = useCallback(async () => {
-        if (!account) return null
-        try {
-            const silent = await instance.acquireTokenSilent({
-                ...graphTokenRequest,
-                account,
-            })
-            return silent.accessToken
-        } catch {
-            const popup = await instance.acquireTokenPopup(graphTokenRequest)
-            return popup.accessToken
+    // Garante conta ativa quando o cache já tem login
+    useEffect(() => {
+        if (!accounts.length) return
+        if (!instance.getActiveAccount()) {
+            instance.setActiveAccount(accounts[0])
         }
-    }, [account, instance])
+    }, [accounts, instance])
 
-    const carregarEventos = useCallback(async () => {
-        if (!account) {
-            setEventos([])
-            return
-        }
-        setLoading(true)
-        setErro('')
-        try {
-            const token = await obterToken()
-            const lista = await listarEventosOutlook(token, { dias: 7, limite: 15 })
-            setEventos(lista)
-        } catch (e) {
-            setEventos([])
-            setErro(e?.message || String(e))
-        } finally {
-            setLoading(false)
-        }
-    }, [account, obterToken])
+    const obterToken = useCallback(
+        async (conta) => {
+            const acc = conta || instance.getActiveAccount() || accounts[0]
+            if (!acc) return null
+            try {
+                const silent = await instance.acquireTokenSilent({
+                    ...buildGraphTokenRequest(acc),
+                })
+                return silent.accessToken
+            } catch {
+                const popup = await instance.acquireTokenPopup({
+                    ...buildGraphTokenRequest(acc),
+                })
+                return popup.accessToken
+            }
+        },
+        [accounts, instance],
+    )
+
+    const carregarEventos = useCallback(
+        async (contaOverride = null) => {
+            const acc = contaOverride || instance.getActiveAccount() || accounts[0]
+            if (!acc) {
+                setEventos([])
+                return
+            }
+            setLoading(true)
+            setErro('')
+            try {
+                const token = await obterToken(acc)
+                if (!token) throw new Error('Não foi possível obter token Microsoft.')
+                const lista = await listarEventosOutlook(token, {
+                    semanaAtual: true,
+                    limite: 100,
+                })
+                setEventos(lista)
+            } catch (e) {
+                setEventos([])
+                setErro(e?.message || String(e))
+            } finally {
+                setLoading(false)
+            }
+        },
+        [accounts, instance, obterToken],
+    )
 
     useEffect(() => {
         if (!account || inProgress !== InteractionStatus.None) return
-        void carregarEventos()
+        void carregarEventos(account)
+    }, [account?.homeAccountId, inProgress, carregarEventos])
+
+    useEffect(() => {
+        const onRefresh = () => {
+            if (!account || inProgress !== InteractionStatus.None) return
+            void carregarEventos(account)
+        }
+        window.addEventListener(OUTLOOK_AGENDA_REFRESH_EVENT, onRefresh)
+        return () => window.removeEventListener(OUTLOOK_AGENDA_REFRESH_EVENT, onRefresh)
     }, [account, inProgress, carregarEventos])
+
+    const diasSemana = useMemo(
+        () => montarDiasSemanaAgenda(eventos, semana),
+        [eventos, semana],
+    )
+
+    useEffect(() => {
+        if (!diasSemana.length) return
+        if (diasSemana.some((d) => d.key === diaFoco)) return
+        const hoje = diasSemana.find((d) => d.isHoje)
+        setDiaFoco(hoje?.key || diasSemana[0].key)
+    }, [diasSemana, diaFoco])
+
+    const diaSelecionado = diasSemana.find((d) => d.key === diaFoco) || diasSemana[0] || null
+
+    const rotuloSemana = useMemo(() => {
+        const a = semana.start.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+        const b = semana.end.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+        return `${a} – ${b}`
+    }, [semana])
 
     const onConectar = async () => {
         setErro('')
+        setLoading(true)
+        const redirectUri = resolveMsalRedirectUri()
         try {
-            await instance.loginPopup(loginRequest)
+            // Redirect (não popup): evita timed_out por COOP/Brave/Chrome.
+            // A página recarrega; handleRedirectPromise ativa a conta e a agenda carrega.
+            sessionStorage.setItem('emerlab-outlook-connecting', '1')
+            await instance.loginRedirect(buildLoginRequest())
+            // Não chega aqui — o browser navega para a Microsoft
         } catch (e) {
-            if (e?.errorCode === 'user_cancelled') return
-            setErro(e?.message || String(e))
+            sessionStorage.removeItem('emerlab-outlook-connecting')
+            if (e?.errorCode === 'user_cancelled' || e?.errorCode === 'user_cancelled_login') {
+                setLoading(false)
+                return
+            }
+            const msg = e?.message || String(e)
+            setErro(`${msg} Redirect URI: ${redirectUri}`)
+            setLoading(false)
         }
     }
+
+    // Após loginRedirect, se a flag existir, recarrega a agenda
+    useEffect(() => {
+        if (!account || inProgress !== InteractionStatus.None) return
+        const pending = sessionStorage.getItem('emerlab-outlook-connecting')
+        if (pending) {
+            sessionStorage.removeItem('emerlab-outlook-connecting')
+            void carregarEventos(account)
+        }
+    }, [account?.homeAccountId, inProgress, carregarEventos])
 
     const onDesconectar = async () => {
         setErro('')
         try {
-            await instance.logoutPopup({ account })
+            const acc = instance.getActiveAccount() || accounts[0]
+            await instance.logoutPopup({
+                account: acc || undefined,
+                postLogoutRedirectUri: window.location.origin,
+            })
+            instance.setActiveAccount(null)
             setEventos([])
         } catch (e) {
+            if (e?.errorCode === 'user_cancelled') {
+                instance.setActiveAccount(null)
+                setEventos([])
+                return
+            }
             setErro(e?.message || String(e))
         }
     }
@@ -125,9 +214,9 @@ const OutlookAgendaCardInner = () => {
                             aria-label={
                                 exportando
                                     ? 'A exportar para o calendário'
-                                    : 'Adicionar agenda ao calendário'
+                                    : 'Exportar agenda (.ics)'
                             }
-                            title="Adicionar ao calendário (.ics — iPhone, Google, Outlook)"
+                            title="Exportar .ics (iPhone, Google, Outlook)"
                         >
                             {exportando ? (
                                 <span className="home_dash_btn_export_busy" aria-hidden="true">
@@ -158,10 +247,10 @@ const OutlookAgendaCardInner = () => {
                     <button
                         type="button"
                         className="home_dash_btn"
-                        disabled={busy}
+                        disabled={busy || loading}
                         onClick={() => void onConectar()}
                     >
-                        Conectar Outlook
+                        {loading ? 'Conectando…' : 'Conectar Outlook'}
                     </button>
                 )}
             </div>
@@ -172,40 +261,92 @@ const OutlookAgendaCardInner = () => {
                 <p className="home_dash_empty">Nada por aqui</p>
             ) : loading && !eventos.length ? (
                 <p className="home_dash_muted">Carregando agenda…</p>
-            ) : eventos.length === 0 ? (
-                <p className="home_dash_empty">Nada por aqui</p>
             ) : (
-                <ul className="home_dash_agenda_lista">
-                    {eventos.map((ev) => (
-                        <li key={ev.id} className="home_dash_agenda_item">
-                            {ev.webLink ? (
-                                <a
-                                    className="home_dash_agenda_link"
-                                    href={ev.webLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                <div className="home_dash_agenda_semana">
+                    <p className="home_dash_agenda_semana_rotulo">Semana atual · {rotuloSemana}</p>
+                    <div className="home_dash_agenda_dias" role="tablist" aria-label="Dias da semana">
+                        {diasSemana.map((dia) => {
+                            const ativo = dia.key === diaFoco
+                            return (
+                                <button
+                                    key={dia.key}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={ativo}
+                                    className={`home_dash_agenda_dia${ativo ? ' is-active' : ''}${dia.isHoje ? ' is-hoje' : ''}`}
+                                    onClick={() => setDiaFoco(dia.key)}
                                 >
-                                    <span className="home_dash_agenda_when">
-                                        <strong>{formatarHorarioEvento(ev)}</strong>
-                                        <small>{formatarDataEvento(ev)}</small>
+                                    <span className="home_dash_agenda_dia_wd">{dia.labelCurto}</span>
+                                    <strong className="home_dash_agenda_dia_num">{dia.labelDia}</strong>
+                                    <span className="home_dash_agenda_dia_count">
+                                        {dia.eventos.length ? `${dia.eventos.length}` : '·'}
                                     </span>
-                                    <span className="home_dash_agenda_title">{ev.subject}</span>
-                                    {ev.location ? (
-                                        <small className="home_dash_agenda_loc">{ev.location}</small>
+                                </button>
+                            )
+                        })}
+                    </div>
+
+                    <div className="home_dash_agenda_dia_painel" role="tabpanel">
+                        {diaSelecionado ? (
+                            <>
+                                <h3 className="home_dash_agenda_dia_titulo">
+                                    {diaSelecionado.date.toLocaleDateString('pt-BR', {
+                                        weekday: 'long',
+                                        day: '2-digit',
+                                        month: 'long',
+                                    })}
+                                    {diaSelecionado.isHoje ? (
+                                        <span className="home_dash_agenda_hoje_tag">Hoje</span>
                                     ) : null}
-                                </a>
-                            ) : (
-                                <div className="home_dash_agenda_link">
-                                    <span className="home_dash_agenda_when">
-                                        <strong>{formatarHorarioEvento(ev)}</strong>
-                                        <small>{formatarDataEvento(ev)}</small>
-                                    </span>
-                                    <span className="home_dash_agenda_title">{ev.subject}</span>
-                                </div>
-                            )}
-                        </li>
-                    ))}
-                </ul>
+                                </h3>
+                                {diaSelecionado.eventos.length === 0 ? (
+                                    <p className="home_dash_empty">Nenhum compromisso neste dia</p>
+                                ) : (
+                                    <ul className="home_dash_agenda_lista">
+                                        {diaSelecionado.eventos.map((ev) => (
+                                            <li key={ev.id} className="home_dash_agenda_item">
+                                                {ev.webLink ? (
+                                                    <a
+                                                        className="home_dash_agenda_link"
+                                                        href={ev.webLink}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                    >
+                                                        <span className="home_dash_agenda_when">
+                                                            <strong>{formatarHorarioEvento(ev)}</strong>
+                                                        </span>
+                                                        <span className="home_dash_agenda_title">
+                                                            {ev.subject}
+                                                        </span>
+                                                        {ev.location ? (
+                                                            <small className="home_dash_agenda_loc">
+                                                                {ev.location}
+                                                            </small>
+                                                        ) : null}
+                                                    </a>
+                                                ) : (
+                                                    <div className="home_dash_agenda_link">
+                                                        <span className="home_dash_agenda_when">
+                                                            <strong>{formatarHorarioEvento(ev)}</strong>
+                                                        </span>
+                                                        <span className="home_dash_agenda_title">
+                                                            {ev.subject}
+                                                        </span>
+                                                        {ev.location ? (
+                                                            <small className="home_dash_agenda_loc">
+                                                                {ev.location}
+                                                            </small>
+                                                        ) : null}
+                                                    </div>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </>
+                        ) : null}
+                    </div>
+                </div>
             )}
         </>
     )

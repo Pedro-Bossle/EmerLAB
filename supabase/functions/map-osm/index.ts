@@ -1,6 +1,7 @@
 import { handleOptions, jsonResponse } from '../_shared/cors.ts'
 import { nominatimSearchJson, normalizarParamsNominatim } from '../_shared/nominatim.ts'
 import { overpassPoisNaArea } from '../_shared/overpass.ts'
+import { clientIp, rateLimitOk } from '../_shared/requireUser.ts'
 
 Deno.serve(async (req) => {
   const opt = handleOptions(req)
@@ -9,6 +10,11 @@ Deno.serve(async (req) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return jsonResponse({ error: 'Método não permitido.' }, 405)
   }
+
+  if (!rateLimitOk(`map-osm:${clientIp(req)}`, 45, 60_000)) {
+    return jsonResponse({ error: 'Demasiados pedidos. Aguarde um momento.' }, 429)
+  }
+
   if (req.method === 'HEAD') {
     return new Response(null, { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } })
   }

@@ -358,6 +358,22 @@ export default async function handler(req, res) {
         return
     }
     try {
+        const { PERMISSION_KEYS } = await import('../src/lib/accessControl.js')
+        const { getClientIp, validarJwtComPermissao } = await import('../src/lib/api/serverAuth.js')
+        const { aplicarRateLimit, RATE_LIMITS } = await import('../src/lib/api/rateLimit.js')
+
+        const ip = getClientIp(req)
+        if (!aplicarRateLimit(res, `rc-pdf:${ip}`, RATE_LIMITS.rcPdf)) return
+
+        const auth = await validarJwtComPermissao(req, [
+            PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+            PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW,
+        ])
+        if (auth.error) {
+            res.status(auth.status || 401).json({ error: auth.error })
+            return
+        }
+
         const cidades = Array.isArray(req.body?.cidades)
             ? req.body.cidades.map((c) => String(c || '').trim()).filter(Boolean)
             : []

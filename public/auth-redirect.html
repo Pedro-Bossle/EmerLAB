@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Microsoft · EmerLAB</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        font-family: system-ui, sans-serif;
+        display: grid;
+        place-items: center;
+        background: #f4f8fb;
+        color: #4a6578;
+      }
+      p {
+        margin: 0;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <p>Conectando ao Microsoft…</p>
+    <script>
+      (function () {
+        var hash = window.location.hash || ''
+        var search = window.location.search || ''
+        var temResposta =
+          hash.length > 1 || /[?&](code|error|client_info)=/i.test(search)
+
+        // Popup: o MSAL da janela pai lê o hash — NÃO redirecionar.
+        var ehPopup = !!(window.opener && window.opener !== window)
+        if (ehPopup) return
+
+        // Fluxo redirect (janela principal): envia a resposta para a SPA processar.
+        if (temResposta) {
+          var dest = '/home' + search + hash
+          window.location.replace(dest)
+        }
+      })()
+    </script>
+  </body>
+</html>
