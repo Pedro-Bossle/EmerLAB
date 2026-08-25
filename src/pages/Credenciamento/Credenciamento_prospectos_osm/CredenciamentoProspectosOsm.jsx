@@ -41,6 +41,7 @@ import {
 import { supabase } from '../../../lib/supabase'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import { PageHeader } from '../../../components/ui'
 import { useGeminiRate } from '../../../hooks/useGemini.js'
 import '../Credenciamento_main/Credenciamento_main.css'
@@ -210,8 +211,21 @@ const CredenciamentoProspectosOsm = () => {
 
     useEffect(() => {
         if (!cidade) return
-        const ok = municipios.some((m) => m.nome === cidade)
-        if (!ok) setCidade('')
+        const chave = String(cidade || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toLowerCase()
+        const hit = municipios.find((m) => {
+            const n = String(m.nome || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+                .toLowerCase()
+            return n === chave || m.nome === cidade
+        })
+        if (!hit) setCidade('')
+        else if (hit.nome !== cidade) setCidade(hit.nome)
     }, [cidade, municipios])
 
     useEffect(() => {
@@ -557,6 +571,26 @@ const CredenciamentoProspectosOsm = () => {
             setErro('Informe o nome do prospecto.')
             return
         }
+        const latRaw = String(editForm.lat ?? '').trim()
+        const lngRaw = String(editForm.lng ?? '').trim()
+        const latVazia = !latRaw
+        const lngVazia = !lngRaw
+        if (latVazia !== lngVazia) {
+            setErro('Informe latitude e longitude juntas, ou deixe ambas vazias.')
+            return
+        }
+        let lat = latRaw
+        let lng = lngRaw
+        if (!latVazia && !lngVazia) {
+            const latN = Number(latRaw)
+            const lngN = Number(lngRaw)
+            if (!Number.isFinite(latN) || !Number.isFinite(lngN)) {
+                setErro('Latitude e longitude devem ser números válidos.')
+                return
+            }
+            lat = latN
+            lng = lngN
+        }
         setSalvandoEdit(true)
         setErro('')
         try {
@@ -573,8 +607,8 @@ const CredenciamentoProspectosOsm = () => {
                 horario_atendimento: editForm.horario_atendimento,
                 status_prospeccao: editForm.status_prospeccao || 'novo',
                 observacao: editForm.observacao,
-                lat: editForm.lat,
-                lng: editForm.lng,
+                lat: latVazia ? '' : lat,
+                lng: lngVazia ? '' : lng,
             })
             if (!r.ok) {
                 setErro(r.erro || 'Não foi possível salvar o prospecto.')
@@ -650,19 +684,14 @@ const CredenciamentoProspectosOsm = () => {
                         </label>
                         <label className="pcad_field cred_prospectos_osm_field_cidade">
                             <span>Cidade</span>
-                            <select
-                                className="credenciamento_main_input"
+                            <SelectMunicipioBusca
                                 value={cidade}
+                                options={municipios}
                                 disabled={!uf || loadingMun}
-                                onChange={(e) => setCidade(e.target.value)}
-                            >
-                                <option value="">{loadingMun ? 'A carregar…' : '—'}</option>
-                                {municipios.map((m) => (
-                                    <option key={m.id} value={m.nome}>
-                                        {m.nome}
-                                    </option>
-                                ))}
-                            </select>
+                                loading={loadingMun}
+                                placeholder={!uf ? 'Selecione a UF' : 'Buscar cidade…'}
+                                onChange={setCidade}
+                            />
                         </label>
                         <div className="pcad_field cred_prospectos_osm_cat_field" ref={catPainelRef}>
                             <span>Categoria</span>

@@ -37,7 +37,7 @@ export function queryMencaoUsuarioNoCorpo(texto, cursor) {
 
 export function tokenMencaoUsuario(user) {
     const nome = String(user?.nome || user?.name || 'Utilizador')
-        .replace(/[\[\]]/g, '')
+        .replace(/[[\]]/g, '')
         .trim() || 'Utilizador'
     const id = String(user?.id || '').trim()
     if (!id) return `@${nome}`

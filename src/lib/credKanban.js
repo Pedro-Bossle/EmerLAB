@@ -305,7 +305,8 @@ export function colunaKanbanParaSituacaoId(situacaoId, situacoes = []) {
 }
 
 /**
- * Após mudar a situação no perfil/cadastro: move o card vinculado (sem reaplicar side-effects).
+ * Após mudar a situação no perfil/cadastro: move o card vinculado via moverCardKanban
+ * (funil + side-effects, ex. adicionar_site → prestadores.no_site).
  * Não cria card novo; situação Credenciado → coluna Adicionar em SITE.
  */
 export async function sincronizarCardKanbanComSituacao(prestadorId, situacaoId, { situacoes = [] } = {}) {
@@ -339,9 +340,10 @@ export async function sincronizarCardKanbanComSituacao(prestadorId, situacaoId, 
 
     const card = mapearCardRow(row)
     if (card.coluna === colunaAlvo) return card
+    if (!podeMoverColunaKanban(card.coluna, colunaAlvo)) return null
 
     const ordem = await proximaOrdemColuna(colunaAlvo)
-    return atualizarCardKanban(card.id, { coluna: colunaAlvo, ordem })
+    return moverCardKanban(card.id, colunaAlvo, ordem, { situacoes: listaSit })
 }
 
 async function aplicarSideEffectsColuna(card, de, para, situacoes) {

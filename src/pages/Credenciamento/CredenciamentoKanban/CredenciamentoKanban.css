@@ -197,7 +197,7 @@
 .cred_kanban_colunas {
   display: flex;
   gap: 12px;
-  justify-content: center;
+  justify-content: safe center;
   overflow-x: auto;
   padding-bottom: 8px;
 }

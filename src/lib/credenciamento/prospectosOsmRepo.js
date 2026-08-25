@@ -63,6 +63,7 @@ const CAMPOS_EDITAVEIS = new Set([
     'observacao',
     'lat',
     'lng',
+    'aproximado',
 ])
 
 /**

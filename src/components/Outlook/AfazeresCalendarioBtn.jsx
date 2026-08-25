@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react'
-import { InteractionStatus } from '@azure/msal-browser'
+import { InteractionRequiredAuthError, InteractionStatus } from '@azure/msal-browser'
 import { useMsal } from '@azure/msal-react'
 import { exportarTarefasIcs } from '../../lib/calendarExport'
 import { buildLoginRequest, buildGraphTokenRequest, isMsalConfigured } from '../../lib/msal/msalConfig'
@@ -76,11 +76,15 @@ function AfazeresCalendarioBtnOutlook({ tarefas, disabled, onErro, onOk }) {
         try {
             const silent = await instance.acquireTokenSilent(buildGraphTokenRequest(acc))
             return silent.accessToken
-        } catch {
+        } catch (e) {
+            if (!(e instanceof InteractionRequiredAuthError)) throw e
+            if (inProgress !== InteractionStatus.None) {
+                throw new Error('Autenticação Microsoft em andamento. Tente novamente em instantes.')
+            }
             const popup = await instance.acquireTokenPopup(buildGraphTokenRequest(acc))
             return popup.accessToken
         }
-    }, [account, instance])
+    }, [account, instance, inProgress])
 
     const onClick = async () => {
         setBusy(true)

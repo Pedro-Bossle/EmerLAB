@@ -127,17 +127,28 @@ const PROFILE_SELECT_CANDIDATES = [
     'id, name, permissions',
 ]
 
-const colunaAusenteNoErro = (mensagem, coluna) => {
-    const msg = String(mensagem || '').toLowerCase()
-    return msg.includes(String(coluna || '').toLowerCase())
+const colunaAusenteNoErro = (erroOuMensagem, coluna) => {
+    const err = erroOuMensagem && typeof erroOuMensagem === 'object' ? erroOuMensagem : null
+    const msg = String(err?.message || erroOuMensagem || '').toLowerCase()
+    const col = String(coluna || '').toLowerCase()
+    if (!col || !msg) return false
+    const codigo = String(err?.code || err?.details || '').toLowerCase()
+    // Postgres undefined_column = 42703; PostgREST often embeds "column … does not exist"
+    const pareceColunaAusente =
+        codigo === '42703' ||
+        msg.includes('does not exist') ||
+        msg.includes('não existe') ||
+        msg.includes('schema cache') ||
+        msg.includes('could not find')
+    if (!pareceColunaAusente) return false
+    return msg.includes(col)
 }
 
-const perfilErroPorColunaOpcional = (mensagem) => {
-    const msg = String(mensagem || '')
+const perfilErroPorColunaOpcional = (erroOuMensagem) => {
     return (
-        colunaAusenteNoErro(msg, 'email') ||
-        colunaAusenteNoErro(msg, 'force_password_change') ||
-        colunaAusenteNoErro(msg, 'password_changed_at')
+        colunaAusenteNoErro(erroOuMensagem, 'email') ||
+        colunaAusenteNoErro(erroOuMensagem, 'force_password_change') ||
+        colunaAusenteNoErro(erroOuMensagem, 'password_changed_at')
     )
 }
 
@@ -147,7 +158,7 @@ const buscarProfile = async (supabase, userId) => {
         const result = await supabase.from('profiles').select(select).eq('id', userId).maybeSingle()
         if (!result.error) return result
         ultimo = result
-        if (!perfilErroPorColunaOpcional(result.error.message)) return result
+        if (!perfilErroPorColunaOpcional(result.error)) return result
     }
     return ultimo
 }
@@ -158,7 +169,7 @@ const listarProfiles = async (supabase) => {
         const result = await supabase.from('profiles').select(select).order('name', { ascending: true })
         if (!result.error) return result
         ultimo = result
-        if (!perfilErroPorColunaOpcional(result.error.message)) return result
+        if (!perfilErroPorColunaOpcional(result.error)) return result
     }
     return ultimo
 }
@@ -186,17 +197,16 @@ const upsertProfile = async (supabase, payload) => {
     for (let tentativa = 0; tentativa < 4; tentativa += 1) {
         const result = await supabase.from('profiles').upsert(atual, { onConflict: 'id' }).select().single()
         if (!result.error) return result
-        const mensagem = String(result.error.message || '')
         let removeu = false
-        if (colunaAusenteNoErro(mensagem, 'email') && 'email' in atual) {
+        if (colunaAusenteNoErro(result.error, 'email') && 'email' in atual) {
             delete atual.email
             removeu = true
         }
-        if (colunaAusenteNoErro(mensagem, 'password_changed_at') && 'password_changed_at' in atual) {
+        if (colunaAusenteNoErro(result.error, 'password_changed_at') && 'password_changed_at' in atual) {
             delete atual.password_changed_at
             removeu = true
         }
-        if (colunaAusenteNoErro(mensagem, 'force_password_change') && 'force_password_change' in atual) {
+        if (colunaAusenteNoErro(result.error, 'force_password_change') && 'force_password_change' in atual) {
             delete atual.force_password_change
             removeu = true
         }
@@ -329,22 +339,30 @@ export default async function handler(req, res) {
             )
         }
 
-        // Qualquer usuário autenticado pode limpar a própria exigência após trocar a senha.
+        // Qualquer usuário autenticado: troca a própria senha no Auth e só então limpa a exigência.
         if (action === 'clearOwnForcePassword') {
             const auth = await validarUsuarioAutenticado(supabase, req)
             if (auth.error) return responderErro(res, 403, auth.error)
+
+            const password = String(body.password || '')
+            const checkSenha = validarPoliticaSenha(password)
+            if (!checkSenha.ok) return responderErro(res, 400, checkSenha.error)
 
             const { data: atual, error: errAtual } = await buscarProfile(supabase, auth.user.id)
             if (errAtual) return responderErro(res, 500, errAtual.message)
             if (!atual?.id) return responderErro(res, 404, 'Perfil não encontrado.')
 
-            const agora = new Date().toISOString()
             const uid = auth.user.id
+            const { error: errSenha } = await supabase.auth.admin.updateUserById(uid, { password })
+            if (errSenha) {
+                return responderErro(res, 400, errSenha.message || 'Não foi possível atualizar a senha.')
+            }
 
+            const agora = new Date().toISOString()
             let profileData = null
             let error = null
 
-            // 1) limpa flag + registra data da troca
+            // 1) limpa flag + registra data da troca (só após senha ok)
             ;({ data: profileData, error } = await supabase
                 .from('profiles')
                 .update({ force_password_change: false, password_changed_at: agora })
@@ -353,7 +371,7 @@ export default async function handler(req, res) {
                 .maybeSingle())
 
             // 2) se a coluna de data não existir, limpa só a flag (não prender o usuário)
-            if (error && colunaAusenteNoErro(error.message, 'password_changed_at')) {
+            if (error && colunaAusenteNoErro(error, 'password_changed_at')) {
                 ;({ data: profileData, error } = await supabase
                     .from('profiles')
                     .update({ force_password_change: false })
@@ -363,7 +381,7 @@ export default async function handler(req, res) {
             }
 
             // 3) se a flag também não existir, considera liberado
-            if (error && colunaAusenteNoErro(error.message, 'force_password_change')) {
+            if (error && colunaAusenteNoErro(error, 'force_password_change')) {
                 return res.status(200).json({
                     ok: true,
                     profile: normalizarProfileAcesso({
@@ -724,7 +742,7 @@ export default async function handler(req, res) {
                 .maybeSingle()
 
             if (error) {
-                if (colunaAusenteNoErro(error.message, 'force_password_change')) {
+                if (colunaAusenteNoErro(error, 'force_password_change')) {
                     return responderErro(
                         res,
                         500,

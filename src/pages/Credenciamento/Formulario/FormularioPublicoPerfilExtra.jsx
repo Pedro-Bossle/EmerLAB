@@ -9,6 +9,7 @@ import {
 import MultiEspecialidadesInput from '../Credenciamento_cadastro/MultiEspecialidadesInput.jsx'
 import PrestadorCertificadosConclusaoInput from '../Credenciamento_cadastro/PrestadorCertificadosConclusaoInput.jsx'
 import PrestadorResponsaveisInput from '../Credenciamento_cadastro/PrestadorResponsaveisInput.jsx'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 
 const PLACEHOLDER_CRMV = 'PF/PJ - 123456 - UF'
 
@@ -174,19 +175,16 @@ export default function FormularioPublicoPerfilExtra({
                         </label>
                         <label className="fcred_field fcred_field_grow">
                             <span>Cidade</span>
-                            <select
-                                className="fcred_select"
-                                value={municipioIbgeId}
-                                onChange={(e) => setMunicipioIbgeId(e.target.value)}
+                            <SelectMunicipioBusca
+                                value={municipioIbgeId == null ? '' : String(municipioIbgeId)}
+                                valueKey="id"
+                                options={municipiosUf}
                                 disabled={carregandoMunicipios}
-                            >
-                                <option value="">{carregandoMunicipios ? 'Carregando…' : 'Selecione'}</option>
-                                {municipiosUf.map((m) => (
-                                    <option key={m.id} value={m.id}>
-                                        {m.nome}
-                                    </option>
-                                ))}
-                            </select>
+                                loading={carregandoMunicipios}
+                                inputClassName="fcred_select"
+                                placeholder="Buscar cidade…"
+                                onChange={setMunicipioIbgeId}
+                            />
                         </label>
                         <div className="fcred_cidades_add">
                             <button

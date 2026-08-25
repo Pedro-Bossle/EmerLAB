@@ -12,12 +12,23 @@ import { createClient } from '@supabase/supabase-js'
 
 const EVENTOS_UTEIS = new Set(['sign', 'close', 'auto_close', 'add_signer', 'remove_signer'])
 
-async function readRawBody(req) {
+async function readRawBody(req, { maxBytes = 256 * 1024 } = {}) {
     if (req.method === 'GET' || req.method === 'HEAD') return Buffer.alloc(0)
     const chunks = []
+    let total = 0
     try {
-        for await (const chunk of req) chunks.push(chunk)
-    } catch {
+        for await (const chunk of req) {
+            const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+            total += buf.length
+            if (total > maxBytes) {
+                const err = new Error('payload_too_large')
+                err.code = 'PAYLOAD_TOO_LARGE'
+                throw err
+            }
+            chunks.push(buf)
+        }
+    } catch (e) {
+        if (e?.code === 'PAYLOAD_TOO_LARGE' || e?.message === 'payload_too_large') throw e
         return Buffer.alloc(0)
     }
     return Buffer.concat(chunks)
@@ -197,11 +208,20 @@ export default async function handler(req, res) {
         return
     }
 
-    const rawBody = await readRawBody(req)
-
     const { getClientIp } = await import('../src/lib/api/serverAuth.js')
     const { aplicarRateLimit, RATE_LIMITS } = await import('../src/lib/api/rateLimit.js')
     if (!aplicarRateLimit(res, `webhook-clicksign:${getClientIp(req)}`, RATE_LIMITS.webhook)) return
+
+    let rawBody
+    try {
+        rawBody = await readRawBody(req, { maxBytes: 256 * 1024 })
+    } catch (e) {
+        if (e?.code === 'PAYLOAD_TOO_LARGE' || e?.message === 'payload_too_large') {
+            res.status(413).json({ error: 'Payload demasiado grande.' })
+            return
+        }
+        throw e
+    }
 
     const auth = verificarHmac(req, rawBody)
     if (!auth.ok) {

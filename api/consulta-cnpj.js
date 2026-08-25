@@ -159,10 +159,16 @@ export default async function handler(req, res) {
         return
     }
 
-    const { getClientIp } = await import('../src/lib/api/serverAuth.js')
+    const { getClientIp, validarJwtComPerfil } = await import('../src/lib/api/serverAuth.js')
     const { aplicarRateLimit, RATE_LIMITS } = await import('../src/lib/api/rateLimit.js')
     const ip = getClientIp(req)
     if (!aplicarRateLimit(res, `cnpj:${ip}`, RATE_LIMITS.cnpj)) return
+
+    const auth = await validarJwtComPerfil(req)
+    if (auth.error) {
+        res.status(auth.status || 401).json({ error: auth.error })
+        return
+    }
 
     const url = new URL(req.url || '/', 'http://localhost')
     const cnpj = apenasDigitos(url.searchParams.get('cnpj') || '')

@@ -16,6 +16,7 @@ import {
 } from '../../../lib/impressaoPlanos/gerarImpressaoPlanosPdf.js'
 import { MIN_REALIZADORES_PRE_MARCAR } from '../../../lib/impressaoPlanos/mapaRealizadoresRegiao.js'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import { PageHeader } from '../../../components/ui'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers.js'
 import '../../Credenciamento/Credenciamento_main/Credenciamento_main.css'
@@ -419,24 +420,20 @@ export default function ImpressaoPlanos() {
 
                     <label className="pcad_field">
                         <span>Cidade</span>
-                        <select
-                            className="credenciamento_main_input"
+                        <SelectMunicipioBusca
                             value={municipioNome}
+                            options={opcoesMunicipio.map((o) => ({
+                                id: o.municipioNome,
+                                nome: o.municipioNome,
+                            }))}
                             disabled={!uf || loadingMunicipios}
-                            onChange={(e) => {
-                                setMunicipioNome(e.target.value)
+                            loading={loadingMunicipios}
+                            placeholder={!uf ? 'Selecione a UF' : 'Buscar cidade…'}
+                            onChange={(nome) => {
+                                setMunicipioNome(nome)
                                 limparLista()
                             }}
-                        >
-                            <option value="">
-                                {!uf ? 'Selecione a UF' : loadingMunicipios ? 'A carregar…' : '—'}
-                            </option>
-                            {opcoesMunicipio.map((o) => (
-                                <option key={o.municipioNome} value={o.municipioNome}>
-                                    {o.municipioNome}
-                                </option>
-                            ))}
-                        </select>
+                        />
                     </label>
 
                     <label className="pcad_field">

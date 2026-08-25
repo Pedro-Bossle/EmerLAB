@@ -388,7 +388,9 @@ const GerenciamentoAcessos = () => {
             mostrarErro('Selecione um usuário.')
             return
         }
-        const forcar = !usuarioSelecionado?.forcePasswordChange
+        const motivo = usuarioSelecionado?.forcePasswordChangeReason
+        // Desligar só a exigência admin (force:false), mesmo se a senha também estiver expirada.
+        const forcar = motivo !== 'admin'
         if (forcar) {
             const rotulo = edicao.name || edicao.email || edicao.id
             const confirmar = window.confirm(
@@ -471,7 +473,11 @@ const GerenciamentoAcessos = () => {
                             >
                                 <strong>{usuario.name || 'Sem nome'}</strong>
                                 <span>{usuario.email || usuario.id}</span>
-                                {usuario.forcePasswordChange ? (
+                                {usuario.forcePasswordChangeReason === 'admin' ? (
+                                    <em className='gerenciamento_acessos_usuario_badge'>Troca exigida (admin)</em>
+                                ) : usuario.forcePasswordChangeReason === 'expired' ? (
+                                    <em className='gerenciamento_acessos_usuario_badge'>Senha expirada (90 dias)</em>
+                                ) : usuario.forcePasswordChange ? (
                                     <em className='gerenciamento_acessos_usuario_badge'>Troca de senha pendente</em>
                                 ) : null}
                             </button>
@@ -559,9 +565,14 @@ const GerenciamentoAcessos = () => {
                                         Somente «Ver» nas ferramentas bloqueia criar, editar e excluir linhas nas tabelas.
                                         A senha de login deve ser renovada a cada 90 dias.
                                     </p>
-                                    {usuarioSelecionado?.forcePasswordChange ? (
+                                    {usuarioSelecionado?.forcePasswordChangeReason === 'admin' ? (
                                         <p className='gerenciamento_acessos_hint gerenciamento_acessos_hint_aviso'>
-                                            Troca de senha pendente: no próximo login este usuário deverá definir uma nova senha.
+                                            Troca exigida pelo administrador: no próximo login este usuário deverá definir uma nova senha.
+                                        </p>
+                                    ) : null}
+                                    {usuarioSelecionado?.forcePasswordChangeReason === 'expired' ? (
+                                        <p className='gerenciamento_acessos_hint gerenciamento_acessos_hint_aviso'>
+                                            Senha expirada (mais de 90 dias): a troca será exigida no próximo acesso, independentemente do toggle admin.
                                         </p>
                                     ) : null}
                                     <div className='gerenciamento_acessos_acoes gerenciamento_acessos_acoes_conta'>
@@ -573,12 +584,12 @@ const GerenciamentoAcessos = () => {
                                             onClick={alternarExigirTrocaSenha}
                                             disabled={loading}
                                             title={
-                                                usuarioSelecionado?.forcePasswordChange
-                                                    ? 'Remove a exigência de troca no próximo acesso'
+                                                usuarioSelecionado?.forcePasswordChangeReason === 'admin'
+                                                    ? 'Remove a exigência admin de troca no próximo acesso (a expiração por 90 dias pode continuar a aplicar)'
                                                     : 'Obriga o usuário a definir nova senha no próximo login'
                                             }
                                         >
-                                            {usuarioSelecionado?.forcePasswordChange
+                                            {usuarioSelecionado?.forcePasswordChangeReason === 'admin'
                                                 ? 'Cancelar troca no próximo acesso'
                                                 : 'Exigir troca no próximo acesso'}
                                         </button>

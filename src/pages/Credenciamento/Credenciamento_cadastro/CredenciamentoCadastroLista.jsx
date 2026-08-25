@@ -39,6 +39,7 @@ import { useAutoDismiss } from '../../../lib/toastUi.js'
 import CadastroExportarPdfModal from './CadastroExportarPdfModal.jsx'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import { PageHeader } from '../../../components/ui'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
@@ -1439,20 +1440,14 @@ const CredenciamentoCadastroLista = () => {
                             </label>
                             <label className="credenciamento_cadastro_simples_cidade">
                                 <span>Cidade *</span>
-                                <select
+                                <SelectMunicipioBusca
                                     value={simplesCidade}
-                                    onChange={(e) => setSimplesCidade(e.target.value)}
+                                    options={municipiosUf}
                                     disabled={!simplesUf || carregandoMunicipios}
-                                >
-                                    <option value="">
-                                        {carregandoMunicipios ? 'Carregando…' : 'Selecione a cidade'}
-                                    </option>
-                                    {municipiosUf.map((m) => (
-                                        <option key={m.id} value={m.nome}>
-                                            {m.nome}
-                                        </option>
-                                    ))}
-                                </select>
+                                    loading={carregandoMunicipios}
+                                    placeholder={!simplesUf ? 'Selecione a UF' : 'Buscar cidade…'}
+                                    onChange={setSimplesCidade}
+                                />
                             </label>
                         </div>
                         <div className="credenciamento_modal_actions">

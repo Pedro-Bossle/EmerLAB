@@ -119,6 +119,7 @@ async function geocodificarLinhas(rows, cidade, uf) {
             row.lat = g.latitude
             row.lng = g.longitude
             if (g.enderecoLinha && !row.endereco) row.endereco = g.enderecoLinha
+            row.tags = { ...(row.tags || {}), aproximado: false }
             continue
         }
         // Fallback: centro da cidade — garante pin no mapa de Credenciamento
@@ -134,6 +135,7 @@ async function geocodificarLinhas(rows, cidade, uf) {
         if (fallbackCidade) {
             row.lat = fallbackCidade.lat
             row.lng = fallbackCidade.lng
+            row.tags = { ...(row.tags || {}), aproximado: true }
             avisos.push(`Coords aproximadas (cidade): ${row.nome}`)
         } else {
             avisos.push(`Sem coordenadas: ${row.nome}`)

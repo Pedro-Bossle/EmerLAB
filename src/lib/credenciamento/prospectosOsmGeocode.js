@@ -98,7 +98,7 @@ export async function preencherPinsProspectosOsm(itens, opts = {}) {
             continue
         }
 
-        const patch = { lat, lng }
+        const patch = { lat, lng, aproximado }
         if (!String(row.endereco || '').trim() && enderecoExtra) {
             patch.endereco = enderecoExtra
         }

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { InteractionStatus } from '@azure/msal-browser'
+import { InteractionRequiredAuthError, InteractionStatus } from '@azure/msal-browser'
 import { useMsal } from '@azure/msal-react'
 import { isMsalConfigured, buildLoginRequest, buildGraphTokenRequest, resolveMsalRedirectUri } from '../../lib/msal/msalConfig'
 import { exportarAgendaIcs } from '../../lib/calendarExport'
@@ -61,14 +61,18 @@ const OutlookAgendaCardInner = () => {
                     ...buildGraphTokenRequest(acc),
                 })
                 return silent.accessToken
-            } catch {
+            } catch (e) {
+                if (!(e instanceof InteractionRequiredAuthError)) throw e
+                if (inProgress !== InteractionStatus.None) {
+                    throw new Error('Autenticação Microsoft em andamento. Tente novamente em instantes.')
+                }
                 const popup = await instance.acquireTokenPopup({
                     ...buildGraphTokenRequest(acc),
                 })
                 return popup.accessToken
             }
         },
-        [accounts, instance],
+        [accounts, instance, inProgress],
     )
 
     const carregarEventos = useCallback(
@@ -78,6 +82,8 @@ const OutlookAgendaCardInner = () => {
                 setEventos([])
                 return
             }
+            // Evita setState síncrono quando chamado a partir de useEffect
+            await Promise.resolve()
             setLoading(true)
             setErro('')
             try {
@@ -117,14 +123,11 @@ const OutlookAgendaCardInner = () => {
         [eventos, semana],
     )
 
-    useEffect(() => {
-        if (!diasSemana.length) return
-        if (diasSemana.some((d) => d.key === diaFoco)) return
-        const hoje = diasSemana.find((d) => d.isHoje)
-        setDiaFoco(hoje?.key || diasSemana[0].key)
-    }, [diasSemana, diaFoco])
-
-    const diaSelecionado = diasSemana.find((d) => d.key === diaFoco) || diasSemana[0] || null
+    const diaSelecionado =
+        diasSemana.find((d) => d.key === diaFoco) ||
+        diasSemana.find((d) => d.isHoje) ||
+        diasSemana[0] ||
+        null
 
     const rotuloSemana = useMemo(() => {
         const a = semana.start.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })

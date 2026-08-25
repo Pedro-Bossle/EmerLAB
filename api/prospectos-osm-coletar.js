@@ -19,13 +19,14 @@ function supabaseAdmin() {
     return createSupabaseAdminClient()
 }
 
-async function exigirAuthProspectos(req, res) {
+async function exigirAuthProspectos(req, res, { requireEdit = false } = {}) {
     const ip = getClientIp(req)
     if (!aplicarRateLimit(res, `prospectos:${ip}`, RATE_LIMITS.prospectos)) return null
     const auth = await validarJwtFerramentaCredenciamento(
         req,
         'credenciamento.prospectos_osm',
-        PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+        requireEdit ? PERMISSION_KEYS.CREDENCIAMENTO_EDIT : PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+        { requireEdit },
     )
     if (auth.error) {
         res.status(auth.status || 401).json({ ok: false, error: auth.error })
@@ -165,13 +166,13 @@ async function handleColeta(req, res) {
 export default async function handler(req, res) {
     try {
         if (req.method === 'GET' && isGeminiStatusRequest(req)) {
-            const auth = await exigirAuthProspectos(req, res)
+            const auth = await exigirAuthProspectos(req, res, { requireEdit: false })
             if (!auth) return
             await handleGeminiStatus(res)
             return
         }
         if (req.method === 'POST') {
-            const auth = await exigirAuthProspectos(req, res)
+            const auth = await exigirAuthProspectos(req, res, { requireEdit: true })
             if (!auth) return
             await handleColeta(req, res)
             return

@@ -19,6 +19,7 @@ import '../Credenciamento_main/Credenciamento_main.css'
 import '../QuemRealiza/CredenciamentoQuemRealiza.css'
 import './CredenciamentoEspecialidadesCidade.css'
 import { PageHeader } from '../../../components/ui'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 
 function usarContagemColunasEspecialidade() {
     const [cols, setCols] = useState(() => {
@@ -377,22 +378,17 @@ export default function CredenciamentoEspecialidadesCidade() {
                     </label>
                     <label className="pcad_field">
                         <span>Cidade</span>
-                        <select
-                            className="credenciamento_main_input"
+                        <SelectMunicipioBusca
                             value={cidadeNome}
+                            options={municipios}
                             disabled={!uf || loadingMun}
-                            onChange={(e) => {
-                                setCidadeNome(e.target.value)
+                            loading={loadingMun}
+                            placeholder={!uf ? 'Selecione a UF' : 'Buscar cidade…'}
+                            onChange={(nome) => {
+                                setCidadeNome(nome)
                                 setExpandidas({})
                             }}
-                        >
-                            <option value="">{loadingMun ? 'A carregar…' : '—'}</option>
-                            {municipios.map((m) => (
-                                <option key={m.id} value={m.nome}>
-                                    {m.nome}
-                                </option>
-                            ))}
-                        </select>
+                        />
                     </label>
                     <label className="pcad_field">
                         <span>Ordenar por</span>

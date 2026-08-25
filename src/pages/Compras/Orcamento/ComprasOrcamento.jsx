@@ -32,6 +32,7 @@ import {
 
 import { buscarTodosPaginado, supabase } from "../../../lib/supabase";
 import { PageHeader } from "../../../components/ui";
+import SelectMunicipioBusca from "../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx";
 
 import "./ComprasOrcamento.css";
 
@@ -791,26 +792,18 @@ const ComprasOrcamento = () => {
             <label className="compras_orc_filtro_item">
               <span className="compras_orc_filtro_label">Cidade</span>
 
-              <select
-                className="compras_orc_select"
-                value={cidadeCompradorId}
+              <SelectMunicipioBusca
+                value={cidadeCompradorId == null ? "" : String(cidadeCompradorId)}
+                valueKey="id"
+                options={cidadesFiltradasUf}
                 disabled={!ufComprador || !nomesMunicipiosUf}
-                onChange={(e) => setCidadeCompradorId(e.target.value)}
-              >
-                <option value="">
-                  {!ufComprador
-                    ? "Selecione a UF"
-                    : !nomesMunicipiosUf
-                      ? "A carregar…"
-                      : "Selecione"}
-                </option>
-
-                {cidadesFiltradasUf.map((c) => (
-                  <option key={c.id} value={String(c.id)}>
-                    {c.nome}
-                  </option>
-                ))}
-              </select>
+                loading={Boolean(ufComprador && !nomesMunicipiosUf)}
+                inputClassName="compras_orc_select"
+                placeholder={
+                  !ufComprador ? "Selecione a UF" : "Buscar cidade…"
+                }
+                onChange={setCidadeCompradorId}
+              />
             </label>
 
             <label className="compras_orc_filtro_item">

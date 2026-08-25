@@ -3,7 +3,7 @@ import { createServiceClient } from '../_shared/supabaseAdmin.ts'
 import { geocodificarESalvarPrestador } from '../_shared/geocodePrestador.ts'
 import {
   clientIp,
-  podeCredenciamentoView,
+  podeCredenciamentoEdit,
   rateLimitOk,
   requireUserProfile,
 } from '../_shared/requireUser.ts'
@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ ok: false, error: auth.error }, auth.status || 401)
   }
   const permissions = (auth.profile?.permissions || {}) as Record<string, unknown>
-  if (!podeCredenciamentoView(permissions)) {
+  if (!podeCredenciamentoEdit(permissions)) {
     return jsonResponse({ ok: false, error: 'Sem permissão para geocodificar.' }, 403)
   }
 
@@ -41,8 +41,7 @@ Deno.serve(async (req) => {
     const resultado = await geocodificarESalvarPrestador(supabase, prestadorId, {
       forcar: Boolean(body.forcar),
     })
-
-    if (!resultado.ok && !('skipped' in resultado && resultado.skipped)) {
+    if (!resultado.ok && !resultado.skipped) {
       return jsonResponse({ ok: false, ...resultado }, 422)
     }
     return jsonResponse({ ok: true, ...resultado })

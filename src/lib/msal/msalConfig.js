@@ -6,16 +6,27 @@ function origemAtual() {
     return window.location.origin.replace(/\/$/, '')
 }
 
+function origemComBaseUrl(origin) {
+    const base = String(import.meta.env.BASE_URL || '/').trim() || '/'
+    if (!origin) return ''
+    if (!base || base === '/') return origin.replace(/\/$/, '')
+    const path = `/${base.replace(/^\/+|\/+$/g, '')}`
+    return `${origin.replace(/\/$/, '')}${path}`
+}
+
+/** Origem (+ path) para redirect MSAL: preserva path do env; no fallback usa BASE_URL. */
 function origemDeEnvOuJanela() {
     const fromEnv = String(import.meta.env.VITE_MSAL_REDIRECT_URI || '').trim()
     if (fromEnv) {
         try {
-            return new URL(fromEnv).origin.replace(/\/$/, '')
+            const u = new URL(fromEnv)
+            const path = u.pathname.replace(/\/$/, '')
+            return `${u.origin}${path === '/' ? '' : path}`.replace(/\/$/, '') || u.origin
         } catch {
             /* fallback */
         }
     }
-    return origemAtual()
+    return origemComBaseUrl(origemAtual())
 }
 
 /**

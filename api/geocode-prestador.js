@@ -37,10 +37,7 @@ export default async function handler(req, res) {
         const ip = getClientIp(req)
         if (!aplicarRateLimit(res, `geocode:${ip}`, RATE_LIMITS.geocode)) return
 
-        const auth = await validarJwtComPermissao(req, [
-            PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
-            PERMISSION_KEYS.CREDENCIAMENTO_EDIT,
-        ])
+        const auth = await validarJwtComPermissao(req, PERMISSION_KEYS.CREDENCIAMENTO_EDIT)
         if (auth.error) {
             res.status(auth.status || 401).json({ ok: false, error: auth.error })
             return

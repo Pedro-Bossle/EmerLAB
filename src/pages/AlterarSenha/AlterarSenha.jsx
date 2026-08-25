@@ -25,7 +25,7 @@ function destinoPosTroca(nextRaw) {
   return next
 }
 
-async function limparExigenciaSenha() {
+async function limparExigenciaSenha(password) {
   const refreshed = await supabase.auth.refreshSession()
   const session =
     refreshed.data?.session || (await supabase.auth.getSession()).data?.session
@@ -38,7 +38,7 @@ async function limparExigenciaSenha() {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ action: 'clearOwnForcePassword' }),
+    body: JSON.stringify({ action: 'clearOwnForcePassword', password }),
   })
   const raw = await resp.text()
   let json = {}
@@ -48,7 +48,7 @@ async function limparExigenciaSenha() {
     json = {}
   }
   if (!resp.ok || json?.ok === false) {
-    throw new Error(json?.error || `Falha ao liberar o acesso (HTTP ${resp.status}).`)
+    throw new Error(json?.error || `Falha ao alterar a senha (HTTP ${resp.status}).`)
   }
   if (json.profile) setStoredAccessProfile(json.profile)
   return json.profile
@@ -118,16 +118,14 @@ const AlterarSenha = () => {
       const { data: userData } = await supabase.auth.getUser()
       const uid = userData?.user?.id || null
 
-      const { error } = await supabase.auth.updateUser({ password })
-      if (error) throw new Error(error.message || 'Não foi possível atualizar a senha.')
-
       const agora = new Date().toISOString()
       let profileLiberado = null
       try {
-        profileLiberado = await limparExigenciaSenha()
+        profileLiberado = await limparExigenciaSenha(password)
       } catch (errClear) {
-        // Senha já foi trocada no Auth: não prender o usuário se a API falhar.
-        console.warn('[AlterarSenha] Falha ao limpar exigência:', errClear?.message || errClear)
+        console.warn('[AlterarSenha] Falha ao alterar senha / limpar exigência:', errClear?.message || errClear)
+        setErrorMsg(errClear?.message || 'Não foi possível alterar a senha.')
+        return
       }
 
       invalidarCachePerfilAcesso(uid)

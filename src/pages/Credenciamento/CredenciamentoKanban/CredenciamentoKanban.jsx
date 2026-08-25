@@ -151,7 +151,37 @@ export default function CredenciamentoKanban() {
     const [filtrosAbertos, setFiltrosAbertos] = useState(false)
     const realtimeDebounceRef = useRef(null)
     const assigneeDefaultRef = useRef(Boolean(getStoredAccessProfile()?.id))
-    const cardDeepLinkFeitoRef = useRef(false)
+    const mencoesDeepLinkLidasRef = useRef(null)
+
+    const cardIdQuery = searchParams.get('card')
+    const cardFromQuery = useMemo(() => {
+        const id = Number(cardIdQuery)
+        if (!Number.isFinite(id) || id <= 0) return null
+        return cards.find((c) => Number(c.id) === id) || null
+    }, [cards, cardIdQuery])
+    const cardExibido = cardAberto || cardFromQuery
+
+    const limparCardDaQuery = useCallback(() => {
+        if (!searchParams.has('card')) return
+        const next = new URLSearchParams(searchParams)
+        next.delete('card')
+        setSearchParams(next, { replace: true })
+    }, [searchParams, setSearchParams])
+
+    const abrirCard = useCallback(
+        (card) => {
+            if (!card) return
+            setCardAberto(card)
+            limparCardDaQuery()
+            void marcarMencoesKanbanCardLidas(card.id).catch(() => {})
+        },
+        [limparCardDaQuery],
+    )
+
+    const fecharCard = useCallback(() => {
+        setCardAberto(null)
+        limparCardDaQuery()
+    }, [limparCardDaQuery])
 
     const podeRelatorio = podeLerFerramenta(
         getStoredAccessProfile()?.permissions,
@@ -212,21 +242,11 @@ export default function CredenciamentoKanban() {
     }, [carregar])
 
     useEffect(() => {
-        if (loading || cardDeepLinkFeitoRef.current) return
-        const raw = searchParams.get('card')
-        if (!raw) return
-        const id = Number(raw)
-        if (!Number.isFinite(id) || id <= 0) return
-        const card = cards.find((c) => Number(c.id) === id)
-        if (!card) return
-        cardDeepLinkFeitoRef.current = true
-        setCardAberto(card)
-        setFiltroAssignee('')
-        void marcarMencoesKanbanCardLidas(id).catch(() => {})
-        const next = new URLSearchParams(searchParams)
-        next.delete('card')
-        setSearchParams(next, { replace: true })
-    }, [loading, cards, searchParams, setSearchParams])
+        if (!cardFromQuery?.id) return
+        if (mencoesDeepLinkLidasRef.current === cardFromQuery.id) return
+        mencoesDeepLinkLidasRef.current = cardFromQuery.id
+        void marcarMencoesKanbanCardLidas(cardFromQuery.id).catch(() => {})
+    }, [cardFromQuery?.id])
 
     useEffect(() => {
         return () => {
@@ -361,8 +381,8 @@ export default function CredenciamentoKanban() {
             const atualizados = await atribuirCardsKanbanEmMassa(ids, assignMassa || null)
             const mapa = new Map(atualizados.map((c) => [Number(c.id), c]))
             setCards((prev) => prev.map((c) => mapa.get(Number(c.id)) || c))
-            if (cardAberto && mapa.has(Number(cardAberto.id))) {
-                setCardAberto(mapa.get(Number(cardAberto.id)))
+            if (cardExibido && mapa.has(Number(cardExibido.id))) {
+                setCardAberto(mapa.get(Number(cardExibido.id)))
             }
             setAviso(
                 assignMassa
@@ -393,15 +413,16 @@ export default function CredenciamentoKanban() {
     }
 
     const salvarCard = async (patch) => {
-        if (!cardAberto) return
-        const corpoAnterior = cardAberto.corpo || ''
-        const atualizado = await atualizarCardKanban(cardAberto.id, patch)
+        if (!cardExibido) return
+        const corpoAnterior = cardExibido.corpo || ''
+        const atualizado = await atualizarCardKanban(cardExibido.id, patch)
         setCardAberto(atualizado)
+        limparCardDaQuery()
         setCards((prev) => prev.map((c) => (Number(c.id) === Number(atualizado.id) ? atualizado : c)))
         if (patch.corpo !== undefined) {
             const r = await notificarMencoesKanban({
                 cardId: atualizado.id,
-                cardNome: atualizado.nome || cardAberto.nome,
+                cardNome: atualizado.nome || cardExibido.nome,
                 corpoNovo: atualizado.corpo,
                 corpoAnterior,
             })
@@ -459,11 +480,11 @@ export default function CredenciamentoKanban() {
                 className={`cred_kanban_card${dragId === card.id ? ' is-dragging' : ''}${marcado ? ' is-selected' : ''}${compact ? ' is-compact' : ''}`}
                 draggable={!compact}
                 onDragStart={compact ? undefined : (e) => onDragStart(e, card.id)}
-                onClick={() => setCardAberto(card)}
+                onClick={() => abrirCard(card)}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
-                        setCardAberto(card)
+                        abrirCard(card)
                     }
                 }}
             >
@@ -799,12 +820,12 @@ export default function CredenciamentoKanban() {
                 </div>
             ) : null}
 
-            {cardAberto ? (
+            {cardExibido ? (
                 <KanbanCardModal
-                    card={cardAberto}
+                    card={cardExibido}
                     usuarios={usuarios}
                     especialidades={especialidades}
-                    onClose={() => setCardAberto(null)}
+                    onClose={fecharCard}
                     onSave={async (patch) => {
                         try {
                             await salvarCard(patch)
@@ -814,21 +835,23 @@ export default function CredenciamentoKanban() {
                         }
                     }}
                     onDelete={async () => {
-                        await excluirCardKanban(cardAberto.id)
-                        setCards((prev) => prev.filter((c) => Number(c.id) !== Number(cardAberto.id)))
+                        await excluirCardKanban(cardExibido.id)
+                        setCards((prev) => prev.filter((c) => Number(c.id) !== Number(cardExibido.id)))
                         setSelecionados((prev) => {
                             const next = new Set(prev)
-                            next.delete(Number(cardAberto.id))
+                            next.delete(Number(cardExibido.id))
                             return next
                         })
-                        setCardAberto(null)
+                        fecharCard()
                     }}
                     onCriarPrestador={async () => {
-                        const r = await criarPrestadorMinimoParaCard(cardAberto, { situacoes })
+                        const r = await criarPrestadorMinimoParaCard(cardExibido, { situacoes })
                         setCardAberto(r.card)
+                        limparCardDaQuery()
                         setCards((prev) =>
                             prev.map((c) => (Number(c.id) === Number(r.card.id) ? r.card : c)),
                         )
+                        return r
                     }}
                 />
             ) : null}
@@ -1134,6 +1157,7 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                 return
             }
             if (e.key === 'Enter' || e.key === 'Tab') {
+                if (String(mencaoUsuario.query || '').length < 1) return
                 e.preventDefault()
                 aplicarMencaoUsuario(sugestoesMencao[0])
                 return

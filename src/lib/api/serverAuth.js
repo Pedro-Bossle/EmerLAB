@@ -9,6 +9,7 @@ import {
     hasPermission,
     normalizarProfileAcesso,
     podeLerFerramenta,
+    usuarioPodeEditarFerramenta,
 } from '../accessControl.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
@@ -19,13 +20,20 @@ export function getRequestHeader(req, name) {
     return headers[name] || headers[name.toLowerCase()] || ''
 }
 
+/**
+ * IP do cliente: preferir o hop mais recente de x-forwarded-for (anexado pelo proxy),
+ * nunca o primeiro hop (spoofável pelo cliente).
+ */
 export function getClientIp(req) {
-    const xf = String(getRequestHeader(req, 'x-forwarded-for') || '')
-        .split(',')[0]
-        .trim()
-    if (xf) return xf
+    const xfRaw = String(getRequestHeader(req, 'x-forwarded-for') || '')
+    const hops = xfRaw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    if (hops.length) return hops[hops.length - 1]
     return (
         getRequestHeader(req, 'x-real-ip') ||
+        getRequestHeader(req, 'x-vercel-forwarded-for') ||
         req.socket?.remoteAddress ||
         req.connection?.remoteAddress ||
         'unknown'
@@ -56,9 +64,10 @@ function createSupabaseAuthClient() {
 }
 
 /**
- * @returns {Promise<{ user?, profile?, error?, status? }>}
+ * @param {{ permitirTrocaSenhaPendente?: boolean, supabaseAdmin?: import('@supabase/supabase-js').SupabaseClient }} [opts]
+ * @returns {Promise<{ user?, profile?, error?, status?, token? }>}
  */
-export async function validarJwtComPerfil(req, { supabaseAdmin = null } = {}) {
+export async function validarJwtComPerfil(req, { supabaseAdmin = null, permitirTrocaSenhaPendente = false } = {}) {
     const authHeader = getRequestHeader(req, 'authorization')
     const token = String(authHeader || '')
         .replace(/^Bearer\s+/i, '')
@@ -74,19 +83,46 @@ export async function validarJwtComPerfil(req, { supabaseAdmin = null } = {}) {
         return { error: 'Sessão inválida.', status: 401 }
     }
 
-    const { data: profileData, error: profileError } = await admin
+    let profileData = null
+    let profileError = null
+    ;({ data: profileData, error: profileError } = await admin
         .from('profiles')
-        .select('id, name, email, permissions')
+        .select('id, name, email, permissions, force_password_change, password_changed_at')
         .eq('id', userData.user.id)
-        .maybeSingle()
+        .maybeSingle())
+
+    if (profileError) {
+        const msg = String(profileError.message || '').toLowerCase()
+        const colunaOpcional =
+            msg.includes('force_password_change') ||
+            msg.includes('password_changed_at') ||
+            msg.includes('does not exist') ||
+            msg.includes('schema cache')
+        if (colunaOpcional) {
+            ;({ data: profileData, error: profileError } = await admin
+                .from('profiles')
+                .select('id, name, email, permissions')
+                .eq('id', userData.user.id)
+                .maybeSingle())
+        }
+    }
 
     if (profileError || !profileData) {
         return { error: 'Perfil não encontrado.', status: 403 }
     }
 
+    const profile = normalizarProfileAcesso(profileData)
+    if (profile.forcePasswordChange && !permitirTrocaSenhaPendente) {
+        return {
+            error: 'É necessário alterar a senha antes de continuar.',
+            status: 403,
+            forcePasswordChange: true,
+        }
+    }
+
     return {
         user: userData.user,
-        profile: normalizarProfileAcesso(profileData),
+        profile,
         token,
     }
 }
@@ -107,13 +143,16 @@ export async function validarJwtComPermissao(req, permissionKeys, opts = {}) {
 
 /**
  * Credenciamento + ferramenta ACL específica (ex. prospectos_osm).
+ * @param {{ requireEdit?: boolean }} [opts]
  */
 export async function validarJwtFerramentaCredenciamento(req, toolId, viewKey, opts = {}) {
     const base = await validarJwtComPerfil(req, opts)
     if (base.error) return base
-    const podeTela =
-        hasPermission(base.profile, viewKey) &&
-        podeLerFerramenta(base.profile.permissions, toolId)
+    const perms = base.profile.permissions
+    const precisaEdit = Boolean(opts.requireEdit)
+    const podeTela = precisaEdit
+        ? hasPermission(base.profile, viewKey) && usuarioPodeEditarFerramenta(perms, toolId)
+        : hasPermission(base.profile, viewKey) && podeLerFerramenta(perms, toolId)
     if (!podeTela) {
         return { error: 'Sem permissão para esta ferramenta.', status: 403 }
     }
