@@ -12,6 +12,7 @@ import { carregarMapaNomesAlternativosPrestador } from '../../../lib/prestadorNo
 import { carregarCodigosPrestadorProcedimentos } from '../../../lib/prestadorProcedimentos.js'
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import PrestadorVinculoBusca from './PrestadorVinculoBusca.jsx'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import {
     buscarCidadeIdsFiltroPlanoCredenciados,
     carregarVinculosMunicipios,
@@ -1696,16 +1697,18 @@ const Supertabelanegociacoes = () => {
                             </label>
                             <label>
                                 <span>Cidade</span>
-                                <select
-                                    value={novoCidadeId}
-                                    onChange={(event) => setNovoCidadeId(event.target.value)}
-                                >
-                                    {cidadesParaSeletor.map((cidade) => (
-                                        <option key={`nova-neg-${cidade.id}`} value={cidade.id}>
-                                            {cidade.uf ? `${cidade.nome} (${cidade.uf})` : cidade.nome}
-                                        </option>
-                                    ))}
-                                </select>
+                                <SelectMunicipioBusca
+                                    value={novoCidadeId == null ? '' : String(novoCidadeId)}
+                                    valueKey="id"
+                                    options={cidadesParaSeletor.map((cidade) => ({
+                                        id: cidade.id,
+                                        nome: cidade.uf ? `${cidade.nome} (${cidade.uf})` : cidade.nome,
+                                    }))}
+                                    onChange={setNovoCidadeId}
+                                    placeholder="Selecionar cidade…"
+                                    searchPlaceholder="Buscar cidade…"
+                                    aria-label="Cidade da negociação"
+                                />
                             </label>
                             <label>
                                 <span>Tipo</span>
@@ -1752,16 +1755,18 @@ const Supertabelanegociacoes = () => {
                             </label>
                             <label>
                                 <span>Cidade</span>
-                                <select
-                                    value={editarCidadeId}
-                                    onChange={(event) => setEditarCidadeId(event.target.value)}
-                                >
-                                    {cidades.map((cidade) => (
-                                        <option key={`edita-neg-${cidade.id}`} value={cidade.id}>
-                                            {cidade.nome}
-                                        </option>
-                                    ))}
-                                </select>
+                                <SelectMunicipioBusca
+                                    value={editarCidadeId == null ? '' : String(editarCidadeId)}
+                                    valueKey="id"
+                                    options={cidades.map((cidade) => ({
+                                        id: cidade.id,
+                                        nome: cidade.uf ? `${cidade.nome} (${cidade.uf})` : cidade.nome,
+                                    }))}
+                                    onChange={setEditarCidadeId}
+                                    placeholder="Selecionar cidade…"
+                                    searchPlaceholder="Buscar cidade…"
+                                    aria-label="Cidade da negociação"
+                                />
                             </label>
                             <label>
                                 <span>Tipo</span>

@@ -273,9 +273,23 @@ body.dark-mode .home_dash_card_head h2 {
 
 .home_dash_tarefa_form_meta {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(9.5rem, 0.9fr) minmax(7.5rem, 0.75fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(12rem, 1.1fr) minmax(7.5rem, 0.7fr);
   gap: 0.75rem;
   align-items: end;
+}
+
+.home_dash_tarefa_prazo_grupo {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(5.5rem, 0.85fr);
+  gap: 0.5rem;
+  align-items: end;
+  min-width: 0;
+}
+
+.home_dash_tarefa_campo .home_dash_opcional {
+  font-style: normal;
+  font-weight: 500;
+  opacity: 0.75;
 }
 
 .home_dash_tarefa_campo {
@@ -307,14 +321,16 @@ body.dark-mode .home_dash_card_head h2 {
 
 /* Evita clipping do date/select (ícone nativo + texto) */
 .home_dash_tarefa_form_meta select.home_dash_input,
-.home_dash_tarefa_form_meta input[type='date'].home_dash_input {
+.home_dash_tarefa_form_meta input[type='date'].home_dash_input,
+.home_dash_tarefa_form_meta input[type='time'].home_dash_input {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   padding-right: 0.55rem;
 }
 
-.home_dash_tarefa_form_meta input[type='date'].home_dash_input {
+.home_dash_tarefa_form_meta input[type='date'].home_dash_input,
+.home_dash_tarefa_form_meta input[type='time'].home_dash_input {
   padding-inline: 0.55rem 0.35rem;
 }
 
@@ -1875,8 +1891,12 @@ body.dark-mode .home_dash_footer_wrap {
   }
 
   .home_dash_tarefa_form_meta {
-    grid-template-columns: minmax(0, 1.2fr) minmax(8.5rem, 0.85fr) minmax(7rem, 0.7fr);
+    grid-template-columns: 1fr;
     gap: 0.65rem;
+  }
+
+  .home_dash_tarefa_prazo_grupo {
+    grid-template-columns: minmax(0, 1.2fr) minmax(6.5rem, 0.8fr);
   }
 
   .home_dash_tarefa_form_row {

@@ -39,7 +39,8 @@ import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanente
 import { sincronizarCardKanbanComSituacao } from '../../../lib/credKanban.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
-import { UFS_BRASIL, buscarMunicipiosPorUf, resolverUfPorNomeMunicipio } from '../../../lib/ibgeLocalidades.js'
+import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
+import { buscarMunicipiosPorUf, resolverUfPorNomeMunicipio } from '../../../lib/ibgeLocalidades.js'
 import PrestadorServicosAbas from './PrestadorServicosAbas.jsx'
 import PrestadorHonorariosContratos from './PrestadorHonorariosContratos.jsx'
 import MultiEspecialidadesInput from './MultiEspecialidadesInput.jsx'
@@ -160,6 +161,8 @@ const CredenciamentoCadastroForm = () => {
     const [municipiosUf, setMunicipiosUf] = useState([])
     const [municipioIbgeId, setMunicipioIbgeId] = useState('')
     const [carregandoMunicipios, setCarregandoMunicipios] = useState(false)
+    const [municipiosEndereco, setMunicipiosEndereco] = useState([])
+    const [carregandoMunicipiosEndereco, setCarregandoMunicipiosEndereco] = useState(false)
     const [vetsVinculados, setVetsVinculados] = useState([])
     const [vetsPendentes, setVetsPendentes] = useState([])
     const [procSelecionados, setProcSelecionados] = useState([])
@@ -420,6 +423,29 @@ const CredenciamentoCadastroForm = () => {
             cancel = true
         }
     }, [ufAtende, secaoMultiplasCidades])
+
+    useEffect(() => {
+        const ufEnd = String(form.endereco_uf || '').trim().toUpperCase()
+        if (!ufEnd) {
+            setMunicipiosEndereco([])
+            return undefined
+        }
+        let cancel = false
+        setCarregandoMunicipiosEndereco(true)
+        buscarMunicipiosPorUf(ufEnd)
+            .then((lista) => {
+                if (!cancel) setMunicipiosEndereco(lista || [])
+            })
+            .catch(() => {
+                if (!cancel) setMunicipiosEndereco([])
+            })
+            .finally(() => {
+                if (!cancel) setCarregandoMunicipiosEndereco(false)
+            })
+        return () => {
+            cancel = true
+        }
+    }, [form.endereco_uf])
 
     useEffect(() => {
         if (!isNovo) void carregarPrestador()
@@ -1112,21 +1138,31 @@ const CredenciamentoCadastroForm = () => {
                             />
                         </label>
                         <label className="pcad_field">
-                            Cidade
-                            <input
-                                className="credenciamento_main_input"
-                                value={form.endereco_cidade}
-                                onChange={(e) => setCampo('endereco_cidade', e.target.value)}
+                            UF
+                            <SelectUfBusca
+                                value={form.endereco_uf}
                                 disabled={somenteLeitura}
+                                inputClassName="credenciamento_main_input"
+                                emptyLabel=""
+                                onChange={(uf) =>
+                                    setForm((f) => ({
+                                        ...f,
+                                        endereco_uf: uf,
+                                        endereco_cidade: '',
+                                    }))
+                                }
                             />
                         </label>
                         <label className="pcad_field">
-                            UF
-                            <input
-                                className="credenciamento_main_input"
-                                value={form.endereco_uf}
-                                onChange={(e) => setCampo('endereco_uf', e.target.value)}
-                                disabled={somenteLeitura}
+                            Cidade
+                            <SelectMunicipioBusca
+                                value={form.endereco_cidade}
+                                options={municipiosEndereco}
+                                disabled={somenteLeitura || !form.endereco_uf?.trim() || carregandoMunicipiosEndereco}
+                                loading={carregandoMunicipiosEndereco}
+                                inputClassName="credenciamento_main_input"
+                                placeholder={!form.endereco_uf?.trim() ? 'Selecione a UF' : 'Buscar cidade…'}
+                                onChange={(nome) => setCampo('endereco_cidade', nome)}
                             />
                         </label>
                         <label className="pcad_field">
@@ -1302,18 +1338,15 @@ const CredenciamentoCadastroForm = () => {
                             <div className="pcad_row pcad_row_cidades">
                                 <label className="pcad_field">
                                     UF
-                                    <select
-                                        className="credenciamento_main_select"
+                                    <SelectUfBusca
                                         value={ufAtende}
-                                        onChange={(e) => setUfAtende(e.target.value)}
                                         disabled={somenteLeitura}
-                                    >
-                                        {UFS_BRASIL.map((u) => (
-                                            <option key={u} value={u}>
-                                                {u}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        inputClassName="credenciamento_main_select"
+                                        onChange={(u) => {
+                                            setUfAtende(u)
+                                            setMunicipioIbgeId('')
+                                        }}
+                                    />
                                 </label>
                                 <label className="pcad_field">
                                     Cidade

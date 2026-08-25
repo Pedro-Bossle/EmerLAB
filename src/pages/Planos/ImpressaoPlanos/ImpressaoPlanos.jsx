@@ -17,6 +17,7 @@ import {
 import { MIN_REALIZADORES_PRE_MARCAR } from '../../../lib/impressaoPlanos/mapaRealizadoresRegiao.js'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
+import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 import { PageHeader } from '../../../components/ui'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers.js'
 import '../../Credenciamento/Credenciamento_main/Credenciamento_main.css'
@@ -400,22 +401,17 @@ export default function ImpressaoPlanos() {
                 <div className="planos_impressao_row planos_impressao_row_center">
                     <label className="pcad_field">
                         <span>UF</span>
-                        <select
-                            className="credenciamento_main_input"
+                        <SelectUfBusca
                             value={uf}
-                            onChange={(e) => {
-                                setUf(e.target.value)
+                            ufs={ufsPermitidas}
+                            inputClassName="credenciamento_main_input"
+                            emptyLabel="—"
+                            onChange={(u) => {
+                                setUf(u)
                                 setMunicipioNome('')
                                 limparLista()
                             }}
-                        >
-                            <option value="">—</option>
-                            {ufsPermitidas.map((sigla) => (
-                                <option key={sigla} value={sigla}>
-                                    {sigla}
-                                </option>
-                            ))}
-                        </select>
+                        />
                     </label>
 
                     <label className="pcad_field">

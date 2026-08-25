@@ -20,7 +20,7 @@ import {
 import {
     montarEstabelecimentoPorVeterinarioDeListas,
     resolverLocalidadeEfetivaPrestador } from '../../../lib/prestadorLocalidadeVinculo.js'
-import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
+import { buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
 import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
 import { montarNomeArquivoRc } from '../../../lib/rc/rcPdfNomeArquivo.js'
 import {
@@ -40,6 +40,7 @@ import CadastroExportarPdfModal from './CadastroExportarPdfModal.jsx'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
+import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 import { PageHeader } from '../../../components/ui'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
@@ -1254,19 +1255,16 @@ const CredenciamentoCadastroLista = () => {
                         <div className="credenciamento_rc_filtros">
                             <label className="credenciamento_rc_filtro_uf">
                                 <span>Estado (UF)</span>
-                                <select
-                                    className="credenciamento_main_select"
+                                <SelectUfBusca
                                     value={rcUfFiltro}
-                                    onChange={(e) => setRcUfFiltro(e.target.value)}
+                                    onChange={setRcUfFiltro}
+                                    ufs={ufsRcDisponiveis}
                                     disabled={rcMalhaLoading}
-                                >
-                                    <option value="">Todos</option>
-                                    {ufsRcDisponiveis.map((uf) => (
-                                        <option key={uf} value={uf}>
-                                            {uf}
-                                        </option>
-                                    ))}
-                                </select>
+                                    inputClassName="credenciamento_main_select"
+                                    placeholder="Todos"
+                                    emptyLabel="Todos"
+                                    aria-label="Filtrar RC por UF"
+                                />
                             </label>
                             <label className="credenciamento_modal_full credenciamento_rc_filtro_busca">
                                 <span>Buscar região ou cidade</span>
@@ -1423,20 +1421,15 @@ const CredenciamentoCadastroLista = () => {
                             </label>
                             <label className="credenciamento_cadastro_simples_uf">
                                 <span>UF *</span>
-                                <select
+                                <SelectUfBusca
                                     value={simplesUf}
-                                    onChange={(e) => {
-                                        setSimplesUf(e.target.value)
+                                    emptyLabel="UF"
+                                    placeholder="UF"
+                                    onChange={(u) => {
+                                        setSimplesUf(u)
                                         setSimplesCidade('')
                                     }}
-                                >
-                                    <option value="">UF</option>
-                                    {UFS_BRASIL.map((u) => (
-                                        <option key={u} value={u}>
-                                            {u}
-                                        </option>
-                                    ))}
-                                </select>
+                                />
                             </label>
                             <label className="credenciamento_cadastro_simples_cidade">
                                 <span>Cidade *</span>

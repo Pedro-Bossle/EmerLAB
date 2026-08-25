@@ -9,6 +9,7 @@ import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../
 import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMassa'
 import CidadeTabelaIbgeForm from '../../../components/Supertabela/CidadeTabelaIbgeForm.jsx'
 import GerenciarTabelasModal from '../../../components/Supertabela/GerenciarTabelasModal.jsx'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import { mapCidadeParaGerenciador, payloadCidadeComUf } from '../../../lib/cidadesSupertabelaHelpers.js'
 import {
     buildOpcoesFiltroSupertabela,
@@ -1616,22 +1617,24 @@ const Supertabelacidades = () => {
 
                     <div className='supertabelacidades_filter_item'>
                         <p>Cidade</p>
-                        <select
-                            className='supertabelacidades_select'
+                        <SelectMunicipioBusca
+                            className="supertabelacidades_select_cidade"
+                            inputClassName="supertabelacidades_select"
                             value={valorFiltroCidade}
-                            onChange={(event) => {
-                                const valor = event.target.value
+                            valueKey="id"
+                            options={opcoesFiltroCidade.map((op) => ({
+                                id: op.value,
+                                nome: op.label,
+                            }))}
+                            onChange={(valor) => {
                                 setValorFiltroCidade(valor)
                                 const op = opcoesFiltroCidade.find((o) => o.value === valor)
                                 if (op) setCidadeId(String(op.cidadeId))
                             }}
-                        >
-                            {opcoesFiltroCidade.map((op) => (
-                                <option key={op.value} value={op.value}>
-                                    {op.label}
-                                </option>
-                            ))}
-                        </select>
+                            placeholder="Selecionar cidade…"
+                            searchPlaceholder="Buscar cidade…"
+                            aria-label="Filtrar por cidade"
+                        />
                     </div>
 
                     {!somenteLeitura && (

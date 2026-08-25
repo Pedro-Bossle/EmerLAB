@@ -165,7 +165,7 @@ export async function saveOrShareIcs(filename, icsContent) {
     return 'downloaded'
 }
 
-/** Afazeres Home → eventos dia inteiro no prazo (ou hoje se sem prazo). */
+/** Afazeres Home → eventos no prazo (dia inteiro ou com horário). */
 export function tarefasParaIcsEvents(tarefas) {
     const hoje = new Date()
     hoje.setHours(12, 0, 0, 0)
@@ -173,9 +173,20 @@ export function tarefasParaIcsEvents(tarefas) {
         .filter((t) => t && t.status !== 'cancelada' && t.status !== 'concluida')
         .map((t) => {
             let start = hoje
+            let allDay = true
             if (t.prazo) {
-                const d = new Date(`${t.prazo}T12:00:00`)
-                if (!Number.isNaN(d.getTime())) start = d
+                const dataStr = String(t.prazo).slice(0, 10)
+                const hora = String(t.horario || '').trim()
+                if (/^\d{2}:\d{2}/.test(hora)) {
+                    const d = new Date(`${dataStr}T${hora.slice(0, 5)}:00`)
+                    if (!Number.isNaN(d.getTime())) {
+                        start = d
+                        allDay = false
+                    }
+                } else {
+                    const d = new Date(`${dataStr}T12:00:00`)
+                    if (!Number.isNaN(d.getTime())) start = d
+                }
             }
             const partes = [
                 t.observacoes ? String(t.observacoes).trim() : '',
@@ -188,7 +199,10 @@ export function tarefasParaIcsEvents(tarefas) {
                 summary: t.titulo || 'Afazer',
                 description: partes.join('\n'),
                 start,
-                allDay: true,
+                allDay,
+                ...(allDay
+                    ? {}
+                    : { end: new Date(start.getTime() + 60 * 60 * 1000) }),
             }
         })
 }

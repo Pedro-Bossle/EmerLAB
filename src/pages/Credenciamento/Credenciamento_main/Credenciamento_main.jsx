@@ -14,6 +14,7 @@ import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanente
 import { useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import { PageHeader } from '../../../components/ui'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 
 const normalizarTexto = (texto) =>
     String(texto || '')
@@ -123,7 +124,6 @@ const Credenciamento_main = () => {
     const [switchClinicaAlterado, setSwitchClinicaAlterado] = useState(false)
     const [estabelecimentosSelecionados, setEstabelecimentosSelecionados] = useState([])
     const [estabelecimentoInput, setEstabelecimentoInput] = useState('')
-    const [cidadePrincipalEmFoco, setCidadePrincipalEmFoco] = useState(false)
     const [cidadeSecundariaInput, setCidadeSecundariaInput] = useState('')
     const [cidadesSecundariasSelecionadas, setCidadesSecundariasSelecionadas] = useState([])
     const [cidadesSecundariasNovas, setCidadesSecundariasNovas] = useState([])
@@ -442,16 +442,13 @@ const Credenciamento_main = () => {
         return linhasOrdenadas.slice(inicio, inicio + Number(itensPorPagina || 20))
     }, [linhasOrdenadas, paginaAjustada, itensPorPagina])
 
-    const cidadesSugeridas = useMemo(() => {
-        const termo = normalizarTexto(cidadeSecundariaInput)
+    const opcoesCidadesSecundarias = useMemo(() => {
         const cidadesSecundariasNovasNorm = cidadesSecundariasNovas.map((nome) => normalizarTexto(nome))
         return cidades
             .filter((cidade) => normalizarTexto(cidade.nome) !== normalizarTexto(novoCidadePrincipal))
             .filter((cidade) => !cidadesSecundariasSelecionadas.includes(Number(cidade.id)))
             .filter((cidade) => !cidadesSecundariasNovasNorm.includes(normalizarTexto(cidade.nome)))
-            .filter((cidade) => !termo || normalizarTexto(cidade.nome).includes(termo))
-            .slice(0, 8)
-    }, [cidadeSecundariaInput, cidades, novoCidadePrincipal, cidadesSecundariasSelecionadas, cidadesSecundariasNovas])
+    }, [cidades, novoCidadePrincipal, cidadesSecundariasSelecionadas, cidadesSecundariasNovas])
 
     const especialidadesSecundariasSugeridas = useMemo(() => {
         const termo = normalizarTexto(especialidadeSecundariaInput)
@@ -491,18 +488,6 @@ const Credenciamento_main = () => {
                 .map((id) => estabelecimentosLocaisDaCidade.find((item) => Number(item.id) === Number(id)))
                 .filter(Boolean),
         [estabelecimentosSelecionados, estabelecimentosLocaisDaCidade]
-    )
-
-    const cidadesPrincipaisSugeridas = useMemo(() => {
-        const termo = normalizarTexto(novoCidadePrincipal)
-        return cidades
-            .filter((cidade) => !termo || normalizarTexto(cidade.nome).includes(termo))
-            .slice(0, 8)
-    }, [cidades, novoCidadePrincipal])
-
-    const cidadePrincipalExisteExata = useMemo(
-        () => cidades.some((cidade) => normalizarTexto(cidade.nome) === normalizarTexto(novoCidadePrincipal)),
-        [cidades, novoCidadePrincipal]
     )
 
     const telefoneAutoClinica = useMemo(
@@ -552,7 +537,6 @@ const Credenciamento_main = () => {
         setSwitchClinicaAlterado(false)
         setEstabelecimentosSelecionados([])
         setEstabelecimentoInput('')
-        setCidadePrincipalEmFoco(false)
         setCidadeSecundariaInput('')
         setCidadesSecundariasSelecionadas([])
         setCidadesSecundariasNovas([])
@@ -605,9 +589,12 @@ const Credenciamento_main = () => {
     const removerEstabelecimento = (prestadorId) =>
         setEstabelecimentosSelecionados((anteriores) => anteriores.filter((id) => id !== Number(prestadorId)))
 
-    const selecionarCidadePrincipal = (nomeCidade) => {
-        setNovoCidadePrincipal(String(nomeCidade || ''))
-        setCidadePrincipalEmFoco(false)
+    const escolherCidadeSecundaria = (valor) => {
+        const v = String(valor || '').trim()
+        if (!v) return
+        const porId = cidades.find((c) => String(c.id) === v)
+        if (porId) adicionarCidadeSecundaria(porId.id)
+        else adicionarCidadeSecundariaNova(v)
     }
 
     const obterOuCriarCidadePorNome = async (nomeCidade) => {
@@ -1334,38 +1321,16 @@ const Credenciamento_main = () => {
                             </label>
                             <label>
                                 <span>Cidade principal *</span>
-                                <input
-                                    type='text'
+                                <SelectMunicipioBusca
                                     value={novoCidadePrincipal}
-                                    onChange={(e) => setNovoCidadePrincipal(e.target.value)}
-                                    onFocus={() => setCidadePrincipalEmFoco(true)}
-                                    onBlur={() => setTimeout(() => setCidadePrincipalEmFoco(false), 120)}
-                                    placeholder='Digite ou selecione'
-                                    autoComplete='off'
+                                    valueKey="nome"
+                                    options={cidades}
+                                    creatable
+                                    createLabel={(q) => `Adicionar nova cidade: ${q}`}
+                                    onChange={setNovoCidadePrincipal}
+                                    placeholder="Digite ou selecione"
+                                    aria-label="Cidade principal"
                                 />
-                                {cidadePrincipalEmFoco && (
-                                    <div className='credenciamento_modal_sugestoes'>
-                                        {cidadesPrincipaisSugeridas.map((cidade) => (
-                                            <button
-                                                type='button'
-                                                key={`cidade-principal-sug-${cidade.id}`}
-                                                onMouseDown={(e) => e.preventDefault()}
-                                                onClick={() => selecionarCidadePrincipal(cidade.nome)}
-                                            >
-                                                {cidade.nome}
-                                            </button>
-                                        ))}
-                                        {novoCidadePrincipal.trim() && !cidadePrincipalExisteExata && (
-                                            <button
-                                                type='button'
-                                                onMouseDown={(e) => e.preventDefault()}
-                                                onClick={() => selecionarCidadePrincipal(novoCidadePrincipal.trim())}
-                                            >
-                                                Adicionar nova cidade: {novoCidadePrincipal.trim()}
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
                             </label>
 
                             <label>
@@ -1459,35 +1424,16 @@ const Credenciamento_main = () => {
 
                             <label className='credenciamento_modal_full'>
                                 <span>Cidades secundárias (tags)</span>
-                                <input
-                                    type='text'
+                                <SelectMunicipioBusca
                                     value={cidadeSecundariaInput}
-                                    placeholder='Digite para buscar e clique para adicionar'
-                                    onChange={(e) => setCidadeSecundariaInput(e.target.value)}
+                                    valueKey="id"
+                                    options={opcoesCidadesSecundarias}
+                                    creatable
+                                    createLabel={(q) => `Adicionar nova cidade: ${q}`}
+                                    onChange={escolherCidadeSecundaria}
+                                    placeholder="Buscar e adicionar cidade"
+                                    aria-label="Cidades secundárias"
                                 />
-                                {cidadesSugeridas.length > 0 && cidadeSecundariaInput.trim() && (
-                                    <div className='credenciamento_modal_sugestoes'>
-                                        {cidadesSugeridas.map((cidade) => (
-                                            <button type='button' key={`cidade-sug-${cidade.id}`} onClick={() => adicionarCidadeSecundaria(cidade.id)}>
-                                                {cidade.nome}
-                                            </button>
-                                        ))}
-                                        {!cidades.some(
-                                            (cidade) => normalizarTexto(cidade.nome) === normalizarTexto(cidadeSecundariaInput)
-                                        ) && (
-                                            <button type='button' onClick={() => adicionarCidadeSecundariaNova(cidadeSecundariaInput)}>
-                                                Adicionar nova cidade: {cidadeSecundariaInput.trim()}
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                                {cidadesSugeridas.length === 0 && cidadeSecundariaInput.trim() && (
-                                    <div className='credenciamento_modal_sugestoes'>
-                                        <button type='button' onClick={() => adicionarCidadeSecundariaNova(cidadeSecundariaInput)}>
-                                            Adicionar nova cidade: {cidadeSecundariaInput.trim()}
-                                        </button>
-                                    </div>
-                                )}
                                 <div className='credenciamento_modal_tags'>
                                     {cidadesSecundariasSelecionadas.map((cidadeId) => (
                                         <span key={`tag-cidade-${cidadeId}`} className='credenciamento_modal_tag'>

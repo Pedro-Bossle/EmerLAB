@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { documentoCpfCnpjEstaCompleto } from '../../../lib/formularioCredenciamento'
+import { buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
 import MultiEspecialidadesInput from '../Credenciamento_cadastro/MultiEspecialidadesInput.jsx'
 import {
     TIPOS_CHAVE_PIX,
@@ -13,6 +14,8 @@ import {
 } from '../../../lib/prestadorCadastroHelpers'
 import { placeholderOutrasEspecialidadesPublico } from '../../../lib/formularioPublicoEspecialidades'
 import FormularioPublicoPerfilExtra from './FormularioPublicoPerfilExtra.jsx'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
+import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 
 function Bloco({ titulo, children }) {
     return (
@@ -80,6 +83,32 @@ export default function FormularioPublicoPassoDados({
     const docCompleto = documentoCpfCnpjEstaCompleto(cpfCnpj)
     const mostrarDocIndisponivel = docOk === false && docCompleto
     const docAtualizacao = docOk === true && docModo === 'atualizacao' && docCompleto
+
+    const [municipiosEndereco, setMunicipiosEndereco] = useState([])
+    const [carregandoMunEndereco, setCarregandoMunEndereco] = useState(false)
+
+    useEffect(() => {
+        const ufEnd = String(endereco.uf || '').trim().toUpperCase()
+        if (!ufEnd) {
+            setMunicipiosEndereco([])
+            return undefined
+        }
+        let cancel = false
+        setCarregandoMunEndereco(true)
+        buscarMunicipiosPorUf(ufEnd)
+            .then((lista) => {
+                if (!cancel) setMunicipiosEndereco(lista || [])
+            })
+            .catch(() => {
+                if (!cancel) setMunicipiosEndereco([])
+            })
+            .finally(() => {
+                if (!cancel) setCarregandoMunEndereco(false)
+            })
+        return () => {
+            cancel = true
+        }
+    }, [endereco.uf])
 
     return (
         <div className="fcred_passo_dados">
@@ -321,20 +350,30 @@ export default function FormularioPublicoPassoDados({
                 </div>
                 <div className="fcred_grid fcred_grid_4">
                     <label className="fcred_field">
-                        <span>Cidade</span>
-                        <input
-                            value={endereco.cidade}
-                            onChange={(e) => setEndereco((x) => ({ ...x, cidade: e.target.value }))}
+                        <span>UF</span>
+                        <SelectUfBusca
+                            value={endereco.uf}
+                            inputClassName="fcred_select"
+                            emptyLabel=""
+                            onChange={(uf) =>
+                                setEndereco((x) => ({
+                                    ...x,
+                                    uf,
+                                    cidade: '',
+                                }))
+                            }
                         />
                     </label>
                     <label className="fcred_field">
-                        <span>UF</span>
-                        <input
-                            value={endereco.uf}
-                            maxLength={2}
-                            onChange={(e) =>
-                                setEndereco((x) => ({ ...x, uf: e.target.value.toUpperCase().slice(0, 2) }))
-                            }
+                        <span>Cidade</span>
+                        <SelectMunicipioBusca
+                            value={endereco.cidade}
+                            options={municipiosEndereco}
+                            disabled={!endereco.uf?.trim() || carregandoMunEndereco}
+                            loading={carregandoMunEndereco}
+                            inputClassName="fcred_select"
+                            placeholder={!endereco.uf?.trim() ? 'Selecione a UF' : 'Buscar cidade…'}
+                            onChange={(nome) => setEndereco((x) => ({ ...x, cidade: nome }))}
                         />
                     </label>
                     <label className="fcred_field">

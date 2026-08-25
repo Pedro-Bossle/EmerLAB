@@ -367,7 +367,8 @@ export async function criarEventoOutlook(accessToken, opts = {}) {
 }
 
 /**
- * Cria eventos Outlook (dia inteiro) a partir de afazeres da Home.
+ * Cria eventos Outlook a partir de afazeres da Home
+ * (dia inteiro, ou com horário se a tarefa tiver horário).
  * @returns {{ criados: number, falhas: Array<{ titulo: string, erro: string }> }}
  */
 export async function adicionarTarefasAoOutlook(accessToken, tarefas = []) {
@@ -385,9 +386,20 @@ export async function adicionarTarefasAoOutlook(accessToken, tarefas = []) {
 
     for (const t of lista) {
         let start = new Date(hoje)
+        let isAllDay = true
         if (t.prazo) {
-            const d = new Date(`${String(t.prazo).slice(0, 10)}T12:00:00`)
-            if (!Number.isNaN(d.getTime())) start = d
+            const dataStr = String(t.prazo).slice(0, 10)
+            const hora = String(t.horario || '').trim()
+            if (/^\d{2}:\d{2}/.test(hora)) {
+                const d = new Date(`${dataStr}T${hora.slice(0, 5)}:00`)
+                if (!Number.isNaN(d.getTime())) {
+                    start = d
+                    isAllDay = false
+                }
+            } else {
+                const d = new Date(`${dataStr}T12:00:00`)
+                if (!Number.isNaN(d.getTime())) start = d
+            }
         }
         const partes = [
             t.observacoes ? escapeHtmlBasico(String(t.observacoes).trim()) : '',
@@ -400,7 +412,7 @@ export async function adicionarTarefasAoOutlook(accessToken, tarefas = []) {
             await criarEventoOutlook(accessToken, {
                 subject: String(t.titulo || 'Afazer').trim() || 'Afazer',
                 start,
-                isAllDay: true,
+                isAllDay,
                 body: `<p>${partes.join('</p><p>')}</p>`,
             })
             criados += 1

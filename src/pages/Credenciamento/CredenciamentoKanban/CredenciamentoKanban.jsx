@@ -4,7 +4,9 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '../../../components/ui'
 import { supabase } from '../../../lib/supabase.js'
 import { listarUsuariosParaAtribuicao } from '../../../lib/homeTarefas.js'
-import { UFS_BRASIL } from '../../../lib/ibgeLocalidades.js'
+import { buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
+import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 import {
     COLUNAS_KANBAN,
     assinarCardsKanbanLive,
@@ -278,6 +280,34 @@ export default function CredenciamentoKanban() {
             }),
         [cards, filtroUf, filtroCidade, filtroEsp, filtroAssignee, filtroBusca, filtroDe, filtroAte],
     )
+
+    const opcoesCidadeFiltro = useMemo(() => {
+        const set = new Set()
+        for (const c of cards || []) {
+            if (filtroUf && String(c.uf || '').toUpperCase() !== String(filtroUf).toUpperCase()) continue
+            const nome = String(c.cidade || '').trim()
+            if (nome) set.add(nome)
+        }
+        return [...set]
+            .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+            .map((nome) => ({ id: nome, nome }))
+    }, [cards, filtroUf])
+
+    const ufsNosCards = useMemo(() => {
+        const set = new Set()
+        for (const c of cards || []) {
+            const uf = String(c.uf || '').trim().toUpperCase()
+            if (uf) set.add(uf)
+        }
+        return [...set].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    }, [cards])
+
+    useEffect(() => {
+        if (!filtroUf) return
+        if (ufsNosCards.includes(String(filtroUf).toUpperCase())) return
+        setFiltroUf('')
+        setFiltroCidade('')
+    }, [filtroUf, ufsNosCards])
 
     const porColuna = useMemo(() => {
         const m = Object.fromEntries(COLUNAS_KANBAN.map((c) => [c.id, []]))
@@ -646,18 +676,31 @@ export default function CredenciamentoKanban() {
                 </label>
                 <label>
                     <span>UF</span>
-                    <select value={filtroUf} onChange={(e) => setFiltroUf(e.target.value)}>
-                        <option value="">Todas</option>
-                        {UFS_BRASIL.map((u) => (
-                            <option key={u} value={u}>
-                                {u}
-                            </option>
-                        ))}
-                    </select>
+                    <SelectUfBusca
+                        value={filtroUf}
+                        ufs={ufsNosCards}
+                        emptyLabel="Todas"
+                        placeholder="Todas"
+                        className="cred_kanban_select_uf"
+                        onChange={(u) => {
+                            setFiltroUf(u)
+                            setFiltroCidade('')
+                        }}
+                    />
                 </label>
                 <label>
                     <span>Cidade</span>
-                    <input value={filtroCidade} onChange={(e) => setFiltroCidade(e.target.value)} />
+                    <SelectMunicipioBusca
+                        options={opcoesCidadeFiltro}
+                        value={filtroCidade}
+                        valueKey="nome"
+                        onChange={setFiltroCidade}
+                        placeholder="Todas"
+                        searchPlaceholder="Buscar cidade…"
+                        emptyLabel="Todas"
+                        aria-label="Filtrar por cidade"
+                        className="cred_kanban_select_cidade"
+                    />
                 </label>
                 <div className="cred_kanban_filtro_datas" role="group" aria-label="Datas">
                     <span>Datas</span>
@@ -872,6 +915,8 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
     const [nome, setNome] = useState(card.nome)
     const [uf, setUf] = useState(card.uf || '')
     const [cidade, setCidade] = useState(card.cidade || '')
+    const [municipiosUf, setMunicipiosUf] = useState([])
+    const [carregandoMunicipios, setCarregandoMunicipios] = useState(false)
     const [telefone, setTelefone] = useState(() => maskTelefoneBr(card.telefone || ''))
     const [especialidade, setEspecialidade] = useState(
         () => especialidadeVisivelKanban(card.especialidade || card.tipo) || '',
@@ -893,6 +938,15 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
     const [espBalao, setEspBalao] = useState(null)
 
     const checklistGh = useMemo(() => parseChecklistMarkdownLinhas(corpo), [corpo])
+
+    const opcoesMunicipio = useMemo(() => {
+        const lista = [...(municipiosUf || [])]
+        const atual = String(cidade || '').trim()
+        if (atual && !lista.some((m) => String(m.nome || '').trim() === atual)) {
+            lista.unshift({ id: `custom:${atual}`, nome: atual })
+        }
+        return lista
+    }, [municipiosUf, cidade])
 
     const atualizarPosBalaoEsp = useCallback(() => {
         const el = espInputRef.current
@@ -927,6 +981,29 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
         setEspBalao(null)
     }, [card])
 
+    useEffect(() => {
+        const sigla = String(uf || '').trim().toUpperCase()
+        if (!sigla) {
+            setMunicipiosUf([])
+            setCarregandoMunicipios(false)
+            return undefined
+        }
+        let cancel = false
+        setCarregandoMunicipios(true)
+        buscarMunicipiosPorUf(sigla)
+            .then((lista) => {
+                if (!cancel) setMunicipiosUf(lista || [])
+            })
+            .catch(() => {
+                if (!cancel) setMunicipiosUf([])
+            })
+            .finally(() => {
+                if (!cancel) setCarregandoMunicipios(false)
+            })
+        return () => {
+            cancel = true
+        }
+    }, [uf])
     useEffect(() => {
         const prevOverflow = document.body.style.overflow
         document.body.style.overflow = 'hidden'
@@ -1367,18 +1444,28 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                         </label>
                         <label className="cred_kanban_campo_uf">
                             <span>UF</span>
-                            <select value={uf} onChange={(e) => setUf(e.target.value)}>
-                                <option value="">—</option>
-                                {UFS_BRASIL.map((u) => (
-                                    <option key={u} value={u}>
-                                        {u}
-                                    </option>
-                                ))}
-                            </select>
+                            <SelectUfBusca
+                                value={uf}
+                                onChange={(u) => {
+                                    setUf(u)
+                                    setCidade('')
+                                }}
+                            />
                         </label>
                         <label className="cred_kanban_campo_cidade">
                             <span>Cidade</span>
-                            <input value={cidade} onChange={(e) => setCidade(e.target.value)} />
+                            <SelectMunicipioBusca
+                                options={opcoesMunicipio}
+                                value={cidade}
+                                valueKey="nome"
+                                onChange={setCidade}
+                                disabled={!uf}
+                                loading={carregandoMunicipios}
+                                placeholder={uf ? 'Selecionar cidade…' : 'Escolha a UF'}
+                                searchPlaceholder="Buscar cidade…"
+                                aria-label="Cidade do card"
+                                className="cred_kanban_select_cidade"
+                            />
                         </label>
                         <label className="cred_kanban_campo_telefone">
                             <span>Telefone</span>

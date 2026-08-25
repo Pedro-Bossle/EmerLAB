@@ -109,6 +109,7 @@ const Home = () => {
         observacoes: '',
         resolucao: '',
         prazo: '',
+        horario: '',
         prioridade: 'normal',
         atribuidoA: '',
     })
@@ -273,6 +274,7 @@ const Home = () => {
             observacoes: '',
             resolucao: '',
             prazo: '',
+            horario: '',
             prioridade: 'normal',
             atribuidoA: userId || f.atribuidoA,
         }))
@@ -287,6 +289,7 @@ const Home = () => {
             observacoes: '',
             resolucao: '',
             prazo: '',
+            horario: '',
             prioridade: 'normal',
             atribuidoA: userId || f.atribuidoA,
         }))
@@ -300,7 +303,8 @@ const Home = () => {
             titulo: tarefa.titulo || '',
             observacoes: tarefa.observacoes || '',
             resolucao: tarefa.resolucao || '',
-            prazo: tarefa.prazo || '',
+            prazo: tarefa.prazo ? String(tarefa.prazo).slice(0, 10) : '',
+            horario: tarefa.horario || '',
             prioridade: tarefa.prioridade || 'normal',
             atribuidoA: tarefa.atribuidoA || userId,
         })
@@ -796,6 +800,7 @@ const Home = () => {
                     titulo: formTarefa.titulo,
                     observacoes: formTarefa.observacoes,
                     prazo: formTarefa.prazo || null,
+                    horario: formTarefa.prazo ? formTarefa.horario || null : null,
                     prioridade: formTarefa.prioridade,
                     atribuidoA: formTarefa.atribuidoA || userId,
                     ...(tarefaEditando.status === 'concluida'
@@ -810,6 +815,7 @@ const Home = () => {
                     titulo: formTarefa.titulo,
                     observacoes: formTarefa.observacoes,
                     prazo: formTarefa.prazo || null,
+                    horario: formTarefa.prazo ? formTarefa.horario || null : null,
                     prioridade: formTarefa.prioridade,
                     atribuidoA: formTarefa.atribuidoA || userId,
                     anexosFiles: anexosPendentes,
@@ -1233,7 +1239,7 @@ const Home = () => {
                                                             <div className="home_dash_tarefa_meta">
                                                                 <span>
                                                                     Prazo:{' '}
-                                                                    {formatarPrazoTarefa(t.prazo)}
+                                                                    {formatarPrazoTarefa(t.prazo, t.horario)}
                                                                 </span>
                                                                 <span>Para: {t.atribuidoNome}</span>
                                                                 <span>Por: {t.criadorNome}</span>
@@ -1414,7 +1420,7 @@ const Home = () => {
                                                     ) : (
                                                         <div className="home_dash_tarefa_meta home_dash_tarefa_meta--compact">
                                                             <span>
-                                                                Prazo: {formatarPrazoTarefa(t.prazo)}
+                                                                Prazo: {formatarPrazoTarefa(t.prazo, t.horario)}
                                                             </span>
                                                         </div>
                                                     )}
@@ -1749,7 +1755,7 @@ const Home = () => {
                                                         <strong>{t.titulo}</strong>
                                                         <span className="home_dash_notif_help_sub">
                                                             Por: {t.criadorNome} ·{' '}
-                                                            {formatarPrazoTarefa(t.prazo)}
+                                                            {formatarPrazoTarefa(t.prazo, t.horario)}
                                                         </span>
                                                     </li>
                                                 ))}
@@ -1829,17 +1835,43 @@ const Home = () => {
                                             )}
                                         </select>
                                     </label>
-                                    <label className="home_dash_tarefa_campo">
-                                        <span>Prazo</span>
-                                        <input
-                                            type="date"
-                                            className="home_dash_input"
-                                            value={formTarefa.prazo}
-                                            onChange={(e) =>
-                                                setFormTarefa((f) => ({ ...f, prazo: e.target.value }))
-                                            }
-                                        />
-                                    </label>
+                                    <div className="home_dash_tarefa_prazo_grupo">
+                                        <label className="home_dash_tarefa_campo">
+                                            <span>Prazo</span>
+                                            <input
+                                                type="date"
+                                                className="home_dash_input"
+                                                value={formTarefa.prazo}
+                                                onChange={(e) =>
+                                                    setFormTarefa((f) => ({
+                                                        ...f,
+                                                        prazo: e.target.value,
+                                                        horario: e.target.value ? f.horario : '',
+                                                    }))
+                                                }
+                                            />
+                                        </label>
+                                        <label className="home_dash_tarefa_campo">
+                                            <span>Horário <em className="home_dash_opcional">(opc.)</em></span>
+                                            <input
+                                                type="time"
+                                                className="home_dash_input"
+                                                value={formTarefa.horario || ''}
+                                                disabled={!formTarefa.prazo}
+                                                title={
+                                                    formTarefa.prazo
+                                                        ? 'Horário opcional do prazo'
+                                                        : 'Defina a data do prazo primeiro'
+                                                }
+                                                onChange={(e) =>
+                                                    setFormTarefa((f) => ({
+                                                        ...f,
+                                                        horario: e.target.value,
+                                                    }))
+                                                }
+                                            />
+                                        </label>
+                                    </div>
                                     <label className="home_dash_tarefa_campo">
                                         <span>Prioridade</span>
                                         <select
