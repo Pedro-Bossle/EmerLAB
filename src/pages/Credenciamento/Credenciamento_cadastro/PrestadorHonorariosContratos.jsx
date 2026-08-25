@@ -210,6 +210,13 @@ export default function PrestadorHonorariosContratos({
         setGerandoContrato(true)
         setToast(null)
         try {
+            if (modelo === 'desconto' && !responsaveisParaPayload(responsaveis).length) {
+                pushToast(
+                    `Contrato — ${rotulo}`,
+                    'Preencha ao menos um responsável no perfil (nome, e-mail e telefone) para o contrato de desconto.',
+                )
+                return
+            }
             let dados
             try {
                 dados = await buildPayloadContratoFromPrestadorForm(form, modelo, {
@@ -218,13 +225,6 @@ export default function PrestadorHonorariosContratos({
                 })
             } catch (e) {
                 pushToast(`Contrato — ${rotulo}`, e?.message || 'Erro ao consultar CNPJ.')
-                return
-            }
-            if (modelo === 'desconto' && !responsaveisParaPayload(responsaveis).length) {
-                pushToast(
-                    `Contrato — ${rotulo}`,
-                    'Preencha ao menos um responsável no perfil (nome, e-mail e telefone) para o contrato de desconto.',
-                )
                 return
             }
             const erros = errosValidacao(tipo, dados)

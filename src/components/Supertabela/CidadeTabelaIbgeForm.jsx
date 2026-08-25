@@ -5,6 +5,7 @@ import {
     MAX_KM_SUGESTAO_MALHA,
     filtrarMunicipiosPorDistanciaDoPrincipal,
 } from '../../lib/municipiosCoordenadas.js'
+import SelectMunicipioBusca from '../SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 
 const MIN_CHARS_BUSCA = 2
 const MAX_SUGESTOES = 24
@@ -195,19 +196,15 @@ export default function CidadeTabelaIbgeForm({
                 <label className="cidade_tabela_field_label cidade_tabela_field_label_grow">
                     <span>Tabela (município principal)</span>
                     <div className="cidade_tabela_field_wrap cidade_tabela_field_wrap_select">
-                        <select
-                            className="cidade_tabela_field"
+                        <SelectMunicipioBusca
                             value={municipioPrincipal}
+                            options={municipiosIbge}
                             disabled={disabled || !uf || loadingMun}
-                            onChange={(e) => onMunicipioPrincipalChange(e.target.value)}
-                        >
-                            <option value="">{loadingMun ? 'Carregando…' : '— Selecione —'}</option>
-                            {municipiosIbge.map((m) => (
-                                <option key={m.id} value={m.nome}>
-                                    {m.nome}
-                                </option>
-                            ))}
-                        </select>
+                            loading={loadingMun}
+                            inputClassName="cidade_tabela_field"
+                            placeholder={!uf ? 'Selecione a UF' : 'Buscar município…'}
+                            onChange={onMunicipioPrincipalChange}
+                        />
                     </div>
                 </label>
             </div>

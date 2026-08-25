@@ -32,4 +32,10 @@ export default defineConfig([
       globals: globals.node,
     },
   },
+  {
+    files: ['src/lib/api/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 ])

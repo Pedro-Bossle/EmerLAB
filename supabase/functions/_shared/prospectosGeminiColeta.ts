@@ -49,6 +49,66 @@ Retorne JSON: { "estabelecimentos": [ { "nome", "categoria_id", "endereco", "tel
 Campo ativo=true apenas se estiver em operação.`
 }
 
+function normalizarTextoProspecto(s: string) {
+  return String(s || '')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[/|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Alinhado a prospectosOsmQualidade.estabelecimentoIndicaInativo */
+function estabelecimentoIndicaInativo(tags: Record<string, string> = {}, nome = '', horario = '') {
+  const t = tags || {}
+  if (
+    t.disused === 'yes' ||
+    t.abandoned === 'yes' ||
+    t.ruins === 'yes' ||
+    t.vacant === 'yes' ||
+    t.shop === 'vacant' ||
+    t.amenity === 'vacant' ||
+    /^(yes|true|permanent|permanently)$/i.test(String(t.closed || '')) ||
+    /^(yes|true|permanent|permanently)$/i.test(String(t.permanently_closed || ''))
+  ) {
+    return true
+  }
+  const oh = normalizarTextoProspecto(horario || t.opening_hours || '')
+  if (
+    oh === 'closed' ||
+    oh === 'off' ||
+    oh === 'permanently closed' ||
+    oh === 'fechado' ||
+    oh === 'fechada' ||
+    /^closed\b/.test(oh) ||
+    /^permanently closed/.test(oh)
+  ) {
+    return true
+  }
+  const n = normalizarTextoProspecto(nome || t.name || '')
+  if (
+    /\b(fechado|fechada|encerrado|encerrada|desativado|desativada|inexistente|abandonado|abandonada|demolido|demolida)\b/.test(
+      n,
+    ) ||
+    /\bantig[oa]\b/.test(n) ||
+    /\bem obras\b/.test(n) ||
+    /\bfora de (operacao|atividade)\b/.test(n)
+  ) {
+    return true
+  }
+  const nota = normalizarTextoProspecto(t.nota || t.description || '')
+  if (
+    nota &&
+    /\b(fechado|fechada|nao existe mais|nao funciona|desativado|permanently closed|out of business)\b/.test(
+      nota,
+    )
+  ) {
+    return true
+  }
+  return false
+}
+
 export async function coletarProspectosGeminiCidade(
   supabaseAdmin: SupabaseClient,
   opts: { cidade: string; uf?: string },
@@ -87,13 +147,7 @@ export async function coletarProspectosGeminiCidade(
     if (raw?.ativo === false) continue
     const horario = String(raw?.horario_atendimento || '').trim()
     const nota = String(raw?.nota || '').trim()
-    const nomeLow = nome.toLowerCase()
-    if (
-      /\b(fechado|fechada|desativado|abandonado|inexistente|antig[oa])\b/i.test(nomeLow) ||
-      /^(closed|off|fechado)$/i.test(horario)
-    ) {
-      continue
-    }
+    if (estabelecimentoIndicaInativo({ nota }, nome, horario)) continue
     const chave = `${nome}|${endereco}|${cidade}|${uf}|${categoria_id}`
     const row = {
       osm_type: 'gemini_poc',

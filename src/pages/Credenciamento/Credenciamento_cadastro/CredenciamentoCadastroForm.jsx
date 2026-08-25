@@ -38,6 +38,7 @@ import {
 import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanenteCredenciamento.js'
 import { sincronizarCardKanbanComSituacao } from '../../../lib/credKanban.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import { UFS_BRASIL, buscarMunicipiosPorUf, resolverUfPorNomeMunicipio } from '../../../lib/ibgeLocalidades.js'
 import PrestadorServicosAbas from './PrestadorServicosAbas.jsx'
 import PrestadorHonorariosContratos from './PrestadorHonorariosContratos.jsx'
@@ -1316,19 +1317,15 @@ const CredenciamentoCadastroForm = () => {
                                 </label>
                                 <label className="pcad_field">
                                     Cidade
-                                    <select
-                                        className="credenciamento_main_select"
-                                        value={municipioIbgeId}
-                                        onChange={(e) => setMunicipioIbgeId(e.target.value)}
+                                    <SelectMunicipioBusca
+                                        value={municipioIbgeId == null ? '' : String(municipioIbgeId)}
+                                        valueKey="id"
+                                        options={municipiosUf}
                                         disabled={somenteLeitura || carregandoMunicipios}
-                                    >
-                                        <option value="">{carregandoMunicipios ? 'Carregando…' : 'Selecione a cidade'}</option>
-                                        {municipiosUf.map((m) => (
-                                            <option key={m.id} value={m.id}>
-                                                {m.nome}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        loading={carregandoMunicipios}
+                                        placeholder="Buscar cidade…"
+                                        onChange={setMunicipioIbgeId}
+                                    />
                                 </label>
                                 <div className="pcad_field pcad_cidades_add_btn">
                                     <span className="pcad_field_label" aria-hidden="true">

@@ -250,10 +250,19 @@ export default function ClicksignEmerdog() {
     const [sugestoesKanban, setSugestoesKanban] = useState([])
     const [sugestoesKanbanLoading, setSugestoesKanbanLoading] = useState(false)
     const [sugestoesKanbanBusca, setSugestoesKanbanBusca] = useState('')
+    const signModalRef = useRef(null)
 
     const abrirSignModalKanban = useCallback((modal) => {
+        setSignModalCliquesFora(0)
         setSugestoesKanbanLoading(true)
         setSignModal(modal)
+        signModalRef.current = modal
+    }, [])
+
+    const irParaSignModal = useCallback((modal) => {
+        setSignModalCliquesFora(0)
+        setSignModal(modal)
+        signModalRef.current = modal
     }, [])
 
     const [detailOpen, setDetailOpen] = useState(false)
@@ -289,10 +298,6 @@ export default function ClicksignEmerdog() {
         return () => {
             cancel = true
         }
-    }, [signModal])
-
-    useEffect(() => {
-        setSignModalCliquesFora(0)
     }, [signModal])
 
     const sugestoesKanbanFiltradas = useMemo(
@@ -373,7 +378,9 @@ export default function ClicksignEmerdog() {
         setFluxoSigRemovendoId('')
         setFluxoEdicaoLista(false)
         signReplaceSignerIdRef.current = ''
+        signModalRef.current = null
         setSignModal(null)
+        setSignModalCliquesFora(0)
         setSignPending(null)
         setSignModalAgendaSel([])
         setAgendaQualPorId({})
@@ -1296,6 +1303,7 @@ export default function ClicksignEmerdog() {
 
     const fecharSignModal = useCallback(() => {
         signReplaceSignerIdRef.current = ''
+        signModalRef.current = null
         setSignModal(null)
         setSignModalCliquesFora(0)
         setSignPending(null)
@@ -1309,15 +1317,12 @@ export default function ClicksignEmerdog() {
 
     const onSignModalBackdropClick = useCallback(() => {
         if (fluxoBusy) return
-        setSignModalCliquesFora((n) => {
-            const next = n + 1
-            if (next >= 2) {
-                fecharSignModal()
-                return 0
-            }
-            return next
-        })
-    }, [fluxoBusy, fecharSignModal])
+        if (signModalCliquesFora >= 1) {
+            fecharSignModal()
+            return
+        }
+        setSignModalCliquesFora(1)
+    }, [fluxoBusy, fecharSignModal, signModalCliquesFora])
 
     const adicionarSignatarioComParametros = useCallback(
         async ({ nome, email, phone, channel, papel, gravarNaAgenda }) => {
@@ -2759,7 +2764,7 @@ export default function ClicksignEmerdog() {
                                                 gravarNaAgenda: signDraft.saveAgenda,
                                                 source: 'novo' })
                                             setSignQualPapel(normalizarPapelQualificacao(fluxoPapel))
-                                            setSignModal('qual')
+                                            irParaSignModal('qual')
                                         }}
                                     >
                                         Avançar <span aria-hidden>→</span>
@@ -2861,6 +2866,7 @@ export default function ClicksignEmerdog() {
                                                                         onClick={() => {
                                                                             void (async () => {
                                                                                 await aplicarSugestaoKanban(s)
+                                                                                if (signModalRef.current == null) return
                                                                                 abrirSignModalKanban('novo')
                                                                             })()
                                                                         }}
@@ -2932,7 +2938,7 @@ export default function ClicksignEmerdog() {
                                                                         nome: String(c.name || '').trim(),
                                                                         saveAgenda: true })
                                                                     setSignQualPapel(normalizarPapelQualificacao(c.papel))
-                                                                    setSignModal('agenda_edit')
+                                                                    irParaSignModal('agenda_edit')
                                                                 }}
                                                             >
                                                                 ✎
@@ -3035,7 +3041,7 @@ export default function ClicksignEmerdog() {
                                                 map[c.localId] = normalizarPapelQualificacao(c.papel || 'sign')
                                             }
                                             setAgendaQualPorId(map)
-                                            setSignModal('agenda_multi_qual')
+                                            irParaSignModal('agenda_multi_qual')
                                         }}
                                     >
                                         Avançar ({signModalAgendaSel.length}) <span aria-hidden>→</span>
@@ -3558,7 +3564,22 @@ export default function ClicksignEmerdog() {
                                                                             role="menuitem"
                                                                             onClick={() => {
                                                                                 setDocMenuId('')
-                                                                                abrirVisualizacaoDocumento(detailId, d)
+                                                                                void (async () => {
+                                                                                    const r = await abrirVisualizacaoDocumento(detailId, d)
+                                                                                    if (!r?.ok && r?.reason === 'popup_blocked') {
+                                                                                        pushToast(
+                                                                                            'error',
+                                                                                            'Visualizar',
+                                                                                            'O browser bloqueou a janela. Permita pop-ups para este site.',
+                                                                                        )
+                                                                                    } else if (!r?.ok) {
+                                                                                        pushToast(
+                                                                                            'error',
+                                                                                            'Visualizar',
+                                                                                            'Não foi possível abrir o documento.',
+                                                                                        )
+                                                                                    }
+                                                                                })()
                                                                             }}
                                                                         >
                                                                             Visualizar documento

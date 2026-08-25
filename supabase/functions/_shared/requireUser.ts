@@ -1,3 +1,9 @@
+/**
+ * Auth helpers para Edge Functions.
+ * IMPORTANTE: a lógica de permissões deve permanecer alinhada com
+ * src/lib/accessControl.js + src/lib/permissionCatalog.js (Node/Vercel).
+ * Qualquer alteração de contrato ACL/legado deve ser espelhada nos dois backends.
+ */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 
 export function getBearerToken(req: Request): string {
@@ -22,7 +28,7 @@ export async function requireUserProfile(req: Request) {
 
   const { data: profile, error: profileError } = await admin
     .from('profiles')
-    .select('id, name, email, permissions')
+    .select('id, name, email, permissions, force_password_change, password_changed_at')
     .eq('id', userData.user.id)
     .maybeSingle()
 
@@ -30,23 +36,63 @@ export async function requireUserProfile(req: Request) {
   return { user: userData.user, profile, admin }
 }
 
+/** Espelha permissionCatalog.aclKey */
+function aclKey(toolId: string, action: string) {
+  return `${toolId}.${action}`
+}
+
+/** Truthy como no Node (Boolean / string / 1). */
+function isTruthyPerm(val: unknown): boolean {
+  return val === true || val === 'true' || val === 1 || val === '1'
+}
+
 function hasLegacy(permissions: Record<string, unknown> | null | undefined, key: string) {
   const p = permissions || {}
-  return p[key] === true || p[key] === 'true' || p[key] === 1
+  return isTruthyPerm(p[key])
+}
+
+function hasAcl(
+  permissions: Record<string, unknown> | null | undefined,
+  toolId: string,
+  action: string,
+) {
+  const p = permissions || {}
+  if (isTruthyPerm(p[aclKey(toolId, action)])) return true
+  // Formato aninhado legado (objeto { read: true })
+  const block = p[toolId]
+  if (block && typeof block === 'object' && isTruthyPerm((block as Record<string, unknown>)[action])) {
+    return true
+  }
+  return false
 }
 
 function hasAclRead(permissions: Record<string, unknown> | null | undefined, toolId: string) {
-  const p = permissions || {}
-  const block = p[toolId]
-  if (block && typeof block === 'object' && (block as { read?: boolean }).read === true) return true
-  return false
+  return hasAcl(permissions, toolId, 'read')
+}
+
+function hasAclWrite(permissions: Record<string, unknown> | null | undefined, toolId: string) {
+  return (
+    hasAcl(permissions, toolId, 'update') ||
+    hasAcl(permissions, toolId, 'create') ||
+    hasAcl(permissions, toolId, 'delete')
+  )
 }
 
 export function podeCredenciamentoView(permissions: Record<string, unknown> | null | undefined) {
   return (
     hasLegacy(permissions, 'credenciamento.view') ||
     hasAclRead(permissions, 'credenciamento.processos') ||
-    hasAclRead(permissions, 'credenciamento.prospectos_osm')
+    hasAclRead(permissions, 'credenciamento.prospectos_osm') ||
+    hasAclRead(permissions, 'credenciamento.cadastro')
+  )
+}
+
+export function podeCredenciamentoEdit(permissions: Record<string, unknown> | null | undefined) {
+  return (
+    hasLegacy(permissions, 'credenciamento.edit') ||
+    hasAclWrite(permissions, 'credenciamento.processos') ||
+    hasAclWrite(permissions, 'credenciamento.prospectos_osm') ||
+    hasAclWrite(permissions, 'credenciamento.cadastro')
   )
 }
 
@@ -60,6 +106,9 @@ const buckets = new Map<string, number[]>()
 export function rateLimitOk(key: string, limit: number, windowMs: number): boolean {
   const agora = Date.now()
   const lista = (buckets.get(key) || []).filter((t) => agora - t < windowMs)
+  if (lista.length === 0) {
+    buckets.delete(key)
+  }
   if (lista.length >= limit) {
     buckets.set(key, lista)
     return false
@@ -69,7 +118,15 @@ export function rateLimitOk(key: string, limit: number, windowMs: number): boole
   return true
 }
 
+/**
+ * IP do cliente: último hop de x-forwarded-for (proxy), nunca o primeiro (spoofável).
+ */
 export function clientIp(req: Request): string {
-  const xf = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim()
-  return xf || req.headers.get('x-real-ip') || 'unknown'
+  const xfRaw = req.headers.get('x-forwarded-for') || ''
+  const hops = xfRaw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (hops.length) return hops[hops.length - 1]
+  return req.headers.get('x-real-ip') || 'unknown'
 }

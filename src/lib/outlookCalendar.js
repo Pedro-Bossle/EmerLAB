@@ -1,12 +1,37 @@
 const GRAPH_ROOT = 'https://graph.microsoft.com/v1.0'
 const GRAPH_FETCH_TIMEOUT_MS = 30000
 
-/** Timezones IANA comuns → Windows (Microsoft Graph). */
+/** Timezones IANA → Windows (Microsoft Graph Prefer: outlook.timezone). */
 const IANA_TO_GRAPH_TZ = {
     'America/Sao_Paulo': 'E. South America Standard Time',
+    'America/Bahia': 'E. South America Standard Time',
     'America/Fortaleza': 'SA Eastern Standard Time',
+    'America/Recife': 'SA Eastern Standard Time',
+    'America/Maceio': 'SA Eastern Standard Time',
+    'America/Belem': 'SA Eastern Standard Time',
+    'America/Santarem': 'SA Eastern Standard Time',
+    'America/Araguaina': 'Tocantins Standard Time',
     'America/Manaus': 'SA Western Standard Time',
+    'America/Boa_Vista': 'SA Western Standard Time',
+    'America/Porto_Velho': 'SA Western Standard Time',
+    'America/Campo_Grande': 'Central Brazilian Standard Time',
+    'America/Cuiaba': 'Central Brazilian Standard Time',
+    'America/Rio_Branco': 'SA Pacific Standard Time',
+    'America/Eirunepe': 'SA Pacific Standard Time',
+    'America/Noronha': 'UTC-02',
+    'America/New_York': 'Eastern Standard Time',
+    'America/Chicago': 'Central Standard Time',
+    'America/Denver': 'Mountain Standard Time',
+    'America/Los_Angeles': 'Pacific Standard Time',
+    'America/Argentina/Buenos_Aires': 'Argentina Standard Time',
+    'America/Asuncion': 'Paraguay Standard Time',
+    'Europe/Lisbon': 'GMT Standard Time',
+    'Europe/London': 'GMT Standard Time',
+    'UTC': 'UTC',
+    'Etc/UTC': 'UTC',
 }
+
+const GRAPH_WINDOWS_TZ = new Set(Object.values(IANA_TO_GRAPH_TZ))
 
 async function fetchGraph(url, options = {}, timeoutMs = GRAPH_FETCH_TIMEOUT_MS) {
     const controller = new AbortController()
@@ -18,16 +43,33 @@ async function fetchGraph(url, options = {}, timeoutMs = GRAPH_FETCH_TIMEOUT_MS)
     }
 }
 
+/** Resolve timezone Windows válida p/ Graph; não faz fallback silencioso para IANA não mapeada. */
 function resolverTimeZoneGraph(optsTimeZone) {
     const explicito = String(optsTimeZone || '').trim()
-    if (explicito) return explicito
-    try {
-        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone
-        if (browserTz && IANA_TO_GRAPH_TZ[browserTz]) return IANA_TO_GRAPH_TZ[browserTz]
-    } catch {
-        /* fallback abaixo */
+    if (explicito) {
+        if (IANA_TO_GRAPH_TZ[explicito]) return IANA_TO_GRAPH_TZ[explicito]
+        if (explicito.includes('/')) {
+            throw new Error(
+                `Timezone IANA «${explicito}» sem mapeamento Windows no Graph. Informe um timeZone Windows válido.`,
+            )
+        }
+        if (GRAPH_WINDOWS_TZ.has(explicito) || /standard time|^UTC([+-]\d+)?$/i.test(explicito)) {
+            return explicito
+        }
+        throw new Error(`Timezone Graph inválida: «${explicito}». Use um ID Windows (ex.: E. South America Standard Time).`)
     }
-    return 'E. South America Standard Time'
+    let browserTz = ''
+    try {
+        browserTz = String(Intl.DateTimeFormat().resolvedOptions().timeZone || '').trim()
+    } catch {
+        browserTz = ''
+    }
+    if (browserTz && IANA_TO_GRAPH_TZ[browserTz]) return IANA_TO_GRAPH_TZ[browserTz]
+    throw new Error(
+        browserTz
+            ? `Timezone do browser «${browserTz}» sem mapeamento Windows no Graph. Passe opts.timeZone explícito.`
+            : 'Informe opts.timeZone (Windows Graph, ex.: E. South America Standard Time).',
+    )
 }
 
 export function escapeHtmlBasico(s) {

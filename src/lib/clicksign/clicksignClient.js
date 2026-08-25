@@ -977,7 +977,11 @@ export async function abrirVisualizacaoDocumento(envelopeId, doc, opts = {}) {
         }
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)
-        window.open(url, '_blank', 'noopener,noreferrer')
+        const win = window.open(url, '_blank', 'noopener,noreferrer')
+        if (!win) {
+            URL.revokeObjectURL(url)
+            return { ok: false, reason: 'popup_blocked' }
+        }
         setTimeout(() => URL.revokeObjectURL(url), 120_000)
         return { ok: true, mode: 'proxy-blob' }
     } catch {

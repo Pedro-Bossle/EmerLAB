@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Footer from '../../components/Footer/Footer'
 import OutlookAgendaCard from '../../components/Outlook/OutlookAgendaCard'
 import AfazeresCalendarioBtn from '../../components/Outlook/AfazeresCalendarioBtn'
@@ -74,6 +74,7 @@ const FILTRO_TAREFAS = [
 ]
 
 const Home = () => {
+    const navigate = useNavigate()
     const profile = useStoredAccessProfile() || getStoredAccessProfile()
     const userId = profile?.id || ''
     const permissions = profile?.permissions || {}
@@ -581,7 +582,7 @@ const Home = () => {
             }
         }
         if (n?.cardId) {
-            window.location.assign(`/credenciamento/principal?card=${n.cardId}`)
+            navigate(`/credenciamento/principal?card=${n.cardId}`)
         }
     }
 
@@ -682,10 +683,13 @@ const Home = () => {
             )
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'cred_kanban_mencoes' },
-                (payload) => {
-                    const row = payload?.new || payload?.old
-                    if (row?.mencionado_id && row.mencionado_id !== userId) return
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'cred_kanban_mencoes',
+                    filter: `mencionado_id=eq.${userId}`,
+                },
+                () => {
                     void refreshNotifMencoesKanban()
                 },
             )
