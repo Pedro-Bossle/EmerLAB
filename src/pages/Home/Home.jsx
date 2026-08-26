@@ -741,7 +741,7 @@ const Home = () => {
             void refreshNotifContratos()
         }
         const onStorage = (e) => {
-            if (e.key && e.key !== 'emerdog_clicksign_notificacoes_v1') return
+            if (e.key && e.key !== 'emerdog_clicksign_notificacoes_v1' && !String(e.key).startsWith('emerdog_clicksign_notificacoes_v2:')) return
             onClicksignLocal()
         }
         if (podeContratos) {

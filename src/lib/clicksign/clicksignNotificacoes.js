@@ -8,15 +8,63 @@ import {
     obterRequisitosEnvelope,
 } from './clicksignClient.js'
 
-const KEY_NOTIF = 'emerdog_clicksign_notificacoes_v1'
-const KEY_SNAP = 'emerdog_clicksign_notif_snapshot_v1'
+const KEY_NOTIF_PREFIX = 'emerdog_clicksign_notificacoes_v2:'
+const KEY_SNAP_PREFIX = 'emerdog_clicksign_notif_snapshot_v2:'
+/** Legado (pré per-user) — lido só para migração / limpeza. */
+const KEY_NOTIF_LEGACY = 'emerdog_clicksign_notificacoes_v1'
+const KEY_SNAP_LEGACY = 'emerdog_clicksign_notif_snapshot_v1'
 const MAX_NOTIF = 80
+const MAX_WEBHOOK_FETCH = 120
 
-export function carregarNotificacoes() {
+let uidCache = { id: null, at: 0 }
+
+async function uidAtual() {
+    const agora = Date.now()
+    if (uidCache.id && agora - uidCache.at < 30_000) return uidCache.id
+    const { data } = await supabase.auth.getUser()
+    const id = data?.user?.id || null
+    uidCache = { id, at: agora }
+    return id
+}
+
+function chaveNotif(uid) {
+    return `${KEY_NOTIF_PREFIX}${uid || 'anon'}`
+}
+
+function chaveSnap(uid) {
+    return `${KEY_SNAP_PREFIX}${uid || 'anon'}`
+}
+
+export function carregarNotificacoes(uid = null) {
     try {
-        const raw = localStorage.getItem(KEY_NOTIF)
+        const raw = uid
+            ? localStorage.getItem(chaveNotif(uid))
+            : localStorage.getItem(KEY_NOTIF_LEGACY)
         const arr = raw ? JSON.parse(raw) : []
         return Array.isArray(arr) ? arr : []
+    } catch {
+        return []
+    }
+}
+
+async function carregarNotificacoesDoUtilizador() {
+    const uid = await uidAtual()
+    if (!uid) return carregarNotificacoes(null)
+    try {
+        const raw = localStorage.getItem(chaveNotif(uid))
+        if (raw) {
+            const arr = JSON.parse(raw)
+            return Array.isArray(arr) ? arr : []
+        }
+        // Migração one-shot do legado partilhado → chave do user
+        const legado = localStorage.getItem(KEY_NOTIF_LEGACY)
+        if (legado) {
+            localStorage.setItem(chaveNotif(uid), legado)
+            localStorage.removeItem(KEY_NOTIF_LEGACY)
+            const arr = JSON.parse(legado)
+            return Array.isArray(arr) ? arr : []
+        }
+        return []
     } catch {
         return []
     }
@@ -27,43 +75,92 @@ function emitirMudancaNotificacoes() {
     window.dispatchEvent(new CustomEvent('emerdog-clicksign-notif-change'))
 }
 
-export function gravarNotificacoes(lista) {
+export function gravarNotificacoes(lista, uid = null) {
     const arr = Array.isArray(lista) ? lista.slice(0, MAX_NOTIF) : []
-    localStorage.setItem(KEY_NOTIF, JSON.stringify(arr))
+    if (uid) {
+        localStorage.setItem(chaveNotif(uid), JSON.stringify(arr))
+    } else {
+        localStorage.setItem(KEY_NOTIF_LEGACY, JSON.stringify(arr))
+    }
+    emitirMudancaNotificacoes()
+    return arr
+}
+
+async function gravarNotificacoesDoUtilizador(lista) {
+    const uid = await uidAtual()
+    if (!uid) return gravarNotificacoes(lista, null)
+    const arr = Array.isArray(lista) ? lista.slice(0, MAX_NOTIF) : []
+    localStorage.setItem(chaveNotif(uid), JSON.stringify(arr))
     emitirMudancaNotificacoes()
     return arr
 }
 
 export function limparNotificacoes() {
-    return gravarNotificacoes([])
+    void uidAtual().then((uid) => {
+        if (uid) localStorage.setItem(chaveNotif(uid), '[]')
+        else localStorage.setItem(KEY_NOTIF_LEGACY, '[]')
+        emitirMudancaNotificacoes()
+    })
+    return []
 }
 
 export function limparSnapshotNotificacoes() {
-    try {
-        localStorage.removeItem(KEY_SNAP)
-    } catch {
-        /* ignore */
-    }
+    void (async () => {
+        try {
+            const uid = await uidAtual()
+            if (uid) localStorage.removeItem(chaveSnap(uid))
+            localStorage.removeItem(KEY_SNAP_LEGACY)
+        } catch {
+            /* ignore */
+        }
+    })()
 }
 
-/** Marca como lidas as notificações do webhook no Supabase (sininho). */
-export async function marcarTodasNotificacoesWebhookComoLidas() {
+/**
+ * Marca dismissals só para o utilizador atual (não apaga o evento partilhado).
+ * @returns {Promise<boolean>}
+ */
+export async function marcarNotificacoesWebhookDismissedParaMim() {
     try {
-        const { error } = await supabase
+        const uid = await uidAtual()
+        if (!uid) return false
+        const { data: rows, error } = await supabase
             .from('clicksign_notificacoes_webhook')
-            .update({ lido: true })
-            .eq('lido', false)
-        return !error
+            .select('id')
+            .order('criado_em', { ascending: false })
+            .limit(MAX_WEBHOOK_FETCH)
+        if (error || !rows?.length) return !error
+        const payload = rows.map((r) => ({
+            user_id: uid,
+            notificacao_id: r.id,
+            dismissed_at: new Date().toISOString(),
+        }))
+        const { error: upErr } = await supabase
+            .from('clicksign_notificacoes_user_dismissed')
+            .upsert(payload, { onConflict: 'user_id,notificacao_id' })
+        return !upErr
     } catch {
         return false
     }
 }
 
-/** Limpa localStorage + snapshot de polling + webhook não lidas. */
+/** @deprecated Use marcarNotificacoesWebhookDismissedParaMim — não marcar lido global. */
+export async function marcarTodasNotificacoesWebhookComoLidas() {
+    return marcarNotificacoesWebhookDismissedParaMim()
+}
+
+/**
+ * Limpa sininho só para o utilizador atual.
+ * Mantém o snapshot de polling para não «repescarem» eventos antigos no próximo sync.
+ */
 export async function limparTodasNotificacoesContratos() {
-    limparNotificacoes()
-    limparSnapshotNotificacoes()
-    await marcarTodasNotificacoesWebhookComoLidas()
+    const uid = await uidAtual()
+    if (uid) {
+        localStorage.setItem(chaveNotif(uid), '[]')
+    } else {
+        localStorage.setItem(KEY_NOTIF_LEGACY, '[]')
+    }
+    await marcarNotificacoesWebhookDismissedParaMim()
     emitirMudancaNotificacoes()
 }
 
@@ -79,22 +176,41 @@ function notificacaoJaExiste(lista, item, janelaMs = 7 * 24 * 60 * 60 * 1000) {
 }
 
 export function listarNotificacoesRecentes(limite = 8) {
-    return carregarNotificacoes().slice(0, Math.max(1, limite))
+    // Sync API: preferir versão async via listarNotificacoesContratosRecentes
+    return carregarNotificacoes(null).slice(0, Math.max(1, limite))
 }
 
 export function contarNotificacoesArmazenadas() {
-    return carregarNotificacoes().length
+    return carregarNotificacoes(null).length
 }
 
-/** Notificações persistidas pelo webhook (Supabase). Falha silenciosa se a tabela não existir. */
+async function idsDismissedDoUtilizador() {
+    try {
+        const uid = await uidAtual()
+        if (!uid) return new Set()
+        const { data, error } = await supabase
+            .from('clicksign_notificacoes_user_dismissed')
+            .select('notificacao_id')
+            .eq('user_id', uid)
+            .limit(2000)
+        if (error) return new Set()
+        return new Set((data || []).map((r) => String(r.notificacao_id)))
+    } catch {
+        return new Set()
+    }
+}
+
+/** Notificações do webhook ainda não dismissed pelo utilizador atual. */
 export async function contarNotificacoesWebhookNaoLidas() {
     try {
-        const { count, error } = await supabase
+        const dismissed = await idsDismissedDoUtilizador()
+        const { data, error } = await supabase
             .from('clicksign_notificacoes_webhook')
-            .select('id', { count: 'exact', head: true })
-            .eq('lido', false)
+            .select('id')
+            .order('criado_em', { ascending: false })
+            .limit(MAX_WEBHOOK_FETCH)
         if (error) return 0
-        return count || 0
+        return (data || []).filter((r) => !dismissed.has(String(r.id))).length
     } catch {
         return 0
     }
@@ -102,22 +218,25 @@ export async function contarNotificacoesWebhookNaoLidas() {
 
 export async function listarNotificacoesWebhookRecentes(limite = 8) {
     try {
+        const dismissed = await idsDismissedDoUtilizador()
         const { data, error } = await supabase
             .from('clicksign_notificacoes_webhook')
             .select('id, texto, envelope_id, envelope_name, criado_em, evento')
-            .eq('lido', false)
             .order('criado_em', { ascending: false })
-            .limit(Math.max(1, limite))
+            .limit(Math.max(MAX_WEBHOOK_FETCH, limite))
         if (error) return []
-        return (data || []).map((row) => ({
-            id: `wh-${row.id}`,
-            at: row.criado_em,
-            texto: row.texto,
-            envelopeName: row.envelope_name || '',
-            envelopeId: row.envelope_id || '',
-            tipo: row.evento,
-            webhookRowId: row.id,
-        }))
+        return (data || [])
+            .filter((row) => !dismissed.has(String(row.id)))
+            .slice(0, Math.max(1, limite))
+            .map((row) => ({
+                id: `wh-${row.id}`,
+                at: row.criado_em,
+                texto: row.texto,
+                envelopeName: row.envelope_name || '',
+                envelopeId: row.envelope_id || '',
+                tipo: row.evento,
+                webhookRowId: row.id,
+            }))
     } catch {
         return []
     }
@@ -144,7 +263,7 @@ function chaveNotificacaoContrato(n) {
 /** Contagem única (local + webhook sem duplicar o mesmo evento). */
 export async function contarNotificacoesContratosTotal() {
     const [local, webhook] = await Promise.all([
-        Promise.resolve(carregarNotificacoes()),
+        carregarNotificacoesDoUtilizador(),
         listarNotificacoesWebhookRecentes(80),
     ])
     const vistos = new Set()
@@ -161,7 +280,7 @@ export async function contarNotificacoesContratosTotal() {
 
 export async function listarNotificacoesContratosRecentes(limite = 8) {
     const [local, webhook] = await Promise.all([
-        Promise.resolve(listarNotificacoesRecentes(limite)),
+        carregarNotificacoesDoUtilizador().then((arr) => arr.slice(0, Math.max(1, limite))),
         listarNotificacoesWebhookRecentes(limite),
     ])
     return mesclarListasNotificacoesContratos(local, webhook, limite)
@@ -245,27 +364,30 @@ export function agruparNotificacoesPorEnvelope(lista) {
 /** Notificações de contratos já agrupadas por envelope (para a Home). */
 export async function listarEnvelopesComAtualizacoes(limite = 40) {
     const [local, webhook] = await Promise.all([
-        Promise.resolve(carregarNotificacoes()),
+        carregarNotificacoesDoUtilizador(),
         listarNotificacoesWebhookRecentes(limite),
     ])
     const mescladas = mesclarListasNotificacoesContratos(local, webhook, limite)
     return agruparNotificacoesPorEnvelope(mescladas)
 }
 
-/** Chave usada no localStorage (para evento storage entre abas). */
-export const CLICKSIGN_NOTIF_STORAGE_KEY = KEY_NOTIF
+/** Chave usada no localStorage (para evento storage entre abas) — prefixo v2. */
+export const CLICKSIGN_NOTIF_STORAGE_KEY = KEY_NOTIF_PREFIX
 
-function carregarSnapshot() {
+function carregarSnapshotSync(uid) {
     try {
-        const raw = localStorage.getItem(KEY_SNAP)
+        const raw =
+            (uid && localStorage.getItem(chaveSnap(uid))) ||
+            localStorage.getItem(KEY_SNAP_LEGACY)
         return raw ? JSON.parse(raw) : { version: 1, seeded: false, envelopes: {} }
     } catch {
         return { version: 1, seeded: false, envelopes: {} }
     }
 }
 
-function gravarSnapshot(snap) {
-    localStorage.setItem(KEY_SNAP, JSON.stringify(snap))
+function gravarSnapshotSync(snap, uid) {
+    if (uid) localStorage.setItem(chaveSnap(uid), JSON.stringify(snap))
+    else localStorage.setItem(KEY_SNAP_LEGACY, JSON.stringify(snap))
 }
 
 function novoId() {
@@ -284,8 +406,11 @@ function nomeSignatarioPorId(signersJson, signerId) {
  * @param {(method: string, path: string, body?: object) => Promise<{ ok: boolean, data?: object }>} clickReq
  */
 export async function sincronizarNotificacoesClicksign(clickReq) {
-    const snap = carregarSnapshot()
-    const notifs = carregarNotificacoes()
+    const uid = await uidAtual()
+    const snap = carregarSnapshotSync(uid)
+    const notifs = uid
+        ? await carregarNotificacoesDoUtilizador()
+        : carregarNotificacoes(null)
     const novas = []
     const nextSnap = { version: 1, seeded: true, envelopes: { ...snap.envelopes } }
 
@@ -409,9 +534,10 @@ export async function sincronizarNotificacoesClicksign(clickReq) {
         }
     }
 
-    gravarSnapshot(nextSnap)
+    gravarSnapshotSync(nextSnap, uid)
     if (novas.length) {
-        gravarNotificacoes([...novas, ...notifs])
+        await gravarNotificacoesDoUtilizador([...novas, ...notifs])
     }
-    return { novas: novas.length, lista: carregarNotificacoes() }
+    const lista = await carregarNotificacoesDoUtilizador()
+    return { novas: novas.length, lista }
 }
