@@ -26,7 +26,9 @@ import { UFS_BRASIL, buscarMunicipiosPorUf } from "../../../lib/ibgeLocalidades.
 
 import {
   buscarCidadeIdsFiltroPlanoCredenciados,
-  filtrarCidadesTabelaPorIds,
+  carregarVinculosMunicipios,
+  listarOpcoesMunicipioImpressaoPlanos,
+  resolverCidadeTabelaId,
   ufsDisponiveisFiltroCredenciamento,
 } from "../../../lib/cidadesSupertabelaVinculos.js";
 
@@ -51,13 +53,6 @@ const normalizarCod = (cod) =>
   String(cod || "")
     .trim()
     .toUpperCase();
-
-const normalizarNomeCidade = (texto) =>
-  String(texto || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
 
 const formatarValorOrcamento = (valor) => {
   if (valor == null || Number.isNaN(Number(valor))) return "—";
@@ -126,6 +121,8 @@ const ComprasOrcamento = () => {
 
   const [cidades, setCidades] = useState([]);
 
+  const [vinculosMunicipios, setVinculosMunicipios] = useState([]);
+
   const [idsFiltroPlanoCidade, setIdsFiltroPlanoCidade] = useState(null);
 
   const [buscaProc, setBuscaProc] = useState("");
@@ -134,9 +131,14 @@ const ComprasOrcamento = () => {
 
   const [ufComprador, setUfComprador] = useState("");
 
-  const [nomesMunicipiosUf, setNomesMunicipiosUf] = useState(null);
+  const [municipiosIbgeUf, setMunicipiosIbgeUf] = useState([]);
+
+  const [loadingMunicipiosUf, setLoadingMunicipiosUf] = useState(false);
 
   const [cidadeCompradorId, setCidadeCompradorId] = useState("");
+
+  /** Município selecionado (rótulo IBGE/malha); o id da tabela-mestre fica em cidadeCompradorId. */
+  const [cidadeCompradorMunicipio, setCidadeCompradorMunicipio] = useState("");
 
   const [planoCompradorId, setPlanoCompradorId] = useState("");
 
@@ -173,19 +175,22 @@ const ComprasOrcamento = () => {
 
   useEffect(() => {
     if (!ufComprador) {
-      setNomesMunicipiosUf(null);
+      setMunicipiosIbgeUf([]);
+      setLoadingMunicipiosUf(false);
       return undefined;
     }
     let cancelado = false;
+    setLoadingMunicipiosUf(true);
     buscarMunicipiosPorUf(ufComprador)
       .then((lista) => {
         if (cancelado) return;
-        setNomesMunicipiosUf(
-          new Set(lista.map((m) => normalizarNomeCidade(m.nome))),
-        );
+        setMunicipiosIbgeUf(lista || []);
       })
       .catch(() => {
-        if (!cancelado) setNomesMunicipiosUf(new Set());
+        if (!cancelado) setMunicipiosIbgeUf([]);
+      })
+      .finally(() => {
+        if (!cancelado) setLoadingMunicipiosUf(false);
       });
     return () => {
       cancelado = true;
@@ -197,15 +202,26 @@ const ComprasOrcamento = () => {
     return UFS_BRASIL.filter((sigla) => set.has(sigla));
   }, [cidades, idsFiltroPlanoCidade]);
 
-  const cidadesFiltradasUf = useMemo(() => {
-    if (!ufComprador || !nomesMunicipiosUf) return [];
-    const naUf = filtrarCidadesTabelaPorIds(cidades, idsFiltroPlanoCidade).filter(
-      (c) => String(c.uf || "").trim().toUpperCase() === ufComprador,
-    );
-    return naUf.filter((c) =>
-      nomesMunicipiosUf.has(normalizarNomeCidade(c.nome)),
-    );
-  }, [cidades, ufComprador, nomesMunicipiosUf, idsFiltroPlanoCidade]);
+  const opcoesMunicipioComprador = useMemo(() => {
+    if (!ufComprador || idsFiltroPlanoCidade == null) return [];
+    return listarOpcoesMunicipioImpressaoPlanos(
+      cidades,
+      vinculosMunicipios,
+      municipiosIbgeUf,
+      ufComprador,
+      idsFiltroPlanoCidade,
+    ).map((o) => ({
+      id: o.municipioNome,
+      nome: o.municipioNome,
+      cidadeTabelaId: o.cidadeTabelaId,
+    }));
+  }, [
+    cidades,
+    vinculosMunicipios,
+    municipiosIbgeUf,
+    ufComprador,
+    idsFiltroPlanoCidade,
+  ]);
 
   useEffect(() => {
     let cancelado = false;
@@ -228,12 +244,40 @@ const ComprasOrcamento = () => {
   }, [planoCompradorId]);
 
   useEffect(() => {
-    if (!cidadeCompradorId) return;
-    const ok = cidadesFiltradasUf.some(
-      (c) => String(c.id) === String(cidadeCompradorId),
+    if (!cidadeCompradorMunicipio) {
+      if (cidadeCompradorId) setCidadeCompradorId("");
+      return;
+    }
+    const ok = opcoesMunicipioComprador.some(
+      (o) => o.nome === cidadeCompradorMunicipio,
     );
-    if (!ok) setCidadeCompradorId("");
-  }, [cidadeCompradorId, cidadesFiltradasUf]);
+    if (!ok) {
+      setCidadeCompradorMunicipio("");
+      setCidadeCompradorId("");
+      return;
+    }
+    const viaOpt = opcoesMunicipioComprador.find(
+      (o) => o.nome === cidadeCompradorMunicipio,
+    );
+    const cid =
+      viaOpt?.cidadeTabelaId ||
+      resolverCidadeTabelaId({
+        uf: ufComprador,
+        municipioNome: cidadeCompradorMunicipio,
+        vinculos: vinculosMunicipios,
+        cidades,
+      });
+    if (cid && String(cid) !== String(cidadeCompradorId)) {
+      setCidadeCompradorId(String(cid));
+    }
+  }, [
+    cidadeCompradorMunicipio,
+    cidadeCompradorId,
+    opcoesMunicipioComprador,
+    ufComprador,
+    vinculosMunicipios,
+    cidades,
+  ]);
 
   const sugestoesProcedimentos = useMemo(() => {
     const termo = normalizarTexto(buscaProc);
@@ -320,6 +364,13 @@ const ComprasOrcamento = () => {
 
       if (cidResp.error) mensagens.push(`Cidades: ${cidResp.error.message}`);
       else setCidades(cidResp.data || []);
+
+      try {
+        const vinculos = await carregarVinculosMunicipios(supabase);
+        setVinculosMunicipios(vinculos || []);
+      } catch {
+        setVinculosMunicipios([]);
+      }
 
       if (mensagens.length) setErro(mensagens.join(" | "));
       else setErro("");
@@ -659,12 +710,7 @@ const ComprasOrcamento = () => {
 
   const ctxMsg = mensagemContexto();
 
-  const cidadeCompradorNome = useMemo(() => {
-    const c = cidades.find(
-      (item) => String(item.id) === String(cidadeCompradorId),
-    );
-    return c?.nome || "";
-  }, [cidades, cidadeCompradorId]);
+  const cidadeCompradorNome = cidadeCompradorMunicipio;
 
   const codigosOrcamento = useMemo(
     () =>
@@ -725,16 +771,15 @@ const ComprasOrcamento = () => {
 
   return (
     <div className="el-legacy-wrap compras_orc">
-      <PageHeader
-        kicker="Compras"
-        title="Orçamento"
-        description="Monte orçamentos com valores de compra, diferença de plano e quem realiza."
-      />
-
       <header
         className={`compras_orc_header ${headerCompacto ? "is-compact" : ""}`}
       >
-        
+        <PageHeader
+          className="compras_orc_page_header"
+          kicker="Compras"
+          title="Orçamento"
+          description="Monte orçamentos com valores de compra, diferença de plano e quem realiza."
+        />
 
         <div className="compras_orc_filtros_flutuantes">
           <div className="compras_orc_filtros_inner">
@@ -781,6 +826,7 @@ const ComprasOrcamento = () => {
                 placeholder="Selecione"
                 onChange={(u) => {
                   setUfComprador(u);
+                  setCidadeCompradorMunicipio("");
                   setCidadeCompradorId("");
                 }}
               />
@@ -790,16 +836,38 @@ const ComprasOrcamento = () => {
               <span className="compras_orc_filtro_label">Cidade</span>
 
               <SelectMunicipioBusca
-                value={cidadeCompradorId == null ? "" : String(cidadeCompradorId)}
-                valueKey="id"
-                options={cidadesFiltradasUf}
-                disabled={!ufComprador || !nomesMunicipiosUf}
-                loading={Boolean(ufComprador && !nomesMunicipiosUf)}
+                value={cidadeCompradorMunicipio}
+                valueKey="nome"
+                options={opcoesMunicipioComprador}
+                disabled={!ufComprador || idsFiltroPlanoCidade == null}
+                loading={
+                  Boolean(ufComprador) &&
+                  (loadingMunicipiosUf || idsFiltroPlanoCidade == null)
+                }
                 inputClassName="compras_orc_select"
                 placeholder={
                   !ufComprador ? "Selecione a UF" : "Buscar cidade…"
                 }
-                onChange={setCidadeCompradorId}
+                onChange={(nome) => {
+                  const n = String(nome || "").trim();
+                  setCidadeCompradorMunicipio(n);
+                  if (!n) {
+                    setCidadeCompradorId("");
+                    return;
+                  }
+                  const viaOpt = opcoesMunicipioComprador.find(
+                    (o) => o.nome === n,
+                  );
+                  const cid =
+                    viaOpt?.cidadeTabelaId ||
+                    resolverCidadeTabelaId({
+                      uf: ufComprador,
+                      municipioNome: n,
+                      vinculos: vinculosMunicipios,
+                      cidades,
+                    });
+                  setCidadeCompradorId(cid ? String(cid) : "");
+                }}
               />
             </label>
 

@@ -41,8 +41,8 @@ export function carregarNotificacoes(uid = null) {
     }
 }
 
-async function carregarNotificacoesDoUtilizador() {
-    const uid = await uidAtual()
+async function carregarNotificacoesDoUtilizador(uidCapturado = undefined) {
+    const uid = uidCapturado !== undefined ? uidCapturado : await uidAtual()
     if (!uid) return carregarNotificacoes(null)
     try {
         const raw = localStorage.getItem(chaveNotif(uid))
@@ -80,8 +80,8 @@ export function gravarNotificacoes(lista, uid = null) {
     return arr
 }
 
-async function gravarNotificacoesDoUtilizador(lista) {
-    const uid = await uidAtual()
+async function gravarNotificacoesDoUtilizador(lista, uidCapturado = undefined) {
+    const uid = uidCapturado !== undefined ? uidCapturado : await uidAtual()
     if (!uid) return gravarNotificacoes(lista, null)
     const arr = Array.isArray(lista) ? lista.slice(0, MAX_NOTIF) : []
     localStorage.setItem(chaveNotif(uid), JSON.stringify(arr))
@@ -403,7 +403,7 @@ export async function sincronizarNotificacoesClicksign(clickReq) {
     const uid = await uidAtual()
     const snap = carregarSnapshotSync(uid)
     const notifs = uid
-        ? await carregarNotificacoesDoUtilizador()
+        ? await carregarNotificacoesDoUtilizador(uid)
         : carregarNotificacoes(null)
     const novas = []
     const nextSnap = { version: 1, seeded: true, envelopes: { ...snap.envelopes } }
@@ -530,8 +530,10 @@ export async function sincronizarNotificacoesClicksign(clickReq) {
 
     gravarSnapshotSync(nextSnap, uid)
     if (novas.length) {
-        await gravarNotificacoesDoUtilizador([...novas, ...notifs])
+        await gravarNotificacoesDoUtilizador([...novas, ...notifs], uid)
     }
-    const lista = await carregarNotificacoesDoUtilizador()
+    const lista = uid
+        ? await carregarNotificacoesDoUtilizador(uid)
+        : carregarNotificacoes(null)
     return { novas: novas.length, lista }
 }

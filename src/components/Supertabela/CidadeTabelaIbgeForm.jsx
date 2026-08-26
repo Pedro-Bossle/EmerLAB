@@ -227,9 +227,16 @@ export default function CidadeTabelaIbgeForm({
                                 <SelectMunicipioBusca
                                     value={buscaEnglobado}
                                     options={opcoesEnglobados}
-                                    disabled={disabled}
+                                    disabled={disabled || !uf || loadingMun}
+                                    loading={loadingMun}
                                     inputClassName="cidade_tabela_field cidade_tabela_field_search"
-                                    placeholder="Buscar município para adicionar…"
+                                    placeholder={
+                                        !uf
+                                            ? 'Selecione a UF'
+                                            : loadingMun
+                                              ? 'A carregar municípios…'
+                                              : 'Buscar município para adicionar…'
+                                    }
                                     searchPlaceholder="Digite para buscar…"
                                     aria-label="Buscar municípios para vincular"
                                     onChange={(nome) => {

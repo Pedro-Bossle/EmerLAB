@@ -403,7 +403,11 @@ const CredenciamentoCadastroForm = () => {
     }, [carregarBase])
 
     useEffect(() => {
-        if (!secaoMultiplasCidades || !ufAtende) return
+        if (!secaoMultiplasCidades || !ufAtende) {
+            setMunicipiosUf([])
+            setCarregandoMunicipios(false)
+            return
+        }
         let cancel = false
         setCarregandoMunicipios(true)
         buscarMunicipiosPorUf(ufAtende)
@@ -1354,9 +1358,9 @@ const CredenciamentoCadastroForm = () => {
                                         value={municipioIbgeId == null ? '' : String(municipioIbgeId)}
                                         valueKey="id"
                                         options={municipiosUf}
-                                        disabled={somenteLeitura || carregandoMunicipios}
+                                        disabled={somenteLeitura || !ufAtende || carregandoMunicipios}
                                         loading={carregandoMunicipios}
-                                        placeholder="Buscar cidade…"
+                                        placeholder={!ufAtende ? 'Selecione a UF' : 'Buscar cidade…'}
                                         onChange={setMunicipioIbgeId}
                                     />
                                 </label>
