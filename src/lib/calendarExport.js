@@ -165,34 +165,36 @@ export async function saveOrShareIcs(filename, icsContent) {
     return 'downloaded'
 }
 
-/** Afazeres Home → eventos no prazo (dia inteiro ou com horário). */
+/** Afazeres Home → eventos no prazo (só com data de prazo). */
 export function tarefasParaIcsEvents(tarefas) {
-    const hoje = new Date()
-    hoje.setHours(12, 0, 0, 0)
     return (tarefas || [])
-        .filter((t) => t && t.status !== 'cancelada' && t.status !== 'concluida')
+        .filter(
+            (t) =>
+                t &&
+                t.status !== 'cancelada' &&
+                t.status !== 'concluida' &&
+                String(t.prazo || '').trim().slice(0, 10),
+        )
         .map((t) => {
-            let start = hoje
+            let start = new Date()
             let allDay = true
-            if (t.prazo) {
-                const dataStr = String(t.prazo).slice(0, 10)
-                const hora = String(t.horario || '').trim()
-                if (/^\d{2}:\d{2}/.test(hora)) {
-                    const d = new Date(`${dataStr}T${hora.slice(0, 5)}:00`)
-                    if (!Number.isNaN(d.getTime())) {
-                        start = d
-                        allDay = false
-                    }
-                } else {
-                    const d = new Date(`${dataStr}T12:00:00`)
-                    if (!Number.isNaN(d.getTime())) start = d
+            const dataStr = String(t.prazo).slice(0, 10)
+            const hora = String(t.horario || '').trim()
+            if (/^\d{2}:\d{2}/.test(hora)) {
+                const d = new Date(`${dataStr}T${hora.slice(0, 5)}:00`)
+                if (!Number.isNaN(d.getTime())) {
+                    start = d
+                    allDay = false
                 }
+            } else {
+                const d = new Date(`${dataStr}T12:00:00`)
+                if (!Number.isNaN(d.getTime())) start = d
             }
             const partes = [
                 t.observacoes ? String(t.observacoes).trim() : '',
                 t.atribuidoNome ? `Atribuído: ${t.atribuidoNome}` : '',
                 t.status ? `Status: ${t.status}` : '',
-                !t.prazo ? 'Sem prazo definido (data = hoje na exportação).' : '',
+                `Prazo: ${dataStr}${hora ? ` ${hora.slice(0, 5)}` : ''}`,
             ].filter(Boolean)
             return {
                 uid: `emerlab-tarefa-${t.id}@emerlab`,
@@ -224,7 +226,7 @@ export function outlookEventosParaIcsEvents(eventos) {
 
 export async function exportarTarefasIcs(tarefas, { filename } = {}) {
     const events = tarefasParaIcsEvents(tarefas)
-    if (!events.length) throw new Error('Nenhum afazer para exportar.')
+    if (!events.length) throw new Error('Nenhum afazer com data de prazo para exportar.')
     const ics = buildIcsCalendar(events, { calendarName: 'EmerLAB Afazeres' })
     const name = filename || `emerlab-afazeres-${formatIcsDateLocal(new Date())}.ics`
     return saveOrShareIcs(name, ics)

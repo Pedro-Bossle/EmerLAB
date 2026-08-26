@@ -367,44 +367,46 @@ export async function criarEventoOutlook(accessToken, opts = {}) {
 }
 
 /**
- * Cria eventos Outlook a partir de afazeres da Home
+ * Cria eventos Outlook a partir de afazeres da Home **com data de prazo**.
  * (dia inteiro, ou com horário se a tarefa tiver horário).
  * @returns {{ criados: number, falhas: Array<{ titulo: string, erro: string }> }}
  */
 export async function adicionarTarefasAoOutlook(accessToken, tarefas = []) {
     if (!accessToken) throw new Error('Token Microsoft ausente.')
     const lista = (tarefas || []).filter(
-        (t) => t && t.status !== 'cancelada' && t.status !== 'concluida',
+        (t) =>
+            t &&
+            t.status !== 'cancelada' &&
+            t.status !== 'concluida' &&
+            String(t.prazo || '').trim().slice(0, 10),
     )
-    if (!lista.length) throw new Error('Nenhum afazer para adicionar ao calendário.')
-
-    const hoje = new Date()
-    hoje.setHours(12, 0, 0, 0)
+    if (!lista.length) {
+        throw new Error('Nenhum afazer com data de prazo para adicionar ao calendário.')
+    }
 
     let criados = 0
     const falhas = []
 
     for (const t of lista) {
-        let start = new Date(hoje)
+        let start = new Date()
         let isAllDay = true
-        if (t.prazo) {
-            const dataStr = String(t.prazo).slice(0, 10)
-            const hora = String(t.horario || '').trim()
-            if (/^\d{2}:\d{2}/.test(hora)) {
-                const d = new Date(`${dataStr}T${hora.slice(0, 5)}:00`)
-                if (!Number.isNaN(d.getTime())) {
-                    start = d
-                    isAllDay = false
-                }
-            } else {
-                const d = new Date(`${dataStr}T12:00:00`)
-                if (!Number.isNaN(d.getTime())) start = d
+        const dataStr = String(t.prazo).slice(0, 10)
+        const hora = String(t.horario || '').trim()
+        if (/^\d{2}:\d{2}/.test(hora)) {
+            const d = new Date(`${dataStr}T${hora.slice(0, 5)}:00`)
+            if (!Number.isNaN(d.getTime())) {
+                start = d
+                isAllDay = false
             }
+        } else {
+            const d = new Date(`${dataStr}T12:00:00`)
+            if (!Number.isNaN(d.getTime())) start = d
         }
         const partes = [
             t.observacoes ? escapeHtmlBasico(String(t.observacoes).trim()) : '',
             t.atribuidoNome ? `Atribuído: ${escapeHtmlBasico(t.atribuidoNome)}` : '',
             t.status ? `Status: ${escapeHtmlBasico(t.status)}` : '',
+            `Prazo: ${escapeHtmlBasico(dataStr)}${hora ? ` ${escapeHtmlBasico(hora.slice(0, 5))}` : ''}`,
             'Origem: EmerLAB Afazeres',
         ].filter(Boolean)
 

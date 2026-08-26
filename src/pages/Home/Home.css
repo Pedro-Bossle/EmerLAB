@@ -302,6 +302,33 @@ body.dark-mode .home_dash_card_head h2 {
   color: var(--home-muted);
 }
 
+.home_dash_tarefa_campo--check {
+  grid-template-rows: auto;
+  align-self: end;
+}
+
+.home_dash_tarefa_check_linha {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--home-ink, #1f3a4f);
+  cursor: pointer;
+  min-height: 2.45rem;
+}
+
+.home_dash_tarefa_check_linha input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #0969da;
+  flex-shrink: 0;
+}
+
+body.dark-mode .home_dash_tarefa_check_linha {
+  color: #e8f1f8;
+}
+
 .home_dash_tarefa_campo--titulo {
   align-self: stretch;
 }

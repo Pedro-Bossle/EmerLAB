@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import Footer from '../../components/Footer/Footer'
 import OutlookAgendaCard from '../../components/Outlook/OutlookAgendaCard'
 import AfazeresCalendarioBtn from '../../components/Outlook/AfazeresCalendarioBtn'
+import OutlookTarefaSyncBridge from '../../components/Outlook/OutlookTarefaSyncBridge'
+import { useMsalReady } from '../../components/Outlook/MsalAppProvider'
+import { isMsalConfigured } from '../../lib/msal/msalConfig'
 import HomeNotifHelp from './HomeNotifHelp'
 import HomeTarefaChat from './HomeTarefaChat'
 import {
@@ -112,7 +115,14 @@ const Home = () => {
         horario: '',
         prioridade: 'normal',
         atribuidoA: '',
+        syncOutlook: true,
     })
+    const syncOutlookFnRef = useRef(null)
+    const msalReady = useMsalReady()
+    const podeSyncOutlook = isMsalConfigured() && msalReady
+    const bindSyncOutlook = useCallback((fn) => {
+        syncOutlookFnRef.current = fn
+    }, [])
     const [anexosPendentes, setAnexosPendentes] = useState([])
     const [salvandoTarefa, setSalvandoTarefa] = useState(false)
     const [anexoBusyId, setAnexoBusyId] = useState(null)
@@ -277,6 +287,7 @@ const Home = () => {
             horario: '',
             prioridade: 'normal',
             atribuidoA: userId || f.atribuidoA,
+            syncOutlook: true,
         }))
     }
 
@@ -292,6 +303,7 @@ const Home = () => {
             horario: '',
             prioridade: 'normal',
             atribuidoA: userId || f.atribuidoA,
+            syncOutlook: true,
         }))
         setModalTarefaAberto(true)
     }
@@ -307,6 +319,7 @@ const Home = () => {
             horario: tarefa.horario || '',
             prioridade: tarefa.prioridade || 'normal',
             atribuidoA: tarefa.atribuidoA || userId,
+            syncOutlook: false,
         })
         setModalTarefaAberto(true)
     }
@@ -499,7 +512,8 @@ const Home = () => {
                 (t) =>
                     t.atribuidoA === userId &&
                     t.status !== 'concluida' &&
-                    t.status !== 'cancelada',
+                    t.status !== 'cancelada' &&
+                    String(t.prazo || '').trim(),
             ),
         [tarefas, userId],
     )
@@ -795,14 +809,19 @@ const Home = () => {
         setSalvandoTarefa(true)
         setErro('')
         try {
+            const prazoSalvo = formTarefa.prazo || null
+            const horarioSalvo = prazoSalvo ? formTarefa.horario || null : null
+            const payloadBase = {
+                titulo: formTarefa.titulo,
+                observacoes: formTarefa.observacoes,
+                prazo: prazoSalvo,
+                horario: horarioSalvo,
+                prioridade: formTarefa.prioridade,
+                atribuidoA: formTarefa.atribuidoA || userId,
+            }
             if (tarefaEditando?.id) {
                 await atualizarTarefaHome(tarefaEditando.id, {
-                    titulo: formTarefa.titulo,
-                    observacoes: formTarefa.observacoes,
-                    prazo: formTarefa.prazo || null,
-                    horario: formTarefa.prazo ? formTarefa.horario || null : null,
-                    prioridade: formTarefa.prioridade,
-                    atribuidoA: formTarefa.atribuidoA || userId,
+                    ...payloadBase,
                     ...(tarefaEditando.status === 'concluida'
                         ? { resolucao: formTarefa.resolucao || '' }
                         : {}),
@@ -812,15 +831,44 @@ const Home = () => {
                 }
             } else {
                 await criarTarefaHome({
-                    titulo: formTarefa.titulo,
-                    observacoes: formTarefa.observacoes,
-                    prazo: formTarefa.prazo || null,
-                    horario: formTarefa.prazo ? formTarefa.horario || null : null,
-                    prioridade: formTarefa.prioridade,
-                    atribuidoA: formTarefa.atribuidoA || userId,
+                    ...payloadBase,
                     anexosFiles: anexosPendentes,
                 })
             }
+
+            const querOutlook =
+                Boolean(prazoSalvo) &&
+                Boolean(formTarefa.syncOutlook) &&
+                typeof syncOutlookFnRef.current === 'function'
+            if (querOutlook) {
+                try {
+                    const atribuidoNome =
+                        usuarios.find((u) => u.id === (formTarefa.atribuidoA || userId))?.nome || ''
+                    const r = await syncOutlookFnRef.current({
+                        titulo: formTarefa.titulo,
+                        observacoes: formTarefa.observacoes,
+                        prazo: prazoSalvo,
+                        horario: horarioSalvo,
+                        prioridade: formTarefa.prioridade,
+                        status: tarefaEditando?.status || 'pendente',
+                        atribuidoNome,
+                    })
+                    if (r?.loginRedirect) {
+                        setAvisoTarefas('Tarefa salva. Conecte o Outlook para sincronizar o prazo.')
+                    } else if (r?.criados > 0) {
+                        setAvisoTarefas(
+                            r.criados === 1
+                                ? 'Prazo adicionado à agenda Outlook.'
+                                : `${r.criados} prazos adicionados à agenda Outlook.`,
+                        )
+                    }
+                } catch (outlookErr) {
+                    setAvisoTarefas(
+                        `Tarefa salva. Outlook: ${outlookErr?.message || String(outlookErr)}`,
+                    )
+                }
+            }
+
             fecharModalTarefa()
             const { tarefas: lista } = await listarTarefasHome({ userId })
             aplicarListaTarefas(lista)
@@ -933,6 +981,7 @@ const Home = () => {
 
     return (
         <div className={`el-page home_dash${temNotificacoes ? ' home_dash--tem-notif' : ''}`}>
+            {podeSyncOutlook ? <OutlookTarefaSyncBridge onBind={bindSyncOutlook} /> : null}
             <header className="home_dash_hero_wrap mb-4 border-b border-line/60 pb-3 text-center dark:border-white/10 sm:text-left xl:mb-6 xl:pb-5">
                 <p className="mb-1 text-[0.7rem] font-bold uppercase tracking-[0.12em] text-brand">Início</p>
                 <h1 className="font-sans text-[1.55rem] font-extrabold leading-tight tracking-tight text-[#123e59] dark:text-[#e8f1f8] md:text-[1.75rem] xl:text-[2.1rem]">
@@ -1847,6 +1896,10 @@ const Home = () => {
                                                         ...f,
                                                         prazo: e.target.value,
                                                         horario: e.target.value ? f.horario : '',
+                                                        syncOutlook:
+                                                            e.target.value && !tarefaEditando
+                                                                ? true
+                                                                : f.syncOutlook,
                                                     }))
                                                 }
                                             />
@@ -1872,6 +1925,23 @@ const Home = () => {
                                             />
                                         </label>
                                     </div>
+                                    {formTarefa.prazo && isMsalConfigured() ? (
+                                        <label className="home_dash_tarefa_campo home_dash_tarefa_campo--check">
+                                            <span className="home_dash_tarefa_check_linha">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={Boolean(formTarefa.syncOutlook)}
+                                                    onChange={(e) =>
+                                                        setFormTarefa((f) => ({
+                                                            ...f,
+                                                            syncOutlook: e.target.checked,
+                                                        }))
+                                                    }
+                                                />
+                                                Adicionar prazo à agenda Outlook
+                                            </span>
+                                        </label>
+                                    ) : null}
                                     <label className="home_dash_tarefa_campo">
                                         <span>Prioridade</span>
                                         <select
