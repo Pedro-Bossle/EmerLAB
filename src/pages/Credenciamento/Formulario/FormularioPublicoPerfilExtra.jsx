@@ -59,6 +59,11 @@ export default function FormularioPublicoPerfilExtra({
 
     useEffect(() => {
         if (!isVolante) return
+        if (!ufAtende) {
+            setMunicipiosUf([])
+            setCarregandoMunicipios(false)
+            return
+        }
         let cancel = false
         setCarregandoMunicipios(true)
         buscarMunicipiosPorUf(ufAtende)
@@ -177,10 +182,10 @@ export default function FormularioPublicoPerfilExtra({
                                 value={municipioIbgeId == null ? '' : String(municipioIbgeId)}
                                 valueKey="id"
                                 options={municipiosUf}
-                                disabled={carregandoMunicipios}
+                                disabled={!ufAtende || carregandoMunicipios}
                                 loading={carregandoMunicipios}
                                 inputClassName="fcred_select"
-                                placeholder="Buscar cidade…"
+                                placeholder={!ufAtende ? 'Selecione a UF' : 'Buscar cidade…'}
                                 onChange={setMunicipioIbgeId}
                             />
                         </label>

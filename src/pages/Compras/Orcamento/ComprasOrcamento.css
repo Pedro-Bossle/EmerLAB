@@ -30,7 +30,7 @@
 
     z-index: 30;
 
-    background: transparent;
+    background: #f3f6f9;
 
     padding: 8px 0 12px 0;
 
@@ -40,15 +40,57 @@
 
 
 
+.compras_orc_page_header {
+
+    margin: 0 auto 12px;
+
+    max-width: 1300px;
+
+    width: calc(100% - 1.5em);
+
+    box-sizing: border-box;
+
+    border-bottom: none;
+
+    padding-bottom: 0;
+
+}
+
+
+
 .compras_orc_header.is-compact {
 
     padding: 4px 0 8px 0;
 
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(243, 246, 249, 0.92);
 
     backdrop-filter: blur(6px);
 
     -webkit-backdrop-filter: blur(6px);
+
+}
+
+
+
+.compras_orc_header.is-compact .compras_orc_page_header {
+
+    margin-bottom: 8px;
+
+}
+
+
+
+.compras_orc_header.is-compact .el-page-header__desc {
+
+    display: none;
+
+}
+
+
+
+.compras_orc_header.is-compact .el-page-header__title {
+
+    font-size: 1.35rem;
 
 }
 
@@ -913,6 +955,14 @@
 }
 
 
+
+body.dark-mode .compras_orc_header {
+    background: #152433;
+}
+
+body.dark-mode .compras_orc_header.is-compact {
+    background: rgba(21, 36, 51, 0.92);
+}
 
 body.dark-mode .compras_orc_filtros_flutuantes,
 
