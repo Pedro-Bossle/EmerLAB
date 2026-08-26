@@ -11,6 +11,7 @@ import clicksignDownloadHandler from './api/clicksign-download.js'
 import adminUsersHandler from './api/admin-users.js'
 import auditLogsHandler from './api/audit-logs.js'
 import geminiRateHandler from './api/gemini-rate.js'
+import ibgeMunicipiosHandler from './api/ibge-municipios.js'
 
 /** Mesma ordem de prioridade aproximada do Vite para ficheiros .env (envDir = raiz do projeto). */
 function carregarEnvParaProcesso(envDir, mode) {
@@ -141,7 +142,53 @@ function prospectosOsmColetarDevPlugin() {
     }
 }
 
-/** Em dev, atende /api/cep-lookup no Vite. */
+/** Em dev, GET /api/ibge-municipios no Vite (sem depender da porta 3000). */
+function ibgeMunicipiosDevPlugin() {
+    return {
+        name: 'ibge-municipios-dev',
+        enforce: 'pre',
+        configureServer(server) {
+            server.middlewares.use(async (req, res, next) => {
+                const url = req.url || ''
+                if (!url.startsWith('/api/ibge-municipios')) {
+                    next()
+                    return
+                }
+                const reqLike = { method: req.method || 'GET', url, headers: req.headers || {} }
+                const resLike = {
+                    statusCode: 200,
+                    setHeader(name, value) {
+                        res.setHeader(name, value)
+                    },
+                    status(code) {
+                        this.statusCode = code
+                        res.statusCode = code
+                        return this
+                    },
+                    json(payload) {
+                        if (!res.getHeader('Content-Type')) {
+                            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                        }
+                        res.statusCode = this.statusCode
+                        res.end(JSON.stringify(payload))
+                    },
+                    end(payload) {
+                        res.statusCode = this.statusCode
+                        res.end(payload)
+                    },
+                }
+                try {
+                    await ibgeMunicipiosHandler(reqLike, resLike)
+                } catch (e) {
+                    res.statusCode = 502
+                    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                    res.end(JSON.stringify({ error: e?.message || 'Falha na consulta IBGE.' }))
+                }
+            })
+        },
+    }
+}
+
 function cepLookupDevPlugin() {
     return {
         name: 'cep-lookup-dev',
@@ -524,6 +571,7 @@ export default defineConfig(({ command, mode }) => {
         plugins: [
             command === 'serve' ? consultaCnpjDevPlugin() : null,
             command === 'serve' ? cepLookupDevPlugin() : null,
+            command === 'serve' ? ibgeMunicipiosDevPlugin() : null,
             command === 'serve' ? mapOsmDevPlugin() : null,
             command === 'serve' ? prospectosOsmColetarDevPlugin() : null,
             command === 'serve' ? adminUsersDevPlugin() : null,
@@ -537,6 +585,7 @@ export default defineConfig(({ command, mode }) => {
                 '/api/rc-pdf': 'http://localhost:3000',
                 '/api/consulta-cnpj': 'http://localhost:3000',
                 '/api/geocode-prestador': 'http://localhost:3000',
+                '/api/ibge-municipios': 'http://localhost:3000',
             },
         },
         optimizeDeps: {

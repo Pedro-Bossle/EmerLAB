@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
+import { buscarMunicipiosPorUfRobusto, mesclarMunicipiosComExtras } from '../../../lib/ibgeLocalidades.js'
 import {
     PERMISSION_KEYS,
     hasPermission,
@@ -65,17 +65,12 @@ function normalizarNomeCidadeChave(nome) {
         .toLowerCase()
 }
 
-/** IBGE da UF + cidades já presentes no catálogo (fallback se IBGE falhar). */
+/** IBGE (cache) + malha Supabase + cidades já no catálogo OSM. */
 async function carregarOpcoesMunicipioProspectos(ufSigla) {
     const uf = String(ufSigla || '').trim().toUpperCase()
     if (!uf) return []
 
-    let ibge = []
-    try {
-        ibge = await buscarMunicipiosPorUf(uf)
-    } catch {
-        ibge = []
-    }
+    const base = await buscarMunicipiosPorUfRobusto(uf, { supabase })
 
     let doCatalogo = []
     try {
@@ -90,23 +85,7 @@ async function carregarOpcoesMunicipioProspectos(ufSigla) {
         doCatalogo = []
     }
 
-    const porChave = new Map()
-    for (const m of ibge || []) {
-        const nome = String(m?.nome || '').trim()
-        const chave = normalizarNomeCidadeChave(nome)
-        if (!chave) continue
-        porChave.set(chave, { id: m.id ?? nome, nome })
-    }
-    for (const nomeRaw of doCatalogo) {
-        const nome = String(nomeRaw || '').trim()
-        const chave = normalizarNomeCidadeChave(nome)
-        if (!chave || porChave.has(chave)) continue
-        porChave.set(chave, { id: nome, nome })
-    }
-
-    return [...porChave.values()].sort((a, b) =>
-        a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }),
-    )
+    return mesclarMunicipiosComExtras(base, doCatalogo)
 }
 
 function lerSplitInicial() {
@@ -778,6 +757,8 @@ const CredenciamentoProspectosOsm = () => {
                                 loading={loadingMun}
                                 inputClassName="credenciamento_main_input"
                                 placeholder={!uf ? 'Selecione a UF' : 'Buscar cidade…'}
+                                creatable
+                                createLabel={(q) => `Usar «${q}»`}
                                 onChange={setCidade}
                             />
                         </label>
@@ -1331,6 +1312,8 @@ const CredenciamentoProspectosOsm = () => {
                                     loading={loadingMunEdit}
                                     inputClassName="credenciamento_main_input"
                                     placeholder={!editForm.uf?.trim() ? 'Selecione a UF' : 'Buscar cidade…'}
+                                    creatable
+                                    createLabel={(q) => `Usar «${q}»`}
                                     onChange={(nome) => setCampoEdit('cidade', nome)}
                                 />
                             </label>

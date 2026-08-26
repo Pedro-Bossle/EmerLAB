@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '../../../components/ui'
 import { supabase } from '../../../lib/supabase.js'
 import { listarUsuariosParaAtribuicao } from '../../../lib/homeTarefas.js'
-import { buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
+import { buscarMunicipiosPorUfRobusto } from '../../../lib/ibgeLocalidades.js'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 import {
@@ -49,7 +49,25 @@ import {
     maskTelefoneBr,
     separarTelefonePrincipalEExtras,
 } from '../../../lib/telefoneBrasil.js'
+import {
+    parseColagemCardsKanban,
+    pareceColagemTabelaKanban,
+} from '../../../lib/credKanbanColagem.js'
 import './CredenciamentoKanban.css'
+
+function novaEntradaRascunhoKanban(base = {}) {
+    return {
+        key: `e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        nome: base.nome || '',
+        uf: base.uf || '',
+        cidade: base.cidade || '',
+        telefone: base.telefone || '',
+        especialidade: base.especialidade || '',
+        atribuidoA: base.atribuidoA || '',
+        corpo: base.corpo || '',
+        prestadorId: base.prestadorId || null,
+    }
+}
 
 async function listarUsuariosParaAtribuicaoComEmail() {
     const { data, error } = await supabase.from('profiles').select('id, name, email').order('name')
@@ -976,6 +994,46 @@ export default function CredenciamentoKanban() {
                             throw e
                         }
                     }}
+                    onSaveMany={
+                        cardExibido.isRascunho || !cardExibido.id
+                            ? async (patches) => {
+                                  try {
+                                      const coluna = cardExibido.coluna
+                                      const lista = Array.isArray(patches) ? patches : []
+                                      if (!lista.length) return []
+                                      const criados = []
+                                      for (const patch of lista) {
+                                          const criado = await criarCardComDados(coluna, {
+                                              ...patch,
+                                              prestadorId:
+                                                  patch.prestadorId ?? cardExibido.prestadorId,
+                                          })
+                                          if (patch.corpo !== undefined) {
+                                              const r = await notificarMencoesKanban({
+                                                  cardId: criado.id,
+                                                  cardNome: criado.nome,
+                                                  corpoNovo: criado.corpo,
+                                                  corpoAnterior: '',
+                                              })
+                                              if (r?.aviso) setAviso(r.aviso)
+                                          }
+                                          criados.push(criado)
+                                      }
+                                      setAviso(
+                                          criados.length === 1
+                                              ? '1 card criado.'
+                                              : `${criados.length} cards criados.`,
+                                      )
+                                      setCardAberto(null)
+                                      limparCardDaQuery()
+                                      return criados
+                                  } catch (e) {
+                                      setErro(e?.message || String(e))
+                                      throw e
+                                  }
+                              }
+                            : null
+                    }
                     onDelete={
                         cardExibido.isRascunho || !cardExibido.id
                             ? null
@@ -1024,8 +1082,31 @@ export default function CredenciamentoKanban() {
     )
 }
 
-function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave, onDelete, onCriarPrestador }) {
+function KanbanCardModal({
+    card,
+    usuarios,
+    especialidades = [],
+    onClose,
+    onSave,
+    onSaveMany,
+    onDelete,
+    onCriarPrestador,
+}) {
     const isRascunho = Boolean(card?.isRascunho) || !card?.id
+    const [entradas, setEntradas] = useState(() => [
+        novaEntradaRascunhoKanban({
+            nome: card.nome || '',
+            uf: card.uf || '',
+            cidade: card.cidade || '',
+            telefone: maskTelefoneBr(card.telefone || ''),
+            especialidade: especialidadeVisivelKanban(card.especialidade || card.tipo) || '',
+            atribuidoA: card.atribuidoA || '',
+            corpo: corpoVisivelSemMetaOutlook(card.corpo || ''),
+            prestadorId: card.prestadorId || null,
+        }),
+    ])
+    const [abaAtiva, setAbaAtiva] = useState(0)
+    const [colagemAberta, setColagemAberta] = useState(false)
     const [nome, setNome] = useState(card.nome || '')
     const [uf, setUf] = useState(card.uf || '')
     const [cidade, setCidade] = useState(card.cidade || '')
@@ -1077,25 +1158,113 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
         })
     }, [])
 
-    useEffect(() => {
-        setNome(card.nome || '')
-        setUf(card.uf || '')
-        setCidade(card.cidade || '')
-        setTelefone(maskTelefoneBr(card.telefone || ''))
-        setEspecialidade(especialidadeVisivelKanban(card.especialidade || card.tipo) || '')
-        setCorpo(corpoVisivelSemMetaOutlook(card.corpo || ''))
-        setAtribuidoA(card.atribuidoA || '')
-        setPrestadorIdLocal(card.prestadorId || null)
+    const carregarEntradaNoForm = useCallback((entrada) => {
+        setNome(entrada?.nome || '')
+        setUf(entrada?.uf || '')
+        setCidade(entrada?.cidade || '')
+        setTelefone(maskTelefoneBr(entrada?.telefone || ''))
+        setEspecialidade(entrada?.especialidade || '')
+        setCorpo(entrada?.corpo || '')
+        setAtribuidoA(entrada?.atribuidoA || '')
+        setPrestadorIdLocal(entrada?.prestadorId || null)
         setSugestoesNome([])
         setAutocompleteColchete(null)
         setMencaoUsuario(null)
         setSugestoesMencao([])
-        setConfirmarExclusao(false)
-        setCliquesFora(0)
         setEspFoco(false)
         setSugestoesEsp([])
         setEspBalao(null)
-    }, [card])
+    }, [])
+
+    const snapshotFormAtual = useCallback(
+        () => ({
+            nome,
+            uf,
+            cidade,
+            telefone: maskTelefoneBr(telefone),
+            especialidade,
+            atribuidoA,
+            corpo,
+            prestadorId: prestadorIdLocal || null,
+        }),
+        [nome, uf, cidade, telefone, especialidade, atribuidoA, corpo, prestadorIdLocal],
+    )
+
+    const sincronizarAbaAtualNasEntradas = useCallback(() => {
+        if (!isRascunho) return entradas
+        const snap = snapshotFormAtual()
+        const next = entradas.map((e, i) =>
+            i === abaAtiva ? { ...e, ...snap, key: e.key } : e,
+        )
+        setEntradas(next)
+        return next
+    }, [isRascunho, entradas, abaAtiva, snapshotFormAtual])
+
+    const irParaAba = (idx) => {
+        if (!isRascunho || idx === abaAtiva || idx < 0 || idx >= entradas.length) return
+        const next = sincronizarAbaAtualNasEntradas()
+        setAbaAtiva(idx)
+        carregarEntradaNoForm(next[idx])
+    }
+
+    const removerAba = (idx) => {
+        if (!isRascunho || entradas.length <= 1) return
+        const nextBase = sincronizarAbaAtualNasEntradas()
+        const lista = nextBase.filter((_, i) => i !== idx)
+        const novoIdx = Math.min(idx, lista.length - 1)
+        setEntradas(lista)
+        setAbaAtiva(novoIdx)
+        carregarEntradaNoForm(lista[novoIdx])
+    }
+
+    const aplicarColagemExcel = (texto) => {
+        const rows = parseColagemCardsKanban(texto, {
+            usuarios,
+            atribuidoAPadrao: getStoredAccessProfile()?.id || card.atribuidoA || '',
+        })
+        if (!rows.length) return false
+        const novas = rows.map((r) =>
+            novaEntradaRascunhoKanban({
+                ...r,
+                corpo: '',
+                prestadorId: null,
+            }),
+        )
+        setEntradas(novas)
+        setAbaAtiva(0)
+        carregarEntradaNoForm(novas[0])
+        if (novas.length > 1) setColagemAberta(false)
+        return true
+    }
+
+    const onPasteNomeOuDados = (e) => {
+        if (!isRascunho) return
+        const texto = e.clipboardData?.getData('text') || ''
+        if (!pareceColagemTabelaKanban(texto)) return
+        if (!texto.includes('\t') && !texto.includes('\n') && !texto.includes('\r')) return
+        e.preventDefault()
+        e.stopPropagation()
+        aplicarColagemExcel(texto)
+    }
+
+    useEffect(() => {
+        const base = novaEntradaRascunhoKanban({
+            nome: card.nome || '',
+            uf: card.uf || '',
+            cidade: card.cidade || '',
+            telefone: maskTelefoneBr(card.telefone || ''),
+            especialidade: especialidadeVisivelKanban(card.especialidade || card.tipo) || '',
+            atribuidoA: card.atribuidoA || '',
+            corpo: corpoVisivelSemMetaOutlook(card.corpo || ''),
+            prestadorId: card.prestadorId || null,
+        })
+        setEntradas([base])
+        setAbaAtiva(0)
+        setColagemAberta(false)
+        carregarEntradaNoForm(base)
+        setConfirmarExclusao(false)
+        setCliquesFora(0)
+    }, [card, carregarEntradaNoForm])
 
     useEffect(() => {
         const sigla = String(uf || '').trim().toUpperCase()
@@ -1106,7 +1275,7 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
         }
         let cancel = false
         setCarregandoMunicipios(true)
-        buscarMunicipiosPorUf(sigla)
+        buscarMunicipiosPorUfRobusto(sigla, { supabase })
             .then((lista) => {
                 if (!cancel) setMunicipiosUf(lista || [])
             })
@@ -1453,6 +1622,41 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
     }
 
     const persistir = async () => {
+        if (isRascunho && typeof onSaveMany === 'function') {
+            const lista = sincronizarAbaAtualNasEntradas()
+            const patches = lista
+                .map((e) => {
+                    const nomeLimpo = nomeSemArroba(e.nome)
+                    if (!String(nomeLimpo || '').trim()) return null
+                    return {
+                        nome: nomeLimpo,
+                        uf: e.uf,
+                        cidade: e.cidade,
+                        telefone: maskTelefoneBr(e.telefone),
+                        tipo: e.especialidade,
+                        corpo: corpoComMeta(e.corpo || ''),
+                        checklist: checklistDeMarkdown(e.corpo || ''),
+                        atribuidoA: e.atribuidoA || null,
+                        prestadorId: e.prestadorId || null,
+                    }
+                })
+                .filter(Boolean)
+            if (!patches.length) {
+                window.alert('Informe o nome em pelo menos um card antes de criar.')
+                return
+            }
+            setSalvando(true)
+            try {
+                await onSaveMany(patches)
+                onClose()
+            } catch {
+                /* erro já tratado no parent */
+            } finally {
+                setSalvando(false)
+            }
+            return
+        }
+
         const nomeLimpo = nomeSemArroba(nome)
         if (!String(nomeLimpo || '').trim()) {
             window.alert('Informe o nome antes de salvar o card.')
@@ -1528,23 +1732,110 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                 <header className="cred_kanban_modal_cabecalho">
                     <div>
                         <p className="cred_kanban_modal_kicker">
-                            {isRascunho ? 'Novo card' : `Card #${card.id}`}
+                            {isRascunho
+                                ? entradas.length > 1
+                                    ? `Novos cards · ${entradas.length}`
+                                    : 'Novo card'
+                                : `Card #${card.id}`}
                         </p>
-                        <h2>{nome || (isRascunho ? 'Preencha e salve' : 'Sem nome')}</h2>
+                        <h2>
+                            {nome ||
+                                (isRascunho
+                                    ? entradas.length > 1
+                                        ? `Card ${abaAtiva + 1} de ${entradas.length}`
+                                        : 'Preencha e salve'
+                                    : 'Sem nome')}
+                        </h2>
                     </div>
                     <button type="button" onClick={onClose}>
                         {isRascunho ? 'Cancelar' : 'Fechar'}
                     </button>
                 </header>
 
+                {isRascunho ? (
+                    <div className="cred_kanban_modal_abas_wrap">
+                        <button
+                            type="button"
+                            className={`cred_kanban_modal_varios_toggle${colagemAberta ? ' is-open' : ''}`}
+                            aria-expanded={colagemAberta}
+                            onClick={() => setColagemAberta((v) => !v)}
+                        >
+                            <span>Adicionar vários</span>
+                            <span className="cred_kanban_modal_varios_chevron" aria-hidden="true">
+                                ▾
+                            </span>
+                        </button>
+                        {colagemAberta ? (
+                            <div className="cred_kanban_modal_varios_painel">
+                                <p className="cred_kanban_modal_abas_tip" role="note">
+                                    Cole do Excel (colunas com tab): Nome · Especialidade · UF · Cidade ·
+                                    Telefone · Responsável — uma linha vira um card.
+                                </p>
+                                <textarea
+                                    className="cred_kanban_modal_colagem"
+                                    rows={3}
+                                    placeholder="Cole aqui várias linhas do Excel…"
+                                    aria-label="Colar linhas do Excel"
+                                    defaultValue=""
+                                    onPaste={(e) => {
+                                        const texto = e.clipboardData?.getData('text') || ''
+                                        if (!pareceColagemTabelaKanban(texto)) return
+                                        e.preventDefault()
+                                        aplicarColagemExcel(texto)
+                                        e.currentTarget.value = ''
+                                    }}
+                                />
+                            </div>
+                        ) : null}
+                        {entradas.length > 1 ? (
+                            <div className="cred_kanban_modal_abas" role="tablist" aria-label="Cards a criar">
+                                {entradas.map((e, idx) => {
+                                    const rotulo =
+                                        String(idx === abaAtiva ? nome : e.nome || '').trim() ||
+                                        `Card ${idx + 1}`
+                                    return (
+                                        <div
+                                            key={e.key}
+                                            className={`cred_kanban_modal_aba${idx === abaAtiva ? ' is-active' : ''}`}
+                                        >
+                                            <button
+                                                type="button"
+                                                role="tab"
+                                                aria-selected={idx === abaAtiva}
+                                                className="cred_kanban_modal_aba_btn"
+                                                onClick={() => irParaAba(idx)}
+                                                title={rotulo}
+                                            >
+                                                {rotulo.length > 22 ? `${rotulo.slice(0, 20)}…` : rotulo}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="cred_kanban_modal_aba_x"
+                                                aria-label={`Remover ${rotulo}`}
+                                                onClick={(ev) => {
+                                                    ev.stopPropagation()
+                                                    removerAba(idx)
+                                                }}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
+
                 <section className="cred_kanban_modal_secao" aria-label="Dados do contato">
-                    <h3>Dados</h3>
+                    <h3>Dados{isRascunho && entradas.length > 1 ? ` · aba ${abaAtiva + 1}` : ''}</h3>
                     <div className="cred_kanban_modal_grid">
                         <label className="cred_kanban_span_full cred_kanban_nome_mencao_wrap">
                             <span>Nome</span>
                             <input
                                 value={nome}
                                 onChange={(e) => setNome(e.target.value)}
+                                onPaste={onPasteNomeOuDados}
                                 placeholder="Digite o nome ou @ para mencionar (a partir de 4 letras)"
                                 autoComplete="off"
                             />
@@ -1591,6 +1882,8 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                                 placeholder={!uf ? 'Selecione a UF' : 'Buscar cidade…'}
                                 searchPlaceholder="Buscar cidade…"
                                 emptyLabel="—"
+                                creatable
+                                createLabel={(q) => `Usar «${q}»`}
                                 aria-label="Cidade do card"
                             />
                         </label>
@@ -1606,6 +1899,15 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                                 onPaste={(e) => {
                                     const texto = e.clipboardData?.getData('text')
                                     if (!texto) return
+                                    if (
+                                        isRascunho &&
+                                        texto.includes('\t') &&
+                                        pareceColagemTabelaKanban(texto)
+                                    ) {
+                                        e.preventDefault()
+                                        aplicarColagemExcel(texto)
+                                        return
+                                    }
                                     e.preventDefault()
                                     aplicarTelefoneComExtras(texto)
                                 }}
@@ -1823,13 +2125,21 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                             disabled={salvando || excluindo}
                             onClick={() => void persistir()}
                         >
-                            {salvando ? 'Salvando…' : isRascunho ? 'Criar card' : 'Salvar'}
+                            {salvando
+                                ? 'Salvando…'
+                                : isRascunho
+                                  ? entradas.length > 1
+                                      ? `Criar ${entradas.length} cards`
+                                      : 'Criar card'
+                                  : 'Salvar'}
                         </button>
                     </div>
                 </footer>
                 <p className="cred_kanban_modal_meta">
                     {isRascunho
-                        ? 'O card só entra no Kanban depois de criar/salvar.'
+                        ? entradas.length > 1
+                            ? `Serão criados ${entradas.length} cards nesta coluna. Abas vazias (sem nome) são ignoradas.`
+                            : 'O card só entra no Kanban depois de criar/salvar. Pode colar várias linhas do Excel.'
                         : `Criado ${card.criadoEm ? new Date(card.criadoEm).toLocaleString('pt-BR') : '—'} · Atualizado ${card.atualizadoEm ? new Date(card.atualizadoEm).toLocaleString('pt-BR') : '—'}`}
                 </p>
             </div>
