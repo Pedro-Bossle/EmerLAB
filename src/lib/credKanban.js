@@ -670,7 +670,7 @@ async function upsertEspecialidadePrincipalPrestador(prestadorId, especialidadeI
     const pid = Number(prestadorId)
     const eid = Number(especialidadeId)
     if (!pid || !eid) return
-    await supabase.from('prestador_especialidades').upsert(
+    const { error } = await supabase.from('prestador_especialidades').upsert(
         [
             {
                 prestador_id: pid,
@@ -678,15 +678,16 @@ async function upsertEspecialidadePrincipalPrestador(prestadorId, especialidadeI
                 principal: true,
             },
         ],
-        { onConflict: 'prestador_id,especialidade_id', ignoreDuplicates: true },
+        { onConflict: 'prestador_id,especialidade_id' },
     )
+    if (error) throw new Error(error.message)
 }
 
 async function upsertCidadePrincipalPrestador(prestadorId, cidadeId) {
     const pid = Number(prestadorId)
     const cid = Number(cidadeId)
     if (!pid || !cid) return
-    await supabase.from('prestador_cidades').upsert(
+    const { error } = await supabase.from('prestador_cidades').upsert(
         [
             {
                 prestador_id: pid,
@@ -694,8 +695,9 @@ async function upsertCidadePrincipalPrestador(prestadorId, cidadeId) {
                 principal: true,
             },
         ],
-        { onConflict: 'prestador_id,cidade_id', ignoreDuplicates: true },
+        { onConflict: 'prestador_id,cidade_id' },
     )
+    if (error) throw new Error(error.message)
 }
 
 export async function criarPrestadorMinimoParaCard(card, { situacoes = [] } = {}) {
