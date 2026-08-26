@@ -635,6 +635,11 @@ export function syncLegacyFromAcl(perms) {
         hasAcl(p, 'credenciamento.especialidades_rc', 'update') ||
         hasAcl(p, 'credenciamento.formulario_inbox', 'update') ||
         hasAcl(p, 'credenciamento.import_kmz', 'update') ||
+        hasAcl(p, 'credenciamento.prospectos_osm', 'update') ||
+        hasAcl(p, 'credenciamento.prospectos_osm', 'create') ||
+        hasAcl(p, 'credenciamento.prospectos_osm', 'delete') ||
+        hasAcl(p, 'credenciamento.processos', 'update') ||
+        hasAcl(p, 'credenciamento.processos', 'create') ||
         hasAcl(p, 'configuracoes.importar_credenciados', 'update') ||
         hasAcl(p, 'configuracoes.conferencia_laboratorio', 'update') ||
         hasAcl(p, 'configuracoes.conferencia_laboratorio', 'create')

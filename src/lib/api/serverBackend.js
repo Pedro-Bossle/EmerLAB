@@ -17,6 +17,7 @@ const EDGE_ROUTE_MAP = {
 
 /** Rotas que exigem JWT do utilizador (não só anon key). */
 const ROTAS_COM_JWT_UTILIZADOR = new Set([
+  'consulta-cnpj',
   'geocode-prestador',
   'prospectos-osm-coletar',
   'prospectos-gemini-status',

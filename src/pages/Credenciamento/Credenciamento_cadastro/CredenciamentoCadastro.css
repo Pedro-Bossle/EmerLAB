@@ -181,7 +181,7 @@
     margin: 0.25rem 0 0;
 }
 
-/* Tabela desktop: fluida, sem sticky / sem scroll lateral */
+/* Tabela desktop: fluida, bordas uniformes (sem seam entre pin e Situação) */
 .credenciamento_cadastro_table {
     min-width: 0 !important;
     width: 100%;
@@ -191,8 +191,8 @@
 }
 
 .credenciamento_main_table_container:has(.credenciamento_cadastro_table) {
-    overflow-x: visible;
-    border: 1px solid #dbe9f2;
+    overflow: hidden;
+    border: 1px solid #c5d9e8;
     border-radius: 10px;
     background: #fff;
 }
@@ -201,6 +201,31 @@
     border: none;
     border-radius: 0;
     overflow: visible;
+    background: transparent;
+}
+
+.credenciamento_cadastro_table thead th {
+    background: #edf5fb;
+    border-bottom: 1px solid #c5d9e8;
+    border-right: 1px solid #d6e5ef;
+    box-shadow: none;
+}
+
+.credenciamento_cadastro_table thead th:last-child {
+    border-right: none;
+}
+
+.credenciamento_cadastro_table tbody td {
+    border-bottom: 1px solid #e2eef6;
+    border-right: 1px solid #e8f1f7;
+}
+
+.credenciamento_cadastro_table tbody td:last-child {
+    border-right: none;
+}
+
+.credenciamento_cadastro_table tbody tr:last-child td {
+    border-bottom: none;
 }
 
 .credenciamento_cadastro_table .cred_col_pin,
@@ -212,12 +237,17 @@
     min-width: 0;
     max-width: none;
     box-shadow: none !important;
-    border-right: none;
+    border-right: 1px solid #d6e5ef;
     background: transparent;
 }
 
 .credenciamento_cadastro_table thead .cred_col_pin {
     background: #edf5fb;
+    border-right-color: #d6e5ef;
+}
+
+.credenciamento_cadastro_table tbody .cred_col_pin {
+    border-right-color: #e8f1f7;
 }
 
 .credenciamento_cadastro_table tbody tr:nth-child(even) .cred_col_pin,
@@ -238,6 +268,15 @@
     white-space: normal;
     word-break: normal;
     overflow-wrap: anywhere;
+}
+
+/* Paginação colada à tabela — uma só moldura (sem caixa “vazada” interna) */
+.credenciamento_main_table_container:has(.credenciamento_cadastro_table) > .credenciamento_main_paginacao {
+    margin: 0;
+    border: none;
+    border-top: 1px solid #c5d9e8;
+    border-radius: 0;
+    background: #f3f8fc;
 }
 
 /* Cards mobile — escondidos no desktop */
@@ -314,13 +353,31 @@ body.dark-mode .credenciamento_main_table_container:has(.credenciamento_cadastro
     background: #132335;
 }
 
-body.dark-mode .credenciamento_cadastro_table thead .cred_col_pin {
+body.dark-mode .credenciamento_cadastro_table thead th,
+body.dark-mode .credenciamento_cadastro_table thead .cred_col_pin,
+body.dark-mode .credenciamento_cadastro_table thead .table_header {
     background: #1a2d40;
+    color: #eaf2fa;
+    border-bottom-color: #3a5775;
+    border-right-color: #3a5775;
+}
+
+body.dark-mode .credenciamento_cadastro_table tbody td,
+body.dark-mode .credenciamento_cadastro_table tbody .cred_col_pin {
+    border-bottom-color: #2a4058;
+    border-right-color: #2a4058;
 }
 
 body.dark-mode .credenciamento_cadastro_table .cred_col_pin {
     background: transparent;
     box-shadow: none !important;
+}
+
+body.dark-mode
+    .credenciamento_main_table_container:has(.credenciamento_cadastro_table)
+    > .credenciamento_main_paginacao {
+    border-top-color: #3a5775;
+    background: #152a3d;
 }
 
 body.dark-mode .credenciamento_cadastro_card {
@@ -1408,8 +1465,21 @@ body.dark-mode .pcad_btn_apagar_bd:hover:not(:disabled) {
         width: 100%;
     }
 
-    .credenciamento_cadastro_lista .credenciamento_main_paginacao {
+    .credenciamento_cadastro_lista
+        .credenciamento_main_table_container:has(.credenciamento_cadastro_table)
+        > .credenciamento_main_paginacao {
         margin-top: 0.85rem;
+        border: 1px solid #d7e8f2;
+        border-radius: 10px;
+        background: #f8fbfd;
+    }
+
+    body.dark-mode
+        .credenciamento_cadastro_lista
+        .credenciamento_main_table_container:has(.credenciamento_cadastro_table)
+        > .credenciamento_main_paginacao {
+        border-color: #3a5775;
+        background: #152a3d;
     }
 
     .credenciamento_cadastro_lista .credenciamento_main_paginacao_grupo--nav .credenciamento_main_action_btn {

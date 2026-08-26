@@ -48,9 +48,9 @@ Secrets / ambiente:
 | `clicksign-download` | `validarJwtComPermissao` | contratos view/edit ou access.manage | `clicksign` | Não | [x] |
 | `clicksign-catchall` | via proxy | idem contratos | `clicksign` | Não | [x] |
 | `clicksign-webhook` | HMAC | — | `webhook` 120/min + body ≤256 KiB | Receptor externo | [x] |
-| `admin-users` | JWT local (`validarAdmin` / clearOwn) | `access.manage` (exceto clearOwn) | `adminUsers` 30/min | Não | [x] |
-| `audit-logs` | JWT local | `access.manage` (list); recordAuth = qualquer JWT | `auditLogs` 40/min | Não | [x] |
-| `gemini-rate` | JWT local | view + ACL prospectos | `geminiRate` 30/min | Não | [x] |
+| `admin-users` | JWT local (`validarAdmin` / clearOwn) | `access.manage` (exceto clearOwn) | `adminUsers` 30/min (**[~]** só por instância) | Não | [~] |
+| `audit-logs` | JWT local | `access.manage` (list); recordAuth = qualquer JWT | `auditLogs` 40/min (**[~]** só por instância) | Não | [~] |
+| `gemini-rate` | JWT local | view + ACL prospectos | `geminiRate` 30/min (**[~]** só por instância) | Não | [~] |
 
 Gate sessão com troca de senha obrigatória (`forcePasswordChange`) via `serverAuth.validarJwtComPerfil`:
 
@@ -153,7 +153,7 @@ Prioridade alta se o front chamar Edge diretamente:
 | ~~P0~~ | ~~JWT em Edge `map-osm` e `consulta-cnpj`~~ | feito |
 | ~~P0~~ | ~~POST prospectos Edge exigir edit~~ | feito |
 | ~~P1~~ | ~~IP last-hop em `audit-logs`~~ | feito |
-| ~~P1~~ | ~~Rate-limit em `admin-users` / `audit-logs` / `gemini-rate`~~ | feito |
+| [~] P1 | Rate-limit `admin-users` / `audit-logs` / `gemini-rate` | feito em memória por instância; falta contador partilhado (Redis/KV) |
 | ~~P1~~ | ~~Limite de body nos POSTs restantes~~ | feito (`readJsonBodyLimited`) |
 | P2 | Gate force-password na Edge | `requireUser.ts` |
 | P2 | Confirmar SQLs de RLS aplicados no projeto Supabase | operação |

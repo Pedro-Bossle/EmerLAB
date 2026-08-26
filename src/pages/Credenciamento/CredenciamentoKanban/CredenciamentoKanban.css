@@ -156,9 +156,10 @@
 
 .cred_kanban_modal_grid {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1.4fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(7.25rem, 0.42fr) minmax(0, 1.35fr) minmax(0, 1.15fr);
   gap: 8px 12px;
   margin-bottom: 0;
+  align-items: end;
 }
 
 .cred_kanban_modal_grid label,
@@ -170,6 +171,24 @@
   font-weight: 700;
   color: #547084;
   text-transform: uppercase;
+  min-width: 0;
+}
+
+.cred_kanban_campo_uf {
+  min-width: 7.25rem;
+}
+
+.cred_kanban_campo_uf .select_municipio_busca,
+.cred_kanban_campo_cidade .select_municipio_busca {
+  width: 100%;
+  min-width: 0;
+}
+
+.cred_kanban_campo_uf .select_municipio_busca_trigger_label {
+  overflow: visible;
+  text-overflow: clip;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 .cred_kanban_filtro_busca {
@@ -433,6 +452,18 @@
 .cred_kanban_tag_outlook {
   background: #e8f0ff;
   color: #2b4acb;
+}
+
+.cred_kanban_tag_perfil {
+  background: #e6f6ee;
+  color: #1a7a4c;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cred_kanban_tag_perfil:hover {
+  background: #d4efdf;
+  color: #0f5c38;
 }
 
 .cred_kanban_outlook {
@@ -1099,12 +1130,47 @@ body.dark-mode .cred_kanban_md_ac_item kbd {
 
 .cred_kanban_vinculo_dados {
   margin: 10px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.cred_kanban_vinculo_dados p {
+  margin: 0;
 }
 
 .cred_kanban_vinculo_hint {
   font-weight: 500;
   color: #7a93a5;
   font-size: 0.78rem;
+}
+
+.cred_kanban_btn_abrir_perfil {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #8ec9a8;
+  background: #e6f6ee;
+  color: #1a7a4c;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.cred_kanban_btn_abrir_perfil:hover {
+  background: #d4efdf;
+  color: #0f5c38;
+}
+
+.cred_kanban_btn_abrir_perfil.is-footer {
+  min-height: 32px;
+  padding: 6px 14px;
+  box-sizing: border-box;
 }
 
 .cred_kanban_modal_lateral {
@@ -1399,6 +1465,22 @@ body.dark-mode .cred_kanban_tag_outlook {
   color: #9eb4ff;
 }
 
+body.dark-mode .cred_kanban_tag_perfil {
+  background: #1a3a2a;
+  color: #7dcea0;
+}
+
+body.dark-mode .cred_kanban_btn_abrir_perfil {
+  background: #1a3a2a;
+  border-color: #2f6b4a;
+  color: #7dcea0;
+}
+
+body.dark-mode .cred_kanban_btn_abrir_perfil:hover {
+  background: #214832;
+  color: #a8e6c3;
+}
+
 body.dark-mode .cred_kanban_assignee.is-empty {
   background: #1a2a35;
   color: #7a93a5;
@@ -1665,7 +1747,7 @@ body.dark-mode .cred_kanban_erro {
 
   /* Nome / telefone / especialidade / assignee em coluna; UF + cidade lado a lado */
   .cred_kanban_modal_grid {
-    grid-template-columns: 88px minmax(0, 1fr);
+    grid-template-columns: minmax(6.75rem, 0.4fr) minmax(0, 1fr);
     gap: 10px;
   }
 
@@ -1679,6 +1761,7 @@ body.dark-mode .cred_kanban_erro {
 
   .cred_kanban_campo_uf {
     grid-column: 1;
+    min-width: 6.75rem;
   }
 
   .cred_kanban_campo_cidade {
