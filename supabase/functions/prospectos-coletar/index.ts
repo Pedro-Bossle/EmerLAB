@@ -5,6 +5,7 @@ import { executarPassoJobColeta, iniciarJobColeta } from '../_shared/prospectosJ
 import {
   clientIp,
   podeFerramentaProspectos,
+  podeFerramentaProspectosEdit,
   rateLimitOk,
   requireUserProfile,
 } from '../_shared/requireUser.ts'
@@ -23,18 +24,21 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: auth.error }, auth.status || 401)
   }
   const permissions = (auth.profile?.permissions || {}) as Record<string, unknown>
-  if (!podeFerramentaProspectos(permissions)) {
-    return jsonResponse({ error: 'Sem permissão para prospectos / Gemini.' }, 403)
-  }
 
   const url = new URL(req.url)
   const route = url.searchParams.get('route') || ''
 
   if (req.method === 'GET' && (route === 'gemini-rate' || url.pathname.endsWith('gemini-rate'))) {
+    if (!podeFerramentaProspectos(permissions)) {
+      return jsonResponse({ error: 'Sem permissão para prospectos / Gemini.' }, 403)
+    }
     return jsonResponse(lerRate())
   }
 
   if (req.method === 'GET' && (route === 'gemini-status' || url.pathname.endsWith('gemini-status'))) {
+    if (!podeFerramentaProspectos(permissions)) {
+      return jsonResponse({ error: 'Sem permissão para prospectos / Gemini.' }, 403)
+    }
     const r = await geminiVerificarDisponibilidade()
     return jsonResponse({
       configurado: r.configurado,
@@ -50,6 +54,10 @@ Deno.serve(async (req) => {
 
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Método não permitido.' }, 405)
+  }
+
+  if (!podeFerramentaProspectosEdit(permissions)) {
+    return jsonResponse({ error: 'Sem permissão para iniciar coleta de prospectos.' }, 403)
   }
 
   try {

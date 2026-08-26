@@ -11,14 +11,13 @@ import {
     podeLerFerramenta,
 } from '../src/lib/accessControl.js'
 import { lerRate } from '../src/lib/gemini/gemini.ts'
+import { getClientIp, getRequestHeader } from '../src/lib/api/serverAuth.js'
+import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
 dotenvConfig()
 
-const getHeader = (req, name) => {
-    const headers = req.headers || {}
-    return headers[name] || headers[name.toLowerCase()] || ''
-}
+const getHeader = (req, name) => getRequestHeader(req, name) || ''
 
 const getSupabaseAdmin = () => {
     const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
@@ -69,6 +68,9 @@ export default async function handler(req, res) {
     if (method !== 'GET') {
         return responderErro(res, 405, 'Método não permitido.')
     }
+
+    const ip = getClientIp(req)
+    if (!aplicarRateLimit(res, `gemini-rate:${ip}`, RATE_LIMITS.geminiRate)) return
 
     try {
         const supabase = getSupabaseAdmin()

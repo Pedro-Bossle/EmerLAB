@@ -1,7 +1,7 @@
 import { handleOptions, jsonResponse } from '../_shared/cors.ts'
 import { nominatimSearchJson, normalizarParamsNominatim } from '../_shared/nominatim.ts'
 import { overpassPoisNaArea } from '../_shared/overpass.ts'
-import { clientIp, rateLimitOk } from '../_shared/requireUser.ts'
+import { clientIp, rateLimitOk, requireUserProfile } from '../_shared/requireUser.ts'
 
 Deno.serve(async (req) => {
   const opt = handleOptions(req)
@@ -13,6 +13,11 @@ Deno.serve(async (req) => {
 
   if (!rateLimitOk(`map-osm:${clientIp(req)}`, 45, 60_000)) {
     return jsonResponse({ error: 'Demasiados pedidos. Aguarde um momento.' }, 429)
+  }
+
+  const auth = await requireUserProfile(req)
+  if ('error' in auth && auth.error) {
+    return jsonResponse({ error: auth.error }, auth.status || 401)
   }
 
   if (req.method === 'HEAD') {

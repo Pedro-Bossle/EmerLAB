@@ -10,6 +10,8 @@ import { executarPassoJobColeta, iniciarJobColeta } from '../src/lib/credenciame
 import {
     createSupabaseAdminClient,
     getClientIp,
+    readJsonBodyLimited,
+    responderSePayloadGrande,
     validarJwtFerramentaCredenciamento,
 } from '../src/lib/api/serverAuth.js'
 import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
@@ -33,15 +35,6 @@ async function exigirAuthProspectos(req, res, { requireEdit = false } = {}) {
         return null
     }
     return auth
-}
-
-async function readJsonBody(req) {
-    if (req.body && typeof req.body === 'object') return req.body
-    const chunks = []
-    for await (const ch of req) chunks.push(ch)
-    const raw = Buffer.concat(chunks).toString('utf8')
-    if (!raw.trim()) return {}
-    return JSON.parse(raw)
 }
 
 function anexarCamposGeminiResposta(payload, descanso, quotaExceeded) {
@@ -150,7 +143,13 @@ async function handleColetaStart(body, res) {
 }
 
 async function handleColeta(req, res) {
-    const body = await readJsonBody(req)
+    let body
+    try {
+        body = await readJsonBodyLimited(req)
+    } catch (e) {
+        if (responderSePayloadGrande(res, e)) return
+        throw e
+    }
     const action = String(body.action || 'start').trim().toLowerCase()
     if (action === 'step') {
         await handleColetaStep(body, res)

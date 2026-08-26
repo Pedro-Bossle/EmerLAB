@@ -3,6 +3,7 @@
  */
 
 import { supabase } from './supabase.js'
+import { obterOuCriarCidadeCredenciamento } from './cidadesCredenciamento.js'
 import {
     acharSituacaoAguardandoFormularioId,
     acharSituacaoCredenciadoId,
@@ -275,8 +276,17 @@ export async function moverCardKanban(cardId, colunaDestino, ordemDestino, { sit
     }
 
     const card = await atualizarCardKanban(cardId, { coluna: para, ordem: ordemDestino })
-    await aplicarSideEffectsColuna(card, de, para, situacoes)
-    return card
+    let cardFinal = card
+    if (para === 'preenchendo_form' && !card.prestadorId) {
+        try {
+            cardFinal = await garantirPerfilSimplesAoPreenchendoForm(card, { situacoes })
+        } catch (err) {
+            // Card já foi movido; perfil pode ser criado depois pelo botão/manual.
+            console.warn('[kanban] falha ao criar perfil simples:', err?.message || err)
+        }
+    }
+    await aplicarSideEffectsColuna(cardFinal, de, para, situacoes)
+    return cardFinal
 }
 
 /** Mapa situação_id → coluna do Kanban (etapa cadastro). */
@@ -626,43 +636,192 @@ export async function upsertCardContatadoDeProspectoOsm(prospecto) {
 }
 
 export async function criarPrestadorMinimoParaCard(card, { situacoes = [] } = {}) {
-    const sitId = acharSituacaoPreenchendoFormularioId(situacoes)
+    if (card?.prestadorId) {
+        return { prestadorId: Number(card.prestadorId), card }
+    }
+
+    const sitId =
+        acharSituacaoPreenchendoFormularioId(situacoes) ||
+        acharSituacaoAguardandoFormularioId(situacoes)
     const agora = new Date().toISOString()
     const espNome = especialidadeVisivelKanban(card.especialidade || card.tipo)
     let especialidadeId = null
+    let tipoSalvar = 'ESPECIALIDADE'
     if (espNome) {
         const { data: esp } = await supabase
             .from('especialidades')
-            .select('id, nome')
+            .select('id, nome, tipo')
             .ilike('nome', espNome)
             .limit(1)
             .maybeSingle()
-        if (esp?.id) especialidadeId = Number(esp.id)
+        if (esp?.id) {
+            especialidadeId = Number(esp.id)
+            tipoSalvar = String(esp.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
+        }
     }
-    const { data, error } = await supabase
-        .from('prestadores')
-        .insert({
-            nome: card.nome || 'Novo prestador',
-            telefone: card.telefone || null,
-            endereco_uf: card.uf || null,
-            endereco_cidade: card.cidade || null,
-            especialidade_id: especialidadeId,
-            situacao_id: sitId ? Number(sitId) : null,
-            ativo: true,
-            data_cadastro: agora,
-            data_atualizacao: agora,
-        })
-        .select('id')
-        .maybeSingle()
+
+    const cidadeNome = String(card.cidade || '').trim()
+    let cidadeObj = null
+    if (cidadeNome) {
+        try {
+            cidadeObj = await obterOuCriarCidadeCredenciamento(cidadeNome)
+        } catch {
+            cidadeObj = null
+        }
+    }
+
+    const payload = {
+        nome: String(card.nome || '').trim() || 'Novo prestador',
+        telefone: card.telefone || null,
+        endereco_uf: card.uf || null,
+        endereco_cidade: cidadeNome || null,
+        endereco_pais: 'Brasil',
+        especialidade_id: especialidadeId,
+        tipo: tipoSalvar,
+        cidade_id: cidadeObj?.id ? Number(cidadeObj.id) : null,
+        situacao_id: sitId ? Number(sitId) : null,
+        ativo: true,
+        data_cadastro: agora,
+        data_atualizacao: agora,
+    }
+
+    let { data, error } = await supabase.from('prestadores').insert(payload).select('id').maybeSingle()
+    if (error && /tipo/i.test(String(error.message || ''))) {
+        const { tipo: _t, ...semTipo } = payload
+        const retry = await supabase.from('prestadores').insert(semTipo).select('id').maybeSingle()
+        data = retry.data
+        error = retry.error
+    }
     if (error) throw new Error(error.message)
     if (!data?.id) throw new Error('Prestador não foi criado.')
 
+    const novoId = Number(data.id)
+    if (especialidadeId) {
+        await supabase.from('prestador_especialidades').upsert(
+            [
+                {
+                    prestador_id: novoId,
+                    especialidade_id: especialidadeId,
+                    principal: true,
+                },
+            ],
+            { onConflict: 'prestador_id,especialidade_id', ignoreDuplicates: true },
+        )
+    }
+    if (cidadeObj?.id) {
+        await supabase.from('prestador_cidades').upsert(
+            [
+                {
+                    prestador_id: novoId,
+                    cidade_id: Number(cidadeObj.id),
+                    principal: true,
+                },
+            ],
+            { onConflict: 'prestador_id,cidade_id', ignoreDuplicates: true },
+        )
+    }
+
     const atualizado = await atualizarCardKanban(card.id, {
-        prestadorId: data.id,
+        prestadorId: novoId,
         coluna: 'preenchendo_form',
         tipo: espNome || null,
     })
-    return { prestadorId: data.id, card: atualizado }
+    return { prestadorId: novoId, card: atualizado }
+}
+
+/**
+ * Garante perfil simples vinculado ao entrar em «Preenchendo Form».
+ * @returns {Promise<object>} card (possivelmente com prestadorId novo)
+ */
+export async function garantirPerfilSimplesAoPreenchendoForm(card, { situacoes = [] } = {}) {
+    if (!card || card.prestadorId) return card
+    const coluna = normalizarColunaKanban(card.coluna)
+    if (coluna !== 'preenchendo_form') return card
+    const { card: atualizado } = await criarPrestadorMinimoParaCard(card, { situacoes })
+    return atualizado
+}
+
+/** Espelha nome/UF/cidade/telefone/especialidade do card no prestador vinculado. */
+export async function sincronizarPrestadorComCardKanban(card, { situacoes = [] } = {}) {
+    const pid = Number(card?.prestadorId)
+    if (!Number.isFinite(pid) || pid <= 0) return
+
+    const espNome = especialidadeVisivelKanban(card.especialidade || card.tipo)
+    let especialidadeId = null
+    let tipoSalvar = null
+    if (espNome) {
+        const { data: esp } = await supabase
+            .from('especialidades')
+            .select('id, nome, tipo')
+            .ilike('nome', espNome)
+            .limit(1)
+            .maybeSingle()
+        if (esp?.id) {
+            especialidadeId = Number(esp.id)
+            tipoSalvar = String(esp.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
+        }
+    }
+
+    const cidadeNome = String(card.cidade || '').trim()
+    let cidadeId = null
+    if (cidadeNome) {
+        try {
+            const cidadeObj = await obterOuCriarCidadeCredenciamento(cidadeNome)
+            cidadeId = cidadeObj?.id ? Number(cidadeObj.id) : null
+        } catch {
+            cidadeId = null
+        }
+    }
+
+    const patch = {
+        nome: String(card.nome || '').trim() || 'Novo prestador',
+        telefone: card.telefone || null,
+        endereco_uf: card.uf || null,
+        endereco_cidade: cidadeNome || null,
+        data_atualizacao: new Date().toISOString(),
+    }
+    if (especialidadeId) patch.especialidade_id = especialidadeId
+    if (tipoSalvar) patch.tipo = tipoSalvar
+    if (cidadeId) patch.cidade_id = cidadeId
+
+    const sitId =
+        acharSituacaoPreenchendoFormularioId(situacoes) ||
+        acharSituacaoAguardandoFormularioId(situacoes)
+    if (sitId && normalizarColunaKanban(card.coluna) === 'preenchendo_form') {
+        patch.situacao_id = Number(sitId)
+    }
+
+    let { error } = await supabase.from('prestadores').update(patch).eq('id', pid)
+    if (error && /tipo/i.test(String(error.message || ''))) {
+        const { tipo: _t, ...semTipo } = patch
+        ;({ error } = await supabase.from('prestadores').update(semTipo).eq('id', pid))
+    }
+    if (error) throw new Error(error.message)
+
+    if (especialidadeId) {
+        await supabase.from('prestador_especialidades').upsert(
+            [
+                {
+                    prestador_id: pid,
+                    especialidade_id: especialidadeId,
+                    principal: true,
+                },
+            ],
+            { onConflict: 'prestador_id,especialidade_id', ignoreDuplicates: true },
+        )
+    }
+    if (cidadeId) {
+        await supabase.from('prestador_cidades').upsert(
+            [
+                {
+                    prestador_id: pid,
+                    cidade_id: cidadeId,
+                    principal: true,
+                },
+            ],
+            { onConflict: 'prestador_id,cidade_id', ignoreDuplicates: true },
+        )
+    }
 }
 
 function dataLocalIso(iso) {

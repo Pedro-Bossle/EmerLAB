@@ -20,12 +20,14 @@ import {
     excluirCardKanban,
     filtrarCardsKanban,
     formatarDataRelativaKanban,
+    garantirPerfilSimplesAoPreenchendoForm,
     importacaoSituacoesJaFeita,
     importarSituacoesParaKanban,
     listarCardsKanban,
     montarResumoRelatorioKanban,
     moverCardKanban,
     podeMoverColunaKanban,
+    sincronizarPrestadorComCardKanban,
 } from '../../../lib/credKanban.js'
 import {
     marcarMencoesKanbanCardLidas,
@@ -360,10 +362,13 @@ export default function CredenciamentoKanban() {
     const novoCard = async (colunaId = 'nao_contatado') => {
         try {
             const coluna = COLUNAS_KANBAN.some((c) => c.id === colunaId) ? colunaId : 'nao_contatado'
-            const criado = await criarCardKanban({
+            let criado = await criarCardKanban({
                 coluna,
                 nome: 'Novo contato',
             })
+            if (coluna === 'preenchendo_form') {
+                criado = await garantirPerfilSimplesAoPreenchendoForm(criado, { situacoes })
+            }
             setCards((prev) => [...prev, criado])
             setColunaMobile(coluna)
             setCardAberto(criado)
@@ -445,7 +450,20 @@ export default function CredenciamentoKanban() {
     const salvarCard = async (patch) => {
         if (!cardExibido) return
         const corpoAnterior = cardExibido.corpo || ''
-        const atualizado = await atualizarCardKanban(cardExibido.id, patch)
+        let atualizado = await atualizarCardKanban(cardExibido.id, patch)
+        if (atualizado.coluna === 'preenchendo_form' && !atualizado.prestadorId) {
+            try {
+                atualizado = await garantirPerfilSimplesAoPreenchendoForm(atualizado, { situacoes })
+            } catch (err) {
+                setAviso(err?.message || 'Não foi possível criar o perfil simples automaticamente.')
+            }
+        } else if (atualizado.coluna === 'preenchendo_form' && atualizado.prestadorId) {
+            try {
+                await sincronizarPrestadorComCardKanban(atualizado, { situacoes })
+            } catch (err) {
+                setAviso(err?.message || 'Card salvo, mas o perfil vinculado não foi atualizado.')
+            }
+        }
         setCardAberto(atualizado)
         limparCardDaQuery()
         setCards((prev) => prev.map((c) => (Number(c.id) === Number(atualizado.id) ? atualizado : c)))
@@ -1446,6 +1464,8 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                             <span>UF</span>
                             <SelectUfBusca
                                 value={uf}
+                                emptyLabel="—"
+                                placeholder="Selecionar UF…"
                                 onChange={(u) => {
                                     setUf(u)
                                     setCidade('')
@@ -1459,12 +1479,12 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                                 value={cidade}
                                 valueKey="nome"
                                 onChange={setCidade}
-                                disabled={!uf}
+                                disabled={!uf || carregandoMunicipios}
                                 loading={carregandoMunicipios}
-                                placeholder={uf ? 'Selecionar cidade…' : 'Escolha a UF'}
+                                placeholder={!uf ? 'Selecione a UF' : 'Buscar cidade…'}
                                 searchPlaceholder="Buscar cidade…"
+                                emptyLabel="—"
                                 aria-label="Cidade do card"
-                                className="cred_kanban_select_cidade"
                             />
                         </label>
                         <label className="cred_kanban_campo_telefone">
@@ -1668,7 +1688,7 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                     <div className="cred_kanban_modal_footer_direita">
                         {!card.prestadorId && card.coluna === 'preenchendo_form' ? (
                             <button type="button" onClick={() => void onCriarPrestador()}>
-                                Criar prestador (Preenchendo Form)
+                                Criar perfil simples
                             </button>
                         ) : null}
                         <button

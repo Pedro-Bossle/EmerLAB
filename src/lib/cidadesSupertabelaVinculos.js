@@ -215,14 +215,85 @@ export function filtrarMunicipiosIbgePorCredenciamento(municipios, uf, nomesPorU
 }
 
 /**
+ * Nomes de exibição (UF) a partir da tabela-mestre + vínculos — preserva o casing original.
+ * @returns {Map<string, string>} chave normalizada → nome para UI
+ */
+export function mapaNomesDisplayMunicipioPermitidosPorUf(cidades, vinculos, cidadeIdsPermitidos, uf) {
+    const ufNorm = String(uf || '').trim().toUpperCase()
+    const out = new Map()
+    if (!ufNorm || cidadeIdsPermitidos == null) return out
+    const permitir =
+        cidadeIdsPermitidos instanceof Set && cidadeIdsPermitidos.size > 0 ? cidadeIdsPermitidos : null
+    const add = (ufRow, nomeRaw) => {
+        if (String(ufRow || '').trim().toUpperCase() !== ufNorm) return
+        const nome = String(nomeRaw || '').trim()
+        const chave = normalizarMunicipioChave(nome)
+        if (!chave || out.has(chave)) return
+        out.set(chave, nome)
+    }
+    for (const c of cidades || []) {
+        if (permitir && !permitir.has(Number(c.id))) continue
+        add(c.uf, c.nome)
+    }
+    for (const v of vinculos || []) {
+        if (permitir && !permitir.has(Number(v.cidade_id))) continue
+        add(v.uf, v.municipio_nome)
+    }
+    return out
+}
+
+/**
+ * Opções do select Cidade (credenciamento): IBGE ∩ malha, com fallback dos nomes
+ * da tabela/vínculos quando o nome da cidade-tabela não coincide com município IBGE
+ * (evita UF selecionável e lista de cidades vazia).
+ * @returns {Array<{ id: string|number, nome: string }>}
+ */
+export function montarOpcoesMunicipioFiltroCredenciamento({
+    municipiosIbge,
+    uf,
+    cidades,
+    vinculos,
+    cidadeIdsPermitidos,
+}) {
+    const ufNorm = String(uf || '').trim().toUpperCase()
+    if (!ufNorm || cidadeIdsPermitidos == null) return []
+
+    const displayPorChave = mapaNomesDisplayMunicipioPermitidosPorUf(
+        cidades,
+        vinculos,
+        cidadeIdsPermitidos,
+        ufNorm,
+    )
+    if (!displayPorChave.size) return []
+
+    const porChave = new Map(displayPorChave)
+    for (const m of municipiosIbge || []) {
+        const nome = String(m?.nome || '').trim()
+        const chave = normalizarMunicipioChave(nome)
+        if (!chave || !displayPorChave.has(chave)) continue
+        // Prefere casing oficial do IBGE quando houver match.
+        porChave.set(chave, nome)
+    }
+
+    return [...porChave.values()]
+        .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }))
+        .map((nome) => ({ id: nome, nome }))
+}
+
+/**
  * Municípios selecionáveis na impressão de planos (tabela-mestre + secundários via vínculo).
  * @returns {Array<{ municipioNome: string, cidadeTabelaId: number, label: string, ehPointer: boolean, tabelaNome: string }>}
  */
 export function listarOpcoesMunicipioImpressaoPlanos(cidades, vinculos, municipiosIbge, uf, cidadeIdsPermitidos) {
     const ufNorm = String(uf || '').trim().toUpperCase()
     if (!ufNorm) return []
-    const nomesPorUf = buildNomesMunicipioPermitidosPorUf(cidades, vinculos, cidadeIdsPermitidos)
-    const listaIbge = filtrarMunicipiosIbgePorCredenciamento(municipiosIbge, ufNorm, nomesPorUf)
+    const listaBase = montarOpcoesMunicipioFiltroCredenciamento({
+        municipiosIbge,
+        uf: ufNorm,
+        cidades,
+        vinculos,
+        cidadeIdsPermitidos,
+    })
     const mapaTabelaNome = new Map(
         (cidades || []).map((c) => [Number(c.id), String(c.nome || '').trim()]),
     )
@@ -230,7 +301,7 @@ export function listarOpcoesMunicipioImpressaoPlanos(cidades, vinculos, municipi
     const opcoes = []
     const vistos = new Set()
 
-    for (const m of listaIbge) {
+    for (const m of listaBase) {
         const municipioNome = String(m.nome || '').trim()
         if (!municipioNome) continue
         const chave = normalizarMunicipioChave(municipioNome)
