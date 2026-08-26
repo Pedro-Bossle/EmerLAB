@@ -6,48 +6,18 @@ import {
     hasPermission,
     normalizarProfileAcesso,
 } from '../src/lib/accessControl.js'
+import {
+    getClientIp,
+    getRequestHeader,
+    readJsonBodyLimited,
+    responderSePayloadGrande,
+} from '../src/lib/api/serverAuth.js'
+import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
 dotenvConfig()
 
-const getJsonBody = async (req) => {
-    if (req.body !== undefined && req.body !== null) {
-        if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body
-        if (typeof req.body === 'string' && req.body.trim()) {
-            try {
-                return JSON.parse(req.body)
-            } catch {
-                return {}
-            }
-        }
-    }
-    const chunks = []
-    for await (const chunk of req) chunks.push(chunk)
-    if (!chunks.length) return {}
-    try {
-        return JSON.parse(Buffer.concat(chunks).toString('utf-8'))
-    } catch {
-        return {}
-    }
-}
-
-const getHeader = (req, name) => {
-    const headers = req.headers || {}
-    return headers[name] || headers[name.toLowerCase()] || ''
-}
-
-const getClientIp = (req) => {
-    const xf = String(getHeader(req, 'x-forwarded-for') || '')
-        .split(',')[0]
-        .trim()
-    if (xf) return xf
-    return (
-        getHeader(req, 'x-real-ip') ||
-        req.socket?.remoteAddress ||
-        req.connection?.remoteAddress ||
-        null
-    )
-}
+const getHeader = (req, name) => getRequestHeader(req, name) || ''
 
 const getSupabaseAdmin = () => {
     const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
@@ -103,9 +73,18 @@ export default async function handler(req, res) {
         return responderErro(res, 405, 'Método não permitido.')
     }
 
+    const ip = getClientIp(req)
+    if (!aplicarRateLimit(res, `audit-logs:${ip}`, RATE_LIMITS.auditLogs)) return
+
     try {
         const supabase = getSupabaseAdmin()
-        const body = await getJsonBody(req)
+        let body
+        try {
+            body = await readJsonBodyLimited(req)
+        } catch (e) {
+            if (responderSePayloadGrande(res, e)) return
+            throw e
+        }
         const action = String(body.action || 'list').trim()
 
         if (action === 'recordAuth') {

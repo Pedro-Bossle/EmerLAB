@@ -62,6 +62,9 @@ export const RATE_LIMITS = {
     prospectos: { limit: 12, windowMs: 60_000 },
     clicksign: { limit: 60, windowMs: 60_000 },
     webhook: { limit: 120, windowMs: 60_000 },
+    adminUsers: { limit: 30, windowMs: 60_000 },
+    auditLogs: { limit: 40, windowMs: 60_000 },
+    geminiRate: { limit: 30, windowMs: 60_000 },
 }
 
 /**

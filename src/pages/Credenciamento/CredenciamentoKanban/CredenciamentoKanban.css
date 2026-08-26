@@ -113,8 +113,21 @@
   color: #1f3a4f;
 }
 
-.cred_kanban_filtros .select_municipio_busca_trigger,
-.cred_kanban_modal .select_municipio_busca_trigger {
+/* UF/Cidade no card: mesmo SelectMunicipioBusca do restante do projeto (sem compactar). */
+.cred_kanban_modal .cred_kanban_campo_uf .select_municipio_busca_trigger,
+.cred_kanban_modal .cred_kanban_campo_cidade .select_municipio_busca_trigger {
+  border: 1px solid #b9d4e8;
+  border-radius: 10px;
+  padding: 0.45rem 0.55rem 0.45rem 0.7rem;
+  min-height: 2.45rem;
+  height: auto;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e3148;
+  background: #fff;
+}
+
+.cred_kanban_filtros .select_municipio_busca_trigger {
   border: 1px solid #bfd7e8;
   border-radius: 8px;
   padding: 5px 8px 5px 9px;
@@ -1397,7 +1410,8 @@ body.dark-mode .cred_kanban_filtros select,
 body.dark-mode .cred_kanban_modal input,
 body.dark-mode .cred_kanban_modal select,
 body.dark-mode .cred_kanban_filtros .select_municipio_busca_trigger,
-body.dark-mode .cred_kanban_modal .select_municipio_busca_trigger,
+body.dark-mode .cred_kanban_modal .cred_kanban_campo_uf .select_municipio_busca_trigger,
+body.dark-mode .cred_kanban_modal .cred_kanban_campo_cidade .select_municipio_busca_trigger,
 body.dark-mode .cred_kanban_modal textarea,
 body.dark-mode .cred_kanban_bulk button,
 body.dark-mode .cred_kanban_col_add,

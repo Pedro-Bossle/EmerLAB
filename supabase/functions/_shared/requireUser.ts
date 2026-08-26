@@ -100,6 +100,16 @@ export function podeFerramentaProspectos(permissions: Record<string, unknown> | 
   return podeCredenciamentoView(permissions) && hasAclRead(permissions, 'credenciamento.prospectos_osm')
 }
 
+/** POST coleta: edit + ferramenta (write ACL ou legado edit + read da ferramenta). */
+export function podeFerramentaProspectosEdit(permissions: Record<string, unknown> | null | undefined) {
+  if (!podeCredenciamentoEdit(permissions)) return false
+  if (hasAclWrite(permissions, 'credenciamento.prospectos_osm')) return true
+  return (
+    hasLegacy(permissions, 'credenciamento.edit') &&
+    hasAclRead(permissions, 'credenciamento.prospectos_osm')
+  )
+}
+
 /** Rate limit simples por IP (memória da isolate). */
 const buckets = new Map<string, number[]>()
 

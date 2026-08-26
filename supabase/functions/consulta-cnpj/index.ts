@@ -1,5 +1,5 @@
 import { handleOptions, jsonResponse } from '../_shared/cors.ts'
-import { clientIp, rateLimitOk } from '../_shared/requireUser.ts'
+import { clientIp, rateLimitOk, requireUserProfile } from '../_shared/requireUser.ts'
 
 const apenasDigitos = (v: string) => String(v || '').replace(/\D/g, '')
 
@@ -59,6 +59,11 @@ Deno.serve(async (req) => {
 
   if (!rateLimitOk(`cnpj:${clientIp(req)}`, 30, 60_000)) {
     return jsonResponse({ error: 'Demasiados pedidos. Aguarde um momento.' }, 429)
+  }
+
+  const auth = await requireUserProfile(req)
+  if ('error' in auth && auth.error) {
+    return jsonResponse({ error: auth.error }, auth.status || 401)
   }
 
   const url = new URL(req.url)

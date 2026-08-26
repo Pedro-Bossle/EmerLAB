@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom'
 import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
 import {
     buscarCidadeIdsFiltroPlanoCredenciados,
-    buildNomesMunicipioPermitidosPorUf,
     carregarVinculosMunicipios,
-    filtrarMunicipiosIbgePorCredenciamento,
+    montarOpcoesMunicipioFiltroCredenciamento,
     ufsDisponiveisFiltroCredenciamento,
 } from '../../../lib/cidadesSupertabelaVinculos.js'
 import { prestadorEhCredenciado } from '../../../lib/prestadorCadastroHelpers.js'
@@ -160,11 +159,6 @@ export default function CredenciamentoEspecialidadesCidade() {
         }
     }, [])
 
-    const nomesMunicipioPermitidosPorUf = useMemo(
-        () => buildNomesMunicipioPermitidosPorUf(cidadesTabela, vinculosMunicipios, idsFiltroCidadeCred),
-        [cidadesTabela, vinculosMunicipios, idsFiltroCidadeCred],
-    )
-
     const ufsPermitidasCredenciamento = useMemo(() => {
         const set = ufsDisponiveisFiltroCredenciamento(cidadesTabela, idsFiltroCidadeCred)
         return UFS_BRASIL.filter((sigla) => set.has(sigla))
@@ -176,16 +170,44 @@ export default function CredenciamentoEspecialidadesCidade() {
             setCidadeNome('')
             return
         }
+        if (idsFiltroCidadeCred == null) {
+            setMunicipios([])
+            return
+        }
+        let cancelado = false
         setLoadingMun(true)
         buscarMunicipiosPorUf(uf)
-            .then((lista) =>
+            .then((lista) => {
+                if (cancelado) return
                 setMunicipios(
-                    filtrarMunicipiosIbgePorCredenciamento(lista, uf, nomesMunicipioPermitidosPorUf),
-                ),
-            )
-            .catch(() => setMunicipios([]))
-            .finally(() => setLoadingMun(false))
-    }, [uf, nomesMunicipioPermitidosPorUf])
+                    montarOpcoesMunicipioFiltroCredenciamento({
+                        municipiosIbge: lista || [],
+                        uf,
+                        cidades: cidadesTabela,
+                        vinculos: vinculosMunicipios,
+                        cidadeIdsPermitidos: idsFiltroCidadeCred,
+                    }),
+                )
+            })
+            .catch(() => {
+                if (cancelado) return
+                setMunicipios(
+                    montarOpcoesMunicipioFiltroCredenciamento({
+                        municipiosIbge: [],
+                        uf,
+                        cidades: cidadesTabela,
+                        vinculos: vinculosMunicipios,
+                        cidadeIdsPermitidos: idsFiltroCidadeCred,
+                    }),
+                )
+            })
+            .finally(() => {
+                if (!cancelado) setLoadingMun(false)
+            })
+        return () => {
+            cancelado = true
+        }
+    }, [uf, cidadesTabela, vinculosMunicipios, idsFiltroCidadeCred])
 
     useEffect(() => {
         if (!cidadeNome) return

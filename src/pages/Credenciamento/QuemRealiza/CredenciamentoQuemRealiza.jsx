@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
 import {
     buscarCidadeIdsFiltroPlanoCredenciados,
-    buildNomesMunicipioPermitidosPorUf,
     carregarVinculosMunicipios,
-    filtrarMunicipiosIbgePorCredenciamento,
-    ufsDisponiveisFiltroCredenciamento } from '../../../lib/cidadesSupertabelaVinculos.js'
+    montarOpcoesMunicipioFiltroCredenciamento,
+    ufsDisponiveisFiltroCredenciamento,
+} from '../../../lib/cidadesSupertabelaVinculos.js'
 import { normalizarTextoBusca, filtrarPorTermoBusca, prestadorEhCredenciado } from '../../../lib/prestadorCadastroHelpers.js'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
@@ -205,11 +205,6 @@ export default function CredenciamentoQuemRealiza() {
         }
     }, [])
 
-    const nomesMunicipioPermitidosPorUf = useMemo(
-        () => buildNomesMunicipioPermitidosPorUf(cidadesTabela, vinculosMunicipios, idsFiltroCidadeCred),
-        [cidadesTabela, vinculosMunicipios, idsFiltroCidadeCred],
-    )
-
     const ufsPermitidasCredenciamento = useMemo(() => {
         const set = ufsDisponiveisFiltroCredenciamento(cidadesTabela, idsFiltroCidadeCred)
         return UFS_BRASIL.filter((sigla) => set.has(sigla))
@@ -221,16 +216,44 @@ export default function CredenciamentoQuemRealiza() {
             setCidadeNome('')
             return
         }
+        if (idsFiltroCidadeCred == null) {
+            setMunicipios([])
+            return
+        }
+        let cancelado = false
         setLoadingMun(true)
         buscarMunicipiosPorUf(uf)
-            .then((lista) =>
+            .then((lista) => {
+                if (cancelado) return
                 setMunicipios(
-                    filtrarMunicipiosIbgePorCredenciamento(lista, uf, nomesMunicipioPermitidosPorUf),
-                ),
-            )
-            .catch(() => setMunicipios([]))
-            .finally(() => setLoadingMun(false))
-    }, [uf, nomesMunicipioPermitidosPorUf])
+                    montarOpcoesMunicipioFiltroCredenciamento({
+                        municipiosIbge: lista || [],
+                        uf,
+                        cidades: cidadesTabela,
+                        vinculos: vinculosMunicipios,
+                        cidadeIdsPermitidos: idsFiltroCidadeCred,
+                    }),
+                )
+            })
+            .catch(() => {
+                if (cancelado) return
+                setMunicipios(
+                    montarOpcoesMunicipioFiltroCredenciamento({
+                        municipiosIbge: [],
+                        uf,
+                        cidades: cidadesTabela,
+                        vinculos: vinculosMunicipios,
+                        cidadeIdsPermitidos: idsFiltroCidadeCred,
+                    }),
+                )
+            })
+            .finally(() => {
+                if (!cancelado) setLoadingMun(false)
+            })
+        return () => {
+            cancelado = true
+        }
+    }, [uf, cidadesTabela, vinculosMunicipios, idsFiltroCidadeCred])
 
     useEffect(() => {
         if (!cidadeNome) return

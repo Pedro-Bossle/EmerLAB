@@ -162,3 +162,78 @@ export async function validarJwtFerramentaCredenciamento(req, toolId, viewKey, o
 export function responderJsonErro(res, status, mensagem, extra = {}) {
     return res.status(status).json({ ok: false, error: mensagem, ...extra })
 }
+
+/** Limite padrão de JSON em POSTs autenticados (alinhado ao webhook Clicksign). */
+export const MAX_JSON_BODY_BYTES = 256 * 1024
+
+function payloadTooLargeError() {
+    const err = new Error('payload_too_large')
+    err.code = 'PAYLOAD_TOO_LARGE'
+    return err
+}
+
+/**
+ * Lê corpo JSON com teto de tamanho (stream ou body já parseado pelo runtime).
+ * @param {import('http').IncomingMessage} req
+ * @param {{ maxBytes?: number }} [opts]
+ * @returns {Promise<Record<string, unknown>>}
+ */
+export async function readJsonBodyLimited(req, { maxBytes = MAX_JSON_BODY_BYTES } = {}) {
+    const cl = Number(getRequestHeader(req, 'content-length') || 0)
+    if (Number.isFinite(cl) && cl > maxBytes) throw payloadTooLargeError()
+
+    if (req.body !== undefined && req.body !== null) {
+        if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+            let estimado = 0
+            try {
+                estimado = Buffer.byteLength(JSON.stringify(req.body), 'utf8')
+            } catch {
+                estimado = 0
+            }
+            if (estimado > maxBytes) throw payloadTooLargeError()
+            return req.body
+        }
+        if (typeof req.body === 'string') {
+            if (Buffer.byteLength(req.body, 'utf8') > maxBytes) throw payloadTooLargeError()
+            if (!req.body.trim()) return {}
+            try {
+                return JSON.parse(req.body)
+            } catch {
+                return {}
+            }
+        }
+        if (Buffer.isBuffer(req.body)) {
+            if (req.body.length > maxBytes) throw payloadTooLargeError()
+            if (!req.body.length) return {}
+            try {
+                return JSON.parse(req.body.toString('utf8'))
+            } catch {
+                return {}
+            }
+        }
+    }
+
+    const chunks = []
+    let total = 0
+    for await (const chunk of req) {
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+        total += buf.length
+        if (total > maxBytes) throw payloadTooLargeError()
+        chunks.push(buf)
+    }
+    if (!chunks.length) return {}
+    try {
+        return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    } catch {
+        return {}
+    }
+}
+
+/** Responde 413 se o erro for payload grande; caso contrário rethrow. */
+export function responderSePayloadGrande(res, e) {
+    if (e?.code === 'PAYLOAD_TOO_LARGE' || e?.message === 'payload_too_large') {
+        res.status(413).json({ ok: false, error: 'Payload demasiado grande.' })
+        return true
+    }
+    return false
+}

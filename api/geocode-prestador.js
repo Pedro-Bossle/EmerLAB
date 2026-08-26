@@ -3,30 +3,11 @@ import { PERMISSION_KEYS } from '../src/lib/accessControl.js'
 import {
     createSupabaseAdminClient,
     getClientIp,
+    readJsonBodyLimited,
+    responderSePayloadGrande,
     validarJwtComPermissao,
 } from '../src/lib/api/serverAuth.js'
 import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
-
-const getJsonBody = async (req) => {
-    if (req.body !== undefined && req.body !== null) {
-        if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body
-        if (typeof req.body === 'string' && req.body.trim()) {
-            try {
-                return JSON.parse(req.body)
-            } catch {
-                return {}
-            }
-        }
-    }
-    const chunks = []
-    for await (const chunk of req) chunks.push(chunk)
-    if (!chunks.length) return {}
-    try {
-        return JSON.parse(Buffer.concat(chunks).toString('utf-8'))
-    } catch {
-        return {}
-    }
-}
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -43,7 +24,13 @@ export default async function handler(req, res) {
             return
         }
 
-        const body = await getJsonBody(req)
+        let body
+        try {
+            body = await readJsonBodyLimited(req)
+        } catch (e) {
+            if (responderSePayloadGrande(res, e)) return
+            throw e
+        }
         const prestadorId = Number(body.prestadorId)
         if (!prestadorId) {
             res.status(400).json({ ok: false, error: 'Informe prestadorId.' })
