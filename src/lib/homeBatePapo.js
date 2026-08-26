@@ -267,24 +267,11 @@ export async function garantirChavesUsuario() {
 async function buscarPublicas(userIds) {
   const ids = [...new Set((userIds || []).filter(Boolean))]
   if (!ids.length) return new Map()
+  // RPC SECURITY DEFINER: única forma segura de ler public_jwk de outros users
+  // (a view home_bate_papo_user_public_keys é security_invoker → só a própria linha)
   const { data, error } = await supabase.rpc('home_bate_papo_publicas', { uids: ids })
-  if (!error) {
-    return new Map((data || []).map((r) => [r.user_id, r.public_jwk]))
-  }
-  // Fallback: view ou tabela (antes do SQL de chave de conta)
-  const { data: rows, error: err2 } = await supabase
-    .from('home_bate_papo_user_public_keys')
-    .select('user_id, public_jwk')
-    .in('user_id', ids)
-  if (!err2) {
-    return new Map((rows || []).map((r) => [r.user_id, r.public_jwk]))
-  }
-  const { data: legacy, error: err3 } = await supabase
-    .from('home_bate_papo_user_keys')
-    .select('user_id, public_jwk')
-    .in('user_id', ids)
-  if (err3) throw new Error(mensagemErroBatePapo(error || err2 || err3))
-  return new Map((legacy || []).map((r) => [r.user_id, r.public_jwk]))
+  if (error) throw new Error(mensagemErroBatePapo(error))
+  return new Map((data || []).map((r) => [r.user_id, r.public_jwk]))
 }
 
 function previewBatePapo(texto, max = 80) {

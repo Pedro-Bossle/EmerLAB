@@ -14,7 +14,8 @@ Execute `home_bate_papo_v2.sql` no SQL Editor do Supabase **depois** de `home_ba
 
 Execute no Supabase:
 
-1. `home_bate_papo_chave_conta.sql` — colunas `priv_cipher`, `chave_reset_pedido_em` + view/RPC de públicas.
+1. `home_bate_papo_chave_conta.sql` — colunas `priv_cipher`, `chave_reset_pedido_em` + view (`security_invoker`) + RPC de públicas.
+2. Se o Advisor marcar a view como SECURITY DEFINER: `home_bate_papo_view_security_invoker.sql`.
 2. No primeiro uso: o modal de **senha da chave** é obrigatório (não dá para saltar).
 3. Noutro aparelho: a mesma senha desbloqueia o histórico.
 
