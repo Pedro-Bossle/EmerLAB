@@ -23,7 +23,7 @@ Executar no SQL Editor do Supabase (ou confirmar já aplicados):
 - [ ] `scripts/sql/notificacoes_realtime.sql`
 - [ ] `scripts/sql/formulario_cred_entradas_delete_rls.sql` (se inbox/formulário ativo)
 - [ ] `scripts/sql/home_bate_papo_v2_rls_fix_select.sql` (se bate-papo v2 ativo)
-- [ ] `scripts/sql/home_bate_papo_view_security_invoker.sql` (ou reaplicar `home_bate_papo_chave_conta.sql` se Advisor marcar a view DEFINER)
+- [ ] `scripts/sql/clicksign_notificacoes_user_dismissed.sql` (limpeza de notificações Clicksign por utilizador)
 - [ ] `scripts/sql/audit_logs_e_credenciado_em.sql` (se auditoria unificada ativa)
 
 Secrets / ambiente:

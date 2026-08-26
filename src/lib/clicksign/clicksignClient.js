@@ -14,7 +14,20 @@ async function parseJson(res) {
         try {
             data = JSON.parse(text)
         } catch {
-            data = { error: 'Resposta não JSON', raw: text.slice(0, 400) }
+            if (res.status === 429) {
+                data = {
+                    error:
+                        'Limite de pedidos excedido (429). A Clicksign ou o proxy recusou a rajada — aguarde ~1 min e tente de novo.',
+                    raw: text.slice(0, 200),
+                }
+            } else {
+                data = { error: 'Resposta não JSON', raw: text.slice(0, 400) }
+            }
+        }
+    } else if (res.status === 429) {
+        data = {
+            error:
+                'Limite de pedidos excedido (429). Aguarde um momento e tente de novo.',
         }
     }
     return { ok: res.ok, status: res.status, data }
@@ -520,6 +533,10 @@ export function erroApiTexto(data) {
             .map((e) => String(e?.detail || e?.title || '').trim())
             .filter(Boolean)
             .join(' ')
+    }
+    const raw = String(data.raw || '')
+    if (/too many requests|rate.?limit|429/i.test(raw)) {
+        return 'Limite de pedidos excedido (429). Aguarde um momento e tente de novo.'
     }
     return JSON.stringify(data).slice(0, 500)
 }

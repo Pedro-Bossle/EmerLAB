@@ -402,7 +402,14 @@ export default function FormularioInboxBell({
     useEffect(() => {
         if (!temPermissao) return undefined
         const onStorage = (e) => {
-            if (e.key && e.key !== CLICKSIGN_NOTIF_STORAGE_KEY) return
+            const k = String(e.key || '')
+            if (
+                k &&
+                k !== 'emerdog_clicksign_notificacoes_v1' &&
+                !k.startsWith(CLICKSIGN_NOTIF_STORAGE_KEY)
+            ) {
+                return
+            }
             refreshContratosUi()
         }
         const onCustom = () => refreshContratosUi()

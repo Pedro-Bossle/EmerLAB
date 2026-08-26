@@ -113,6 +113,19 @@ export default async function clicksignProxyHandler(req, res) {
         const upstream = await fetch(upstreamUrl, fetchOpts)
         const text = await upstream.text()
         const ct = (upstream.headers.get('content-type') || '').toLowerCase()
+        if (upstream.status === 429) {
+            setResponseStatus(res, 429)
+            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+            const retry = upstream.headers.get('retry-after')
+            if (retry) res.setHeader('Retry-After', retry)
+            res.json({
+                ok: false,
+                error:
+                    'Limite de pedidos na API Clicksign (429). Aguarde um momento e tente de novo.',
+                retryAfterSec: retry ? Number(retry) || undefined : undefined,
+            })
+            return
+        }
         const pareceJson = !text.length || ct.includes('json') || ct.includes('application/vnd.api')
         if (!pareceJson && text.length > 0) {
             sendRawResponse(res, upstream.status, ct || 'text/plain; charset=utf-8', text)
