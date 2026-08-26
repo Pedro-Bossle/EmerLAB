@@ -129,6 +129,13 @@ body.dark-mode .cred_prospectos_osm_page .cred_prospectos_osm_top {
     min-width: 0;
 }
 
+.cred_prospectos_osm_field_cidade .select_municipio_busca,
+.cred_prospectos_osm_field_cidade .select_municipio_busca_trigger {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
 .cred_prospectos_osm_field_uf .credenciamento_main_input {
     text-align: center;
     padding-left: 4px;

@@ -18,6 +18,7 @@ import {
     listarProspectosOsm,
     atualizarStatusProspectoOsm,
     atualizarProspectoOsm,
+    listarCidadesUfProspectosOsm,
 } from '../../../lib/credenciamento/prospectosOsmRepo.js'
 import {
     colunaKanbanParaStatusProspecto,
@@ -55,6 +56,58 @@ const TODAS_CATEGORIAS_IDS = PROSPECTOS_OSM_CATEGORIAS.map((c) => c.id)
 const SPLIT_STORAGE_KEY = 'emerlab-prospectos-osm-split-pct'
 const SPLIT_MIN = 28
 const SPLIT_MAX = 72
+
+function normalizarNomeCidadeChave(nome) {
+    return String(nome || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase()
+}
+
+/** IBGE da UF + cidades já presentes no catálogo (fallback se IBGE falhar). */
+async function carregarOpcoesMunicipioProspectos(ufSigla) {
+    const uf = String(ufSigla || '').trim().toUpperCase()
+    if (!uf) return []
+
+    let ibge = []
+    try {
+        ibge = await buscarMunicipiosPorUf(uf)
+    } catch {
+        ibge = []
+    }
+
+    let doCatalogo = []
+    try {
+        const r = await listarCidadesUfProspectosOsm()
+        if (r.ok) {
+            doCatalogo = (r.pares || [])
+                .filter((p) => String(p.uf || '').trim().toUpperCase() === uf)
+                .map((p) => String(p.cidade || '').trim())
+                .filter(Boolean)
+        }
+    } catch {
+        doCatalogo = []
+    }
+
+    const porChave = new Map()
+    for (const m of ibge || []) {
+        const nome = String(m?.nome || '').trim()
+        const chave = normalizarNomeCidadeChave(nome)
+        if (!chave) continue
+        porChave.set(chave, { id: m.id ?? nome, nome })
+    }
+    for (const nomeRaw of doCatalogo) {
+        const nome = String(nomeRaw || '').trim()
+        const chave = normalizarNomeCidadeChave(nome)
+        if (!chave || porChave.has(chave)) continue
+        porChave.set(chave, { id: nome, nome })
+    }
+
+    return [...porChave.values()].sort((a, b) =>
+        a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }),
+    )
+}
 
 function lerSplitInicial() {
     if (typeof window === 'undefined') return 50
@@ -97,7 +150,8 @@ const CredenciamentoProspectosOsm = () => {
     const [municipios, setMunicipios] = useState([])
     const [municipiosEdit, setMunicipiosEdit] = useState([])
     const [loadingMunEdit, setLoadingMunEdit] = useState(false)
-    const [loadingMun, setLoadingMun] = useState(false)
+    /** true no arranque: UF default RS — evita abrir o select com lista vazia antes do fetch */
+    const [loadingMun, setLoadingMun] = useState(true)
     const [catsAtivas, setCatsAtivas] = useState(() => new Set(TODAS_CATEGORIAS_IDS))
     const [catPainelAberto, setCatPainelAberto] = useState(false)
     const catPainelRef = useRef(null)
@@ -203,24 +257,36 @@ const CredenciamentoProspectosOsm = () => {
         if (!uf) {
             setMunicipios([])
             setCidade('')
-            return
+            setLoadingMun(false)
+            return undefined
         }
+        let cancelado = false
         setLoadingMun(true)
-        buscarMunicipiosPorUf(uf)
-            .then((lista) => setMunicipios(lista || []))
-            .catch(() => setMunicipios([]))
-            .finally(() => setLoadingMun(false))
+        void carregarOpcoesMunicipioProspectos(uf)
+            .then((lista) => {
+                if (!cancelado) setMunicipios(lista || [])
+            })
+            .catch(() => {
+                if (!cancelado) setMunicipios([])
+            })
+            .finally(() => {
+                if (!cancelado) setLoadingMun(false)
+            })
+        return () => {
+            cancelado = true
+        }
     }, [uf])
 
     useEffect(() => {
         const ufEdit = String(editForm?.uf || '').trim().toUpperCase()
         if (!editForm || !ufEdit) {
             setMunicipiosEdit([])
+            setLoadingMunEdit(false)
             return undefined
         }
         let cancel = false
         setLoadingMunEdit(true)
-        buscarMunicipiosPorUf(ufEdit)
+        void carregarOpcoesMunicipioProspectos(ufEdit)
             .then((lista) => {
                 if (!cancel) setMunicipiosEdit(lista || [])
             })
@@ -237,22 +303,15 @@ const CredenciamentoProspectosOsm = () => {
 
     useEffect(() => {
         if (!cidade) return
-        const chave = String(cidade || '')
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .trim()
-            .toLowerCase()
+        if (loadingMun) return
+        const chave = normalizarNomeCidadeChave(cidade)
         const hit = municipios.find((m) => {
-            const n = String(m.nome || '')
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .trim()
-                .toLowerCase()
+            const n = normalizarNomeCidadeChave(m.nome)
             return n === chave || m.nome === cidade
         })
         if (!hit) setCidade('')
         else if (hit.nome !== cidade) setCidade(hit.nome)
-    }, [cidade, municipios])
+    }, [cidade, municipios, loadingMun])
 
     useEffect(() => {
         if (!catPainelAberto) return undefined
@@ -713,9 +772,11 @@ const CredenciamentoProspectosOsm = () => {
                             <span>Cidade</span>
                             <SelectMunicipioBusca
                                 value={cidade}
+                                valueKey="nome"
                                 options={municipios}
                                 disabled={!uf || loadingMun}
                                 loading={loadingMun}
+                                inputClassName="credenciamento_main_input"
                                 placeholder={!uf ? 'Selecione a UF' : 'Buscar cidade…'}
                                 onChange={setCidade}
                             />
@@ -1264,6 +1325,7 @@ const CredenciamentoProspectosOsm = () => {
                                 <span>Cidade</span>
                                 <SelectMunicipioBusca
                                     value={editForm.cidade}
+                                    valueKey="nome"
                                     options={municipiosEdit}
                                     disabled={!editForm.uf?.trim() || loadingMunEdit}
                                     loading={loadingMunEdit}

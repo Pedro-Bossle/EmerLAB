@@ -111,8 +111,6 @@ const ComprasOrcamento = () => {
 
   const [erro, setErro] = useState("");
 
-  const [headerCompacto, setHeaderCompacto] = useState(false);
-
   const [procedimentos, setProcedimentos] = useState([]);
 
   const [vendas, setVendas] = useState([]);
@@ -384,16 +382,6 @@ const ComprasOrcamento = () => {
   useEffect(() => {
     carregarBase();
   }, [carregarBase]);
-
-  useEffect(() => {
-    const onScroll = () => setHeaderCompacto(window.scrollY > 22);
-
-    onScroll();
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const calcularOrcamentoLive = useCallback(async () => {
     const reqId = ++calcLiveIdRef.current;
@@ -771,17 +759,13 @@ const ComprasOrcamento = () => {
 
   return (
     <div className="el-legacy-wrap compras_orc">
-      <header
-        className={`compras_orc_header ${headerCompacto ? "is-compact" : ""}`}
-      >
-        <PageHeader
-          className="compras_orc_page_header"
-          kicker="Compras"
-          title="Orçamento"
-          description="Monte orçamentos com valores de compra, diferença de plano e quem realiza."
-        />
+      <PageHeader
+        kicker="Compras"
+        title="Orçamento"
+        description="Monte orçamentos com valores de compra, diferença de plano e quem realiza."
+      />
 
-        <div className="compras_orc_filtros_flutuantes">
+      <div className="compras_orc_filtros_flutuantes">
           <div className="compras_orc_filtros_inner">
             <div className="compras_orc_filtro_item compras_orc_filtro_busca">
               <p className="compras_orc_filtro_label">Adicionar Procedimento</p>
@@ -891,8 +875,7 @@ const ComprasOrcamento = () => {
               </select>
             </label>
           </div>
-        </div>
-      </header>
+      </div>
 
       {erro && (
         <div className="compras_orc_alert" role="alert">
