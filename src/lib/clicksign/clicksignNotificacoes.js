@@ -16,15 +16,9 @@ const KEY_SNAP_LEGACY = 'emerdog_clicksign_notif_snapshot_v1'
 const MAX_NOTIF = 80
 const MAX_WEBHOOK_FETCH = 120
 
-let uidCache = { id: null, at: 0 }
-
 async function uidAtual() {
-    const agora = Date.now()
-    if (uidCache.id && agora - uidCache.at < 30_000) return uidCache.id
     const { data } = await supabase.auth.getUser()
-    const id = data?.user?.id || null
-    uidCache = { id, at: agora }
-    return id
+    return data?.user?.id || null
 }
 
 function chaveNotif(uid) {
