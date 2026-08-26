@@ -635,6 +635,69 @@ export async function upsertCardContatadoDeProspectoOsm(prospecto) {
     return enviarProspectoOsmParaKanban(prospecto, { forcarColuna: 'contatado' })
 }
 
+async function resolverEspecialidadeKanban(espNome) {
+    const nome = especialidadeVisivelKanban(espNome)
+    if (!nome) return { especialidadeId: null, tipoSalvar: null, espNome: '' }
+    const { data: esp } = await supabase
+        .from('especialidades')
+        .select('id, nome, tipo')
+        .ilike('nome', nome)
+        .limit(1)
+        .maybeSingle()
+    if (!esp?.id) return { especialidadeId: null, tipoSalvar: null, espNome: nome }
+    return {
+        especialidadeId: Number(esp.id),
+        tipoSalvar: String(esp.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE',
+        espNome: nome,
+    }
+}
+
+async function resolverCidadeCredenciamentoKanban(cidadeNomeRaw) {
+    const cidadeNome = String(cidadeNomeRaw || '').trim()
+    if (!cidadeNome) return { cidadeNome: '', cidadeId: null }
+    try {
+        const cidadeObj = await obterOuCriarCidadeCredenciamento(cidadeNome)
+        return {
+            cidadeNome,
+            cidadeId: cidadeObj?.id ? Number(cidadeObj.id) : null,
+        }
+    } catch {
+        return { cidadeNome, cidadeId: null }
+    }
+}
+
+async function upsertEspecialidadePrincipalPrestador(prestadorId, especialidadeId) {
+    const pid = Number(prestadorId)
+    const eid = Number(especialidadeId)
+    if (!pid || !eid) return
+    await supabase.from('prestador_especialidades').upsert(
+        [
+            {
+                prestador_id: pid,
+                especialidade_id: eid,
+                principal: true,
+            },
+        ],
+        { onConflict: 'prestador_id,especialidade_id', ignoreDuplicates: true },
+    )
+}
+
+async function upsertCidadePrincipalPrestador(prestadorId, cidadeId) {
+    const pid = Number(prestadorId)
+    const cid = Number(cidadeId)
+    if (!pid || !cid) return
+    await supabase.from('prestador_cidades').upsert(
+        [
+            {
+                prestador_id: pid,
+                cidade_id: cid,
+                principal: true,
+            },
+        ],
+        { onConflict: 'prestador_id,cidade_id', ignoreDuplicates: true },
+    )
+}
+
 export async function criarPrestadorMinimoParaCard(card, { situacoes = [] } = {}) {
     if (card?.prestadorId) {
         return { prestadorId: Number(card.prestadorId), card }
@@ -644,31 +707,10 @@ export async function criarPrestadorMinimoParaCard(card, { situacoes = [] } = {}
         acharSituacaoPreenchendoFormularioId(situacoes) ||
         acharSituacaoAguardandoFormularioId(situacoes)
     const agora = new Date().toISOString()
-    const espNome = especialidadeVisivelKanban(card.especialidade || card.tipo)
-    let especialidadeId = null
-    let tipoSalvar = 'ESPECIALIDADE'
-    if (espNome) {
-        const { data: esp } = await supabase
-            .from('especialidades')
-            .select('id, nome, tipo')
-            .ilike('nome', espNome)
-            .limit(1)
-            .maybeSingle()
-        if (esp?.id) {
-            especialidadeId = Number(esp.id)
-            tipoSalvar = String(esp.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
-        }
-    }
-
-    const cidadeNome = String(card.cidade || '').trim()
-    let cidadeObj = null
-    if (cidadeNome) {
-        try {
-            cidadeObj = await obterOuCriarCidadeCredenciamento(cidadeNome)
-        } catch {
-            cidadeObj = null
-        }
-    }
+    const { especialidadeId, tipoSalvar, espNome } = await resolverEspecialidadeKanban(
+        card.especialidade || card.tipo,
+    )
+    const { cidadeNome, cidadeId } = await resolverCidadeCredenciamentoKanban(card.cidade)
 
     const payload = {
         nome: String(card.nome || '').trim() || 'Novo prestador',
@@ -677,8 +719,8 @@ export async function criarPrestadorMinimoParaCard(card, { situacoes = [] } = {}
         endereco_cidade: cidadeNome || null,
         endereco_pais: 'Brasil',
         especialidade_id: especialidadeId,
-        tipo: tipoSalvar,
-        cidade_id: cidadeObj?.id ? Number(cidadeObj.id) : null,
+        tipo: tipoSalvar || 'ESPECIALIDADE',
+        cidade_id: cidadeId,
         situacao_id: sitId ? Number(sitId) : null,
         ativo: true,
         data_cadastro: agora,
@@ -696,37 +738,23 @@ export async function criarPrestadorMinimoParaCard(card, { situacoes = [] } = {}
     if (!data?.id) throw new Error('Prestador não foi criado.')
 
     const novoId = Number(data.id)
-    if (especialidadeId) {
-        await supabase.from('prestador_especialidades').upsert(
-            [
-                {
-                    prestador_id: novoId,
-                    especialidade_id: especialidadeId,
-                    principal: true,
-                },
-            ],
-            { onConflict: 'prestador_id,especialidade_id', ignoreDuplicates: true },
-        )
-    }
-    if (cidadeObj?.id) {
-        await supabase.from('prestador_cidades').upsert(
-            [
-                {
-                    prestador_id: novoId,
-                    cidade_id: Number(cidadeObj.id),
-                    principal: true,
-                },
-            ],
-            { onConflict: 'prestador_id,cidade_id', ignoreDuplicates: true },
-        )
-    }
+    await upsertEspecialidadePrincipalPrestador(novoId, especialidadeId)
+    await upsertCidadePrincipalPrestador(novoId, cidadeId)
 
-    const atualizado = await atualizarCardKanban(card.id, {
-        prestadorId: novoId,
-        coluna: 'preenchendo_form',
-        tipo: espNome || null,
-    })
-    return { prestadorId: novoId, card: atualizado }
+    try {
+        const atualizado = await atualizarCardKanban(card.id, {
+            prestadorId: novoId,
+            coluna: 'preenchendo_form',
+            tipo: espNome || null,
+        })
+        return { prestadorId: novoId, card: atualizado }
+    } catch (err) {
+        const detalhe = err?.message || String(err)
+        throw new Error(
+            `Prestador #${novoId} criado, mas falhou ao vincular ao card: ${detalhe}. ` +
+                'Vincule manualmente o prestador_id neste card para evitar duplicar o perfil.',
+        )
+    }
 }
 
 /**
@@ -746,40 +774,20 @@ export async function sincronizarPrestadorComCardKanban(card, { situacoes = [] }
     const pid = Number(card?.prestadorId)
     if (!Number.isFinite(pid) || pid <= 0) return
 
-    const espNome = especialidadeVisivelKanban(card.especialidade || card.tipo)
-    let especialidadeId = null
-    let tipoSalvar = null
-    if (espNome) {
-        const { data: esp } = await supabase
-            .from('especialidades')
-            .select('id, nome, tipo')
-            .ilike('nome', espNome)
-            .limit(1)
-            .maybeSingle()
-        if (esp?.id) {
-            especialidadeId = Number(esp.id)
-            tipoSalvar = String(esp.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
-        }
-    }
-
-    const cidadeNome = String(card.cidade || '').trim()
-    let cidadeId = null
-    if (cidadeNome) {
-        try {
-            const cidadeObj = await obterOuCriarCidadeCredenciamento(cidadeNome)
-            cidadeId = cidadeObj?.id ? Number(cidadeObj.id) : null
-        } catch {
-            cidadeId = null
-        }
-    }
+    const { especialidadeId, tipoSalvar } = await resolverEspecialidadeKanban(
+        card.especialidade || card.tipo,
+    )
+    const { cidadeNome, cidadeId } = await resolverCidadeCredenciamentoKanban(card.cidade)
 
     const patch = {
         nome: String(card.nome || '').trim() || 'Novo prestador',
-        telefone: card.telefone || null,
-        endereco_uf: card.uf || null,
-        endereco_cidade: cidadeNome || null,
         data_atualizacao: new Date().toISOString(),
     }
+    const tel = String(card.telefone || '').trim()
+    if (tel) patch.telefone = tel
+    const uf = String(card.uf || '').trim()
+    if (uf) patch.endereco_uf = uf
+    if (cidadeNome) patch.endereco_cidade = cidadeNome
     if (especialidadeId) patch.especialidade_id = especialidadeId
     if (tipoSalvar) patch.tipo = tipoSalvar
     if (cidadeId) patch.cidade_id = cidadeId
@@ -798,30 +806,8 @@ export async function sincronizarPrestadorComCardKanban(card, { situacoes = [] }
     }
     if (error) throw new Error(error.message)
 
-    if (especialidadeId) {
-        await supabase.from('prestador_especialidades').upsert(
-            [
-                {
-                    prestador_id: pid,
-                    especialidade_id: especialidadeId,
-                    principal: true,
-                },
-            ],
-            { onConflict: 'prestador_id,especialidade_id', ignoreDuplicates: true },
-        )
-    }
-    if (cidadeId) {
-        await supabase.from('prestador_cidades').upsert(
-            [
-                {
-                    prestador_id: pid,
-                    cidade_id: cidadeId,
-                    principal: true,
-                },
-            ],
-            { onConflict: 'prestador_id,cidade_id', ignoreDuplicates: true },
-        )
-    }
+    await upsertEspecialidadePrincipalPrestador(pid, especialidadeId)
+    await upsertCidadePrincipalPrestador(pid, cidadeId)
 }
 
 function dataLocalIso(iso) {

@@ -359,22 +359,63 @@ export default function CredenciamentoKanban() {
         await moverPara(id, colunaId)
     }
 
-    const novoCard = async (colunaId = 'nao_contatado') => {
-        try {
-            const coluna = COLUNAS_KANBAN.some((c) => c.id === colunaId) ? colunaId : 'nao_contatado'
-            let criado = await criarCardKanban({
-                coluna,
-                nome: 'Novo contato',
-            })
-            if (coluna === 'preenchendo_form') {
+    const novoCard = (colunaId = 'nao_contatado') => {
+        const coluna = COLUNAS_KANBAN.some((c) => c.id === colunaId) ? colunaId : 'nao_contatado'
+        setColunaMobile(coluna)
+        setErro('')
+        setCardAberto({
+            id: null,
+            isRascunho: true,
+            coluna,
+            ordem: 0,
+            nome: '',
+            uf: '',
+            cidade: '',
+            telefone: '',
+            tipo: '',
+            especialidade: '',
+            prestadorId: null,
+            prospectoOsmId: null,
+            atribuidoA: getStoredAccessProfile()?.id || '',
+            corpo: '',
+            checklist: [],
+            criadoEm: null,
+            atualizadoEm: null,
+            criadoPor: null,
+        })
+    }
+
+    const criarCardComDados = async (coluna, patch) => {
+        const nomeLimpo = String(patch.nome || '').trim()
+        if (!nomeLimpo) throw new Error('Informe o nome para criar o card.')
+        let criado = await criarCardKanban({
+            coluna,
+            nome: nomeLimpo,
+            uf: patch.uf,
+            cidade: patch.cidade,
+            telefone: patch.telefone,
+            tipo: patch.tipo || patch.especialidade,
+            corpo: patch.corpo,
+            checklist: patch.checklist,
+            atribuidoA: patch.atribuidoA,
+            prestadorId: patch.prestadorId,
+        })
+        if (criado.coluna === 'preenchendo_form' && !criado.prestadorId) {
+            try {
                 criado = await garantirPerfilSimplesAoPreenchendoForm(criado, { situacoes })
+            } catch (err) {
+                setAviso(err?.message || 'Card criado, mas o perfil simples não foi gerado.')
             }
-            setCards((prev) => [...prev, criado])
-            setColunaMobile(coluna)
-            setCardAberto(criado)
-        } catch (e) {
-            setErro(e?.message || String(e))
+        } else if (criado.coluna === 'preenchendo_form' && criado.prestadorId) {
+            try {
+                await sincronizarPrestadorComCardKanban(criado, { situacoes })
+            } catch {
+                /* card já existe */
+            }
         }
+        setCards((prev) => [...prev, criado])
+        setColunaMobile(criado.coluna)
+        return criado
     }
 
     const toggleSelecionado = (cardId, e) => {
@@ -449,6 +490,34 @@ export default function CredenciamentoKanban() {
 
     const salvarCard = async (patch) => {
         if (!cardExibido) return
+        const ehRascunho = Boolean(cardExibido.isRascunho) || !cardExibido.id
+
+        if (ehRascunho) {
+            const criado = await criarCardComDados(cardExibido.coluna, {
+                ...patch,
+                prestadorId: patch.prestadorId ?? cardExibido.prestadorId,
+            })
+            if (patch.corpo !== undefined) {
+                const r = await notificarMencoesKanban({
+                    cardId: criado.id,
+                    cardNome: criado.nome,
+                    corpoNovo: criado.corpo,
+                    corpoAnterior: '',
+                })
+                if (r?.aviso) setAviso(r.aviso)
+                else if (r?.criados > 0) {
+                    setAviso(
+                        r.criados === 1
+                            ? '1 utilizador notificado por menção.'
+                            : `${r.criados} utilizadores notificados por menção.`,
+                    )
+                }
+            }
+            setCardAberto(null)
+            limparCardDaQuery()
+            return criado
+        }
+
         const corpoAnterior = cardExibido.corpo || ''
         let atualizado = await atualizarCardKanban(cardExibido.id, patch)
         if (atualizado.coluna === 'preenchendo_form' && !atualizado.prestadorId) {
@@ -483,6 +552,7 @@ export default function CredenciamentoKanban() {
                 )
             }
         }
+        return atualizado
     }
 
     const exportarRelatorio = () => {
@@ -571,6 +641,17 @@ export default function CredenciamentoKanban() {
                     <span className="cred_kanban_tag cred_kanban_tag_outlook" title="Evento no Outlook">
                         Outlook
                     </span>
+                ) : null}
+                {card.prestadorId ? (
+                    <Link
+                        to={`/credenciamento/cadastro/${card.prestadorId}`}
+                        className="cred_kanban_tag cred_kanban_tag_perfil"
+                        title="Abrir perfil do credenciado"
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                    >
+                        Perfil #{card.prestadorId}
+                    </Link>
                 ) : null}
                 {compact ? (
                     <div
@@ -783,7 +864,7 @@ export default function CredenciamentoKanban() {
                             className="cred_kanban_col_add"
                             title="Novo card nesta coluna"
                             aria-label="Novo card nesta coluna"
-                            onClick={() => void novoCard(colunaMobile)}
+                            onClick={() => novoCard(colunaMobile)}
                         >
                             +
                         </button>
@@ -836,7 +917,7 @@ export default function CredenciamentoKanban() {
                                                 className="cred_kanban_col_add"
                                                 title={`Novo card em ${col.label}`}
                                                 aria-label={`Novo card em ${col.label}`}
-                                                onClick={() => void novoCard(col.id)}
+                                                onClick={() => novoCard(col.id)}
                                             >
                                                 +
                                             </button>
@@ -889,31 +970,45 @@ export default function CredenciamentoKanban() {
                     onClose={fecharCard}
                     onSave={async (patch) => {
                         try {
-                            await salvarCard(patch)
+                            return await salvarCard(patch)
                         } catch (e) {
                             setErro(e?.message || String(e))
                             throw e
                         }
                     }}
-                    onDelete={async () => {
-                        await excluirCardKanban(cardExibido.id)
-                        setCards((prev) => prev.filter((c) => Number(c.id) !== Number(cardExibido.id)))
-                        setSelecionados((prev) => {
-                            const next = new Set(prev)
-                            next.delete(Number(cardExibido.id))
-                            return next
-                        })
-                        fecharCard()
-                    }}
-                    onCriarPrestador={async () => {
-                        const r = await criarPrestadorMinimoParaCard(cardExibido, { situacoes })
-                        setCardAberto(r.card)
-                        limparCardDaQuery()
-                        setCards((prev) =>
-                            prev.map((c) => (Number(c.id) === Number(r.card.id) ? r.card : c)),
-                        )
-                        return r
-                    }}
+                    onDelete={
+                        cardExibido.isRascunho || !cardExibido.id
+                            ? null
+                            : async () => {
+                                  await excluirCardKanban(cardExibido.id)
+                                  setCards((prev) =>
+                                      prev.filter((c) => Number(c.id) !== Number(cardExibido.id)),
+                                  )
+                                  setSelecionados((prev) => {
+                                      const next = new Set(prev)
+                                      next.delete(Number(cardExibido.id))
+                                      return next
+                                  })
+                                  fecharCard()
+                              }
+                    }
+                    onCriarPrestador={
+                        cardExibido.isRascunho || !cardExibido.id
+                            ? null
+                            : async () => {
+                                  const r = await criarPrestadorMinimoParaCard(cardExibido, {
+                                      situacoes,
+                                  })
+                                  setCardAberto(r.card)
+                                  limparCardDaQuery()
+                                  setCards((prev) =>
+                                      prev.map((c) =>
+                                          Number(c.id) === Number(r.card.id) ? r.card : c,
+                                      ),
+                                  )
+                                  return r
+                              }
+                    }
                 />
             ) : null}
 
@@ -930,7 +1025,8 @@ export default function CredenciamentoKanban() {
 }
 
 function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave, onDelete, onCriarPrestador }) {
-    const [nome, setNome] = useState(card.nome)
+    const isRascunho = Boolean(card?.isRascunho) || !card?.id
+    const [nome, setNome] = useState(card.nome || '')
     const [uf, setUf] = useState(card.uf || '')
     const [cidade, setCidade] = useState(card.cidade || '')
     const [municipiosUf, setMunicipiosUf] = useState([])
@@ -941,6 +1037,7 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
     )
     const [corpo, setCorpo] = useState(() => corpoVisivelSemMetaOutlook(card.corpo || ''))
     const [atribuidoA, setAtribuidoA] = useState(card.atribuidoA || '')
+    const [prestadorIdLocal, setPrestadorIdLocal] = useState(card.prestadorId || null)
     const [sugestoesNome, setSugestoesNome] = useState([])
     const [salvando, setSalvando] = useState(false)
     const [excluindo, setExcluindo] = useState(false)
@@ -981,13 +1078,14 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
     }, [])
 
     useEffect(() => {
-        setNome(card.nome)
+        setNome(card.nome || '')
         setUf(card.uf || '')
         setCidade(card.cidade || '')
         setTelefone(maskTelefoneBr(card.telefone || ''))
         setEspecialidade(especialidadeVisivelKanban(card.especialidade || card.tipo) || '')
         setCorpo(corpoVisivelSemMetaOutlook(card.corpo || ''))
         setAtribuidoA(card.atribuidoA || '')
+        setPrestadorIdLocal(card.prestadorId || null)
         setSugestoesNome([])
         setAutocompleteColchete(null)
         setMencaoUsuario(null)
@@ -1146,6 +1244,13 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                 setCorpo((prev) => anexarContatosAdicionaisNaDescricao(prev, extras))
             }
         }
+        if (p.endereco_uf) setUf(p.endereco_uf)
+        if (p.endereco_cidade) setCidade(p.endereco_cidade)
+        if (p.especialidadePrincipal) {
+            setEspecialidade(p.especialidadePrincipal)
+        }
+        setPrestadorIdLocal(p.id)
+        if (isRascunho) return
         void onSave({
             prestadorId: p.id,
             nome: nomeSemArroba(nomeFinal),
@@ -1154,11 +1259,6 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
             telefone: telPrincipal || telefone,
             tipo: p.especialidadePrincipal || especialidade,
         })
-        if (p.endereco_uf) setUf(p.endereco_uf)
-        if (p.endereco_cidade) setCidade(p.endereco_cidade)
-        if (p.especialidadePrincipal) {
-            setEspecialidade(p.especialidadePrincipal)
-        }
     }
 
     const aplicarMencaoUsuario = (user) => {
@@ -1353,9 +1453,13 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
     }
 
     const persistir = async () => {
+        const nomeLimpo = nomeSemArroba(nome)
+        if (!String(nomeLimpo || '').trim()) {
+            window.alert('Informe o nome antes de salvar o card.')
+            return
+        }
         setSalvando(true)
         try {
-            const nomeLimpo = nomeSemArroba(nome)
             setNome(nomeLimpo)
             const telSalvar = maskTelefoneBr(telefone)
             setTelefone(telSalvar)
@@ -1368,6 +1472,7 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                 corpo: corpoComMeta(corpo),
                 checklist: checklistDeMarkdown(corpo),
                 atribuidoA: atribuidoA || null,
+                prestadorId: prestadorIdLocal || card.prestadorId || null,
             })
             onClose()
         } catch {
@@ -1422,11 +1527,13 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                 ) : null}
                 <header className="cred_kanban_modal_cabecalho">
                     <div>
-                        <p className="cred_kanban_modal_kicker">Card #{card.id}</p>
-                        <h2>{nome || 'Sem nome'}</h2>
+                        <p className="cred_kanban_modal_kicker">
+                            {isRascunho ? 'Novo card' : `Card #${card.id}`}
+                        </p>
+                        <h2>{nome || (isRascunho ? 'Preencha e salve' : 'Sem nome')}</h2>
                     </div>
                     <button type="button" onClick={onClose}>
-                        Fechar
+                        {isRascunho ? 'Cancelar' : 'Fechar'}
                     </button>
                 </header>
 
@@ -1565,18 +1672,21 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                             </select>
                         </label>
                     </div>
-                    {card.prestadorId ? (
+                    {prestadorIdLocal || card.prestadorId ? (
                         <p className="cred_kanban_vinculo cred_kanban_vinculo_dados">
                             Prestador vinculado:{' '}
-                            <Link to={`/credenciamento/cadastro/${card.prestadorId}`}>
-                                #{card.prestadorId}
-                            </Link>
-                            <span className="cred_kanban_vinculo_hint"> (via @ no nome)</span>
+                            {isRascunho ? (
+                                <span>#{prestadorIdLocal || card.prestadorId}</span>
+                            ) : (
+                                <Link to={`/credenciamento/cadastro/${prestadorIdLocal || card.prestadorId}`}>
+                                    #{prestadorIdLocal || card.prestadorId}
+                                </Link>
+                            )}
                         </p>
                     ) : null}
                 </section>
 
-                {card.coluna === 'reuniao' ? (
+                {!isRascunho && card.coluna === 'reuniao' ? (
                     <KanbanOutlookReuniao
                         card={card}
                         usuarios={usuarios}
@@ -1677,16 +1787,31 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                 </section>
 
                 <footer className="cred_kanban_modal_footer">
-                    <button
-                        type="button"
-                        className="is-danger"
-                        disabled={excluindo || salvando}
-                        onClick={() => setConfirmarExclusao(true)}
-                    >
-                        Excluir
-                    </button>
+                    {onDelete ? (
+                        <button
+                            type="button"
+                            className="is-danger"
+                            disabled={excluindo || salvando}
+                            onClick={() => setConfirmarExclusao(true)}
+                        >
+                            Excluir
+                        </button>
+                    ) : (
+                        <span />
+                    )}
                     <div className="cred_kanban_modal_footer_direita">
-                        {!card.prestadorId && card.coluna === 'preenchendo_form' ? (
+                        {!isRascunho && (prestadorIdLocal || card.prestadorId) ? (
+                            <Link
+                                to={`/credenciamento/cadastro/${prestadorIdLocal || card.prestadorId}`}
+                                className="cred_kanban_btn_abrir_perfil is-footer"
+                            >
+                                Abrir perfil
+                            </Link>
+                        ) : null}
+                        {!isRascunho &&
+                        onCriarPrestador &&
+                        !card.prestadorId &&
+                        card.coluna === 'preenchendo_form' ? (
                             <button type="button" onClick={() => void onCriarPrestador()}>
                                 Criar perfil simples
                             </button>
@@ -1697,17 +1822,18 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                             disabled={salvando || excluindo}
                             onClick={() => void persistir()}
                         >
-                            {salvando ? 'Salvando…' : 'Salvar'}
+                            {salvando ? 'Salvando…' : isRascunho ? 'Criar card' : 'Salvar'}
                         </button>
                     </div>
                 </footer>
                 <p className="cred_kanban_modal_meta">
-                    Criado {card.criadoEm ? new Date(card.criadoEm).toLocaleString('pt-BR') : '—'} · Atualizado{' '}
-                    {card.atualizadoEm ? new Date(card.atualizadoEm).toLocaleString('pt-BR') : '—'}
+                    {isRascunho
+                        ? 'O card só entra no Kanban depois de criar/salvar.'
+                        : `Criado ${card.criadoEm ? new Date(card.criadoEm).toLocaleString('pt-BR') : '—'} · Atualizado ${card.atualizadoEm ? new Date(card.atualizadoEm).toLocaleString('pt-BR') : '—'}`}
                 </p>
             </div>
 
-            {confirmarExclusao ? (
+            {confirmarExclusao && onDelete ? (
                 <div
                     className="cred_kanban_confirm_backdrop"
                     role="presentation"
@@ -1725,8 +1851,11 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                     >
                         <h3 id="cred-kanban-excluir-titulo">Excluir card?</h3>
                         <p>
-                            Remover «{nome || `Card #${card.id}`}» do Kanban? Esta ação não pode ser
-                            desfeita.
+                            Remover «{nome || `Card #${card.id}`}» do Kanban? Só o card é apagado
+                            {card.prestadorId || prestadorIdLocal
+                                ? ' — o perfil do prestador permanece no cadastro'
+                                : ''}
+                            . Esta ação não pode ser desfeita.
                         </p>
                         <div className="cred_kanban_confirm_acoes">
                             <button

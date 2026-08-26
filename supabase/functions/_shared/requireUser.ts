@@ -26,11 +26,29 @@ export async function requireUserProfile(req: Request) {
   const { data: userData, error: userError } = await admin.auth.getUser(token)
   if (userError || !userData?.user?.id) return { error: 'Sessão inválida.', status: 401 as const }
 
-  const { data: profile, error: profileError } = await admin
+  let profile: Record<string, unknown> | null = null
+  let profileError: { message?: string } | null = null
+  ;({ data: profile, error: profileError } = await admin
     .from('profiles')
     .select('id, name, email, permissions, force_password_change, password_changed_at')
     .eq('id', userData.user.id)
-    .maybeSingle()
+    .maybeSingle())
+
+  if (profileError) {
+    const msg = String(profileError.message || '').toLowerCase()
+    const colunaOpcional =
+      msg.includes('force_password_change') ||
+      msg.includes('password_changed_at') ||
+      msg.includes('does not exist') ||
+      msg.includes('schema cache')
+    if (colunaOpcional) {
+      ;({ data: profile, error: profileError } = await admin
+        .from('profiles')
+        .select('id, name, email, permissions')
+        .eq('id', userData.user.id)
+        .maybeSingle())
+    }
+  }
 
   if (profileError || !profile) return { error: 'Perfil não encontrado.', status: 403 as const }
   return { user: userData.user, profile, admin }
@@ -100,14 +118,18 @@ export function podeFerramentaProspectos(permissions: Record<string, unknown> | 
   return podeCredenciamentoView(permissions) && hasAclRead(permissions, 'credenciamento.prospectos_osm')
 }
 
-/** POST coleta: edit + ferramenta (write ACL ou legado edit + read da ferramenta). */
+/**
+ * POST coleta: espelha Vercel
+ * `hasPermission(CREDENCIAMENTO_EDIT) && usuarioPodeEditarFerramenta(prospectos_osm)`
+ * após `normalizarPermissions` (expandLegacy + syncLegacy).
+ *
+ * Em perms brutas (Edge): write ACL da ferramenta OU legado `credenciamento.edit`
+ * (o expand no Node concede write; syncLegacy trata write ACL ⇒ edit).
+ */
 export function podeFerramentaProspectosEdit(permissions: Record<string, unknown> | null | undefined) {
-  if (!podeCredenciamentoEdit(permissions)) return false
   if (hasAclWrite(permissions, 'credenciamento.prospectos_osm')) return true
-  return (
-    hasLegacy(permissions, 'credenciamento.edit') &&
-    hasAclRead(permissions, 'credenciamento.prospectos_osm')
-  )
+  if (hasLegacy(permissions, 'credenciamento.edit')) return true
+  return false
 }
 
 /** Rate limit simples por IP (memória da isolate). */

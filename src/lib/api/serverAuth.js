@@ -174,6 +174,7 @@ function payloadTooLargeError() {
 
 /**
  * Lê corpo JSON com teto de tamanho (stream ou body já parseado pelo runtime).
+ * Sempre devolve um objeto plano (nunca null, array ou primitivo).
  * @param {import('http').IncomingMessage} req
  * @param {{ maxBytes?: number }} [opts]
  * @returns {Promise<Record<string, unknown>>}
@@ -182,8 +183,17 @@ export async function readJsonBodyLimited(req, { maxBytes = MAX_JSON_BODY_BYTES 
     const cl = Number(getRequestHeader(req, 'content-length') || 0)
     if (Number.isFinite(cl) && cl > maxBytes) throw payloadTooLargeError()
 
-    if (req.body !== undefined && req.body !== null) {
+    const asObject = (parsed) => {
+        if (parsed == null) return {}
+        if (typeof parsed !== 'object' || Array.isArray(parsed) || Buffer.isBuffer(parsed)) return {}
+        return parsed
+    }
+
+    if (req.body === null) return {}
+
+    if (req.body !== undefined) {
         if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+            if (Array.isArray(req.body)) return {}
             let estimado = 0
             try {
                 estimado = Buffer.byteLength(JSON.stringify(req.body), 'utf8')
@@ -191,13 +201,13 @@ export async function readJsonBodyLimited(req, { maxBytes = MAX_JSON_BODY_BYTES 
                 estimado = 0
             }
             if (estimado > maxBytes) throw payloadTooLargeError()
-            return req.body
+            return asObject(req.body)
         }
         if (typeof req.body === 'string') {
             if (Buffer.byteLength(req.body, 'utf8') > maxBytes) throw payloadTooLargeError()
             if (!req.body.trim()) return {}
             try {
-                return JSON.parse(req.body)
+                return asObject(JSON.parse(req.body))
             } catch {
                 return {}
             }
@@ -206,7 +216,7 @@ export async function readJsonBodyLimited(req, { maxBytes = MAX_JSON_BODY_BYTES 
             if (req.body.length > maxBytes) throw payloadTooLargeError()
             if (!req.body.length) return {}
             try {
-                return JSON.parse(req.body.toString('utf8'))
+                return asObject(JSON.parse(req.body.toString('utf8')))
             } catch {
                 return {}
             }
@@ -223,7 +233,7 @@ export async function readJsonBodyLimited(req, { maxBytes = MAX_JSON_BODY_BYTES 
     }
     if (!chunks.length) return {}
     try {
-        return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+        return asObject(JSON.parse(Buffer.concat(chunks).toString('utf8')))
     } catch {
         return {}
     }
