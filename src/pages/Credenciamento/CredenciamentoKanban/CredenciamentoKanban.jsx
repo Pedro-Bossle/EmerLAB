@@ -409,8 +409,8 @@ export default function CredenciamentoKanban() {
         } else if (criado.coluna === 'preenchendo_form' && criado.prestadorId) {
             try {
                 await sincronizarPrestadorComCardKanban(criado, { situacoes })
-            } catch {
-                /* card já existe */
+            } catch (err) {
+                setAviso(err?.message || 'Card salvo, mas o perfil vinculado não foi atualizado.')
             }
         }
         setCards((prev) => [...prev, criado])
@@ -1811,6 +1811,7 @@ function KanbanCardModal({ card, usuarios, especialidades = [], onClose, onSave,
                         {!isRascunho &&
                         onCriarPrestador &&
                         !card.prestadorId &&
+                        !prestadorIdLocal &&
                         card.coluna === 'preenchendo_form' ? (
                             <button type="button" onClick={() => void onCriarPrestador()}>
                                 Criar perfil simples
