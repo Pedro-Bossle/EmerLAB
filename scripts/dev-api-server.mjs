@@ -8,7 +8,8 @@ import rcPdfHandler from '../api/rc-pdf.js'
 import consultaCnpjHandler from '../api/consulta-cnpj.js'
 import geocodePrestadorHandler from '../api/geocode-prestador.js'
 import clicksignProxyHandler from '../src/lib/clicksign/clicksignProxyHandler.js'
-import ibgeMunicipiosHandler from '../api/ibge-municipios.js'
+import { nodeHandler as ibgeMunicipiosHandler } from '../api/ibge-municipios.js'
+import { nodeHandler as cepLookupHandler } from '../api/cep-lookup.js'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 dotenv.config({ path: path.join(root, '.env') })
@@ -77,6 +78,7 @@ const server = http.createServer(async (req, res) => {
             '/api/consulta-cnpj': consultaCnpjHandler,
             '/api/geocode-prestador': geocodePrestadorHandler,
             '/api/ibge-municipios': ibgeMunicipiosHandler,
+            '/api/cep-lookup': cepLookupHandler,
         }
         const handler = handlers[pathname]
 

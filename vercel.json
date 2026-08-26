@@ -33,15 +33,6 @@
     },
     "api/prospectos-osm-coletar.js": {
       "maxDuration": 60
-    },
-    "api/cep-lookup.js": {
-      "maxDuration": 15
-    },
-    "api/ibge-municipios.js": {
-      "maxDuration": 15
-    },
-    "api/gemini-rate.js": {
-      "maxDuration": 15
     }
   },
   "rewrites": [
@@ -60,6 +51,10 @@
     {
       "source": "/api/prospectos-gemini-status",
       "destination": "/api/prospectos-osm-coletar?_route=gemini-status"
+    },
+    {
+      "source": "/api/gemini-rate",
+      "destination": "/api/prospectos-osm-coletar?_route=gemini-rate"
     },
     {
       "source": "/((?!api/).*)",

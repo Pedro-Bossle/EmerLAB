@@ -39,6 +39,12 @@ export function isGeminiStatusRequest(req) {
     return pathnameOf(req).includes('prospectos-gemini-status')
 }
 
+export function isGeminiRateRequest(req) {
+    const flag = searchRouteFlag(req)
+    if (flag === 'gemini-rate') return true
+    return pathnameOf(req).includes('gemini-rate')
+}
+
 /** Remove _route dos params repassados ao Nominatim. */
 export function queryParamsSemRota(req) {
     const params = {}

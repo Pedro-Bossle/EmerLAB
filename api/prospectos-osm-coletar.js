@@ -5,7 +5,7 @@
  */
 import { descansoGeminiParaResposta, previsaoRetornoGemini } from '../src/lib/credenciamento/geminiDescanso.js'
 import { geminiVerificarDisponibilidade } from '../src/lib/credenciamento/geminiUpstream.js'
-import { isGeminiStatusRequest } from '../src/lib/api/vercelUnifiedRoute.js'
+import { isGeminiRateRequest, isGeminiStatusRequest } from '../src/lib/api/vercelUnifiedRoute.js'
 import { executarPassoJobColeta, iniciarJobColeta } from '../src/lib/credenciamento/prospectosColetaJob.js'
 import {
     createSupabaseAdminClient,
@@ -16,6 +16,7 @@ import {
 } from '../src/lib/api/serverAuth.js'
 import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
 import { PERMISSION_KEYS } from '../src/lib/accessControl.js'
+import { lerRate } from '../src/lib/gemini/gemini.ts'
 
 function supabaseAdmin() {
     return createSupabaseAdminClient()
@@ -81,6 +82,11 @@ async function handleGeminiStatus(res) {
             r.quotaExceeded,
         ),
     )
+}
+
+async function handleGeminiRate(res) {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.status(200).json(lerRate())
 }
 
 async function handleColetaStep(body, res) {
@@ -168,6 +174,12 @@ export default async function handler(req, res) {
             const auth = await exigirAuthProspectos(req, res, { requireEdit: false })
             if (!auth) return
             await handleGeminiStatus(res)
+            return
+        }
+        if (req.method === 'GET' && isGeminiRateRequest(req)) {
+            const auth = await exigirAuthProspectos(req, res, { requireEdit: false })
+            if (!auth) return
+            await handleGeminiRate(res)
             return
         }
         if (req.method === 'POST') {

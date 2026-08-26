@@ -3,15 +3,14 @@ import dotenv from 'dotenv'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import consultaCnpjHandler from './api/consulta-cnpj.js'
-import cepLookupHandler from './api/cep-lookup.js'
+import { nodeHandler as cepLookupHandler } from './api/cep-lookup.js'
 import mapOsmHandler from './api/map-osm.js'
 import prospectosOsmColetarHandler from './api/prospectos-osm-coletar.js'
 import clicksignProxyHandler from './src/lib/clicksign/clicksignProxyHandler.js'
 import clicksignDownloadHandler from './api/clicksign-download.js'
 import adminUsersHandler from './api/admin-users.js'
 import auditLogsHandler from './api/audit-logs.js'
-import geminiRateHandler from './api/gemini-rate.js'
-import ibgeMunicipiosHandler from './api/ibge-municipios.js'
+import { nodeHandler as ibgeMunicipiosHandler } from './api/ibge-municipios.js'
 
 /** Mesma ordem de prioridade aproximada do Vite para ficheiros .env (envDir = raiz do projeto). */
 function carregarEnvParaProcesso(envDir, mode) {
@@ -339,7 +338,7 @@ function adminUsersDevPlugin() {
     }
 }
 
-/** Em dev, atende GET /api/gemini-rate no Vite. */
+/** Em dev, atende GET /api/gemini-rate no Vite (mesma function que prospectos). */
 function geminiRateDevPlugin() {
     return {
         name: 'gemini-rate-dev',
@@ -353,9 +352,10 @@ function geminiRateDevPlugin() {
                     return
                 }
                 const method = req.method || 'GET'
+                const sep = url.includes('?') ? '&' : '?'
                 const reqLike = {
                     method,
-                    url,
+                    url: `${url}${sep}_route=gemini-rate`,
                     headers: req.headers || {},
                     body: {},
                 }
@@ -378,7 +378,7 @@ function geminiRateDevPlugin() {
                     },
                 }
                 try {
-                    await geminiRateHandler(reqLike, resLike)
+                    await prospectosOsmColetarHandler(reqLike, resLike)
                 } catch (e) {
                     res.statusCode = 502
                     res.setHeader('Content-Type', 'application/json; charset=utf-8')

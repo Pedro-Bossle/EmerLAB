@@ -1,36 +1,35 @@
 /**
- * Proxy server-side para municípios IBGE (evita bloqueio CORS/rede no browser).
+ * Proxy IBGE — Vercel Edge (não conta no limite Hobby de 12 Serverless).
  * GET /api/ibge-municipios?uf=RS
  */
-export default async function handler(req, res) {
-    if (req.method === 'OPTIONS') {
-        res.status(204).end()
-        return
-    }
-    if (req.method !== 'GET') {
-        res.status(405).json({ error: 'Método não permitido.' })
-        return
-    }
+import {
+    clientIpFromHeaders,
+    executarEdgeProxy,
+} from '../src/lib/api/edgeProxiesLogic.js'
 
+export const config = {
+    runtime: 'edge',
+}
+
+export default async function handler(request) {
+    const u = new URL(request.url)
+    u.searchParams.set('_route', 'ibge')
+    const result = await executarEdgeProxy(u, {
+        method: request.method,
+        headers: request.headers,
+        ip: clientIpFromHeaders(request.headers),
+    })
+    return new Response(result.body ?? '', {
+        status: result.status,
+        headers: result.headers || {},
+    })
+}
+
+/** Compat Vite/dev-api (req/res Node). */
+export async function nodeHandler(req, res) {
+    const { edgeProxyComoNodeHandler } = await import('../src/lib/api/edgeProxiesLogic.js')
     const u = new URL(req.url || '/', 'http://localhost')
-    const uf = String(u.searchParams.get('uf') || '')
-        .trim()
-        .toUpperCase()
-    if (!/^[A-Z]{2}$/.test(uf)) {
-        res.status(400).json({ error: 'Informe uf=XX (sigla).' })
-        return
-    }
-
-    try {
-        const upstream = await fetch(
-            `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`,
-            { headers: { Accept: 'application/json' } },
-        )
-        const text = await upstream.text()
-        res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res.setHeader('Cache-Control', 'public, max-age=86400')
-        res.status(upstream.status).end(text)
-    } catch (e) {
-        res.status(502).json({ error: e?.message || 'Falha ao contactar o IBGE.' })
-    }
+    u.searchParams.set('_route', 'ibge')
+    req.url = u.pathname + u.search
+    return edgeProxyComoNodeHandler(req, res)
 }
