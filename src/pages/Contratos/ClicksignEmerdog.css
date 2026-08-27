@@ -641,6 +641,10 @@ button.cs_dash_metric_box:hover {
 .clicksign_detail_table .clicksign_col_doc_menu {
     overflow: visible;
     position: relative;
+    width: 52px;
+    min-width: 52px;
+    text-align: center;
+    vertical-align: middle;
 }
 
 .clicksign_modal_body:has(.clicksign_detail_table_wrap .clicksign_dropdown) {
@@ -669,6 +673,13 @@ button.cs_dash_metric_box:hover {
     background: #f0f6fa;
     font-weight: 600;
     color: #1e3148;
+}
+
+.clicksign_detail_doc_actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
 }
 
 .clicksign_montar .clicksign_steps {
@@ -722,6 +733,7 @@ button.cs_dash_metric_box:hover {
 .clicksign_modal_body {
     max-height: min(70vh, 560px);
     overflow: auto;
+    padding-bottom: 0.5rem;
 }
 
 .clicksign_detail_attrs {
@@ -1196,6 +1208,14 @@ button.cs_dash_metric_box:hover {
     margin: 0;
 }
 
+.clicksign_modal_foot a.contratos_btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    box-sizing: border-box;
+}
+
 @media (max-width: 640px) {
     .clicksign_table thead {
         display: none;
@@ -1235,6 +1255,29 @@ body.dark-mode .clicksign_table td {
 body.dark-mode .clicksign_table th {
     background: #152433;
     color: #e7f4fc;
+}
+
+body.dark-mode .clicksign_detail_table th,
+body.dark-mode .clicksign_detail_table td {
+    border-color: #2a4258;
+    color: #e7f4fc;
+}
+
+body.dark-mode .clicksign_detail_table th {
+    background: #152433;
+    color: #e7f4fc;
+}
+
+body.dark-mode .clicksign_detail_table tbody tr {
+    background: #1a2838;
+}
+
+body.dark-mode .clicksign_detail_attrs {
+    color: #e7f4fc;
+}
+
+body.dark-mode .clicksign_detail_table_wrap {
+    padding-bottom: 0.35rem;
 }
 
 body.dark-mode .clicksign_th_sort_btn {

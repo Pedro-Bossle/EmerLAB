@@ -78,7 +78,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://brasilapi.com.br https://viacep.com.br https://servicodados.ibge.gov.br https://nominatim.openstreetmap.org https://overpass-api.de https://generativelanguage.googleapis.com https://*.clicksign.com https://login.microsoftonline.com https://graph.microsoft.com https://*.tile.openstreetmap.org; worker-src 'self' blob:;"
+          "value": "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://brasilapi.com.br https://viacep.com.br https://servicodados.ibge.gov.br https://nominatim.openstreetmap.org https://overpass-api.de https://generativelanguage.googleapis.com https://*.clicksign.com https://login.microsoftonline.com https://graph.microsoft.com https://*.tile.openstreetmap.org https://server.arcgisonline.com https://*.arcgisonline.com; worker-src 'self' blob:;"
         }
       ]
     }

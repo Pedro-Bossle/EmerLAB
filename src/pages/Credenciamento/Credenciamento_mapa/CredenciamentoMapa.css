@@ -730,6 +730,16 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
     min-width: 1.5rem;
 }
 
+.credenciamento_mapa_leaflet_shell {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
 .credenciamento_mapa_leaflet {
     width: 100%;
     flex: 1;

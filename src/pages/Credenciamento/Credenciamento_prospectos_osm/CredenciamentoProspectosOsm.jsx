@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { buscarMunicipiosPorUfRobusto, mesclarMunicipiosComExtras } from '../../../lib/ibgeLocalidades.js'
-import { leafletBasemapProps } from '../../../lib/mapaBasemap.js'
+import {
+    MapaBasemapLayers,
+    MapaBasemapToggle,
+    useEstiloBasemap,
+} from '../../../components/Mapa/MapaBasemapToggle.jsx'
 import {
     PERMISSION_KEYS,
     hasPermission,
@@ -149,6 +153,7 @@ const CredenciamentoProspectosOsm = () => {
     const [feedback, setFeedback] = useState('')
     const [destaqueId, setDestaqueId] = useState(null)
     const [mostrarMapa, setMostrarMapa] = useState(true)
+    const [estiloBasemap, setEstiloBasemap] = useEstiloBasemap()
     const [painelMobile, setPainelMobile] = useState('lista')
     const [splitListaPct, setSplitListaPct] = useState(lerSplitInicial)
     const layoutRef = useRef(null)
@@ -1179,6 +1184,13 @@ const CredenciamentoProspectosOsm = () => {
                         />
                         <aside className="cred_prospectos_osm_mapa_col" aria-label="Mapa dos prospectos">
                         <section className="credenciamento_mapa_container cred_prospectos_osm_mapa_box">
+                            <div className="credenciamento_mapa_leaflet_shell">
+                            <div className="mapa_basemap_toggle_wrap">
+                                <MapaBasemapToggle
+                                    estilo={estiloBasemap}
+                                    onChange={setEstiloBasemap}
+                                />
+                            </div>
                             <MapContainer
                                 center={centroMapa}
                                 zoom={comCoordenadas.length ? 12 : 7}
@@ -1186,7 +1198,7 @@ const CredenciamentoProspectosOsm = () => {
                                 scrollWheelZoom
                             >
                                 <MapaRedimensionar dep={`${splitListaPct}-${painelMobile}-${mostrarMapa}`} />
-                                <TileLayer {...leafletBasemapProps()} />
+                                <MapaBasemapLayers estilo={estiloBasemap} />
                                 {comCoordenadas.map((row) => (
                                     <Marker
                                         key={row.id}
@@ -1233,6 +1245,7 @@ const CredenciamentoProspectosOsm = () => {
                                     </Marker>
                                 ))}
                             </MapContainer>
+                            </div>
                         </section>
                     </aside>
                     </>

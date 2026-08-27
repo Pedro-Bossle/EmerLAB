@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MapContainer, TileLayer, Popup, useMapEvents, Marker, useMap } from 'react-leaflet'
+import { MapContainer, Popup, useMapEvents, Marker, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { leafletBasemapProps } from '../../../lib/mapaBasemap.js'
+import { MapaBasemapLayers, useEstiloBasemap, MapaBasemapToggle } from '../../../components/Mapa/MapaBasemapToggle.jsx'
 import { supabase } from '../../../lib/supabase'
 import {
     atualizarCoordenadasPrestadorManual,
@@ -355,6 +355,7 @@ const CredenciamentoMapa = () => {
     const [buscaFocada, setBuscaFocada] = useState(false)
     const layoutMobile = useMatchMedia('(max-width: 980px)')
     const [mobileAba, setMobileAba] = useState('mapa')
+    const [estiloBasemap, setEstiloBasemap] = useEstiloBasemap()
     const [sugestoesNominatim, setSugestoesNominatim] = useState([])
     const buscaWrapRef = useRef(null)
 
@@ -1448,21 +1449,28 @@ const CredenciamentoMapa = () => {
                     {loading ? (
                         <p>Carregando mapa...</p>
                     ) : (
-                        <MapContainer
-                            center={CENTRO_PADRAO_RS}
-                            zoom={ZOOM_PADRAO_MAPA}
-                            scrollWheelZoom
-                            className="credenciamento_mapa_leaflet"
-                        >
-                            <MapaRedimensionar dep={layoutMobile ? mobileAba : 'desktop'} />
-                            <TileLayer {...leafletBasemapProps()} />
-                            <MapClickParaCoordenadas
-                                ativo={modoCliqueMapa && podeEditarCoordenadasMapa}
-                                onPick={(lat, lng) => {
-                                    setLatInput(String(lat))
-                                    setLngInput(String(lng))
-                                }}
-                            />
+                        <div className="credenciamento_mapa_leaflet_shell">
+                            <div className="mapa_basemap_toggle_wrap">
+                                <MapaBasemapToggle
+                                    estilo={estiloBasemap}
+                                    onChange={setEstiloBasemap}
+                                />
+                            </div>
+                            <MapContainer
+                                center={CENTRO_PADRAO_RS}
+                                zoom={ZOOM_PADRAO_MAPA}
+                                scrollWheelZoom
+                                className="credenciamento_mapa_leaflet"
+                            >
+                                <MapaRedimensionar dep={layoutMobile ? mobileAba : 'desktop'} />
+                                <MapaBasemapLayers estilo={estiloBasemap} />
+                                <MapClickParaCoordenadas
+                                    ativo={modoCliqueMapa && podeEditarCoordenadasMapa}
+                                    onPick={(lat, lng) => {
+                                        setLatInput(String(lat))
+                                        setLngInput(String(lng))
+                                    }}
+                                />
                             <MapaFlyPara alvo={flyAlvo} />
                             <MapaBoundsObserver onBounds={onMapBounds} />
                             <MapaAjustarBounds alvo={fitBoundsAlvo} />
@@ -1498,6 +1506,7 @@ const CredenciamentoMapa = () => {
                                 <Marker position={[previewLat, previewLng]} icon={pinEdicao} />
                             ) : null}
                         </MapContainer>
+                        </div>
                     )}
                 </section>
             </div>

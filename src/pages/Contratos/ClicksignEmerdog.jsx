@@ -2162,7 +2162,7 @@ export default function ClicksignEmerdog() {
                                                                 rel="noopener noreferrer"
                                                                 onClick={() => setEnvelopeMenuId('')}
                                                             >
-                                                                Abrir o Clicksign
+                                                                Abrir no Clicksign
                                                             </a>
                                                             {stLinha === 'draft' && (
                                                                 <>
@@ -3539,7 +3539,7 @@ export default function ClicksignEmerdog() {
                                                         <td>{rotuloEstadoDocumento(d.status)}</td>
                                                         <td className="clicksign_col_doc_menu">
                                                             <div
-                                                                className="clicksign_row_menu_wrap"
+                                                                className="clicksign_detail_doc_actions clicksign_row_menu_wrap"
                                                                 onClick={(e) => e.stopPropagation()}
                                                             >
                                                                 <button
@@ -3559,6 +3559,20 @@ export default function ClicksignEmerdog() {
                                                                         className="clicksign_dropdown clicksign_dropdown--left clicksign_dropdown--up"
                                                                         role="menu"
                                                                     >
+                                                                        <a
+                                                                            role="menuitem"
+                                                                            className="clicksign_dropdown_link"
+                                                                            href={urlAbrirEnvelopeClicksign(
+                                                                                detailId,
+                                                                                detailJson?.data?.links?.self ??
+                                                                                    detailJson?.links?.self,
+                                                                            )}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            onClick={() => setDocMenuId('')}
+                                                                        >
+                                                                            Abrir no Clicksign
+                                                                        </a>
                                                                         <button
                                                                             type="button"
                                                                             role="menuitem"
@@ -3647,6 +3661,19 @@ export default function ClicksignEmerdog() {
                             )}
                         </div>
                         <div className="contratos_modal_foot clicksign_modal_foot">
+                            {!detailLoading && detailId ? (
+                                <a
+                                    className="contratos_btn contratos_btn_primary"
+                                    href={urlAbrirEnvelopeClicksign(
+                                        detailId,
+                                        detailJson?.data?.links?.self ?? detailJson?.links?.self,
+                                    )}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Abrir no Clicksign
+                                </a>
+                            ) : null}
                             <button type="button" className="contratos_btn contratos_btn_secondary" onClick={() => fecharDetalheModal()}>
                                 Fechar
                             </button>

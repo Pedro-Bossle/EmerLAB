@@ -1,0 +1,75 @@
+.mapa_basemap_toggle {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 40, 60, 0.18);
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(15, 40, 60, 0.12);
+  font: inherit;
+}
+
+.mapa_basemap_toggle button {
+  border: 0;
+  margin: 0;
+  padding: 6px 12px;
+  background: transparent;
+  color: #3d5a6e;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.mapa_basemap_toggle button + button {
+  border-left: 1px solid rgba(15, 40, 60, 0.12);
+}
+
+.mapa_basemap_toggle button:hover {
+  background: #f0f6fa;
+  color: #123e59;
+}
+
+.mapa_basemap_toggle button.is-active {
+  background: #0f74b9;
+  color: #fff;
+}
+
+.mapa_basemap_toggle_wrap {
+  position: absolute;
+  z-index: 1000;
+  top: 10px;
+  right: 10px;
+  left: auto;
+}
+
+.mapa_basemap_toggle_wrap--left {
+  right: auto;
+  left: 52px; /* ao lado dos +/- do Leaflet */
+}
+
+body.dark-mode .mapa_basemap_toggle {
+  background: #21262d;
+  border-color: #30363d;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .mapa_basemap_toggle button {
+  color: #c9d1d9;
+}
+
+body.dark-mode .mapa_basemap_toggle button + button {
+  border-left-color: #30363d;
+}
+
+body.dark-mode .mapa_basemap_toggle button:hover {
+  background: #30363d;
+  color: #e6edf3;
+}
+
+body.dark-mode .mapa_basemap_toggle button.is-active {
+  background: #1f6feb;
+  color: #fff;
+}
