@@ -367,23 +367,28 @@ export default function CredenciamentoKanban() {
         async (cardId, colunaId) => {
             const id = Number(cardId)
             const card = cards.find((c) => Number(c.id) === id)
-            if (!card || !colunaId) return
+            if (!card || !colunaId) return null
             if (!podeMoverColunaKanban(card.coluna, colunaId)) {
                 setErro(`Não é permitido mover de «${card.coluna}» para esta coluna.`)
-                return
+                return null
             }
-            if (card.coluna === colunaId) return
+            if (card.coluna === colunaId) return card
             const ordem = (porColuna[colunaId]?.length || 0) + 1
             try {
                 setErro('')
                 const atualizado = await moverCardKanban(id, colunaId, ordem, { situacoes })
                 setCards((prev) => prev.map((c) => (Number(c.id) === id ? atualizado : c)))
                 setColunaMobile(colunaId)
+                if (cardAberto && Number(cardAberto.id) === id) {
+                    setCardAberto(atualizado)
+                }
+                return atualizado
             } catch (err) {
                 setErro(err?.message || String(err))
+                return null
             }
         },
-        [cards, porColuna, situacoes]
+        [cards, porColuna, situacoes, cardAberto],
     )
 
     const onDropColuna = async (e, colunaId) => {
@@ -1018,8 +1023,23 @@ export default function CredenciamentoKanban() {
                             throw e
                         }
                     }}
-                    onSaveMany={
+                    onMover={
                         cardExibido.isRascunho || !cardExibido.id
+                            ? null
+                            : async (colunaId) => {
+                                  try {
+                                      const atualizado = await moverPara(cardExibido.id, colunaId)
+                                      if (!atualizado) {
+                                          throw new Error('Não foi possível mover o card.')
+                                      }
+                                      return atualizado
+                                  } catch (e) {
+                                      setErro(e?.message || String(e))
+                                      throw e
+                                  }
+                              }
+                    }
+                    onSaveMany={                        cardExibido.isRascunho || !cardExibido.id
                             ? async (patches) => {
                                   try {
                                       const coluna = cardExibido.coluna
@@ -1113,10 +1133,22 @@ function KanbanCardModal({
     onClose,
     onSave,
     onSaveMany,
+    onMover,
     onDelete,
     onCriarPrestador,
 }) {
     const isRascunho = Boolean(card?.isRascunho) || !card?.id
+    const colunaAtualLabel =
+        COLUNAS_KANBAN.find((c) => c.id === card.coluna)?.label || card.coluna || '—'
+    const destinosMover = useMemo(
+        () =>
+            COLUNAS_KANBAN.filter(
+                (c) => c.id !== card.coluna && podeMoverColunaKanban(card.coluna, c.id),
+            ),
+        [card.coluna],
+    )
+    const [destinoColuna, setDestinoColuna] = useState('')
+    const [movendoColuna, setMovendoColuna] = useState(false)
     const [entradas, setEntradas] = useState(() => [
         novaEntradaRascunhoKanban({
             nome: card.nome || '',
@@ -1288,6 +1320,8 @@ function KanbanCardModal({
         carregarEntradaNoForm(base)
         setConfirmarExclusao(false)
         setCliquesFora(0)
+        setDestinoColuna('')
+        setMovendoColuna(false)
     }, [card, carregarEntradaNoForm])
 
     useEffect(() => {
@@ -1710,6 +1744,19 @@ function KanbanCardModal({
         }
     }
 
+    const enviarParaCategoria = async () => {
+        if (!onMover || !destinoColuna || isRascunho) return
+        setMovendoColuna(true)
+        try {
+            await onMover(destinoColuna)
+            setDestinoColuna('')
+        } catch {
+            /* erro no parent */
+        } finally {
+            setMovendoColuna(false)
+        }
+    }
+
     const confirmarEExcluir = async () => {
         setExcluindo(true)
         try {
@@ -1760,7 +1807,7 @@ function KanbanCardModal({
                                 ? entradas.length > 1
                                     ? `Novos cards · ${entradas.length}`
                                     : 'Novo card'
-                                : `Card #${card.id}`}
+                                : `Card #${card.id} · ${colunaAtualLabel}`}
                         </p>
                         <h2>
                             {nome ||
@@ -1775,6 +1822,45 @@ function KanbanCardModal({
                         {isRascunho ? 'Cancelar' : 'Fechar'}
                     </button>
                 </header>
+
+                {!isRascunho && onMover ? (
+                    <div className="cred_kanban_modal_mover" role="group" aria-label="Enviar para categoria">
+                        <label className="cred_kanban_modal_mover_campo">
+                            <span>Enviar para</span>
+                            <select
+                                value={destinoColuna}
+                                disabled={movendoColuna || salvando || excluindo || !destinosMover.length}
+                                onChange={(e) => setDestinoColuna(e.target.value)}
+                                aria-label="Categoria de destino"
+                            >
+                                <option value="">Escolher categoria…</option>
+                                {ETAPAS_KANBAN.map((etapa) => {
+                                    const cols = destinosMover.filter((c) => c.etapa === etapa.id)
+                                    if (!cols.length) return null
+                                    return (
+                                        <optgroup key={etapa.id} label={etapa.titulo}>
+                                            {cols.map((c) => (
+                                                <option key={c.id} value={c.id}>
+                                                    {c.label}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    )
+                                })}
+                            </select>
+                        </label>
+                        <button
+                            type="button"
+                            className="cred_kanban_modal_mover_btn"
+                            disabled={
+                                !destinoColuna || movendoColuna || salvando || excluindo || !destinosMover.length
+                            }
+                            onClick={() => void enviarParaCategoria()}
+                        >
+                            {movendoColuna ? 'A enviar…' : 'Enviar'}
+                        </button>
+                    </div>
+                ) : null}
 
                 {isRascunho ? (
                     <div className="cred_kanban_modal_abas_wrap">

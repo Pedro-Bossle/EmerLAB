@@ -717,6 +717,81 @@ body.dark-mode .cred_kanban_outlook_ok {
   gap: 8px;
 }
 
+.cred_kanban_modal_mover {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #d7e8f2;
+  border-radius: 10px;
+  background: #f3f8fb;
+}
+
+.cred_kanban_modal_mover_campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 220px;
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #547084;
+}
+
+.cred_kanban_modal_mover_campo select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.4rem;
+  padding: 6px 10px;
+  border: 1px solid #c5d6e3;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1f3a4f;
+}
+
+.cred_kanban_modal_mover_btn {
+  flex: 0 0 auto;
+  min-height: 2.4rem;
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #0f74b9;
+  color: #fff;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cred_kanban_modal_mover_btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cred_kanban_modal_mover_btn:not(:disabled):hover {
+  background: #0c5f98;
+}
+
+body.dark-mode .cred_kanban_modal_mover {
+  background: #161b22;
+  border-color: #30363d;
+}
+
+body.dark-mode .cred_kanban_modal_mover_campo {
+  color: #8b949e;
+}
+
+body.dark-mode .cred_kanban_modal_mover_campo select {
+  background: #0d1117;
+  border-color: #30363d;
+  color: #e6edf3;
+}
+
 .cred_kanban_modal_varios_toggle {
   display: inline-flex;
   align-items: center;
