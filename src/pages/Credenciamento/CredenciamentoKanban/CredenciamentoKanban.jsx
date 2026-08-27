@@ -9,6 +9,7 @@ import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/Selec
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 import {
     COLUNAS_KANBAN,
+    ETAPAS_KANBAN,
     assinarCardsKanbanLive,
     atualizarCardKanban,
     atribuirCardsKanbanEmMassa,
@@ -128,6 +129,22 @@ function parseChecklistMarkdownLinhas(texto) {
         })
     }
     return out
+}
+
+/** Contagem de checkboxes do card (markdown do corpo; fallback `checklist`). */
+function resumoChecklistCard(card) {
+    const doCorpo = parseChecklistMarkdownLinhas(card?.corpo)
+    if (doCorpo.length) {
+        return {
+            total: doCorpo.length,
+            feitos: doCorpo.filter((i) => i.feito).length,
+        }
+    }
+    const arr = Array.isArray(card?.checklist) ? card.checklist : []
+    return {
+        total: arr.length,
+        feitos: arr.filter((i) => i?.feito).length,
+    }
 }
 
 function alternarChecklistNaLinha(texto, lineIndex) {
@@ -596,10 +613,7 @@ export default function CredenciamentoKanban() {
         )
     }
 
-    const etapas = [
-        { id: 'contato', titulo: 'Contato Inicial' },
-        { id: 'cadastro', titulo: 'Cadastro e Pós' },
-    ]
+    const etapas = ETAPAS_KANBAN
 
     const nSel = selecionados.size
     const cardsColunaMobile = porColuna[colunaMobile] || []
@@ -608,6 +622,7 @@ export default function CredenciamentoKanban() {
 
     const renderCard = (card, { compact = false } = {}) => {
         const marcado = selecionados.has(Number(card.id))
+        const chk = resumoChecklistCard(card)
         return (
             <article
                 key={card.id}
@@ -638,6 +653,15 @@ export default function CredenciamentoKanban() {
                         />
                     </label>
                     <strong>{card.nome}</strong>
+                    {chk.total > 0 ? (
+                        <span
+                            className={`cred_kanban_card_chk_count${chk.feitos >= chk.total ? ' is-done' : ''}`}
+                            title={`${chk.feitos} de ${chk.total} itens da checklist`}
+                            aria-label={`${chk.feitos} de ${chk.total} checkboxes`}
+                        >
+                            {chk.feitos}/{chk.total}
+                        </span>
+                    ) : null}
                 </div>
                 <p>{[card.cidade, card.uf].filter(Boolean).join(' / ') || '—'}</p>
                 {!compact ? (
@@ -722,7 +746,7 @@ export default function CredenciamentoKanban() {
             <PageHeader
                 kicker="Credenciamento"
                 title="Processos"
-                description="Funil Kanban live — Contato Inicial e Cadastro/Pós. Arraste os cards entre colunas."
+                description="Funil Kanban live — Contato Inicial, Cadastro/Pós e Sem interesse / Re-Contato. Arraste os cards entre colunas."
                 actions={
                     <div className="cred_kanban_acoes">
                         <button type="button" onClick={() => void carregar()} disabled={loading}>

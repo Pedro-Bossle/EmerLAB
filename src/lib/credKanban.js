@@ -20,6 +20,15 @@ export const COLUNAS_KANBAN = [
     { id: 'aguardando_ok_minuta', label: 'Aguardando OK minuta', etapa: 'cadastro' },
     { id: 'aguardando_assinatura', label: 'Aguardando Assinatura', etapa: 'cadastro' },
     { id: 'adicionar_site', label: 'Adicionar em SITE', etapa: 'cadastro' },
+    { id: 'sem_interesse', label: 'Sem interesse', etapa: 'retorno' },
+    { id: 're_contato', label: 'Re-Contato', etapa: 'retorno' },
+]
+
+/** Grupos visuais do board (3ª categoria: Sem interesse / Re-Contato). */
+export const ETAPAS_KANBAN = [
+    { id: 'contato', titulo: 'Contato Inicial' },
+    { id: 'cadastro', titulo: 'Cadastro e Pós' },
+    { id: 'retorno', titulo: 'Sem interesse e Re-Contato' },
 ]
 
 export const COLUNA_IDS = new Set(COLUNAS_KANBAN.map((c) => c.id))

@@ -350,6 +350,41 @@
   min-width: 0;
 }
 
+.cred_kanban_card_chk_count {
+  flex-shrink: 0;
+  margin-left: auto;
+  align-self: flex-start;
+  min-width: 2.1rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  text-align: center;
+  color: #0f74b9;
+  background: #e8f4fc;
+  border: 1px solid #c5e0f2;
+}
+
+.cred_kanban_card_chk_count.is-done {
+  color: #1a7f37;
+  background: #dafbe1;
+  border-color: #b4efc4;
+}
+
+body.dark-mode .cred_kanban_card_chk_count {
+  color: #79c0ff;
+  background: rgba(56, 139, 253, 0.15);
+  border-color: rgba(56, 139, 253, 0.35);
+}
+
+body.dark-mode .cred_kanban_card_chk_count.is-done {
+  color: #3fb950;
+  background: rgba(46, 160, 67, 0.18);
+  border-color: rgba(46, 160, 67, 0.4);
+}
+
 .cred_kanban_card_check {
   display: inline-flex;
   align-items: center;
