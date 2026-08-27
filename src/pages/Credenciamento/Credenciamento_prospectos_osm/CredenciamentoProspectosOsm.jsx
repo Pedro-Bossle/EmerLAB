@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { buscarMunicipiosPorUfRobusto, mesclarMunicipiosComExtras } from '../../../lib/ibgeLocalidades.js'
+import { leafletBasemapProps } from '../../../lib/mapaBasemap.js'
 import {
     PERMISSION_KEYS,
     hasPermission,
@@ -1185,10 +1186,7 @@ const CredenciamentoProspectosOsm = () => {
                                 scrollWheelZoom
                             >
                                 <MapaRedimensionar dep={`${splitListaPct}-${painelMobile}-${mostrarMapa}`} />
-                                <TileLayer
-                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                                    url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                                />
+                                <TileLayer {...leafletBasemapProps()} />
                                 {comCoordenadas.map((row) => (
                                     <Marker
                                         key={row.id}

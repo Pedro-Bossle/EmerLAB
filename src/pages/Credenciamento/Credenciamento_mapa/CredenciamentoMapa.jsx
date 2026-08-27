@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MapContainer, TileLayer, Popup, useMapEvents, Marker, useMap } from 'react-leaflet'
 import L from 'leaflet'
+import { leafletBasemapProps } from '../../../lib/mapaBasemap.js'
 import { supabase } from '../../../lib/supabase'
 import {
     atualizarCoordenadasPrestadorManual,
@@ -1454,10 +1455,7 @@ const CredenciamentoMapa = () => {
                             className="credenciamento_mapa_leaflet"
                         >
                             <MapaRedimensionar dep={layoutMobile ? mobileAba : 'desktop'} />
-                            <TileLayer
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                                url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                            />
+                            <TileLayer {...leafletBasemapProps()} />
                             <MapClickParaCoordenadas
                                 ativo={modoCliqueMapa && podeEditarCoordenadasMapa}
                                 onPick={(lat, lng) => {
