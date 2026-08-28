@@ -59,9 +59,10 @@ import {
 } from '../../lib/clicksign/sugestoesSignatarioKanban.js'
 import { buscarDadosCNPJ, ORIGENS_CONSULTA_CNPJ } from '../../lib/contratos/consultaCnpj.js'
 import {
-    carregarNotificacoes,
     limparTodasNotificacoesContratos,
-    sincronizarNotificacoesClicksign } from '../../lib/clicksign/clicksignNotificacoes.js'
+    listarNotificacoesContratosRecentes,
+    sincronizarNotificacoesClicksign,
+} from '../../lib/clicksign/clicksignNotificacoes.js'
 import { supabase } from '../../lib/supabase.js'
 import { maskTelefoneBr } from '../../lib/telefoneBrasil.js'
 import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl.js'
@@ -193,8 +194,9 @@ export default function ClicksignEmerdog() {
     const [contagensLoading, setContagensLoading] = useState(false)
     const [continuarItens, setContinuarItens] = useState([])
     const [continuarLoading, setContinuarLoading] = useState(false)
-    const [notificacoes, setNotificacoes] = useState(() => carregarNotificacoes())
+    const [notificacoes, setNotificacoes] = useState([])
     const [notifSyncing, setNotifSyncing] = useState(false)
+    const notifSyncApiRef = useRef(false)
 
     const [mesLoading, setMesLoading] = useState(false)
     const [mesMeta, setMesMeta] = useState({})
@@ -590,15 +592,23 @@ export default function ClicksignEmerdog() {
         setTab('montar')
     }, [])
 
-    const atualizarNotificacoesPainel = useCallback(async () => {
+    const recarregarNotificacoesUi = useCallback(async () => {
+        const lista = await listarNotificacoesContratosRecentes(80)
+        setNotificacoes(lista)
+    }, [])
+
+    const sincronizarNotificacoesPainel = useCallback(async () => {
+        if (notifSyncApiRef.current) return
+        notifSyncApiRef.current = true
         setNotifSyncing(true)
         try {
-            const { lista } = await sincronizarNotificacoesClicksign(csRequest)
-            setNotificacoes(lista)
+            await sincronizarNotificacoesClicksign(csRequest)
+            await recarregarNotificacoesUi()
         } finally {
+            notifSyncApiRef.current = false
             setNotifSyncing(false)
         }
-    }, [csRequest])
+    }, [csRequest, recarregarNotificacoesUi])
 
     const limparListaNotificacoes = useCallback(() => {
         void (async () => {
@@ -671,10 +681,10 @@ export default function ClicksignEmerdog() {
         if (tab === 'envelopes' && vistaPainel === 'hub') {
             void carregarContagensDashboard()
             void carregarContinuarDeOndeParou()
-            void atualizarNotificacoesPainel()
+            void sincronizarNotificacoesPainel()
 
             const onLocal = () => {
-                void atualizarNotificacoesPainel()
+                void recarregarNotificacoesUi()
             }
             window.addEventListener('emerdog-clicksign-notif-change', onLocal)
 
@@ -687,10 +697,10 @@ export default function ClicksignEmerdog() {
                 )
                 .subscribe()
 
-            // Fallback: sync API Clicksign (eventos sem webhook) — raro.
+            // Fallback: polling leve na API (webhook cobre o tempo real).
             const timer = window.setInterval(() => {
-                void atualizarNotificacoesPainel()
-            }, 180_000)
+                void sincronizarNotificacoesPainel()
+            }, 300_000)
 
             return () => {
                 window.clearInterval(timer)
@@ -699,7 +709,14 @@ export default function ClicksignEmerdog() {
             }
         }
         return undefined
-    }, [tab, vistaPainel, carregarContagensDashboard, carregarContinuarDeOndeParou, atualizarNotificacoesPainel])
+    }, [
+        tab,
+        vistaPainel,
+        carregarContagensDashboard,
+        carregarContinuarDeOndeParou,
+        sincronizarNotificacoesPainel,
+        recarregarNotificacoesUi,
+    ])
 
     useEffect(() => {
         if (tab === 'envelopes') {
@@ -1626,7 +1643,7 @@ export default function ClicksignEmerdog() {
             await carregarLista()
             await carregarUsoMes()
             pushToast('success', 'Envelope enviado', 'O envelope foi ativado com sucesso. Os signatários serão notificados conforme a configuração da conta.')
-            void atualizarNotificacoesPainel()
+            void sincronizarNotificacoesPainel()
         } finally {
             setFluxoBusy(false)
         }

@@ -69,6 +69,13 @@ function rotuloStatus(st) {
     return s || '—'
 }
 
+/** ID do prestador vindo do select ou do PrestadorVinculoBusca (objeto ou string). */
+function normalizarPrestadorIdVinculo(valor) {
+    if (valor == null || valor === '') return ''
+    if (typeof valor === 'object' && valor.id != null) return String(valor.id)
+    return String(valor).trim()
+}
+
 export default function CredenciamentoFormularioInbox() {
     const { askExclusao, exclusaoToast } = useSfscExclusaoConfirm()
     const navigate = useNavigate()
@@ -369,7 +376,8 @@ export default function CredenciamentoFormularioInbox() {
     }
 
     const aplicarCadastroExistente = () => {
-        const prestadorAlvoId = prestadorExistenteId || Number(prestadorVinculoManualId) || null
+        const prestadorAlvoId =
+            prestadorExistenteId || Number(normalizarPrestadorIdVinculo(prestadorVinculoManualId)) || null
         if (!selecionada?.id || somenteLeitura || !prestadorAlvoId) return
         askExclusao(
             'Os dados desta entrada serão mesclados no cadastro existente (contato, endereço, especialidades e procedimentos do envio). Continuar?',
@@ -396,7 +404,13 @@ export default function CredenciamentoFormularioInbox() {
     }
 
     const criarCadastro = () => {
-        if (!selecionada?.id || somenteLeitura || prestadorExistenteId || prestadorVinculoManualId) return
+        if (
+            !selecionada?.id ||
+            somenteLeitura ||
+            prestadorExistenteId ||
+            normalizarPrestadorIdVinculo(prestadorVinculoManualId)
+        )
+            return
         askExclusao(
             'Será criado um prestador com os dados enviados no formulário. Você poderá completar a ficha em seguida.',
             async () => {
@@ -422,7 +436,8 @@ export default function CredenciamentoFormularioInbox() {
     const end = p.endereco || {}
     const tipoPerfil = String(selecionada?.tipo_perfil || '').toLowerCase()
     const mostrarCrmv = tipoPerfil === 'volante' || tipoPerfil === 'clinica'
-    const prestadorAlvoId = prestadorExistenteId || Number(prestadorVinculoManualId) || null
+    const prestadorVinculoId = normalizarPrestadorIdVinculo(prestadorVinculoManualId)
+    const prestadorAlvoId = prestadorExistenteId || Number(prestadorVinculoId) || null
     const sugestoesPrestadorNome = useMemo(
         () => sugerirPrestadoresPorNome(prestadores, p.nome, { limite: 8 }),
         [prestadores, p.nome],
@@ -566,10 +581,10 @@ export default function CredenciamentoFormularioInbox() {
                                         · <strong>Já credenciado</strong> (cadastro #{prestadorExistenteId})
                                     </>
                                 )}
-                                {!prestadorExistenteId && prestadorVinculoManualId && podeConverter && (
+                                {!prestadorExistenteId && prestadorVinculoId && podeConverter && (
                                     <>
                                         {' '}
-                                        · <strong>Perfil selecionado</strong> (cadastro #{prestadorVinculoManualId})
+                                        · <strong>Perfil selecionado</strong> (cadastro #{prestadorVinculoId})
                                     </>
                                 )}
                             </p>
@@ -745,7 +760,7 @@ export default function CredenciamentoFormularioInbox() {
                                             <span>Sugestões para «{p.nome || 'sem nome'}»</span>
                                             <select
                                                 className="credenciamento_main_select"
-                                                value={prestadorVinculoManualId}
+                                                value={prestadorVinculoId}
                                                 disabled={somenteLeitura || acaoLoading}
                                                 onChange={(e) => setPrestadorVinculoManualId(e.target.value)}
                                             >
@@ -763,8 +778,8 @@ export default function CredenciamentoFormularioInbox() {
                                     <div className="fcred_inbox_vinculo_busca">
                                         <PrestadorVinculoBusca
                                             prestadores={prestadores}
-                                            prestadorId={prestadorVinculoManualId}
-                                            onChange={setPrestadorVinculoManualId}
+                                            prestadorId={prestadorVinculoId}
+                                            onChange={(p) => setPrestadorVinculoManualId(p ? String(p.id) : '')}
                                             disabled={somenteLeitura || acaoLoading}
                                             rotuloFn={rotuloPrestador}
                                             placeholder="Buscar clínica ou prestador por nome…"

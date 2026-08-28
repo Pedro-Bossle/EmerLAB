@@ -25,8 +25,8 @@ import './FormularioInboxBell.css'
 
 /** Fallback raro se Realtime do Supabase estiver indisponível. */
 const INTERVALO_FALLBACK_MS = 120_000
-/** Sync Clicksign API só ao focar a aba / abrir painel (webhook cobre o tempo real). */
-const INTERVALO_SYNC_CONTRATOS_MS = 60_000
+/** Sync Clicksign API — intervalo mínimo alinhado ao throttle global (webhook cobre tempo real). */
+const INTERVALO_SYNC_CONTRATOS_MS = 120_000
 const TITULO_ABA_BASE = 'EmerLAB'
 
 const POS_STORAGE_KEY = 'sfsc_notif_float_pos_v1'
@@ -275,7 +275,7 @@ export default function FormularioInboxBell({
             ultimoSyncContratosRef.current = agora
             setSyncContratos(true)
             try {
-                await sincronizarNotificacoesClicksign(clicksignRequest)
+                await sincronizarNotificacoesClicksign(clicksignRequest, { forcar })
                 const total = await contarNotificacoesContratosTotal()
                 setCountContratos(total)
                 if (aberto) setRecentesContratos(await listarNotificacoesContratosRecentes(8))
