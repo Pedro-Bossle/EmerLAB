@@ -11,6 +11,8 @@
 
 .ccad_exp_modal {
     width: min(420px, 100%);
+    max-height: min(92vh, 720px);
+    overflow: auto;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -203,4 +205,85 @@ body.dark-mode .ccad_exp_erro {
 
 body.dark-mode .ccad_exp_link_btn {
     color: var(--azul-destaque);
+}
+
+.ccad_exp_modal--wide {
+    width: min(520px, 100%);
+}
+
+.ccad_exp_fieldset--layout {
+    margin-top: 0;
+}
+
+.ccad_exp_fieldset--secoes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ccad_exp_layout_hint {
+    margin: 0 0 8px;
+    font-size: 0.78rem;
+    color: #5a7388;
+    line-height: 1.35;
+}
+
+.ccad_exp_reorder_list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ccad_exp_reorder_item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 1px solid #d7e8f2;
+    border-radius: 8px;
+    background: #f8fbfd;
+    cursor: grab;
+}
+
+.ccad_exp_reorder_item.is-over {
+    border-color: #2f80ed;
+    background: #eef5ff;
+}
+
+.ccad_exp_reorder_item.is-off {
+    opacity: 0.72;
+}
+
+.ccad_exp_reorder_item:active {
+    cursor: grabbing;
+}
+
+.ccad_exp_reorder_handle {
+    color: #8fa3b5;
+    font-size: 0.75rem;
+    letter-spacing: -2px;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.ccad_exp_check--reorder {
+    flex: 1;
+    margin: 0;
+}
+
+body.dark-mode .ccad_exp_layout_hint {
+    color: var(--cinza-medio);
+}
+
+body.dark-mode .ccad_exp_reorder_item {
+    background: var(--bg-page);
+    border-color: var(--border-soft);
+}
+
+body.dark-mode .ccad_exp_reorder_item.is-over {
+    border-color: var(--azul-destaque);
+    background: rgba(47, 128, 237, 0.12);
 }

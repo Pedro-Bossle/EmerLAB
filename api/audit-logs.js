@@ -63,6 +63,54 @@ const validarAdminAuditoria = async (supabase, req) => {
     return { user: userData.user, profile }
 }
 
+const validarCredenciamentoRelatorioCadastros = async (supabase, req) => {
+    const authHeader = getHeader(req, 'authorization')
+    const token = String(authHeader || '')
+        .replace(/^Bearer\s+/i, '')
+        .trim()
+    if (!token) return { error: 'Sessão ausente.' }
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(token)
+    if (userError || !userData?.user?.id) return { error: 'Sessão inválida.' }
+
+    const { data: profileData, error: profileError } = await buscarProfile(supabase, userData.user.id)
+    if (profileError || !profileData) return { error: 'Perfil não encontrado.' }
+
+    const profile = normalizarProfileAcesso(profileData)
+    if (
+        !hasPermission(profile, PERMISSION_KEYS.CREDENCIAMENTO_CADASTRO_VIEW) &&
+        !hasPermission(profile, PERMISSION_KEYS.CREDENCIAMENTO_VIEW)
+    ) {
+        return { error: 'Sem permissão para exportar relatório de cadastros.' }
+    }
+
+    return { user: userData.user, profile }
+}
+
+async function listarAuditLogsPrestadoresRelatorio(supabase) {
+    const pageSize = 1000
+    const acumulado = []
+    for (let page = 0; page < 30; page += 1) {
+        const from = page * pageSize
+        const to = from + pageSize - 1
+        const { data, error } = await supabase
+            .from('audit_logs')
+            .select(
+                'data_hora, usuario_id, usuario_nome, acao, registro_id, valor_antigo, valor_novo',
+            )
+            .eq('tabela', 'prestadores')
+            .in('acao', ['CREATE', 'UPDATE'])
+            .not('usuario_id', 'is', null)
+            .order('data_hora', { ascending: false })
+            .range(from, to)
+        if (error) throw error
+        const lote = data || []
+        acumulado.push(...lote)
+        if (lote.length < pageSize) break
+    }
+    return acumulado
+}
+
 const tabelaIndisponivel = (msg) =>
     /audit_logs|does not exist|schema cache/i.test(String(msg || ''))
 
@@ -123,6 +171,20 @@ export default async function handler(req, res) {
                 return responderErro(res, 500, error.message)
             }
             return res.status(200).json({ ok: true })
+        }
+
+        if (action === 'prestadoresResponsaveis') {
+            const cred = await validarCredenciamentoRelatorioCadastros(supabase, req)
+            if (cred.error) return responderErro(res, 403, cred.error)
+            try {
+                const logs = await listarAuditLogsPrestadoresRelatorio(supabase)
+                return res.status(200).json({ ok: true, logs })
+            } catch (e) {
+                if (tabelaIndisponivel(e?.message)) {
+                    return res.status(200).json({ ok: true, logs: [], aviso: 'Tabela audit_logs não configurada.' })
+                }
+                return responderErro(res, 500, e?.message || String(e))
+            }
         }
 
         const admin = await validarAdminAuditoria(supabase, req)
@@ -192,7 +254,7 @@ export default async function handler(req, res) {
         }
 
         if (action !== 'list' && action !== 'export') {
-            return responderErro(res, 400, 'Ação inválida. Use list, export, meta, resumoSemana ou recordAuth.')
+            return responderErro(res, 400, 'Ação inválida. Use list, export, meta, resumoSemana, prestadoresResponsaveis ou recordAuth.')
         }
 
         const page = Math.max(1, Number(body.page) || 1)

@@ -576,7 +576,7 @@ const CredenciamentoCadastroLista = () => {
         })
     }
 
-    const exportarPdfCadastros = async ({ periodoDe, periodoAte, situacaoIds }) => {
+    const exportarPdfCadastros = async ({ periodoDe, periodoAte, situacaoIds, layout }) => {
         if (exportandoPdf) return
         if (!periodoDe || !periodoAte) {
             setErro('Informe o período de exportação.')
@@ -638,6 +638,7 @@ const CredenciamentoCadastroLista = () => {
                 subtitulo: partesSub.join(' · '),
                 periodoDe,
                 periodoAte,
+                layout,
             })
             downloadRelatorioCadastrosPdf(
                 blob,

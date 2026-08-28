@@ -12,7 +12,15 @@ import {
     situacaoDescricaoEhCredenciado,
 } from '../prestadorCadastroHelpers.js'
 import { resolverLocalidadeEfetivaPrestador } from '../prestadorLocalidadeVinculo.js'
-import { buscarTodosPaginado } from '../supabase.js'
+import {
+    blocosResumoRelatorioAtivos,
+    colunasTabelaRelatorioAtivas,
+    largurasColunasTabelaRelatorio,
+    METADADOS_COLUNAS_RELATORIO_CADASTROS,
+    normalizarLayoutRelatorioCadastros,
+    valorCelulaColunaRelatorioCadastros,
+} from './relatorioCadastrosLayout.js'
+import { buscarTodosPaginado, supabase } from '../supabase.js'
 import { listarUsuariosParaAtribuicao } from '../homeTarefas.js'
 
 const MM_MARGIN = 12
@@ -102,7 +110,12 @@ function compararLinhasCredenciadoEmAsc(a, b) {
 function resolverNomeUsuario(uid, mapaNomes) {
     const id = String(uid || '').trim()
     if (!id) return '—'
-    return mapaNomes?.get(id) || id
+    const hit = mapaNomes?.get(id)
+    if (hit) return hit
+    if (/^[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}$/i.test(id)) {
+        return '—'
+    }
+    return id
 }
 
 function idsSituacaoCredenciadoFromLista(situacoes = []) {
@@ -175,6 +188,59 @@ export function mapaUsuarioPrestadorViaAuditoria(
     return { mapaUsuarioIdPorPrestadorId, mapaNomeUsuarioPorId }
 }
 
+/** Preenche mapa de nomes a partir de todos os logs (não só o «vencedor» por prestador). */
+export function enriquecerMapaNomesUsuariosDeAuditoria(logs = [], mapaNomeUsuarioPorId = new Map()) {
+    for (const log of logs || []) {
+        const uid = log?.usuario_id ? String(log.usuario_id).trim() : ''
+        const nome = String(log?.usuario_nome || '').trim()
+        if (uid && nome && !mapaNomeUsuarioPorId.has(uid)) {
+            mapaNomeUsuarioPorId.set(uid, nome)
+        }
+    }
+    return mapaNomeUsuarioPorId
+}
+
+async function buscarAuditLogsPrestadoresViaApi() {
+    if (typeof window === 'undefined') return []
+    try {
+        const { data: sess } = await supabase.auth.getSession()
+        const token = sess?.session?.access_token
+        if (!token) return []
+        const res = await fetch('/api/audit-logs', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ action: 'prestadoresResponsaveis' }),
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok || !json?.ok) return []
+        return Array.isArray(json.logs) ? json.logs : []
+    } catch {
+        return []
+    }
+}
+
+async function preencherNomesUsuariosFaltantes(supabaseClient, mapaNomeUsuarioPorId, mapaUsuarioIdPorPrestadorId) {
+    const faltando = [...new Set([...mapaUsuarioIdPorPrestadorId.values()])].filter(
+        (uid) => uid && !mapaNomeUsuarioPorId.has(uid),
+    )
+    if (!faltando.length) return
+    const chunk = 80
+    for (let i = 0; i < faltando.length; i += chunk) {
+        const fatia = faltando.slice(i, i + chunk)
+        const { data, error } = await supabaseClient.from('profiles').select('id, name').in('id', fatia)
+        if (error) break
+        for (const row of data || []) {
+            const uid = String(row.id || '').trim()
+            const nome = String(row.name || '').trim()
+            if (uid && nome) mapaNomeUsuarioPorId.set(uid, nome)
+        }
+    }
+}
+
 async function aplicarFallbackUsuariosAuditoria(
     supabaseClient,
     mapaUsuarioIdPorPrestadorId,
@@ -182,25 +248,28 @@ async function aplicarFallbackUsuariosAuditoria(
     idsSituacaoCredenciado,
 ) {
     const comKanban = new Set(mapaUsuarioIdPorPrestadorId.keys())
-    let logs = []
-    try {
-        const { data, error } = await buscarTodosPaginado(() =>
-            supabaseClient
-                .from('audit_logs')
-                .select(
-                    'data_hora, usuario_id, usuario_nome, acao, registro_id, valor_antigo, valor_novo',
-                )
-                .eq('tabela', 'prestadores')
-                .in('acao', ['CREATE', 'UPDATE'])
-                .not('usuario_id', 'is', null)
-                .order('data_hora', { ascending: false }),
-        )
-        if (error) return
-        logs = data || []
-    } catch {
-        return
+    let logs = await buscarAuditLogsPrestadoresViaApi()
+    if (!logs.length) {
+        try {
+            const { data, error } = await buscarTodosPaginado(() =>
+                supabaseClient
+                    .from('audit_logs')
+                    .select(
+                        'data_hora, usuario_id, usuario_nome, acao, registro_id, valor_antigo, valor_novo',
+                    )
+                    .eq('tabela', 'prestadores')
+                    .in('acao', ['CREATE', 'UPDATE'])
+                    .not('usuario_id', 'is', null)
+                    .order('data_hora', { ascending: false }),
+            )
+            if (!error) logs = data || []
+        } catch {
+            logs = []
+        }
     }
     if (!logs?.length) return
+
+    enriquecerMapaNomesUsuariosDeAuditoria(logs, mapaNomeUsuarioPorId)
 
     const { mapaUsuarioIdPorPrestadorId: auditIds, mapaNomeUsuarioPorId: auditNomes } =
         mapaUsuarioPrestadorViaAuditoria(logs, idsSituacaoCredenciado, comKanban)
@@ -259,6 +328,11 @@ export async function carregarContextoUsuariosRelatorioCadastros(
         mapaUsuarioIdPorPrestadorId,
         mapaNomeUsuarioPorId,
         idsCred,
+    )
+    await preencherNomesUsuariosFaltantes(
+        supabaseClient,
+        mapaNomeUsuarioPorId,
+        mapaUsuarioIdPorPrestadorId,
     )
 
     return { mapaNomeUsuarioPorId, mapaUsuarioIdPorPrestadorId }
@@ -338,6 +412,11 @@ export function montarLinhasRelatorioCadastros({
                 : [...nomesCidade][0] || '—'
         const cidade = rotuloPrincipalComExtras(cidadeBase, nomesCidade.size)
 
+        const especialidadesTodas = [...espIds]
+            .map((id) => mapaEsp.get(Number(id)))
+            .filter(Boolean)
+        const cidadesTodas = [...nomesCidade]
+
         const situacao =
             (situacoes || []).find((s) => Number(s.id) === sid)?.descricao || '—'
         const ehCredenciado = prestadorEhCredenciado(p, situacoes)
@@ -351,8 +430,10 @@ export function montarLinhasRelatorioCadastros({
             nome: String(p.nome || '').trim() || '—',
             especialidade,
             especialidadeChave: espPrincipal && espPrincipal !== '—' ? espPrincipal : '—',
+            especialidadesTodas,
             cidade,
             cidadeChave: cidadeBase && cidadeBase !== '—' ? cidadeBase : '—',
+            cidadesTodas,
             situacao,
             situacaoId: sid || 0,
             usuario,
@@ -367,12 +448,25 @@ export function montarLinhasRelatorioCadastros({
 
 /**
  * Totais por situação, usuário, especialidade (com nomes) e cidade.
+ * Especialidade e cidade: cada vínculo secundário entra na contagem da respectiva chave.
  */
 export function montarResumosRelatorioCadastros(linhas = []) {
     const porSituacao = new Map()
     const porUsuario = new Map()
     const porEspecialidade = new Map()
     const porCidade = new Map()
+
+    const incEsp = (nomeEsp, nomePrestador) => {
+        const esp = String(nomeEsp || '—').trim() || '—'
+        if (!porEspecialidade.has(esp)) porEspecialidade.set(esp, new Set())
+        porEspecialidade.get(esp).add(String(nomePrestador || '—'))
+    }
+
+    const incCid = (nomeCid, nomePrestador) => {
+        const cid = String(nomeCid || '—').trim() || '—'
+        if (!porCidade.has(cid)) porCidade.set(cid, new Set())
+        porCidade.get(cid).add(String(nomePrestador || '—'))
+    }
 
     for (const l of linhas || []) {
         const sit = String(l.situacao || '—').trim() || '—'
@@ -381,12 +475,18 @@ export function montarResumosRelatorioCadastros(linhas = []) {
         const usu = String(l.usuario || '—').trim() || '—'
         porUsuario.set(usu, (porUsuario.get(usu) || 0) + 1)
 
-        const esp = String(l.especialidadeChave || l.especialidade || '—').trim() || '—'
-        if (!porEspecialidade.has(esp)) porEspecialidade.set(esp, new Set())
-        porEspecialidade.get(esp).add(String(l.nome || '—'))
+        const nomePrest = String(l.nome || '—')
+        const esps =
+            Array.isArray(l.especialidadesTodas) && l.especialidadesTodas.length
+                ? l.especialidadesTodas
+                : [l.especialidadeChave || l.especialidade || '—']
+        for (const espNome of esps) incEsp(espNome, nomePrest)
 
-        const cid = String(l.cidadeChave || l.cidade || '—').trim() || '—'
-        porCidade.set(cid, (porCidade.get(cid) || 0) + 1)
+        const cids =
+            Array.isArray(l.cidadesTodas) && l.cidadesTodas.length
+                ? l.cidadesTodas
+                : [l.cidadeChave || l.cidade || '—']
+        for (const cidNome of cids) incCid(cidNome, nomePrest)
     }
 
     const ordenarPar = (a, b) => String(a[0]).localeCompare(String(b[0]), 'pt-BR', { sensitivity: 'base' })
@@ -401,73 +501,137 @@ export function montarResumosRelatorioCadastros(linhas = []) {
                 nomes: [...nomesSet].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })),
             }))
             .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR', { sensitivity: 'base' })),
-        porCidade: [...porCidade.entries()].sort(ordenarPar).map(([label, total]) => ({ label, total })),
+        porCidade: [...porCidade.entries()]
+            .map(([label, nomesSet]) => ({
+                label,
+                total: nomesSet.size,
+                nomes: [...nomesSet].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })),
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR', { sensitivity: 'base' })),
     }
 }
 
-function garantirEspacoPaginaResumo(doc, y, alturaNecessaria = 12) {
-    if (y + alturaNecessaria <= PAGE_H - MM_MARGIN) return y
-    doc.addPage()
-    return MM_MARGIN + 4
+function estilosTabelaResumoPdf() {
+    return {
+        theme: 'striped',
+        margin: { left: MM_MARGIN, right: MM_MARGIN },
+        tableWidth: TABLE_WIDTH_MM,
+        styles: {
+            font: 'helvetica',
+            fontSize: 8,
+            cellPadding: 2,
+            overflow: 'linebreak',
+            valign: 'middle',
+        },
+        headStyles: {
+            fillColor: [30, 77, 122],
+            textColor: 255,
+            fontStyle: 'bold',
+            fontSize: 8.5,
+        },
+        alternateRowStyles: { fillColor: [245, 248, 252] },
+        columnStyles: {},
+    }
 }
 
-function desenharBlocoResumoPdf(doc, titulo, linhasTexto, startY) {
-    let y = garantirEspacoPaginaResumo(doc, startY, 16)
+function desenharTabelaResumoPdf(doc, titulo, head, body, startY) {
+    if (!body?.length) return startY
+    let y = startY
+    if (y > PAGE_H - MM_MARGIN - 24) {
+        doc.addPage()
+        y = MM_MARGIN + 4
+    }
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(10)
+    doc.setFontSize(10.5)
     doc.setTextColor(21, 54, 79)
     doc.text(titulo, MM_MARGIN, y)
-    y += 5
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8.5)
-    doc.setTextColor(40, 50, 60)
-    for (const txt of linhasTexto) {
-        const wrapped = doc.splitTextToSize(String(txt), TABLE_WIDTH_MM)
-        y = garantirEspacoPaginaResumo(doc, y, wrapped.length * 4 + 2)
-        doc.text(wrapped, MM_MARGIN, y)
-        y += wrapped.length * 3.8 + 1.2
-    }
     doc.setTextColor(0, 0, 0)
-    return y + 4
+    y += 4
+
+    autoTable(doc, {
+        ...estilosTabelaResumoPdf(),
+        startY: y,
+        head: [head],
+        body,
+    })
+    return (doc.lastAutoTable?.finalY ?? y) + 8
 }
 
-function desenharResumosRelatorioCadastrosPdf(doc, resumos, startY) {
+function desenharResumosRelatorioCadastrosPdf(doc, resumos, startY, layout) {
     if (!resumos) return startY
-    let y = garantirEspacoPaginaResumo(doc, startY, 20)
+    const norm = normalizarLayoutRelatorioCadastros(layout)
+    const blocos = blocosResumoRelatorioAtivos(norm)
+    if (!blocos.length) return startY
+
+    let y = startY
+    if (y > PAGE_H - MM_MARGIN - 30) {
+        doc.addPage()
+        y = MM_MARGIN + 4
+    }
+
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
+    doc.setFontSize(14)
     doc.setTextColor(21, 54, 79)
-    doc.text('Resumo', MM_MARGIN, y)
+    doc.text('Resumo e totais', MM_MARGIN, y)
     y += 8
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.5)
+    doc.setTextColor(80, 90, 100)
+    const notaParts = []
+    if (blocos.includes('especialidade') || blocos.includes('cidade')) {
+        notaParts.push(
+            'Especialidade e cidade incluem vínculos secundários (cada combinação prestador × item).',
+        )
+    }
+    if (notaParts.length) {
+        doc.text(notaParts.join(' '), MM_MARGIN, y, { maxWidth: TABLE_WIDTH_MM })
+        y += 7
+    }
     doc.setTextColor(0, 0, 0)
 
-    y = desenharBlocoResumoPdf(
-        doc,
-        'Total por situação',
-        (resumos.porSituacao || []).map((r) => `${r.label}: ${r.total}`),
-        y,
-    )
-    y = desenharBlocoResumoPdf(
-        doc,
-        'Total por usuário',
-        (resumos.porUsuario || []).map((r) => `${r.label}: ${r.total}`),
-        y,
-    )
-    y = desenharBlocoResumoPdf(
-        doc,
-        'Total por especialidade',
-        (resumos.porEspecialidade || []).map((r) => {
-            const nomes = (r.nomes || []).join(', ')
-            return nomes ? `${r.label}: ${r.total} (${nomes})` : `${r.label}: ${r.total}`
-        }),
-        y,
-    )
-    y = desenharBlocoResumoPdf(
-        doc,
-        'Total por cidade',
-        (resumos.porCidade || []).map((r) => `${r.label}: ${r.total}`),
-        y,
-    )
+    for (const id of blocos) {
+        if (id === 'situacao') {
+            y = desenharTabelaResumoPdf(
+                doc,
+                'Por situação',
+                ['Situação', 'Total'],
+                (resumos.porSituacao || []).map((r) => [r.label, String(r.total)]),
+                y,
+            )
+        } else if (id === 'usuario') {
+            y = desenharTabelaResumoPdf(
+                doc,
+                'Por usuário responsável',
+                ['Usuário', 'Cadastros'],
+                (resumos.porUsuario || []).map((r) => [r.label, String(r.total)]),
+                y,
+            )
+        } else if (id === 'especialidade') {
+            y = desenharTabelaResumoPdf(
+                doc,
+                'Por especialidade',
+                ['Especialidade', 'Qtd.', 'Prestadores'],
+                (resumos.porEspecialidade || []).map((r) => [
+                    r.label,
+                    String(r.total),
+                    (r.nomes || []).join(', ') || '—',
+                ]),
+                y,
+            )
+        } else if (id === 'cidade') {
+            y = desenharTabelaResumoPdf(
+                doc,
+                'Por cidade',
+                ['Cidade', 'Qtd.', 'Prestadores'],
+                (resumos.porCidade || []).map((r) => [
+                    r.label,
+                    String(r.total),
+                    (r.nomes || []).join(', ') || '—',
+                ]),
+                y,
+            )
+        }
+    }
     return y
 }
 
@@ -724,9 +888,11 @@ function desenharGraficoCredenciadosPorMes(doc, serieOuPack, opts = {}) {
 }
 
 /**
- * @param {{ linhas: Array, subtitulo?: string, periodoDe?: string, periodoAte?: string }} opts
+ * @param {{ linhas: Array, subtitulo?: string, periodoDe?: string, periodoAte?: string, layout?: object, resumos?: object }} opts
  */
 export async function gerarRelatorioCadastrosPdf(opts) {
+    const layout = normalizarLayoutRelatorioCadastros(opts.layout)
+    const idsColunas = colunasTabelaRelatorioAtivas(layout)
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
     const logo = await carregarLogoPdfEmerdog()
     let y = MM_MARGIN
@@ -757,53 +923,49 @@ export async function gerarRelatorioCadastrosPdf(opts) {
         y += 2
     }
 
-    const body = (opts.linhas || []).map((l) => [
-        String(l.nome || '—'),
-        String(l.especialidade || '—'),
-        String(l.cidade || '—'),
-        String(l.situacao || '—'),
-        String(l.usuario || '—'),
-        String(l.credenciadoEm || '—'),
-    ])
+    const linhas = opts.linhas || []
 
-    autoTable(doc, {
-        startY: y,
-        margin: { left: MM_MARGIN, right: MM_MARGIN },
-        tableWidth: TABLE_WIDTH_MM,
-        theme: 'grid',
-        styles: {
-            font: 'helvetica',
-            fontSize: 7.5,
-            cellPadding: 1.4,
-            overflow: 'linebreak',
-            valign: 'middle',
-        },
-        head: [['Nome', 'Especialidade', 'Cidade', 'Situação', 'Usuário', 'Credenciado Em']],
-        body: body.length ? body : [['—', '—', '—', '—', '—', '—']],
-        headStyles: { fillColor: [30, 77, 122], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
-        columnStyles: {
-            0: { cellWidth: 40 },
-            1: { cellWidth: 32 },
-            2: { cellWidth: 28 },
-            3: { cellWidth: 26 },
-            4: { cellWidth: 28 },
-            5: { cellWidth: 24, halign: 'center' },
-        },
-    })
+    if (layout.incluirTabelaGeral && idsColunas.length) {
+        const head = idsColunas.map(
+            (id) => METADADOS_COLUNAS_RELATORIO_CADASTROS[id]?.label || id,
+        )
+        const body = linhas.map((l) =>
+            idsColunas.map((id) => valorCelulaColunaRelatorioCadastros(l, id)),
+        )
+        const vazia = idsColunas.map(() => '—')
 
-    const resumos =
-        opts.resumos || montarResumosRelatorioCadastros(opts.linhas || [])
-    if (resumos && (opts.linhas || []).length) {
-        doc.addPage()
-        desenharResumosRelatorioCadastrosPdf(doc, resumos, MM_MARGIN + 4)
+        autoTable(doc, {
+            startY: y,
+            margin: { left: MM_MARGIN, right: MM_MARGIN },
+            tableWidth: TABLE_WIDTH_MM,
+            theme: 'grid',
+            styles: {
+                font: 'helvetica',
+                fontSize: 7.5,
+                cellPadding: 1.4,
+                overflow: 'linebreak',
+                valign: 'middle',
+            },
+            head: [head],
+            body: body.length ? body : [vazia],
+            headStyles: { fillColor: [30, 77, 122], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+            columnStyles: largurasColunasTabelaRelatorio(idsColunas, TABLE_WIDTH_MM),
+        })
+    }
+
+    const resumos = opts.resumos || montarResumosRelatorioCadastros(linhas)
+    const temResumos = blocosResumoRelatorioAtivos(layout).length > 0
+    if (temResumos && linhas.length) {
+        if (layout.incluirTabelaGeral && idsColunas.length) doc.addPage()
+        desenharResumosRelatorioCadastrosPdf(doc, resumos, MM_MARGIN + 4, layout)
     }
 
     const pack = montarSeriesPorSituacaoEMes(
-        opts.linhas,
+        linhas,
         opts.periodoDe || '',
         opts.periodoAte || '',
     )
-    if (pack.meses.length > 1) {
+    if (layout.incluirGraficoMeses && pack.meses.length > 1) {
         doc.addPage()
         let gy = MM_MARGIN
         doc.addImage(logo.dataUrl, 'PNG', MM_MARGIN, gy, logo.w, logo.h)
