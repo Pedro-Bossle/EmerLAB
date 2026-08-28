@@ -9,10 +9,14 @@ import {
 import {
     prestadorEhCredenciado,
     resolverCidadePrincipalNome,
+    situacaoDescricaoEhCredenciado,
 } from '../prestadorCadastroHelpers.js'
 import { resolverLocalidadeEfetivaPrestador } from '../prestadorLocalidadeVinculo.js'
+import { buscarTodosPaginado } from '../supabase.js'
+import { listarUsuariosParaAtribuicao } from '../homeTarefas.js'
 
 const MM_MARGIN = 12
+const PAGE_H = 297
 const PAGE_W = 210
 const TABLE_WIDTH_MM = PAGE_W - MM_MARGIN * 2
 
@@ -84,8 +88,184 @@ function mapaCidadesPorPrestador(linhas) {
     return m
 }
 
+function compararLinhasCredenciadoEmAsc(a, b) {
+    const ta = a.credenciadoEmIso ? new Date(a.credenciadoEmIso).getTime() : NaN
+    const tb = b.credenciadoEmIso ? new Date(b.credenciadoEmIso).getTime() : NaN
+    const va = Number.isFinite(ta) ? ta : Number.POSITIVE_INFINITY
+    const vb = Number.isFinite(tb) ? tb : Number.POSITIVE_INFINITY
+    if (va !== vb) return va - vb
+    return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', {
+        sensitivity: 'base',
+    })
+}
+
+function resolverNomeUsuario(uid, mapaNomes) {
+    const id = String(uid || '').trim()
+    if (!id) return '—'
+    return mapaNomes?.get(id) || id
+}
+
+function idsSituacaoCredenciadoFromLista(situacoes = []) {
+    const set = new Set()
+    for (const s of situacoes || []) {
+        const id = Number(s.id)
+        if (id && situacaoDescricaoEhCredenciado(s.descricao)) set.add(id)
+    }
+    return set
+}
+
+/** UPDATE em `prestadores` que passou a situação «Credenciado». */
+export function auditLogTransicaoParaCredenciado(log, idsSituacaoCredenciado) {
+    if (String(log?.acao || '').toUpperCase() !== 'UPDATE') return false
+    if (!idsSituacaoCredenciado?.size) return false
+    const depois = Number(log.valor_novo?.situacao_id)
+    const antes = Number(log.valor_antigo?.situacao_id)
+    if (!idsSituacaoCredenciado.has(depois)) return false
+    return !idsSituacaoCredenciado.has(antes)
+}
+
 /**
- * Monta linhas do relatório (Nome | Especialidade | Cidade | Situação | Credenciado Em).
+ * Fallback retroativo: usuário a partir de audit_logs (tabela prestadores).
+ * Prioridade por prestador: transição p/ credenciado > CREATE > UPDATE mais recente.
+ * @param {Set<number>} [prestadoresComKanban] — IDs já resolvidos pelo Kanban (não sobrescreve).
+ */
+export function mapaUsuarioPrestadorViaAuditoria(
+    logs = [],
+    idsSituacaoCredenciado,
+    prestadoresComKanban = new Set(),
+) {
+    const melhor = new Map()
+    const PRIORIDADE = { update: 1, create: 2, credenciado: 3 }
+
+    const considerar = (pid, uid, nome, prio) => {
+        if (!pid || !uid || prestadoresComKanban.has(pid)) return
+        const prev = melhor.get(pid)
+        if (prev && prev.prio >= prio) return
+        melhor.set(pid, { uid: String(uid).trim(), nome: String(nome || '').trim(), prio })
+    }
+
+    const ordenados = [...(logs || [])].sort((a, b) => {
+        const ta = new Date(a.data_hora || 0).getTime()
+        const tb = new Date(b.data_hora || 0).getTime()
+        return tb - ta
+    })
+
+    for (const log of ordenados) {
+        const pid = Number(log.registro_id)
+        const uid = log.usuario_id
+        if (!pid || !uid) continue
+        const acao = String(log.acao || '').toUpperCase()
+        const nome = log.usuario_nome
+
+        if (acao === 'UPDATE' && auditLogTransicaoParaCredenciado(log, idsSituacaoCredenciado)) {
+            considerar(pid, uid, nome, PRIORIDADE.credenciado)
+        } else if (acao === 'CREATE') {
+            considerar(pid, uid, nome, PRIORIDADE.create)
+        } else if (acao === 'UPDATE') {
+            considerar(pid, uid, nome, PRIORIDADE.update)
+        }
+    }
+
+    const mapaUsuarioIdPorPrestadorId = new Map()
+    const mapaNomeUsuarioPorId = new Map()
+    for (const [pid, { uid, nome }] of melhor) {
+        mapaUsuarioIdPorPrestadorId.set(pid, uid)
+        if (nome) mapaNomeUsuarioPorId.set(uid, nome)
+    }
+    return { mapaUsuarioIdPorPrestadorId, mapaNomeUsuarioPorId }
+}
+
+async function aplicarFallbackUsuariosAuditoria(
+    supabaseClient,
+    mapaUsuarioIdPorPrestadorId,
+    mapaNomeUsuarioPorId,
+    idsSituacaoCredenciado,
+) {
+    const comKanban = new Set(mapaUsuarioIdPorPrestadorId.keys())
+    let logs = []
+    try {
+        const { data, error } = await buscarTodosPaginado(() =>
+            supabaseClient
+                .from('audit_logs')
+                .select(
+                    'data_hora, usuario_id, usuario_nome, acao, registro_id, valor_antigo, valor_novo',
+                )
+                .eq('tabela', 'prestadores')
+                .in('acao', ['CREATE', 'UPDATE'])
+                .not('usuario_id', 'is', null)
+                .order('data_hora', { ascending: false }),
+        )
+        if (error) return
+        logs = data || []
+    } catch {
+        return
+    }
+    if (!logs?.length) return
+
+    const { mapaUsuarioIdPorPrestadorId: auditIds, mapaNomeUsuarioPorId: auditNomes } =
+        mapaUsuarioPrestadorViaAuditoria(logs, idsSituacaoCredenciado, comKanban)
+
+    for (const [uid, nome] of auditNomes) {
+        if (!mapaNomeUsuarioPorId.has(uid) && nome) mapaNomeUsuarioPorId.set(uid, nome)
+    }
+    for (const [pid, uid] of auditIds) {
+        if (!mapaUsuarioIdPorPrestadorId.has(pid)) mapaUsuarioIdPorPrestadorId.set(pid, uid)
+    }
+}
+
+/**
+ * Responsável do cadastro: (1) Kanban `atribuido_a`; (2) fallback audit_logs em `prestadores`.
+ * @returns {Promise<{ mapaNomeUsuarioPorId: Map<string, string>, mapaUsuarioIdPorPrestadorId: Map<number, string> }>}
+ */
+export async function carregarContextoUsuariosRelatorioCadastros(
+    supabaseClient,
+    { situacoes = [] } = {},
+) {
+    const mapaNomeUsuarioPorId = new Map()
+    const mapaUsuarioIdPorPrestadorId = new Map()
+    try {
+        const [usuarios, cardsResp] = await Promise.all([
+            listarUsuariosParaAtribuicao(),
+            buscarTodosPaginado(() =>
+                supabaseClient
+                    .from('cred_kanban_cards')
+                    .select('prestador_id, atribuido_a, atualizado_em')
+                    .not('prestador_id', 'is', null),
+            ),
+        ])
+        const cards = cardsResp?.error ? [] : cardsResp?.data || []
+        for (const u of usuarios || []) {
+            mapaNomeUsuarioPorId.set(String(u.id), String(u.nome || u.id).trim() || u.id)
+        }
+        const melhorPorPrestador = new Map()
+        for (const row of cards || []) {
+            const pid = Number(row.prestador_id)
+            const uid = row.atribuido_a ? String(row.atribuido_a).trim() : ''
+            if (!pid || !uid) continue
+            const t = new Date(row.atualizado_em || 0).getTime()
+            const prev = melhorPorPrestador.get(pid)
+            if (!prev || t >= prev.t) melhorPorPrestador.set(pid, { uid, t })
+        }
+        for (const [pid, { uid }] of melhorPorPrestador) {
+            mapaUsuarioIdPorPrestadorId.set(pid, uid)
+        }
+    } catch {
+        /* Kanban/usuários indisponível — relatório segue sem coluna de responsável */
+    }
+
+    const idsCred = idsSituacaoCredenciadoFromLista(situacoes)
+    await aplicarFallbackUsuariosAuditoria(
+        supabaseClient,
+        mapaUsuarioIdPorPrestadorId,
+        mapaNomeUsuarioPorId,
+        idsCred,
+    )
+
+    return { mapaNomeUsuarioPorId, mapaUsuarioIdPorPrestadorId }
+}
+
+/**
+ * Monta linhas do relatório (Nome | Especialidade | Cidade | Situação | Usuário | Credenciado Em).
  * Especialidade/Cidade: principal +N quando há vínculos extras.
  * Com `periodoDe`/`periodoAte` (YYYY-MM-DD), mantém só quem tem `credenciado_em` no intervalo.
  */
@@ -101,6 +281,8 @@ export function montarLinhasRelatorioCadastros({
     periodoDe = '',
     periodoAte = '',
     situacaoIds = null,
+    mapaNomeUsuarioPorId = null,
+    mapaUsuarioIdPorPrestadorId = null,
 } = {}) {
     const mapaEsp = new Map((especialidades || []).map((e) => [Number(e.id), String(e.nome || '').trim()]))
     const mapaCidade = new Map((cidadesCred || []).map((c) => [Number(c.id), c]))
@@ -161,20 +343,132 @@ export function montarLinhasRelatorioCadastros({
         const ehCredenciado = prestadorEhCredenciado(p, situacoes)
         const isoGrafico = p.credenciado_em || ''
         const credenciadoEm = ehCredenciado ? formatarDataCredenciadoEm(isoGrafico) : ''
+        const uidResp = mapaUsuarioIdPorPrestadorId?.get(pid) || ''
+        const usuario = resolverNomeUsuario(uidResp, mapaNomeUsuarioPorId)
 
         linhas.push({
             id: pid,
             nome: String(p.nome || '').trim() || '—',
             especialidade,
+            especialidadeChave: espPrincipal && espPrincipal !== '—' ? espPrincipal : '—',
             cidade,
+            cidadeChave: cidadeBase && cidadeBase !== '—' ? cidadeBase : '—',
             situacao,
             situacaoId: sid || 0,
+            usuario,
+            usuarioId: uidResp || '',
             credenciadoEm,
             credenciadoEmIso: isoGrafico,
         })
     }
 
-    return linhas.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
+    return linhas.sort(compararLinhasCredenciadoEmAsc)
+}
+
+/**
+ * Totais por situação, usuário, especialidade (com nomes) e cidade.
+ */
+export function montarResumosRelatorioCadastros(linhas = []) {
+    const porSituacao = new Map()
+    const porUsuario = new Map()
+    const porEspecialidade = new Map()
+    const porCidade = new Map()
+
+    for (const l of linhas || []) {
+        const sit = String(l.situacao || '—').trim() || '—'
+        porSituacao.set(sit, (porSituacao.get(sit) || 0) + 1)
+
+        const usu = String(l.usuario || '—').trim() || '—'
+        porUsuario.set(usu, (porUsuario.get(usu) || 0) + 1)
+
+        const esp = String(l.especialidadeChave || l.especialidade || '—').trim() || '—'
+        if (!porEspecialidade.has(esp)) porEspecialidade.set(esp, new Set())
+        porEspecialidade.get(esp).add(String(l.nome || '—'))
+
+        const cid = String(l.cidadeChave || l.cidade || '—').trim() || '—'
+        porCidade.set(cid, (porCidade.get(cid) || 0) + 1)
+    }
+
+    const ordenarPar = (a, b) => String(a[0]).localeCompare(String(b[0]), 'pt-BR', { sensitivity: 'base' })
+
+    return {
+        porSituacao: [...porSituacao.entries()].sort(ordenarPar).map(([label, total]) => ({ label, total })),
+        porUsuario: [...porUsuario.entries()].sort(ordenarPar).map(([label, total]) => ({ label, total })),
+        porEspecialidade: [...porEspecialidade.entries()]
+            .map(([label, nomesSet]) => ({
+                label,
+                total: nomesSet.size,
+                nomes: [...nomesSet].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })),
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR', { sensitivity: 'base' })),
+        porCidade: [...porCidade.entries()].sort(ordenarPar).map(([label, total]) => ({ label, total })),
+    }
+}
+
+function garantirEspacoPaginaResumo(doc, y, alturaNecessaria = 12) {
+    if (y + alturaNecessaria <= PAGE_H - MM_MARGIN) return y
+    doc.addPage()
+    return MM_MARGIN + 4
+}
+
+function desenharBlocoResumoPdf(doc, titulo, linhasTexto, startY) {
+    let y = garantirEspacoPaginaResumo(doc, startY, 16)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(21, 54, 79)
+    doc.text(titulo, MM_MARGIN, y)
+    y += 5
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.5)
+    doc.setTextColor(40, 50, 60)
+    for (const txt of linhasTexto) {
+        const wrapped = doc.splitTextToSize(String(txt), TABLE_WIDTH_MM)
+        y = garantirEspacoPaginaResumo(doc, y, wrapped.length * 4 + 2)
+        doc.text(wrapped, MM_MARGIN, y)
+        y += wrapped.length * 3.8 + 1.2
+    }
+    doc.setTextColor(0, 0, 0)
+    return y + 4
+}
+
+function desenharResumosRelatorioCadastrosPdf(doc, resumos, startY) {
+    if (!resumos) return startY
+    let y = garantirEspacoPaginaResumo(doc, startY, 20)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.setTextColor(21, 54, 79)
+    doc.text('Resumo', MM_MARGIN, y)
+    y += 8
+    doc.setTextColor(0, 0, 0)
+
+    y = desenharBlocoResumoPdf(
+        doc,
+        'Total por situação',
+        (resumos.porSituacao || []).map((r) => `${r.label}: ${r.total}`),
+        y,
+    )
+    y = desenharBlocoResumoPdf(
+        doc,
+        'Total por usuário',
+        (resumos.porUsuario || []).map((r) => `${r.label}: ${r.total}`),
+        y,
+    )
+    y = desenharBlocoResumoPdf(
+        doc,
+        'Total por especialidade',
+        (resumos.porEspecialidade || []).map((r) => {
+            const nomes = (r.nomes || []).join(', ')
+            return nomes ? `${r.label}: ${r.total} (${nomes})` : `${r.label}: ${r.total}`
+        }),
+        y,
+    )
+    y = desenharBlocoResumoPdf(
+        doc,
+        'Total por cidade',
+        (resumos.porCidade || []).map((r) => `${r.label}: ${r.total}`),
+        y,
+    )
+    return y
 }
 
 const MESES_CURTOS_PT = [
@@ -468,6 +762,7 @@ export async function gerarRelatorioCadastrosPdf(opts) {
         String(l.especialidade || '—'),
         String(l.cidade || '—'),
         String(l.situacao || '—'),
+        String(l.usuario || '—'),
         String(l.credenciadoEm || '—'),
     ])
 
@@ -478,22 +773,30 @@ export async function gerarRelatorioCadastrosPdf(opts) {
         theme: 'grid',
         styles: {
             font: 'helvetica',
-            fontSize: 8,
-            cellPadding: 1.6,
+            fontSize: 7.5,
+            cellPadding: 1.4,
             overflow: 'linebreak',
             valign: 'middle',
         },
-        head: [['Nome', 'Especialidade', 'Cidade', 'Situação', 'Credenciado Em']],
-        body: body.length ? body : [['—', '—', '—', '—', '—']],
-        headStyles: { fillColor: [30, 77, 122], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+        head: [['Nome', 'Especialidade', 'Cidade', 'Situação', 'Usuário', 'Credenciado Em']],
+        body: body.length ? body : [['—', '—', '—', '—', '—', '—']],
+        headStyles: { fillColor: [30, 77, 122], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
         columnStyles: {
-            0: { cellWidth: 52 },
-            1: { cellWidth: 40 },
-            2: { cellWidth: 36 },
-            3: { cellWidth: 30 },
-            4: { cellWidth: 28, halign: 'center' },
+            0: { cellWidth: 40 },
+            1: { cellWidth: 32 },
+            2: { cellWidth: 28 },
+            3: { cellWidth: 26 },
+            4: { cellWidth: 28 },
+            5: { cellWidth: 24, halign: 'center' },
         },
     })
+
+    const resumos =
+        opts.resumos || montarResumosRelatorioCadastros(opts.linhas || [])
+    if (resumos && (opts.linhas || []).length) {
+        doc.addPage()
+        desenharResumosRelatorioCadastrosPdf(doc, resumos, MM_MARGIN + 4)
+    }
 
     const pack = montarSeriesPorSituacaoEMes(
         opts.linhas,

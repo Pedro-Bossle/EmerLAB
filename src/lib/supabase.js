@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { clearStoredAccessProfile } from './accessControl'
+import { mensagemErroFetchAmigavel } from './mensagemErroRede.js'
 
 const supabaseUrl =
   import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL
@@ -88,7 +89,12 @@ const guardedFetch = async (input, init = {}) => {
     throw new Error('Acesso somente leitura: alterações estão bloqueadas para este perfil.')
   }
 
-  return fetch(input, init)
+  try {
+    return await fetch(input, init)
+  } catch (err) {
+    const ctx = isDbRestCall ? 'Supabase' : url.includes('/functions/v1/') ? 'API' : undefined
+    throw new Error(mensagemErroFetchAmigavel(err, { contexto: ctx }))
+  }
 }
 
 assertSupabaseConfig()

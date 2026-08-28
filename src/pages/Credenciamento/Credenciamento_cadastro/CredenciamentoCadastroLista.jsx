@@ -30,6 +30,7 @@ import {
 } from '../../../lib/rc/agruparCidadesRcPorMalha.js'
 import { normalizarMunicipioChave } from '../../../lib/cidadesSupertabelaVinculos.js'
 import {
+    carregarContextoUsuariosRelatorioCadastros,
     downloadRelatorioCadastrosPdf,
     formatarPeriodoYmdPtBr,
     gerarRelatorioCadastrosPdf,
@@ -593,6 +594,9 @@ const CredenciamentoCadastroLista = () => {
         setExportandoPdf(true)
         setErro('')
         try {
+            const { mapaNomeUsuarioPorId, mapaUsuarioIdPorPrestadorId } =
+                await carregarContextoUsuariosRelatorioCadastros(supabase, { situacoes })
+
             const linhasPdf = montarLinhasRelatorioCadastros({
                 prestadores,
                 situacoes,
@@ -604,6 +608,8 @@ const CredenciamentoCadastroLista = () => {
                 periodoDe,
                 periodoAte,
                 situacaoIds: idsSit,
+                mapaNomeUsuarioPorId,
+                mapaUsuarioIdPorPrestadorId,
             })
 
             if (!linhasPdf.length) {

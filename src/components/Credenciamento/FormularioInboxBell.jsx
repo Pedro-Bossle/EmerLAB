@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { clicksignRequest } from '../../lib/clicksign/clicksignClient'
 import {
+    CLICKSIGN_BELL_LIMPO_STORAGE_PREFIX,
     CLICKSIGN_NOTIF_STORAGE_KEY,
     carregarNotificacoes,
     contarNotificacoesContratosTotal,
@@ -406,7 +407,8 @@ export default function FormularioInboxBell({
             if (
                 k &&
                 k !== 'emerdog_clicksign_notificacoes_v1' &&
-                !k.startsWith(CLICKSIGN_NOTIF_STORAGE_KEY)
+                !k.startsWith(CLICKSIGN_NOTIF_STORAGE_KEY) &&
+                !k.startsWith(CLICKSIGN_BELL_LIMPO_STORAGE_PREFIX)
             ) {
                 return
             }
@@ -472,7 +474,7 @@ export default function FormularioInboxBell({
         setLimpando(true)
         try {
             if (podeNotifContratos) {
-                await limparTodasNotificacoesContratos()
+                await limparTodasNotificacoesContratos(clicksignRequest)
                 ultimoSyncContratosRef.current = Date.now()
             }
             setCountContratos(0)

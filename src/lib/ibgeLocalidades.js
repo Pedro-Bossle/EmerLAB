@@ -72,7 +72,9 @@ export async function buscarMunicipiosPorUf(uf) {
         const urls = []
         // Em browser: proxy local/Vercel evita bloqueio de CORS/rede à API do IBGE.
         if (typeof window !== 'undefined') {
-            urls.push(`/api/ibge-municipios?uf=${encodeURIComponent(sigla)}`)
+            const base = String(import.meta.env.BASE_URL || '/').replace(/\/?$/, '')
+            const prefix = base && base !== '/' ? base : ''
+            urls.push(`${prefix}/api/ibge-municipios?uf=${encodeURIComponent(sigla)}`)
         }
         urls.push(
             `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${sigla}/municipios?orderBy=nome`,

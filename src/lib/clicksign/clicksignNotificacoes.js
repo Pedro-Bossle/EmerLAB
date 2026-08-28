@@ -18,7 +18,11 @@ const MAX_WEBHOOK_FETCH = 120
 
 /** Evita repescar no polling eventos que o utilizador limpou no sininho. */
 const KEY_DISMISSED_PREFIX = 'emerdog_clicksign_notif_dismissed_v2:'
+const KEY_BELL_LIMPO_PREFIX = 'emerdog_clicksign_bell_limpo_em_v2:'
 const MAX_DISMISSED_CHAVES = 500
+
+/** Incrementado em cada «Limpar» — evita sync em voo repor notificações antigas. */
+let clearGeneration = 0
 
 /** Limites de sync (polling) — reduz 429 na Clicksign. */
 const SYNC_MIN_INTERVAL_MS = 120_000
@@ -52,6 +56,38 @@ function gravarDismissedLocalSync(uid, set) {
     if (!uid) return
     const arr = [...set].slice(-MAX_DISMISSED_CHAVES)
     localStorage.setItem(`${KEY_DISMISSED_PREFIX}${uid}`, JSON.stringify(arr))
+}
+
+function chaveBellLimpo(uid) {
+    return `${KEY_BELL_LIMPO_PREFIX}${uid || 'anon'}`
+}
+
+function obterBellLimpoEmSync(uid) {
+    if (!uid) return null
+    try {
+        return localStorage.getItem(chaveBellLimpo(uid)) || null
+    } catch {
+        return null
+    }
+}
+
+function gravarBellLimpoEmSync(uid, iso = new Date().toISOString()) {
+    if (!uid) return
+    try {
+        localStorage.setItem(chaveBellLimpo(uid), iso)
+    } catch {
+        /* ignore */
+    }
+}
+
+function filtrarNotificacoesAposLimpeza(lista, limpoEm) {
+    if (!limpoEm) return lista || []
+    const corte = new Date(limpoEm).getTime()
+    if (Number.isNaN(corte)) return lista || []
+    return (lista || []).filter((n) => {
+        const at = new Date(n.at || n.criado_em || 0).getTime()
+        return !Number.isNaN(at) && at > corte
+    })
 }
 
 async function uidAtual() {
@@ -99,8 +135,12 @@ async function carregarNotificacoesDoUtilizador(uidCapturado = undefined) {
             }
         }
         const dismissed = carregarDismissedLocalSync(uid)
-        if (!dismissed.size) return arr
-        return arr.filter((n) => !dismissed.has(chaveNotificacaoContrato(n)))
+        const limpoEm = obterBellLimpoEmSync(uid)
+        let out = arr
+        if (dismissed.size) {
+            out = out.filter((n) => !dismissed.has(chaveNotificacaoContrato(n)))
+        }
+        return filtrarNotificacoesAposLimpeza(out, limpoEm)
     } catch {
         return []
     }
@@ -188,13 +228,16 @@ export async function marcarTodasNotificacoesWebhookComoLidas() {
 
 /**
  * Limpa sininho só para o utilizador atual.
- * Mantém o snapshot de polling para não «repescarem» eventos antigos no próximo sync.
+ * @param {(method: string, path: string, body?: object) => Promise<{ ok: boolean, status?: number, data?: object }>} [clickReq]
+ *   Se informado, alinha o snapshot com a API (evita o polling recriar eventos antigos com texto diferente).
  */
-export async function limparTodasNotificacoesContratos() {
+export async function limparTodasNotificacoesContratos(clickReq = null) {
+    clearGeneration += 1
     const uid = await uidAtual()
     const local = uid ? await carregarNotificacoesDoUtilizador(uid) : carregarNotificacoes(null)
     const webhook = await listarNotificacoesWebhookRecentes(MAX_NOTIF)
     if (uid) {
+        gravarBellLimpoEmSync(uid)
         const dismissed = carregarDismissedLocalSync(uid)
         for (const n of [...local, ...webhook]) {
             const k = chaveNotificacaoContrato(n)
@@ -206,6 +249,13 @@ export async function limparTodasNotificacoesContratos() {
         localStorage.setItem(KEY_NOTIF_LEGACY, '[]')
     }
     await marcarNotificacoesWebhookDismissedParaMim()
+    if (typeof clickReq === 'function') {
+        try {
+            await sincronizarNotificacoesClicksign(clickReq, { somenteSnapshot: true, forcar: true })
+        } catch {
+            /* limpeza local já aplicada */
+        }
+    }
     emitirMudancaNotificacoes()
 }
 
@@ -248,12 +298,16 @@ async function idsDismissedDoUtilizador() {
 /** Notificações do webhook ainda não dismissed pelo utilizador atual. */
 export async function contarNotificacoesWebhookNaoLidas() {
     try {
+        const uid = await uidAtual()
+        const limpoEm = obterBellLimpoEmSync(uid)
         const dismissed = await idsDismissedDoUtilizador()
-        const { data, error } = await supabase
+        let q = supabase
             .from('clicksign_notificacoes_webhook')
             .select('id')
             .order('criado_em', { ascending: false })
             .limit(MAX_WEBHOOK_FETCH)
+        if (limpoEm) q = q.gt('criado_em', limpoEm)
+        const { data, error } = await q
         if (error) return 0
         return (data || []).filter((r) => !dismissed.has(String(r.id))).length
     } catch {
@@ -263,12 +317,16 @@ export async function contarNotificacoesWebhookNaoLidas() {
 
 export async function listarNotificacoesWebhookRecentes(limite = 8) {
     try {
+        const uid = await uidAtual()
+        const limpoEm = obterBellLimpoEmSync(uid)
         const dismissed = await idsDismissedDoUtilizador()
-        const { data, error } = await supabase
+        let q = supabase
             .from('clicksign_notificacoes_webhook')
             .select('id, texto, envelope_id, envelope_name, criado_em, evento')
             .order('criado_em', { ascending: false })
             .limit(Math.max(MAX_WEBHOOK_FETCH, limite))
+        if (limpoEm) q = q.gt('criado_em', limpoEm)
+        const { data, error } = await q
         if (error) return []
         return (data || [])
             .filter((row) => !dismissed.has(String(row.id)))
@@ -418,6 +476,7 @@ export async function listarEnvelopesComAtualizacoes(limite = 40) {
 
 /** Chave usada no localStorage (para evento storage entre abas) — prefixo v2. */
 export const CLICKSIGN_NOTIF_STORAGE_KEY = KEY_NOTIF_PREFIX
+export const CLICKSIGN_BELL_LIMPO_STORAGE_PREFIX = KEY_BELL_LIMPO_PREFIX
 
 function carregarSnapshotSync(uid) {
     try {
@@ -450,10 +509,11 @@ function nomeSignatarioPorId(signersJson, signerId) {
  * Compara estado atual com snapshot e gera notificações (assinatura / documento / envelope concluído).
  * Throttle global + menos pedidos por ciclo para evitar 429.
  * @param {(method: string, path: string, body?: object) => Promise<{ ok: boolean, status?: number, data?: object }>} clickReq
- * @param {{ forcar?: boolean }} [opts]
+ * @param {{ forcar?: boolean, somenteSnapshot?: boolean }} [opts]
  */
 export async function sincronizarNotificacoesClicksign(clickReq, opts = {}) {
     const forcar = Boolean(opts.forcar)
+    const somenteSnapshot = Boolean(opts.somenteSnapshot)
     const agora = Date.now()
 
     async function listaAtual(uid) {
@@ -473,6 +533,7 @@ export async function sincronizarNotificacoesClicksign(clickReq, opts = {}) {
     }
 
     syncInFlight = (async () => {
+        const genInicio = clearGeneration
         const uid = await uidAtual()
         const dismissedLocal = carregarDismissedLocalSync(uid)
         const snap = carregarSnapshotSync(uid)
@@ -515,6 +576,7 @@ export async function sincronizarNotificacoesClicksign(clickReq, opts = {}) {
         const runningProcessar = runningRows.slice(0, SYNC_MAX_ENVELOPE_DETAIL)
 
         const pushNotif = (item) => {
+            if (somenteSnapshot) return
             const candidato = {
                 id: novoId(),
                 at: new Date().toISOString(),
@@ -628,11 +690,11 @@ export async function sincronizarNotificacoesClicksign(clickReq, opts = {}) {
         }
 
         gravarSnapshotSync(nextSnap, uid)
-        if (novas.length) {
+        if (novas.length && genInicio === clearGeneration) {
             await gravarNotificacoesDoUtilizador([...novas, ...notifs], uid, { emitir: true })
         }
         const lista = await listaAtual(uid)
-        return { novas: novas.length, lista, aborted429: abort429 }
+        return { novas: genInicio === clearGeneration ? novas.length : 0, lista, aborted429: abort429 }
     })()
 
     try {

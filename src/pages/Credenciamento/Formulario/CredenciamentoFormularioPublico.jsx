@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { buscarEnderecoPorCep } from '../../../lib/viacepClient'
-import { setReadOnlyFlag } from '../../../lib/supabase'
+import { setReadOnlyFlag, supabase } from '../../../lib/supabase'
 import {
     especialidadePermitidaParaPerfil,
     filtrarEspecialidadesPorPerfil,
@@ -72,6 +72,8 @@ export default function CredenciamentoFormularioPublico() {
 
     useEffect(() => {
         setReadOnlyFlag(false)
+        // Evita JWT expirado de sessão interna a bloquear pedidos anónimos (Failed to fetch).
+        void supabase.auth.signOut({ scope: 'local' }).catch(() => {})
     }, [])
 
     useEffect(() => {

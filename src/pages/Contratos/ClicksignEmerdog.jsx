@@ -612,10 +612,10 @@ export default function ClicksignEmerdog() {
 
     const limparListaNotificacoes = useCallback(() => {
         void (async () => {
-            await limparTodasNotificacoesContratos()
+            await limparTodasNotificacoesContratos(csRequest)
             setNotificacoes([])
         })()
-    }, [])
+    }, [csRequest])
 
     const carregarContagensDashboard = useCallback(async () => {
         setContagensLoading(true)
