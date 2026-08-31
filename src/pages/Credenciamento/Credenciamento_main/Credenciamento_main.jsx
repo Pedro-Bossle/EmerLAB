@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, hasStoredDevTools, hasStoredExclusaoPermanenteCredenciamento, normalizarProfileAcesso, setStoredAccessProfile } from '../../../lib/accessControl'
 import { useDevToolsUi } from '../../../lib/devToolsUi'
-import { filtrarPorTermoBusca, normalizarTextoBusca, patchCredenciadoEmSeTransicao, resolverCidadePrincipalNome } from '../../../lib/prestadorCadastroHelpers'
+import { filtrarPorTermoBusca, normalizarTextoBusca, patchCredenciadoEmSeTransicao, resolverCidadePrincipalNome, filtrarSituacoesSemAguardandoFormulario } from '../../../lib/prestadorCadastroHelpers'
 import {
     montarEstabelecimentoPorVeterinarioDeListas,
     resolverLocalidadeEfetivaPrestador } from '../../../lib/prestadorLocalidadeVinculo.js'
@@ -147,6 +147,10 @@ const Credenciamento_main = () => {
 
     const cidadePorId = useMemo(() => new Map(cidades.map((cidade) => [Number(cidade.id), cidade])), [cidades])
     const situacaoPorId = useMemo(() => new Map(situacoes.map((situacao) => [Number(situacao.id), situacao])), [situacoes])
+    const situacoesParaSelecao = useMemo(
+        () => filtrarSituacoesSemAguardandoFormulario(situacoes),
+        [situacoes],
+    )
     const especialidadePorId = useMemo(
         () => new Map(especialidades.map((especialidade) => [Number(especialidade.id), especialidade])),
         [especialidades]
@@ -963,7 +967,7 @@ const Credenciamento_main = () => {
                                     <p>Situação</p>
                                     <select className='credenciamento_main_select' value={filtroSituacao} onChange={(e) => setFiltroSituacao(e.target.value)}>
                                         <option value=''>Todas</option>
-                                        {situacoes.map((situacao) => (
+                                        {situacoesParaSelecao.map((situacao) => (
                                             <option key={`sit-filtro-${situacao.id}`} value={situacao.id}>
                                                 {situacao.descricao}
                                             </option>
@@ -1140,7 +1144,7 @@ const Credenciamento_main = () => {
                                                     }
                                                 >
                                                     <option value=''>-</option>
-                                                    {situacoes.map((situacao) => (
+                                                    {situacoesParaSelecao.map((situacao) => (
                                                         <option key={`sit-inline-${item.id}-${situacao.id}`} value={situacao.id}>
                                                             {situacao.descricao}
                                                         </option>
@@ -1337,7 +1341,7 @@ const Credenciamento_main = () => {
                                 <span>Situação</span>
                                 <select value={novaSituacaoId} onChange={(e) => setNovaSituacaoId(e.target.value)}>
                                     <option value=''>Selecionar</option>
-                                    {situacoes.map((situacao) => (
+                                    {situacoesParaSelecao.map((situacao) => (
                                         <option key={`sit-add-${situacao.id}`} value={situacao.id}>
                                             {situacao.descricao}
                                         </option>

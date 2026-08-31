@@ -59,6 +59,17 @@ export function dataNoPeriodoYmd(iso, deYmd, ateYmd) {
     return ymd >= deYmd && ymd <= ateYmd
 }
 
+/**
+ * Data usada no filtro de período do relatório:
+ * credenciados → `credenciado_em`; demais situações → `data_cadastro` (fallback `data_atualizacao`).
+ */
+export function isoReferenciaPeriodoRelatorioCadastros(prestador, situacoes = []) {
+    if (prestadorEhCredenciado(prestador, situacoes) && prestador?.credenciado_em) {
+        return prestador.credenciado_em
+    }
+    return prestador?.data_cadastro || prestador?.data_atualizacao || ''
+}
+
 export function formatarPeriodoYmdPtBr(deYmd, ateYmd) {
     const fmt = (ymd) => {
         const hit = String(ymd || '').match(/^(\d{4})-(\d{2})-(\d{2})$/)
@@ -97,8 +108,9 @@ function mapaCidadesPorPrestador(linhas) {
 }
 
 function compararLinhasCredenciadoEmAsc(a, b) {
-    const ta = a.credenciadoEmIso ? new Date(a.credenciadoEmIso).getTime() : NaN
-    const tb = b.credenciadoEmIso ? new Date(b.credenciadoEmIso).getTime() : NaN
+    const ref = (l) => l.credenciadoEmIso || l.dataReferenciaPeriodoIso || ''
+    const ta = ref(a) ? new Date(ref(a)).getTime() : NaN
+    const tb = ref(b) ? new Date(ref(b)).getTime() : NaN
     const va = Number.isFinite(ta) ? ta : Number.POSITIVE_INFINITY
     const vb = Number.isFinite(tb) ? tb : Number.POSITIVE_INFINITY
     if (va !== vb) return va - vb
@@ -118,44 +130,54 @@ function resolverNomeUsuario(uid, mapaNomes) {
     return id
 }
 
-function idsSituacaoCredenciadoFromLista(situacoes = []) {
-    const set = new Set()
-    for (const s of situacoes || []) {
-        const id = Number(s.id)
-        if (id && situacaoDescricaoEhCredenciado(s.descricao)) set.add(id)
+/** Valor de linha em audit_logs (jsonb ou string JSON). */
+export function parseAuditRowJson(val) {
+    if (val == null) return null
+    if (typeof val === 'object') return val
+    try {
+        return JSON.parse(val)
+    } catch {
+        return null
     }
-    return set
 }
 
 /** UPDATE em `prestadores` que passou a situação «Credenciado». */
 export function auditLogTransicaoParaCredenciado(log, idsSituacaoCredenciado) {
     if (String(log?.acao || '').toUpperCase() !== 'UPDATE') return false
     if (!idsSituacaoCredenciado?.size) return false
-    const depois = Number(log.valor_novo?.situacao_id)
-    const antes = Number(log.valor_antigo?.situacao_id)
+    const depois = Number(parseAuditRowJson(log.valor_novo)?.situacao_id)
+    const antes = Number(parseAuditRowJson(log.valor_antigo)?.situacao_id)
     if (!idsSituacaoCredenciado.has(depois)) return false
     return !idsSituacaoCredenciado.has(antes)
 }
 
 /**
- * Fallback retroativo: usuário a partir de audit_logs (tabela prestadores).
- * Prioridade por prestador: transição p/ credenciado > CREATE > UPDATE mais recente.
- * @param {Set<number>} [prestadoresComKanban] — IDs já resolvidos pelo Kanban (não sobrescreve).
+ * Situação definida por CREATE ou UPDATE em que `situacao_id` mudou (valor_novo).
+ * @returns {number|null}
  */
-export function mapaUsuarioPrestadorViaAuditoria(
-    logs = [],
-    idsSituacaoCredenciado,
-    prestadoresComKanban = new Set(),
-) {
-    const melhor = new Map()
-    const PRIORIDADE = { update: 1, create: 2, credenciado: 3 }
-
-    const considerar = (pid, uid, nome, prio) => {
-        if (!pid || !uid || prestadoresComKanban.has(pid)) return
-        const prev = melhor.get(pid)
-        if (prev && prev.prio >= prio) return
-        melhor.set(pid, { uid: String(uid).trim(), nome: String(nome || '').trim(), prio })
+export function auditLogNovaSituacaoId(log) {
+    const acao = String(log?.acao || '').toUpperCase()
+    if (acao === 'CREATE') {
+        const sid = Number(parseAuditRowJson(log.valor_novo)?.situacao_id)
+        return Number.isFinite(sid) && sid > 0 ? sid : null
     }
+    if (acao !== 'UPDATE') return null
+    const antes = Number(parseAuditRowJson(log.valor_antigo)?.situacao_id)
+    const depois = Number(parseAuditRowJson(log.valor_novo)?.situacao_id)
+    if (!Number.isFinite(depois) || depois <= 0) return null
+    if (antes === depois) return null
+    return depois
+}
+
+/**
+ * Quem alterou a situação (audit_logs / prestadores).
+ * - `mapaUsuarioIdPorPrestadorSituacao`: chave `${prestadorId}|${situacaoId}` → último usuário que definiu essa situação.
+ * - `mapaUsuarioIdPorPrestadorId`: última mudança de situação por prestador (qualquer situação).
+ */
+export function mapaUsuarioAlteracaoSituacaoViaAuditoria(logs = []) {
+    const mapaUsuarioIdPorPrestadorSituacao = new Map()
+    const mapaUsuarioIdPorPrestadorId = new Map()
+    const mapaNomeUsuarioPorId = new Map()
 
     const ordenados = [...(logs || [])].sort((a, b) => {
         const ta = new Date(a.data_hora || 0).getTime()
@@ -165,27 +187,33 @@ export function mapaUsuarioPrestadorViaAuditoria(
 
     for (const log of ordenados) {
         const pid = Number(log.registro_id)
-        const uid = log.usuario_id
+        const uid = log.usuario_id ? String(log.usuario_id).trim() : ''
         if (!pid || !uid) continue
-        const acao = String(log.acao || '').toUpperCase()
         const nome = log.usuario_nome
+        if (nome) mapaNomeUsuarioPorId.set(uid, String(nome).trim())
 
-        if (acao === 'UPDATE' && auditLogTransicaoParaCredenciado(log, idsSituacaoCredenciado)) {
-            considerar(pid, uid, nome, PRIORIDADE.credenciado)
-        } else if (acao === 'CREATE') {
-            considerar(pid, uid, nome, PRIORIDADE.create)
-        } else if (acao === 'UPDATE') {
-            considerar(pid, uid, nome, PRIORIDADE.update)
+        const sidNovo = auditLogNovaSituacaoId(log)
+        if (sidNovo == null) continue
+
+        const chave = `${pid}|${sidNovo}`
+        if (!mapaUsuarioIdPorPrestadorSituacao.has(chave)) {
+            mapaUsuarioIdPorPrestadorSituacao.set(chave, uid)
+        }
+        if (!mapaUsuarioIdPorPrestadorId.has(pid)) {
+            mapaUsuarioIdPorPrestadorId.set(pid, uid)
         }
     }
 
-    const mapaUsuarioIdPorPrestadorId = new Map()
-    const mapaNomeUsuarioPorId = new Map()
-    for (const [pid, { uid, nome }] of melhor) {
-        mapaUsuarioIdPorPrestadorId.set(pid, uid)
-        if (nome) mapaNomeUsuarioPorId.set(uid, nome)
-    }
-    return { mapaUsuarioIdPorPrestadorId, mapaNomeUsuarioPorId }
+    return { mapaUsuarioIdPorPrestadorSituacao, mapaUsuarioIdPorPrestadorId, mapaNomeUsuarioPorId }
+}
+
+/** @deprecated Use mapaUsuarioAlteracaoSituacaoViaAuditoria — mantido para testes legados. */
+export function mapaUsuarioPrestadorViaAuditoria(
+    logs = [],
+    _idsSituacaoCredenciado,
+    _prestadoresComKanban = new Set(),
+) {
+    return mapaUsuarioAlteracaoSituacaoViaAuditoria(logs)
 }
 
 /** Preenche mapa de nomes a partir de todos os logs (não só o «vencedor» por prestador). */
@@ -223,10 +251,17 @@ async function buscarAuditLogsPrestadoresViaApi() {
     }
 }
 
-async function preencherNomesUsuariosFaltantes(supabaseClient, mapaNomeUsuarioPorId, mapaUsuarioIdPorPrestadorId) {
-    const faltando = [...new Set([...mapaUsuarioIdPorPrestadorId.values()])].filter(
-        (uid) => uid && !mapaNomeUsuarioPorId.has(uid),
-    )
+async function preencherNomesUsuariosFaltantes(
+    supabaseClient,
+    mapaNomeUsuarioPorId,
+    mapaUsuarioIdPorPrestadorId,
+    mapaUsuarioIdPorPrestadorSituacao = null,
+) {
+    const uids = new Set([...mapaUsuarioIdPorPrestadorId.values()])
+    if (mapaUsuarioIdPorPrestadorSituacao) {
+        for (const uid of mapaUsuarioIdPorPrestadorSituacao.values()) uids.add(uid)
+    }
+    const faltando = [...uids].filter((uid) => uid && !mapaNomeUsuarioPorId.has(uid))
     if (!faltando.length) return
     const chunk = 80
     for (let i = 0; i < faltando.length; i += chunk) {
@@ -241,13 +276,7 @@ async function preencherNomesUsuariosFaltantes(supabaseClient, mapaNomeUsuarioPo
     }
 }
 
-async function aplicarFallbackUsuariosAuditoria(
-    supabaseClient,
-    mapaUsuarioIdPorPrestadorId,
-    mapaNomeUsuarioPorId,
-    idsSituacaoCredenciado,
-) {
-    const comKanban = new Set(mapaUsuarioIdPorPrestadorId.keys())
+async function buscarLogsAuditoriaPrestadores(supabaseClient) {
     let logs = await buscarAuditLogsPrestadoresViaApi()
     if (!logs.length) {
         try {
@@ -267,45 +296,57 @@ async function aplicarFallbackUsuariosAuditoria(
             logs = []
         }
     }
-    if (!logs?.length) return
-
-    enriquecerMapaNomesUsuariosDeAuditoria(logs, mapaNomeUsuarioPorId)
-
-    const { mapaUsuarioIdPorPrestadorId: auditIds, mapaNomeUsuarioPorId: auditNomes } =
-        mapaUsuarioPrestadorViaAuditoria(logs, idsSituacaoCredenciado, comKanban)
-
-    for (const [uid, nome] of auditNomes) {
-        if (!mapaNomeUsuarioPorId.has(uid) && nome) mapaNomeUsuarioPorId.set(uid, nome)
-    }
-    for (const [pid, uid] of auditIds) {
-        if (!mapaUsuarioIdPorPrestadorId.has(pid)) mapaUsuarioIdPorPrestadorId.set(pid, uid)
-    }
+    return logs || []
 }
 
 /**
- * Responsável do cadastro: (1) Kanban `atribuido_a`; (2) fallback audit_logs em `prestadores`.
- * @returns {Promise<{ mapaNomeUsuarioPorId: Map<string, string>, mapaUsuarioIdPorPrestadorId: Map<number, string> }>}
+ * Usuário no relatório: (1) audit_logs — quem definiu a situação atual; (2) fallback Kanban `atribuido_a`.
+ * @returns {Promise<{
+ *   mapaNomeUsuarioPorId: Map<string, string>,
+ *   mapaUsuarioIdPorPrestadorId: Map<number, string>,
+ *   mapaUsuarioIdPorPrestadorSituacao: Map<string, string>,
+ * }>}
  */
 export async function carregarContextoUsuariosRelatorioCadastros(
     supabaseClient,
-    { situacoes = [] } = {},
+    { situacoes: _situacoes = [] } = {},
 ) {
     const mapaNomeUsuarioPorId = new Map()
     const mapaUsuarioIdPorPrestadorId = new Map()
+    const mapaUsuarioIdPorPrestadorSituacao = new Map()
+
     try {
-        const [usuarios, cardsResp] = await Promise.all([
-            listarUsuariosParaAtribuicao(),
-            buscarTodosPaginado(() =>
-                supabaseClient
-                    .from('cred_kanban_cards')
-                    .select('prestador_id, atribuido_a, atualizado_em')
-                    .not('prestador_id', 'is', null),
-            ),
-        ])
-        const cards = cardsResp?.error ? [] : cardsResp?.data || []
+        const usuarios = await listarUsuariosParaAtribuicao()
         for (const u of usuarios || []) {
             mapaNomeUsuarioPorId.set(String(u.id), String(u.nome || u.id).trim() || u.id)
         }
+    } catch {
+        /* lista de usuários indisponível */
+    }
+
+    const logs = await buscarLogsAuditoriaPrestadores(supabaseClient)
+    if (logs.length) {
+        enriquecerMapaNomesUsuariosDeAuditoria(logs, mapaNomeUsuarioPorId)
+        const audit = mapaUsuarioAlteracaoSituacaoViaAuditoria(logs)
+        for (const [chave, uid] of audit.mapaUsuarioIdPorPrestadorSituacao) {
+            mapaUsuarioIdPorPrestadorSituacao.set(chave, uid)
+        }
+        for (const [pid, uid] of audit.mapaUsuarioIdPorPrestadorId) {
+            mapaUsuarioIdPorPrestadorId.set(pid, uid)
+        }
+        for (const [uid, nome] of audit.mapaNomeUsuarioPorId) {
+            if (!mapaNomeUsuarioPorId.has(uid) && nome) mapaNomeUsuarioPorId.set(uid, nome)
+        }
+    }
+
+    try {
+        const cardsResp = await buscarTodosPaginado(() =>
+            supabaseClient
+                .from('cred_kanban_cards')
+                .select('prestador_id, atribuido_a, atualizado_em')
+                .not('prestador_id', 'is', null),
+        )
+        const cards = cardsResp?.error ? [] : cardsResp?.data || []
         const melhorPorPrestador = new Map()
         for (const row of cards || []) {
             const pid = Number(row.prestador_id)
@@ -316,32 +357,26 @@ export async function carregarContextoUsuariosRelatorioCadastros(
             if (!prev || t >= prev.t) melhorPorPrestador.set(pid, { uid, t })
         }
         for (const [pid, { uid }] of melhorPorPrestador) {
-            mapaUsuarioIdPorPrestadorId.set(pid, uid)
+            if (!mapaUsuarioIdPorPrestadorId.has(pid)) mapaUsuarioIdPorPrestadorId.set(pid, uid)
         }
     } catch {
-        /* Kanban/usuários indisponível — relatório segue sem coluna de responsável */
+        /* Kanban indisponível */
     }
 
-    const idsCred = idsSituacaoCredenciadoFromLista(situacoes)
-    await aplicarFallbackUsuariosAuditoria(
-        supabaseClient,
-        mapaUsuarioIdPorPrestadorId,
-        mapaNomeUsuarioPorId,
-        idsCred,
-    )
     await preencherNomesUsuariosFaltantes(
         supabaseClient,
         mapaNomeUsuarioPorId,
         mapaUsuarioIdPorPrestadorId,
+        mapaUsuarioIdPorPrestadorSituacao,
     )
 
-    return { mapaNomeUsuarioPorId, mapaUsuarioIdPorPrestadorId }
+    return { mapaNomeUsuarioPorId, mapaUsuarioIdPorPrestadorId, mapaUsuarioIdPorPrestadorSituacao }
 }
 
 /**
  * Monta linhas do relatório (Nome | Especialidade | Cidade | Situação | Usuário | Credenciado Em).
  * Especialidade/Cidade: principal +N quando há vínculos extras.
- * Com `periodoDe`/`periodoAte` (YYYY-MM-DD), mantém só quem tem `credenciado_em` no intervalo.
+ * Com `periodoDe`/`periodoAte` (YYYY-MM-DD): credenciados pelo `credenciado_em`; demais situações pela `data_cadastro`.
  */
 export function montarLinhasRelatorioCadastros({
     prestadores = [],
@@ -357,6 +392,7 @@ export function montarLinhasRelatorioCadastros({
     situacaoIds = null,
     mapaNomeUsuarioPorId = null,
     mapaUsuarioIdPorPrestadorId = null,
+    mapaUsuarioIdPorPrestadorSituacao = null,
 } = {}) {
     const mapaEsp = new Map((especialidades || []).map((e) => [Number(e.id), String(e.nome || '').trim()]))
     const mapaCidade = new Map((cidadesCred || []).map((c) => [Number(c.id), c]))
@@ -379,7 +415,16 @@ export function montarLinhasRelatorioCadastros({
         if (idsOk && !idsOk.has(pid)) continue
         const sid = Number(p.situacao_id)
         if (situacoesOk && !situacoesOk.has(sid)) continue
-        if (filtraPeriodo && !dataNoPeriodoYmd(p.credenciado_em, periodoDe, periodoAte)) continue
+        if (
+            filtraPeriodo &&
+            !dataNoPeriodoYmd(
+                isoReferenciaPeriodoRelatorioCadastros(p, situacoes),
+                periodoDe,
+                periodoAte,
+            )
+        ) {
+            continue
+        }
 
         const espIds = idsEspecialidadesPrestador(p, espPorPrestador.get(pid) || [])
         const espPrincipal =
@@ -421,8 +466,12 @@ export function montarLinhasRelatorioCadastros({
             (situacoes || []).find((s) => Number(s.id) === sid)?.descricao || '—'
         const ehCredenciado = prestadorEhCredenciado(p, situacoes)
         const isoGrafico = p.credenciado_em || ''
+        const dataReferenciaPeriodoIso = isoReferenciaPeriodoRelatorioCadastros(p, situacoes)
         const credenciadoEm = ehCredenciado ? formatarDataCredenciadoEm(isoGrafico) : ''
-        const uidResp = mapaUsuarioIdPorPrestadorId?.get(pid) || ''
+        const uidResp =
+            mapaUsuarioIdPorPrestadorSituacao?.get(`${pid}|${sid}`) ||
+            mapaUsuarioIdPorPrestadorId?.get(pid) ||
+            ''
         const usuario = resolverNomeUsuario(uidResp, mapaNomeUsuarioPorId)
 
         linhas.push({
@@ -440,6 +489,7 @@ export function montarLinhasRelatorioCadastros({
             usuarioId: uidResp || '',
             credenciadoEm,
             credenciadoEmIso: isoGrafico,
+            dataReferenciaPeriodoIso,
         })
     }
 

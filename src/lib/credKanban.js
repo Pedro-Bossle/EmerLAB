@@ -5,7 +5,6 @@
 import { supabase } from './supabase.js'
 import { obterOuCriarCidadeCredenciamento } from './cidadesCredenciamento.js'
 import {
-    acharSituacaoAguardandoFormularioId,
     acharSituacaoCredenciadoId,
     acharSituacaoPreenchendoFormularioId,
     patchCredenciadoEmSeTransicao,
@@ -301,7 +300,6 @@ export async function moverCardKanban(cardId, colunaDestino, ordemDestino, { sit
 /** Mapa situação_id → coluna do Kanban (etapa cadastro). */
 export function montarMapaSituacaoParaColunaKanban(situacoes = []) {
     const mapa = new Map()
-    const idAguardandoForm = acharSituacaoAguardandoFormularioId(situacoes)
     const idPreenchendo = acharSituacaoPreenchendoFormularioId(situacoes)
     const idOk = (situacoes || []).find((s) =>
         /ok.*minuta|aguardando ok/i.test(String(s.descricao || '')),
@@ -309,7 +307,6 @@ export function montarMapaSituacaoParaColunaKanban(situacoes = []) {
     const idAss = (situacoes || []).find((s) => /assinatura/i.test(String(s.descricao || '')))?.id
     const idCred = acharSituacaoCredenciadoId(situacoes)
 
-    if (idAguardandoForm) mapa.set(Number(idAguardandoForm), 'preenchendo_form')
     if (idPreenchendo) mapa.set(Number(idPreenchendo), 'preenchendo_form')
     if (idOk) mapa.set(Number(idOk), 'aguardando_ok_minuta')
     if (idAss) mapa.set(Number(idAss), 'aguardando_assinatura')
@@ -714,9 +711,7 @@ export async function criarPrestadorMinimoParaCard(card, { situacoes = [] } = {}
         return { prestadorId: Number(card.prestadorId), card }
     }
 
-    const sitId =
-        acharSituacaoPreenchendoFormularioId(situacoes) ||
-        acharSituacaoAguardandoFormularioId(situacoes)
+    const sitId = acharSituacaoPreenchendoFormularioId(situacoes)
     const agora = new Date().toISOString()
     const { especialidadeId, tipoSalvar, espNome } = await resolverEspecialidadeKanban(
         card.especialidade || card.tipo,
@@ -803,9 +798,7 @@ export async function sincronizarPrestadorComCardKanban(card, { situacoes = [] }
     if (tipoSalvar) patch.tipo = tipoSalvar
     if (cidadeId) patch.cidade_id = cidadeId
 
-    const sitId =
-        acharSituacaoPreenchendoFormularioId(situacoes) ||
-        acharSituacaoAguardandoFormularioId(situacoes)
+    const sitId = acharSituacaoPreenchendoFormularioId(situacoes)
     if (sitId && normalizarColunaKanban(card.coluna) === 'preenchendo_form') {
         patch.situacao_id = Number(sitId)
     }

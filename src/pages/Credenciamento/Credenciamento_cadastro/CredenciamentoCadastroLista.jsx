@@ -6,17 +6,19 @@ import { buscarTodosPaginado, supabase } from '../../../lib/supabase'
 import { contarProcedimentosDistintosPorPrestador } from '../../../lib/prestadorProcedimentos'
 import { aplicarVinculosLaboratoriosPorCidadeEmMassa } from '../../../lib/vincularLaboratoriosPorCidadeTabela.js'
 import {
-    acharSituacaoAguardandoFormularioId,
     acharSituacaoCredenciadoId,
+    acharSituacaoPreenchendoFormularioId,
     calcularPercentualCompletudePerfil,
     formatarCrmvEntrada,
     formatarTelefoneEntrada,
     filtrarPorTermoBusca,
+    filtrarSituacoesSemAguardandoFormulario,
     listarPendenciasCompletudePerfil,
     normalizarTextoBusca,
     resolverCidadePrincipalNome,
     prestadorEhCredenciado,
-    prestadorEhEstabelecimento } from '../../../lib/prestadorCadastroHelpers'
+    prestadorEhEstabelecimento,
+} from '../../../lib/prestadorCadastroHelpers'
 import {
     montarEstabelecimentoPorVeterinarioDeListas,
     resolverLocalidadeEfetivaPrestador } from '../../../lib/prestadorLocalidadeVinculo.js'
@@ -171,7 +173,7 @@ const CredenciamentoCadastroLista = () => {
                     supabase
                         .from('prestadores')
                         .select(
-                            'id, nome, tipo, telefone, celular, email, cidade_id, especialidade_id, situacao_id, cpf_cnpj, crmv, ativo, cep, endereco, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, modalidade, chave_pix, tipo_repasse, credenciado_em',
+                            'id, nome, tipo, telefone, celular, email, cidade_id, especialidade_id, situacao_id, cpf_cnpj, crmv, ativo, cep, endereco, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, modalidade, chave_pix, tipo_repasse, credenciado_em, data_cadastro, data_atualizacao',
                         )
                         .eq('ativo', true)
                         .order('id', { ascending: true }),
@@ -306,6 +308,10 @@ const CredenciamentoCadastroLista = () => {
 
     const cidadePorId = useMemo(() => new Map(cidades.map((c) => [Number(c.id), c])), [cidades])
     const situacaoPorId = useMemo(() => new Map(situacoes.map((s) => [Number(s.id), s])), [situacoes])
+    const situacoesParaSelecao = useMemo(
+        () => filtrarSituacoesSemAguardandoFormulario(situacoes),
+        [situacoes],
+    )
     const especialidadePorId = useMemo(() => new Map(especialidades.map((e) => [Number(e.id), e])), [especialidades])
 
     const estabelecimentoPorVeterinario = useMemo(
@@ -594,8 +600,11 @@ const CredenciamentoCadastroLista = () => {
         setExportandoPdf(true)
         setErro('')
         try {
-            const { mapaNomeUsuarioPorId, mapaUsuarioIdPorPrestadorId } =
-                await carregarContextoUsuariosRelatorioCadastros(supabase, { situacoes })
+            const {
+                mapaNomeUsuarioPorId,
+                mapaUsuarioIdPorPrestadorId,
+                mapaUsuarioIdPorPrestadorSituacao,
+            } = await carregarContextoUsuariosRelatorioCadastros(supabase, { situacoes })
 
             const linhasPdf = montarLinhasRelatorioCadastros({
                 prestadores,
@@ -610,6 +619,7 @@ const CredenciamentoCadastroLista = () => {
                 situacaoIds: idsSit,
                 mapaNomeUsuarioPorId,
                 mapaUsuarioIdPorPrestadorId,
+                mapaUsuarioIdPorPrestadorSituacao,
             })
 
             if (!linhasPdf.length) {
@@ -703,59 +713,13 @@ const CredenciamentoCadastroLista = () => {
         setMunicipiosUf([])
         setErro('')
         setModalSimplesAberto(true)
-        void (async () => {
-            let id = acharSituacaoAguardandoFormularioId(situacoes)
-            if (!id) {
-                try {
-                    const maxOrdem = situacoes.reduce((m, s) => Math.max(m, Number(s.ordem) || 0), 0)
-                    const payloadBase = {
-                        descricao: 'Aguardando Formulário',
-                        codigo: 'AGUARDANDO_FORMULARIO',
-                        ativo: true,
-                    }
-                    let data = null
-                    let error = null
-                    ;({ data, error } = await supabase
-                        .from('situacoes')
-                        .insert({
-                            ...payloadBase,
-                            ordem: maxOrdem + 1,
-                        })
-                        .select('id, codigo, descricao, ordem, ativo')
-                        .single())
-                    if (error) {
-                        // Já existe com esse código, ou coluna ordem indisponível — tenta reutilizar / insert mínimo
-                        const { data: existente } = await supabase
-                            .from('situacoes')
-                            .select('id, codigo, descricao, ordem, ativo')
-                            .eq('codigo', 'AGUARDANDO_FORMULARIO')
-                            .maybeSingle()
-                        if (existente?.id) {
-                            data = existente
-                            error = null
-                        } else {
-                            ;({ data, error } = await supabase
-                                .from('situacoes')
-                                .insert(payloadBase)
-                                .select('id, codigo, descricao, ordem, ativo')
-                                .single())
-                        }
-                    }
-                    if (error) throw new Error(error.message)
-                    setSituacoes((anteriores) => {
-                        if (anteriores.some((s) => Number(s.id) === Number(data.id))) return anteriores
-                        return [...anteriores, data].sort((a, b) => Number(a.ordem) - Number(b.ordem))
-                    })
-                    id = String(data.id)
-                } catch (e) {
-                    setErro(
-                        e?.message ||
-                            'Situação «Aguardando Formulário» não encontrada. Cadastre-a em Situações.',
-                    )
-                }
-            }
-            setSimplesSituacaoId(id)
-        })()
+        const id = acharSituacaoPreenchendoFormularioId(situacoes)
+        setSimplesSituacaoId(id)
+        if (!id) {
+            setErro(
+                'Situação «Preenchendo Formulários» não encontrada. Cadastre-a em Situações (código PREENCHENDO_FORMULARIO ou descrição equivalente).',
+            )
+        }
     }
 
     useEffect(() => {
@@ -790,9 +754,11 @@ const CredenciamentoCadastroLista = () => {
         if (!simplesUf) return setErro('UF é obrigatória.')
         if (!simplesCidade.trim()) return setErro('Cidade é obrigatória.')
         const situacaoId =
-            simplesSituacaoId || acharSituacaoAguardandoFormularioId(situacoes)
+            simplesSituacaoId || acharSituacaoPreenchendoFormularioId(situacoes)
         if (!situacaoId) {
-            return setErro('Situação «Aguardando Formulário» não encontrada. Cadastre-a em Situações ou reabra o modal.')
+            return setErro(
+                'Situação «Preenchendo Formulários» não encontrada. Cadastre-a em Situações ou reabra o modal.',
+            )
         }
         const espSelecionada =
             (especialidades || []).find((e) => Number(e.id) === Number(simplesEspecialidadeId)) || null
@@ -903,7 +869,7 @@ const CredenciamentoCadastroLista = () => {
                                 onChange={(e) => setFiltroSituacao(e.target.value)}
                             >
                                 <option value="">Todas</option>
-                                {situacoes.map((s) => (
+                                {situacoesParaSelecao.map((s) => (
                                     <option key={s.id} value={s.id}>
                                         {s.descricao}
                                     </option>
@@ -1419,7 +1385,7 @@ const CredenciamentoCadastroLista = () => {
                                     onChange={(e) => setSimplesSituacaoId(e.target.value)}
                                 >
                                     <option value="">Selecione</option>
-                                    {situacoes.map((s) => (
+                                    {situacoesParaSelecao.map((s) => (
                                         <option key={s.id} value={s.id}>
                                             {s.descricao}
                                         </option>

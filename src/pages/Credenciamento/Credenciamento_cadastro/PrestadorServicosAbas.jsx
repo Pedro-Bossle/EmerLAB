@@ -57,6 +57,8 @@ export default function PrestadorServicosAbas({
     const [feedbackLabsPorCidade, setFeedbackLabsPorCidade] = useState('')
     const labWrapRef = useRef(null)
     const nomeAltInputRefs = useRef(new Map())
+    const onMapaNomeAlternativoRef = useRef(onMapaNomeAlternativoChange)
+    onMapaNomeAlternativoRef.current = onMapaNomeAlternativoChange
     const [nomesAlternativos, setNomesAlternativos] = useState(() => new Map())
     const [salvandoNomeAlt, setSalvandoNomeAlt] = useState(null)
     const [copiandoNomes, setCopiandoNomes] = useState(false)
@@ -66,6 +68,16 @@ export default function PrestadorServicosAbas({
         total: 0,
     })
     const imprimirBeneficiosRef = useRef(null)
+
+    const onControleImpressaoBeneficios = useCallback(({ imprimir, disabled, gerando, total }) => {
+        imprimirBeneficiosRef.current = imprimir
+        setBeneficiosImpressao((prev) => {
+            if (prev.disabled === disabled && prev.gerando === gerando && prev.total === total) {
+                return prev
+            }
+            return { disabled, gerando, total }
+        })
+    }, [])
 
     const codigoNorm = (cod) =>
         String(cod || '')
@@ -93,8 +105,8 @@ export default function PrestadorServicosAbas({
     }, [prestadorId, selecionadosInicial])
 
     useEffect(() => {
-        onMapaNomeAlternativoChange?.(nomesAlternativos)
-    }, [nomesAlternativos, onMapaNomeAlternativoChange])
+        onMapaNomeAlternativoRef.current?.(nomesAlternativos)
+    }, [nomesAlternativos])
 
     useEffect(() => {
         const next = new Set((selecionadosInicial || []).map((c) => String(c).trim()).filter(Boolean))
@@ -650,19 +662,7 @@ export default function PrestadorServicosAbas({
                     disabled={descontosDisabled || somenteLeitura}
                     onErro={onErroBeneficios}
                     onPacoteChange={onPacoteBeneficiosChange}
-                    onControleImpressao={({ imprimir, disabled, gerando, total }) => {
-                        imprimirBeneficiosRef.current = imprimir
-                        setBeneficiosImpressao((prev) => {
-                            if (
-                                prev.disabled === disabled &&
-                                prev.gerando === gerando &&
-                                prev.total === total
-                            ) {
-                                return prev
-                            }
-                            return { disabled, gerando, total }
-                        })
-                    }}
+                    onControleImpressao={onControleImpressaoBeneficios}
                 />
             </div>
 

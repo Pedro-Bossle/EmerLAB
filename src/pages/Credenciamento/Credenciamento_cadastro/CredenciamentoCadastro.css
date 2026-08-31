@@ -498,7 +498,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
     max-width: none;
     width: 100%;
     margin: 0;
-    padding: 1rem 2em 6.5rem;
+    padding: 1rem 2em calc(7.5rem + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box;
 }
 
@@ -1243,33 +1243,38 @@ body.dark-mode .pcad_field_tip {
     color: #b00020;
 }
 
-/* Rodapé fixo: botões Voltar e Salvar (não cobre a sidebar) */
+/* Rodapé fixo: botões Voltar e Salvar (alinhado à área de conteúdo, não cobre a sidebar) */
 .pcad_form_footer {
     position: fixed;
     bottom: 0;
-    left: 0;
     right: 0;
-    z-index: 90;
+    z-index: 20;
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 12px;
-    padding: 12px 2em;
+    padding: 12px 2em calc(12px + env(safe-area-inset-bottom, 0px));
     background: var(--bg, #fff);
     border-top: 1px solid rgba(0, 0, 0, 0.08);
     box-sizing: border-box;
 }
 
-.content.closed .pcad_form_footer {
-    left: 45px;
+@media (min-width: 1024px) {
+    .pcad_form_footer {
+        left: 4.25rem;
+    }
+
+    /* Menu expandido (fixo ou ao passar o rato) — mesma largura que a sidebar */
+    body:has(aside[data-open='true']) .pcad_form_footer {
+        left: 16.5rem;
+    }
 }
 
-.content.open .pcad_form_footer {
-    left: 202px;
-}
-
-.content.content--compact .pcad_form_footer {
-    left: 0;
+@media (max-width: 1023px) {
+    .pcad_form_footer {
+        left: 0;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    }
 }
 
 .pcad_form_footer .pcad_footer_btn {

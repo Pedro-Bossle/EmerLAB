@@ -235,15 +235,6 @@ export const patchCredenciadoEmSeTransicao = (situacaoIdAnterior, situacaoIdNova
 
 /** Situação «Preenchendo formulário(s)» ou equivalente. */
 export const acharSituacaoPreenchendoFormularioId = (situacoes) => {
-    const hit = (situacoes || []).find((s) => {
-        const t = normalizarDescricaoSituacao(s.descricao)
-        return t.includes('PREENCH') && (t.includes('FORMUL') || t.includes('FORM'))
-    })
-    return hit != null ? String(hit.id) : ''
-}
-
-/** Situação «Aguardando Formulário» (ou equivalente). Sem fallback. */
-export const acharSituacaoAguardandoFormularioId = (situacoes) => {
     const lista = situacoes || []
     const porCodigo = lista.find((s) => {
         const c = String(s.codigo || '')
@@ -252,24 +243,49 @@ export const acharSituacaoAguardandoFormularioId = (situacoes) => {
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
             .replace(/[^A-Z0-9]+/g, '_')
-        return (
-            c === 'AGUARDANDO_FORMULARIO' ||
-            c === 'AGUARDANDO_FORMULARIOS' ||
-            c === 'AGUARD_FORM' ||
-            c === 'AGUARDANDO_FORM'
-        )
+        return c === 'PREENCHENDO_FORMULARIO' || c === 'PREENCHENDO_FORMULARIOS' || c === 'PREENCH_FORM'
     })
     if (porCodigo != null) return String(porCodigo.id)
-    const preferido = lista.find((s) => {
-        const t = normalizarDescricaoSituacao(s.descricao)
-        return t === 'AGUARDANDO FORMULARIO' || t === 'AGUARDANDO FORMULARIOS'
-    })
-    if (preferido != null) return String(preferido.id)
     const hit = lista.find((s) => {
         const t = normalizarDescricaoSituacao(s.descricao)
-        return t.includes('AGUARD') && (t.includes('FORMUL') || t.includes('FORM'))
+        return t.includes('PREENCH') && (t.includes('FORMUL') || t.includes('FORM'))
     })
     return hit != null ? String(hit.id) : ''
+}
+
+/**
+ * Situação legada «Aguardando Formulário» (redundante com Preenchendo Formulários).
+ * Mantida só para ocultar/migrar registros antigos no banco.
+ */
+export function situacaoEhAguardandoFormularioLegado(situacao) {
+    if (!situacao) return false
+    const c = String(situacao.codigo || '')
+        .trim()
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9]+/g, '_')
+    if (
+        c === 'AGUARDANDO_FORMULARIO' ||
+        c === 'AGUARDANDO_FORMULARIOS' ||
+        c === 'AGUARD_FORM' ||
+        c === 'AGUARDANDO_FORM'
+    ) {
+        return true
+    }
+    const t = normalizarDescricaoSituacao(situacao.descricao)
+    if (t === 'AGUARDANDO FORMULARIO' || t === 'AGUARDANDO FORMULARIOS') return true
+    return t.includes('AGUARD') && (t.includes('FORMUL') || t.includes('FORM')) && !t.includes('PREENCH')
+}
+
+/** Remove a situação legada das listas de seleção (relatório, filtros, cadastro). */
+export function filtrarSituacoesSemAguardandoFormulario(situacoes = []) {
+    return (situacoes || []).filter((s) => !situacaoEhAguardandoFormularioLegado(s))
+}
+
+/** Situações disponíveis no relatório PDF de cadastros. */
+export function situacoesParaRelatorioCadastros(situacoes = []) {
+    return filtrarSituacoesSemAguardandoFormulario(situacoes)
 }
 
 export const montarEnderecoUmaLinha = (e) => {

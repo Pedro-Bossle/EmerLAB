@@ -29,6 +29,8 @@ import {
     normalizarEmailParaSalvar,
     montarEnderecoUmaLinha,
     tipoEspecialidadePrestador,
+    filtrarSituacoesSemAguardandoFormulario,
+    situacaoEhAguardandoFormularioLegado,
 } from '../../../lib/prestadorCadastroHelpers'
 import ClinicasAtendeInput from './ClinicasAtendeInput.jsx'
 import {
@@ -144,9 +146,12 @@ const CredenciamentoCadastroForm = () => {
     const navigate = useNavigate()
     const { askExclusao, exclusaoToast } = useSfscExclusaoConfirm()
     const isNovo = idParam === 'novo'
-    const prestadorId = isNovo ? null : Number(idParam)
+    const prestadorIdNum = isNovo ? null : Number(idParam)
+    const prestadorIdInvalido =
+        !isNovo && (!Number.isFinite(prestadorIdNum) || prestadorIdNum <= 0)
+    const prestadorId = prestadorIdInvalido ? null : prestadorIdNum
 
-    const [loading, setLoading] = useState(!isNovo)
+    const [loading, setLoading] = useState(!isNovo && !prestadorIdInvalido)
     const [salvando, setSalvando] = useState(false)
     const [erro, setErro] = useState('')
     const [form, setForm] = useState(estadoVazio)
@@ -194,6 +199,21 @@ const CredenciamentoCadastroForm = () => {
         const esp = especialidades.find((e) => Number(e.id) === Number(form.especialidade_id))
         return esp?.nome || ''
     }, [especialidades, form.especialidade_id])
+
+    const situacoesParaSelect = useMemo(() => {
+        const base = filtrarSituacoesSemAguardandoFormulario(situacoes)
+        const atualId = String(form.situacao_id || '').trim()
+        if (!atualId) return base
+        const legado = (situacoes || []).find((s) => String(s.id) === atualId)
+        if (
+            legado &&
+            situacaoEhAguardandoFormularioLegado(legado) &&
+            !base.some((s) => String(s.id) === atualId)
+        ) {
+            return [...base, legado].sort((a, b) => Number(a.ordem) - Number(b.ordem))
+        }
+        return base
+    }, [situacoes, form.situacao_id])
 
     const mostrarAtendeClinica = secaoMultiplasCidades
 
@@ -243,7 +263,11 @@ const CredenciamentoCadastroForm = () => {
     }, [])
 
     const carregarPrestador = useCallback(async () => {
-        if (!prestadorId) return
+        if (!Number.isFinite(prestadorId) || prestadorId <= 0) {
+            setLoading(false)
+            setErro('Cadastro inválido.')
+            return
+        }
         setLoading(true)
         setErro('')
         try {
@@ -452,6 +476,13 @@ const CredenciamentoCadastroForm = () => {
     }, [form.endereco_uf])
 
     useEffect(() => {
+        if (prestadorIdInvalido) {
+            setErro('Cadastro inválido.')
+            setLoading(false)
+        }
+    }, [prestadorIdInvalido])
+
+    useEffect(() => {
         if (!isNovo) void carregarPrestador()
     }, [isNovo, carregarPrestador])
 
@@ -477,6 +508,14 @@ const CredenciamentoCadastroForm = () => {
     const tituloForm = isNovo ? 'Novo prestador' : form.nome.trim() || 'Prestador'
 
     const setCampo = (campo, valor) => setForm((f) => ({ ...f, [campo]: valor }))
+
+    const onMapaNomeAlternativoChange = useCallback((mapa) => {
+        mapaNomeAlternativoRef.current = mapa
+    }, [])
+
+    const onPacoteBeneficiosChange = useCallback((pacote) => {
+        pacoteBeneficiosRef.current = pacote
+    }, [])
 
     const buscarCepPorDigitos = useCallback(
         async (digits) => {
@@ -945,7 +984,7 @@ const CredenciamentoCadastroForm = () => {
                                 disabled={somenteLeitura}
                             >
                                 <option value="">—</option>
-                                {situacoes.map((s) => (
+                                {situacoesParaSelect.map((s) => (
                                     <option key={s.id} value={s.id}>
                                         {s.descricao}
                                     </option>
@@ -1290,17 +1329,13 @@ const CredenciamentoCadastroForm = () => {
                         somenteLeitura={somenteLeitura}
                         selecionadosInicial={procSelecionados}
                         onChangeSelecionados={setProcSelecionados}
-                        onMapaNomeAlternativoChange={(mapa) => {
-                            mapaNomeAlternativoRef.current = mapa
-                        }}
+                        onMapaNomeAlternativoChange={onMapaNomeAlternativoChange}
                         laboratoriosSelecionadosInicial={laboratoriosSolicitacaoIds}
                         onChangeLaboratorios={setLaboratoriosSolicitacaoIds}
                         prestadorNome={form.nome}
                         cidadeNome={form.endereco_cidade}
                         onErroBeneficios={setErro}
-                        onPacoteBeneficiosChange={(pacote) => {
-                            pacoteBeneficiosRef.current = pacote
-                        }}
+                        onPacoteBeneficiosChange={onPacoteBeneficiosChange}
                         descontosDisabled={somenteLeitura || isNovo}
                         barraAcoes={
                             <PrestadorHonorariosContratos

@@ -50,6 +50,8 @@ export default function PrestadorBeneficiosDescontos({
     const [dirty, setDirty] = useState(false)
     const onControleImpressaoRef = useRef(onControleImpressao)
     onControleImpressaoRef.current = onControleImpressao
+    const onPacoteChangeRef = useRef(onPacoteChange)
+    onPacoteChangeRef.current = onPacoteChange
 
     const grupos = useMemo(() => gruposDoCatalogo(catalogo), [catalogo])
 
@@ -72,9 +74,9 @@ export default function PrestadorBeneficiosDescontos({
                             : parsePct(v.percentualMax),
                     incluir: true,
                 }))
-            onPacoteChange?.({ itens, observacoes: String(nextObs || '') })
+            onPacoteChangeRef.current?.({ itens, observacoes: String(nextObs || '') })
         },
-        [onPacoteChange],
+        [],
     )
 
     const carregar = useCallback(async () => {
