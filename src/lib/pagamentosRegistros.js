@@ -147,6 +147,29 @@ export async function listarPagamentosRegistrosIntervalo(mesDe, anoDe, mesAte, a
 }
 
 /**
+ * Notificação na Home: competência atrasada sempre; mês corrente só a partir do dia 15.
+ */
+export function registroElegivelNotificacaoPagamento(registro, dataRef = new Date()) {
+    const mes = Number(registro?.mes)
+    const ano = Number(registro?.ano)
+    if (!Number.isFinite(mes) || mes < 1 || mes > 12) return false
+    if (!Number.isFinite(ano) || ano < 1) return false
+
+    const mesAtual = dataRef.getMonth() + 1
+    const anoAtual = dataRef.getFullYear()
+    const dia = dataRef.getDate()
+
+    const cmp = compararCompetencia(mes, ano, mesAtual, anoAtual)
+    if (cmp < 0) return true
+    if (cmp > 0) return false
+    return dia >= 15
+}
+
+export function filtrarRegistrosParaNotificacaoPagamentos(registros, dataRef = new Date()) {
+    return (registros || []).filter((r) => registroElegivelNotificacaoPagamento(r, dataRef))
+}
+
+/**
  * Nota/resposta enviada e ainda não pagos (`resposta && !pago`).
  * Base da tela Resumo de Pagamentos.
  */

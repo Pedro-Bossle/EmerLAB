@@ -40,8 +40,6 @@ function sanitizarObservacoesPdf(texto) {
     return String(texto ?? '')
         .replace(/\r\n/g, '\n')
         .replace(/\r/g, '\n')
-        .replace(/https?:\/\/\S+/gi, '')
-        .replace(/www\.\S+/gi, '')
         .replace(/[^\S\n]+/g, ' ')
         .replace(/ +\n/g, '\n')
         .replace(/\n +/g, '\n')
@@ -92,6 +90,65 @@ export function normalizarListaObservacoes(observacoes) {
         .map((item, idx) => ({ ...item, numero: idx + 1 }))
 }
 
+const URL_TOKEN_RE = /(https?:\/\/[^\s<>\[\]()]+|www\.[^\s<>\[\]()]+)/gi
+
+function normalizarUrlToken(raw) {
+    let t = String(raw || '')
+    while (t.length > 4) {
+        if (/[.,;:!?]$/.test(t)) {
+            t = t.slice(0, -1)
+            continue
+        }
+        if (t.endsWith(')')) {
+            const opens = (t.match(/\(/g) || []).length
+            const closes = (t.match(/\)/g) || []).length
+            if (closes > opens) {
+                t = t.slice(0, -1)
+                continue
+            }
+        }
+        break
+    }
+    return t
+}
+
+function hrefDeUrlExibida(raw) {
+    const t = normalizarUrlToken(raw)
+    if (!t) return null
+    if (/^https?:\/\//i.test(t)) return t
+    if (/^www\./i.test(t)) return `https://${t}`
+    return null
+}
+
+function expandirSegmentosComLinks(segmentos) {
+    const out = []
+    for (const seg of segmentos || []) {
+        const texto = String(seg.text || '')
+        if (!texto) continue
+        const bold = Boolean(seg.bold)
+        let last = 0
+        const re = new RegExp(URL_TOKEN_RE.source, 'gi')
+        let m
+        let found = false
+        while ((m = re.exec(texto)) !== null) {
+            found = true
+            if (m.index > last) {
+                out.push({ text: texto.slice(last, m.index), bold })
+            }
+            const urlText = normalizarUrlToken(m[0])
+            const href = hrefDeUrlExibida(urlText)
+            out.push(href ? { text: urlText, bold, href } : { text: urlText, bold })
+            last = m.index + m[0].length
+        }
+        if (!found) {
+            out.push({ text: texto, bold })
+        } else if (last < texto.length) {
+            out.push({ text: texto.slice(last), bold })
+        }
+    }
+    return out
+}
+
 function parseLinhasCorpoObservacao(mensagem) {
     const bruto = sanitizarObservacoesPdf(mensagem)
     if (!bruto) return []
@@ -113,13 +170,17 @@ function parseLinhasCorpoObservacao(mensagem) {
         }
         if (last < texto.length) segmentos.push({ text: texto.slice(last), bold: false })
         if (!segmentos.length && texto) segmentos.push({ text, bold: false })
-        return { nested, segmentos }
+        return { nested, segmentos: expandirSegmentosComLinks(segmentos) }
     })
 }
 
-function quebrarSegmentosEmLinhas(segmentos, fonts, size, larguraMax) {
+function quebrarSegmentosEmLinhas(segmentos, fonts, size, larguraMax, larguraPrimeiraLinha = null) {
     const palavras = []
     for (const seg of segmentos || []) {
+        if (seg.href) {
+            palavras.push({ text: seg.text, bold: Boolean(seg.bold), href: seg.href })
+            continue
+        }
         const partes = String(seg.text || '').split(/(\s+)/)
         for (const parte of partes) {
             if (!parte) continue
@@ -128,17 +189,25 @@ function quebrarSegmentosEmLinhas(segmentos, fonts, size, larguraMax) {
     }
     if (!palavras.length) return [[]]
 
+    const limitePrimeira =
+        larguraPrimeiraLinha != null && larguraPrimeiraLinha > 0
+            ? larguraPrimeiraLinha
+            : larguraMax
+
     const linhas = []
     let atual = []
     let larguraAtual = 0
+    let primeiraLinha = true
     for (const palavra of palavras) {
         const font = palavra.bold ? fonts.bold : fontCorpo(fonts)
         const w = font.widthOfTextAtSize(palavra.text, size)
-        if (atual.length && larguraAtual + w > larguraMax && !/^\s+$/.test(palavra.text)) {
+        const limite = primeiraLinha ? limitePrimeira : larguraMax
+        if (atual.length && larguraAtual + w > limite && !/^\s+$/.test(palavra.text)) {
             while (atual.length && /^\s+$/.test(atual[atual.length - 1].text)) atual.pop()
             linhas.push(atual)
             atual = []
             larguraAtual = 0
+            primeiraLinha = false
             if (/^\s+$/.test(palavra.text)) continue
         }
         atual.push(palavra)
@@ -157,8 +226,25 @@ function desenharSegmentos(page, fonts, x, y, segmentos, size, color) {
         const texto = String(seg.text || '')
         if (!texto) continue
         const font = seg.bold ? fonts.bold : fontCorpo(fonts)
-        page.drawText(texto, { x: cursorX, y, size, font, color })
-        cursorX += font.widthOfTextAtSize(texto, size)
+        const isLink = Boolean(seg.href)
+        const cor = isLink ? COR_LINK : color
+        page.drawText(texto, { x: cursorX, y, size, font, color: cor })
+        const tw = font.widthOfTextAtSize(texto, size)
+        if (isLink) {
+            page.drawLine({
+                start: { x: cursorX, y: y - 1 },
+                end: { x: cursorX + tw, y: y - 1 },
+                thickness: 0.6,
+                color: COR_LINK,
+            })
+            adicionarLinkUri(page, seg.href, {
+                x: cursorX,
+                y: y - 2,
+                width: tw,
+                height: size + 4,
+            })
+        }
+        cursorX += tw
     }
     return cursorX
 }
@@ -178,7 +264,13 @@ function medirItemObservacaoModelo(item, fonts, larguraMax) {
         const avail = Math.max(40, larguraMax - indent)
         if (!firstConsumed && !linha.nested && item.titulo) {
             const restoLargura = Math.max(40, larguraMax - prefixoW - 4)
-            const wrapped = quebrarSegmentosEmLinhas(linha.segmentos, fonts, FONT_SIZE_OBS, restoLargura)
+            const wrapped = quebrarSegmentosEmLinhas(
+                linha.segmentos,
+                fonts,
+                FONT_SIZE_OBS,
+                avail,
+                restoLargura,
+            )
             h += Math.max(0, wrapped.length - 1) * corpoLead
             firstConsumed = true
             continue
@@ -235,8 +327,17 @@ function desenharItemObservacaoModelo(page, fonts, x, yTop, item, larguraMax) {
         if (!firstConsumed && !linha.nested) {
             const gap = tituloTxt ? 4 : 0
             const startX = x + tituloW + gap
-            const avail = Math.max(40, larguraMax - (tituloW + gap))
-            const wrapped = quebrarSegmentosEmLinhas(linha.segmentos, fonts, FONT_SIZE_OBS, avail)
+            const availFull = Math.max(40, larguraMax - indent)
+            const availPrimeira = tituloTxt
+                ? Math.max(40, larguraMax - (tituloW + gap))
+                : availFull
+            const wrapped = quebrarSegmentosEmLinhas(
+                linha.segmentos,
+                fonts,
+                FONT_SIZE_OBS,
+                availFull,
+                availPrimeira,
+            )
             if (wrapped.length) {
                 desenharSegmentos(page, fonts, startX, y, wrapped[0], FONT_SIZE_OBS, corCorpo)
                 for (let i = 1; i < wrapped.length; i += 1) {

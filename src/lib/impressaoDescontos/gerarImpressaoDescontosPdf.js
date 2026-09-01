@@ -58,8 +58,6 @@ function sanitizarObservacoesPdf(texto) {
     return String(texto ?? '')
         .replace(/\r\n/g, '\n')
         .replace(/\r/g, '\n')
-        .replace(/https?:\/\/\S+/gi, '')
-        .replace(/www\.\S+/gi, '')
         .replace(/[^\S\n]+/g, ' ')
         .replace(/ +\n/g, '\n')
         .replace(/\n +/g, '\n')

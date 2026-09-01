@@ -433,6 +433,25 @@ body.dark-mode .planos_impressao_erro {
     color: #f0a0a8;
 }
 
+body.dark-mode .planos_impressao_table_main .planos_impressao_td_limite_grupo.supertabelaplanos_limite_grupo_cell {
+    color: #b8dcf0;
+    background: #1a3348;
+    border-left-color: #4a9fd4;
+}
+
+body.dark-mode .planos_impressao_table_main input[type='checkbox'] {
+    accent-color: var(--azul-destaque, #1f7ec2);
+}
+
+body.dark-mode .planos_impressao_table_main thead th {
+    background: var(--bg-surface, #152232);
+    box-shadow: 0 1px 0 var(--border-soft, #2a3d52);
+}
+
+body.dark-mode .planos_impressao_table_wrap {
+    border-color: var(--border-soft, #2a3d52);
+}
+
 body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
     color: #c8dce8;
 }

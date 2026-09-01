@@ -61,6 +61,7 @@ import {
 } from '../../lib/credenciamento/kanbanMencoes'
 import {
     agruparPendenciasPorPrestador,
+    filtrarRegistrosParaNotificacaoPagamentos,
     listarPagamentosPendentesNota,
 } from '../../lib/pagamentosRegistros'
 import { formatarCpfCnpjEntrada } from '../../lib/prestadorCadastroHelpers'
@@ -234,7 +235,8 @@ const Home = () => {
                 jobs.push(
                     listarPagamentosPendentesNota()
                         .then((rows) => {
-                            const grupos = agruparPendenciasPorPrestador(rows || [])
+                            const elegiveis = filtrarRegistrosParaNotificacaoPagamentos(rows || [])
+                            const grupos = agruparPendenciasPorPrestador(elegiveis)
                             setPendenciasPag(grupos.length)
                             setPendenciasPagNomes(
                                 grupos
@@ -635,7 +637,8 @@ const Home = () => {
         if (!podePagamentos) return
         try {
             const rows = await listarPagamentosPendentesNota()
-            const grupos = agruparPendenciasPorPrestador(rows || [])
+            const elegiveis = filtrarRegistrosParaNotificacaoPagamentos(rows || [])
+            const grupos = agruparPendenciasPorPrestador(elegiveis)
             setPendenciasPag(grupos.length)
             setPendenciasPagNomes(
                 grupos

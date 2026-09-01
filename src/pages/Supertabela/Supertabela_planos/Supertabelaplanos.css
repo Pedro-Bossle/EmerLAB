@@ -1624,6 +1624,18 @@
     padding: 8px 10px;
 }
 
+body.dark-mode .supertabelaplanos_limite_grupo_cell {
+    color: #b8dcf0;
+    background: #1a3348;
+    border-left-color: #4a9fd4;
+}
+
+body.dark-mode .supertabelaplanos_flag_loja {
+    color: #e8d4a8;
+    background: #3d3018;
+    border-color: #6a5528;
+}
+
 .supertabelaplanos_nome_com_flag {
     display: inline-flex;
     align-items: center;
