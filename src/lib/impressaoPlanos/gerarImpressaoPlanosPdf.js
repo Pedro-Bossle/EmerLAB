@@ -2,6 +2,10 @@ import { PDFDocument, rgb } from 'pdf-lib'
 import { procedimentoIsentoLimiteGrupo } from '../categoriaLimitesGrupo.js'
 import { embedMontserratNoPdf } from './montserratPdfFonts.js'
 import { formatarCarimboDataHora } from '../pdf/formatarCarimboEmissao.js'
+import {
+    adicionarPaginasObservacoesDinamicas,
+    normalizarListaObservacoes,
+} from '../pdf/observacoesModeloPdf.js'
 import urlEstetoscopioSvg from '../../assets/planos/estetoscopio.svg?url'
 
 const ICON_CAB_SIZE_PT = 10
@@ -587,7 +591,11 @@ function renderizarUmaPagina(page, fonts, width, height, secoes, cursor, iconeEs
 }
 
 /**
- * @param {{ pdfUrl: string, categorias: object[] }} opts
+ * @param {{
+ *   pdfUrl: string,
+ *   categorias: object[],
+ *   observacoes?: Array<{ titulo?: string, mensagem: string }> | string | string[],
+ * }} opts
  */
 export async function gerarImpressaoPlanosPdf(opts) {
     const resposta = await fetch(opts.pdfUrl)
@@ -603,6 +611,7 @@ export async function gerarImpressaoPlanosPdf(opts) {
         throw new Error('Selecione ao menos um procedimento para imprimir.')
     }
 
+    const observacoesDinamicas = normalizarListaObservacoes(opts.observacoes)
     const refPage = templateDoc.getPage(TEMPLATE_PAGE_INDEX)
     const { width, height } = refPage.getSize()
 
@@ -638,10 +647,21 @@ export async function gerarImpressaoPlanosPdf(opts) {
         }
     }
 
-    // Observações: inserir exatamente como no PDF base, sem carimbo/formatação.
-    for (const idx of [OBS_INDEX_A, OBS_INDEX_B]) {
-        const [obs] = await finalDoc.copyPages(templateDoc, [idx])
-        finalDoc.addPage(obs)
+    if (observacoesDinamicas.length) {
+        await adicionarPaginasObservacoesDinamicas({
+            finalDoc,
+            templateDoc,
+            templatePageIndex: TEMPLATE_PAGE_INDEX,
+            fonts,
+            observacoes: observacoesDinamicas,
+            onPagina: (page, pageWidth) => desenharCarimboPagina(page, fonts, pageWidth),
+        })
+    } else {
+        // Sem gatilhos: páginas de OBS do PDF molde.
+        for (const idx of [OBS_INDEX_A, OBS_INDEX_B]) {
+            const [obs] = await finalDoc.copyPages(templateDoc, [idx])
+            finalDoc.addPage(obs)
+        }
     }
 
     return new Blob([await finalDoc.save()], { type: 'application/pdf' })

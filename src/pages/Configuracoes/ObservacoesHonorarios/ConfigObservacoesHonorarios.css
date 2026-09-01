@@ -1,0 +1,534 @@
+.config_obs_honorarios {
+    text-align: left;
+}
+
+.config_obs_honorarios_toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 980px;
+    width: calc(100% - 1.5em);
+    margin: 0 auto 1.1rem;
+}
+
+.config_obs_honorarios_busca {
+    flex: 1 1 240px;
+    min-width: 180px;
+}
+
+.config_obs_honorarios_toolbar_acoes {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.config_obs_honorarios_muted {
+    color: #5a7a94;
+    font-size: 0.92rem;
+    margin: 0.5rem auto;
+    max-width: 980px;
+    width: calc(100% - 1.5em);
+}
+
+.config_obs_honorarios_form {
+    max-width: 980px;
+    width: calc(100% - 1.5em);
+    margin: 0 auto 1.25rem;
+    box-sizing: border-box;
+    padding: 1rem 1.1rem;
+    border: 1px solid #d7e8f2;
+    border-radius: 12px;
+    background: #f8fbfd;
+}
+
+.config_obs_honorarios_form_head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.85rem;
+}
+
+.config_obs_honorarios_form_head h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--azul-escuro);
+}
+
+.config_obs_honorarios_campo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.85rem;
+}
+
+.config_obs_honorarios_campo span {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--azul-escuro);
+}
+
+.config_obs_honorarios_textarea {
+    min-height: 6rem;
+    resize: vertical;
+    line-height: 1.4;
+}
+
+.config_obs_honorarios_preview_label {
+    margin: 0 0 0.35rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--azul-escuro);
+}
+
+.config_obs_honorarios_preview {
+    margin: 0 0 0.85rem;
+    padding: 0.75rem 0.9rem;
+    border: 1px dashed #c5d8e6;
+    border-radius: 10px;
+    background: #fff;
+    color: #5a606c;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.config_obs_honorarios_preview p {
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+.config_obs_honorarios_preview strong {
+    color: #3a4050;
+}
+
+.config_obs_honorarios_form_meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem 1.25rem;
+    align-items: flex-end;
+    margin-bottom: 0.85rem;
+}
+
+.config_obs_honorarios_campo_curto {
+    width: 8rem;
+    margin-bottom: 0;
+}
+
+.config_obs_honorarios_check_ativa {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.92rem;
+    color: var(--cinza-escuro);
+    cursor: pointer;
+    padding-bottom: 0.35rem;
+}
+
+.config_obs_honorarios_procs {
+    margin-top: 0.35rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #dce9f1;
+}
+
+.config_obs_honorarios_procs_head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.4rem;
+    margin-bottom: 0.55rem;
+}
+
+.config_obs_honorarios_procs_head h3 {
+    margin: 0;
+    font-size: 0.98rem;
+    color: var(--azul-escuro);
+}
+
+.config_obs_honorarios_procs_head span {
+    font-size: 0.85rem;
+    color: #5a7a94;
+    font-weight: 600;
+}
+
+.config_obs_honorarios_chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.35rem;
+}
+
+.config_obs_honorarios_chips_wrap {
+    margin-bottom: 0.65rem;
+}
+
+.config_obs_honorarios_chips_toggle {
+    border: none;
+    background: transparent;
+    color: #0a74bb;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0.25rem 0;
+    text-align: left;
+}
+
+.config_obs_honorarios_chip {
+    border: 1px solid #b9d3e4;
+    background: #eef6fb;
+    color: var(--azul-escuro);
+    border-radius: 999px;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.78rem;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.config_obs_honorarios_chip.is-static {
+    cursor: default;
+}
+
+.config_obs_honorarios_procs_lista {
+    margin-top: 0.65rem;
+    max-height: 360px;
+    overflow: auto;
+    border: 1px solid #dce9f1;
+    border-radius: 10px;
+    background: #fff;
+    padding: 0.45rem 0.55rem;
+}
+
+.config_obs_honorarios_cat {
+    padding: 0.35rem 0 0.55rem;
+}
+
+.config_obs_honorarios_cat + .config_obs_honorarios_cat {
+    border-top: 1px solid #e4eef5;
+    margin-top: 0.35rem;
+    padding-top: 0.65rem;
+}
+
+.config_obs_honorarios_cat_head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+    margin-bottom: 0.35rem;
+}
+
+.config_obs_honorarios_cat_head h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--azul-escuro);
+}
+
+.config_obs_honorarios_cat_head em {
+    font-style: normal;
+    font-weight: 600;
+    color: #5a7a94;
+    font-size: 0.8rem;
+}
+
+.config_obs_honorarios_cat_acoes {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.78rem;
+    color: #5a7a94;
+}
+
+.config_obs_honorarios_link {
+    border: none;
+    background: transparent;
+    color: #0a74bb;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 2px;
+}
+
+.config_obs_honorarios_link:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.config_obs_honorarios_proc_item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    padding: 0.35rem 0.2rem;
+    font-size: 0.88rem;
+    color: var(--cinza-escuro);
+    cursor: pointer;
+}
+
+.config_obs_honorarios_proc_item + .config_obs_honorarios_proc_item {
+    border-top: 1px solid #eef3f7;
+}
+
+.config_obs_honorarios_proc_item input {
+    margin-top: 0.15rem;
+    accent-color: var(--azul-destaque);
+}
+
+.config_obs_honorarios_form_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+}
+
+.config_obs_honorarios_lista {
+    max-width: 980px;
+    width: calc(100% - 1.5em);
+    margin: 0 auto 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.config_obs_honorarios_card {
+    border: 1px solid #d7e8f2;
+    border-radius: 12px;
+    background: #fff;
+    padding: 0.85rem 1rem;
+    box-shadow: 0 2px 8px rgba(30, 49, 72, 0.06);
+}
+
+.config_obs_honorarios_card.is-inativa {
+    opacity: 0.72;
+}
+
+.config_obs_honorarios_card_top {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.45rem;
+}
+
+.config_obs_honorarios_card_ordem {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #5a7a94;
+}
+
+.config_obs_honorarios_badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.15rem 0.45rem;
+    border-radius: 6px;
+    background: #eceff3;
+    color: #5a6570;
+}
+
+.config_obs_honorarios_badge.is-ativa {
+    background: #e3f5ea;
+    color: #1f7a45;
+}
+
+.config_obs_honorarios_card_msg {
+    margin: 0 0 0.65rem;
+    white-space: pre-wrap;
+    line-height: 1.4;
+    color: var(--cinza-escuro);
+    font-size: 0.95rem;
+}
+
+.config_obs_honorarios_card_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.55rem;
+}
+
+.config_obs_honorarios_card_acoes .credenciamento_main_action_btn {
+    min-height: 40px;
+}
+
+body.dark-mode .config_obs_honorarios_form,
+body.dark-mode .config_obs_honorarios_card {
+    background: #122536;
+    border-color: #355372;
+    box-shadow: none;
+}
+
+body.dark-mode .config_obs_honorarios_form_head h2,
+body.dark-mode .config_obs_honorarios_campo span,
+body.dark-mode .config_obs_honorarios_procs_head h3,
+body.dark-mode .config_obs_honorarios_preview_label {
+    color: var(--azul-claro);
+}
+
+body.dark-mode .config_obs_honorarios_preview {
+    background: #0f1e2e;
+    border-color: #355372;
+    color: #9ab0c4;
+}
+
+body.dark-mode .config_obs_honorarios_preview strong {
+    color: var(--text-main);
+}
+
+body.dark-mode .config_obs_honorarios_muted,
+body.dark-mode .config_obs_honorarios_procs_head span,
+body.dark-mode .config_obs_honorarios_card_ordem {
+    color: #9ab0c4;
+}
+
+body.dark-mode .config_obs_honorarios_cat_head h4,
+body.dark-mode .config_obs_honorarios_link,
+body.dark-mode .config_obs_honorarios_chips_toggle {
+    color: var(--azul-claro);
+}
+
+body.dark-mode .config_obs_honorarios_cat_head em,
+body.dark-mode .config_obs_honorarios_cat_acoes {
+    color: #9ab0c4;
+}
+
+body.dark-mode .config_obs_honorarios_cat + .config_obs_honorarios_cat {
+    border-top-color: #355372;
+}
+
+body.dark-mode .config_obs_honorarios_procs_lista {
+    background: #0f1e2e;
+    border-color: #355372;
+}
+
+body.dark-mode .config_obs_honorarios_proc_item,
+body.dark-mode .config_obs_honorarios_card_msg,
+body.dark-mode .config_obs_honorarios_check_ativa {
+    color: var(--text-main);
+}
+
+body.dark-mode .config_obs_honorarios_proc_item + .config_obs_honorarios_proc_item {
+    border-top-color: #24384c;
+}
+
+body.dark-mode .config_obs_honorarios_chip {
+    background: #1a3348;
+    border-color: #3a5a78;
+    color: var(--azul-claro);
+}
+
+@media (max-width: 720px) {
+    .config_obs_honorarios {
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .config_obs_honorarios_toolbar,
+    .config_obs_honorarios_muted,
+    .config_obs_honorarios_form,
+    .config_obs_honorarios_lista {
+        width: calc(100% - 1rem);
+        max-width: none;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .config_obs_honorarios_toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.55rem;
+    }
+
+    .config_obs_honorarios_busca {
+        min-width: 0;
+        width: 100%;
+        flex: 1 1 auto;
+    }
+
+    .config_obs_honorarios_toolbar_acoes,
+    .config_obs_honorarios_toolbar_acoes .credenciamento_main_action_btn,
+    .config_obs_honorarios_card_acoes .credenciamento_main_action_btn,
+    .config_obs_honorarios_form_acoes .credenciamento_main_action_btn {
+        width: 100%;
+    }
+
+    .config_obs_honorarios_form {
+        padding: 0.85rem 0.75rem;
+        border-radius: 10px;
+    }
+
+    .config_obs_honorarios_form_head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .config_obs_honorarios_form_head .credenciamento_main_action_btn {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    .config_obs_honorarios_form_meta {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.65rem;
+    }
+
+    .config_obs_honorarios_campo_curto {
+        width: 100%;
+    }
+
+    .config_obs_honorarios_check_ativa {
+        padding: 0.35rem 0;
+        min-height: 44px;
+    }
+
+    .config_obs_honorarios_procs_lista {
+        max-height: min(50vh, 320px);
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .config_obs_honorarios_cat_head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .config_obs_honorarios_proc_item {
+        padding: 0.55rem 0.15rem;
+        font-size: 0.92rem;
+        gap: 0.55rem;
+    }
+
+    .config_obs_honorarios_proc_item input {
+        width: 1.15rem;
+        height: 1.15rem;
+        margin-top: 0.1rem;
+    }
+
+    .config_obs_honorarios_chip {
+        max-width: 100%;
+        word-break: break-word;
+        white-space: normal;
+        border-radius: 10px;
+        padding: 0.35rem 0.55rem;
+    }
+
+    .config_obs_honorarios_card {
+        padding: 0.85rem 0.75rem;
+    }
+
+    .config_obs_honorarios_card_acoes {
+        flex-direction: column;
+    }
+
+    .config_obs_honorarios_form_acoes {
+        flex-direction: column-reverse;
+        position: sticky;
+        bottom: 0;
+        padding: 0.65rem 0 0.15rem;
+        background: linear-gradient(to top, #f8fbfd 70%, transparent);
+    }
+
+    body.dark-mode .config_obs_honorarios_form_acoes {
+        background: linear-gradient(to top, #122536 70%, transparent);
+    }
+}

@@ -226,6 +226,22 @@ export const PERMISSION_CATALOG = [
                 actions: RCU,
                 href: '/configuracoes/conferencia-laboratorio',
             },
+            {
+                id: 'configuracoes.observacoes_honorarios',
+                label: 'Observações (Honorários)',
+                descricao:
+                    'Mensagens condicionais impressas no PDF de honorários conforme procedimentos presentes.',
+                actions: RCUD,
+                href: '/configuracoes/observacoes-honorarios',
+            },
+            {
+                id: 'configuracoes.observacoes_planos',
+                label: 'Observações (Planos)',
+                descricao:
+                    'Mensagens condicionais impressas no PDF de planos conforme procedimentos presentes. Sem gatilhos, usam-se as páginas do molde.',
+                actions: RCUD,
+                href: '/configuracoes/observacoes-planos',
+            },
         ],
     },
     {
@@ -433,6 +449,8 @@ export function expandLegacyToAcl(perms) {
         setTool('configuracoes.importar_credenciados', { read: true })
         setTool('configuracoes.exportar_credenciados', { read: true })
         setTool('configuracoes.conferencia_laboratorio', { read: true })
+        setTool('configuracoes.observacoes_honorarios', { read: true })
+        setTool('configuracoes.observacoes_planos', { read: true })
     }
     if (p[L.CREDENCIAMENTO_CADASTRO_VIEW]) {
         setTool('credenciamento.cadastro', { read: true })
@@ -456,6 +474,18 @@ export function expandLegacyToAcl(perms) {
             read: true,
             create: true,
             update: true,
+        })
+        setTool('configuracoes.observacoes_honorarios', {
+            read: true,
+            create: true,
+            update: true,
+            delete: true,
+        })
+        setTool('configuracoes.observacoes_planos', {
+            read: true,
+            create: true,
+            update: true,
+            delete: true,
         })
     }
     if (p[L.CREDENCIAMENTO_FORMULARIO_CONFIG]) {
@@ -595,6 +625,62 @@ export function completarAclFerramentasCredenciamento(perms) {
         }
     }
 
+    // Observações honorários: herda de quem já lia/editava outras configs
+    const kObsRead = aclKey('configuracoes.observacoes_honorarios', 'read')
+    const kObsCreate = aclKey('configuracoes.observacoes_honorarios', 'create')
+    const kObsUpdate = aclKey('configuracoes.observacoes_honorarios', 'update')
+    const kObsDelete = aclKey('configuracoes.observacoes_honorarios', 'delete')
+    if (!p[kObsRead]) {
+        if (
+            hasAcl(p, 'configuracoes.importar_credenciados', 'read') ||
+            hasAcl(p, 'configuracoes.exportar_credenciados', 'read') ||
+            hasAcl(p, 'configuracoes.conferencia_laboratorio', 'read') ||
+            p[L.CREDENCIAMENTO_VIEW]
+        ) {
+            p[kObsRead] = true
+        }
+    }
+    if (!p[kObsCreate] || !p[kObsUpdate] || !p[kObsDelete]) {
+        if (
+            p[kObsRead] ||
+            hasAcl(p, 'configuracoes.importar_credenciados', 'update') ||
+            p[L.CREDENCIAMENTO_EDIT]
+        ) {
+            p[kObsRead] = true
+            p[kObsCreate] = true
+            p[kObsUpdate] = true
+            p[kObsDelete] = true
+        }
+    }
+
+    // Observações planos: mesma herança das configs
+    const kObsPlRead = aclKey('configuracoes.observacoes_planos', 'read')
+    const kObsPlCreate = aclKey('configuracoes.observacoes_planos', 'create')
+    const kObsPlUpdate = aclKey('configuracoes.observacoes_planos', 'update')
+    const kObsPlDelete = aclKey('configuracoes.observacoes_planos', 'delete')
+    if (!p[kObsPlRead]) {
+        if (
+            hasAcl(p, 'configuracoes.observacoes_honorarios', 'read') ||
+            hasAcl(p, 'configuracoes.conferencia_laboratorio', 'read') ||
+            p[L.CREDENCIAMENTO_VIEW] ||
+            p[L.PLANOS_VIEW]
+        ) {
+            p[kObsPlRead] = true
+        }
+    }
+    if (!p[kObsPlCreate] || !p[kObsPlUpdate] || !p[kObsPlDelete]) {
+        if (
+            p[kObsPlRead] ||
+            hasAcl(p, 'configuracoes.observacoes_honorarios', 'update') ||
+            p[L.CREDENCIAMENTO_EDIT]
+        ) {
+            p[kObsPlRead] = true
+            p[kObsPlCreate] = true
+            p[kObsPlUpdate] = true
+            p[kObsPlDelete] = true
+        }
+    }
+
     return p
 }
 
@@ -620,7 +706,9 @@ export function syncLegacyFromAcl(perms) {
         hasAcl(p, 'credenciamento.especialidades_rc', 'read') ||
         hasAcl(p, 'configuracoes.importar_credenciados', 'read') ||
         hasAcl(p, 'configuracoes.exportar_credenciados', 'read') ||
-        hasAcl(p, 'configuracoes.conferencia_laboratorio', 'read')
+        hasAcl(p, 'configuracoes.conferencia_laboratorio', 'read') ||
+        hasAcl(p, 'configuracoes.observacoes_honorarios', 'read') ||
+        hasAcl(p, 'configuracoes.observacoes_planos', 'read')
     p[L.CREDENCIAMENTO_CADASTRO_VIEW] = hasAcl(p, 'credenciamento.cadastro', 'read')
     p[L.CREDENCIAMENTO_QUEM_REALIZA_VIEW] = hasAcl(p, 'credenciamento.quem_realiza', 'read')
     p[L.CREDENCIAMENTO_FORMULARIO_INBOX] = hasAcl(p, 'credenciamento.formulario_inbox', 'read')
@@ -642,7 +730,13 @@ export function syncLegacyFromAcl(perms) {
         hasAcl(p, 'credenciamento.processos', 'create') ||
         hasAcl(p, 'configuracoes.importar_credenciados', 'update') ||
         hasAcl(p, 'configuracoes.conferencia_laboratorio', 'update') ||
-        hasAcl(p, 'configuracoes.conferencia_laboratorio', 'create')
+        hasAcl(p, 'configuracoes.conferencia_laboratorio', 'create') ||
+        hasAcl(p, 'configuracoes.observacoes_honorarios', 'update') ||
+        hasAcl(p, 'configuracoes.observacoes_honorarios', 'create') ||
+        hasAcl(p, 'configuracoes.observacoes_honorarios', 'delete') ||
+        hasAcl(p, 'configuracoes.observacoes_planos', 'update') ||
+        hasAcl(p, 'configuracoes.observacoes_planos', 'create') ||
+        hasAcl(p, 'configuracoes.observacoes_planos', 'delete')
 
     p[L.PLANOS_VIEW] = hasAcl(p, 'planos.impressao', 'read')
     p[L.COMPRAS_VIEW] = anyAclInGroup(p, 'compras', 'read')

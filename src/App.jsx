@@ -29,6 +29,8 @@ import CredenciamentoFormularioPublico from './pages/Credenciamento/Formulario/C
 import ConfigImportarCredenciados from './pages/Configuracoes/ImportarCredenciados/ConfigImportarCredenciados';
 import ConfigExportarCredenciados from './pages/Configuracoes/ExportarCredenciados/ConfigExportarCredenciados';
 import ConfigConferenciaLaboratorio from './pages/Configuracoes/ConferenciaLaboratorio/ConfigConferenciaLaboratorio';
+import ConfigObservacoesHonorarios from './pages/Configuracoes/ObservacoesHonorarios/ConfigObservacoesHonorarios';
+import ConfigObservacoesPlanos from './pages/Configuracoes/ObservacoesPlanos/ConfigObservacoesPlanos';
 import GerenciamentoAcessos from './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos';
 import AdminAuditoria from './pages/Administrativo/Auditoria/AdminAuditoria';
 import AlterarSenha from './pages/AlterarSenha/AlterarSenha';
@@ -290,6 +292,28 @@ function App() {
                 toolId="configuracoes.conferencia_laboratorio"
               >
                 <ConfigConferenciaLaboratorio />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/configuracoes/observacoes-honorarios"
+            element={
+              <PrivateRoute
+                permission="credenciamento.view"
+                toolId="configuracoes.observacoes_honorarios"
+              >
+                <ConfigObservacoesHonorarios />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/configuracoes/observacoes-planos"
+            element={
+              <PrivateRoute
+                permission="credenciamento.view"
+                toolId="configuracoes.observacoes_planos"
+              >
+                <ConfigObservacoesPlanos />
               </PrivateRoute>
             }
           />

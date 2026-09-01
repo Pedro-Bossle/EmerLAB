@@ -2038,10 +2038,27 @@ body.dark-mode .pcad_servicos_item {
     border-bottom-color: #2a3544;
 }
 
+body.dark-mode .pcad_servicos_item_titulo {
+    color: #dce7f2;
+}
+
+body.dark-mode .pcad_servicos_item_titulo strong {
+    color: #9ec8ef;
+}
+
+body.dark-mode .pcad_servicos_item_nome {
+    color: #b8c9da;
+}
+
 body.dark-mode .pcad_servicos_nome_alt {
     background: #1e2836;
     border-color: #3d4f63;
     color: #e8eef4;
+}
+
+body.dark-mode .pcad_servicos_nome_alt::placeholder {
+    color: #8aa0b4;
+    opacity: 1;
 }
 
 body.dark-mode .pcad_servicos_loading {
