@@ -216,7 +216,7 @@ const ConfigObservacoesPlanos = () => {
         return observacoes.filter((item) => {
             const procs = (item.codigosProcedimentos || [])
                 .map((c) => {
-                    const p = mapaProcedimentos.get(String(c))
+                    const p = mapaProcedimentos.get(normalizarCodigoProcedimento(c))
                     return `${c} ${p?.nome || ''}`
                 })
                 .join(' ')
