@@ -239,7 +239,6 @@ export default function PagamentosRegistro() {
     const [salvandoId, setSalvandoId] = useState('')
     const [erro, setErro] = useState('')
     const [info, setInfo] = useState('')
-    const [headerCompactProgress, setHeaderCompactProgress] = useState(0)
 
     const [filtroMesDe, setFiltroMesDe] = useState(MES_ATUAL)
     const [filtroAnoDe, setFiltroAnoDe] = useState(ANO_ATUAL)
@@ -382,30 +381,6 @@ export default function PagamentosRegistro() {
             return lista
         })
     }, [prestadores, loading, registros.length, podeEditar])
-
-    useEffect(() => {
-        let rafId = null
-
-        const onScroll = () => {
-            if (rafId) return
-
-            rafId = window.requestAnimationFrame(() => {
-                const progress = Math.min(Math.max(window.scrollY, 0) / 64, 1)
-                setHeaderCompactProgress((anterior) => {
-                    if (Math.abs(anterior - progress) < 0.01) return anterior
-                    return progress
-                })
-                rafId = null
-            })
-        }
-
-        onScroll()
-        window.addEventListener('scroll', onScroll, { passive: true })
-        return () => {
-            window.removeEventListener('scroll', onScroll)
-            if (rafId) window.cancelAnimationFrame(rafId)
-        }
-    }, [])
 
     const linhasFiltradas = useMemo(() => {
         const termo = normalizarTextoBusca(buscaNome)
@@ -1004,10 +979,7 @@ export default function PagamentosRegistro() {
                 title="Registro de pagamentos"
                 description="Filtre por competência e prestador, inclua registros e acompanhe respostas e pagamentos."
             />
-            <header
-                className="pag_reg_header"
-                style={{ '--compact-progress': headerCompactProgress }}
-            >
+            <header className="pag_reg_header">
                 <h2 className="pag_reg_filtros_titulo">Filtros</h2>
 
                 <div

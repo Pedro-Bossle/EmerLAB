@@ -13,43 +13,40 @@
 }
 
 .pag_reg_filtros_titulo {
-    font-size: calc(1.5rem - 0.2rem * var(--compact-progress, 0));
-    margin: 0 0 calc(8px - 8px * var(--compact-progress, 0)) 0;
-    opacity: calc(1 - 0.05 * var(--compact-progress, 0));
+    font-size: 1.5rem;
+    margin: 0 0 8px;
     color: var(--cinza-escuro);
     font-weight: 600;
-    transition: font-size 0.2s ease, margin 0.2s ease, opacity 0.2s ease;
 }
 
 .pag_reg_header {
-    --compact-progress: 0;
-    --header-sticky-rgb: 255, 255, 255;
     position: sticky;
     top: 0;
     z-index: 20;
     overflow: visible;
-    background: rgba(var(--header-sticky-rgb), calc(0.25 * var(--compact-progress)));
-    backdrop-filter: blur(calc(6px * var(--compact-progress)));
-    -webkit-backdrop-filter: blur(calc(6px * var(--compact-progress)));
-    padding: calc(8px - 4px * var(--compact-progress)) 0 calc(10px - 4px * var(--compact-progress)) 0;
-    box-shadow: 0 2px 10px rgba(30, 49, 72, calc(0.12 * var(--compact-progress)));
-    border-radius: 0;
-    transition: padding 0.2s ease, background-color 0.2s ease, backdrop-filter 0.2s ease;
+    margin-left: -1em;
+    margin-right: -1em;
+    padding: 8px 1em 10px;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 1px 0 rgba(30, 49, 72, 0.06);
 }
 
 .pag_reg_filtros_flutuantes {
     max-width: 1300px;
     width: calc(100% - 1.5em);
-    margin: calc(0.75em - 0.4em * var(--compact-progress, 0)) auto;
+    margin: 0.75em auto;
     box-sizing: border-box;
-    padding: calc(0.7em - 0.15em * var(--compact-progress, 0)) calc(0.9em + 0.2em * var(--compact-progress, 0));
+    padding: 0.7em 0.9em;
     background: #f8fbfd;
     border: 1px solid #d7e8f2;
     border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(30, 49, 72, calc(0.12 * var(--compact-progress, 0)));
+    box-shadow: 0 2px 10px rgba(30, 49, 72, 0.12);
     text-align: center;
-    overflow: visible;
-    transition: padding 0.2s ease, margin 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
 }
 
 .pag_reg_filtros_flutuantes--massa {
@@ -1012,7 +1009,10 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     }
 
     .pag_reg_header {
-        padding: 0 0 2px;
+        margin-left: calc(-1 * max(0.55rem, env(safe-area-inset-left)));
+        margin-right: calc(-1 * max(0.55rem, env(safe-area-inset-right)));
+        padding: 6px max(0.55rem, env(safe-area-inset-right)) 8px max(0.55rem, env(safe-area-inset-left));
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
     }
 
     .pag_reg_filtros_titulo {
@@ -1023,7 +1023,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
         width: 100%;
         max-width: 100%;
         margin: 0 0 0.45rem;
-        padding: 0.38em 0.42em;
+        padding: 0.5em 0.55em;
         border-radius: 10px;
         box-shadow: 0 1px 4px rgba(30, 49, 72, 0.07);
         text-align: left;
@@ -1064,7 +1064,15 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     }
 
     .pag_reg_filtro--intervalo > span {
-        display: none;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
     }
 
     .pag_reg_filtro--grow {
@@ -1563,7 +1571,14 @@ body.dark-mode .pag_reg_resumo_massa_head {
 }
 
 body.dark-mode .pag_reg_header {
-    --header-sticky-rgb: 14, 27, 42;
+    background: rgba(14, 27, 42, 0.92);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .pag_reg_filtros_flutuantes {
+    background: #132335;
+    border-color: #355372;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
 }
 
 body.dark-mode .pag_reg_resumo_massa {
@@ -1584,6 +1599,16 @@ body.dark-mode .pag_reg_input_month {
     color: #dce7f2;
     border-color: #355372;
     color-scheme: dark;
+}
+
+body.dark-mode .pag_reg_input_month::-webkit-calendar-picker-indicator {
+    filter: invert(0.9);
+    opacity: 0.85;
+    cursor: pointer;
+}
+
+body.dark-mode .pag_reg_competencia_de_ate_label {
+    color: #9ec8f0;
 }
 
 body.dark-mode .pag_reg_btn--sec,
