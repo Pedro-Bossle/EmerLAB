@@ -1,4 +1,5 @@
 import { PDFDocument, rgb } from 'pdf-lib'
+import { blobDePdfLib } from '../pdf/serializarPdf.js'
 import { embedMontserratNoPdf } from '../impressaoPlanos/montserratPdfFonts.js'
 import { formatarCarimboDataHora } from '../pdf/formatarCarimboEmissao.js'
 import { nomeGrupoBeneficioVisivel } from '../credenciamento/prestadorBeneficios.js'
@@ -548,7 +549,7 @@ export async function gerarImpressaoDescontosPdf(opts) {
         desenharCarimbo(pageInfo, fonts, width, carimboEsq)
     }
 
-    return new Blob([await finalDoc.save()], { type: 'application/pdf' })
+    return blobDePdfLib(finalDoc)
 }
 
 export function downloadImpressaoDescontosPdf(blob, prestadorNome) {

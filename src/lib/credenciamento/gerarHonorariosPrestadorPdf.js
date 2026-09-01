@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf'
+import { OPCOES_JSPDF_A4 } from '../pdf/serializarPdf.js'
 import autoTable from 'jspdf-autotable'
 import { carregarLogoPdfEmerdog, sanitizarNomeArquivoPdf } from '../contratos/pdf/gerarContratoPdf.js'
 
@@ -28,7 +29,7 @@ function cidadeCabecalhoPdf(cidadeTabelaLabel) {
  * @param {{ prestadorNome: string, prestadorId?: number|null, fonte: string, categorias: Array<{ nome: string, linhas: Array<{ checked: boolean, codigo: string, nome: string, P: string, M: string, G: string }> }> }} opts
  */
 export async function gerarHonorariosPrestadorPdf(opts) {
-    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
+    const doc = new jsPDF({ ...OPCOES_JSPDF_A4 })
     const logo = await carregarLogoPdfEmerdog()
     let y = MM_MARGIN
 

@@ -3,6 +3,7 @@ import path from 'node:path'
 import chromium from '@sparticuz/chromium'
 import puppeteerCore from 'puppeteer-core'
 import { PDFDocument } from 'pdf-lib'
+import { bytesDePdfLib } from '../src/lib/pdf/serializarPdf.js'
 import { createClient } from '@supabase/supabase-js'
 import { config as dotenvConfig } from 'dotenv'
 import { aguardarImagensIcones, ajustarFontesTextosRc, carregarIconesRcParaHtml } from '../src/lib/rc/rcPdfIcones.js'
@@ -349,7 +350,7 @@ const gerarPdfBuffer = async (cidadesSelecionadas) => {
 
     await aplicarCarimboRcDocumento(finalDoc, { cidades: cidadesSelecionadas })
 
-    return Buffer.from(await finalDoc.save())
+    return Buffer.from(await bytesDePdfLib(finalDoc))
 }
 
 export default async function handler(req, res) {

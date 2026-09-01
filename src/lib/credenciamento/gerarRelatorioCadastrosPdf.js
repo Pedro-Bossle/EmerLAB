@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf'
+import { OPCOES_JSPDF_A4 } from '../pdf/serializarPdf.js'
 import autoTable from 'jspdf-autotable'
 import { idsEspecialidadesPrestador } from './especialidadesPorCidade.js'
 import {
@@ -943,7 +944,7 @@ function desenharGraficoCredenciadosPorMes(doc, serieOuPack, opts = {}) {
 export async function gerarRelatorioCadastrosPdf(opts) {
     const layout = normalizarLayoutRelatorioCadastros(opts.layout)
     const idsColunas = colunasTabelaRelatorioAtivas(layout)
-    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
+    const doc = new jsPDF({ ...OPCOES_JSPDF_A4 })
     const logo = await carregarLogoPdfEmerdog()
     let y = MM_MARGIN
     const rightX = PAGE_W - MM_MARGIN

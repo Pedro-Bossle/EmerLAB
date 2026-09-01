@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf'
+import { OPCOES_JSPDF_A4 } from '../../pdf/serializarPdf.js'
 import autoTable from 'jspdf-autotable'
 import logoAzulUrl from '../../../assets/logo_azul_escuro.png'
 import { getLinhas } from './linhasIndex.js'
@@ -186,7 +187,7 @@ function desenharSegmentosQuebrados(doc, line, yInicio, maxY) {
  * @returns {Promise<Blob>}
  */
 export async function gerarPdfBlob(tipo, dados) {
-    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
+    const doc = new jsPDF({ ...OPCOES_JSPDF_A4 })
     const linhas = getLinhas(tipo, dados)
     const logo = await carregarLogoPdfEmerdog()
 

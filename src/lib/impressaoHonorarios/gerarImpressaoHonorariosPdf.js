@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, PDFString } from 'pdf-lib'
+import { blobDePdfLib } from '../pdf/serializarPdf.js'
 import { embedMontserratNoPdf } from '../impressaoPlanos/montserratPdfFonts.js'
 import { formatarCarimboDataHora } from '../pdf/formatarCarimboEmissao.js'
 import urlEstetoscopioSvg from '../../assets/planos/estetoscopio.svg?url'
@@ -1129,7 +1130,7 @@ export async function gerarImpressaoHonorariosPdf(opts) {
         finalDoc.addPage(obs)
     }
 
-    return new Blob([await finalDoc.save()], { type: 'application/pdf' })
+    return blobDePdfLib(finalDoc)
 }
 
 export function downloadImpressaoHonorariosPdf(blob, nomeArquivoBase) {

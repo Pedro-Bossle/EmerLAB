@@ -1,4 +1,5 @@
 import { PDFDocument, rgb } from 'pdf-lib'
+import { blobDePdfLib } from '../pdf/serializarPdf.js'
 import { procedimentoIsentoLimiteGrupo } from '../categoriaLimitesGrupo.js'
 import { embedMontserratNoPdf } from './montserratPdfFonts.js'
 import { formatarCarimboDataHora } from '../pdf/formatarCarimboEmissao.js'
@@ -664,7 +665,7 @@ export async function gerarImpressaoPlanosPdf(opts) {
         }
     }
 
-    return new Blob([await finalDoc.save()], { type: 'application/pdf' })
+    return blobDePdfLib(finalDoc)
 }
 
 export function downloadImpressaoPlanosPdf(blob, planoNome, cidadeNome) {
