@@ -642,7 +642,6 @@ export function completarAclFerramentasCredenciamento(perms) {
     }
     if (!p[kObsCreate] || !p[kObsUpdate] || !p[kObsDelete]) {
         if (
-            p[kObsRead] ||
             hasAcl(p, 'configuracoes.importar_credenciados', 'update') ||
             p[L.CREDENCIAMENTO_EDIT]
         ) {
@@ -670,8 +669,8 @@ export function completarAclFerramentasCredenciamento(perms) {
     }
     if (!p[kObsPlCreate] || !p[kObsPlUpdate] || !p[kObsPlDelete]) {
         if (
-            p[kObsPlRead] ||
             hasAcl(p, 'configuracoes.observacoes_honorarios', 'update') ||
+            hasAcl(p, 'configuracoes.importar_credenciados', 'update') ||
             p[L.CREDENCIAMENTO_EDIT]
         ) {
             p[kObsPlRead] = true

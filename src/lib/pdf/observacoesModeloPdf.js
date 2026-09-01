@@ -191,7 +191,7 @@ function medirItemObservacaoModelo(item, fonts, larguraMax) {
         }
         firstConsumed = true
         if (!linha.segmentos.length) {
-            h += corpoLead * 0.6
+            h += corpoLead
             continue
         }
         const wrapped = quebrarSegmentosEmLinhas(linha.segmentos, fonts, FONT_SIZE_OBS, avail)

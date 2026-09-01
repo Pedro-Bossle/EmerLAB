@@ -24,6 +24,19 @@ function isMissingTituloColumnError(error) {
     return msg.includes('titulo') && (msg.includes('column') || msg.includes('schema cache'))
 }
 
+function isMissingRpcSalvarObservacaoError(error) {
+    const msg = String(error?.message || error?.details || '').toLowerCase()
+    const code = String(error?.code || '')
+    return (
+        code === 'PGRST202' ||
+        code === '42883' ||
+        (msg.includes('function') && msg.includes('does not exist'))
+    )
+}
+
+const ERRO_MIGRACAO_TITULO_PLANOS =
+    'Coluna titulo ausente na tabela de observações. Execute scripts/sql/planos_observacoes.sql no Supabase (migração do título).'
+
 /**
  * Códigos marcados na impressão de planos (respeita checked / apenasLoja / selecionavel).
  * @param {Array<{ linhas?: object[] }>} categorias
@@ -135,6 +148,32 @@ export async function salvarPlanosObservacao(payload) {
     const ordem = Number.isFinite(Number(payload?.ordem)) ? Number(payload.ordem) : 0
     const agora = new Date().toISOString()
 
+    const { data: rpcId, error: rpcError } = await supabase.rpc('salvar_planos_observacao_com_vinculos', {
+        p_id: idExistente,
+        p_titulo: titulo,
+        p_mensagem: mensagem,
+        p_ativa: ativa,
+        p_ordem: ordem,
+        p_codigos: codigos,
+    })
+    if (!rpcError && rpcId != null) {
+        return { ok: true, id: Number(rpcId) }
+    }
+    if (rpcError && !isMissingRpcSalvarObservacaoError(rpcError)) {
+        if (isMissingTableError(rpcError)) {
+            return {
+                ok: false,
+                missingTable: true,
+                erro:
+                    'Tabelas de observações ainda não existem. Execute scripts/sql/planos_observacoes.sql no Supabase.',
+            }
+        }
+        if (isMissingTituloColumnError(rpcError)) {
+            return { ok: false, erro: ERRO_MIGRACAO_TITULO_PLANOS }
+        }
+        return { ok: false, erro: rpcError.message || 'Erro ao salvar observação.' }
+    }
+
     let observacaoId = idExistente
     const rowBase = { mensagem, ativa, ordem, updated_at: agora, titulo }
 
@@ -145,11 +184,7 @@ export async function salvarPlanosObservacao(payload) {
             .eq('id', idExistente)
             .select('id')
         if (error && isMissingTituloColumnError(error)) {
-            ;({ data: updated, error } = await supabase
-                .from('planos_observacoes')
-                .update({ mensagem, ativa, ordem, updated_at: agora })
-                .eq('id', idExistente)
-                .select('id'))
+            return { ok: false, erro: ERRO_MIGRACAO_TITULO_PLANOS }
         }
         if (error) {
             if (isMissingTableError(error)) {
@@ -175,11 +210,7 @@ export async function salvarPlanosObservacao(payload) {
             .select('id')
             .single()
         if (error && isMissingTituloColumnError(error)) {
-            ;({ data, error } = await supabase
-                .from('planos_observacoes')
-                .insert({ mensagem, ativa, ordem, updated_at: agora })
-                .select('id')
-                .single())
+            return { ok: false, erro: ERRO_MIGRACAO_TITULO_PLANOS }
         }
         if (error) {
             if (isMissingTableError(error)) {
@@ -193,6 +224,15 @@ export async function salvarPlanosObservacao(payload) {
             return { ok: false, erro: error.message || 'Erro ao criar observação.' }
         }
         observacaoId = Number(data.id)
+    }
+
+    let vinculosAntigos = []
+    if (observacaoId) {
+        const { data: antigos } = await supabase
+            .from('planos_observacoes_procedimentos')
+            .select('procedimento_codigo')
+            .eq('observacao_id', observacaoId)
+        vinculosAntigos = (antigos || []).map((v) => v.procedimento_codigo).filter(Boolean)
     }
 
     const { error: errDel } = await supabase
@@ -209,6 +249,14 @@ export async function salvarPlanosObservacao(payload) {
     }))
     const { error: errIns } = await supabase.from('planos_observacoes_procedimentos').insert(rows)
     if (errIns) {
+        if (vinculosAntigos.length) {
+            await supabase.from('planos_observacoes_procedimentos').insert(
+                vinculosAntigos.map((procedimento_codigo) => ({
+                    observacao_id: observacaoId,
+                    procedimento_codigo,
+                })),
+            )
+        }
         return { ok: false, erro: errIns.message || 'Erro ao vincular procedimentos.' }
     }
 
