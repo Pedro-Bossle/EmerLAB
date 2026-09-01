@@ -662,17 +662,15 @@
 }
 
 .pag_reg_table_wrap {
-    overflow: auto;
+    overflow-x: auto;
     width: 100%;
     max-width: none;
-    max-height: min(70vh, calc(100dvh - 16rem));
     margin: 0;
     border-radius: 10px;
     border: 1px solid #dbe9f2;
     box-shadow: 0 1px 8px rgba(30, 49, 72, 0.06);
     position: relative;
     z-index: 0;
-    -webkit-overflow-scrolling: touch;
 }
 
 /* Campos de prestador: nunca acima da sidebar (420) / FAB (430) / DevTools */
