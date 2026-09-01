@@ -14,6 +14,7 @@ import {
     downloadImpressaoPlanosPdf,
     gerarImpressaoPlanosPdf,
 } from '../../../lib/impressaoPlanos/gerarImpressaoPlanosPdf.js'
+import { resolverMensagensObservacoesPorCategorias } from '../../../lib/impressaoPlanos/planosObservacoes.js'
 import { MIN_REALIZADORES_PRE_MARCAR } from '../../../lib/impressaoPlanos/mapaRealizadoresRegiao.js'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
@@ -364,9 +365,11 @@ export default function ImpressaoPlanos() {
         setGerandoPdf(true)
         setErro('')
         try {
+            const observacoes = await resolverMensagensObservacoesPorCategorias(categorias)
             const blob = await gerarImpressaoPlanosPdf({
                 pdfUrl: meta.pdfUrl,
                 categorias,
+                observacoes,
             })
             downloadImpressaoPlanosPdf(blob, meta.planoNome, meta.cidadeNome)
         } catch (e) {

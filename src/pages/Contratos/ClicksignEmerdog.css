@@ -1366,6 +1366,52 @@ body.dark-mode .cs_list_toolbar .contratos_btn_secondary:hover:not(:disabled) {
     color: #a8d4f5;
 }
 
+body.dark-mode .clicksign_lista_paginacao {
+    background: #132335;
+    border-color: #355372;
+}
+
+body.dark-mode .clicksign_lista_paginacao_info,
+body.dark-mode .clicksign_lista_paginacao_page {
+    color: #b8cfe0;
+}
+
+body.dark-mode .clicksign_lista_paginacao_info strong {
+    color: #eaf2fa;
+}
+
+body.dark-mode .clicksign_lista_paginacao_label {
+    color: #9ec8f0;
+}
+
+body.dark-mode .clicksign_lista_paginacao_label .contratos_select {
+    background: #0f1e2e;
+    border-color: #355372;
+    color: #dce7f2;
+    color-scheme: dark;
+}
+
+body.dark-mode .clicksign_lista_paginacao_controles .contratos_btn_secondary {
+    background: #243547;
+    border-color: #3d5266;
+    color: #e7f4fc;
+}
+
+body.dark-mode .clicksign_lista_paginacao_controles .contratos_btn_secondary:hover:not(:disabled) {
+    background: #2a4258;
+    border-color: #7eb8e8;
+    color: #a8d4f5;
+}
+
+body.dark-mode .clicksign_lista_paginacao_controles .contratos_btn_secondary:disabled {
+    opacity: 0.5;
+    color: #8aa8c0;
+}
+
+body.dark-mode .clicksign_pagination_info {
+    color: #b8cfe0;
+}
+
 body.dark-mode .cs_dash_subtab {
     color: #9fb4c8;
 }

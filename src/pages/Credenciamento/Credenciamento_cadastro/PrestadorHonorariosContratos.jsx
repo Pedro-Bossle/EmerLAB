@@ -4,6 +4,7 @@ import {
     downloadImpressaoHonorariosPdf,
     gerarImpressaoHonorariosPdf,
 } from '../../../lib/impressaoHonorarios/gerarImpressaoHonorariosPdf.js'
+import { resolverMensagensObservacoesPorSecoes } from '../../../lib/impressaoHonorarios/honorariosObservacoes.js'
 import {
     buildPayloadContratoFromPrestadorForm,
     tipoPdfContratoFromModelo,
@@ -189,6 +190,7 @@ export default function PrestadorHonorariosContratos({
                 secoes,
                 cidadeNome,
                 prestadorNome,
+                observacoes: await resolverMensagensObservacoesPorSecoes(secoes),
             })
             downloadImpressaoHonorariosPdf(blob, prestadorNome || cidadeNome)
         } catch (e) {

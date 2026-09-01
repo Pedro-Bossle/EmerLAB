@@ -1,5 +1,5 @@
 .pag_reg {
-    margin: 0 2.5em 2.5em;
+    margin: 0 1em 2em;
     color: var(--cinza-escuro);
     box-sizing: border-box;
     text-align: center;
@@ -489,8 +489,21 @@
 }
 
 .pag_reg_resumo_nome_principal {
-    display: block;
     line-height: 1.35;
+}
+
+.pag_reg_resumo_nome_linha {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.45rem;
+    align-items: baseline;
+    line-height: 1.35;
+}
+
+.pag_reg_resumo_nome_colado {
+    font-size: 0.88em;
+    font-weight: 500;
+    color: #5c6370;
 }
 
 .pag_reg_resumo_col_vinculo {
@@ -649,15 +662,17 @@
 }
 
 .pag_reg_table_wrap {
-    overflow-x: auto;
+    overflow: auto;
     width: 100%;
     max-width: none;
+    max-height: min(70vh, calc(100dvh - 16rem));
     margin: 0;
     border-radius: 10px;
     border: 1px solid #dbe9f2;
     box-shadow: 0 1px 8px rgba(30, 49, 72, 0.06);
     position: relative;
     z-index: 0;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Campos de prestador: nunca acima da sidebar (420) / FAB (430) / DevTools */
@@ -675,8 +690,16 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
 .pag_reg_table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 960px;
+    min-width: 920px;
     table-layout: fixed;
+}
+
+.pag_reg_table--sem_mes .pag_reg_col_mes {
+    display: none;
+}
+
+.pag_reg_table--sem_mes .pag_reg_col_prestador {
+    width: 32%;
 }
 
 .pag_reg_col_mes {
@@ -687,14 +710,14 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
 }
 
 .pag_reg_col_prestador {
-    width: 9rem;
-    max-width: 9rem;
+    width: 28%;
+    min-width: 14rem;
     overflow: hidden;
 }
 
 .pag_reg_table td.pag_reg_col_prestador {
     overflow: hidden;
-    max-width: 9rem;
+    max-width: none;
 }
 
 .pag_reg_col_tipo {
@@ -705,12 +728,20 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
 }
 
 .pag_reg_col_pix {
-    width: 19%;
-    min-width: 9.5rem;
+    width: 11%;
+    max-width: 11rem;
+    min-width: 6rem;
 }
 
 .pag_reg_col_valor {
-    width: 4.75rem;
+    width: 7rem;
+    min-width: 6.5rem;
+}
+
+.pag_reg_table td.pag_reg_col_valor,
+.pag_reg_col_valor {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
 }
 
 .pag_reg_col_chk {
@@ -735,6 +766,9 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
 }
 
 .pag_reg_table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
     background: var(--azul-escuro);
     color: #fff;
     font-size: 0.78rem;
@@ -743,6 +777,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     text-align: center;
     vertical-align: middle;
     white-space: nowrap;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
 }
 
 .pag_reg_table thead th.pag_reg_col_prestador,
@@ -1492,6 +1527,23 @@ body.dark-mode .pag_reg_resumo_badge--aviso {
     color: #e8d49a;
 }
 
+body.dark-mode .pag_reg_resumo_nome_colado {
+    color: #9eb4c8;
+    font-weight: 500;
+}
+
+body.dark-mode .pag_reg_resumo_nome_principal {
+    color: #eaf2fa;
+}
+
+body.dark-mode .pag_reg_resumo_col_comp {
+    color: #8aa8c0;
+}
+
+body.dark-mode .pag_reg_resumo_vinculo_ok {
+    color: #6a8499;
+}
+
 body.dark-mode .pag_reg_resumo_col_linha {
     color: #8aa8c0;
 }
@@ -1521,7 +1573,9 @@ body.dark-mode .pag_reg_header {
 }
 
 body.dark-mode .pag_reg_resumo_massa {
-    border-color: var(--border-soft);
+    background: #132335;
+    border-color: #355372;
+    color: #dce7f2;
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
 }
 
@@ -1569,6 +1623,7 @@ body.dark-mode .pag_reg_table_wrap {
 body.dark-mode .pag_reg_table thead th {
     background: #1e3a52;
     color: #eaf2fa;
+    box-shadow: 0 1px 0 #355372;
 }
 
 body.dark-mode .pag_reg_table tbody tr {

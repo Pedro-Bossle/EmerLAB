@@ -297,6 +297,13 @@ export default function PagamentosRegistro() {
         [filtroMesDe, filtroAnoDe, filtroMesAte, filtroAnoAte],
     )
 
+    const ocultarColunaMes = useMemo(() => {
+        const { de, ate } = intervaloFiltroCompetencia
+        return Number(de.mes) === Number(ate.mes) && Number(de.ano) === Number(ate.ano)
+    }, [intervaloFiltroCompetencia])
+
+    const colSpanTabelaVazia = (podeEditar ? 10 : 9) - (ocultarColunaMes ? 1 : 0)
+
     const competenciaNovaLinha = useMemo(() => {
         const { de, ate } = intervaloFiltroCompetencia
         if (registroNoIntervaloCompetencia({ mes: MES_ATUAL, ano: ANO_ATUAL }, intervaloFiltroCompetencia)) {
@@ -1239,8 +1246,20 @@ export default function PagamentosRegistro() {
                                                 <td className="pag_reg_resumo_col_comp">
                                                     {rotuloMesAnoCurto(a.mes, a.ano)}
                                                 </td>
-                                                <td className="pag_reg_resumo_col_nome" title={a.nomeColado || a.nome}>
-                                                    <span className="pag_reg_resumo_nome_principal">{a.nome}</span>
+                                                <td className="pag_reg_resumo_col_nome">
+                                                    <div className="pag_reg_resumo_nome_linha">
+                                                        <span className="pag_reg_resumo_nome_principal">
+                                                            {a.semCadastro ? a.nomeColado || a.nome : a.nome}
+                                                        </span>
+                                                        {!a.semCadastro && String(a.nomeColado || '').trim() ? (
+                                                            <span
+                                                                className="pag_reg_resumo_nome_colado"
+                                                                title="Nome na mensagem colada"
+                                                            >
+                                                                ({a.nomeColado})
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
                                                 </td>
                                                 <td className="pag_reg_resumo_col_valor">
                                                     {a.valor != null ? formatarValorMonetarioBr(a.valor) : '—'}
@@ -1404,7 +1423,14 @@ export default function PagamentosRegistro() {
             ) : (
                 <>
                     <div className="pag_reg_table_wrap overflow-x-auto">
-                        <table className="pag_reg_table">
+                        <table
+                            className={[
+                                'pag_reg_table',
+                                ocultarColunaMes ? 'pag_reg_table--sem_mes' : '',
+                            ]
+                                .filter(Boolean)
+                                .join(' ')}
+                        >
                             <thead>
                                 <tr>
                                     <th className="pag_reg_col_mes">
@@ -1458,7 +1484,7 @@ export default function PagamentosRegistro() {
                             <tbody>
                                 {linhasFiltradas.length === 0 && (
                                     <tr>
-                                        <td colSpan={podeEditar ? 10 : 9} className="pag_reg_empty">
+                                        <td colSpan={colSpanTabelaVazia} className="pag_reg_empty">
                                             Nenhum registro no intervalo De–Até selecionado.
                                         </td>
                                     </tr>

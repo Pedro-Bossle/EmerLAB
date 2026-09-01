@@ -78,6 +78,16 @@ export const CONFIG_TOOLS = [
     href: '/configuracoes/conferencia-laboratorio',
     permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
   },
+  {
+    label: 'Observações (Honorários)',
+    href: '/configuracoes/observacoes-honorarios',
+    permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+  },
+  {
+    label: 'Observações (Planos)',
+    href: '/configuracoes/observacoes-planos',
+    permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+  },
 ]
 
 /** Ações de sessão — Encerrar deve ficar sempre no fim do menu Mais (mobile). */
