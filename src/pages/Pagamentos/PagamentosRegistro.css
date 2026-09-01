@@ -764,9 +764,6 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
 }
 
 .pag_reg_table thead th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
     background: var(--azul-escuro);
     color: #fff;
     font-size: 0.78rem;
@@ -775,7 +772,6 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     text-align: center;
     vertical-align: middle;
     white-space: nowrap;
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
 }
 
 .pag_reg_table thead th.pag_reg_col_prestador,
@@ -1621,7 +1617,6 @@ body.dark-mode .pag_reg_table_wrap {
 body.dark-mode .pag_reg_table thead th {
     background: #1e3a52;
     color: #eaf2fa;
-    box-shadow: 0 1px 0 #355372;
 }
 
 body.dark-mode .pag_reg_table tbody tr {
