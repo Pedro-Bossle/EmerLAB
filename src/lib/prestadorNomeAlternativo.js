@@ -12,28 +12,31 @@ const normalizarCodigo = (cod) =>
         .trim()
         .toUpperCase()
 
-/** `negociacoes_vet.veterinario_id` é `veterinarios.id`, não `prestadores.id`. */
+/**
+ * `negociacoes_vet.veterinario_id` é `veterinarios.id`, nunca `prestadores.id`.
+ * Incluir o id do cadastro (ou `veterinarios.id = prestadorId`) mistura tabelas:
+ * prestador 82 (Dra. Natália Mello) puxava a negociação do veterinário 82 (Coisa de Bicho / prestador 25).
+ */
+export function coletarIdsVeterinariosVinculados(rows) {
+    const ids = new Set()
+    for (const v of rows || []) {
+        const id = Number(v?.id)
+        if (Number.isFinite(id) && id > 0) ids.add(id)
+    }
+    return [...ids]
+}
+
 export async function resolverVeterinarioIdsParaPrestador(prestadorId) {
     const pid = normalizarPrestadorIdParaQuery(prestadorId)
     if (pid == null) return []
-    const ids = new Set([pid])
 
-    const { data: porPrestador } = await supabase
+    const { data: porPrestador, error } = await supabase
         .from('veterinarios')
         .select('id')
         .eq('prestador_id', pid)
-    ;(porPrestador || []).forEach((v) => {
-        const id = Number(v.id)
-        if (Number.isFinite(id)) ids.add(id)
-    })
+    if (error) throw new Error(error.message)
 
-    const { data: porId } = await supabase.from('veterinarios').select('id').eq('id', pid).maybeSingle()
-    if (porId?.id != null) {
-        const id = Number(porId.id)
-        if (Number.isFinite(id)) ids.add(id)
-    }
-
-    return [...ids]
+    return coletarIdsVeterinariosVinculados(porPrestador)
 }
 
 async function mapaCodigoPorProcedimentoId(ids) {
