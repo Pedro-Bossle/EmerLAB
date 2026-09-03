@@ -40,6 +40,7 @@ async function carregarProcedimentosPorCodigos(codigos) {
     return rows
 }
 
+/** Negociação só pelos veterinarios com prestador_id = cadastro (nunca pelo id do prestador). */
 async function temNegociacaoVet(prestadorId) {
     if (!prestadorId) return false
     const vetIds = await resolverVeterinarioIdsParaPrestador(prestadorId)

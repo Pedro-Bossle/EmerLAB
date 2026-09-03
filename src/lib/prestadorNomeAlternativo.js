@@ -14,14 +14,19 @@ const normalizarCodigo = (cod) =>
 
 /**
  * `negociacoes_vet.veterinario_id` é `veterinarios.id`, nunca `prestadores.id`.
- * Incluir o id do cadastro (ou `veterinarios.id = prestadorId`) mistura tabelas:
- * prestador 82 (Dra. Natália Mello) puxava a negociação do veterinário 82 (Coisa de Bicho / prestador 25).
+ *
+ * Números coincidem (ex.: cadastro 82 vs veterinário 82 “Coisa de Bicho” ligado ao 25).
+ * Nunca usar `veterinarios.id = prestadores.id` nem incluir o id do cadastro na busca.
  */
-export function coletarIdsVeterinariosVinculados(rows) {
+export function coletarIdsVeterinariosVinculados(rows, prestadorId = null) {
+    const pid = Number(prestadorId)
+    const exigirDono = Number.isFinite(pid) && pid > 0
     const ids = new Set()
     for (const v of rows || []) {
         const id = Number(v?.id)
-        if (Number.isFinite(id) && id > 0) ids.add(id)
+        if (!Number.isFinite(id) || id <= 0) continue
+        if (exigirDono && Number(v?.prestador_id) !== pid) continue
+        ids.add(id)
     }
     return [...ids]
 }
@@ -32,11 +37,17 @@ export async function resolverVeterinarioIdsParaPrestador(prestadorId) {
 
     const { data: porPrestador, error } = await supabase
         .from('veterinarios')
-        .select('id')
+        .select('id, prestador_id')
         .eq('prestador_id', pid)
-    if (error) throw new Error(error.message)
+    if (error) {
+        const msg = String(error.message || '')
+        if (/prestador_id|column/i.test(msg)) {
+            return []
+        }
+        throw new Error(error.message)
+    }
 
-    return coletarIdsVeterinariosVinculados(porPrestador)
+    return coletarIdsVeterinariosVinculados(porPrestador, pid)
 }
 
 async function mapaCodigoPorProcedimentoId(ids) {
