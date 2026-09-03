@@ -604,6 +604,7 @@ const CredenciamentoCadastroLista = () => {
                 mapaNomeUsuarioPorId,
                 mapaUsuarioIdPorPrestadorId,
                 mapaUsuarioIdPorPrestadorSituacao,
+                mapaDataHoraPorPrestadorSituacao,
             } = await carregarContextoUsuariosRelatorioCadastros(supabase, { situacoes })
 
             const linhasPdf = montarLinhasRelatorioCadastros({
@@ -620,6 +621,7 @@ const CredenciamentoCadastroLista = () => {
                 mapaNomeUsuarioPorId,
                 mapaUsuarioIdPorPrestadorId,
                 mapaUsuarioIdPorPrestadorSituacao,
+                mapaDataHoraPorPrestadorSituacao,
             })
 
             if (!linhasPdf.length) {
@@ -638,7 +640,7 @@ const CredenciamentoCadastroLista = () => {
                     : `${nomesSit.slice(0, 2).join(', ')} +${nomesSit.length - 2}`
             const periodoLabel = formatarPeriodoYmdPtBr(periodoDe, periodoAte)
             const partesSub = [
-                `Período (Credenciado Em): ${periodoLabel}`,
+                `Período: ${periodoLabel}`,
                 `${linhasPdf.length} registro(s)`,
                 `Situação(ões): ${sitLabel}`,
             ]

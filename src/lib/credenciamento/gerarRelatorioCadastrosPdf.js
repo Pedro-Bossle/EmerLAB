@@ -62,13 +62,29 @@ export function dataNoPeriodoYmd(iso, deYmd, ateYmd) {
 
 /**
  * Data usada no filtro de período do relatório:
- * credenciados → `credenciado_em`; demais situações → `data_cadastro` (fallback `data_atualizacao`).
+ * - credenciados → `credenciado_em`
+ * - demais → data da auditoria em que entrou na situação atual (se houver),
+ *   senão `data_atualizacao`, senão `data_cadastro`
+ *
+ * @param {object} prestador
+ * @param {object[]} situacoes
+ * @param {Map<string, string>|null} [mapaDataHoraPorPrestadorSituacao] chave `${prestadorId}|${situacaoId}` → ISO
  */
-export function isoReferenciaPeriodoRelatorioCadastros(prestador, situacoes = []) {
+export function isoReferenciaPeriodoRelatorioCadastros(
+    prestador,
+    situacoes = [],
+    mapaDataHoraPorPrestadorSituacao = null,
+) {
     if (prestadorEhCredenciado(prestador, situacoes) && prestador?.credenciado_em) {
         return prestador.credenciado_em
     }
-    return prestador?.data_cadastro || prestador?.data_atualizacao || ''
+    const pid = Number(prestador?.id)
+    const sid = Number(prestador?.situacao_id)
+    if (mapaDataHoraPorPrestadorSituacao instanceof Map && pid && sid) {
+        const isoAudit = mapaDataHoraPorPrestadorSituacao.get(`${pid}|${sid}`)
+        if (isoAudit) return isoAudit
+    }
+    return prestador?.data_atualizacao || prestador?.data_cadastro || ''
 }
 
 export function formatarPeriodoYmdPtBr(deYmd, ateYmd) {
@@ -171,14 +187,16 @@ export function auditLogNovaSituacaoId(log) {
 }
 
 /**
- * Quem alterou a situação (audit_logs / prestadores).
+ * Quem alterou a situação (audit_logs / prestadores) e quando.
  * - `mapaUsuarioIdPorPrestadorSituacao`: chave `${prestadorId}|${situacaoId}` → último usuário que definiu essa situação.
  * - `mapaUsuarioIdPorPrestadorId`: última mudança de situação por prestador (qualquer situação).
+ * - `mapaDataHoraPorPrestadorSituacao`: chave `${prestadorId}|${situacaoId}` → ISO da última entrada nessa situação.
  */
 export function mapaUsuarioAlteracaoSituacaoViaAuditoria(logs = []) {
     const mapaUsuarioIdPorPrestadorSituacao = new Map()
     const mapaUsuarioIdPorPrestadorId = new Map()
     const mapaNomeUsuarioPorId = new Map()
+    const mapaDataHoraPorPrestadorSituacao = new Map()
 
     const ordenados = [...(logs || [])].sort((a, b) => {
         const ta = new Date(a.data_hora || 0).getTime()
@@ -188,15 +206,22 @@ export function mapaUsuarioAlteracaoSituacaoViaAuditoria(logs = []) {
 
     for (const log of ordenados) {
         const pid = Number(log.registro_id)
-        const uid = log.usuario_id ? String(log.usuario_id).trim() : ''
-        if (!pid || !uid) continue
-        const nome = log.usuario_nome
-        if (nome) mapaNomeUsuarioPorId.set(uid, String(nome).trim())
+        if (!pid) continue
 
         const sidNovo = auditLogNovaSituacaoId(log)
         if (sidNovo == null) continue
 
         const chave = `${pid}|${sidNovo}`
+        const iso = log.data_hora ? String(log.data_hora) : ''
+        if (iso && !mapaDataHoraPorPrestadorSituacao.has(chave)) {
+            mapaDataHoraPorPrestadorSituacao.set(chave, iso)
+        }
+
+        const uid = log.usuario_id ? String(log.usuario_id).trim() : ''
+        if (!uid) continue
+        const nome = log.usuario_nome
+        if (nome) mapaNomeUsuarioPorId.set(uid, String(nome).trim())
+
         if (!mapaUsuarioIdPorPrestadorSituacao.has(chave)) {
             mapaUsuarioIdPorPrestadorSituacao.set(chave, uid)
         }
@@ -205,7 +230,12 @@ export function mapaUsuarioAlteracaoSituacaoViaAuditoria(logs = []) {
         }
     }
 
-    return { mapaUsuarioIdPorPrestadorSituacao, mapaUsuarioIdPorPrestadorId, mapaNomeUsuarioPorId }
+    return {
+        mapaUsuarioIdPorPrestadorSituacao,
+        mapaUsuarioIdPorPrestadorId,
+        mapaNomeUsuarioPorId,
+        mapaDataHoraPorPrestadorSituacao,
+    }
 }
 
 /** @deprecated Use mapaUsuarioAlteracaoSituacaoViaAuditoria — mantido para testes legados. */
@@ -306,6 +336,7 @@ async function buscarLogsAuditoriaPrestadores(supabaseClient) {
  *   mapaNomeUsuarioPorId: Map<string, string>,
  *   mapaUsuarioIdPorPrestadorId: Map<number, string>,
  *   mapaUsuarioIdPorPrestadorSituacao: Map<string, string>,
+ *   mapaDataHoraPorPrestadorSituacao: Map<string, string>,
  * }>}
  */
 export async function carregarContextoUsuariosRelatorioCadastros(
@@ -315,6 +346,7 @@ export async function carregarContextoUsuariosRelatorioCadastros(
     const mapaNomeUsuarioPorId = new Map()
     const mapaUsuarioIdPorPrestadorId = new Map()
     const mapaUsuarioIdPorPrestadorSituacao = new Map()
+    const mapaDataHoraPorPrestadorSituacao = new Map()
 
     try {
         const usuarios = await listarUsuariosParaAtribuicao()
@@ -337,6 +369,9 @@ export async function carregarContextoUsuariosRelatorioCadastros(
         }
         for (const [uid, nome] of audit.mapaNomeUsuarioPorId) {
             if (!mapaNomeUsuarioPorId.has(uid) && nome) mapaNomeUsuarioPorId.set(uid, nome)
+        }
+        for (const [chave, iso] of audit.mapaDataHoraPorPrestadorSituacao || []) {
+            mapaDataHoraPorPrestadorSituacao.set(chave, iso)
         }
     }
 
@@ -371,13 +406,19 @@ export async function carregarContextoUsuariosRelatorioCadastros(
         mapaUsuarioIdPorPrestadorSituacao,
     )
 
-    return { mapaNomeUsuarioPorId, mapaUsuarioIdPorPrestadorId, mapaUsuarioIdPorPrestadorSituacao }
+    return {
+        mapaNomeUsuarioPorId,
+        mapaUsuarioIdPorPrestadorId,
+        mapaUsuarioIdPorPrestadorSituacao,
+        mapaDataHoraPorPrestadorSituacao,
+    }
 }
 
 /**
  * Monta linhas do relatório (Nome | Especialidade | Cidade | Situação | Usuário | Credenciado Em).
  * Especialidade/Cidade: principal +N quando há vínculos extras.
- * Com `periodoDe`/`periodoAte` (YYYY-MM-DD): credenciados pelo `credenciado_em`; demais situações pela `data_cadastro`.
+ * Com `periodoDe`/`periodoAte` (YYYY-MM-DD): credenciados pelo `credenciado_em`; demais situações
+ * pela data em que entraram na situação atual (auditoria), com fallback em `data_atualizacao`/`data_cadastro`.
  */
 export function montarLinhasRelatorioCadastros({
     prestadores = [],
@@ -394,6 +435,7 @@ export function montarLinhasRelatorioCadastros({
     mapaNomeUsuarioPorId = null,
     mapaUsuarioIdPorPrestadorId = null,
     mapaUsuarioIdPorPrestadorSituacao = null,
+    mapaDataHoraPorPrestadorSituacao = null,
 } = {}) {
     const mapaEsp = new Map((especialidades || []).map((e) => [Number(e.id), String(e.nome || '').trim()]))
     const mapaCidade = new Map((cidadesCred || []).map((c) => [Number(c.id), c]))
@@ -419,7 +461,7 @@ export function montarLinhasRelatorioCadastros({
         if (
             filtraPeriodo &&
             !dataNoPeriodoYmd(
-                isoReferenciaPeriodoRelatorioCadastros(p, situacoes),
+                isoReferenciaPeriodoRelatorioCadastros(p, situacoes, mapaDataHoraPorPrestadorSituacao),
                 periodoDe,
                 periodoAte,
             )
@@ -467,7 +509,11 @@ export function montarLinhasRelatorioCadastros({
             (situacoes || []).find((s) => Number(s.id) === sid)?.descricao || '—'
         const ehCredenciado = prestadorEhCredenciado(p, situacoes)
         const isoGrafico = p.credenciado_em || ''
-        const dataReferenciaPeriodoIso = isoReferenciaPeriodoRelatorioCadastros(p, situacoes)
+        const dataReferenciaPeriodoIso = isoReferenciaPeriodoRelatorioCadastros(
+            p,
+            situacoes,
+            mapaDataHoraPorPrestadorSituacao,
+        )
         const credenciadoEm = ehCredenciado ? formatarDataCredenciadoEm(isoGrafico) : ''
         const uidResp =
             mapaUsuarioIdPorPrestadorSituacao?.get(`${pid}|${sid}`) ||

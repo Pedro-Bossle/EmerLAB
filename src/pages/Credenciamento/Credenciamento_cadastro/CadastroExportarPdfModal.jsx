@@ -466,9 +466,10 @@ export default function CadastroExportarPdfModal({
 
                 <p className="ccad_exp_sub">
 
-                    Período: <strong>Credenciado Em</strong> para credenciados; <strong>data de cadastro</strong> para
-                    as demais situações. Marque as situações desejadas (ignora filtros da lista). Escolha o que entra
-                    no PDF e arraste para reordenar colunas e resumos.
+                    Período: <strong>Credenciado Em</strong> para credenciados; para as demais situações, a data em
+                    que o cadastro <strong>entrou na situação</strong> (auditoria), com fallback na última
+                    atualização. Marque as situações desejadas (ignora filtros da lista). Escolha o que entra no PDF
+                    e arraste para reordenar colunas e resumos.
 
                 </p>
 
