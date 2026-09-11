@@ -1,6 +1,6 @@
-/* Emer-Radar ù loader temùtico */
+/* Emer-Radar - loader tematico */
 
-/* Status API no tùtulo */
+/* Status API no titulo */
 
 .emer-radar-title-with-status {
   display: inline-flex;
@@ -528,7 +528,7 @@ body.dark-mode .emer-radar-stats__item strong {
   min-width: 12rem;
 }
 
-/* Usa mais largura ùtil da ùrea do Layout2 */
+/* Usa mais largura util da area do Layout2 */
 .emer-radar-page.el-page {
   max-width: none;
   padding-left: 0.65rem;
@@ -549,7 +549,7 @@ body.dark-mode .emer-radar-stats__item strong {
   }
 }
 
-/* Prospect Maps ù cards, mapa, toggle */
+/* Prospect Maps - cards, mapa, toggle */
 .emer-radar-view-toggle {
   display: inline-flex;
   border: 1px solid #d8e6ef;
