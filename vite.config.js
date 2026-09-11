@@ -586,6 +586,12 @@ export default defineConfig(({ command, mode }) => {
                 '/api/consulta-cnpj': 'http://localhost:3000',
                 '/api/geocode-prestador': 'http://localhost:3000',
                 '/api/ibge-municipios': 'http://localhost:3000',
+                // Worker Emer-Radar (FastAPI + Playwright) — pasta teste-emeradar
+                '/emeradar': {
+                    target: 'http://127.0.0.1:8000',
+                    changeOrigin: true,
+                    rewrite: (p) => p.replace(/^\/emeradar/, ''),
+                },
             },
         },
         optimizeDeps: {

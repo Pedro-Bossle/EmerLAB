@@ -142,11 +142,11 @@ export const PERMISSION_CATALOG = [
             },
             {
                 id: 'credenciamento.prospectos_osm',
-                label: 'Catálogo prospectos (OSM)',
+                label: 'Emer-Radar (prospecção)',
                 descricao:
-                    'Locais do OpenStreetMap (veterinárias, pet shops, etc.) para prospecção de parceiros.',
+                    'Prospecção Google Maps + planos (Petlove, Petlife, Doglife, Emerdog). Substitui a coleta OSM.',
                 actions: RU,
-                href: '/credenciamento/prospectos-osm',
+                href: '/credenciamento/emer-radar',
             },
             {
                 id: 'credenciamento.quem_realiza',

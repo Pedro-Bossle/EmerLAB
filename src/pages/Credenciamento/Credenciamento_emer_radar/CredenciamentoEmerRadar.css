@@ -1,0 +1,349 @@
+/* Emer-Radar — loader temático */
+
+.emer-radar-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.emer-radar-loader__stage {
+  position: relative;
+  isolation: isolate;
+}
+
+.emer-radar-loader__stage--sm {
+  width: 4rem;
+  height: 4rem;
+}
+
+.emer-radar-loader__stage--md {
+  width: 7rem;
+  height: 7rem;
+}
+
+.emer-radar-loader__stage--lg {
+  width: 10rem;
+  height: 10rem;
+}
+
+.emer-radar-loader__disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at center, rgba(31, 126, 184, 0.18) 0%, transparent 62%),
+    radial-gradient(circle at center, transparent 58%, rgba(31, 126, 184, 0.12) 59%, transparent 72%),
+    #e7f4fc;
+  border: 2px solid rgba(31, 126, 184, 0.35);
+  box-shadow:
+    inset 0 0 24px rgba(31, 126, 184, 0.15),
+    0 8px 24px rgba(20, 32, 51, 0.08);
+}
+
+body.dark-mode .emer-radar-loader__disc {
+  background:
+    radial-gradient(circle at center, rgba(47, 135, 198, 0.28) 0%, transparent 62%),
+    radial-gradient(circle at center, transparent 58%, rgba(47, 135, 198, 0.2) 59%, transparent 72%),
+    #121c2a;
+  border-color: rgba(126, 200, 240, 0.35);
+}
+
+.emer-radar-loader__ring {
+  position: absolute;
+  inset: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 126, 184, 0.35);
+  animation: emerRadarPulse 2.4s ease-out infinite;
+  pointer-events: none;
+}
+
+.emer-radar-loader__ring--delayed {
+  animation-delay: 1.2s;
+}
+
+body.dark-mode .emer-radar-loader__ring {
+  border-color: rgba(126, 200, 240, 0.35);
+}
+
+.emer-radar-loader__sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 250deg,
+    rgba(31, 126, 184, 0.05) 280deg,
+    rgba(47, 135, 198, 0.45) 340deg,
+    rgba(231, 244, 252, 0.85) 360deg
+  );
+  animation: emerRadarSweep 2.2s linear infinite;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+body.dark-mode .emer-radar-loader__sweep {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 250deg,
+    rgba(47, 135, 198, 0.08) 280deg,
+    rgba(47, 135, 198, 0.55) 340deg,
+    rgba(126, 200, 240, 0.9) 360deg
+  );
+  mix-blend-mode: screen;
+}
+
+.emer-radar-loader__mark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emer-radar-loader__mark img {
+  width: 40%;
+  height: 40%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(20, 32, 51, 0.2));
+}
+
+.emer-radar-loader__blip {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #1f7eb8;
+  box-shadow: 0 0 8px rgba(31, 126, 184, 0.8);
+  animation: emerRadarBlip 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+body.dark-mode .emer-radar-loader__blip {
+  background: #7ec8f0;
+}
+
+.emer-radar-loader__blip--a {
+  top: 22%;
+  left: 62%;
+  animation-delay: 0.2s;
+}
+
+.emer-radar-loader__blip--b {
+  top: 58%;
+  left: 28%;
+  animation-delay: 0.9s;
+}
+
+.emer-radar-loader__blip--c {
+  top: 68%;
+  left: 70%;
+  animation-delay: 1.5s;
+}
+
+.emer-radar-loader__label {
+  text-align: center;
+}
+
+.emer-radar-loader__label strong {
+  display: block;
+  font-size: 0.9rem;
+  color: #165f8c;
+}
+
+body.dark-mode .emer-radar-loader__label strong {
+  color: #7ec8f0;
+}
+
+.emer-radar-loader__label span {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: #5a7488;
+}
+
+body.dark-mode .emer-radar-loader__label span {
+  color: #9eb4c8;
+}
+
+@keyframes emerRadarSweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes emerRadarPulse {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.05);
+    opacity: 0;
+  }
+}
+
+@keyframes emerRadarBlip {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.7);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  70% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+}
+
+.emer-radar-tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  border: 1px solid #d8e6ef;
+  background: #fff;
+}
+
+body.dark-mode .emer-radar-tabs {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #121c2a;
+}
+
+.emer-radar-tabs button {
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #3d5168;
+  cursor: pointer;
+}
+
+body.dark-mode .emer-radar-tabs button {
+  color: #9eb4c8;
+}
+
+.emer-radar-tabs button.is-active {
+  background: #1f7eb8;
+  color: #fff;
+}
+
+.emer-radar-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.emer-radar-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.emer-radar-table th,
+.emer-radar-table td {
+  text-align: left;
+  padding: 0.55rem 0.5rem;
+  border-bottom: 1px solid #d8e6ef;
+  vertical-align: top;
+}
+
+body.dark-mode .emer-radar-table th,
+body.dark-mode .emer-radar-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.emer-radar-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5a7488;
+}
+
+.emer-radar-pill {
+  display: inline-block;
+  margin: 0 0.2rem 0.2rem 0;
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.emer-radar-pill--petlove {
+  background: #7c3aed;
+}
+.emer-radar-pill--petlife {
+  background: #38bdf8;
+}
+.emer-radar-pill--doglife {
+  background: #4ade80;
+  color: #142033;
+}
+.emer-radar-pill--emerdog {
+  background: #2563eb;
+}
+
+.emer-radar-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.emer-radar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid #d8e6ef;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  background: #fff;
+}
+
+body.dark-mode .emer-radar-chip {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #152433;
+}
+
+.emer-radar-chip.is-on {
+  border-color: rgba(31, 126, 184, 0.45);
+  background: #e7f4fc;
+  color: #165f8c;
+}
+
+body.dark-mode .emer-radar-chip.is-on {
+  background: rgba(31, 126, 184, 0.25);
+  color: #7ec8f0;
+}
+
+/* Usa mais largura útil da área do Layout2 */
+.emer-radar-page.el-page {
+  max-width: none;
+  padding-left: 0.65rem;
+  padding-right: 0.65rem;
+}
+
+@media (min-width: 768px) {
+  .emer-radar-page.el-page {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .emer-radar-page.el-page {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}

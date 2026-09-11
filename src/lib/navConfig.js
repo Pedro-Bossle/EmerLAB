@@ -202,7 +202,7 @@ export const NAV_HUBS = [
 
         label: 'Prospecção',
 
-        href: '/credenciamento/prospectos-osm',
+        href: '/credenciamento/emer-radar',
 
         permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
 

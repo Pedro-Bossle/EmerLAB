@@ -18,7 +18,10 @@ import CredenciamentoKanban from './pages/Credenciamento/CredenciamentoKanban/Cr
 import CredenciamentoCadastroLista from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroLista';
 import CredenciamentoCadastroForm from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroForm';
 import CredenciamentoMapa from './pages/Credenciamento/Credenciamento_mapa/CredenciamentoMapa';
+import CredenciamentoEmerRadar from './pages/Credenciamento/Credenciamento_emer_radar/CredenciamentoEmerRadar';
+/* Catálogo OSM legado — rota redireciona para Emer-Radar
 import CredenciamentoProspectosOsm from './pages/Credenciamento/Credenciamento_prospectos_osm/CredenciamentoProspectosOsm';
+*/
 import CredenciamentoImportKmz from './pages/Credenciamento/Credenciamento_import_kmz/CredenciamentoImportKmz';
 import CredenciamentoQuemRealiza from './pages/Credenciamento/QuemRealiza/CredenciamentoQuemRealiza';
 import CredenciamentoEspecialidadesCidade from './pages/Credenciamento/EspecialidadesCidade/CredenciamentoEspecialidadesCidade';
@@ -191,12 +194,16 @@ function App() {
             }
           />
           <Route
-            path="/credenciamento/prospectos-osm"
+            path="/credenciamento/emer-radar"
             element={
               <PrivateRoute permission="credenciamento.view" toolId="credenciamento.prospectos_osm">
-                <CredenciamentoProspectosOsm />
+                <CredenciamentoEmerRadar />
               </PrivateRoute>
             }
+          />
+          <Route
+            path="/credenciamento/prospectos-osm"
+            element={<Navigate to="/credenciamento/emer-radar" replace />}
           />
           <Route
             path="/credenciamento/mapa"
