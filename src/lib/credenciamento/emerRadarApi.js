@@ -23,9 +23,15 @@ export function getDefaultSearchTerms() {
 
 async function request(path, init = {}) {
   const base = getEmerRadarApiBase()
+  const method = (init.method || 'GET').toUpperCase()
+  const headers = { ...(init.headers || {}) }
+  // Evita preflight CORS desnecessário em GET (Content-Type em GET quebra OPTIONS no browser)
+  if (method !== 'GET' && method !== 'HEAD' && headers['Content-Type'] == null) {
+    headers['Content-Type'] = 'application/json'
+  }
   const res = await fetch(`${base}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
     ...init,
+    headers,
   })
   if (!res.ok) {
     let detail = 'Falha na requisição Emer-Radar'
