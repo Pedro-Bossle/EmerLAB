@@ -78,7 +78,45 @@ export function scrapeExportExcelUrl() {
   return `${getEmerRadarApiBase()}/api/results/export/excel`
 }
 
+export function scrapeExportPdfUrl() {
+  return `${getEmerRadarApiBase()}/api/results/export/pdf`
+}
+
+export function geocodeEmerRadar(q, cidade, uf) {
+  const params = new URLSearchParams({ q: q || '' })
+  if (cidade) params.set('cidade', cidade)
+  if (uf) params.set('uf', uf)
+  return request(`/api/geocode?${params.toString()}`)
+}
+
+/**
+ * Foto de fachada ao vivo (worker abre o Maps e devolve URL do CDN Google).
+ * Não grava imagem no Supabase — só usa link_maps/nome.
+ * @param {{ link_maps?: string, nome?: string, cidade?: string, uf?: string }} opts
+ */
+export function fetchPlacePhotoEmerRadar(opts = {}) {
+  const params = new URLSearchParams()
+  if (opts.link_maps) params.set('link_maps', opts.link_maps)
+  if (opts.nome) params.set('nome', opts.nome)
+  if (opts.cidade) params.set('cidade', opts.cidade)
+  if (opts.uf) params.set('uf', opts.uf)
+  const qs = params.toString()
+  return request(`/api/place-photo${qs ? `?${qs}` : ''}`)
+}
+
 /* --- Pipeline --- */
+
+export function listCities() {
+  return request('/api/cities')
+}
+
+export function deleteCity(cidade, uf) {
+  const params = new URLSearchParams({
+    cidade: cidade || '',
+    uf: uf || '',
+  })
+  return request(`/api/cities?${params.toString()}`, { method: 'DELETE' })
+}
 
 export function pipelinePreviewCities(cidades) {
   return request('/api/cities/preview', {

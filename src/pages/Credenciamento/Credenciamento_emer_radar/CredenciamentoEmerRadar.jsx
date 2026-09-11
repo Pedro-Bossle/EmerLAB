@@ -1,12 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PageHeader, buttonClassName } from '../../../components/ui'
+import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 import {
+  deleteCity,
   emerRadarHealth,
   emerRadarGetSettings,
   emerRadarSaveSettings,
   getDefaultSearchTerms,
   getEmerRadarApiBase,
+  listCities,
   openPipelineStream,
   openScrapeStream,
   pipelineEnqueue,
@@ -19,14 +22,75 @@ import {
   pipelineStatus,
   pipelineStop,
   scrapeExportExcelUrl,
+  scrapeExportPdfUrl,
   scrapeResults,
   scrapeStart,
   scrapeStatus,
   scrapeStop,
 } from '../../../lib/credenciamento/emerRadarApi.js'
+import {
+  FASE_PIPELINE_LABEL,
+  PLANO_ORDER,
+  STATUS_SCRAPE_LABEL,
+  cidadeDisponivel,
+  cidadeEmCooldown,
+  cidadeFromEndereco,
+  formatDateBR,
+  isSomenteRede,
+  isVinculado,
+  planoLabel,
+  planoPrincipal,
+  unifyContato,
+} from '../../../lib/credenciamento/emerRadarUi.js'
 import { listarUsuariosParaAtribuicao } from '../../../lib/homeTarefas.js'
+import {
+  STATUS_PROSPECCAO_MAPS_OPCOES,
+  enriquecerResultadosComSalvos,
+  listarCidadesUfProspectosMaps,
+  listarProspectosMaps,
+  mapsIdDeEstabelecimento,
+  rowMapsParaCardUi,
+  upsertProspectosMapsDeColeta,
+} from '../../../lib/credenciamento/prospectosMapsRepo.js'
+import { buscarMunicipiosPorUf, mesclarMunicipiosComExtras } from '../../../lib/ibgeLocalidades.js'
 import EmerRadarLoader from './EmerRadarLoader.jsx'
+import EmerRadarProspectResults from './EmerRadarProspectResults.jsx'
 import './CredenciamentoEmerRadar.css'
+
+const SELECT_CIDADE_INPUT =
+  'w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]'
+
+/** Municípios IBGE por UF (cache no lib). */
+function useMunicipiosPorUf(uf) {
+  const [municipios, setMunicipios] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const sigla = String(uf || '').trim().toUpperCase()
+    if (!sigla) {
+      setMunicipios([])
+      setLoading(false)
+      return undefined
+    }
+    let cancelled = false
+    setLoading(true)
+    buscarMunicipiosPorUf(sigla)
+      .then((lista) => {
+        if (!cancelled) setMunicipios(lista || [])
+      })
+      .catch(() => {
+        if (!cancelled) setMunicipios([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [uf])
+
+  return { municipios, loading }
+}
 
 const FONTES = [
   { id: 'maps', label: 'Google Maps' },
@@ -88,11 +152,25 @@ export default function CredenciamentoEmerRadar() {
     }
   }, [])
 
+  const statusLabel =
+    apiOk === null ? 'Verificando API…' : apiOk ? 'API online' : `API offline${apiError ? ` — ${apiError}` : ''}`
+  const statusTone = apiOk === null ? 'checking' : apiOk ? 'ok' : 'erro'
+
   return (
     <div className="el-page emer-radar-page">
       <PageHeader
         kicker="Credenciamento"
-        title="Emer-Radar"
+        title={
+          <span className="emer-radar-title-with-status">
+            Emer-Radar
+            <span
+              className={`emer-radar-status-dot emer-radar-status-dot--${statusTone}`}
+              title={statusLabel}
+              aria-label={statusLabel}
+              role="status"
+            />
+          </span>
+        }
         description="Prospecção Maps + planos (Petlove, Petlife, Doglife, Emerdog). Substitui a coleta OSM."
         actions={
           <div className="emer-radar-tabs" role="tablist">
@@ -116,25 +194,19 @@ export default function CredenciamentoEmerRadar() {
         }
       />
 
-      <div className="el-stage mb-4 text-sm">
-        <p className="m-0 text-ink-soft dark:text-[#9eb4c8]">
-          API:{' '}
-          <code className="text-xs">{getEmerRadarApiBase()}</code>
-          {' · '}
-          {apiOk === null && 'verificando…'}
-          {apiOk === true && <span className="text-status-ok font-semibold">online</span>}
-          {apiOk === false && (
-            <span className="text-status-erro font-semibold">offline — {apiError}</span>
-          )}
-        </p>
-        {apiOk === false && (
+      {apiOk === false ? (
+        <div className="el-stage mb-4 text-sm">
+          <p className="m-0 text-status-erro">
+            Worker inacessível (<code className="text-xs">{getEmerRadarApiBase()}</code>
+            {apiError ? ` — ${apiError}` : ''}).
+          </p>
           <p className="mt-2 mb-0 text-xs text-ink-muted">
             Suba o worker: na pasta <code>teste-emeradar</code>, rode{' '}
             <code>python backend/main.py</code>. Em dev o EmerLAB faz proxy de{' '}
             <code>/emeradar</code> → porta 8000.
           </p>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {tab === 'pipeline' ? <PipelinePanel /> : <ProspectPanel />}
     </div>
@@ -144,6 +216,7 @@ export default function CredenciamentoEmerRadar() {
 function PipelinePanel() {
   const [uf, setUf] = useState('RS')
   const [cidade, setCidade] = useState('')
+  const { municipios, loading: loadingMun } = useMunicipiosPorUf(uf)
   const [rows, setRows] = useState([])
   const [preview, setPreview] = useState([])
   const [fontes, setFontes] = useState({
@@ -165,6 +238,7 @@ function PipelinePanel() {
   const [destinatarios, setDestinatarios] = useState([])
   const [settingsMsg, setSettingsMsg] = useState('')
   const [settingsBusy, setSettingsBusy] = useState(false)
+  const [registry, setRegistry] = useState([])
 
   const isRunning = snap?.status === 'RODANDO'
 
@@ -174,8 +248,18 @@ function PipelinePanel() {
       .catch(() => setPastRuns([]))
   }, [])
 
+  const refreshRegistry = useCallback(() => {
+    listCities()
+      .then((r) => {
+        setRegistry(r.cities || [])
+        if (r.cooldown_days) setCooldownDays(r.cooldown_days)
+      })
+      .catch(() => setRegistry([]))
+  }, [])
+
   useEffect(() => {
     refreshRuns()
+    refreshRegistry()
     pipelineStatus()
       .then(setSnap)
       .catch(() => undefined)
@@ -185,30 +269,46 @@ function PipelinePanel() {
     listarUsuariosParaAtribuicao()
       .then(setUsuarios)
       .catch(() => setUsuarios([]))
-  }, [refreshRuns])
+  }, [refreshRuns, refreshRegistry])
+
+  useEffect(() => {
+    if (!rows.length) {
+      setPreview([])
+      return undefined
+    }
+    const t = setTimeout(() => {
+      pipelinePreviewCities(rows)
+        .then((p) => {
+          setPreview(p.cities || [])
+          if (p.cooldown_days) setCooldownDays(p.cooldown_days)
+        })
+        .catch(() => undefined)
+    }, 250)
+    return () => clearTimeout(t)
+  }, [rows])
 
   useEffect(() => {
     if (!isRunning) return undefined
     const es = openPipelineStream(0)
-    es.onmessage = (ev) => {
+    const refreshStatus = () => {
+      pipelineStatus().then(setSnap).catch(() => undefined)
+    }
+    ;['status', 'city_started', 'city_finished', 'message'].forEach((name) => {
+      es.addEventListener(name, refreshStatus)
+    })
+    es.addEventListener('done', async () => {
       try {
-        const data = JSON.parse(ev.data)
-        if (data?.type === 'snapshot' || data?.status) {
-          setSnap((prev) => ({ ...(prev || {}), ...data }))
-        }
-        if (data?.status === 'CONCLUIDO' || data?.type === 'done') {
-          pipelineResults()
-            .then((r) => setResults(r.results || []))
-            .catch(() => undefined)
-          refreshRuns()
-        }
+        const s = await pipelineStatus()
+        setSnap(s)
+        const r = await pipelineResults()
+        setResults(r.results || [])
+        refreshRuns()
+        refreshRegistry()
       } catch {
         /* ignore */
       }
-    }
-    es.onerror = () => {
-      /* reconecta via polling abaixo */
-    }
+      es.close()
+    })
     const poll = setInterval(() => {
       pipelineStatus()
         .then(async (s) => {
@@ -217,6 +317,7 @@ function PipelinePanel() {
             const r = await pipelineResults()
             setResults(r.results || [])
             refreshRuns()
+            refreshRegistry()
           }
         })
         .catch(() => undefined)
@@ -225,33 +326,28 @@ function PipelinePanel() {
       es.close()
       clearInterval(poll)
     }
-  }, [isRunning, refreshRuns])
+  }, [isRunning, refreshRuns, refreshRegistry])
 
-  const addCity = async () => {
+  const addCity = () => {
     setError('')
     const c = cidade.trim()
     if (!c) {
       setError('Informe a cidade.')
       return
     }
-    const next = [...rows, { cidade: c, uf }]
-    setRows(next)
+    setRows((prev) => {
+      if (prev.some((r) => r.cidade.toLowerCase() === c.toLowerCase() && r.uf === uf)) return prev
+      return [...prev, { cidade: c, uf }]
+    })
     setCidade('')
-    try {
-      const prev = await pipelinePreviewCities(next)
-      setPreview(prev.cities || [])
-      setCooldownDays(prev.cooldown_days || 70)
-    } catch (e) {
-      setError(e.message)
-    }
   }
 
   const liberadas = useMemo(
-    () => (preview.length ? preview : rows.map((r) => ({ ...r, bloqueada: false }))).filter((c) => !c.bloqueada),
+    () => (preview.length ? preview : rows).filter((c) => cidadeDisponivel(c)),
     [preview, rows],
   )
   const bloqueadas = useMemo(
-    () => (preview.length ? preview : []).filter((c) => c.bloqueada),
+    () => (preview.length ? preview : []).filter((c) => cidadeEmCooldown(c)),
     [preview],
   )
 
@@ -262,6 +358,10 @@ function PipelinePanel() {
       return
     }
     const redes = FONTES.filter((f) => f.id !== 'maps' && fontes[f.id]).map((f) => f.id)
+    if (!fontes.maps && redes.length === 0) {
+      setError('Selecione ao menos uma fonte.')
+      return
+    }
     try {
       const s = await pipelineStart({
         cidades: rows,
@@ -277,8 +377,25 @@ function PipelinePanel() {
     }
   }
 
-  const mapsRows = results.filter((r) => (r.origens || []).includes('maps') || !r.match_status)
-  const onlyRede = results.filter((r) => r.match_status === 'somente_rede')
+  const { mapsRows, planosPorFonte } = useMemo(() => {
+    const maps = results.filter((r) => !isSomenteRede(r))
+    const only = results.filter(isSomenteRede)
+    const groups = new Map()
+    for (const r of only) {
+      const key = planoPrincipal(r)
+      const list = groups.get(key) || []
+      list.push(r)
+      groups.set(key, list)
+    }
+    const orderedKeys = [
+      ...PLANO_ORDER.filter((k) => groups.has(k)),
+      ...[...groups.keys()].filter((k) => !PLANO_ORDER.includes(k)).sort(),
+    ]
+    return {
+      mapsRows: maps,
+      planosPorFonte: orderedKeys.map((k) => ({ fonte: k, items: groups.get(k) || [] })),
+    }
+  }, [results])
 
   return (
     <div className="space-y-4">
@@ -293,16 +410,27 @@ function PipelinePanel() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-sm">
             <span className="mb-1 block font-semibold">UF</span>
-            <SelectUfBusca value={uf} onChange={setUf} />
+            <SelectUfBusca
+              value={uf}
+              onChange={(u) => {
+                setUf(u)
+                setCidade('')
+              }}
+            />
           </label>
-          <label className="min-w-[200px] flex-1 text-sm">
+          <label className="min-w-[220px] flex-1 text-sm">
             <span className="mb-1 block font-semibold">Cidade</span>
-            <input
-              className="w-full rounded-xl border border-line bg-white px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
+            <SelectMunicipioBusca
               value={cidade}
-              onChange={(e) => setCidade(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addCity()}
-              placeholder="Ex.: Novo Hamburgo"
+              valueKey="nome"
+              options={municipios}
+              disabled={!uf || loadingMun}
+              loading={loadingMun}
+              inputClassName={SELECT_CIDADE_INPUT}
+              placeholder={!uf ? 'Selecione a UF' : 'Buscar cidade…'}
+              creatable
+              createLabel={(q) => `Usar «${q}»`}
+              onChange={setCidade}
             />
           </label>
           <button type="button" className={buttonClassName()} onClick={addCity}>
@@ -312,32 +440,34 @@ function PipelinePanel() {
 
         {(preview.length > 0 || rows.length > 0) && (
           <div className="emer-radar-chip-row mt-3">
-            {(preview.length ? preview : rows).map((c) => (
-              <span
-                key={`${c.cidade}-${c.uf}`}
-                className={`emer-radar-chip ${c.bloqueada ? '' : 'is-on'}`}
-              >
-                {c.cidade}/{c.uf}
-                {c.bloqueada ? ' · cooldown' : ''}
-                <button
-                  type="button"
-                  className="ml-1 border-0 bg-transparent text-status-erro cursor-pointer"
-                  onClick={() => {
-                    const next = rows.filter(
-                      (r) => !(r.cidade === c.cidade && r.uf === c.uf),
-                    )
-                    setRows(next)
-                    if (next.length) {
-                      pipelinePreviewCities(next)
-                        .then((p) => setPreview(p.cities || []))
-                        .catch(() => setPreview([]))
-                    } else setPreview([])
-                  }}
+            {(preview.length ? preview : rows).map((c) => {
+              const cool = cidadeEmCooldown(c)
+              const title = cool
+                ? `Cooldown · libera em ${formatDateBR(c.liberada_em)} (${c.dias_restantes ?? '?'}d) · ${c.vezes_requisitada || 0}x`
+                : `Disponível · ${c.vezes_requisitada || 0}x requisitada`
+              return (
+                <span
+                  key={`${c.cidade}-${c.uf}`}
+                  className={`emer-radar-chip ${cool ? 'is-cooldown' : 'is-on'}`}
+                  title={title}
                 >
-                  ×
-                </button>
-              </span>
-            ))}
+                  {c.cidade}/{c.uf}
+                  {cool && c.dias_restantes != null ? ` · ${c.dias_restantes}d` : ''}
+                  {c.vezes_requisitada ? ` · ${c.vezes_requisitada}×` : ''}
+                  <button
+                    type="button"
+                    className="ml-1 border-0 bg-transparent text-status-erro cursor-pointer"
+                    onClick={() => {
+                      setRows((prev) =>
+                        prev.filter((r) => !(r.cidade === c.cidade && r.uf === c.uf)),
+                      )
+                    }}
+                  >
+                    ×
+                  </button>
+                </span>
+              )
+            })}
           </div>
         )}
 
@@ -391,7 +521,7 @@ function PipelinePanel() {
               <button type="button" className={buttonClassName()} onClick={handleStart}>
                 Iniciar pipeline ({liberadas.length} liberada
                 {liberadas.length === 1 ? '' : 's'}
-                {bloqueadas.length ? ` · ${bloqueadas.length} cooldown` : ''})
+                {bloqueadas.length ? ` · ${bloqueadas.length} em cooldown` : ''})
               </button>
               <button
                 type="button"
@@ -577,6 +707,26 @@ function PipelinePanel() {
           >
             Carregar
           </button>
+          {selectedPastRun ? (
+            <>
+              <a
+                className={buttonClassName({ variant: 'secondary' })}
+                href={pipelineExportUrl('xlsx', selectedPastRun)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Excel
+              </a>
+              <a
+                className={buttonClassName({ variant: 'secondary' })}
+                href={pipelineExportUrl('html', selectedPastRun)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Relatório HTML
+              </a>
+            </>
+          ) : null}
           <button type="button" className={buttonClassName({ variant: 'secondary' })} onClick={refreshRuns}>
             Atualizar lista
           </button>
@@ -586,18 +736,84 @@ function PipelinePanel() {
       {results.length > 0 && (
         <>
           <section className="el-stage">
-            <h3 className="mt-0 font-bold">
-              Google Maps ({mapsRows.length})
-            </h3>
-            <ResultsTable rows={mapsRows} mode="maps" />
+            <h3 className="mt-0 font-bold">Google Maps ({mapsRows.length})</h3>
+            <p className="mt-0 mb-2 text-sm text-ink-muted">
+              Estabelecimentos do Maps. Badges coloridos indicam vínculo com planos.
+            </p>
+            <MapsTable rows={mapsRows.slice(0, 250)} />
           </section>
-          {onlyRede.length > 0 && (
-            <section className="el-stage">
-              <h3 className="mt-0 font-bold">Só planos ({onlyRede.length})</h3>
-              <ResultsTable rows={onlyRede} mode="rede" />
-            </section>
-          )}
+          <section className="el-stage">
+            <h3 className="mt-0 font-bold">
+              Somente planos ({planosPorFonte.reduce((n, g) => n + g.items.length, 0)})
+            </h3>
+            <p className="mt-0 mb-2 text-sm text-ink-muted">
+              Credenciados que aparecem só nas redes de plano (não encontrados no Maps).
+            </p>
+            {planosPorFonte.length === 0 ? (
+              <p className="m-0 text-sm text-ink-muted">Nenhum registro exclusivo de planos.</p>
+            ) : (
+              <div className="mt-3 space-y-6">
+                {planosPorFonte.map(({ fonte, items }) => (
+                  <div key={fonte}>
+                    <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                      <span className={`emer-radar-pill ${PLANO_CLASS[fonte] || ''}`}>
+                        {planoLabel(fonte)}
+                      </span>
+                      <span>
+                        {planoLabel(fonte)} ({items.length})
+                      </span>
+                    </h4>
+                    <PlanoTable fonte={fonte} rows={items.slice(0, 200)} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </>
+      )}
+
+      {registry.length > 0 && (
+        <section className="el-stage">
+          <h3 className="mt-0 font-bold">Histórico de cidades ({registry.length})</h3>
+          <p className="mt-0 mb-3 text-sm text-ink-muted">
+            Registry do worker (cooldown). Remover libera a cidade imediatamente.
+          </p>
+          <div className="emer-radar-chip-row">
+            {registry.map((c) => (
+              <span
+                key={c.key || `${c.cidade}|${c.uf}`}
+                className={`emer-radar-chip ${cidadeEmCooldown(c) ? 'is-cooldown' : ''}`}
+                title={
+                  cidadeEmCooldown(c)
+                    ? `Libera em ${formatDateBR(c.liberada_em)}`
+                    : 'Disponível'
+                }
+              >
+                {c.cidade}/{c.uf} · {c.vezes_requisitada || 0}×
+                {cidadeEmCooldown(c) ? ` · libera ${formatDateBR(c.liberada_em)}` : ''}
+                <button
+                  type="button"
+                  className="ml-1 border-0 bg-transparent cursor-pointer opacity-70"
+                  title={`Remover ${c.cidade}/${c.uf} do histórico`}
+                  onClick={async () => {
+                    try {
+                      const res = await deleteCity(c.cidade, c.uf)
+                      setRegistry(res.cities || [])
+                      if (rows.length) {
+                        const prev = await pipelinePreviewCities(rows)
+                        setPreview(prev.cities || [])
+                      }
+                    } catch (err) {
+                      setError(err?.message || 'Não foi possível remover a cidade do histórico.')
+                    }
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   )
@@ -606,6 +822,7 @@ function PipelinePanel() {
 function PipelineBar({ snap }) {
   const total = snap.progress?.total || 0
   const index = snap.progress?.index || 0
+  const fase = snap.progress?.fase || null
   let percent = snap.progress?.percent
   if (percent == null) {
     if (snap.status === 'CONCLUIDO') percent = 100
@@ -616,9 +833,15 @@ function PipelineBar({ snap }) {
 
   return (
     <div className="mt-3">
-      <div className="mb-1 flex justify-between text-xs text-ink-muted">
-        <span>{snap.progress?.fase || 'Progresso'}</span>
-        <span className="font-semibold tabular-nums">{percent}%</span>
+      <div className="mb-1 flex flex-wrap justify-between gap-2 text-xs text-ink-muted">
+        <span>
+          {fase ? FASE_PIPELINE_LABEL[fase] || fase : 'Progresso'}
+          {snap.progress?.cidade_atual ? ` · ${snap.progress.cidade_atual}` : ''}
+        </span>
+        <span className="font-semibold tabular-nums">
+          {percent}%
+          {total > 0 ? ` · cidade ${Math.min(index, total)}/${total}` : ''}
+        </span>
       </div>
       <div className="h-2.5 w-full overflow-hidden rounded-full bg-line dark:bg-white/10">
         <div
@@ -636,7 +859,7 @@ function PipelineBar({ snap }) {
   )
 }
 
-function ResultsTable({ rows, mode }) {
+function MapsTable({ rows }) {
   if (!rows?.length) {
     return <p className="text-sm text-ink-muted">Nenhum registro.</p>
   }
@@ -650,22 +873,19 @@ function ResultsTable({ rows, mode }) {
             <th>Endereço</th>
             <th>Telefone</th>
             <th>Cidade</th>
-            {mode === 'maps' ? <th>Planos</th> : null}
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.id || `${r.nome}-${r.endereco}`}>
-              <td className="font-semibold">{dash(r.nome)}</td>
-              <td>{dash(r.categoria || r.tipo)}</td>
+              <td>
+                <div className="font-semibold">{dash(r.nome)}</div>
+                {isVinculado(r) ? <PlanoPills row={r} /> : null}
+              </td>
+              <td>{dash(r.tipo || r.especialidade || r.categoria)}</td>
               <td>{dash(r.endereco)}</td>
-              <td className="whitespace-nowrap">{dash(r.telefone || r.whatsapp)}</td>
-              <td>{dash(r.cidade)}</td>
-              {mode === 'maps' ? (
-                <td>
-                  <PlanoPills row={r} />
-                </td>
-              ) : null}
+              <td className="whitespace-nowrap">{dash(unifyContato(r.telefone, r.whatsapp))}</td>
+              <td>{dash(cidadeFromEndereco(r.endereco, r.cidade))}</td>
             </tr>
           ))}
         </tbody>
@@ -674,48 +894,340 @@ function ResultsTable({ rows, mode }) {
   )
 }
 
+function PlanoTable({ fonte, rows }) {
+  if (!rows?.length) {
+    return <p className="text-sm text-ink-muted">Nenhum registro.</p>
+  }
+
+  if (fonte === 'petlife' || fonte === 'doglife') {
+    return (
+      <div className="emer-radar-table-wrap">
+        <table className="emer-radar-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Tipo</th>
+              <th>Credenciada</th>
+              <th>Bairro / cidade</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id || `${r.nome}-${r.bairro}`}>
+                <td className="font-semibold">{dash(r.nome)}</td>
+                <td>{dash(r.tipo || r.especialidade || r.categoria)}</td>
+                <td>
+                  {r.credenciada === true
+                    ? 'Credenciada'
+                    : r.credenciada === false
+                      ? 'Não credenciada'
+                      : '—'}
+                </td>
+                <td>{dash(r.bairro)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
+  if (fonte === 'emerdog') {
+    return (
+      <div className="emer-radar-table-wrap">
+        <table className="emer-radar-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Tipo</th>
+              <th>Endereço</th>
+              <th>Telefone</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id || `${r.nome}-${r.endereco}`}>
+                <td className="font-semibold">{dash(r.nome)}</td>
+                <td>{dash(r.tipo || r.especialidade || r.categoria)}</td>
+                <td>{dash(r.endereco)}</td>
+                <td className="whitespace-nowrap">{dash(unifyContato(r.telefone, r.whatsapp))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
+  return (
+    <div className="emer-radar-table-wrap">
+      <table className="emer-radar-table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Tipo</th>
+            <th>Endereço</th>
+            <th>Telefone</th>
+            <th>WhatsApp</th>
+            <th>Cidade</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id || `${r.nome}-${r.endereco}`}>
+              <td className="font-semibold">{dash(r.nome)}</td>
+              <td>{dash(r.tipo || r.especialidade || r.categoria)}</td>
+              <td>{dash(r.endereco)}</td>
+              <td className="whitespace-nowrap">{dash(r.telefone)}</td>
+              <td className="whitespace-nowrap">{dash(r.whatsapp)}</td>
+              <td>{dash(cidadeFromEndereco(r.endereco, r.cidade))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function mapsIdPrimeiro(lista) {
+  const est = (lista || [])[0]
+  return est ? mapsIdDeEstabelecimento(est) : ''
+}
+
 function ProspectPanel() {
   const terms = getDefaultSearchTerms()
   const [uf, setUf] = useState('RS')
   const [cidade, setCidade] = useState('')
+  const { municipios, loading: loadingMun } = useMunicipiosPorUf(uf)
   const [maxResults, setMaxResults] = useState(80)
   const [termos, setTermos] = useState([...terms])
   const [snap, setSnap] = useState(null)
   const [results, setResults] = useState([])
+  const [logs, setLogs] = useState([])
+  const [progress, setProgress] = useState({
+    termo_atual: null,
+    index: 0,
+    total: 0,
+    termos_concluidos: [],
+    encontrados: 0,
+  })
   const [error, setError] = useState('')
+  const [saveMsg, setSaveMsg] = useState('')
+  const [salvando, setSalvando] = useState(false)
+  const persistLockRef = useRef('')
+  const lastEventIdRef = useRef(0)
+
+  const [aba, setAba] = useState('busca') // busca | catalogo
+  const [filtroUf, setFiltroUf] = useState('')
+  const [filtroCidade, setFiltroCidade] = useState('')
+  const { municipios: municipiosFiltro, loading: loadingMunFiltro } = useMunicipiosPorUf(filtroUf)
+  const [filtroStatus, setFiltroStatus] = useState('')
+  const [filtroBusca, setFiltroBusca] = useState('')
+  const [catalogo, setCatalogo] = useState([])
+  const [catalogoLoading, setCatalogoLoading] = useState(false)
+  const [catalogoErro, setCatalogoErro] = useState('')
+  const [paresCidade, setParesCidade] = useState([])
 
   const status = snap?.status || 'IDLE'
   const isRunning = status === 'BUSCANDO' || status === 'FINALIZANDO'
 
+  const applySnap = useCallback((s) => {
+    if (!s) return
+    setSnap(s)
+    if (s.progress) {
+      setProgress((prev) => ({
+        ...prev,
+        ...s.progress,
+        termos_concluidos: s.progress.termos_concluidos || prev.termos_concluidos || [],
+      }))
+    }
+    if (Array.isArray(s.logs)) setLogs(s.logs)
+    if (s.error_message || s.error) setError(s.error_message || s.error || '')
+  }, [])
+
+  const municipiosCatalogo = useMemo(() => {
+    const extras = []
+    const ufSel = String(filtroUf || '').trim().toUpperCase()
+    for (const p of paresCidade) {
+      if (ufSel && String(p.uf || '').toUpperCase() !== ufSel) continue
+      if (p.cidade) extras.push(p.cidade)
+    }
+    if (!ufSel) {
+      return [...new Set(extras)]
+        .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+        .map((nome) => ({ id: nome, nome }))
+    }
+    return mesclarMunicipiosComExtras(municipiosFiltro, extras)
+  }, [paresCidade, filtroUf, municipiosFiltro])
+
+  const carregarParesCidade = useCallback(async () => {
+    const r = await listarCidadesUfProspectosMaps()
+    if (r.ok) setParesCidade(r.pares || [])
+  }, [])
+
+  const carregarCatalogo = useCallback(async () => {
+    setCatalogoLoading(true)
+    setCatalogoErro('')
+    try {
+      const r = await listarProspectosMaps({
+        uf: filtroUf,
+        cidade: filtroCidade,
+        status: filtroStatus,
+        busca: filtroBusca,
+        incluirDescartados: filtroStatus === 'descartado',
+        limite: 800,
+      })
+      if (!r.ok) {
+        setCatalogoErro(r.erro || 'Falha ao carregar catálogo.')
+        setCatalogo([])
+        return
+      }
+      setCatalogo((r.itens || []).map(rowMapsParaCardUi).filter(Boolean))
+    } catch (e) {
+      setCatalogoErro(e?.message || String(e))
+      setCatalogo([])
+    } finally {
+      setCatalogoLoading(false)
+    }
+  }, [filtroUf, filtroCidade, filtroStatus, filtroBusca])
+
+  const persistirResultados = useCallback(
+    async (lista, ctx) => {
+      if (!lista?.length) return
+      const lock = `${ctx?.uf || ''}|${ctx?.cidade || ''}|${lista.length}|${mapsIdPrimeiro(lista)}`
+      if (persistLockRef.current === lock) return
+      persistLockRef.current = lock
+      setSalvando(true)
+      setSaveMsg('')
+      try {
+        const r = await upsertProspectosMapsDeColeta(lista, ctx)
+        if (!r.ok) {
+          persistLockRef.current = ''
+          setSaveMsg(r.erro || 'Não foi possível salvar no catálogo.')
+          return
+        }
+        const enriched = enriquecerResultadosComSalvos(lista, r.itens).filter(
+          (e) => String(e.status_prospeccao || '') !== 'descartado',
+        )
+        setResults(enriched)
+        setSaveMsg(
+          `${r.salvos} prospecto${r.salvos === 1 ? '' : 's'} salvo${r.salvos === 1 ? '' : 's'} no catálogo (sem fotos de fachada).`,
+        )
+        void carregarParesCidade()
+      } catch (e) {
+        persistLockRef.current = ''
+        setSaveMsg(e?.message || String(e))
+      } finally {
+        setSalvando(false)
+      }
+    },
+    [carregarParesCidade],
+  )
+
   useEffect(() => {
     scrapeStatus()
-      .then(setSnap)
+      .then(applySnap)
       .catch(() => undefined)
-  }, [])
+    scrapeResults()
+      .then((r) => setResults(r.results || []))
+      .catch(() => undefined)
+    void carregarParesCidade()
+  }, [carregarParesCidade, applySnap])
+
+  useEffect(() => {
+    if (aba === 'catalogo') void carregarCatalogo()
+  }, [aba, carregarCatalogo])
 
   useEffect(() => {
     if (!isRunning) return undefined
-    const es = openScrapeStream(0)
-    es.onmessage = (ev) => {
+    const es = openScrapeStream(lastEventIdRef.current)
+    const onPayload = (raw) => {
       try {
-        const data = JSON.parse(ev.data)
-        setSnap((prev) => ({ ...(prev || {}), ...data, status: data.status || prev?.status }))
-        if (data.status === 'CONCLUIDO') {
+        const evt = JSON.parse(raw.data)
+        if (typeof evt.id === 'number') lastEventIdRef.current = evt.id
+        const type = evt.type || raw.type
+        const payload = evt.payload || evt
+
+        if (type === 'status' && payload.status) {
+          setSnap((prev) => ({ ...(prev || {}), status: payload.status }))
+          if (payload.message) setError(payload.message)
+        }
+        if (type === 'log' && payload.message) {
+          setLogs((prev) => [...prev.slice(-199), payload.message])
+        }
+        if (type === 'term_started' || type === 'term_progress') {
+          setProgress((prev) => ({
+            ...prev,
+            termo_atual: payload.termo ?? prev.termo_atual,
+            index: payload.index ?? prev.index,
+            total: payload.total ?? prev.total,
+          }))
+        }
+        if (type === 'term_finished') {
+          setProgress((prev) => ({
+            ...prev,
+            termos_concluidos: payload.termo
+              ? Array.from(new Set([...(prev.termos_concluidos || []), payload.termo]))
+              : prev.termos_concluidos,
+          }))
+        }
+        if ((type === 'result' || type === 'result_update') && payload.establishment) {
+          const est = payload.establishment
+          setResults((prev) => {
+            const idx = prev.findIndex((r) => r.id && est.id && r.id === est.id)
+            if (idx === -1) {
+              const next = [...prev, est]
+              setProgress((p) => ({ ...p, encontrados: next.length }))
+              return next
+            }
+            const next = [...prev]
+            next[idx] = { ...next[idx], ...est }
+            return next
+          })
+        }
+        if (type === 'job_finished' || type === 'job_cancelled' || type === 'done') {
+          setSnap((prev) => ({ ...(prev || {}), status: 'CONCLUIDO' }))
           scrapeResults()
-            .then((r) => setResults(r.results || []))
+            .then((r) => {
+              const lista = r.results || []
+              setResults(lista)
+              void persistirResultados(lista, { cidade: cidade.trim(), uf })
+            })
             .catch(() => undefined)
+          if (type === 'done') es.close()
+        }
+        if (type === 'job_error') {
+          setSnap((prev) => ({ ...(prev || {}), status: 'ERRO' }))
+          setError(payload.message || 'Erro inesperado')
         }
       } catch {
         /* ignore */
       }
     }
+    ;[
+      'status',
+      'log',
+      'term_started',
+      'term_progress',
+      'term_finished',
+      'result',
+      'result_update',
+      'job_finished',
+      'job_cancelled',
+      'job_error',
+      'done',
+      'message',
+    ].forEach((name) => es.addEventListener(name, onPayload))
+
     const poll = setInterval(() => {
       scrapeStatus()
         .then(async (s) => {
-          setSnap(s)
+          applySnap(s)
           if (s?.status === 'CONCLUIDO') {
             const r = await scrapeResults()
-            setResults(r.results || [])
+            const lista = r.results || []
+            setResults(lista)
+            void persistirResultados(lista, { cidade: cidade.trim(), uf })
           }
         })
         .catch(() => undefined)
@@ -724,10 +1236,11 @@ function ProspectPanel() {
       es.close()
       clearInterval(poll)
     }
-  }, [isRunning])
+  }, [isRunning, cidade, uf, persistirResultados, applySnap])
 
   const handleStart = async () => {
     setError('')
+    setSaveMsg('')
     if (!cidade.trim()) {
       setError('Informe a cidade.')
       return
@@ -736,19 +1249,43 @@ function ProspectPanel() {
       setError('Selecione ao menos um termo.')
       return
     }
+    if (maxResults === 0) {
+      setError('Não é possível rodar a busca para zero resultados.')
+      return
+    }
     try {
+      lastEventIdRef.current = 0
+      setLogs([])
+      setProgress({
+        termo_atual: null,
+        index: 0,
+        total: 0,
+        termos_concluidos: [],
+        encontrados: 0,
+      })
       const s = await scrapeStart({
         uf,
         cidade: cidade.trim(),
         max_results: maxResults,
         termos,
       })
-      setSnap(s)
+      applySnap(s)
       setResults([])
+      persistLockRef.current = ''
+      setAba('busca')
     } catch (e) {
       setError(e.message)
     }
   }
+
+  const salvarManual = () => {
+    persistLockRef.current = ''
+    void persistirResultados(results, { cidade: cidade.trim(), uf })
+  }
+
+  const showProgress =
+    aba === 'busca' &&
+    (isRunning || status === 'CONCLUIDO' || status === 'ERRO' || logs.length > 0)
 
   return (
     <div className="space-y-4">
@@ -757,125 +1294,310 @@ function ProspectPanel() {
           Prospect Maps
         </h2>
         <p className="mt-0 mb-4 text-sm text-ink-muted">
-          Busca rápida só no Google Maps (sem matching de planos).
+          Busca no Google Maps. Resultados são salvos no catálogo (sem fotos de fachada) para filtrar depois por
+          cidade/UF.
         </p>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="text-sm">
-            <span className="mb-1 block font-semibold">UF</span>
-            <SelectUfBusca value={uf} onChange={setUf} disabled={isRunning} />
-          </label>
-          <label className="text-sm sm:col-span-1">
-            <span className="mb-1 block font-semibold">Cidade</span>
-            <input
-              className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
-              value={cidade}
-              disabled={isRunning}
-              onChange={(e) => setCidade(e.target.value)}
-              placeholder="Ex.: Caxias do Sul"
-            />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block font-semibold">Máx. por termo</span>
-            <input
-              type="number"
-              min={1}
-              max={500}
-              className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
-              value={maxResults}
-              disabled={isRunning}
-              onChange={(e) => setMaxResults(Number(e.target.value) || 0)}
-            />
-          </label>
+        <div className="emer-radar-view-toggle mb-4" role="tablist" aria-label="Prospect Maps">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={aba === 'busca'}
+            className={aba === 'busca' ? 'is-active' : ''}
+            onClick={() => setAba('busca')}
+          >
+            Nova busca
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={aba === 'catalogo'}
+            className={aba === 'catalogo' ? 'is-active' : ''}
+            onClick={() => setAba('catalogo')}
+          >
+            Catálogo salvo
+          </button>
         </div>
 
-        <div className="mt-4">
-          <p className="mb-2 text-sm font-semibold">Termos</p>
-          <div className="emer-radar-chip-row">
-            {terms.map((t) => {
-              const on = termos.includes(t)
-              return (
-                <label key={t} className={`emer-radar-chip ${on ? 'is-on' : ''}`}>
-                  <input
-                    type="checkbox"
-                    disabled={isRunning}
-                    checked={on}
-                    onChange={() =>
-                      setTermos((prev) =>
-                        on ? prev.filter((x) => x !== t) : [...prev, t],
-                      )
-                    }
-                  />
-                  {t}
-                </label>
-              )
-            })}
-          </div>
-        </div>
+        {aba === 'busca' ? (
+          <>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="text-sm">
+                <span className="mb-1 block font-semibold">UF</span>
+                <SelectUfBusca
+                  value={uf}
+                  disabled={isRunning}
+                  onChange={(u) => {
+                    setUf(u)
+                    setCidade('')
+                  }}
+                />
+              </label>
+              <label className="text-sm sm:col-span-1">
+                <span className="mb-1 block font-semibold">Cidade</span>
+                <SelectMunicipioBusca
+                  value={cidade}
+                  valueKey="nome"
+                  options={municipios}
+                  disabled={!uf || loadingMun || isRunning}
+                  loading={loadingMun}
+                  inputClassName={SELECT_CIDADE_INPUT}
+                  placeholder={!uf ? 'Selecione a UF' : 'Buscar cidade…'}
+                  creatable
+                  createLabel={(q) => `Usar «${q}»`}
+                  onChange={setCidade}
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block font-semibold">Máx. por termo</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={500}
+                  className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
+                  value={maxResults}
+                  disabled={isRunning}
+                  onChange={(e) => setMaxResults(Number(e.target.value) || 0)}
+                />
+              </label>
+            </div>
 
-        <div className="mt-4 flex flex-wrap gap-3">
-          {!isRunning ? (
-            <button type="button" className={buttonClassName()} onClick={handleStart}>
-              Iniciar busca
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={buttonClassName({ variant: 'danger' })}
-              onClick={() => scrapeStop().then(setSnap)}
-            >
-              Parar busca
-            </button>
-          )}
-          {results.length > 0 && (
-            <a
-              className={buttonClassName({ variant: 'secondary' })}
-              href={scrapeExportExcelUrl()}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Exportar Excel
-            </a>
-          )}
-        </div>
+            <div className="mt-4">
+              <p className="mb-2 text-sm font-semibold">Termos</p>
+              <div className="emer-radar-chip-row">
+                {terms.map((t) => {
+                  const on = termos.includes(t)
+                  return (
+                    <label key={t} className={`emer-radar-chip ${on ? 'is-on' : ''}`}>
+                      <input
+                        type="checkbox"
+                        disabled={isRunning}
+                        checked={on}
+                        onChange={() =>
+                          setTermos((prev) => (on ? prev.filter((x) => x !== t) : [...prev, t]))
+                        }
+                      />
+                      {t}
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-3">
+              {!isRunning ? (
+                <button type="button" className={buttonClassName()} onClick={handleStart}>
+                  Iniciar busca
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={buttonClassName({ variant: 'danger' })}
+                  onClick={() => scrapeStop().then(setSnap)}
+                >
+                  Parar busca
+                </button>
+              )}
+              {results.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    className={buttonClassName({ variant: 'secondary' })}
+                    disabled={salvando || isRunning}
+                    onClick={salvarManual}
+                  >
+                    {salvando ? 'Salvando…' : 'Salvar no catálogo'}
+                  </button>
+                  <a
+                    className={buttonClassName({ variant: 'secondary' })}
+                    href={scrapeExportExcelUrl()}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Excel
+                  </a>
+                  <a
+                    className={buttonClassName({ variant: 'secondary' })}
+                    href={scrapeExportPdfUrl()}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    PDF
+                  </a>
+                </>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="text-sm">
+                <span className="mb-1 block font-semibold">UF</span>
+                <SelectUfBusca
+                  value={filtroUf}
+                  onChange={(v) => {
+                    setFiltroUf(v)
+                    setFiltroCidade('')
+                  }}
+                  emptyLabel="Todas"
+                  placeholder="Todas as UFs"
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block font-semibold">Cidade</span>
+                <SelectMunicipioBusca
+                  value={filtroCidade}
+                  valueKey="nome"
+                  options={municipiosCatalogo}
+                  disabled={loadingMunFiltro}
+                  loading={Boolean(filtroUf) && loadingMunFiltro}
+                  inputClassName={SELECT_CIDADE_INPUT}
+                  placeholder={
+                    filtroUf ? 'Buscar cidade…' : 'Selecione a UF (ou digite uma cidade salva)'
+                  }
+                  creatable
+                  createLabel={(q) => `Usar «${q}»`}
+                  onChange={setFiltroCidade}
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block font-semibold">Status</span>
+                <select
+                  className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
+                  value={filtroStatus}
+                  onChange={(e) => setFiltroStatus(e.target.value)}
+                >
+                  <option value="">Ativos (sem descartados)</option>
+                  {STATUS_PROSPECCAO_MAPS_OPCOES.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block font-semibold">Busca</span>
+                <input
+                  className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
+                  value={filtroBusca}
+                  onChange={(e) => setFiltroBusca(e.target.value)}
+                  placeholder="Nome, endereço, telefone…"
+                />
+              </label>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                className={buttonClassName()}
+                disabled={catalogoLoading}
+                onClick={() => void carregarCatalogo()}
+              >
+                {catalogoLoading ? 'Carregando…' : 'Buscar no catálogo'}
+              </button>
+            </div>
+          </>
+        )}
 
         {error && (
           <p className="mt-3 mb-0 rounded-xl border border-status-erro/30 bg-status-erro-bg px-3 py-2 text-sm text-status-erro">
             {error}
           </p>
         )}
+        {saveMsg && (
+          <p
+            className={`mt-3 mb-0 rounded-xl border px-3 py-2 text-sm ${
+              /ausente|falha|não foi|erro/i.test(saveMsg)
+                ? 'border-status-erro/30 bg-status-erro-bg text-status-erro'
+                : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+            }`}
+          >
+            {saveMsg}
+          </p>
+        )}
+        {catalogoErro && aba === 'catalogo' && (
+          <p className="mt-3 mb-0 rounded-xl border border-status-erro/30 bg-status-erro-bg px-3 py-2 text-sm text-status-erro">
+            {catalogoErro}
+          </p>
+        )}
       </section>
 
-      {(isRunning || status === 'CONCLUIDO' || status === 'ERRO') && (
+      {showProgress && (
         <section className="el-stage">
           {isRunning && (
             <EmerRadarLoader
               size="md"
-              label="Emer-Radar em busca…"
+              label={status === 'FINALIZANDO' ? 'Finalizando varredura…' : 'Emer-Radar em busca…'}
               detail={
-                snap?.progress?.termo_atual
-                  ? `${snap.progress.termo_atual} · ${snap.progress.index || 0}/${snap.progress.total || 0}`
+                progress.termo_atual
+                  ? `${progress.termo_atual}${
+                      progress.total > 0 ? ` · ${progress.index}/${progress.total}` : ''
+                    }`
                   : status
               }
             />
           )}
-          <p className="text-sm font-semibold">
-            Status: {status}
+          <p className="mt-0 mb-3 text-sm font-semibold">
+            {STATUS_SCRAPE_LABEL[status] || status}
             {status === 'CONCLUIDO'
-              ? ` — ${snap?.progress?.encontrados ?? results.length} encontrados`
+              ? ` — ${progress.encontrados ?? results.length} estabelecimentos encontrados`
               : ''}
+            {salvando ? ' · salvando catálogo…' : ''}
           </p>
-          {snap?.error && (
-            <p className="text-sm text-status-erro">{snap.error}</p>
+          <ul className="emer-radar-term-list">
+            {(termos.length ? termos : terms).map((t) => {
+              const done = (progress.termos_concluidos || []).includes(t)
+              const current = progress.termo_atual === t && !done
+              return (
+                <li key={t} className={done ? 'is-done' : current ? 'is-current' : ''}>
+                  <span className="emer-radar-term-list__mark" aria-hidden />
+                  <span className="capitalize">{t}</span>
+                  {current && progress.total > 0 ? (
+                    <span className="emer-radar-term-list__meta">
+                      Processando {progress.index}/{progress.total}
+                    </span>
+                  ) : null}
+                  {done ? <span className="emer-radar-term-list__meta">Concluído</span> : null}
+                </li>
+              )
+            })}
+          </ul>
+          {(snap?.error_message || snap?.error || (status === 'ERRO' && error)) && (
+            <p className="mt-3 mb-0 text-sm text-status-erro">
+              {snap?.error_message || snap?.error || error}
+            </p>
+          )}
+          {logs.length > 0 && (
+            <pre className="mt-3 max-h-36 overflow-auto rounded-xl bg-[#0d1520] p-3 text-[11px] leading-relaxed text-[#cfe8f8]">
+              {logs.slice(-30).join('\n')}
+            </pre>
           )}
         </section>
       )}
 
-      {results.length > 0 && (
+      {aba === 'busca' ? (
+        <EmerRadarProspectResults
+          results={results}
+          titulo="Última busca"
+          onRemovido={() => void carregarParesCidade()}
+        />
+      ) : catalogoLoading ? (
         <section className="el-stage">
-          <h3 className="mt-0 font-bold">Resultados ({results.length})</h3>
-          <ResultsTable rows={results} mode="rede" />
+          <p className="m-0 text-sm text-ink-muted">Carregando catálogo…</p>
         </section>
+      ) : !catalogo.length ? (
+        <section className="el-stage">
+          <p className="m-0 text-sm text-ink-muted">
+            Nenhum prospecto salvo para estes filtros. Rode uma busca em «Nova busca» — os resultados entram no
+            catálogo automaticamente (sem fotos).
+          </p>
+        </section>
+      ) : (
+        <EmerRadarProspectResults
+          results={catalogo}
+          titulo="Catálogo salvo"
+          mostrarExport={false}
+          onRemovido={() => void carregarCatalogo()}
+        />
       )}
     </div>
   )

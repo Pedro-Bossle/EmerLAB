@@ -452,6 +452,38 @@ const Home = () => {
         try {
             const url = await urlAssinadaAnexoTarefa(anexo.storage_path)
             if (!url) throw new Error('Não foi possível gerar o link do anexo.')
+            const nome = String(anexo.nome_arquivo || '').trim()
+            const mime = String(anexo.mime_type || '').toLowerCase()
+            const isHtml =
+                /\.html?$/i.test(nome) || mime.includes('text/html') || mime === 'html'
+            if (isHtml) {
+                // Garante renderização como documento HTML (storage às vezes serve octet-stream;
+                // relatório antigo tinha tema escuro que parecia "tela preta").
+                const res = await fetch(url)
+                if (!res.ok) throw new Error('Falha ao baixar o HTML do anexo.')
+                let text = await res.text()
+                if (/background\s*:\s*#0f172a/i.test(text)) {
+                    text = text
+                        .replace(/background\s*:\s*#0f172a/gi, 'background:#ffffff')
+                        .replace(/color\s*:\s*#e2e8f0/gi, 'color:#0f172a')
+                        .replace(/color\s*:\s*#f8fafc/gi, 'color:#0f172a')
+                        .replace(/background\s*:\s*#1e293b/gi, 'background:#ffffff')
+                        .replace(/border\s*:\s*1px solid #334155/gi, 'border:1px solid #cbd5e1')
+                        .replace(/background\s*:\s*#334155/gi, 'background:#f1f5f9')
+                        .replace(/color\s*:\s*#94a3b8/gi, 'color:#475569')
+                }
+                const blob = new Blob([text], { type: 'text/html;charset=utf-8' })
+                const blobUrl = URL.createObjectURL(blob)
+                const win = window.open(blobUrl, '_blank', 'noopener,noreferrer')
+                if (!win) {
+                    const a = document.createElement('a')
+                    a.href = blobUrl
+                    a.download = nome || 'relatorio.html'
+                    a.click()
+                }
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+                return
+            }
             window.open(url, '_blank', 'noopener,noreferrer')
         } catch (err) {
             setErro(err?.message || String(err))

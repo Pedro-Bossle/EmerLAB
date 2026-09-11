@@ -641,6 +641,108 @@ export async function upsertCardContatadoDeProspectoOsm(prospecto) {
     return enviarProspectoOsmParaKanban(prospecto, { forcarColuna: 'contatado' })
 }
 
+function montarCorpoDeProspectoMaps(est) {
+    const linhas = []
+    const endereco = String(est?.endereco || '').trim()
+    if (endereco) linhas.push(`**Endereço:** ${endereco}`)
+    const website = String(est?.website || '').trim()
+    if (website) linhas.push(`**Website:** ${website}`)
+    const maps = String(est?.link_maps || '').trim()
+    if (maps) linhas.push(`**Maps:** ${maps}`)
+    const horario = String(est?.horario || '').trim()
+    const horarioDet = String(est?.horario_detalhado || '').trim()
+    if (horarioDet) linhas.push(`**Horário:**\n${horarioDet}`)
+    else if (horario) linhas.push(`**Horário:** ${horario}`)
+    const nota = est?.nota != null && String(est.nota).trim() ? String(est.nota).trim() : ''
+    const nAv = est?.num_avaliacoes != null ? Number(est.num_avaliacoes) : NaN
+    if (nota || Number.isFinite(nAv)) {
+        const partes = []
+        if (nota) partes.push(`nota ${nota}`)
+        if (Number.isFinite(nAv)) partes.push(`${nAv} avaliações`)
+        linhas.push(`**Avaliações:** ${partes.join(' · ')}`)
+    }
+    const termo = String(est?.termo_busca || '').trim()
+    if (termo) linhas.push(`**Termo:** ${termo}`)
+    const lat = Number(est?.latitude)
+    const lng = Number(est?.longitude)
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        linhas.push(`**Coords:** ${lat}, ${lng}`)
+    }
+    linhas.push('**Fonte:** Emer-Radar / Google Maps')
+    return linhas.join('\n\n')
+}
+
+/**
+ * Cria ou atualiza card no Kanban a partir de um resultado do Prospect Maps (Emer-Radar).
+ * Default: coluna Não contatado (equivalente ao botão do antigo prospectador Gemini/OSM).
+ */
+export async function enviarProspectoMapsParaKanban(est, { forcarColuna } = {}) {
+    if (!est || !(String(est.nome || '').trim() || String(est.endereco || '').trim())) {
+        return null
+    }
+
+    const colunaAlvo = COLUNA_IDS.has(forcarColuna) ? forcarColuna : 'nao_contatado'
+    const nome = String(est.nome || '').trim() || 'Prospecto Maps'
+    const uf = String(est.uf || '').trim().toUpperCase().slice(0, 2) || null
+    const cidade = String(est.cidade || '').trim() || null
+    const telefone = String(est.telefone || est.whatsapp || '').trim() || ''
+    const tipo =
+        String(est.categoria || est.tipo || est.especialidade || est.termo_busca || '').trim() || null
+
+    const face = {
+        nome,
+        uf,
+        cidade,
+        telefone,
+        tipo,
+        corpo: montarCorpoDeProspectoMaps(est),
+    }
+
+    let query = supabase.from('cred_kanban_cards').select(COLS).ilike('nome', nome).limit(25)
+    if (cidade) query = query.ilike('cidade', cidade)
+    if (uf) query = query.eq('uf', uf)
+    const { data: candidatos } = await query
+
+    const nomeNorm = nome.toLowerCase()
+    const cidadeNorm = String(cidade || '').toLowerCase()
+    const ufNorm = String(uf || '').toUpperCase()
+    const existente = (candidatos || []).find((c) => {
+        return (
+            String(c.nome || '')
+                .trim()
+                .toLowerCase() === nomeNorm &&
+            String(c.cidade || '')
+                .trim()
+                .toLowerCase() === cidadeNorm &&
+            String(c.uf || '')
+                .trim()
+                .toUpperCase() === ufNorm
+        )
+    })
+
+    if (existente) {
+        const patch = {
+            nome: face.nome,
+            uf: face.uf,
+            cidade: face.cidade,
+            telefone: face.telefone,
+            tipo: face.tipo,
+        }
+        if (colunaAlvo === 'contatado' && existente.coluna === 'nao_contatado') {
+            patch.coluna = 'contatado'
+        }
+        if (!String(existente.corpo || '').trim()) {
+            patch.corpo = face.corpo
+        }
+        return atualizarCardKanban(existente.id, patch)
+    }
+
+    return criarCardKanban({
+        coluna: colunaAlvo,
+        ...face,
+    })
+}
+
 async function resolverEspecialidadeKanban(espNome) {
     const nome = especialidadeVisivelKanban(espNome)
     if (!nome) return { especialidadeId: null, tipoSalvar: null, espNome: '' }
