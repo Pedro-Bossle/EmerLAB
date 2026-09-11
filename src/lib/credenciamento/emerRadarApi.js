@@ -130,3 +130,11 @@ export function pipelineExportUrl(kind, runId) {
   }
   return `${base}/api/pipeline/export/${kind}`
 }
+
+export function emerRadarGetSettings() {
+  return request('/api/settings')
+}
+
+export function emerRadarSaveSettings(body) {
+  return request('/api/settings', { method: 'PUT', body: JSON.stringify(body) })
+}

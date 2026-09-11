@@ -3,6 +3,8 @@ import { PageHeader, buttonClassName } from '../../../components/ui'
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 import {
   emerRadarHealth,
+  emerRadarGetSettings,
+  emerRadarSaveSettings,
   getDefaultSearchTerms,
   getEmerRadarApiBase,
   openPipelineStream,
@@ -22,6 +24,7 @@ import {
   scrapeStatus,
   scrapeStop,
 } from '../../../lib/credenciamento/emerRadarApi.js'
+import { listarUsuariosParaAtribuicao } from '../../../lib/homeTarefas.js'
 import EmerRadarLoader from './EmerRadarLoader.jsx'
 import './CredenciamentoEmerRadar.css'
 
@@ -158,6 +161,10 @@ function PipelinePanel() {
   const [selectedPastRun, setSelectedPastRun] = useState('')
   const [error, setError] = useState('')
   const [cooldownDays, setCooldownDays] = useState(70)
+  const [usuarios, setUsuarios] = useState([])
+  const [destinatarios, setDestinatarios] = useState([])
+  const [settingsMsg, setSettingsMsg] = useState('')
+  const [settingsBusy, setSettingsBusy] = useState(false)
 
   const isRunning = snap?.status === 'RODANDO'
 
@@ -172,6 +179,12 @@ function PipelinePanel() {
     pipelineStatus()
       .then(setSnap)
       .catch(() => undefined)
+    emerRadarGetSettings()
+      .then((s) => setDestinatarios(s.tarefa_destinatarios || []))
+      .catch(() => undefined)
+    listarUsuariosParaAtribuicao()
+      .then(setUsuarios)
+      .catch(() => setUsuarios([]))
   }, [refreshRuns])
 
   useEffect(() => {
@@ -404,6 +417,69 @@ function PipelinePanel() {
             {error}
           </p>
         )}
+      </section>
+
+      <section className="el-stage">
+        <h3 className="mt-0 font-bold">Configurações — destinatários das tarefas</h3>
+        <p className="text-sm text-ink-soft dark:text-[#9eb4c8]">
+          Ao finalizar o pipeline, cria uma tarefa no Home para cada usuário marcado (Excel +
+          HTML anexados).
+        </p>
+        {settingsMsg && (
+          <p className="rounded-xl border border-amber-300/40 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+            {settingsMsg}
+          </p>
+        )}
+        <div className="mt-3 max-h-56 space-y-2 overflow-y-auto rounded-xl border border-line p-3 dark:border-white/10">
+          {(usuarios.length
+            ? usuarios
+            : destinatarios.map((d) => ({ id: d.id, nome: d.nome }))
+          ).map((u) => {
+            const checked = destinatarios.some((d) => d.id === u.id && d.enabled)
+            return (
+              <label key={u.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => {
+                    const on = e.target.checked
+                    setDestinatarios((prev) => {
+                      const others = prev.filter((d) => d.id !== u.id)
+                      if (!on) return others
+                      return [...others, { id: u.id, nome: u.nome, enabled: true }]
+                    })
+                  }}
+                />
+                <span>{u.nome}</span>
+              </label>
+            )
+          })}
+          {!usuarios.length && !destinatarios.length && (
+            <p className="m-0 text-sm text-ink-muted">Nenhum usuário carregado.</p>
+          )}
+        </div>
+        <button
+          type="button"
+          className={`${buttonClassName({ variant: 'secondary' })} mt-3`}
+          disabled={settingsBusy}
+          onClick={async () => {
+            setSettingsBusy(true)
+            setSettingsMsg('')
+            try {
+              const saved = await emerRadarSaveSettings({
+                tarefa_destinatarios: destinatarios,
+              })
+              setDestinatarios(saved.tarefa_destinatarios || [])
+              setSettingsMsg('Destinatários salvos no worker Emer-Radar.')
+            } catch (e) {
+              setSettingsMsg(e.message || 'Falha ao salvar.')
+            } finally {
+              setSettingsBusy(false)
+            }
+          }}
+        >
+          {settingsBusy ? 'Salvando…' : 'Salvar destinatários'}
+        </button>
       </section>
 
       {snap && (
