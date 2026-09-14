@@ -109,8 +109,21 @@ export async function userAccessTokenHeaders() {
   try {
     const { supabase } = await import('../supabase.js')
     if (!supabase) return {}
-    const { data } = await supabase.auth.getSession()
-    const token = data?.session?.access_token
+    let { data } = await supabase.auth.getSession()
+    let session = data?.session ?? null
+
+    // Em máquina/browser novo o access_token pode estar expirado no storage
+    // enquanto a UI ainda parece logada (perfil em localStorage).
+    const expiresAtMs = session?.expires_at ? Number(session.expires_at) * 1000 : 0
+    const precisaRefresh = Boolean(session?.refresh_token) && (!session?.access_token || (expiresAtMs > 0 && expiresAtMs < Date.now() + 90_000))
+    if (precisaRefresh) {
+      const refreshed = await supabase.auth.refreshSession()
+      if (refreshed?.data?.session?.access_token) {
+        session = refreshed.data.session
+      }
+    }
+
+    const token = session?.access_token
     if (!token) return {}
     return { Authorization: `Bearer ${token}` }
   } catch {

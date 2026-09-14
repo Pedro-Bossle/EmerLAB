@@ -41,7 +41,21 @@ async function parseJson(res) {
 export async function clicksignRequest(method, path, body = null) {
     const p = path.startsWith('/') ? path : `/${path}`
     const { userAccessTokenHeaders } = await import('../api/serverBackend.js')
-    const auth = await userAccessTokenHeaders()
+    let auth = await userAccessTokenHeaders()
+
+    // Sem JWT a API responde 401/403 — tenta refresh explícito uma vez
+    if (!auth.Authorization) {
+        try {
+            const { supabase } = await import('../supabase.js')
+            if (supabase) {
+                await supabase.auth.refreshSession()
+                auth = await userAccessTokenHeaders()
+            }
+        } catch {
+            /* ignore */
+        }
+    }
+
     const opts = {
         method,
         headers: { Accept: 'application/vnd.api+json', ...auth },
@@ -50,8 +64,39 @@ export async function clicksignRequest(method, path, body = null) {
         opts.headers['Content-Type'] = 'application/vnd.api+json'
         opts.body = typeof body === 'string' ? body : JSON.stringify(body)
     }
-    const res = await fetch(`/api/clicksign${p}`, opts)
-    return parseJson(res)
+    let res = await fetch(`/api/clicksign${p}`, opts)
+
+    // Sessão stale: um refresh + retry
+    if ((res.status === 401 || res.status === 403) && auth.Authorization) {
+        try {
+            const { supabase } = await import('../supabase.js')
+            if (supabase) {
+                await supabase.auth.refreshSession()
+                const auth2 = await userAccessTokenHeaders()
+                if (auth2.Authorization && auth2.Authorization !== auth.Authorization) {
+                    opts.headers = { ...opts.headers, ...auth2 }
+                    res = await fetch(`/api/clicksign${p}`, opts)
+                }
+            }
+        } catch {
+            /* ignore */
+        }
+    }
+
+    const parsed = await parseJson(res)
+    if (!parsed.ok && (parsed.status === 401 || parsed.status === 403)) {
+        const msg = String(parsed.data?.error || parsed.data?.message || '').trim()
+        if (!msg) {
+            parsed.data = {
+                ...(parsed.data || {}),
+                error:
+                    parsed.status === 401
+                        ? 'Sessão ausente ou inválida. Saia e entre de novo nesta máquina.'
+                        : 'Sem permissão ou sessão rejeitada. Confirme contratos.view/edit e faça login de novo.',
+            }
+        }
+    }
+    return parsed
 }
 
 /** Nome do envelope a partir do ficheiro PDF (sem extensão .pdf). */

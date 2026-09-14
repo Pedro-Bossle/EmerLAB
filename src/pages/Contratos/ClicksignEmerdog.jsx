@@ -65,7 +65,7 @@ import {
 } from '../../lib/clicksign/clicksignNotificacoes.js'
 import { supabase } from '../../lib/supabase.js'
 import { maskTelefoneBr } from '../../lib/telefoneBrasil.js'
-import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl.js'
+import { PERMISSION_KEYS, hasPermission, useStoredAccessProfile } from '../../lib/accessControl.js'
 import './ContratosEmerdog.css'
 import './ClicksignEmerdog.css'
 import { TOAST_AUTO_DISMISS_MS, abrirUrlDownload, formatarDataPtBr } from './contratosUi.js'
@@ -430,18 +430,31 @@ export default function ClicksignEmerdog() {
         return () => clearTimeout(t)
     }, [toast])
 
-    const [podeEditarContratos] = useState(() => hasStoredPermission(PERMISSION_KEYS.CONTRATOS_EDIT))
+    const accessProfile = useStoredAccessProfile()
+    const podeEditarContratos = hasPermission(accessProfile, PERMISSION_KEYS.CONTRATOS_EDIT)
+    const podeVerContratos =
+        hasPermission(accessProfile, PERMISSION_KEYS.CONTRATOS_VIEW) ||
+        podeEditarContratos ||
+        hasPermission(accessProfile, PERMISSION_KEYS.ACCESS_MANAGE)
 
     const csRequest = useCallback(
         async (method, path, body) => {
             const m = String(method || 'GET').toUpperCase()
+            if (!podeVerContratos) {
+                pushToast(
+                    'error',
+                    'Contratos',
+                    'Sem permissão de Contratos neste perfil. Saia e entre de novo, ou peça contratos.view ao admin.',
+                )
+                return { ok: false, status: 403, data: { error: 'Sem permissão para esta operação.' } }
+            }
             if (m !== 'GET' && m !== 'HEAD' && !podeEditarContratos) {
                 pushToast('error', 'Contratos', 'Somente visualização: sem permissão para alterar envelopes na Clicksign.')
                 return { ok: false, status: 403, data: { error: 'readonly' } }
             }
             return clicksignRequest(method, path, body)
         },
-        [podeEditarContratos, pushToast],
+        [podeEditarContratos, podeVerContratos, pushToast],
     )
 
     const carregarLista = useCallback(
