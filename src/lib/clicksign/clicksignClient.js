@@ -39,7 +39,16 @@ async function parseJson(res) {
  * @param {object|string|null} body - objeto serializado ou string JSON
  */
 export async function clicksignRequest(method, path, body = null) {
-    const p = path.startsWith('/') ? path : `/${path}`
+    let p = path.startsWith('/') ? path : `/${path}`
+    // Normaliza /envelopes//signers → erro claro no cliente
+    p = p.replace(/\/{2,}/g, '/')
+    if (/^\/envelopes\/(documents|signers|requirements)(\/|\?|$)/i.test(p)) {
+        return {
+            ok: false,
+            status: 400,
+            data: { error: 'ID do envelope ausente. Recarregue e abra o envelope de novo.' },
+        }
+    }
     const { userAccessTokenHeaders } = await import('../api/serverBackend.js')
     let auth = await userAccessTokenHeaders()
 

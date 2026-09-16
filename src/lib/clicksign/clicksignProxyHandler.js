@@ -73,13 +73,33 @@ export default async function clicksignProxyHandler(req, res) {
     }
 
     const base = normBase(process.env.CLICKSIGN_API_BASE)
+    if (base.includes('/api/v1') || base.includes('api.clicksign.com.br')) {
+        res.status(503).json({
+            error:
+                'CLICKSIGN_API_BASE inválida para esta ferramenta (API 3.0). Use https://app.clicksign.com/api/v3 (produção) ou https://sandbox.clicksign.com/api/v3 (sandbox).',
+        })
+        return
+    }
+
     const u = new URL(req.url || '/', 'http://localhost')
-    const subPath = (u.pathname || '').replace(/^\/api\/clicksign/, '') || '/'
+    let subPath = (u.pathname || '').replace(/^\/api\/clicksign/, '') || '/'
+    // Evita /envelopes/ e /envelopes//signers (ID vazio)
+    subPath = subPath.replace(/\/{2,}/g, '/')
+    if (subPath.length > 1) subPath = subPath.replace(/\/+$/, '')
     const search = u.search || ''
 
     if (!isPathAllowed(subPath)) {
         res.status(403).json({
             error: 'Caminho não permitido neste proxy. Use prefixos /envelopes, /webhooks, /templates ou /batch.',
+        })
+        return
+    }
+
+    // Rotas que exigem UUID do envelope: /envelopes/:id/...
+    const precisaEnvelopeId = /^\/envelopes\/(documents|signers|requirements)(\/|$)/i.test(subPath)
+    if (precisaEnvelopeId || /^\/envelopes\/\/+/i.test(subPath)) {
+        res.status(400).json({
+            error: 'ID do envelope ausente. Recarregue a página e abra o envelope de novo.',
         })
         return
     }
