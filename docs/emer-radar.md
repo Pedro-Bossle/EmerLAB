@@ -16,3 +16,8 @@
 # - Após cada busca, resultados são upsertados (sem coluna/URL de foto de fachada)
 # - Aba «Catálogo salvo» filtra por UF, cidade, status e texto
 # - Foto de fachada: GET /api/place-photo (worker) sob demanda; URL do CDN Google, sem gravar no Supabase
+#
+# Pipeline — cidades do tráfego:
+# - Tabelas `cred_trafego_cidades` + `cred_trafego_aparicoes` (scripts/sql/cred_trafego_cidades.sql)
+# - Colar cidades do dia na aba Pipeline; 1 marcador/dia; ao bater 4 → POST /api/pipeline/queue
+# - Enfileiramento manual («Enfileirar p/ cron») continua disponível

@@ -42,6 +42,12 @@ import {
   planoPrincipal,
   unifyContato,
 } from '../../../lib/credenciamento/emerRadarUi.js'
+import {
+  LIMIAR_MARCADORES_CRON,
+  enfileirarCidadesQueBateramLimiar,
+  listarContadoresTrafego,
+  processarTrafegoDoDia,
+} from '../../../lib/credenciamento/trafegoCidades.js'
 import { listarUsuariosParaAtribuicao } from '../../../lib/homeTarefas.js'
 import {
   STATUS_PROSPECCAO_MAPS_OPCOES,
@@ -239,6 +245,12 @@ function PipelinePanel() {
   const [settingsMsg, setSettingsMsg] = useState('')
   const [settingsBusy, setSettingsBusy] = useState(false)
   const [registry, setRegistry] = useState([])
+  const [trafegoTexto, setTrafegoTexto] = useState('')
+  const [trafegoUf, setTrafegoUf] = useState('RS')
+  const [trafegoContadores, setTrafegoContadores] = useState([])
+  const [trafegoBusy, setTrafegoBusy] = useState(false)
+  const [trafegoMsg, setTrafegoMsg] = useState('')
+  const [trafegoErro, setTrafegoErro] = useState('')
 
   const isRunning = snap?.status === 'RODANDO'
 
@@ -257,9 +269,16 @@ function PipelinePanel() {
       .catch(() => setRegistry([]))
   }, [])
 
+  const refreshTrafego = useCallback(() => {
+    listarContadoresTrafego()
+      .then(setTrafegoContadores)
+      .catch(() => setTrafegoContadores([]))
+  }, [])
+
   useEffect(() => {
     refreshRuns()
     refreshRegistry()
+    refreshTrafego()
     pipelineStatus()
       .then(setSnap)
       .catch(() => undefined)
@@ -269,7 +288,7 @@ function PipelinePanel() {
     listarUsuariosParaAtribuicao()
       .then(setUsuarios)
       .catch(() => setUsuarios([]))
-  }, [refreshRuns, refreshRegistry])
+  }, [refreshRuns, refreshRegistry, refreshTrafego])
 
   useEffect(() => {
     if (!rows.length) {
@@ -377,6 +396,51 @@ function PipelinePanel() {
     }
   }
 
+  const handleRegistarTrafego = async () => {
+    setTrafegoErro('')
+    setTrafegoMsg('')
+    setTrafegoBusy(true)
+    try {
+      const res = await processarTrafegoDoDia(trafegoTexto, trafegoUf)
+      if (res.aviso) {
+        setTrafegoErro(res.aviso)
+        return
+      }
+      const partes = [
+        `${res.novas} nova(s)`,
+        `${res.jaTinhamDia} já tinham o dia`,
+        `${res.enfileiradas} enfileirada(s) no cron`,
+      ]
+      if (res.emCooldown) partes.push(`${res.emCooldown} em cooldown (aguardam)`)
+      setTrafegoMsg(partes.join(' · '))
+      if (res.novas || res.enfileiradas) setTrafegoTexto('')
+      refreshTrafego()
+      refreshRegistry()
+    } catch (e) {
+      setTrafegoErro(e?.message || String(e))
+    } finally {
+      setTrafegoBusy(false)
+    }
+  }
+
+  const handleReenfileirarLimiar = async () => {
+    setTrafegoErro('')
+    setTrafegoMsg('')
+    setTrafegoBusy(true)
+    try {
+      const enq = await enfileirarCidadesQueBateramLimiar()
+      setTrafegoMsg(
+        `${enq.enfileiradas} enfileirada(s) · ${enq.emCooldown} em cooldown · ${enq.candidatas} no limiar`,
+      )
+      refreshTrafego()
+      refreshRegistry()
+    } catch (e) {
+      setTrafegoErro(e?.message || String(e))
+    } finally {
+      setTrafegoBusy(false)
+    }
+  }
+
   const { mapsRows, planosPorFonte } = useMemo(() => {
     const maps = results.filter((r) => !isSomenteRede(r))
     const only = results.filter(isSomenteRede)
@@ -401,10 +465,111 @@ function PipelinePanel() {
     <div className="space-y-4">
       <section className="el-stage">
         <h2 className="mt-0 mb-1 text-lg font-bold text-[#123e59] dark:text-[#e8f1f8]">
+          Cidades do tráfego
+        </h2>
+        <p className="mt-0 mb-4 text-sm text-ink-muted">
+          Modalidade padrão: cole as cidades do dia. Cada aparição diária conta 1 marcador; ao
+          bater {LIMIAR_MARCADORES_CRON}, a cidade entra automaticamente na fila do cron.
+        </p>
+
+        <div className="flex flex-wrap items-end gap-3 mb-3">
+          <label className="text-sm">
+            <span className="mb-1 block font-semibold">UF padrão</span>
+            <SelectUfBusca value={trafegoUf} onChange={setTrafegoUf} />
+          </label>
+          <p className="text-xs text-ink-soft dark:text-[#9eb4c8] pb-2">
+            Linhas «Cidade/UF» ou «Cidade - UF» sobrescrevem a UF padrão.
+          </p>
+        </div>
+
+        <label className="block text-sm">
+          <span className="mb-1 block font-semibold">Colar cidades do dia</span>
+          <textarea
+            className="w-full min-h-[120px] rounded-xl border border-line px-3 py-2 font-mono text-sm dark:border-white/15 dark:bg-[#152433]"
+            placeholder={'Pato Branco\nCascavel/PR\nJoinville - SC'}
+            value={trafegoTexto}
+            onChange={(e) => setTrafegoTexto(e.target.value)}
+            disabled={trafegoBusy}
+          />
+        </label>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={buttonClassName()}
+            disabled={trafegoBusy || !trafegoTexto.trim()}
+            onClick={() => void handleRegistarTrafego()}
+          >
+            {trafegoBusy ? 'A registar…' : 'Registar hoje'}
+          </button>
+          <button
+            type="button"
+            className={buttonClassName({ variant: 'secondary' })}
+            disabled={trafegoBusy}
+            onClick={() => void handleReenfileirarLimiar()}
+          >
+            Reprocessar limiar {LIMIAR_MARCADORES_CRON}
+          </button>
+        </div>
+
+        {trafegoMsg && (
+          <p className="mt-3 mb-0 rounded-xl border border-emerald-300/40 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+            {trafegoMsg}
+          </p>
+        )}
+        {trafegoErro && (
+          <p className="mt-3 mb-0 rounded-xl border border-status-erro/30 bg-status-erro-bg px-3 py-2 text-sm text-status-erro">
+            {trafegoErro}
+          </p>
+        )}
+
+        {trafegoContadores.length > 0 && (
+          <div className="mt-4 overflow-x-auto rounded-xl border border-line dark:border-white/10">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line text-left dark:border-white/10">
+                  <th className="px-3 py-2">Cidade</th>
+                  <th className="px-3 py-2">UF</th>
+                  <th className="px-3 py-2">Marcadores</th>
+                  <th className="px-3 py-2">Última aparição</th>
+                  <th className="px-3 py-2">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trafegoContadores.map((row) => {
+                  const m = Number(row.marcadores) || 0
+                  let estado = 'A acumular'
+                  if (m >= LIMIAR_MARCADORES_CRON) estado = 'Pronta p/ cron'
+                  else if (row.enfileirado_em && m === 0) estado = 'Enfileirada (ciclo zerado)'
+                  return (
+                    <tr
+                      key={row.id || `${row.cidade}-${row.uf}`}
+                      className="border-b border-line/60 dark:border-white/5"
+                    >
+                      <td className="px-3 py-2">{row.cidade}</td>
+                      <td className="px-3 py-2">{row.uf}</td>
+                      <td className="px-3 py-2 font-semibold">
+                        {m}/{LIMIAR_MARCADORES_CRON}
+                      </td>
+                      <td className="px-3 py-2">{formatDateBR(row.ultima_aparicao_em) || '—'}</td>
+                      <td className="px-3 py-2">{estado}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="el-stage">
+        <h2 className="mt-0 mb-1 text-lg font-bold text-[#123e59] dark:text-[#e8f1f8]">
           Pipeline diário
         </h2>
         <p className="mt-0 mb-4 text-sm text-ink-muted">
-          Informe cidades manualmente. Cooldown de {cooldownDays} dias após pesquisa bem-sucedida.
+          Preferência: tráfego acima (auto-fila ao bater {LIMIAR_MARCADORES_CRON} marcadores).
+          Abaixo: adicionar cidades e enfileirar manualmente. Cooldown de {cooldownDays} dias após
+          pesquisa bem-sucedida.
         </p>
 
         <div className="flex flex-wrap items-end gap-3">
