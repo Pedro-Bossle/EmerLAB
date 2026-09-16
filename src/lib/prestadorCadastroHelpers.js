@@ -200,9 +200,19 @@ const normalizarDescricaoSituacao = (descricao) =>
 export const situacaoDescricaoEhCredenciado = (descricao) =>
     normalizarDescricaoSituacao(descricao).includes('CREDENCIAD')
 
+/** Descrição indica situação cancelado (ex.: CANCELADO). */
+export const situacaoDescricaoEhCancelado = (descricao) =>
+    normalizarDescricaoSituacao(descricao).includes('CANCELAD')
+
 /** ID da situação «Credenciado» para filtro/cadastro padrão. */
 export const acharSituacaoCredenciadoId = (situacoes) => {
     const hit = (situacoes || []).find((s) => situacaoDescricaoEhCredenciado(s.descricao))
+    return hit != null ? String(hit.id) : ''
+}
+
+/** ID da situação «Cancelado». */
+export const acharSituacaoCanceladoId = (situacoes) => {
+    const hit = (situacoes || []).find((s) => situacaoDescricaoEhCancelado(s.descricao))
     return hit != null ? String(hit.id) : ''
 }
 

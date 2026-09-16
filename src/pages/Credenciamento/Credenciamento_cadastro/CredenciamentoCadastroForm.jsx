@@ -39,6 +39,7 @@ import {
 } from '../../../lib/prestadorProcedimentos.js'
 import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanenteCredenciamento.js'
 import { sincronizarCardKanbanComSituacao } from '../../../lib/credKanban.js'
+import { notificarKanbanAtualizacaoPerfil } from '../../../lib/credKanbanAtualizacaoSite.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
@@ -156,6 +157,8 @@ const CredenciamentoCadastroForm = () => {
     const [erro, setErro] = useState('')
     const [form, setForm] = useState(estadoVazio)
     const [situacaoIdInicial, setSituacaoIdInicial] = useState('')
+    /** Snapshot para diff → Kanban «Adicionar em SITE». */
+    const snapshotKanbanRef = useRef({ dados: null, procs: [] })
     const [cidades, setCidades] = useState([])
     const [situacoes, setSituacoes] = useState([])
     const [especialidades, setEspecialidades] = useState([])
@@ -325,6 +328,22 @@ const CredenciamentoCadastroForm = () => {
                 longitude: data.longitude != null ? String(data.longitude) : '',
             })
             setSituacaoIdInicial(data.situacao_id != null ? String(data.situacao_id) : '')
+            snapshotKanbanRef.current = {
+                dados: {
+                    situacao_id: data.situacao_id != null ? String(data.situacao_id) : '',
+                    telefone: data.telefone || '',
+                    celular: data.celular || '',
+                    email: data.email || '',
+                    cep: data.cep || '',
+                    endereco_logradouro: data.endereco_logradouro || data.endereco || '',
+                    endereco_numero: data.endereco_numero || '',
+                    endereco_complemento: data.endereco_complemento || '',
+                    endereco_bairro: data.endereco_bairro || '',
+                    endereco_cidade: data.endereco_cidade || '',
+                    endereco_uf: data.endereco_uf || '',
+                },
+                procs: [],
+            }
             ultimoCepBuscadoRef.current = String(data.cep || '').replace(/\D/g, '')
 
             const { data: pcs } = await supabase.from('prestador_cidades').select('cidade_id, principal').eq('prestador_id', prestadorId)
@@ -385,6 +404,10 @@ const CredenciamentoCadastroForm = () => {
             try {
                 const codigosProc = await carregarCodigosPrestadorProcedimentos(prestadorId)
                 setProcSelecionados(codigosProc)
+                snapshotKanbanRef.current = {
+                    ...snapshotKanbanRef.current,
+                    procs: [...codigosProc],
+                }
             } catch (errProc) {
                 setErro((prev) =>
                     prev
@@ -392,6 +415,7 @@ const CredenciamentoCadastroForm = () => {
                         : `Procedimentos: ${errProc?.message || String(errProc)}`,
                 )
                 setProcSelecionados([])
+                snapshotKanbanRef.current = { ...snapshotKanbanRef.current, procs: [] }
             }
 
             const { data: labsSol } = await supabase
@@ -879,12 +903,42 @@ const CredenciamentoCadastroForm = () => {
                 solicitarGeocodePrestador(pid)
             }
 
-            if (form.situacao_id) {
-                try {
-                    await sincronizarCardKanbanComSituacao(pid, form.situacao_id, { situacoes })
-                } catch {
-                    /* Kanban ausente ou falha de sync não bloqueia o save do perfil */
+            try {
+                const snap = snapshotKanbanRef.current || { dados: null, procs: [] }
+                const dadosDepois = {
+                    situacao_id: form.situacao_id ? String(form.situacao_id) : '',
+                    telefone: (usaClinica ? telefoneAutoClinica : form.telefone).trim() || '',
+                    celular: form.celular.trim() || '',
+                    email: normalizarEmailParaSalvar(form.email) || '',
+                    cep: form.cep.trim() || '',
+                    endereco_logradouro: form.endereco_logradouro.trim() || '',
+                    endereco_numero: form.endereco_numero.trim() || '',
+                    endereco_complemento: form.endereco_complemento.trim() || '',
+                    endereco_bairro: form.endereco_bairro.trim() || '',
+                    endereco_cidade: form.endereco_cidade.trim() || '',
+                    endereco_uf: form.endereco_uf.trim() || '',
                 }
+                const espNome =
+                    especialidades.find((e) => Number(e.id) === Number(form.especialidade_id))?.nome || ''
+                const cardSite = await notificarKanbanAtualizacaoPerfil({
+                    prestadorId: pid,
+                    nome: form.nome.trim(),
+                    uf: form.endereco_uf.trim(),
+                    cidade: form.endereco_cidade.trim(),
+                    telefone: dadosDepois.telefone,
+                    tipo: espNome,
+                    situacoes,
+                    // Em cadastro novo só notifica mudança de situação (Credenciado/Cancelado).
+                    antes: isNovo ? { ...dadosDepois, situacao_id: '' } : snap.dados || {},
+                    depois: dadosDepois,
+                    procsAntes: isNovo ? codigosAtualizados : snap.procs || [],
+                    procsDepois: codigosAtualizados,
+                })
+                if (!cardSite && form.situacao_id) {
+                    await sincronizarCardKanbanComSituacao(pid, form.situacao_id, { situacoes })
+                }
+            } catch {
+                /* Kanban ausente ou falha de sync não bloqueia o save do perfil */
             }
 
             navigate('/credenciamento/cadastro', { replace: true })

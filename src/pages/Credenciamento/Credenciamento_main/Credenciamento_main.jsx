@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, hasStoredDevTools, hasStoredExclusaoPermanenteCredenciamento, normalizarProfileAcesso, setStoredAccessProfile } from '../../../lib/accessControl'
 import { useDevToolsUi } from '../../../lib/devToolsUi'
-import { filtrarPorTermoBusca, normalizarTextoBusca, patchCredenciadoEmSeTransicao, resolverCidadePrincipalNome, filtrarSituacoesSemAguardandoFormulario } from '../../../lib/prestadorCadastroHelpers'
+import { filtrarPorTermoBusca, normalizarTextoBusca, patchCredenciadoEmSeTransicao, resolverCidadePrincipalNome, filtrarSituacoesSemAguardandoFormulario, situacaoDescricaoEhCancelado, situacaoDescricaoEhCredenciado } from '../../../lib/prestadorCadastroHelpers'
 import {
     montarEstabelecimentoPorVeterinarioDeListas,
     resolverLocalidadeEfetivaPrestador } from '../../../lib/prestadorLocalidadeVinculo.js'
@@ -10,6 +10,7 @@ import './Credenciamento_main.css'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import { solicitarGeocodePrestador } from '../../../lib/credenciamento/solicitarGeocodePrestador'
 import { sincronizarCardKanbanComSituacao } from '../../../lib/credKanban.js'
+import { notificarKanbanAtualizacaoPerfil } from '../../../lib/credKanbanAtualizacaoSite.js'
 import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanenteCredenciamento.js'
 import { useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
@@ -646,7 +647,26 @@ const Credenciamento_main = () => {
         )
         if (campos.situacao_id !== undefined) {
             try {
-                await sincronizarCardKanbanComSituacao(idNum, campos.situacao_id, { situacoes })
+                const descNova =
+                    situacoes.find((s) => Number(s.id) === Number(campos.situacao_id))?.descricao || ''
+                const filaSite =
+                    situacaoDescricaoEhCredenciado(descNova) || situacaoDescricaoEhCancelado(descNova)
+                if (filaSite) {
+                    await notificarKanbanAtualizacaoPerfil({
+                        prestadorId: idNum,
+                        nome: atual?.nome || 'Sem nome',
+                        uf: atual?.endereco_uf || '',
+                        cidade: atual?.endereco_cidade || '',
+                        telefone: atual?.telefone || '',
+                        situacoes,
+                        antes: { situacao_id: atual?.situacao_id },
+                        depois: { situacao_id: campos.situacao_id },
+                        procsAntes: [],
+                        procsDepois: [],
+                    })
+                } else {
+                    await sincronizarCardKanbanComSituacao(idNum, campos.situacao_id, { situacoes })
+                }
             } catch {
                 /* sync Kanban opcional */
             }
@@ -922,7 +942,28 @@ const Credenciamento_main = () => {
             }
             if (prestadorId && novaSituacaoId) {
                 try {
-                    await sincronizarCardKanbanComSituacao(prestadorId, novaSituacaoId, { situacoes })
+                    const descNova =
+                        situacoes.find((s) => Number(s.id) === Number(novaSituacaoId))?.descricao || ''
+                    const filaSite =
+                        situacaoDescricaoEhCredenciado(descNova) || situacaoDescricaoEhCancelado(descNova)
+                    if (filaSite) {
+                        const anterior = emEdicao
+                            ? prestadores.find((p) => Number(p.id) === Number(prestadorEditandoId))
+                            : null
+                        await notificarKanbanAtualizacaoPerfil({
+                            prestadorId,
+                            nome: novoNome.trim() || 'Sem nome',
+                            cidade: novoCidadePrincipal.trim(),
+                            telefone: payload.telefone || '',
+                            situacoes,
+                            antes: { situacao_id: anterior?.situacao_id || '' },
+                            depois: { situacao_id: novaSituacaoId },
+                            procsAntes: [],
+                            procsDepois: [],
+                        })
+                    } else {
+                        await sincronizarCardKanbanComSituacao(prestadorId, novaSituacaoId, { situacoes })
+                    }
                 } catch {
                     /* sync Kanban opcional */
                 }

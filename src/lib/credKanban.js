@@ -5,6 +5,7 @@
 import { supabase } from './supabase.js'
 import { obterOuCriarCidadeCredenciamento } from './cidadesCredenciamento.js'
 import {
+    acharSituacaoCanceladoId,
     acharSituacaoCredenciadoId,
     acharSituacaoPreenchendoFormularioId,
     patchCredenciadoEmSeTransicao,
@@ -306,11 +307,13 @@ export function montarMapaSituacaoParaColunaKanban(situacoes = []) {
     )?.id
     const idAss = (situacoes || []).find((s) => /assinatura/i.test(String(s.descricao || '')))?.id
     const idCred = acharSituacaoCredenciadoId(situacoes)
+    const idCancel = acharSituacaoCanceladoId(situacoes)
 
     if (idPreenchendo) mapa.set(Number(idPreenchendo), 'preenchendo_form')
     if (idOk) mapa.set(Number(idOk), 'aguardando_ok_minuta')
     if (idAss) mapa.set(Number(idAss), 'aguardando_assinatura')
     if (idCred) mapa.set(Number(idCred), 'adicionar_site')
+    if (idCancel) mapa.set(Number(idCancel), 'adicionar_site')
     return mapa
 }
 
@@ -322,8 +325,9 @@ export function colunaKanbanParaSituacaoId(situacaoId, situacoes = []) {
 
 /**
  * Após mudar a situação no perfil/cadastro: move o card vinculado via moverCardKanban
- * (funil + side-effects, ex. adicionar_site → prestadores.no_site).
- * Não cria card novo; situação Credenciado → coluna Adicionar em SITE.
+ * (funil + side-effects, ex. Assinatura → Site marca no_site).
+ * Credenciado / Cancelado → Adicionar em SITE (cria card se ainda não existir).
+ * Para descrições de diff (procs/contato/endereço), use `notificarKanbanAtualizacaoPerfil`.
  */
 export async function sincronizarCardKanbanComSituacao(prestadorId, situacaoId, { situacoes = [] } = {}) {
     const pid = Number(prestadorId)
@@ -352,10 +356,44 @@ export async function sincronizarCardKanbanComSituacao(prestadorId, situacaoId, 
         throw new Error(error.message)
     }
     const row = rows?.[0]
+
+    // Credenciado / Cancelado: cria card na fila SITE se ainda não houver.
+    if (!row && colunaAlvo === 'adicionar_site') {
+        const { data: prest } = await supabase
+            .from('prestadores')
+            .select('id, nome, telefone, endereco_cidade, endereco_uf, especialidade_id')
+            .eq('id', pid)
+            .maybeSingle()
+        if (!prest) return null
+        let tipoEsp = ''
+        if (prest.especialidade_id) {
+            const { data: esp } = await supabase
+                .from('especialidades')
+                .select('nome')
+                .eq('id', Number(prest.especialidade_id))
+                .maybeSingle()
+            tipoEsp = especialidadeVisivelKanban(esp?.nome) || ''
+        }
+        return criarCardKanban({
+            coluna: 'adicionar_site',
+            nome: prest.nome || 'Sem nome',
+            uf: prest.endereco_uf || '',
+            cidade: prest.endereco_cidade || '',
+            telefone: prest.telefone || '',
+            tipo: tipoEsp,
+            prestadorId: pid,
+        })
+    }
     if (!row) return null
 
     const card = mapearCardRow(row)
     if (card.coluna === colunaAlvo) return card
+
+    // Fila SITE (Credenciado/Cancelado): força entrada mesmo fora de Assinatura.
+    if (colunaAlvo === 'adicionar_site' && !podeMoverColunaKanban(card.coluna, colunaAlvo)) {
+        const ordem = await proximaOrdemColuna(colunaAlvo)
+        return atualizarCardKanban(card.id, { coluna: colunaAlvo, ordem })
+    }
     if (!podeMoverColunaKanban(card.coluna, colunaAlvo)) return null
 
     const ordem = await proximaOrdemColuna(colunaAlvo)
@@ -395,7 +433,9 @@ async function aplicarSideEffectsColuna(card, de, para, situacoes) {
         }
     }
 
-    if (destino === 'adicionar_site' && origem !== 'adicionar_site') {
+    // Só na 1ª entrada pós-assinatura (credenciamento). Atualizações / Cancelado
+    // usam notificarKanbanAtualizacaoPerfil e não devem forçar no_site=true.
+    if (destino === 'adicionar_site' && origem === 'aguardando_assinatura') {
         await registrarUpdate(
             'no_site',
             supabase
