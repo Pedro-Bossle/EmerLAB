@@ -23,7 +23,7 @@ import {
 } from '../../../lib/credenciamento/emerRadarProspectosDismiss.js'
 import { descartarProspectoMaps, atualizarProspectoMaps } from '../../../lib/credenciamento/prospectosMapsRepo.js'
 import { prospectoIndicaAtendimento24h } from '../../../lib/credenciamento/prospectosOsmHorario.js'
-import { classify, copyText, displayCategory, unifyContato } from '../../../lib/credenciamento/emerRadarUi.js'
+import { classify, copyText, displayCategory, formatarNotaMaps, unifyContato } from '../../../lib/credenciamento/emerRadarUi.js'
 
 const markerIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -434,7 +434,7 @@ function ProspectCard({ est, podeEditar, onEnviadoKanban, onRemover, enviando, j
           <HoursDisplay horario={est.horario} detalhado={est.horario_detalhado} />
           {(est.nota || est.num_avaliacoes) && (
             <li className="emer-radar-card__rating">
-              {est.nota ? `Nota ${est.nota}` : ''}
+              {est.nota ? `Nota ${formatarNotaMaps(est.nota) || est.nota}` : ''}
               {est.nota && est.num_avaliacoes ? ' · ' : ''}
               {est.num_avaliacoes ? `${est.num_avaliacoes} avaliações` : ''}
             </li>
@@ -518,6 +518,8 @@ const FILTERS_INITIAL = {
  *   results?: object[],
  *   titulo?: string,
  *   mostrarExport?: boolean,
+ *   atualizandoCatalogo?: boolean,
+ *   onAtualizarFiltrados?: (itens: object[]) => void,
  *   onRemovido?: (est: object) => void,
  *   onEnviadoKanbanOk?: (est: object) => void,
  * }} props
@@ -526,6 +528,8 @@ export default function EmerRadarProspectResults({
   results,
   titulo,
   mostrarExport = true,
+  atualizandoCatalogo = false,
+  onAtualizarFiltrados,
   onRemovido,
   onEnviadoKanbanOk,
 }) {
@@ -715,6 +719,17 @@ export default function EmerRadarProspectResults({
               Mapa
             </button>
           </div>
+          {typeof onAtualizarFiltrados === 'function' ? (
+            <button
+              type="button"
+              className={buttonClassName({ variant: 'secondary' })}
+              disabled={atualizandoCatalogo || !filtered.length}
+              title="Rebusca no Maps por cidade/UF dos filtrados e atualiza os registros salvos"
+              onClick={() => onAtualizarFiltrados(filtered)}
+            >
+              {atualizandoCatalogo ? 'Atualizando…' : `Atualizar filtrados (${filtered.length})`}
+            </button>
+          ) : null}
           {mostrarExport ? (
             <>
               <a

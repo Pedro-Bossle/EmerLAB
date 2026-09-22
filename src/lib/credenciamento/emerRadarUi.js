@@ -7,14 +7,59 @@ export function formatDateBR(value) {
   return String(value)
 }
 
-export function displayCategory(est) {
-  if (est?.categoria) return est.categoria
-  const t = String(est?.termo_busca || '').toLowerCase()
+/** Tipos do Maps que não fazem sentido para prospecção vet (ex.: POI vizinho). */
+const CATEGORIA_IRRELEVANTE_RE =
+  /escrit[oó]rio\s+do\s+governo|governo\s+do\s+estado|prefeitura|c[aâ]mara\s+municipal|delegacia|tribunal|cart[oó]rio|autarquia|secretaria\s+de\s+estado/i
+
+export function categoriaMapsIrrelevante(cat) {
+  return CATEGORIA_IRRELEVANTE_RE.test(String(cat || '').trim())
+}
+
+function labelCategoriaPorTermo(termo) {
+  const t = String(termo || '').toLowerCase()
   if (t.includes('hospital')) return 'Hospital Veterinário'
   if (t.includes('pet')) return 'Pet Shop Veterinário'
   if (t.includes('clínica') || t.includes('clinica')) return 'Clínica Veterinária'
   if (t.includes('veterin')) return 'Veterinário'
+  return ''
+}
+
+export function displayCategory(est) {
+  const cat = String(est?.categoria || '').trim()
+  if (cat && !categoriaMapsIrrelevante(cat)) return cat
+  const porTermo = labelCategoriaPorTermo(est?.termo_busca)
+  if (porTermo) return porTermo
   return (est?.tipo || est?.especialidade || '').trim() || 'Estabelecimento'
+}
+
+/** Google Maps usa 0–5; scrape às vezes grava escala 0–10 (ex.: "10,0" = 5,0). */
+export function formatarNotaMaps(nota) {
+  if (nota == null || nota === '') return ''
+  const raw = String(nota).trim()
+  const n = Number(raw.replace(',', '.'))
+  if (!Number.isFinite(n)) return raw
+  let v = n
+  if (v > 5 && v <= 10) v = v / 2
+  if (v < 0 || v > 5) return raw
+  return v.toFixed(1).replace('.', ',')
+}
+
+const UF_BR =
+  'AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO'
+
+export function ufFromEndereco(endereco, fallback = '') {
+  const addr = String(endereco || '').trim()
+  if (addr) {
+    const re = new RegExp(`-\\s*(${UF_BR})\\b`, 'gi')
+    let match = null
+    let m
+    while ((m = re.exec(addr)) !== null) match = m
+    if (match?.[1]) return match[1].toUpperCase()
+  }
+  return String(fallback || '')
+    .trim()
+    .toUpperCase()
+    .slice(0, 2)
 }
 
 export function classify(est) {
@@ -74,13 +119,42 @@ export function unifyContato(tel, wa) {
 export function cidadeFromEndereco(endereco, fallback) {
   const addr = String(endereco || '').trim()
   if (addr) {
-    const m = addr.match(/,\s*([^,]+?)\s*-\s*[A-Za-z]{2}\b/)
-    if (m?.[1]) {
-      const part = m[1].trim()
+    // Última ocorrência de "Cidade - UF" (evita "453 - Centro" / "101 - Bairro")
+    const re = new RegExp(`,\\s*([^,]+?)\\s*-\\s*(${UF_BR})\\b`, 'gi')
+    let match = null
+    let m
+    while ((m = re.exec(addr)) !== null) match = m
+    if (match?.[1]) {
+      const part = match[1].trim()
       if (part.length >= 2) return part
     }
   }
   return String(fallback || '').trim()
+}
+
+/**
+ * Cidade do estabelecimento: worker > endereço > cidade da busca.
+ * Se o worker só ecoou a cidade da busca mas o endereço aponta outra, confia no endereço
+ * (comum quando a busca em Esteio devolve clínica em Sapucaia).
+ */
+export function resolverCidadeProspectoMaps(est, { cidadePadrao = '' } = {}) {
+  const endereco = String(est?.endereco || '').trim()
+  const doWorker = String(est?.cidade || '').trim()
+  const doEndereco = cidadeFromEndereco(endereco, '')
+  const padrao = String(cidadePadrao || '').trim()
+  const norm = (s) =>
+    String(s || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+
+  if (doWorker && doEndereco && padrao && norm(doWorker) === norm(padrao) && norm(doEndereco) !== norm(padrao)) {
+    return doEndereco
+  }
+  if (doWorker) return doWorker
+  if (doEndereco) return doEndereco
+  return padrao
 }
 
 export function isSomenteRede(r) {

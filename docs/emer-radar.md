@@ -15,6 +15,7 @@
 # - Tabela Supabase `cred_prospectos_maps` (scripts/sql/cred_prospectos_maps.sql)
 # - Após cada busca, resultados são upsertados (sem coluna/URL de foto de fachada)
 # - Aba «Catálogo salvo» filtra por UF, cidade, status e texto
+# - «Atualizar filtrados»: reexecuta scrape por cidade/UF dos itens visíveis e faz upsert com preferirNovos
 # - Foto de fachada: GET /api/place-photo (worker) sob demanda; URL do CDN Google, sem gravar no Supabase
 #
 # Pipeline — cidades do tráfego:

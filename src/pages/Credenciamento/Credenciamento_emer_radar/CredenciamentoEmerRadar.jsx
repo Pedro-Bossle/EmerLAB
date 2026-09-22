@@ -55,6 +55,7 @@ import {
   listarCidadesUfProspectosMaps,
   listarProspectosMaps,
   mapsIdDeEstabelecimento,
+  montarFilaAtualizacaoCatalogo,
   rowMapsParaCardUi,
   upsertProspectosMapsDeColeta,
 } from '../../../lib/credenciamento/prospectosMapsRepo.js'
@@ -1181,6 +1182,10 @@ function ProspectPanel() {
   const [salvando, setSalvando] = useState(false)
   const persistLockRef = useRef('')
   const lastEventIdRef = useRef(0)
+  const scrapeCtxRef = useRef({ cidade: '', uf: '' })
+  const filaAtualizacaoRef = useRef(null)
+  const finishingJobRef = useRef(false)
+  const expectConcluidoRef = useRef(false)
 
   const [aba, setAba] = useState('busca') // busca | catalogo
   const [filtroUf, setFiltroUf] = useState('')
@@ -1192,6 +1197,8 @@ function ProspectPanel() {
   const [catalogoLoading, setCatalogoLoading] = useState(false)
   const [catalogoErro, setCatalogoErro] = useState('')
   const [paresCidade, setParesCidade] = useState([])
+  const [atualizandoCatalogo, setAtualizandoCatalogo] = useState(false)
+  const [atualizacaoProgresso, setAtualizacaoProgresso] = useState('')
 
   const status = snap?.status || 'IDLE'
   const isRunning = status === 'BUSCANDO' || status === 'FINALIZANDO'
@@ -1290,7 +1297,8 @@ function ProspectPanel() {
   const persistirResultados = useCallback(
     async (lista, ctx) => {
       if (!lista?.length) return
-      const lock = `${ctx?.uf || ''}|${ctx?.cidade || ''}|${lista.length}|${mapsIdPrimeiro(lista)}`
+      const preferirNovos = Boolean(ctx?.preferirNovos)
+      const lock = `${ctx?.uf || ''}|${ctx?.cidade || ''}|${lista.length}|${mapsIdPrimeiro(lista)}|${preferirNovos ? 'u' : 'n'}`
       if (persistLockRef.current === lock) return
       persistLockRef.current = lock
       setSalvando(true)
@@ -1307,7 +1315,9 @@ function ProspectPanel() {
         )
         setResults(enriched)
         setSaveMsg(
-          `${r.salvos} prospecto${r.salvos === 1 ? '' : 's'} salvo${r.salvos === 1 ? '' : 's'} no catálogo (sem fotos de fachada).`,
+          preferirNovos
+            ? `${r.salvos} registro${r.salvos === 1 ? '' : 's'} atualizado${r.salvos === 1 ? '' : 's'} no catálogo.`
+            : `${r.salvos} prospecto${r.salvos === 1 ? '' : 's'} salvo${r.salvos === 1 ? '' : 's'} no catálogo (sem fotos de fachada).`,
         )
         void carregarParesCidade()
       } catch (e) {
@@ -1318,6 +1328,110 @@ function ProspectPanel() {
       }
     },
     [carregarParesCidade],
+  )
+
+  const iniciarScrapeJob = useCallback(
+    async (job) => {
+      const cidadeJob = String(job.cidade || '').trim()
+      const ufJob = String(job.uf || '')
+        .trim()
+        .toUpperCase()
+        .slice(0, 2)
+      const termosJob = Array.isArray(job.termos) && job.termos.length ? job.termos : [...terms]
+      const maxJob = Math.min(Math.max(Number(job.max_results) || maxResults || 80, 20), 150)
+
+      scrapeCtxRef.current = { cidade: cidadeJob, uf: ufJob }
+      setUf(ufJob)
+      setCidade(cidadeJob)
+      setTermos(termosJob)
+      lastEventIdRef.current = 0
+      setLogs([])
+      setError('')
+      setProgress({
+        termo_atual: null,
+        index: 0,
+        total: 0,
+        termos_concluidos: [],
+        encontrados: 0,
+      })
+      persistLockRef.current = ''
+      finishingJobRef.current = false
+      expectConcluidoRef.current = true
+
+      const s = await scrapeStart({
+        uf: ufJob,
+        cidade: cidadeJob,
+        max_results: maxJob,
+        termos: termosJob,
+      })
+      applySnap(s)
+      setResults([])
+    },
+    [applySnap, maxResults, terms],
+  )
+
+  const finalizarFilaAtualizacao = useCallback(async () => {
+    const fila = filaAtualizacaoRef.current
+    filaAtualizacaoRef.current = null
+    setAtualizandoCatalogo(false)
+    setAtualizacaoProgresso('')
+    const n = fila?.jobs?.length || 0
+    setSaveMsg(
+      n
+        ? `Atualização do catálogo concluída (${n} busca${n === 1 ? '' : 's'} no Maps).`
+        : 'Atualização do catálogo concluída.',
+    )
+    setAba('catalogo')
+    await carregarCatalogo({ silencioso: false })
+  }, [carregarCatalogo])
+
+  const avancarFilaAtualizacao = useCallback(async () => {
+    const fila = filaAtualizacaoRef.current
+    if (!fila) return
+    if (fila.cancel) {
+      await finalizarFilaAtualizacao()
+      return
+    }
+    const next = fila.index + 1
+    if (next >= fila.jobs.length) {
+      await finalizarFilaAtualizacao()
+      return
+    }
+    fila.index = next
+    const job = fila.jobs[next]
+    setAtualizacaoProgresso(
+      `Atualizando ${next + 1}/${fila.jobs.length}: ${job.cidade} - ${job.uf} (${job.prospectos} no filtro)`,
+    )
+    try {
+      await iniciarScrapeJob(job)
+    } catch (e) {
+      setError(e?.message || String(e))
+      await finalizarFilaAtualizacao()
+    }
+  }, [finalizarFilaAtualizacao, iniciarScrapeJob])
+
+  const onScrapeConcluido = useCallback(
+    async (lista) => {
+      if (!expectConcluidoRef.current) return
+      if (finishingJobRef.current) return
+      finishingJobRef.current = true
+      expectConcluidoRef.current = false
+      try {
+        setResults(lista || [])
+        const ctx = {
+          cidade: scrapeCtxRef.current.cidade,
+          uf: scrapeCtxRef.current.uf,
+          preferirNovos: Boolean(filaAtualizacaoRef.current),
+        }
+        await persistirResultados(lista || [], ctx)
+        if (filaAtualizacaoRef.current) {
+          await avancarFilaAtualizacao()
+        }
+      } finally {
+        finishingJobRef.current = false
+      }
+    },
+    [persistirResultados, avancarFilaAtualizacao],
   )
 
   useEffect(() => {
@@ -1383,18 +1497,21 @@ function ProspectPanel() {
         }
         if (type === 'job_finished' || type === 'job_cancelled' || type === 'done') {
           setSnap((prev) => ({ ...(prev || {}), status: 'CONCLUIDO' }))
+          if (type === 'job_cancelled' && filaAtualizacaoRef.current) {
+            filaAtualizacaoRef.current.cancel = true
+          }
           scrapeResults()
-            .then((r) => {
-              const lista = r.results || []
-              setResults(lista)
-              void persistirResultados(lista, { cidade: cidade.trim(), uf })
-            })
+            .then((r) => void onScrapeConcluido(r.results || []))
             .catch(() => undefined)
           if (type === 'done') es.close()
         }
         if (type === 'job_error') {
           setSnap((prev) => ({ ...(prev || {}), status: 'ERRO' }))
           setError(payload.message || 'Erro inesperado')
+          if (filaAtualizacaoRef.current) {
+            filaAtualizacaoRef.current.cancel = true
+            void avancarFilaAtualizacao()
+          }
         }
       } catch {
         /* ignore */
@@ -1421,9 +1538,7 @@ function ProspectPanel() {
           applySnap(s)
           if (s?.status === 'CONCLUIDO') {
             const r = await scrapeResults()
-            const lista = r.results || []
-            setResults(lista)
-            void persistirResultados(lista, { cidade: cidade.trim(), uf })
+            void onScrapeConcluido(r.results || [])
           }
         })
         .catch(() => undefined)
@@ -1432,11 +1547,15 @@ function ProspectPanel() {
       es.close()
       clearInterval(poll)
     }
-  }, [isRunning, cidade, uf, persistirResultados, applySnap])
+  }, [isRunning, onScrapeConcluido, avancarFilaAtualizacao, applySnap])
 
   const handleStart = async () => {
     setError('')
     setSaveMsg('')
+    if (atualizandoCatalogo || filaAtualizacaoRef.current) {
+      setError('Aguarde a atualização do catálogo terminar (ou cancele).')
+      return
+    }
     if (!cidade.trim()) {
       setError('Informe a cidade.')
       return
@@ -1450,38 +1569,91 @@ function ProspectPanel() {
       return
     }
     try {
-      lastEventIdRef.current = 0
-      setLogs([])
-      setProgress({
-        termo_atual: null,
-        index: 0,
-        total: 0,
-        termos_concluidos: [],
-        encontrados: 0,
-      })
-      const s = await scrapeStart({
-        uf,
+      filaAtualizacaoRef.current = null
+      setAtualizandoCatalogo(false)
+      setAtualizacaoProgresso('')
+      await iniciarScrapeJob({
         cidade: cidade.trim(),
-        max_results: maxResults,
+        uf,
         termos,
+        max_results: maxResults,
       })
-      applySnap(s)
-      setResults([])
-      persistLockRef.current = ''
       setAba('busca')
     } catch (e) {
       setError(e.message)
     }
   }
 
+  const handleAtualizarFiltrados = async (itensFiltrados) => {
+    setError('')
+    setSaveMsg('')
+    if (isRunning || atualizandoCatalogo || filaAtualizacaoRef.current) {
+      setError('Já há uma busca em andamento.')
+      return
+    }
+    const fila = montarFilaAtualizacaoCatalogo(itensFiltrados, {
+      termosPadrao: termos.length ? termos : terms,
+      maxResultsPadrao: maxResults,
+    })
+    if (!fila.ok) {
+      setError(fila.erro || 'Não foi possível montar a atualização.')
+      return
+    }
+    const ok = window.confirm(
+      `Rebuscar no Maps e atualizar o catálogo?\n\n` +
+        `• ${fila.totalProspectos} prospecto(s) filtrado(s)\n` +
+        `• ${fila.jobs.length} cidade(s): ${fila.jobs.map((j) => `${j.cidade}/${j.uf}`).join(', ')}\n\n` +
+        `Dados novos (telefone, endereço, horário, etc.) substituem os salvos quando o scrape trouxer valor.`,
+    )
+    if (!ok) return
+
+    filaAtualizacaoRef.current = { jobs: fila.jobs, index: 0, cancel: false }
+    setAtualizandoCatalogo(true)
+    const job0 = fila.jobs[0]
+    setAtualizacaoProgresso(
+      `Atualizando 1/${fila.jobs.length}: ${job0.cidade} - ${job0.uf} (${job0.prospectos} no filtro)`,
+    )
+    setAba('busca')
+    try {
+      await iniciarScrapeJob(job0)
+    } catch (e) {
+      filaAtualizacaoRef.current = null
+      setAtualizandoCatalogo(false)
+      setAtualizacaoProgresso('')
+      setError(e?.message || String(e))
+    }
+  }
+
+  const handleCancelarBusca = async () => {
+    expectConcluidoRef.current = false
+    if (filaAtualizacaoRef.current) {
+      filaAtualizacaoRef.current.cancel = true
+    }
+    try {
+      await scrapeStop()
+    } catch {
+      /* ignore */
+    }
+    if (filaAtualizacaoRef.current) {
+      await finalizarFilaAtualizacao()
+    }
+  }
+
   const salvarManual = () => {
     persistLockRef.current = ''
-    void persistirResultados(results, { cidade: cidade.trim(), uf })
+    void persistirResultados(results, {
+      cidade: scrapeCtxRef.current.cidade || cidade.trim(),
+      uf: scrapeCtxRef.current.uf || uf,
+    })
   }
 
   const showProgress =
-    aba === 'busca' &&
-    (isRunning || status === 'CONCLUIDO' || status === 'ERRO' || logs.length > 0)
+    (aba === 'busca' || atualizandoCatalogo) &&
+    (isRunning ||
+      atualizandoCatalogo ||
+      status === 'CONCLUIDO' ||
+      status === 'ERRO' ||
+      logs.length > 0)
 
   return (
     <div className="space-y-4">
@@ -1582,16 +1754,21 @@ function ProspectPanel() {
 
             <div className="mt-4 flex flex-wrap gap-3">
               {!isRunning ? (
-                <button type="button" className={buttonClassName()} onClick={handleStart}>
+                <button
+                  type="button"
+                  className={buttonClassName()}
+                  onClick={handleStart}
+                  disabled={atualizandoCatalogo}
+                >
                   Iniciar busca
                 </button>
               ) : (
                 <button
                   type="button"
                   className={buttonClassName({ variant: 'danger' })}
-                  onClick={() => scrapeStop().then(setSnap)}
+                  onClick={() => void handleCancelarBusca()}
                 >
-                  Parar busca
+                  {atualizandoCatalogo ? 'Cancelar atualização' : 'Parar busca'}
                 </button>
               )}
               {results.length > 0 && (
@@ -1685,12 +1862,16 @@ function ProspectPanel() {
               <button
                 type="button"
                 className={buttonClassName()}
-                disabled={catalogoLoading}
+                disabled={catalogoLoading || atualizandoCatalogo || isRunning}
                 onClick={() => void carregarCatalogo()}
               >
                 {catalogoLoading ? 'Carregando…' : 'Buscar no catálogo'}
               </button>
             </div>
+            <p className="mt-3 mb-0 text-xs text-ink-muted">
+              Depois de filtrar a lista, use «Atualizar filtrados» nos resultados para rebuscar no Maps e
+              sobrescrever telefone, endereço, horário e categoria dos registros já salvos.
+            </p>
           </>
         )}
 
@@ -1719,10 +1900,21 @@ function ProspectPanel() {
 
       {showProgress && (
         <section className="el-stage">
+          {atualizacaoProgresso ? (
+            <p className="mt-0 mb-3 rounded-xl border border-[#123e59]/20 bg-[#123e59]/5 px-3 py-2 text-sm text-[#123e59] dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-100">
+              {atualizacaoProgresso}
+            </p>
+          ) : null}
           {isRunning && (
             <EmerRadarLoader
               size="md"
-              label={status === 'FINALIZANDO' ? 'Finalizando varredura…' : 'Emer-Radar em busca…'}
+              label={
+                atualizandoCatalogo
+                  ? 'Atualizando catálogo via Maps…'
+                  : status === 'FINALIZANDO'
+                    ? 'Finalizando varredura…'
+                    : 'Emer-Radar em busca…'
+              }
               detail={
                 progress.termo_atual
                   ? `${progress.termo_atual}${
@@ -1796,6 +1988,8 @@ function ProspectPanel() {
           results={catalogo}
           titulo="Catálogo salvo"
           mostrarExport={false}
+          atualizandoCatalogo={atualizandoCatalogo || isRunning}
+          onAtualizarFiltrados={(itens) => void handleAtualizarFiltrados(itens)}
           onRemovido={(est) => {
             removerDoCatalogoLocal(est)
             void carregarCatalogo({ silencioso: true })

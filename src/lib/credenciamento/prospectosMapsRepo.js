@@ -1,5 +1,11 @@
 import { supabase } from '../supabase.js'
-import { unifyContato } from './emerRadarUi.js'
+import {
+    categoriaMapsIrrelevante,
+    formatarNotaMaps,
+    resolverCidadeProspectoMaps,
+    ufFromEndereco,
+    unifyContato,
+} from './emerRadarUi.js'
 
 const TABELA = 'cred_prospectos_maps'
 
@@ -30,6 +36,20 @@ function parseCoord(v) {
     return Number.isFinite(n) ? n : null
 }
 
+/** Rua/Av. com número costuma ser scrape completo; "Bairro, Cidade - UF" é parcial. */
+function enderecoMapsMaisEspecifico(candidato, atual) {
+    const a = String(candidato || '').trim()
+    const b = String(atual || '').trim()
+    if (!a) return false
+    if (!b) return true
+    if (a === b) return false
+    const temVia = (s) =>
+        /\b(rua|r\.|av\.|avenida|travessa|alameda|estrada|rodovia|praça|praca)\b/i.test(s) ||
+        /\d{1,5}\b/.test(s)
+    const score = (s) => (temVia(s) ? 2 : 0) + Math.min(s.length, 120) / 120
+    return score(a) > score(b) + 0.15
+}
+
 /**
  * Mapeia resultado do worker → linha DB.
  * Nunca inclui `imagem` (fachada fica só na sessão da busca).
@@ -42,22 +62,29 @@ export function mapearEstabelecimentoMapsParaRow(est, { cidadePadrao = '', ufPad
     const telRaw = String(est?.telefone || '').trim()
     const waRaw = String(est?.whatsapp || '').trim()
     const telefoneUnificado = unifyContato(telRaw, waRaw) || telRaw || waRaw || ''
+    const endereco = String(est?.endereco || '').trim()
+    const cidade = resolverCidadeProspectoMaps(est, { cidadePadrao })
+    const ufWorker = String(est?.uf || '')
+        .trim()
+        .toUpperCase()
+        .slice(0, 2)
+    const uf = ufWorker || ufFromEndereco(endereco, ufPadrao)
+    let categoria = String(est?.categoria || est?.tipo || est?.especialidade || '').trim()
+    if (categoriaMapsIrrelevante(categoria)) categoria = ''
+    const notaBruta = est?.nota != null ? String(est.nota).trim() : ''
     return {
         maps_id: mapsId,
         nome: String(est?.nome || '').trim() || 'Sem nome',
-        endereco: String(est?.endereco || '').trim(),
-        cidade: String(est?.cidade || cidadePadrao || '').trim(),
-        uf: String(est?.uf || ufPadrao || '')
-            .trim()
-            .toUpperCase()
-            .slice(0, 2),
+        endereco,
+        cidade,
+        uf,
         telefone: telefoneUnificado,
         whatsapp: waRaw || (telefoneUnificado && telefoneUnificado !== telRaw ? telefoneUnificado : ''),
         horario: String(est?.horario || '').trim(),
         horario_detalhado: String(est?.horario_detalhado || '').trim(),
-        nota: est?.nota != null ? String(est.nota).trim() : '',
+        nota: formatarNotaMaps(notaBruta) || notaBruta,
         num_avaliacoes: est?.num_avaliacoes != null ? String(est.num_avaliacoes).trim() : '',
-        categoria: String(est?.categoria || est?.tipo || est?.especialidade || '').trim(),
+        categoria,
         lat,
         lng,
         link_maps: String(est?.link_maps || '').trim(),
@@ -79,6 +106,7 @@ export function mapearEstabelecimentoMapsParaRow(est, { cidadePadrao = '', ufPad
 export function rowMapsParaCardUi(row) {
     if (!row) return null
     const telefone = unifyContato(row.telefone, row.whatsapp) || row.telefone || row.whatsapp || ''
+    const categoria = categoriaMapsIrrelevante(row.categoria) ? '' : row.categoria || ''
     return {
         id: row.maps_id || row.id,
         maps_db_id: row.id,
@@ -91,9 +119,9 @@ export function rowMapsParaCardUi(row) {
         whatsapp: row.whatsapp || '',
         horario: row.horario || '',
         horario_detalhado: row.horario_detalhado || '',
-        nota: row.nota || '',
+        nota: formatarNotaMaps(row.nota) || row.nota || '',
         num_avaliacoes: row.num_avaliacoes || '',
-        categoria: row.categoria || '',
+        categoria,
         latitude: row.lat != null ? String(row.lat) : '',
         longitude: row.lng != null ? String(row.lng) : '',
         link_maps: row.link_maps || '',
@@ -151,13 +179,71 @@ export async function listarCidadesUfProspectosMaps() {
 }
 
 /**
+ * Agrupa prospectos filtrados em jobs de re-busca por cidade/UF.
+ * @param {object[]} itens
+ * @param {{ termosPadrao?: string[], maxResultsPadrao?: number }} [opts]
+ * @returns {{ ok: boolean, erro?: string, jobs: Array<{ cidade: string, uf: string, termos: string[], max_results: number, prospectos: number }>, totalProspectos: number }}
+ */
+export function montarFilaAtualizacaoCatalogo(itens, opts = {}) {
+    const termosPadrao = Array.isArray(opts.termosPadrao) && opts.termosPadrao.length
+        ? opts.termosPadrao
+        : ['veterinário']
+    const maxPadrao = Math.min(Math.max(Number(opts.maxResultsPadrao) || 80, 20), 150)
+    const lista = Array.isArray(itens) ? itens : []
+    const byCity = new Map()
+
+    for (const est of lista) {
+        const cidade = String(est?.cidade || '').trim()
+        const uf = String(est?.uf || '')
+            .trim()
+            .toUpperCase()
+            .slice(0, 2)
+        if (!cidade || !uf) continue
+        const key = `${uf}|${cidade.toLowerCase()}`
+        if (!byCity.has(key)) {
+            byCity.set(key, { cidade, uf, termos: new Set(), count: 0 })
+        }
+        const g = byCity.get(key)
+        g.count += 1
+        const termo = String(est?.termo_busca || '').trim()
+        if (termo) g.termos.add(termo)
+    }
+
+    if (!byCity.size) {
+        return {
+            ok: false,
+            erro: 'Nenhum filtrado com cidade e UF. Ajuste os filtros ou complete cidade/UF nos registros.',
+            jobs: [],
+            totalProspectos: 0,
+        }
+    }
+
+    const jobs = [...byCity.values()]
+        .sort((a, b) => a.cidade.localeCompare(b.cidade, 'pt-BR') || a.uf.localeCompare(b.uf))
+        .map((g) => ({
+            cidade: g.cidade,
+            uf: g.uf,
+            termos: g.termos.size ? [...g.termos] : [...termosPadrao],
+            max_results: Math.min(Math.max(g.count + 25, 40, maxPadrao), 150),
+            prospectos: g.count,
+        }))
+
+    return {
+        ok: true,
+        jobs,
+        totalProspectos: jobs.reduce((acc, j) => acc + j.prospectos, 0),
+    }
+}
+
+/**
  * Upsert em lote dos resultados da coleta. Omite imagens.
  * @param {object[]} estabelecimentos
- * @param {{ cidade?: string, uf?: string }} [ctx]
+ * @param {{ cidade?: string, uf?: string, preferirNovos?: boolean }} [ctx]
  */
 export async function upsertProspectosMapsDeColeta(estabelecimentos, ctx = {}) {
     const lista = Array.isArray(estabelecimentos) ? estabelecimentos : []
     if (!lista.length) return { ok: true, salvos: 0, itens: [] }
+    const preferirNovos = Boolean(ctx.preferirNovos)
 
     const rows = []
     const visto = new Set()
@@ -209,7 +295,26 @@ export async function upsertProspectosMapsDeColeta(estabelecimentos, ctx = {}) {
                 velho != null &&
                 !(typeof velho === 'string' && !String(velho).trim()) &&
                 !(typeof velho === 'number' && !Number.isFinite(velho))
+            // Não reaproveitar categoria absurda (ex.: escritório do governo) de scrape antigo
+            if (campo === 'categoria' && novoVazio && categoriaMapsIrrelevante(velho)) {
+                row.categoria = ''
+                continue
+            }
+            // Atualização intencional: valor novo não-vazio sempre vence
+            if (preferirNovos && !novoVazio) continue
             if (novoVazio && velhoTem) row[campo] = velho
+        }
+        // Endereço novo mais específico (rua/av.) substitui vago "Bairro, Cidade - UF"
+        const endNovo = String(row.endereco || '').trim()
+        const endVelho = String(ant.endereco || '').trim()
+        if (endNovo && (preferirNovos || enderecoMapsMaisEspecifico(endNovo, endVelho))) {
+            row.endereco = endNovo
+            if (preferirNovos || !String(row.cidade || '').trim() || String(row.cidade) === String(ant.cidade)) {
+                row.cidade = resolverCidadeProspectoMaps(
+                    { endereco: endNovo, cidade: row.cidade },
+                    { cidadePadrao: ant.cidade },
+                )
+            }
         }
         if (row.lat == null && ant.lat != null) row.lat = ant.lat
         if (row.lng == null && ant.lng != null) row.lng = ant.lng
