@@ -172,24 +172,53 @@ export async function upsertProspectosMapsDeColeta(estabelecimentos, ctx = {}) {
     }
     if (!rows.length) return { ok: true, salvos: 0, itens: [] }
 
-    // Não sobrescrever telefone/whatsapp já salvos com vazio em re-coleta
+    // Não sobrescrever campos já salvos com vazio em re-coleta
     const ids = rows.map((r) => r.maps_id)
     const { data: existentes } = await supabase
         .from(TABELA)
-        .select('maps_id, telefone, whatsapp')
+        .select(
+            'maps_id, telefone, whatsapp, horario, horario_detalhado, endereco, nota, num_avaliacoes, categoria, link_maps, website, lat, lng, cidade, uf, status_prospeccao',
+        )
         .in('maps_id', ids)
     const porId = new Map((existentes || []).map((r) => [String(r.maps_id), r]))
+    const camposPreservar = [
+        'telefone',
+        'whatsapp',
+        'horario',
+        'horario_detalhado',
+        'endereco',
+        'nota',
+        'num_avaliacoes',
+        'categoria',
+        'link_maps',
+        'website',
+        'cidade',
+        'uf',
+    ]
     for (const row of rows) {
         const ant = porId.get(String(row.maps_id))
         if (!ant) continue
-        if (!String(row.telefone || '').trim() && String(ant.telefone || '').trim()) {
-            row.telefone = ant.telefone
+        for (const campo of camposPreservar) {
+            const novo = row[campo]
+            const velho = ant[campo]
+            const novoVazio =
+                novo == null ||
+                (typeof novo === 'string' && !String(novo).trim()) ||
+                (typeof novo === 'number' && !Number.isFinite(novo))
+            const velhoTem =
+                velho != null &&
+                !(typeof velho === 'string' && !String(velho).trim()) &&
+                !(typeof velho === 'number' && !Number.isFinite(velho))
+            if (novoVazio && velhoTem) row[campo] = velho
         }
-        if (!String(row.whatsapp || '').trim() && String(ant.whatsapp || '').trim()) {
-            row.whatsapp = ant.whatsapp
-        }
+        if (row.lat == null && ant.lat != null) row.lat = ant.lat
+        if (row.lng == null && ant.lng != null) row.lng = ant.lng
         if (!String(row.telefone || '').trim()) {
             row.telefone = unifyContato(ant.telefone, ant.whatsapp) || ant.telefone || ant.whatsapp || ''
+        }
+        // Nunca rebaixar contactado/credenciado para o default do insert
+        if (ant.status_prospeccao && ant.status_prospeccao !== 'novo') {
+            row.status_prospeccao = ant.status_prospeccao
         }
     }
 

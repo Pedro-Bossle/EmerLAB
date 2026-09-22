@@ -1230,9 +1230,12 @@ function ProspectPanel() {
     if (r.ok) setParesCidade(r.pares || [])
   }, [])
 
-  const carregarCatalogo = useCallback(async () => {
-    setCatalogoLoading(true)
-    setCatalogoErro('')
+  const carregarCatalogo = useCallback(async (opts = {}) => {
+    const silencioso = Boolean(opts.silencioso)
+    if (!silencioso) {
+      setCatalogoLoading(true)
+      setCatalogoErro('')
+    }
     try {
       const r = await listarProspectosMaps({
         uf: filtroUf,
@@ -1243,18 +1246,46 @@ function ProspectPanel() {
         limite: 800,
       })
       if (!r.ok) {
-        setCatalogoErro(r.erro || 'Falha ao carregar catálogo.')
-        setCatalogo([])
+        if (!silencioso) {
+          setCatalogoErro(r.erro || 'Falha ao carregar catálogo.')
+          setCatalogo([])
+        }
         return
       }
       setCatalogo((r.itens || []).map(rowMapsParaCardUi).filter(Boolean))
     } catch (e) {
-      setCatalogoErro(e?.message || String(e))
-      setCatalogo([])
+      if (!silencioso) {
+        setCatalogoErro(e?.message || String(e))
+        setCatalogo([])
+      }
     } finally {
-      setCatalogoLoading(false)
+      if (!silencioso) setCatalogoLoading(false)
     }
   }, [filtroUf, filtroCidade, filtroStatus, filtroBusca])
+
+  const aplicarStatusCatalogoLocal = useCallback((est, status) => {
+    const key = String(est?.maps_id || est?.id || '')
+    const dbId = String(est?.maps_db_id || '')
+    const match = (e) =>
+      (dbId && String(e?.maps_db_id || '') === dbId) ||
+      (key && String(e?.maps_id || e?.id || '') === key)
+    setCatalogo((prev) =>
+      (prev || []).map((e) => (match(e) ? { ...e, ...est, status_prospeccao: status || est.status_prospeccao } : e)),
+    )
+    setResults((prev) =>
+      (prev || []).map((e) => (match(e) ? { ...e, status_prospeccao: status || est.status_prospeccao } : e)),
+    )
+  }, [])
+
+  const removerDoCatalogoLocal = useCallback((est) => {
+    const key = String(est?.maps_id || est?.id || '')
+    const dbId = String(est?.maps_db_id || '')
+    const match = (e) =>
+      (dbId && String(e?.maps_db_id || '') === dbId) ||
+      (key && String(e?.maps_id || e?.id || '') === key)
+    setCatalogo((prev) => (prev || []).filter((e) => !match(e)))
+    setResults((prev) => (prev || []).filter((e) => !match(e)))
+  }, [])
 
   const persistirResultados = useCallback(
     async (lista, ctx) => {
@@ -1743,21 +1774,13 @@ function ProspectPanel() {
         <EmerRadarProspectResults
           results={results}
           titulo="Última busca"
-          onRemovido={() => void carregarParesCidade()}
-          onEnviadoKanbanOk={(est) => {
-            const key = String(est?.maps_id || est?.id || '')
-            const match = (e) =>
-              String(e?.maps_db_id || '') === String(est?.maps_db_id || '') ||
-              String(e?.maps_id || e?.id || '') === key
-            setResults((prev) =>
-              (prev || []).map((e) => (match(e) ? { ...e, status_prospeccao: 'contactado' } : e)),
-            )
-            setCatalogo((prev) =>
-              (prev || []).map((e) => (match(e) ? { ...e, status_prospeccao: 'contactado' } : e)),
-            )
+          onRemovido={(est) => {
+            removerDoCatalogoLocal(est)
+            void carregarParesCidade()
           }}
+          onEnviadoKanbanOk={(est) => aplicarStatusCatalogoLocal(est, 'contactado')}
         />
-      ) : catalogoLoading ? (
+      ) : catalogoLoading && !catalogo.length ? (
         <section className="el-stage">
           <p className="m-0 text-sm text-ink-muted">Carregando catálogo…</p>
         </section>
@@ -1773,21 +1796,11 @@ function ProspectPanel() {
           results={catalogo}
           titulo="Catálogo salvo"
           mostrarExport={false}
-          onRemovido={() => void carregarCatalogo()}
-          onEnviadoKanbanOk={(est) => {
-            const key = String(est?.maps_id || est?.id || '')
-            const match = (e) =>
-              String(e?.maps_db_id || '') === String(est?.maps_db_id || '') ||
-              String(e?.maps_id || e?.id || '') === key
-            setCatalogo((prev) =>
-              (prev || []).map((e) =>
-                match(e) ? { ...e, status_prospeccao: 'contactado', telefone: e.telefone || est.telefone } : e,
-              ),
-            )
-            setResults((prev) =>
-              (prev || []).map((e) => (match(e) ? { ...e, status_prospeccao: 'contactado' } : e)),
-            )
+          onRemovido={(est) => {
+            removerDoCatalogoLocal(est)
+            void carregarCatalogo({ silencioso: true })
           }}
+          onEnviadoKanbanOk={(est) => aplicarStatusCatalogoLocal(est, 'contactado')}
         />
       )}
     </div>

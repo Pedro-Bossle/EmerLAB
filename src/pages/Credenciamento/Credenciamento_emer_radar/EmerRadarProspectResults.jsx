@@ -486,7 +486,11 @@ function ProspectCard({ est, podeEditar, onEnviadoKanban, onRemover, enviando, j
                 })}
                 disabled={removendo || enviando}
                 title="Soft delete: marca como descartado no catálogo e oculta na lista"
-                onClick={() => onRemover?.(est)}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onRemover?.(est)
+                }}
               >
                 {removendo ? 'Removendo…' : 'Remover'}
               </button>
