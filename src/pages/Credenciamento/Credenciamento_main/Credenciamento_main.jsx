@@ -11,6 +11,7 @@ import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBu
 import { solicitarGeocodePrestador } from '../../../lib/credenciamento/solicitarGeocodePrestador'
 import { sincronizarCardKanbanComSituacao } from '../../../lib/credKanban.js'
 import { notificarKanbanAtualizacaoPerfil } from '../../../lib/credKanbanAtualizacaoSite.js'
+import { inativarNegociacoesSeCancelado } from '../../../lib/negociacaoInativarPorCancelamento.js'
 import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanenteCredenciamento.js'
 import { useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
@@ -667,6 +668,12 @@ const Credenciamento_main = () => {
                 } else {
                     await sincronizarCardKanbanComSituacao(idNum, campos.situacao_id, { situacoes })
                 }
+                await inativarNegociacoesSeCancelado(
+                    idNum,
+                    atual?.situacao_id,
+                    campos.situacao_id,
+                    situacoes,
+                )
             } catch {
                 /* sync Kanban opcional */
             }
@@ -963,6 +970,17 @@ const Credenciamento_main = () => {
                         })
                     } else {
                         await sincronizarCardKanbanComSituacao(prestadorId, novaSituacaoId, { situacoes })
+                    }
+                    if (emEdicao) {
+                        const anterior = prestadores.find(
+                            (p) => Number(p.id) === Number(prestadorEditandoId),
+                        )
+                        await inativarNegociacoesSeCancelado(
+                            prestadorId,
+                            anterior?.situacao_id,
+                            novaSituacaoId,
+                            situacoes,
+                        )
                     }
                 } catch {
                     /* sync Kanban opcional */

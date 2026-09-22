@@ -1,4 +1,5 @@
 import { supabase } from '../supabase.js'
+import { unifyContato } from './emerRadarUi.js'
 
 const TABELA = 'cred_prospectos_maps'
 
@@ -38,6 +39,9 @@ export function mapearEstabelecimentoMapsParaRow(est, { cidadePadrao = '', ufPad
     const lat = parseCoord(est?.latitude ?? est?.lat)
     const lng = parseCoord(est?.longitude ?? est?.lng ?? est?.lon)
     const website = String(est?.website || est?.site || '').trim()
+    const telRaw = String(est?.telefone || '').trim()
+    const waRaw = String(est?.whatsapp || '').trim()
+    const telefoneUnificado = unifyContato(telRaw, waRaw) || telRaw || waRaw || ''
     return {
         maps_id: mapsId,
         nome: String(est?.nome || '').trim() || 'Sem nome',
@@ -47,8 +51,8 @@ export function mapearEstabelecimentoMapsParaRow(est, { cidadePadrao = '', ufPad
             .trim()
             .toUpperCase()
             .slice(0, 2),
-        telefone: String(est?.telefone || '').trim(),
-        whatsapp: String(est?.whatsapp || '').trim(),
+        telefone: telefoneUnificado,
+        whatsapp: waRaw || (telefoneUnificado && telefoneUnificado !== telRaw ? telefoneUnificado : ''),
         horario: String(est?.horario || '').trim(),
         horario_detalhado: String(est?.horario_detalhado || '').trim(),
         nota: est?.nota != null ? String(est.nota).trim() : '',
@@ -74,6 +78,7 @@ export function mapearEstabelecimentoMapsParaRow(est, { cidadePadrao = '', ufPad
  */
 export function rowMapsParaCardUi(row) {
     if (!row) return null
+    const telefone = unifyContato(row.telefone, row.whatsapp) || row.telefone || row.whatsapp || ''
     return {
         id: row.maps_id || row.id,
         maps_db_id: row.id,
@@ -82,7 +87,7 @@ export function rowMapsParaCardUi(row) {
         endereco: row.endereco,
         cidade: row.cidade,
         uf: row.uf,
-        telefone: row.telefone || row.whatsapp || '',
+        telefone,
         whatsapp: row.whatsapp || '',
         horario: row.horario || '',
         horario_detalhado: row.horario_detalhado || '',
@@ -167,6 +172,27 @@ export async function upsertProspectosMapsDeColeta(estabelecimentos, ctx = {}) {
     }
     if (!rows.length) return { ok: true, salvos: 0, itens: [] }
 
+    // Não sobrescrever telefone/whatsapp já salvos com vazio em re-coleta
+    const ids = rows.map((r) => r.maps_id)
+    const { data: existentes } = await supabase
+        .from(TABELA)
+        .select('maps_id, telefone, whatsapp')
+        .in('maps_id', ids)
+    const porId = new Map((existentes || []).map((r) => [String(r.maps_id), r]))
+    for (const row of rows) {
+        const ant = porId.get(String(row.maps_id))
+        if (!ant) continue
+        if (!String(row.telefone || '').trim() && String(ant.telefone || '').trim()) {
+            row.telefone = ant.telefone
+        }
+        if (!String(row.whatsapp || '').trim() && String(ant.whatsapp || '').trim()) {
+            row.whatsapp = ant.whatsapp
+        }
+        if (!String(row.telefone || '').trim()) {
+            row.telefone = unifyContato(ant.telefone, ant.whatsapp) || ant.telefone || ant.whatsapp || ''
+        }
+    }
+
     const { data, error } = await supabase
         .from(TABELA)
         .upsert(rows, { onConflict: 'maps_id' })
@@ -245,11 +271,22 @@ export function enriquecerResultadosComSalvos(resultados, salvos) {
         const mid = mapsIdDeEstabelecimento(est)
         const row = byMapsId.get(mid)
         if (!row) return { ...est, id: mid, maps_id: mid }
+        const telefone =
+            unifyContato(est.telefone || row.telefone, est.whatsapp || row.whatsapp) ||
+            est.telefone ||
+            row.telefone ||
+            row.whatsapp ||
+            ''
         return {
             ...est,
             id: mid,
             maps_id: mid,
             maps_db_id: row.id,
+            telefone,
+            whatsapp: est.whatsapp || row.whatsapp || '',
+            endereco: est.endereco || row.endereco || '',
+            cidade: est.cidade || row.cidade || '',
+            uf: est.uf || row.uf || '',
             status_prospeccao: row.status_prospeccao,
             _salvo: true,
             // fachada só se ainda vier do worker nesta sessão

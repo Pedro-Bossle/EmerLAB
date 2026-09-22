@@ -21,9 +21,9 @@ import {
   lerProspectosMapsDismissed,
   marcarProspectoMapsDismissed,
 } from '../../../lib/credenciamento/emerRadarProspectosDismiss.js'
-import { descartarProspectoMaps } from '../../../lib/credenciamento/prospectosMapsRepo.js'
+import { descartarProspectoMaps, atualizarProspectoMaps } from '../../../lib/credenciamento/prospectosMapsRepo.js'
 import { prospectoIndicaAtendimento24h } from '../../../lib/credenciamento/prospectosOsmHorario.js'
-import { classify, copyText, displayCategory } from '../../../lib/credenciamento/emerRadarUi.js'
+import { classify, copyText, displayCategory, unifyContato } from '../../../lib/credenciamento/emerRadarUi.js'
 
 const markerIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -430,7 +430,7 @@ function ProspectCard({ est, podeEditar, onEnviadoKanban, onRemover, enviando, j
               {[est.cidade, est.uf].filter(Boolean).join(' - ')}
             </li>
           )}
-          <li>{dash(est.telefone)}</li>
+          <li>{dash(unifyContato(est.telefone, est.whatsapp) || est.telefone)}</li>
           <HoursDisplay horario={est.horario} detalhado={est.horario_detalhado} />
           {(est.nota || est.num_avaliacoes) && (
             <li className="emer-radar-card__rating">
@@ -472,10 +472,10 @@ function ProspectCard({ est, podeEditar, onEnviadoKanban, onRemover, enviando, j
                   className: 'emer-radar-card__btn-kanban',
                 })}
                 disabled={enviando || jaEnviado || removendo}
-                title="Envia para coluna Não contatado no Kanban"
+                title="Envia para Não contatado (atribuído a você) e marca Contactado no catálogo"
                 onClick={() => onEnviadoKanban?.(est)}
               >
-                {enviando ? 'Enviando…' : jaEnviado ? 'No Kanban' : '→ Não contatado'}
+                {enviando ? 'Enviando…' : jaEnviado ? 'No Kanban' : '→ Kanban'}
               </button>
               <button
                 type="button"
@@ -510,9 +510,21 @@ const FILTERS_INITIAL = {
 
 /**
  * Resultados do Prospect Maps: cards (fachada só na sessão da busca; catálogo sem foto).
- * @param {{ results?: object[], titulo?: string, mostrarExport?: boolean, onRemovido?: (est: object) => void }} props
+ * @param {{
+ *   results?: object[],
+ *   titulo?: string,
+ *   mostrarExport?: boolean,
+ *   onRemovido?: (est: object) => void,
+ *   onEnviadoKanbanOk?: (est: object) => void,
+ * }} props
  */
-export default function EmerRadarProspectResults({ results, titulo, mostrarExport = true, onRemovido }) {
+export default function EmerRadarProspectResults({
+  results,
+  titulo,
+  mostrarExport = true,
+  onRemovido,
+  onEnviadoKanbanOk,
+}) {
   const [viewMode, setViewMode] = useState('lista')
   const [filters, setFilters] = useState(FILTERS_INITIAL)
   const [enviandoKey, setEnviandoKey] = useState(null)
@@ -587,20 +599,35 @@ export default function EmerRadarProspectResults({ results, titulo, mostrarExpor
 
   const enviarAoKanban = async (est) => {
     const key = chaveEstavelProspectoMaps(est)
-    if (!est || !key || enviandoKey === key || enviados.has(key)) return
+    const jaContactado = String(est?.status_prospeccao || '') === 'contactado'
+    if (!est || !key || enviandoKey === key || (enviados.has(key) && jaContactado)) return
     setEnviandoKey(key)
     setErroKanban('')
     setFeedback('')
     try {
       const card = await enviarProspectoMapsParaKanban(est)
+
+      const uuidLike =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      const dbId = est.maps_db_id || (uuidLike.test(String(est.id || '')) ? est.id : null)
+      if (dbId) {
+        const r = await atualizarProspectoMaps(dbId, { status_prospeccao: 'contactado' })
+        if (!r.ok && r.erro && !/não encontrado|ausente|does not exist/i.test(String(r.erro))) {
+          setErroKanban(r.erro)
+        }
+      }
+
       setEnviados((prev) => new Set(prev).add(key))
+      const estAtualizado = { ...est, status_prospeccao: 'contactado' }
+      onEnviadoKanbanOk?.(estAtualizado)
+
       const col =
         card?.coluna === 'contatado'
           ? 'Contatado'
-          : card?.coluna === 'nao_contatado'
-            ? 'Não contatado'
-            : 'Não contatado'
-      setFeedback(`«${est.nome || 'Prospecto'}» enviado ao Kanban → ${col}.`)
+          : 'Não contatado'
+      setFeedback(
+        `«${est.nome || 'Prospecto'}» enviado ao Kanban → ${col} (atribuído a você · Contactado no catálogo).`,
+      )
     } catch (err) {
       setErroKanban(err?.message || String(err))
     } finally {
@@ -811,7 +838,7 @@ export default function EmerRadarProspectResults({ results, titulo, mostrarExpor
                 podeEditar={podeEditar}
                 enviando={enviandoKey === key}
                 removendo={removendoKey === key}
-                jaEnviado={enviados.has(key)}
+                jaEnviado={enviados.has(key) || String(est?.status_prospeccao || '') === 'contactado'}
                 onEnviadoKanban={() => void enviarAoKanban(est)}
                 onRemover={() => void removerProspecto(est)}
               />

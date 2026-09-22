@@ -341,14 +341,26 @@ const Supertabelanegociacoes = () => {
             let veterinariosError = null
             let temTipo = true
             let temPrestadorId = true
+            let temAtivo = true
 
             const tentativaCompleta = await supabase
                 .from('veterinarios')
-                .select('id, nome, cidade_id, tipo, prestador_id')
+                .select('id, nome, cidade_id, tipo, prestador_id, ativo')
+                .or('ativo.is.null,ativo.eq.true')
                 .order('nome', { ascending: true })
 
             veterinariosData = tentativaCompleta.data || []
             veterinariosError = tentativaCompleta.error
+
+            if (veterinariosError && /ativo|column|schema cache/i.test(String(veterinariosError.message || ''))) {
+                temAtivo = false
+                const tentativaSemAtivo = await supabase
+                    .from('veterinarios')
+                    .select('id, nome, cidade_id, tipo, prestador_id')
+                    .order('nome', { ascending: true })
+                veterinariosData = tentativaSemAtivo.data || []
+                veterinariosError = tentativaSemAtivo.error
+            }
 
             if (veterinariosError) {
                 const tentativaComTipo = await supabase
@@ -365,7 +377,8 @@ const Supertabelanegociacoes = () => {
                         .order('nome', { ascending: true })
                     veterinariosData = (tentativaSemTipo.data || []).map((item) => ({
                         ...item,
-                        tipo: '-' }))
+                        tipo: '-',
+                    }))
                     veterinariosError = tentativaSemTipo.error
                     temTipo = false
                 }
@@ -374,6 +387,11 @@ const Supertabelanegociacoes = () => {
             if (veterinariosError) {
                 setErroDetalhe(`Erro ao carregar negociações: ${veterinariosError.message}`)
                 return
+            }
+
+            // Sem coluna ativo: lista tudo. Com coluna: já filtrado ativos (+ null legado).
+            if (temAtivo) {
+                veterinariosData = (veterinariosData || []).filter((v) => v.ativo !== false)
             }
 
             let vinculos = []
@@ -1228,13 +1246,19 @@ const Supertabelanegociacoes = () => {
         try {
             let payload = {
                 nome,
-                cidade_id: cidadeIdNum }
+                cidade_id: cidadeIdNum,
+                ativo: true,
+            }
             if (suportaTipo) payload = { ...payload, tipo: String(novoTipo || '').trim() || '-' }
             if (suportaPrestadorId && prestadorSel) payload = { ...payload, prestador_id: Number(prestadorSel.id) }
 
             let data = null
             let error = null
             ;({ data, error } = await supabase.from('veterinarios').insert(payload).select('id').single())
+            if (error && /ativo|column|schema cache/i.test(String(error.message || ''))) {
+                const { ativo: _a, ...semAtivo } = payload
+                ;({ data, error } = await supabase.from('veterinarios').insert(semAtivo).select('id').single())
+            }
             if (error && suportaPrestadorId && prestadorSel && /prestador_id/i.test(error.message || '')) {
                 const { prestador_id: _omit, ...semPrestador } = payload
                 ;({ data, error } = await supabase.from('veterinarios').insert(semPrestador).select('id').single())

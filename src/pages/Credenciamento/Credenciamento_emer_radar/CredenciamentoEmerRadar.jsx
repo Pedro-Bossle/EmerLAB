@@ -1744,6 +1744,18 @@ function ProspectPanel() {
           results={results}
           titulo="Última busca"
           onRemovido={() => void carregarParesCidade()}
+          onEnviadoKanbanOk={(est) => {
+            const key = String(est?.maps_id || est?.id || '')
+            const match = (e) =>
+              String(e?.maps_db_id || '') === String(est?.maps_db_id || '') ||
+              String(e?.maps_id || e?.id || '') === key
+            setResults((prev) =>
+              (prev || []).map((e) => (match(e) ? { ...e, status_prospeccao: 'contactado' } : e)),
+            )
+            setCatalogo((prev) =>
+              (prev || []).map((e) => (match(e) ? { ...e, status_prospeccao: 'contactado' } : e)),
+            )
+          }}
         />
       ) : catalogoLoading ? (
         <section className="el-stage">
@@ -1762,6 +1774,20 @@ function ProspectPanel() {
           titulo="Catálogo salvo"
           mostrarExport={false}
           onRemovido={() => void carregarCatalogo()}
+          onEnviadoKanbanOk={(est) => {
+            const key = String(est?.maps_id || est?.id || '')
+            const match = (e) =>
+              String(e?.maps_db_id || '') === String(est?.maps_db_id || '') ||
+              String(e?.maps_id || e?.id || '') === key
+            setCatalogo((prev) =>
+              (prev || []).map((e) =>
+                match(e) ? { ...e, status_prospeccao: 'contactado', telefone: e.telefone || est.telefone } : e,
+              ),
+            )
+            setResults((prev) =>
+              (prev || []).map((e) => (match(e) ? { ...e, status_prospeccao: 'contactado' } : e)),
+            )
+          }}
         />
       )}
     </div>

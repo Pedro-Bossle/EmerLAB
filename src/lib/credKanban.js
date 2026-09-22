@@ -10,6 +10,7 @@ import {
     acharSituacaoPreenchendoFormularioId,
     patchCredenciadoEmSeTransicao,
 } from './prestadorCadastroHelpers.js'
+import { unifyContato } from './credenciamento/emerRadarUi.js'
 
 export const COLUNAS_KANBAN = [
     { id: 'nao_contatado', label: 'Não contatado', etapa: 'contato' },
@@ -714,18 +715,21 @@ function montarCorpoDeProspectoMaps(est) {
 
 /**
  * Cria ou atualiza card no Kanban a partir de um resultado do Prospect Maps (Emer-Radar).
- * Default: coluna Não contatado (equivalente ao botão do antigo prospectador Gemini/OSM).
+ * Default: coluna Não contatado; atribuído ao usuário logado.
  */
 export async function enviarProspectoMapsParaKanban(est, { forcarColuna } = {}) {
     if (!est || !(String(est.nome || '').trim() || String(est.endereco || '').trim())) {
         return null
     }
 
+    const { data: auth } = await supabase.auth.getUser()
+    const uid = auth?.user?.id || null
+
     const colunaAlvo = COLUNA_IDS.has(forcarColuna) ? forcarColuna : 'nao_contatado'
     const nome = String(est.nome || '').trim() || 'Prospecto Maps'
     const uf = String(est.uf || '').trim().toUpperCase().slice(0, 2) || null
     const cidade = String(est.cidade || '').trim() || null
-    const telefone = String(est.telefone || est.whatsapp || '').trim() || ''
+    const telefone = unifyContato(est.telefone, est.whatsapp) || ''
     const tipo =
         String(est.categoria || est.tipo || est.especialidade || est.termo_busca || '').trim() || null
 
@@ -736,6 +740,7 @@ export async function enviarProspectoMapsParaKanban(est, { forcarColuna } = {}) 
         telefone,
         tipo,
         corpo: montarCorpoDeProspectoMaps(est),
+        atribuidoA: uid,
     }
 
     let query = supabase.from('cred_kanban_cards').select(COLS).ilike('nome', nome).limit(25)
@@ -765,14 +770,14 @@ export async function enviarProspectoMapsParaKanban(est, { forcarColuna } = {}) 
             nome: face.nome,
             uf: face.uf,
             cidade: face.cidade,
-            telefone: face.telefone,
             tipo: face.tipo,
+            corpo: face.corpo,
+            atribuidoA: uid,
         }
+        // Só atualiza telefone se veio valor; vazio não apaga o que já está no card
+        if (face.telefone) patch.telefone = face.telefone
         if (colunaAlvo === 'contatado' && existente.coluna === 'nao_contatado') {
             patch.coluna = 'contatado'
-        }
-        if (!String(existente.corpo || '').trim()) {
-            patch.corpo = face.corpo
         }
         return atualizarCardKanban(existente.id, patch)
     }

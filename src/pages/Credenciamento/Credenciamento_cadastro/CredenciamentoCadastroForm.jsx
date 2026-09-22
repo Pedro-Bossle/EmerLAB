@@ -40,6 +40,7 @@ import {
 import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanenteCredenciamento.js'
 import { sincronizarCardKanbanComSituacao } from '../../../lib/credKanban.js'
 import { notificarKanbanAtualizacaoPerfil } from '../../../lib/credKanbanAtualizacaoSite.js'
+import { inativarNegociacoesSeCancelado } from '../../../lib/negociacaoInativarPorCancelamento.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
@@ -936,6 +937,14 @@ const CredenciamentoCadastroForm = () => {
                 })
                 if (!cardSite && form.situacao_id) {
                     await sincronizarCardKanbanComSituacao(pid, form.situacao_id, { situacoes })
+                }
+                if (!isNovo) {
+                    await inativarNegociacoesSeCancelado(
+                        pid,
+                        situacaoIdInicial,
+                        form.situacao_id,
+                        situacoes,
+                    )
                 }
             } catch {
                 /* Kanban ausente ou falha de sync não bloqueia o save do perfil */
