@@ -71,3 +71,43 @@
 .sfsc_exclusao_confirm_btn--primary:hover {
     background: #0a5d96;
 }
+
+.sfsc_exclusao_confirm_campo {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: #4b2b2b;
+    text-align: left;
+}
+
+.sfsc_exclusao_confirm_input {
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid #d1a2a2;
+    background: #fff;
+    font-size: 0.9rem;
+    color: #1e3148;
+}
+
+.sfsc_exclusao_confirm_input:focus {
+    outline: 2px solid #c0392b55;
+    border-color: #c0392b;
+}
+
+.sfsc_exclusao_confirm_btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+body.dark-mode .sfsc_exclusao_confirm_campo {
+    color: #f0d4d4;
+}
+
+body.dark-mode .sfsc_exclusao_confirm_input {
+    background: #1a222c;
+    border-color: #6b3a3a;
+    color: #e8f1f8;
+}
+

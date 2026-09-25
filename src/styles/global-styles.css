@@ -40,6 +40,7 @@
 @import '../pages/Pagamentos/PagamentosResumo.css';
 
 @import '../pages/Configuracoes/ExportarCredenciados/ConfigExportarCredenciados.css';
+@import '../pages/Configuracoes/ImpressaoEtiquetas/ConfigImpressaoEtiquetas.css';
 @import '../pages/Configuracoes/ImportarCredenciados/ConfigImportarCredenciados.css';
 
 @import '../pages/Contratos/ContratosEmerdog.css';

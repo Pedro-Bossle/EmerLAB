@@ -242,6 +242,14 @@ export const PERMISSION_CATALOG = [
                 actions: RCUD,
                 href: '/configuracoes/observacoes-planos',
             },
+            {
+                id: 'configuracoes.impressao_etiquetas',
+                label: 'Impressão de Etiquetas',
+                descricao:
+                    'Gerar PDF Colacril CA4263 (A4, 14 etiquetas 99,1×38,1 mm) a partir de PDF, Excel ou CSV.',
+                actions: R,
+                href: '/configuracoes/impressao-etiquetas',
+            },
         ],
     },
     {
@@ -451,6 +459,7 @@ export function expandLegacyToAcl(perms) {
         setTool('configuracoes.conferencia_laboratorio', { read: true })
         setTool('configuracoes.observacoes_honorarios', { read: true })
         setTool('configuracoes.observacoes_planos', { read: true })
+        setTool('configuracoes.impressao_etiquetas', { read: true })
     }
     if (p[L.CREDENCIAMENTO_CADASTRO_VIEW]) {
         setTool('credenciamento.cadastro', { read: true })
@@ -707,7 +716,8 @@ export function syncLegacyFromAcl(perms) {
         hasAcl(p, 'configuracoes.exportar_credenciados', 'read') ||
         hasAcl(p, 'configuracoes.conferencia_laboratorio', 'read') ||
         hasAcl(p, 'configuracoes.observacoes_honorarios', 'read') ||
-        hasAcl(p, 'configuracoes.observacoes_planos', 'read')
+        hasAcl(p, 'configuracoes.observacoes_planos', 'read') ||
+        hasAcl(p, 'configuracoes.impressao_etiquetas', 'read')
     p[L.CREDENCIAMENTO_CADASTRO_VIEW] = hasAcl(p, 'credenciamento.cadastro', 'read')
     p[L.CREDENCIAMENTO_QUEM_REALIZA_VIEW] = hasAcl(p, 'credenciamento.quem_realiza', 'read')
     p[L.CREDENCIAMENTO_FORMULARIO_INBOX] = hasAcl(p, 'credenciamento.formulario_inbox', 'read')

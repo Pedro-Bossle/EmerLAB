@@ -88,6 +88,11 @@ export const CONFIG_TOOLS = [
     href: '/configuracoes/observacoes-planos',
     permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
   },
+  {
+    label: 'Impressão de Etiquetas',
+    href: '/configuracoes/impressao-etiquetas',
+    permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+  },
 ]
 
 /** Ações de sessão — Encerrar deve ficar sempre no fim do menu Mais (mobile). */

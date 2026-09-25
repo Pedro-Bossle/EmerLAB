@@ -3,6 +3,7 @@ import {
   expandLegacyToAcl,
   syncLegacyFromAcl,
   completarAclFerramentasCredenciamento,
+  hasAcl,
   podeLerFerramenta,
 } from './permissionCatalog.js'
 
@@ -338,10 +339,17 @@ export const podeExcluirNaSuperTabela = (profileOrPermissions) =>
 export const podeUsarExclusaoPorLista = (profileOrPermissions) =>
   podeExcluirNaSuperTabela(profileOrPermissions) && isDevToolsEnabled(profileOrPermissions)
 
-/** Exclusão irreversível de prestadores / entradas do formulário (Dev Tools + edição credenciamento). */
-export const podeUsarExclusaoPermanenteCredenciamento = (profileOrPermissions) =>
-  isDevToolsEnabled(profileOrPermissions) &&
-  hasPermission(profileOrPermissions, PERMISSION_KEYS.CREDENCIAMENTO_EDIT)
+/** Exclusão irreversível de prestadores / entradas do formulário.
+ * Preferência: ACL «Cadastros» com ação Excluir. Legado: Dev Tools + edição credenciamento.
+ */
+export const podeUsarExclusaoPermanenteCredenciamento = (profileOrPermissions) => {
+  const perms = profileOrPermissions?.permissions || profileOrPermissions
+  if (hasAcl(perms, 'credenciamento.cadastro', 'delete')) return true
+  return (
+    isDevToolsEnabled(profileOrPermissions) &&
+    hasPermission(profileOrPermissions, PERMISSION_KEYS.CREDENCIAMENTO_EDIT)
+  )
+}
 
 export const hasStoredExclusaoPermanenteCredenciamento = () =>
   podeUsarExclusaoPermanenteCredenciamento(getStoredAccessProfile())

@@ -3,6 +3,7 @@ import SfscExclusaoConfirmToast from '../components/Toast/SfscExclusaoConfirmToa
 
 /**
  * Confirmação de exclusão/descarte via toast (canto superior direito, sem cobrir o sininho).
+ * Opções: variante, rotuloConfirmar, confirmacaoExata (exige digitar o texto), rotuloCampoConfirmacao.
  */
 export function useSfscExclusaoConfirm() {
     const [pending, setPending] = useState(null)
@@ -15,6 +16,8 @@ export function useSfscExclusaoConfirm() {
                 titulo,
                 variante: opcoes.variante || 'danger',
                 rotuloConfirmar: opcoes.rotuloConfirmar || 'Confirmar',
+                confirmacaoExata: opcoes.confirmacaoExata || '',
+                rotuloCampoConfirmacao: opcoes.rotuloCampoConfirmacao || '',
             })
         },
         [],
@@ -28,6 +31,8 @@ export function useSfscExclusaoConfirm() {
             mensagem={pending.mensagem}
             variante={pending.variante}
             rotuloConfirmar={pending.rotuloConfirmar}
+            confirmacaoExata={pending.confirmacaoExata}
+            rotuloCampoConfirmacao={pending.rotuloCampoConfirmacao}
             onConfirmar={async () => {
                 const fn = pending.onConfirmar
                 setPending(null)

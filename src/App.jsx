@@ -34,6 +34,7 @@ import ConfigExportarCredenciados from './pages/Configuracoes/ExportarCredenciad
 import ConfigConferenciaLaboratorio from './pages/Configuracoes/ConferenciaLaboratorio/ConfigConferenciaLaboratorio';
 import ConfigObservacoesHonorarios from './pages/Configuracoes/ObservacoesHonorarios/ConfigObservacoesHonorarios';
 import ConfigObservacoesPlanos from './pages/Configuracoes/ObservacoesPlanos/ConfigObservacoesPlanos';
+import ConfigImpressaoEtiquetas from './pages/Configuracoes/ImpressaoEtiquetas/ConfigImpressaoEtiquetas';
 import GerenciamentoAcessos from './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos';
 import AdminAuditoria from './pages/Administrativo/Auditoria/AdminAuditoria';
 import AlterarSenha from './pages/AlterarSenha/AlterarSenha';
@@ -321,6 +322,17 @@ function App() {
                 toolId="configuracoes.observacoes_planos"
               >
                 <ConfigObservacoesPlanos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/configuracoes/impressao-etiquetas"
+            element={
+              <PrivateRoute
+                permission="credenciamento.view"
+                toolId="configuracoes.impressao_etiquetas"
+              >
+                <ConfigImpressaoEtiquetas />
               </PrivateRoute>
             }
           />

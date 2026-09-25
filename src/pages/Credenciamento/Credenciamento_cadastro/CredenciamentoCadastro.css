@@ -1243,7 +1243,7 @@ body.dark-mode .pcad_field_tip {
     color: #b00020;
 }
 
-/* Rodapé fixo: botões Voltar e Salvar (alinhado à área de conteúdo, não cobre a sidebar) */
+/* Rodapé fixo: botões Voltar, Apagar e Salvar (alinhado à área de conteúdo, não cobre a sidebar) */
 .pcad_form_footer {
     position: fixed;
     bottom: 0;
@@ -1257,6 +1257,10 @@ body.dark-mode .pcad_field_tip {
     background: var(--bg, #fff);
     border-top: 1px solid rgba(0, 0, 0, 0.08);
     box-sizing: border-box;
+}
+
+.pcad_form_footer .pcad_btn_apagar_bd {
+    margin-right: auto;
 }
 
 @media (min-width: 1024px) {
