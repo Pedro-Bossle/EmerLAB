@@ -8,7 +8,10 @@
       "includeFiles": "{src/assets/rc/**,src/lib/rc/**,src/lib/impressaoPlanos/montserratPdfFonts.js}"
     },
     "api/clicksign-catchall.js": {
-      "maxDuration": 30
+      "maxDuration": 60
+    },
+    "api/clicksign-upload-document.js": {
+      "maxDuration": 60
     },
     "api/clicksign-download.js": {
       "maxDuration": 30

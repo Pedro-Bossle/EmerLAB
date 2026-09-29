@@ -93,6 +93,14 @@ export async function clicksignRequest(method, path, body = null) {
     }
 
     const parsed = await parseJson(res)
+    if (!parsed.ok && parsed.status === 413) {
+        parsed.data = {
+            ...(parsed.data || {}),
+            error:
+                parsed.data?.error ||
+                'PDF demasiado grande para o proxy (limite da Vercel ~4,5 MB no body). Use o fluxo de anexo atualizado (Storage) ou um PDF menor.',
+        }
+    }
     if (!parsed.ok && (parsed.status === 401 || parsed.status === 403)) {
         const msg = String(parsed.data?.error || parsed.data?.message || '').trim()
         if (!msg) {
@@ -591,6 +599,12 @@ export function erroApiTexto(data) {
     const raw = String(data.raw || '')
     if (/too many requests|rate.?limit|429/i.test(raw)) {
         return 'Limite de pedidos excedido (429). Aguarde um momento e tente de novo.'
+    }
+    if (/payload|too large|entity too large|413/i.test(raw) || data?.ok === false) {
+        const s = JSON.stringify(data)
+        if (/413|too large|payload/i.test(s) || /413|too large|payload/i.test(raw)) {
+            return 'PDF demasiado grande para o servidor. O anexo agora usa Storage — tente de novo; se persistir, comprima o PDF.'
+        }
     }
     return JSON.stringify(data).slice(0, 500)
 }

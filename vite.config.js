@@ -8,6 +8,7 @@ import mapOsmHandler from './api/map-osm.js'
 import prospectosOsmColetarHandler from './api/prospectos-osm-coletar.js'
 import clicksignProxyHandler from './src/lib/clicksign/clicksignProxyHandler.js'
 import clicksignDownloadHandler from './api/clicksign-download.js'
+import clicksignUploadDocumentHandler from './api/clicksign-upload-document.js'
 import adminUsersHandler from './api/admin-users.js'
 import auditLogsHandler from './api/audit-logs.js'
 import { nodeHandler as ibgeMunicipiosHandler } from './api/ibge-municipios.js'
@@ -496,6 +497,55 @@ function clicksignDevPlugin() {
                         res.statusCode = 502
                         res.setHeader('Content-Type', 'application/json; charset=utf-8')
                         res.end(JSON.stringify({ error: e?.message || 'Falha no download Clicksign.' }))
+                    }
+                    return
+                }
+                if (url.startsWith('/api/clicksign-upload-document')) {
+                    const method = req.method || 'GET'
+                    let rawBody = ''
+                    if (method !== 'GET' && method !== 'HEAD') {
+                        const chunks = []
+                        try {
+                            for await (const ch of req) chunks.push(ch)
+                            rawBody = Buffer.concat(chunks).toString('utf8')
+                        } catch {
+                            rawBody = ''
+                        }
+                    }
+                    const reqLike = {
+                        method,
+                        url,
+                        headers: req.headers || {},
+                        body: rawBody,
+                    }
+                    const resLike = {
+                        statusCode: 200,
+                        setHeader(name, value) {
+                            res.setHeader(name, value)
+                        },
+                        status(code) {
+                            this.statusCode = code
+                            res.statusCode = code
+                            return this
+                        },
+                        end(body) {
+                            res.statusCode = this.statusCode
+                            res.end(body)
+                        },
+                        json(payload) {
+                            if (!res.getHeader('Content-Type')) {
+                                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                            }
+                            res.statusCode = this.statusCode
+                            res.end(JSON.stringify(payload))
+                        },
+                    }
+                    try {
+                        await clicksignUploadDocumentHandler(reqLike, resLike)
+                    } catch (e) {
+                        res.statusCode = 502
+                        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                        res.end(JSON.stringify({ error: e?.message || 'Falha no upload Clicksign.' }))
                     }
                     return
                 }

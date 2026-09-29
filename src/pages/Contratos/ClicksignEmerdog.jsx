@@ -39,11 +39,15 @@ import {
     payloadAtivarEnvelope,
     cancelarEnvelopeClicksign,
     envelopeStatusNormalizado,
-    payloadDocumentoPdf,
     nomeEnvelopeDoArquivoPdf,
     payloadEnvelopeRascunho,
     payloadRequisitoQualificacao,
     payloadSignatario } from '../../lib/clicksign/clicksignClient.js'
+import {
+    CLICKSIGN_PDF_STORAGE_MAX_BYTES,
+    anexarPdfEnvelopeViaStorage,
+    garantirSessaoClicksign,
+} from '../../lib/clicksign/clicksignUploadDocumento.js'
 import {
     enviarLembreteSignatario,
     payloadAtualizarSignatario } from '../../lib/clicksign/clicksignSignatarioOps.js'
@@ -72,7 +76,7 @@ import { TOAST_AUTO_DISMISS_MS, abrirUrlDownload, formatarDataPtBr } from './con
 import { useConfirmacaoExclusaoAutoDismiss } from '../../lib/toastUi.js'
 import { PageHeader } from '../../components/ui'
 
-const PDF_MAX_BYTES = 12 * 1024 * 1024
+const PDF_MAX_BYTES = CLICKSIGN_PDF_STORAGE_MAX_BYTES
 const STORAGE_FLUXO_EID = 'emerdog_cs_fluxo_eid'
 
 /** Canal de notificação do signatário (evita comparar strings inconsistentes). */
@@ -1189,50 +1193,45 @@ export default function ClicksignEmerdog() {
                 return false
             }
             setFluxoBusy(true)
-            let dataUrlPdf = ''
             try {
-                const dataUrl = await new Promise((resolve, reject) => {
-                    const fr = new FileReader()
-                    fr.onload = () => resolve(fr.result)
-                    fr.onerror = () => reject(new Error('Leitura do PDF falhou.'))
-                    fr.readAsDataURL(file)
-                })
-                dataUrlPdf = String(dataUrl || '')
+                const sess = await garantirSessaoClicksign()
+                if (!sess.ok) {
+                    pushToast('error', 'Sessão', sess.error || 'Sessão ausente. Faça login de novo.')
+                    return false
+                }
+
+                const encCheck = await csRequest('GET', `/envelopes/${encodeURIComponent(id)}`)
+                if (!encCheck.ok && (encCheck.status === 401 || encCheck.status === 403)) {
+                    pushToast('error', 'Sessão', erroApiTexto(encCheck.data) || 'Sessão ausente.')
+                    return false
+                }
+                const st = encCheck.ok ? encCheck.data?.data?.attributes?.status : null
+                if (st && String(st).toLowerCase() !== 'draft') {
+                    pushToast(
+                        'error',
+                        'Envelope',
+                        'Só é possível anexar PDF com o envelope em rascunho (draft). Crie um novo em «Montar envelope» ou use um rascunho ainda não ativado.',
+                    )
+                    return false
+                }
+
+                // Via Storage → API (evita 413 da Vercel no body base64 do proxy)
+                const up = await anexarPdfEnvelopeViaStorage(id, file, { nomeArquivo: file.name })
+                if (!up.ok) {
+                    pushToast('error', `Documento ${up.status || ''}`.trim(), erroApiTexto(up.data))
+                    return false
+                }
+                const nomeDoc = String(file.name || 'documento.pdf').trim() || 'documento.pdf'
+                pushToast('info', 'Documento anexado', nomeDoc)
+                await refreshFluxoListas(id)
+                await carregarLista()
+                return true
             } catch (e) {
+                pushToast('error', 'PDF', e?.message || 'Falha ao anexar o ficheiro.')
+                return false
+            } finally {
                 setFluxoBusy(false)
-                pushToast('error', 'PDF', e?.message || 'Falha ao ler o ficheiro.')
-                return false
             }
-            const encCheck = await csRequest('GET', `/envelopes/${encodeURIComponent(id)}`)
-            const st = encCheck.ok ? encCheck.data?.data?.attributes?.status : null
-            if (st && String(st).toLowerCase() !== 'draft') {
-                setFluxoBusy(false)
-                pushToast(
-                    'error',
-                    'Envelope',
-                    'Só é possível anexar PDF com o envelope em rascunho (draft). Crie um novo em «Montar envelope» ou use um rascunho ainda não ativado.',
-                )
-                return false
-            }
-            const body = payloadDocumentoPdf(id, file.name, dataUrlPdf)
-            let { ok, status, data } = await csRequest('POST', `/envelopes/${encodeURIComponent(id)}/documents`, body)
-            if (!ok && (status === 500 || status === 422)) {
-                const bodyAlt = payloadDocumentoPdf(id, file.name, dataUrlPdf, { includeEnvelopeRelationship: true })
-                const r2 = await csRequest('POST', `/envelopes/${encodeURIComponent(id)}/documents`, bodyAlt)
-                ok = r2.ok
-                status = r2.status
-                data = r2.data
-            }
-            setFluxoBusy(false)
-            if (!ok) {
-                pushToast('error', `Documento ${status}`, erroApiTexto(data))
-                return false
-            }
-            const nomeDoc = String(file.name || 'documento.pdf').trim() || 'documento.pdf'
-            pushToast('info', 'Documento anexado', nomeDoc)
-            await refreshFluxoListas(id)
-            await carregarLista()
-            return true
         },
         [pushToast, carregarLista, refreshFluxoListas],
     )
