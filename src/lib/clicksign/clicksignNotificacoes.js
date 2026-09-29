@@ -1,6 +1,5 @@
 import { supabase } from '../supabase'
 import {
-    extrairListaDocumentos,
     extrairListaEnvelopes,
     extrairListaSignatarios,
     extrairResumoAssinaturaPorSignatario,
@@ -346,7 +345,7 @@ export async function listarNotificacoesWebhookRecentes(limite = 8) {
 }
 
 export function mesclarListasNotificacoesContratos(local, webhook, limite = 8) {
-    const todas = [...webhook, ...local]
+    const todas = [...webhook, ...local].filter(ehNotificacaoEnvelopeUtil)
     todas.sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0))
     const vistos = new Set()
     const unicas = []
@@ -393,30 +392,47 @@ export async function listarNotificacoesContratosRecentes(limite = 8) {
 export function resumirEventoEnvelope(n) {
     const texto = String(n?.texto || '').trim()
     const tipo = String(n?.tipo || '').toLowerCase()
+    const evento = String(n?.evento || '').toLowerCase()
 
-    if (tipo.includes('assinatura') || /assinou/i.test(texto)) {
+    if (tipo.includes('assinatura') || evento === 'sign' || /assinou/i.test(texto)) {
         const m = texto.match(/^(.*?)\s+assinou/i)
         const nome = m ? m[1].trim() : ''
         const parcial = texto.match(/\((\d+\/\d+)\)/)
         if (nome) {
             return parcial
-                ? `Assinatura de ${nome} (${parcial[1]})`
-                : `Assinatura de ${nome}`
+                ? `${nome} assinou o envelope (${parcial[1]})`
+                : `${nome} assinou o envelope`
         }
-        return 'Nova assinatura'
-    }
-    if (tipo.includes('documento') || /documento finalizado/i.test(texto)) {
-        const m = texto.match(/«([^»]+)»/)
-        return m ? `Documento finalizado: ${m[1]}` : 'Documento finalizado'
+        return 'Destinatário assinou o envelope'
     }
     if (
         tipo.includes('envelope_finalizado') ||
-        tipo.includes('encerr') ||
-        /conclu[íi]do|encerr/i.test(texto)
+        evento === 'close' ||
+        evento === 'auto_close' ||
+        /conclu[íi]do|encerr|finalizado/i.test(texto)
     ) {
-        return 'Encerramento do envelope'
+        return 'Envelope concluído'
     }
-    return texto || 'Atualização'
+    if (evento === 'add_signer' || /signatário adicionado/i.test(texto)) {
+        return 'Signatário adicionado ao envelope'
+    }
+    if (evento === 'remove_signer' || /signatário removido/i.test(texto)) {
+        return 'Signatário removido do envelope'
+    }
+    return texto || 'Atualização do envelope'
+}
+
+/** Só eventos de envelope (ignora legado «documento finalizado»). */
+export function ehNotificacaoEnvelopeUtil(n) {
+    const tipo = String(n?.tipo || '').toLowerCase()
+    const evento = String(n?.evento || '').toLowerCase()
+    if (tipo.includes('documento') || tipo === 'documento_finalizado') return false
+    if (/documento finalizado/i.test(String(n?.texto || ''))) return false
+    // Webhook: só os eventos de envelope que configurámos
+    if (evento && !['sign', 'close', 'auto_close', 'add_signer', 'remove_signer', ''].includes(evento)) {
+        return false
+    }
+    return true
 }
 
 /**
@@ -427,6 +443,7 @@ export function resumirEventoEnvelope(n) {
 export function agruparNotificacoesPorEnvelope(lista) {
     const mapa = new Map()
     for (const n of lista || []) {
+        if (!ehNotificacaoEnvelopeUtil(n)) continue
         const chave =
             String(n.envelopeId || '').trim() ||
             String(n.envelopeName || '').trim() ||
@@ -506,7 +523,8 @@ function nomeSignatarioPorId(signersJson, signerId) {
 }
 
 /**
- * Compara estado atual com snapshot e gera notificações (assinatura / documento / envelope concluído).
+ * Compara estado atual com snapshot e gera notificações só de envelope
+ * (destinatário assinou / envelope concluído). Sem eventos por documento.
  * Throttle global + menos pedidos por ciclo para evitar 429.
  * @param {(method: string, path: string, body?: object) => Promise<{ ok: boolean, status?: number, data?: object }>} clickReq
  * @param {{ forcar?: boolean, somenteSnapshot?: boolean }} [opts]
@@ -597,61 +615,38 @@ export async function sincronizarNotificacoesClicksign(clickReq, opts = {}) {
             const prev = snap.envelopes[eid] || { signers: {}, docs: {}, status: '' }
 
             const reqRes = await obterRequisitosEnvelope(clickPaced, eid)
-            const docRes = await clickPaced(
-                'GET',
-                `/envelopes/${encodeURIComponent(eid)}/documents`,
-            )
             const sigRes = await clickPaced('GET', `/envelopes/${encodeURIComponent(eid)}/signers`)
 
             const resumo = reqRes.ok ? extrairResumoAssinaturaPorSignatario(reqRes.data) : {}
-            const docs = docRes.ok ? extrairListaDocumentos(docRes.data) : []
             const signersJson = sigRes.ok ? sigRes.data : null
 
             const signersNext = {}
             for (const [sid, r] of Object.entries(resumo)) {
                 const done = r.done >= r.total && r.total > 0
                 const prevS = prev.signers[sid] || { done: 0, total: 0, completed: false }
-                const nomeSig = nomeSignatarioPorId(signersJson, sid) || 'Signatário'
+                const nomeSig = nomeSignatarioPorId(signersJson, sid) || 'Destinatário'
                 if (snap.seeded && done && !prevS.completed) {
                     pushNotif({
                         tipo: 'assinatura',
                         envelopeId: eid,
                         envelopeName: nomeEnv,
-                        texto: `${nomeSig} assinou em «${nomeEnv}».`,
+                        texto: `${nomeSig} assinou o envelope «${nomeEnv}».`,
                     })
                 } else if (snap.seeded && r.done > prevS.done && r.done < r.total) {
                     pushNotif({
                         tipo: 'assinatura',
                         envelopeId: eid,
                         envelopeName: nomeEnv,
-                        texto: `${nomeSig} assinou (${r.done}/${r.total}) em «${nomeEnv}».`,
+                        texto: `${nomeSig} assinou o envelope (${r.done}/${r.total}) «${nomeEnv}».`,
                     })
                 }
                 signersNext[sid] = { done: r.done, total: r.total, completed: done }
             }
 
-            const docsNext = {}
-            for (const d of docs) {
-                const did = String(d.id || '').trim()
-                if (!did) continue
-                const st = String(d.status || '').toLowerCase()
-                docsNext[did] = st
-                const prevSt = prev.docs[did] || ''
-                if (snap.seeded && st === 'closed' && prevSt !== 'closed') {
-                    const fn = String(d.filename || d.name || 'Documento').trim()
-                    pushNotif({
-                        tipo: 'documento_finalizado',
-                        envelopeId: eid,
-                        envelopeName: nomeEnv,
-                        texto: `Documento finalizado: «${fn}» (${nomeEnv}).`,
-                    })
-                }
-            }
-
             nextSnap.envelopes[eid] = {
                 status: String(env.status || 'running').toLowerCase(),
                 signers: signersNext,
-                docs: docsNext,
+                docs: prev.docs || {},
             }
         }
 

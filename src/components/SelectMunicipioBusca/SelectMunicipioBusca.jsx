@@ -146,10 +146,7 @@ export default function SelectMunicipioBusca({
         setQuery('')
         setHighlight(0)
         setAberto(true)
-        requestAnimationFrame(() => {
-            atualizarPosicao()
-            searchRef.current?.focus()
-        })
+        requestAnimationFrame(() => atualizarPosicao())
     }
 
     const escolher = (opt) => {
@@ -189,6 +186,18 @@ export default function SelectMunicipioBusca({
             document.removeEventListener('mousedown', onClick)
         }
     }, [aberto])
+
+    // Foco no search assim que o painel (portal) existir — rAF sozinho falha porque o input ainda não montou.
+    useEffect(() => {
+        if (!aberto || !pos) return undefined
+        const t = window.setTimeout(() => {
+            const el = searchRef.current
+            if (!el) return
+            el.focus({ preventScroll: true })
+            el.select?.()
+        }, 0)
+        return () => window.clearTimeout(t)
+    }, [aberto, pos])
 
     const totalItens = filtrados.length + (podeCriar ? 1 : 0)
     const highlightSafe = totalItens
@@ -261,6 +270,7 @@ export default function SelectMunicipioBusca({
                               placeholder={searchPlaceholder}
                               value={query}
                               autoComplete="off"
+                              autoFocus
                               aria-label={searchPlaceholder}
                               aria-controls={listId}
                               aria-autocomplete="list"

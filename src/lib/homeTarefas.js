@@ -811,7 +811,15 @@ export async function atualizarTarefaHome(id, patch) {
         ;({ data, error } = await tentarUpdate(cols, body))
     }
 
-    if (error) throw new Error(error.message)
+    if (error) {
+        const msg = String(error.message || '')
+        if (/row-level security|rls/i.test(msg)) {
+            throw new Error(
+                'Sem permissão para alterar esta tarefa (só o criador ou o responsável atual). Se você é o responsável e mesmo assim falhou, execute scripts/sql/home_tarefas_rls_update_participantes.sql no Supabase.',
+            )
+        }
+        throw new Error(msg)
+    }
     if (cols.includes('resolucao')) homeTarefasTemResolucao = true
     if (cols.includes('anexos')) homeTarefasTemAnexos = true
     if (/\bhorario\b/.test(cols)) homeTarefasTemHorario = true

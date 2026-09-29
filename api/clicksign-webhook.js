@@ -1,6 +1,7 @@
 /**
  * Receptor de webhooks da Clicksign (painel / API).
  * POST /api/clicksign-webhook (domínio Vercel do EmerLAB)
+ * Só eventos de envelope: sign, close, auto_close, add_signer, remove_signer.
  *
  * Variáveis (Vercel):
  * - CLICKSIGN_WEBHOOK_SECRET — HMAC SHA256 (obrigatório em produção)
@@ -121,32 +122,25 @@ function nomeEvento(body) {
 }
 
 function montarTextoNotificacao(body, evento) {
-    const doc = body?.document || body?.data?.document || {}
     const env = body?.envelope || body?.data?.envelope || body?.envelope_data || {}
     const signer = body?.signer || body?.event?.data?.signer || {}
-    const nomeDoc =
-        String(doc.filename || doc.name || doc.path || '').trim() ||
-        String(env.name || env.attributes?.name || '').trim() ||
-        'Documento'
-    const nomeEnv = String(env.name || env.attributes?.name || '').trim()
-    const nomeSig = String(signer.name || signer.email || '').trim()
+    const nomeEnv =
+        String(env.name || env.attributes?.name || '').trim() || 'Envelope'
+    const nomeSig = String(signer.name || signer.email || '').trim() || 'Destinatário'
 
     if (evento === 'sign') {
-        const quem = nomeSig ? `${nomeSig} assinou` : 'Assinatura registrada'
-        return nomeEnv ? `${quem} em «${nomeEnv}».` : `${quem}: «${nomeDoc}».`
+        return `${nomeSig} assinou o envelope «${nomeEnv}».`
     }
     if (evento === 'close' || evento === 'auto_close') {
-        return nomeEnv
-            ? `Documento finalizado em «${nomeEnv}».`
-            : `Documento finalizado: «${nomeDoc}».`
+        return `Envelope concluído: «${nomeEnv}».`
     }
     if (evento === 'add_signer') {
-        return nomeEnv ? `Signatário adicionado em «${nomeEnv}».` : `Signatário adicionado: «${nomeDoc}».`
+        return `Signatário adicionado ao envelope «${nomeEnv}».`
     }
     if (evento === 'remove_signer') {
-        return nomeEnv ? `Signatário removido em «${nomeEnv}».` : `Signatário removido: «${nomeDoc}».`
+        return `Signatário removido do envelope «${nomeEnv}».`
     }
-    return `Evento Clicksign: ${evento || 'desconhecido'}`
+    return `Atualização do envelope «${nomeEnv}» (${evento || 'desconhecido'}).`
 }
 
 function extrairIds(body) {
