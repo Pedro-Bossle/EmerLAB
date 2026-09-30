@@ -694,8 +694,26 @@ function PipelinePanel() {
                 className={buttonClassName({ variant: 'secondary' })}
                 onClick={async () => {
                   setError('')
+                  let lista = rows
+                  const pendente = cidade.trim()
+                  if (
+                    pendente &&
+                    !lista.some(
+                      (r) => r.cidade.toLowerCase() === pendente.toLowerCase() && r.uf === uf,
+                    )
+                  ) {
+                    lista = [...lista, { cidade: pendente, uf }]
+                    setRows(lista)
+                    setCidade('')
+                  }
+                  if (!lista.length) {
+                    setError('Adicione ao menos uma cidade antes de enfileirar.')
+                    return
+                  }
                   try {
-                    const res = await pipelineEnqueue(rows)
+                    const res = await pipelineEnqueue(
+                      lista.map((r) => ({ cidade: r.cidade, uf: r.uf })),
+                    )
                     alert(`${res.enqueued} cidade(s) enfileirada(s) para o cron.`)
                   } catch (e) {
                     setError(e.message)
