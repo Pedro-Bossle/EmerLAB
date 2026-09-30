@@ -617,7 +617,7 @@ export default async function handler(req, res) {
                     return responderErro(
                         res,
                         500,
-                        `${error.message}. Execute scripts/sql/profiles_disable_idle_logout.sql no Supabase.`,
+                        `${error.message}. Execute o SQL em scripts/sql/README_disable_idle_logout.md no Supabase.`,
                     )
                 }
                 return responderErro(res, 500, error.message)
