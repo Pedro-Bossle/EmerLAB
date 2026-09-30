@@ -13,6 +13,8 @@ import {
   openPipelineStream,
   openScrapeStream,
   pipelineEnqueue,
+  pipelineListQueue,
+  pipelineRemoveFromQueue,
   pipelineExportUrl,
   pipelineGetRun,
   pipelineListRuns,
@@ -252,6 +254,8 @@ function PipelinePanel() {
   const [trafegoBusy, setTrafegoBusy] = useState(false)
   const [trafegoMsg, setTrafegoMsg] = useState('')
   const [trafegoErro, setTrafegoErro] = useState('')
+  const [filaCron, setFilaCron] = useState([])
+  const [filaCronErro, setFilaCronErro] = useState('')
 
   const isRunning = snap?.status === 'RODANDO'
 
@@ -276,10 +280,26 @@ function PipelinePanel() {
       .catch(() => setTrafegoContadores([]))
   }, [])
 
+  const refreshFilaCron = useCallback(() => {
+    pipelineListQueue()
+      .then((r) => {
+        const items = Array.isArray(r?.queue) ? r.queue : []
+        setFilaCron(
+          items.filter((item) => item.status === 'pending' || item.status === 'running'),
+        )
+        setFilaCronErro('')
+      })
+      .catch((e) => {
+        setFilaCron([])
+        setFilaCronErro(e?.message || 'Não foi possível ler a fila do cron.')
+      })
+  }, [])
+
   useEffect(() => {
     refreshRuns()
     refreshRegistry()
     refreshTrafego()
+    refreshFilaCron()
     pipelineStatus()
       .then(setSnap)
       .catch(() => undefined)
@@ -289,7 +309,7 @@ function PipelinePanel() {
     listarUsuariosParaAtribuicao()
       .then(setUsuarios)
       .catch(() => setUsuarios([]))
-  }, [refreshRuns, refreshRegistry, refreshTrafego])
+  }, [refreshRuns, refreshRegistry, refreshTrafego, refreshFilaCron])
 
   useEffect(() => {
     if (!rows.length) {
@@ -417,6 +437,7 @@ function PipelinePanel() {
       if (res.novas || res.enfileiradas) setTrafegoTexto('')
       refreshTrafego()
       refreshRegistry()
+      refreshFilaCron()
     } catch (e) {
       setTrafegoErro(e?.message || String(e))
     } finally {
@@ -435,6 +456,7 @@ function PipelinePanel() {
       )
       refreshTrafego()
       refreshRegistry()
+      refreshFilaCron()
     } catch (e) {
       setTrafegoErro(e?.message || String(e))
     } finally {
@@ -714,6 +736,7 @@ function PipelinePanel() {
                     const res = await pipelineEnqueue(
                       lista.map((r) => ({ cidade: r.cidade, uf: r.uf })),
                     )
+                    refreshFilaCron()
                     alert(`${res.enqueued} cidade(s) enfileirada(s) para o cron.`)
                   } catch (e) {
                     setError(e.message)
@@ -731,6 +754,52 @@ function PipelinePanel() {
             {error}
           </p>
         )}
+
+        <div className="mt-4">
+          <h3 className="mt-0 mb-2 text-sm font-bold">Fila do cron</h3>
+          {filaCronErro && (
+            <p className="mt-0 mb-2 text-sm text-status-erro">{filaCronErro}</p>
+          )}
+          {filaCron.length === 0 && !filaCronErro ? (
+            <p className="m-0 text-sm text-ink-muted">Nenhuma cidade pendente na fila.</p>
+          ) : (
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {filaCron.map((item) => {
+                const pendente = item.status === 'pending'
+                return (
+                  <li
+                    key={item.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2 text-sm dark:border-white/10"
+                  >
+                    <span>
+                      {item.cidade}/{item.uf}
+                      <span className="ml-2 text-ink-muted">
+                        {pendente ? 'Na fila' : 'A processar'}
+                      </span>
+                    </span>
+                    {pendente ? (
+                      <button
+                        type="button"
+                        className="border-0 bg-transparent text-status-erro cursor-pointer"
+                        onClick={async () => {
+                          setFilaCronErro('')
+                          try {
+                            await pipelineRemoveFromQueue(item.id)
+                            refreshFilaCron()
+                          } catch (e) {
+                            setFilaCronErro(e?.message || 'Não foi possível remover da fila.')
+                          }
+                        }}
+                      >
+                        Remover
+                      </button>
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
       </section>
 
       <section className="el-stage">
@@ -1043,6 +1112,14 @@ function PipelineBar({ snap }) {
   )
 }
 
+function hrefGoogleMaps(r) {
+  const direto = String(r?.link_maps || '').trim()
+  if (direto) return direto
+  const q = [r?.nome, r?.endereco, r?.cidade, r?.uf].filter(Boolean).join(', ')
+  if (!q) return ''
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
+}
+
 function MapsTable({ rows }) {
   if (!rows?.length) {
     return <p className="text-sm text-ink-muted">Nenhum registro.</p>
@@ -1060,10 +1137,30 @@ function MapsTable({ rows }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {rows.map((r) => {
+            const href = hrefGoogleMaps(r)
+            return (
             <tr key={r.id || `${r.nome}-${r.endereco}`}>
               <td>
-                <div className="font-semibold">{dash(r.nome)}</div>
+                <div className="font-semibold inline-flex items-center gap-1">
+                  <span>{dash(r.nome)}</span>
+                  {href ? (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Abrir no Google Maps"
+                      aria-label={`Abrir ${r.nome || 'estabelecimento'} no Google Maps`}
+                      className="inline-flex text-brand"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14 3h7v7" />
+                        <path d="M10 14 21 3" />
+                        <path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6" />
+                      </svg>
+                    </a>
+                  ) : null}
+                </div>
                 {isVinculado(r) ? <PlanoPills row={r} /> : null}
               </td>
               <td>{dash(r.tipo || r.especialidade || r.categoria)}</td>
@@ -1071,7 +1168,8 @@ function MapsTable({ rows }) {
               <td className="whitespace-nowrap">{dash(unifyContato(r.telefone, r.whatsapp))}</td>
               <td>{dash(cidadeFromEndereco(r.endereco, r.cidade))}</td>
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
     </div>

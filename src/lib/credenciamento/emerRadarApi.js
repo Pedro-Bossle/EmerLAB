@@ -156,6 +156,14 @@ export function pipelineEnqueue(cidades) {
   })
 }
 
+export function pipelineListQueue() {
+  return request('/api/pipeline/queue?limit=50')
+}
+
+export function pipelineRemoveFromQueue(itemId) {
+  return request(`/api/pipeline/queue/${encodeURIComponent(itemId)}`, { method: 'DELETE' })
+}
+
 export function openPipelineStream(lastId = 0) {
   const base = getEmerRadarApiBase()
   return new EventSource(`${base}/api/pipeline/stream?last_id=${lastId}`)
