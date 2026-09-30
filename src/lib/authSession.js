@@ -79,9 +79,11 @@ export function invalidarCachePerfilAcesso(userId) {
 
 async function buscarPerfilSupabasePorUserId(userId) {
   const selects = [
+    'id, name, email, permissions, force_password_change, password_changed_at, disable_idle_logout',
     'id, name, email, permissions, force_password_change, password_changed_at',
     'id, name, email, permissions, force_password_change',
     'id, name, email, permissions',
+    'id, name, permissions, force_password_change, password_changed_at, disable_idle_logout',
     'id, name, permissions, force_password_change, password_changed_at',
     'id, name, permissions, force_password_change',
     'id, name, permissions',
@@ -104,7 +106,8 @@ async function buscarPerfilSupabasePorUserId(userId) {
     if (
       !msg.includes('email') &&
       !msg.includes('force_password_change') &&
-      !msg.includes('password_changed_at')
+      !msg.includes('password_changed_at') &&
+      !msg.includes('disable_idle_logout')
     ) {
       return { profile: null, error }
     }
@@ -196,11 +199,20 @@ function msDesdeUltimaAtividade() {
 
 /**
  * Monitor de inatividade (chamar uma vez em layout autenticado).
- * @param {{ onAvisoInatividade?: () => void, onEncerrarPorInatividade?: () => void }} callbacks
+ * @param {{
+ *   onAvisoInatividade?: () => void,
+ *   onEncerrarPorInatividade?: () => void,
+ *   desativado?: boolean,
+ * }} callbacks
  * @returns {() => void} cleanup
  */
 export function iniciarMonitorInatividadeSessao(callbacks = {}) {
   if (typeof window === 'undefined') return () => {}
+
+  // Perfis com disable_idle_logout: não arma timer nem propaga logoff por inatividade.
+  if (callbacks.desativado) {
+    return () => {}
+  }
 
   const idleMs = getSessionIdleMs()
   const warnMs = getSessionIdleWarnMs()

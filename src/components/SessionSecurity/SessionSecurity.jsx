@@ -1,4 +1,8 @@
 import { useEffect } from 'react'
+import {
+  ACCESS_PROFILE_CHANGE_EVENT,
+  getStoredAccessProfile,
+} from '../../lib/accessControl'
 import { supabase } from '../../lib/supabase'
 import {
   getSessionIdleWarnMs,
@@ -11,8 +15,9 @@ function minutosLabel(ms) {
   return m === 1 ? '1 minuto' : `${m} minutos`
 }
 
-function criarCallbacksMonitor() {
+function criarCallbacksMonitor(desativado) {
   return {
+    desativado: Boolean(desativado),
     onAvisoInatividade: () => {
       const warn = getSessionIdleWarnMs()
       if (warn <= 0) return
@@ -28,6 +33,7 @@ function criarCallbacksMonitor() {
 
 /**
  * Timer de inatividade e sincronização entre abas (layouts autenticados).
+ * Respeita o flag disableIdleLogout do perfil em controle de acessos.
  */
 export default function SessionSecurity() {
   useEffect(() => {
@@ -35,7 +41,8 @@ export default function SessionSecurity() {
 
     const armarMonitor = () => {
       cleanupMonitor()
-      cleanupMonitor = iniciarMonitorInatividadeSessao(criarCallbacksMonitor())
+      const desativado = Boolean(getStoredAccessProfile()?.disableIdleLogout)
+      cleanupMonitor = iniciarMonitorInatividadeSessao(criarCallbacksMonitor(desativado))
     }
 
     void obterSessaoSupabase().then(({ session }) => {
@@ -50,9 +57,21 @@ export default function SessionSecurity() {
       }
     })
 
+    const onPerfil = () => {
+      void obterSessaoSupabase().then(({ session }) => {
+        if (session) armarMonitor()
+        else {
+          cleanupMonitor()
+          cleanupMonitor = () => {}
+        }
+      })
+    }
+    window.addEventListener(ACCESS_PROFILE_CHANGE_EVENT, onPerfil)
+
     return () => {
       cleanupMonitor()
       sub?.subscription?.unsubscribe()
+      window.removeEventListener(ACCESS_PROFILE_CHANGE_EVENT, onPerfil)
     }
   }, [])
 

@@ -104,9 +104,11 @@ const mensagemErroAuthSupabase = (error) => {
 }
 
 const PROFILE_SELECT_CANDIDATES = [
+    'id, name, email, permissions, force_password_change, password_changed_at, disable_idle_logout',
     'id, name, email, permissions, force_password_change, password_changed_at',
     'id, name, email, permissions, force_password_change',
     'id, name, email, permissions',
+    'id, name, permissions, force_password_change, password_changed_at, disable_idle_logout',
     'id, name, permissions, force_password_change, password_changed_at',
     'id, name, permissions, force_password_change',
     'id, name, permissions',
@@ -133,7 +135,8 @@ const perfilErroPorColunaOpcional = (erroOuMensagem) => {
     return (
         colunaAusenteNoErro(erroOuMensagem, 'email') ||
         colunaAusenteNoErro(erroOuMensagem, 'force_password_change') ||
-        colunaAusenteNoErro(erroOuMensagem, 'password_changed_at')
+        colunaAusenteNoErro(erroOuMensagem, 'password_changed_at') ||
+        colunaAusenteNoErro(erroOuMensagem, 'disable_idle_logout')
     )
 }
 
@@ -179,7 +182,7 @@ const validarUsuarioAutenticado = async (supabase, req) => {
 
 const upsertProfile = async (supabase, payload) => {
     let atual = { ...payload }
-    for (let tentativa = 0; tentativa < 4; tentativa += 1) {
+    for (let tentativa = 0; tentativa < 5; tentativa += 1) {
         const result = await supabase.from('profiles').upsert(atual, { onConflict: 'id' }).select().single()
         if (!result.error) return result
         let removeu = false
@@ -193,6 +196,12 @@ const upsertProfile = async (supabase, payload) => {
         }
         if (colunaAusenteNoErro(result.error, 'force_password_change') && 'force_password_change' in atual) {
             delete atual.force_password_change
+            removeu = true
+        }
+        if (colunaAusenteNoErro(result.error, 'disable_idle_logout') && 'disable_idle_logout' in atual) {
+            // Se alguém tentou ativar o flag, não silencie: a coluna precisa existir.
+            if (atual.disable_idle_logout) return result
+            delete atual.disable_idle_logout
             removeu = true
         }
         if (!removeu) return result
@@ -578,6 +587,16 @@ export default async function handler(req, res) {
             const emailFinal =
                 emailNovo && emailNovo.includes('@') ? emailNovo : emailAtual || null
 
+            const bodyTemIdleFlag =
+                Object.prototype.hasOwnProperty.call(body, 'disableIdleLogout') ||
+                Object.prototype.hasOwnProperty.call(body, 'disable_idle_logout')
+            const disableIdleLogout = bodyTemIdleFlag
+                ? body.disableIdleLogout === true ||
+                  body.disable_idle_logout === true ||
+                  body.disableIdleLogout === 'true' ||
+                  body.disable_idle_logout === 'true'
+                : Boolean(perfilAntes.disableIdleLogout)
+
             if (emailFinal && emailFinal !== emailAtual) {
                 const { error: emailError } = await supabase.auth.admin.updateUserById(userId, {
                     email: emailFinal,
@@ -590,15 +609,46 @@ export default async function handler(req, res) {
                 name,
                 email: emailFinal,
                 permissions,
+                disable_idle_logout: disableIdleLogout,
             })
 
-            if (error) return responderErro(res, 500, error.message)
+            if (error) {
+                if (colunaAusenteNoErro(error, 'disable_idle_logout')) {
+                    return responderErro(
+                        res,
+                        500,
+                        `${error.message}. Execute scripts/sql/profiles_disable_idle_logout.sql no Supabase.`,
+                    )
+                }
+                return responderErro(res, 500, error.message)
+            }
 
-            const profileNorm = normalizarProfileAcesso(profileData)
+            const profileNorm = normalizarProfileAcesso({
+                ...profileData,
+                // Se a coluna ainda não existe, upsert remove o campo e o select omite o valor.
+                disable_idle_logout:
+                    profileData?.disable_idle_logout ?? profileData?.disableIdleLogout ?? false,
+            })
+
+            if (disableIdleLogout && !profileNorm.disableIdleLogout) {
+                return responderErro(
+                    res,
+                    500,
+                    'Coluna disable_idle_logout ausente. Execute scripts/sql/profiles_disable_idle_logout.sql no Supabase.',
+                )
+            }
+
             const mudancasPerm = resumirAlteracoesPermissoes(perfilAntes.permissions, profileNorm.permissions)
             const partesResumo = []
             if (perfilAntes.name !== profileNorm.name) partesResumo.push(`Nome: «${perfilAntes.name}» → «${profileNorm.name}»`)
             if (emailAtual && emailFinal && emailAtual !== emailFinal) partesResumo.push(`Email: ${emailAtual} → ${emailFinal}`)
+            if (perfilAntes.disableIdleLogout !== profileNorm.disableIdleLogout) {
+                partesResumo.push(
+                    profileNorm.disableIdleLogout
+                        ? 'Logoff por inatividade: desativado'
+                        : 'Logoff por inatividade: reativado',
+                )
+            }
             if (mudancasPerm.length) partesResumo.push(mudancasPerm.join('; '))
 
             await registrarAuditoria(supabase, {
@@ -610,6 +660,7 @@ export default async function handler(req, res) {
                 details: {
                     permissionsBefore: perfilAntes.permissions,
                     permissionsAfter: profileNorm.permissions,
+                    disableIdleLogout: profileNorm.disableIdleLogout,
                 },
             })
 
