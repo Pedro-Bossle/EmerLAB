@@ -186,7 +186,9 @@ const GerenciamentoAcessos = () => {
             id: usuarioSelecionado.id,
             name: usuarioSelecionado.name || '',
             email: usuarioSelecionado.email || '',
-            permissions: { ...usuarioSelecionado.permissions } })
+            permissions: { ...usuarioSelecionado.permissions },
+            disableIdleLogout: Boolean(usuarioSelecionado.disableIdleLogout),
+        })
     }, [usuarioSelecionado])
 
     useEffect(() => {
@@ -299,7 +301,9 @@ const GerenciamentoAcessos = () => {
                 userId: edicao.id,
                 name: edicao.name,
                 email: edicao.email,
-                permissions: edicao.permissions })
+                permissions: edicao.permissions,
+                disableIdleLogout: Boolean(edicao.disableIdleLogout),
+            })
             const profile = normalizarProfileAcesso(json.profile)
             setUsuarios((atuais) => atuais.map((item) => (String(item.id) === String(profile.id) ? profile : item)))
             if (String(profile.id) === String(usuarioAtualId)) setStoredAccessProfile(profile)
@@ -480,6 +484,9 @@ const GerenciamentoAcessos = () => {
                                 ) : usuario.forcePasswordChange ? (
                                     <em className='gerenciamento_acessos_usuario_badge'>Troca de senha pendente</em>
                                 ) : null}
+                                {usuario.disableIdleLogout ? (
+                                    <em className='gerenciamento_acessos_usuario_badge'>Sem logoff por inatividade</em>
+                                ) : null}
                             </button>
                         ))}
                         {!loading && usuariosFiltrados.length === 0 && (
@@ -565,6 +572,26 @@ const GerenciamentoAcessos = () => {
                                         Somente «Ver» nas ferramentas bloqueia criar, editar e excluir linhas nas tabelas.
                                         A senha de login deve ser renovada a cada 90 dias.
                                     </p>
+                                    <label className='gerenciamento_acessos_opcao_check'>
+                                        <input
+                                            type='checkbox'
+                                            checked={Boolean(edicao.disableIdleLogout)}
+                                            onChange={(event) =>
+                                                setEdicao((atual) => ({
+                                                    ...atual,
+                                                    disableIdleLogout: event.target.checked,
+                                                }))
+                                            }
+                                            disabled={loading}
+                                        />
+                                        <span>
+                                            <strong>Desativar logoff automático por inatividade</strong>
+                                            <small>
+                                                Este perfil permanece conectado mesmo sem interação. Use só quando necessário
+                                                (ex.: monitores ou postos de trabalho dedicados).
+                                            </small>
+                                        </span>
+                                    </label>
                                     {usuarioSelecionado?.forcePasswordChangeReason === 'admin' ? (
                                         <p className='gerenciamento_acessos_hint gerenciamento_acessos_hint_aviso'>
                                             Troca exigida pelo administrador: no próximo login este usuário deverá definir uma nova senha.

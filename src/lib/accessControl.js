@@ -279,6 +279,9 @@ export const normalizarProfileAcesso = (profile = {}) => {
   const forceAdmin = Boolean(profile?.force_password_change ?? profile?.forcePasswordChange)
   const passwordChangedAt = profile?.password_changed_at ?? profile?.passwordChangedAt ?? null
   const forceByAge = senhaExpiradaPorPrazo({ password_changed_at: passwordChangedAt })
+  const disableIdleLogout = Boolean(
+    profile?.disable_idle_logout ?? profile?.disableIdleLogout,
+  )
   return {
     id: profile?.id || null,
     name: profile?.name || '',
@@ -287,6 +290,7 @@ export const normalizarProfileAcesso = (profile = {}) => {
     passwordChangedAt,
     forcePasswordChange: forceAdmin || forceByAge,
     forcePasswordChangeReason: forceAdmin ? 'admin' : forceByAge ? 'expired' : null,
+    disableIdleLogout,
   }
 }
 

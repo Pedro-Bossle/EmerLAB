@@ -525,6 +525,42 @@
     padding: 8px 10px;
 }
 
+.gerenciamento_acessos_opcao_check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    margin: 0.85rem 0 0.35rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #e0ebf3;
+    border-radius: 12px;
+    background: #f9fcfe;
+    cursor: pointer;
+}
+
+.gerenciamento_acessos_opcao_check input {
+    margin-top: 0.2rem;
+    width: auto;
+    flex-shrink: 0;
+}
+
+.gerenciamento_acessos_opcao_check span {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.gerenciamento_acessos_opcao_check strong {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #123047;
+}
+
+.gerenciamento_acessos_opcao_check small {
+    font-size: 0.8rem;
+    line-height: 1.35;
+    color: #5f7588;
+}
+
 .gerenciamento_acessos_permissoes {
     display: flex;
     flex-direction: column;
@@ -689,6 +725,19 @@ body.dark-mode .gerenciamento_acessos_hint_aviso {
     color: #ffd89a !important;
     background: #2f2718;
     border-color: #7a5c28;
+}
+
+body.dark-mode .gerenciamento_acessos_opcao_check {
+    background: #152433;
+    border-color: #2a4258;
+}
+
+body.dark-mode .gerenciamento_acessos_opcao_check strong {
+    color: #e8f3fb;
+}
+
+body.dark-mode .gerenciamento_acessos_opcao_check small {
+    color: #9fb4c8;
 }
 
 body.dark-mode .gerenciamento_acessos_permissao_grupo {

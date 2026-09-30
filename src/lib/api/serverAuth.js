@@ -87,7 +87,7 @@ export async function validarJwtComPerfil(req, { supabaseAdmin = null, permitirT
     let profileError = null
     ;({ data: profileData, error: profileError } = await admin
         .from('profiles')
-        .select('id, name, email, permissions, force_password_change, password_changed_at')
+        .select('id, name, email, permissions, force_password_change, password_changed_at, disable_idle_logout')
         .eq('id', userData.user.id)
         .maybeSingle())
 
@@ -96,6 +96,7 @@ export async function validarJwtComPerfil(req, { supabaseAdmin = null, permitirT
         const colunaOpcional =
             msg.includes('force_password_change') ||
             msg.includes('password_changed_at') ||
+            msg.includes('disable_idle_logout') ||
             msg.includes('does not exist') ||
             msg.includes('schema cache')
         if (colunaOpcional) {
