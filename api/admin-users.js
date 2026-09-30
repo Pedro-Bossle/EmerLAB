@@ -634,7 +634,7 @@ export default async function handler(req, res) {
                 return responderErro(
                     res,
                     500,
-                    'Coluna disable_idle_logout ausente. Execute scripts/sql/profiles_disable_idle_logout.sql no Supabase.',
+                    'Coluna disable_idle_logout ausente. Execute o SQL em scripts/sql/README_disable_idle_logout.md no Supabase.',
                 )
             }
 
