@@ -1144,6 +1144,9 @@ function MapsTable({ rows }) {
               <td>
                 <div className="font-semibold inline-flex items-center gap-1">
                   <span>{dash(r.nome)}</span>
+                  {r.alerta_comercial ? (
+                    <span className="text-xs font-normal text-ink-muted"> · {r.alerta_comercial}</span>
+                  ) : null}
                   {href ? (
                     <a
                       href={href}

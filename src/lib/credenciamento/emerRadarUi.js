@@ -126,7 +126,8 @@ export function cidadeFromEndereco(endereco, fallback) {
     while ((m = re.exec(addr)) !== null) match = m
     if (match?.[1]) {
       const part = match[1].trim()
-      if (part.length >= 2) return part
+      const letras = part.replace(/[^A-Za-zÀ-ÿ]/g, '')
+      if (part.length >= 3 && letras.length >= 3 && !/^\d+$/.test(part)) return part
     }
   }
   return String(fallback || '').trim()
