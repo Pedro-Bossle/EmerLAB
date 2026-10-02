@@ -626,6 +626,70 @@ function montarEnderecoLegado(payload) {
 }
 
 /**
+ * Cria os veterinários informados no formulário da clínica e vincula ao estabelecimento.
+ * Usado na conversão nova e ao aplicar a entrada num perfil já existente.
+ */
+async function vincularVeterinariosPendentesDoFormulario(prestadorId, vets, { esps, situacoes, cidadeId }) {
+    const lista = Array.isArray(vets) ? vets : []
+    if (!lista.length) return
+    const credIdVet = acharSituacaoCredenciadoId(situacoes)
+    const espVetPadraoId = await resolverEspecialidadeIdPorTipoPerfil('volante', esps)
+    const idsVets = []
+    for (const v of lista) {
+        const nomeV = String(v.nome || '').trim()
+        if (!nomeV) continue
+        const espIdsV = (
+            Array.isArray(v.especialidades_ids) && v.especialidades_ids.length
+                ? v.especialidades_ids
+                : v.especialidade_id
+                  ? [v.especialidade_id]
+                  : []
+        )
+            .map(Number)
+            .filter(Boolean)
+        const espVetId = espIdsV[0] || espVetPadraoId
+        const espVet = (esps || []).find((e) => Number(e.id) === Number(espVetId))
+        const tipoVet = String(espVet?.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
+        const { data: insV, error: errV } = await supabase
+            .from('prestadores')
+            .insert({
+                nome: nomeV,
+                crmv: normalizarCrmvParaSalvar(v.crmv),
+                especialidade_id: espVetId,
+                tipo: tipoVet,
+                cidade_id: cidadeId,
+                situacao_id: credIdVet ? Number(credIdVet) : null,
+                ativo: true,
+                data_cadastro: new Date().toISOString(),
+                data_atualizacao: new Date().toISOString(),
+            })
+            .select('id')
+            .single()
+        if (errV) throw new Error(errV.message)
+        const vetId = Number(insV.id)
+        idsVets.push(vetId)
+        const idsEspVetSalvar = espIdsV.length ? espIdsV : espVetId ? [espVetId] : []
+        if (idsEspVetSalvar.length) {
+            await supabase.from('prestador_especialidades').insert(
+                idsEspVetSalvar.map((eid, idx) => ({
+                    prestador_id: vetId,
+                    especialidade_id: Number(eid),
+                    principal: idx === 0,
+                })),
+            )
+        }
+    }
+    if (!idsVets.length) return
+    const rowsEst = idsVets.map((vid) => ({
+        veterinario_id: vid,
+        estabelecimento_id: prestadorId,
+        principal: false,
+    }))
+    const { error: errEst } = await supabase.from('prestador_estabelecimentos').insert(rowsEst)
+    if (errEst) throw new Error(errEst.message)
+}
+
+/**
  * Cria prestador a partir da entrada do formulário e sincroniza procedimentos.
  * @returns {number} prestador_id
  */
@@ -755,62 +819,11 @@ export async function converterEntradaFormularioEmPrestador(entradaId) {
     }
 
     if (tipoPerfil === 'clinica') {
-        const vets = Array.isArray(payload.vetsPendentes) ? payload.vetsPendentes : []
-        const credIdVet = acharSituacaoCredenciadoId(situacoes)
-        const espVetPadraoId = await resolverEspecialidadeIdPorTipoPerfil('volante', esps)
-        const cidadeVet = cidadeId
-        const idsVets = []
-        for (const v of vets) {
-            const nomeV = String(v.nome || '').trim()
-            if (!nomeV) continue
-            const espIdsV = (
-                Array.isArray(v.especialidades_ids) && v.especialidades_ids.length
-                    ? v.especialidades_ids
-                    : v.especialidade_id
-                      ? [v.especialidade_id]
-                      : []
-            )
-                .map(Number)
-                .filter(Boolean)
-            const espVetId = espIdsV[0] || espVetPadraoId
-            const espVet = (esps || []).find((e) => Number(e.id) === Number(espVetId))
-            const tipoVet = String(espVet?.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
-            const { data: insV, error: errV } = await supabase
-                .from('prestadores')
-                .insert({
-                    nome: nomeV,
-                    crmv: normalizarCrmvParaSalvar(v.crmv),
-                    especialidade_id: espVetId,
-                    tipo: tipoVet,
-                    cidade_id: cidadeVet,
-                    situacao_id: credIdVet ? Number(credIdVet) : null,
-                    ativo: true,
-                    data_cadastro: new Date().toISOString(),
-                    data_atualizacao: new Date().toISOString(),
-                })
-                .select('id')
-                .single()
-            if (errV) throw new Error(errV.message)
-            const vetId = Number(insV.id)
-            idsVets.push(vetId)
-            const idsEspVetSalvar = espIdsV.length ? espIdsV : [espVetId]
-            await supabase.from('prestador_especialidades').insert(
-                idsEspVetSalvar.map((eid, idx) => ({
-                    prestador_id: vetId,
-                    especialidade_id: Number(eid),
-                    principal: idx === 0,
-                })),
-            )
-        }
-        if (idsVets.length) {
-            const rowsEst = idsVets.map((vid) => ({
-                veterinario_id: vid,
-                estabelecimento_id: prestadorId,
-                principal: false,
-            }))
-            const { error: errEst } = await supabase.from('prestador_estabelecimentos').insert(rowsEst)
-            if (errEst) throw new Error(errEst.message)
-        }
+        await vincularVeterinariosPendentesDoFormulario(prestadorId, payload.vetsPendentes, {
+            esps,
+            situacoes,
+            cidadeId,
+        })
     }
 
     const idsEspPrestador = espIdsPayload.length ? espIdsPayload : [espId]
@@ -1004,6 +1017,14 @@ export async function aplicarEntradaFormularioEmPrestadorExistente(entradaId, pr
     if (payload.responsaveis?.length || payload.certificadosConclusao?.length) {
         await promoverResponsaveisFormularioParaPrestador(prestadorId, payload.responsaveis)
         await promoverCertificadosFormularioParaPrestador(prestadorId, payload.certificadosConclusao)
+    }
+
+    if (tipoPerfil === 'clinica') {
+        await vincularVeterinariosPendentesDoFormulario(prestadorId, payload.vetsPendentes, {
+            esps,
+            situacoes,
+            cidadeId,
+        })
     }
 
     await atualizarStatusEntradaFormulario(entradaId, 'convertido', { prestador_id: prestadorId })

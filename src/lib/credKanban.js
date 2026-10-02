@@ -9,6 +9,7 @@ import {
     acharSituacaoCredenciadoId,
     acharSituacaoPreenchendoFormularioId,
     patchCredenciadoEmSeTransicao,
+    situacaoDescricaoEhCredenciado,
 } from './prestadorCadastroHelpers.js'
 import { unifyContato } from './credenciamento/emerRadarUi.js'
 
@@ -358,8 +359,11 @@ export async function sincronizarCardKanbanComSituacao(prestadorId, situacaoId, 
     }
     const row = rows?.[0]
 
-    // Credenciado / Cancelado: cria card na fila SITE se ainda não houver.
+    // Cria card na fila SITE só na 1ª vez que o perfil vira credenciado.
+    // Cancelado sem card prévio não abre quadro (só «deixou de ser credenciado» atualiza um card existente).
     if (!row && colunaAlvo === 'adicionar_site') {
+        const descAlvo = listaSit.find((s) => Number(s.id) === Number(situacaoId))?.descricao || ''
+        if (!situacaoDescricaoEhCredenciado(descAlvo)) return null
         const { data: prest } = await supabase
             .from('prestadores')
             .select('id, nome, telefone, endereco_cidade, endereco_uf, especialidade_id')

@@ -3,10 +3,7 @@
  */
 
 import { supabase } from './supabase.js'
-import {
-    situacaoDescricaoEhCancelado,
-    situacaoDescricaoEhCredenciado,
-} from './prestadorCadastroHelpers.js'
+import { situacaoDescricaoEhCredenciado } from './prestadorCadastroHelpers.js'
 import {
     atualizarCardKanban,
     criarCardKanban,
@@ -102,7 +99,8 @@ export function montarBlocoAtualizacaoDados(antes = {}, depois = {}) {
 }
 
 /**
- * Só Credenciado / Cancelado (fila do site).
+ * Quadro de site só na 1ª vez que vira credenciado, ou quando deixa de ser.
+ * Ir para Cancelado sem ter sido credenciado não gera bloco.
  * @returns {string|null}
  */
 export function montarBlocoAtualizacaoSituacao(situacaoIdAntes, situacaoIdDepois, situacoes = []) {
@@ -115,11 +113,14 @@ export function montarBlocoAtualizacaoSituacao(situacaoIdAntes, situacaoIdDepois
     const descDepois =
         (situacoes || []).find((s) => Number(s.id) === b)?.descricao || (b ? `#${b}` : '—')
 
-    const alvoSite =
-        situacaoDescricaoEhCredenciado(descDepois) || situacaoDescricaoEhCancelado(descDepois)
-    if (!alvoSite) return null
+    const eraCredenciado = situacaoDescricaoEhCredenciado(descAntes)
+    const seraCredenciado = situacaoDescricaoEhCredenciado(descDepois)
+    const virouCredenciado = seraCredenciado && !eraCredenciado
+    const deixouDeSerCredenciado = eraCredenciado && !seraCredenciado
+    if (!virouCredenciado && !deixouDeSerCredenciado) return null
 
-    return `**Atualização de situação**\n${descAntes} → ${descDepois}`
+    const titulo = virouCredenciado ? 'Passou a ser credenciado' : 'Deixou de ser credenciado'
+    return `**Atualização de situação** — ${titulo}\n${descAntes} → ${descDepois}`
 }
 
 /** Carrega nomes de procedimentos pelos códigos (para o texto do card). */
@@ -256,20 +257,25 @@ export async function notificarKanbanAtualizacaoPerfil({
     procsAntes = [],
     procsDepois = [],
 } = {}) {
-    const mapaNomes = await mapaNomeProcedimentoPorCodigo([...(procsAntes || []), ...(procsDepois || [])])
+    const descAntes = (situacoes || []).find((s) => Number(s.id) === Number(antes.situacao_id))?.descricao
+    const descNova = (situacoes || []).find((s) => Number(s.id) === Number(depois.situacao_id))?.descricao
+    const eraCredenciado = situacaoDescricaoEhCredenciado(descAntes)
+    const seraCredenciado = situacaoDescricaoEhCredenciado(descNova)
+    // Procedimento, cidade e demais dados só entram no quadro enquanto o perfil é credenciado.
+    const perfilNoSite = seraCredenciado
+
+    const mapaNomes = perfilNoSite
+        ? await mapaNomeProcedimentoPorCodigo([...(procsAntes || []), ...(procsDepois || [])])
+        : new Map()
     const blocos = [
-        montarBlocoAtualizacaoProcedimentos(procsAntes, procsDepois, mapaNomes),
-        montarBlocoAtualizacaoDados(antes, depois),
+        perfilNoSite ? montarBlocoAtualizacaoProcedimentos(procsAntes, procsDepois, mapaNomes) : null,
+        perfilNoSite ? montarBlocoAtualizacaoDados(antes, depois) : null,
         montarBlocoAtualizacaoSituacao(antes.situacao_id, depois.situacao_id, situacoes),
     ].filter(Boolean)
 
     if (!blocos.length) return null
-
-    const descAntes = (situacoes || []).find((s) => Number(s.id) === Number(antes.situacao_id))?.descricao
-    const descNova = (situacoes || []).find((s) => Number(s.id) === Number(depois.situacao_id))?.descricao
-    const marcarForaDoSite = situacaoDescricaoEhCancelado(descNova)
-    const marcarNoSite =
-        situacaoDescricaoEhCredenciado(descNova) && !situacaoDescricaoEhCredenciado(descAntes)
+    const marcarForaDoSite = eraCredenciado && !seraCredenciado
+    const marcarNoSite = seraCredenciado && !eraCredenciado
 
     return garantirCardKanbanAtualizacaoSite({
         prestadorId,

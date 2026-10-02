@@ -921,6 +921,8 @@ const CredenciamentoCadastroForm = () => {
                 }
                 const espNome =
                     especialidades.find((e) => Number(e.id) === Number(form.especialidade_id))?.nome || ''
+                const sitAntes = isNovo ? '' : String(snap.dados?.situacao_id || '')
+                const sitDepois = form.situacao_id ? String(form.situacao_id) : ''
                 const cardSite = await notificarKanbanAtualizacaoPerfil({
                     prestadorId: pid,
                     nome: form.nome.trim(),
@@ -929,13 +931,13 @@ const CredenciamentoCadastroForm = () => {
                     telefone: dadosDepois.telefone,
                     tipo: espNome,
                     situacoes,
-                    // Em cadastro novo só notifica mudança de situação (Credenciado/Cancelado).
+                    // Em cadastro novo só notifica mudança de situação (1ª vez credenciado).
                     antes: isNovo ? { ...dadosDepois, situacao_id: '' } : snap.dados || {},
                     depois: dadosDepois,
                     procsAntes: isNovo ? codigosAtualizados : snap.procs || [],
                     procsDepois: codigosAtualizados,
                 })
-                if (!cardSite && form.situacao_id) {
+                if (!cardSite && sitDepois && sitAntes !== sitDepois) {
                     await sincronizarCardKanbanComSituacao(pid, form.situacao_id, { situacoes })
                 }
                 if (!isNovo) {

@@ -34,14 +34,16 @@ describe('credKanbanAtualizacaoSite diffs', () => {
         expect(bloco).toContain('Cidade')
     })
 
-    it('situação: só Credenciado/Cancelado', () => {
+    it('situação: 1ª vez credenciado ou deixa de ser', () => {
         const sits = [
             { id: 1, descricao: 'Preenchendo Formulário' },
             { id: 2, descricao: 'Credenciado' },
             { id: 3, descricao: 'Cancelado' },
         ]
-        expect(montarBlocoAtualizacaoSituacao(1, 2, sits)).toContain('Credenciado')
-        expect(montarBlocoAtualizacaoSituacao(2, 3, sits)).toContain('Cancelado')
-        expect(montarBlocoAtualizacaoSituacao(2, 1, sits)).toBeNull()
+        expect(montarBlocoAtualizacaoSituacao(1, 2, sits)).toContain('Passou a ser credenciado')
+        expect(montarBlocoAtualizacaoSituacao(2, 3, sits)).toContain('Deixou de ser credenciado')
+        expect(montarBlocoAtualizacaoSituacao(2, 1, sits)).toContain('Deixou de ser credenciado')
+        expect(montarBlocoAtualizacaoSituacao(1, 3, sits)).toBeNull()
+        expect(montarBlocoAtualizacaoSituacao(2, 2, sits)).toBeNull()
     })
 })

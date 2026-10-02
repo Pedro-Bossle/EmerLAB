@@ -58,8 +58,10 @@ import {
     removerContatoAgendaPorId,
     upsertContatoAgenda } from '../../lib/clicksign/agendaSignatarios.js'
 import {
+    buscarPerfisParaMencaoSignatario,
     filtrarSugestoesSignatarioKanban,
     listarSugestoesSignatarioKanbanAssinatura,
+    termoMencaoSignatario,
 } from '../../lib/clicksign/sugestoesSignatarioKanban.js'
 import { buscarDadosCNPJ, ORIGENS_CONSULTA_CNPJ } from '../../lib/contratos/consultaCnpj.js'
 import {
@@ -311,6 +313,9 @@ export default function ClicksignEmerdog() {
         [sugestoesKanban, sugestoesKanbanBusca],
     )
 
+    const [mencaoPerfis, setMencaoPerfis] = useState([])
+    const [mencaoLoading, setMencaoLoading] = useState(false)
+
     const aplicarSugestaoKanban = useCallback(async (s) => {
         if (!s) return
         let nome = String(s.nome || '').trim()
@@ -334,6 +339,47 @@ export default function ClicksignEmerdog() {
             saveAgenda: d.saveAgenda,
         }))
         setSugestoesKanbanBusca('')
+        setMencaoPerfis([])
+    }, [])
+
+    const termoMencao = signModal === 'novo' ? termoMencaoSignatario(signDraft.nome) : null
+
+    useEffect(() => {
+        if (termoMencao == null || termoMencao.length < 2) {
+            setMencaoPerfis([])
+            setMencaoLoading(false)
+            return undefined
+        }
+        let cancel = false
+        setMencaoLoading(true)
+        const t = setTimeout(() => {
+            buscarPerfisParaMencaoSignatario(termoMencao)
+                .then((lista) => {
+                    if (!cancel) setMencaoPerfis(lista)
+                })
+                .finally(() => {
+                    if (!cancel) setMencaoLoading(false)
+                })
+        }, 250)
+        return () => {
+            cancel = true
+            clearTimeout(t)
+        }
+    }, [termoMencao])
+
+    const aplicarMencaoPerfil = useCallback((perfil) => {
+        if (!perfil) return
+        setSignDraft((d) => {
+            const semMencao = String(d.nome || '').replace(/(?:^|\s)@[^\s@]*$/, '').trim()
+            const nome = [semMencao, perfil.nome].filter(Boolean).join(' ').trim()
+            return {
+                ...d,
+                nome: nome || perfil.nome,
+                email: perfil.email || d.email,
+                phone: perfil.telefone || d.phone,
+            }
+        })
+        setMencaoPerfis([])
     }, [])
 
     const fluxoEidRef = useRef('')
@@ -2746,8 +2792,39 @@ export default function ClicksignEmerdog() {
                                                 className="contratos_input cs_input"
                                                 value={signDraft.nome}
                                                 onChange={(e) => setSignDraft((d) => ({ ...d, nome: e.target.value }))}
-                                                placeholder="Nome e apelido ou razão social"
+                                                placeholder="Nome, razão social ou @nome do perfil"
+                                                autoComplete="off"
                                             />
+                                            {termoMencao != null ? (
+                                                <div className="cs_sign_mencao" role="listbox" aria-label="Perfis do sistema">
+                                                    {termoMencao.length < 2 ? (
+                                                        <p className="contratos_hint">Digite ao menos 2 letras depois de @.</p>
+                                                    ) : mencaoLoading ? (
+                                                        <p className="contratos_hint">A procurar perfil…</p>
+                                                    ) : mencaoPerfis.length === 0 ? (
+                                                        <p className="contratos_hint">Nenhum perfil com esse nome.</p>
+                                                    ) : (
+                                                        <ul className="cs_sign_kanban_lista">
+                                                            {mencaoPerfis.map((p) => (
+                                                                <li key={p.id}>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="cs_sign_kanban_item"
+                                                                        onClick={() => aplicarMencaoPerfil(p)}
+                                                                    >
+                                                                        <span className="cs_sign_kanban_item_nome">{p.nome}</span>
+                                                                        <span className="cs_sign_kanban_item_meta">
+                                                                            {p.email || 'sem e-mail'}
+                                                                        </span>
+                                                                    </button>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <p className="contratos_hint">Use @nome para puxar nome e e-mail do perfil no sistema.</p>
+                                            )}
                                         </div>
                                         <label className="cs_sign_save_agenda">
                                             <input

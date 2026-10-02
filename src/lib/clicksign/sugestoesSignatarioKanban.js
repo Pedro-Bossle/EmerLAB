@@ -103,6 +103,43 @@ export async function listarSugestoesSignatarioKanbanAssinatura() {
     return out.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
 }
 
+/**
+ * Trecho depois de «@» no fim do nome (ex.: «@ana» → «ana»). Null se não há menção aberta.
+ */
+export function termoMencaoSignatario(nome) {
+    const m = String(nome || '').match(/(?:^|\s)@([^\s@]*)$/)
+    return m ? m[1] : null
+}
+
+/**
+ * Perfis do sistema para preencher nome + e-mail do signatário a partir de @nome.
+ * @returns {Promise<Array<{ id: number, nome: string, email: string, telefone: string }>>}
+ */
+export async function buscarPerfisParaMencaoSignatario(termo) {
+    const q = String(termo || '')
+        .trim()
+        .replace(/[%_,]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    if (q.length < 2) return []
+    const { data, error } = await supabase
+        .from('prestadores')
+        .select('id, nome, email, telefone, celular')
+        .eq('ativo', true)
+        .ilike('nome', `%${q}%`)
+        .order('nome')
+        .limit(8)
+    if (error) return []
+    return (data || [])
+        .map((p) => ({
+            id: Number(p.id),
+            nome: String(p.nome || '').trim(),
+            email: String(p.email || '').trim(),
+            telefone: maskTelefoneBr(p.celular || p.telefone || ''),
+        }))
+        .filter((p) => p.nome)
+}
+
 /** Filtra sugestões por texto (nome, e-mail, cidade, CNPJ). */
 export function filtrarSugestoesSignatarioKanban(lista, termo) {
     const t = String(termo || '')
