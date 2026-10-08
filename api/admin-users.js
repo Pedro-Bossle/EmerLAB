@@ -845,12 +845,24 @@ export default async function handler(req, res) {
                 details: { name: nome, email },
             })
 
-            const { error: authError } = await supabase.auth.admin.deleteUser(userId)
-            if (authError) return responderErro(res, 500, authError.message)
-
+            // profiles.id referencia auth.users(id) SEM ON DELETE CASCADE.
+            // Apagar o Auth primeiro falha com FK; remove o perfil antes.
             const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId)
             if (profileError) {
-                console.warn('[admin-users] Auth removido; falha ao apagar profile:', profileError.message)
+                return responderErro(
+                    res,
+                    500,
+                    `Não foi possível apagar o perfil: ${profileError.message}`,
+                )
+            }
+
+            const { error: authError } = await supabase.auth.admin.deleteUser(userId)
+            if (authError) {
+                return responderErro(
+                    res,
+                    500,
+                    `Perfil removido, mas o login no Auth falhou: ${authError.message}. Tente excluir de novo ou remova o usuário no painel Auth do Supabase.`,
+                )
             }
 
             return res.status(200).json({ ok: true, deletedUserId: userId })
