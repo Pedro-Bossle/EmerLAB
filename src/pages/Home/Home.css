@@ -1160,6 +1160,15 @@ body.dark-mode .home_dash_tarefa_chat_msg.is-mine {
   cursor: pointer;
 }
 
+.home_dash_apps {
+  margin-bottom: 0.65rem;
+}
+
+.home_dash_bookmark_ext {
+  text-decoration: none;
+  color: inherit;
+}
+
 .home_dash_bookmarks {
   margin-bottom: 1.1rem;
 }

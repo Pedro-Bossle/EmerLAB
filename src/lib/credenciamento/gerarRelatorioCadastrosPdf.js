@@ -508,7 +508,8 @@ export function montarLinhasRelatorioCadastros({
         const situacao =
             (situacoes || []).find((s) => Number(s.id) === sid)?.descricao || '—'
         const ehCredenciado = prestadorEhCredenciado(p, situacoes)
-        const isoGrafico = p.credenciado_em || ''
+        // Só credenciados atuais: cancelados mantêm credenciado_em no banco, mas não entram no gráfico.
+        const isoGrafico = ehCredenciado ? p.credenciado_em || '' : ''
         const dataReferenciaPeriodoIso = isoReferenciaPeriodoRelatorioCadastros(
             p,
             situacoes,
@@ -778,14 +779,20 @@ function rotuloMesAnoCurtoPdf(ym) {
     return `${nome}/${hit[1].slice(2)}`
 }
 
+/** Linhas cuja situação atual é Credenciado (exclui cancelamentos e demais). */
+export function filtrarLinhasCredenciadosAtuais(linhas = []) {
+    return (linhas || []).filter((l) => situacaoDescricaoEhCredenciado(l?.situacao))
+}
+
 /**
- * Série por mês/ano (total). Inclui meses vazios do período quando informado.
+ * Série por mês/ano (total de credenciados atuais). Inclui meses vazios do período quando informado.
+ * Cancelados (mesmo com `credenciado_em` histórico) não entram.
  * @returns {Array<{ ym: string, label: string, total: number }>}
  */
 export function montarSerieCredenciadosPorMes(linhas, periodoDe = '', periodoAte = '') {
     const contagem = new Map()
-    for (const l of linhas || []) {
-        const ymd = dataIsoParaYmdLocal(l.credenciadoEmIso)
+    for (const l of filtrarLinhasCredenciadosAtuais(linhas)) {
+        const ymd = dataIsoParaYmdLocal(l.credenciadoEmIso || l.dataReferenciaPeriodoIso)
         if (!ymd) continue
         const ym = ymd.slice(0, 7)
         contagem.set(ym, (contagem.get(ym) || 0) + 1)
@@ -815,15 +822,27 @@ const CORES_SITUACAO_PDF = [
 
 /**
  * Séries por situação × mês (para gráfico agrupado).
+ * Por padrão só credenciados atuais (título «Credenciados por mês/ano»).
+ * @param {object[]} linhas
+ * @param {string} [periodoDe]
+ * @param {string} [periodoAte]
+ * @param {{ apenasCredenciados?: boolean }} [opts]
  * @returns {{ meses: Array<{ ym: string, label: string }>, series: Array<{ situacaoId: number, nome: string, valores: number[], cor: number[] }> }}
  */
-export function montarSeriesPorSituacaoEMes(linhas, periodoDe = '', periodoAte = '') {
+export function montarSeriesPorSituacaoEMes(
+    linhas,
+    periodoDe = '',
+    periodoAte = '',
+    opts = {},
+) {
+    const apenasCredenciados = opts.apenasCredenciados !== false
+    const base = apenasCredenciados ? filtrarLinhasCredenciadosAtuais(linhas) : linhas || []
     let mesesYm = listarMesesYmdEntre(periodoDe, periodoAte)
     const porSitMes = new Map() // `${sid}|${ym}` -> count
     const nomesSit = new Map()
 
-    for (const l of linhas || []) {
-        const ymd = dataIsoParaYmdLocal(l.credenciadoEmIso)
+    for (const l of base) {
+        const ymd = dataIsoParaYmdLocal(l.credenciadoEmIso || l.dataReferenciaPeriodoIso)
         if (!ymd) continue
         const ym = ymd.slice(0, 7)
         const sid = Number(l.situacaoId) || 0

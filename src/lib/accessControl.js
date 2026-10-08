@@ -34,6 +34,8 @@ export const PERMISSION_KEYS = {
   PAGAMENTOS_EDIT: 'pagamentos.edit',
   DEV_TOOLS: 'dev.tools',
   BATE_PAPO: 'bate.papo',
+  EMERMARKETING_VIEW: 'emermarketing.view',
+  EMERMARKETING_EDIT: 'emermarketing.edit',
 }
 
 /** Telas com chave própria: se ausente no JSON salvo, herda o «ver» do módulo. */
@@ -188,6 +190,21 @@ export const PERMISSOES = [
       },
     ],
   },
+  {
+    grupo: 'EmerMarketing',
+    itens: [
+      {
+        chave: PERMISSION_KEYS.EMERMARKETING_VIEW,
+        rotulo: 'Ver EmerMarketing',
+        descricao: 'Acesso ao portal/módulos (legado sincronizado com a aba EmerMarketing).',
+      },
+      {
+        chave: PERMISSION_KEYS.EMERMARKETING_EDIT,
+        rotulo: 'Editar EmerMarketing',
+        descricao: 'Edição em módulos do EmerMarketing (legado).',
+      },
+    ],
+  },
 ]
 
 export const DEFAULT_PROFILE_PERMISSIONS = {
@@ -213,6 +230,8 @@ export const DEFAULT_PROFILE_PERMISSIONS = {
   [PERMISSION_KEYS.ACCESS_MANAGE]: false,
   [PERMISSION_KEYS.DEV_TOOLS]: false,
   [PERMISSION_KEYS.BATE_PAPO]: false,
+  [PERMISSION_KEYS.EMERMARKETING_VIEW]: false,
+  [PERMISSION_KEYS.EMERMARKETING_EDIT]: false,
 }
 
 export const DEFAULT_INVITED_PERMISSIONS = {
@@ -238,6 +257,8 @@ export const DEFAULT_INVITED_PERMISSIONS = {
   [PERMISSION_KEYS.ACCESS_MANAGE]: false,
   [PERMISSION_KEYS.DEV_TOOLS]: false,
   [PERMISSION_KEYS.BATE_PAPO]: false,
+  [PERMISSION_KEYS.EMERMARKETING_VIEW]: false,
+  [PERMISSION_KEYS.EMERMARKETING_EDIT]: false,
 }
 
 export const normalizarPermissions = (profile = {}) => {

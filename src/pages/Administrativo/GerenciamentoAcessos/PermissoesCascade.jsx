@@ -57,26 +57,55 @@ export default function PermissoesCascade({
     usuarioId = '',
     usuarioAtualId = '',
     gruposIniciaisAbertos = true,
+    /** Se definido, só estes grupos (ids do PERMISSION_CATALOG). */
+    grupoIds = null,
+    /** Grupos omitidos (ex.: EmerMarketing em aba própria). */
+    excluirGrupoIds = null,
 }) {
+    const catalogoBase = useMemo(() => {
+        let lista = PERMISSION_CATALOG
+        if (Array.isArray(grupoIds) && grupoIds.length) {
+            const ok = new Set(grupoIds)
+            lista = lista.filter((g) => ok.has(g.id))
+        }
+        if (Array.isArray(excluirGrupoIds) && excluirGrupoIds.length) {
+            const skip = new Set(excluirGrupoIds)
+            lista = lista.filter((g) => !skip.has(g.id))
+        }
+        return lista
+    }, [grupoIds, excluirGrupoIds])
+
     const [abertos, setAbertos] = useState(() =>
-        Object.fromEntries(PERMISSION_CATALOG.map((g) => [g.id, Boolean(gruposIniciaisAbertos)])),
+        Object.fromEntries(catalogoBase.map((g) => [g.id, Boolean(gruposIniciaisAbertos)])),
     )
     const [busca, setBusca] = useState('')
+
+    useEffect(() => {
+        setAbertos((prev) => {
+            const next = { ...prev }
+            for (const g of catalogoBase) {
+                if (!(g.id in next)) next[g.id] = Boolean(gruposIniciaisAbertos)
+            }
+            return next
+        })
+    }, [catalogoBase, gruposIniciaisAbertos])
 
     const termo = useMemo(() => normalizarBusca(busca), [busca])
 
     const catalogoFiltrado = useMemo(() => {
-        if (!termo) return PERMISSION_CATALOG
-        return PERMISSION_CATALOG.map((grupo) => {
-            if (!grupoCombinaBusca(grupo, termo)) return null
-            const labelMatch = normalizarBusca(grupo.label).includes(termo)
-            const tools = labelMatch
-                ? grupo.tools
-                : grupo.tools.filter((tool) => toolCombinaBusca(tool, termo))
-            if (!tools.length) return null
-            return { ...grupo, tools }
-        }).filter(Boolean)
-    }, [termo])
+        if (!termo) return catalogoBase
+        return catalogoBase
+            .map((grupo) => {
+                if (!grupoCombinaBusca(grupo, termo)) return null
+                const labelMatch = normalizarBusca(grupo.label).includes(termo)
+                const tools = labelMatch
+                    ? grupo.tools
+                    : grupo.tools.filter((tool) => toolCombinaBusca(tool, termo))
+                if (!tools.length) return null
+                return { ...grupo, tools }
+            })
+            .filter(Boolean)
+    }, [termo, catalogoBase])
 
     useEffect(() => {
         if (!termo) return
@@ -88,11 +117,11 @@ export default function PermissoesCascade({
     }, [termo, catalogoFiltrado])
 
     const expandirTodos = () => {
-        setAbertos(Object.fromEntries(PERMISSION_CATALOG.map((g) => [g.id, true])))
+        setAbertos(Object.fromEntries(catalogoBase.map((g) => [g.id, true])))
     }
 
     const recolherTodos = () => {
-        setAbertos(Object.fromEntries(PERMISSION_CATALOG.map((g) => [g.id, false])))
+        setAbertos(Object.fromEntries(catalogoBase.map((g) => [g.id, false])))
     }
 
     const toggleGrupo = (groupId, action) => {

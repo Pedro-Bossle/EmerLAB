@@ -6,6 +6,7 @@ import {
     hasPermission,
     normalizarProfileAcesso,
 } from '../src/lib/accessControl.js'
+import { podeLerFerramenta } from '../src/lib/permissionCatalog.js'
 import {
     getClientIp,
     getRequestHeader,
@@ -114,6 +115,13 @@ async function listarAuditLogsPrestadoresRelatorio(supabase) {
 const tabelaIndisponivel = (msg) =>
     /audit_logs|does not exist|schema cache/i.test(String(msg || ''))
 
+const tabelaMktIndisponivel = (msg) =>
+    /mkt_audit_log|does not exist|schema cache/i.test(String(msg || ''))
+
+const podeVerAuditoriaMkt = (profile) =>
+    hasPermission(profile, PERMISSION_KEYS.ACCESS_MANAGE) ||
+    podeLerFerramenta(profile?.permissions, 'emermarketing.auditoria')
+
 export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
 
@@ -187,6 +195,121 @@ export default async function handler(req, res) {
             }
         }
 
+        if (action === 'metaMkt' || action === 'listMkt') {
+            const authHeader = getHeader(req, 'authorization')
+            const token = String(authHeader || '')
+                .replace(/^Bearer\s+/i, '')
+                .trim()
+            if (!token) return responderErro(res, 401, 'Sessão ausente.')
+            const { data: userData, error: userError } = await supabase.auth.getUser(token)
+            if (userError || !userData?.user?.id) return responderErro(res, 401, 'Sessão inválida.')
+            const { data: profileData, error: profileError } = await buscarProfile(
+                supabase,
+                userData.user.id,
+            )
+            if (profileError || !profileData) return responderErro(res, 403, 'Perfil não encontrado.')
+            const profile = normalizarProfileAcesso(profileData)
+            if (!podeVerAuditoriaMkt(profile)) {
+                return responderErro(res, 403, 'Sem permissão para ver auditoria do EmerMarketing.')
+            }
+
+            if (action === 'metaMkt') {
+                const [{ data: users }, { data: ents }] = await Promise.all([
+                    supabase
+                        .from('mkt_audit_log')
+                        .select('user_id, user_email')
+                        .order('created_at', { ascending: false })
+                        .limit(400),
+                    supabase
+                        .from('mkt_audit_log')
+                        .select('entidade, acao')
+                        .order('created_at', { ascending: false })
+                        .limit(800),
+                ])
+                const usuariosMap = new Map()
+                for (const row of users || []) {
+                    const id = row.user_id || row.user_email
+                    if (!id || usuariosMap.has(id)) continue
+                    usuariosMap.set(id, {
+                        id: row.user_id || '',
+                        email: row.user_email || '',
+                        nome: row.user_email || row.user_id || '—',
+                    })
+                }
+                const entidades = new Set()
+                const acoes = new Set()
+                for (const row of ents || []) {
+                    if (row.entidade) entidades.add(row.entidade)
+                    if (row.acao) acoes.add(row.acao)
+                }
+                return res.status(200).json({
+                    ok: true,
+                    usuarios: [...usuariosMap.values()].sort((a, b) =>
+                        String(a.nome).localeCompare(String(b.nome), 'pt-BR'),
+                    ),
+                    entidades: [...entidades].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+                    acoes: [...acoes].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+                })
+            }
+
+            const page = Math.max(1, Number(body.page) || 1)
+            const pageSize = Math.min(5000, Math.max(1, Number(body.pageSize) || 50))
+            const from = (page - 1) * pageSize
+            const to = from + pageSize - 1
+            let query = supabase
+                .from('mkt_audit_log')
+                .select(
+                    'id, created_at, user_id, user_email, acao, entidade, entidade_id, detalhes',
+                    { count: 'exact' },
+                )
+                .order('created_at', { ascending: false })
+                .range(from, to)
+            if (body.usuarioId) query = query.eq('user_id', String(body.usuarioId).trim())
+            if (body.userEmail) {
+                query = query.ilike('user_email', `%${String(body.userEmail).trim()}%`)
+            }
+            if (body.acao) query = query.eq('acao', String(body.acao).trim())
+            const entidadesMulti = Array.isArray(body.entidades)
+                ? body.entidades.map((t) => String(t || '').trim()).filter(Boolean)
+                : []
+            if (entidadesMulti.length > 0) {
+                query = query.in('entidade', entidadesMulti)
+            } else if (body.entidade) {
+                query = query.eq('entidade', String(body.entidade).trim())
+            }
+            if (body.dataInicio) query = query.gte('created_at', String(body.dataInicio))
+            if (body.dataFim) query = query.lte('created_at', String(body.dataFim))
+            if (body.q) {
+                const q = String(body.q).trim()
+                if (q) {
+                    query = query.or(
+                        `user_email.ilike.%${q}%,acao.ilike.%${q}%,entidade.ilike.%${q}%,entidade_id.ilike.%${q}%`,
+                    )
+                }
+            }
+            const { data, error, count } = await query
+            if (error) {
+                if (tabelaMktIndisponivel(error.message)) {
+                    return res.status(200).json({
+                        ok: true,
+                        logs: [],
+                        total: 0,
+                        page,
+                        pageSize,
+                        aviso: 'Tabela mkt_audit_log não encontrada. Confirme a migration do EmerMarketing no Supabase.',
+                    })
+                }
+                return responderErro(res, 500, error.message)
+            }
+            return res.status(200).json({
+                ok: true,
+                logs: data || [],
+                total: count ?? (data || []).length,
+                page,
+                pageSize,
+            })
+        }
+
         const admin = await validarAdminAuditoria(supabase, req)
         if (admin.error) return responderErro(res, 403, admin.error)
 
@@ -254,7 +377,11 @@ export default async function handler(req, res) {
         }
 
         if (action !== 'list' && action !== 'export') {
-            return responderErro(res, 400, 'Ação inválida. Use list, export, meta, resumoSemana, prestadoresResponsaveis ou recordAuth.')
+            return responderErro(
+                res,
+                400,
+                'Ação inválida. Use list, export, meta, resumoSemana, listMkt, metaMkt, prestadoresResponsaveis ou recordAuth.',
+            )
         }
 
         const page = Math.max(1, Number(body.page) || 1)

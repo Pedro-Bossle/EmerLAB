@@ -6,7 +6,11 @@ import {
     setStoredAccessProfile } from '../../../lib/accessControl'
 import PermissoesCascade from './PermissoesCascade'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
-import { PERMISSION_CATALOG, hasAcl } from '../../../lib/permissionCatalog'
+import {
+    EMERMARKETING_GROUP_ID,
+    PERMISSION_CATALOG,
+    hasAcl,
+} from '../../../lib/permissionCatalog'
 import { supabase } from '../../../lib/supabase'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
 import './GerenciamentoAcessos.css'
@@ -216,6 +220,8 @@ const GerenciamentoAcessos = () => {
             usuarioId={usuarioId}
             usuarioAtualId={usuarioAtualId}
             gruposIniciaisAbertos={opts.gruposIniciaisAbertos !== false}
+            grupoIds={opts.grupoIds || null}
+            excluirGrupoIds={opts.excluirGrupoIds || null}
         />
     )
 
@@ -512,6 +518,13 @@ const GerenciamentoAcessos = () => {
                                     </button>
                                     <button
                                         type='button'
+                                        className={abaDetalhe === 'emermarketing' ? 'is-active' : ''}
+                                        onClick={() => setAbaDetalhe('emermarketing')}
+                                    >
+                                        EmerMarketing
+                                    </button>
+                                    <button
+                                        type='button'
                                         className={abaDetalhe === 'conta' ? 'is-active' : ''}
                                         onClick={() => setAbaDetalhe('conta')}
                                     >
@@ -529,7 +542,9 @@ const GerenciamentoAcessos = () => {
 
                             {abaDetalhe === 'permissoes' && (
                                 <>
-                                    {renderPermissoes(edicao.permissions, alterarPermissoesEdicao, edicao.id)}
+                                    {renderPermissoes(edicao.permissions, alterarPermissoesEdicao, edicao.id, {
+                                        excluirGrupoIds: [EMERMARKETING_GROUP_ID],
+                                    })}
                                     <button
                                         type='button'
                                         className='gerenciamento_acessos_salvar_flutuante is-primary'
@@ -537,6 +552,29 @@ const GerenciamentoAcessos = () => {
                                         disabled={loading}
                                     >
                                         {loading ? 'Salvando…' : 'Salvar permissões'}
+                                    </button>
+                                </>
+                            )}
+
+                            {abaDetalhe === 'emermarketing' && (
+                                <>
+                                    <p className='gerenciamento_acessos_hint'>
+                                        «Acesso ao portal» libera o link na Dashboard e a entrada no app. Sem módulos
+                                        específicos, todas as telas ficam liberadas. Marque módulos para restringir
+                                        (Dashboard, Calendário, Relatórios, Legendas, Editor, Métricas, Roleta).
+                                        «Auditoria (EmerLAB)» libera a aba EmerMarketing na tela de Auditoria.
+                                    </p>
+                                    {renderPermissoes(edicao.permissions, alterarPermissoesEdicao, edicao.id, {
+                                        grupoIds: [EMERMARKETING_GROUP_ID],
+                                        gruposIniciaisAbertos: true,
+                                    })}
+                                    <button
+                                        type='button'
+                                        className='gerenciamento_acessos_salvar_flutuante is-primary'
+                                        onClick={salvarUsuario}
+                                        disabled={loading}
+                                    >
+                                        {loading ? 'Salvando…' : 'Salvar EmerMarketing'}
                                     </button>
                                 </>
                             )}
@@ -843,6 +881,17 @@ const GerenciamentoAcessos = () => {
                                 <div className='gerenciamento_acessos_convite_perms'>
                                     {renderPermissoes(convite.permissions, alterarPermissoesConvite, '', {
                                         gruposIniciaisAbertos: false,
+                                        excluirGrupoIds: [EMERMARKETING_GROUP_ID],
+                                    })}
+                                </div>
+                                <div className='gerenciamento_acessos_convite_perms gerenciamento_acessos_convite_emermarketing'>
+                                    <h4 className='gerenciamento_acessos_convite_subtitulo'>EmerMarketing</h4>
+                                    <p className='gerenciamento_acessos_hint'>
+                                        Opcional. Sem estas permissões a pessoa não vê o link nem entra no app.
+                                    </p>
+                                    {renderPermissoes(convite.permissions, alterarPermissoesConvite, '', {
+                                        gruposIniciaisAbertos: true,
+                                        grupoIds: [EMERMARKETING_GROUP_ID],
                                     })}
                                 </div>
                             </section>

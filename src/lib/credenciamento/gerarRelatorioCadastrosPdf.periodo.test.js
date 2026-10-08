@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
     isoReferenciaPeriodoRelatorioCadastros,
     montarLinhasRelatorioCadastros,
+    montarSerieCredenciadosPorMes,
+    montarSeriesPorSituacaoEMes,
 } from './gerarRelatorioCadastrosPdf.js'
 
 const situacoes = [
@@ -141,5 +143,48 @@ describe('isoReferenciaPeriodoRelatorioCadastros', () => {
             new Map([['9|2', '2026-08-10T00:00:00.000Z']]),
         )
         expect(iso).toBe('2026-08-10T00:00:00.000Z')
+    })
+})
+
+describe('contagem Credenciados ignora cancelamentos', () => {
+    it('cancelado com credenciado_em histórico não entra no gráfico', () => {
+        const linhas = montarLinhasRelatorioCadastros({
+            prestadores: [
+                {
+                    id: 1,
+                    nome: 'Ainda credenciado',
+                    situacao_id: 4,
+                    especialidade_id: 1,
+                    credenciado_em: '2026-08-10T12:00:00.000Z',
+                },
+                {
+                    id: 2,
+                    nome: 'Foi cancelado',
+                    situacao_id: 5,
+                    especialidade_id: 1,
+                    credenciado_em: '2026-08-12T12:00:00.000Z',
+                    data_atualizacao: '2026-08-20T12:00:00.000Z',
+                },
+            ],
+            situacoes,
+            especialidades: [{ id: 1, nome: 'Clínica' }],
+            situacaoIds: [4, 5],
+        })
+        expect(linhas).toHaveLength(2)
+        const cancelado = linhas.find((l) => l.nome === 'Foi cancelado')
+        expect(cancelado.credenciadoEmIso).toBe('')
+        expect(cancelado.credenciadoEm).toBe('')
+
+        const serie = montarSerieCredenciadosPorMes(linhas, '2026-08-01', '2026-08-31')
+        const ago = serie.find((s) => s.ym === '2026-08')
+        expect(ago?.total).toBe(1)
+
+        const pack = montarSeriesPorSituacaoEMes(linhas, '2026-08-01', '2026-08-31')
+        const totalPack = pack.series.reduce(
+            (acc, s) => acc + s.valores.reduce((a, v) => a + v, 0),
+            0,
+        )
+        expect(totalPack).toBe(1)
+        expect(pack.series.every((s) => /credenciad/i.test(s.nome))).toBe(true)
     })
 })

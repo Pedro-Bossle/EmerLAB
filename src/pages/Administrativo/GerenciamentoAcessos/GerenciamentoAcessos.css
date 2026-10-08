@@ -160,6 +160,19 @@
     color: #fff;
 }
 
+.gerenciamento_acessos_convite_subtitulo {
+    margin: 1.25rem 0 0.35rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: inherit;
+}
+
+.gerenciamento_acessos_convite_emermarketing {
+    margin-top: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e0ebf3;
+}
+
 .gerenciamento_acessos_hint {
     margin: 0 0 10px;
     font-size: 0.82rem;

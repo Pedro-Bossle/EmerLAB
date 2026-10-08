@@ -9,6 +9,7 @@ import {
     resumirAlteracoesPermissoes,
 } from '../src/lib/accessControl.js'
 import { sanitizarPermissionsParaSalvar } from '../src/lib/permissionCatalog.js'
+import { montarAppMetadataEmermarketing } from '../src/lib/emermarketingMeta.js'
 import { validarPoliticaSenha } from '../src/lib/passwordPolicy.js'
 import {
     getClientIp,
@@ -223,6 +224,33 @@ const encontrarUsuarioPorEmail = async (supabase, email) => {
     }
 
     return null
+}
+
+/** Espelha ACL EmerMarketing em app_metadata (lida pelo app externo). */
+const sincronizarAppMetadataEmermarketing = async (supabase, userId, permissions) => {
+    const uid = String(userId || '').trim()
+    if (!uid) return
+    const metaMkt = montarAppMetadataEmermarketing(permissions)
+    try {
+        const { data, error: getErr } = await supabase.auth.admin.getUserById(uid)
+        if (getErr) {
+            console.warn('[admin-users] getUserById (emermarketing):', getErr.message)
+            return
+        }
+        const atual = data?.user?.app_metadata && typeof data.user.app_metadata === 'object'
+            ? { ...data.user.app_metadata }
+            : {}
+        const { error } = await supabase.auth.admin.updateUserById(uid, {
+            app_metadata: {
+                ...atual,
+                emermarketing: metaMkt.emermarketing,
+                emermarketing_acl: metaMkt.emermarketing_acl,
+            },
+        })
+        if (error) console.warn('[admin-users] sync emermarketing metadata:', error.message)
+    } catch (e) {
+        console.warn('[admin-users] sync emermarketing metadata:', e?.message || e)
+    }
 }
 
 const registrarAuditoria = async (supabase, entrada) => {
@@ -465,6 +493,7 @@ export default async function handler(req, res) {
             if (profileError) return responderErro(res, 500, profileError.message)
 
             const profileNorm = normalizarProfileAcesso(profileData)
+            await sincronizarAppMetadataEmermarketing(supabase, profileNorm.id, profileNorm.permissions)
             await registrarAuditoria(supabase, {
                 actorUserId: admin.user.id,
                 actorName: admin.profile.name,
@@ -527,6 +556,7 @@ export default async function handler(req, res) {
             }
 
             const profileNorm = normalizarProfileAcesso(profileData)
+            await sincronizarAppMetadataEmermarketing(supabase, profileNorm.id, profileNorm.permissions)
             await registrarAuditoria(supabase, {
                 actorUserId: admin.user.id,
                 actorName: admin.profile.name,
@@ -650,6 +680,8 @@ export default async function handler(req, res) {
                 )
             }
             if (mudancasPerm.length) partesResumo.push(mudancasPerm.join('; '))
+
+            await sincronizarAppMetadataEmermarketing(supabase, userId, profileNorm.permissions)
 
             await registrarAuditoria(supabase, {
                 actorUserId: admin.user.id,

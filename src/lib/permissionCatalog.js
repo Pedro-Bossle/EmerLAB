@@ -28,6 +28,8 @@ const L = {
     PAGAMENTOS_EDIT: 'pagamentos.edit',
     DEV_TOOLS: 'dev.tools',
     BATE_PAPO: 'bate.papo',
+    EMERMARKETING_VIEW: 'emermarketing.view',
+    EMERMARKETING_EDIT: 'emermarketing.edit',
 }
 
 export const ACL_ACTIONS = [
@@ -365,7 +367,73 @@ export const PERMISSION_CATALOG = [
             },
         ],
     },
+    {
+        id: 'emermarketing',
+        label: 'EmerMarketing',
+        tools: [
+            {
+                id: 'emermarketing.app',
+                label: 'Acesso ao portal',
+                descricao:
+                    'Libera o link na Dashboard e a entrada no app. Sem módulos específicos marcados, libera todas as telas.',
+                actions: RU,
+            },
+            {
+                id: 'emermarketing.dashboard',
+                label: 'Dashboard',
+                descricao: 'Painel inicial do EmerMarketing.',
+                actions: R,
+            },
+            {
+                id: 'emermarketing.calendario',
+                label: 'Calendário',
+                descricao: 'Agenda e datas de publicações.',
+                actions: RU,
+            },
+            {
+                id: 'emermarketing.relatorios',
+                label: 'Relatórios',
+                descricao: 'Exportação de relatórios (PDF/CSV/Excel).',
+                actions: RU,
+            },
+            {
+                id: 'emermarketing.legendas',
+                label: 'Legendas',
+                descricao: 'Geração de legendas com IA.',
+                actions: RU,
+            },
+            {
+                id: 'emermarketing.editor',
+                label: 'Editor',
+                descricao: 'Documentos e conteúdo editorial.',
+                actions: RCUD,
+            },
+            {
+                id: 'emermarketing.metricas',
+                label: 'Métricas',
+                descricao: 'Métricas de redes / Meta.',
+                actions: R,
+            },
+            {
+                id: 'emermarketing.roleta',
+                label: 'Roleta',
+                descricao: 'Ferramenta de roleta / sorteio.',
+                actions: RCUD,
+            },
+            {
+                id: 'emermarketing.auditoria',
+                label: 'Auditoria (EmerLAB)',
+                descricao:
+                    'Ver a aba EmerMarketing na tela de Auditoria do EmerLAB (logs de mkt_audit_log).',
+                actions: R,
+            },
+        ],
+    },
 ]
+
+export const EMERMARKETING_GROUP_ID = 'emermarketing'
+export const EMERMARKETING_TOOL_ID = 'emermarketing.app'
+export const EMERMARKETING_URL_PADRAO = 'https://marketing-emerlab.vercel.app'
 
 export function aclKey(toolId, action) {
     return `${toolId}.${action}`
@@ -540,6 +608,12 @@ export function expandLegacyToAcl(perms) {
     }
     if (p[L.BATE_PAPO]) {
         setTool('admin.bate_papo', { read: true })
+    }
+    if (p[L.EMERMARKETING_VIEW]) {
+        setTool('emermarketing.app', { read: true })
+    }
+    if (p[L.EMERMARKETING_EDIT]) {
+        setTool('emermarketing.app', { read: true, update: true })
     }
     // Alertas da Home herdados das páginas (legado notificacoes.* → ferramenta).
     if (p[L.NOTIFICACOES_FORMULARIO] || p['notificacoes.formulario.read']) {
@@ -761,6 +835,11 @@ export function syncLegacyFromAcl(perms) {
     p[L.ACCESS_MANAGE] = hasAcl(p, 'admin.acessos', 'read') && hasAcl(p, 'admin.acessos', 'update')
     p[L.DEV_TOOLS] = hasAcl(p, 'admin.dev_tools', 'read')
     p[L.BATE_PAPO] = hasAcl(p, 'admin.bate_papo', 'read')
+    p[L.EMERMARKETING_VIEW] = anyAclInGroup(p, 'emermarketing', 'read')
+    p[L.EMERMARKETING_EDIT] =
+        anyAclInGroup(p, 'emermarketing', 'update') ||
+        anyAclInGroup(p, 'emermarketing', 'create') ||
+        anyAclInGroup(p, 'emermarketing', 'delete')
     // Alertas da Home = permissão de Ver na página correspondente.
     p[L.NOTIFICACOES_FORMULARIO] = hasAcl(p, 'credenciamento.formulario_inbox', 'read')
     p[L.NOTIFICACOES_CONTRATOS] = hasAcl(p, 'contratos.clicksign', 'read')

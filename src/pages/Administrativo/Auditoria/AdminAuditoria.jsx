@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
     ACOES_AUDITORIA,
@@ -18,6 +18,12 @@ import {
     rotuloCampoAuditoria,
 } from '../../../lib/auditoriaLogs.js'
 import AdminQualidadePainel from '../Qualidade/AdminQualidade.jsx'
+import AdminAuditoriaEmermarketing from './AdminAuditoriaEmermarketing.jsx'
+import {
+    getStoredAccessProfile,
+    useStoredAccessProfile,
+} from '../../../lib/accessControl.js'
+import { usuarioPodeVerAuditoriaEmermarketing } from '../../../lib/emermarketingMeta.js'
 import './AdminAuditoria.css'
 import { PageHeader } from '../../../components/ui'
 
@@ -61,7 +67,15 @@ function fmtJsonAmigavel(v) {
 
 const AdminAuditoria = () => {
     const [searchParams, setSearchParams] = useSearchParams()
-    const abaPrincipal = searchParams.get('aba') === 'qualidade' ? 'qualidade' : 'logs'
+    const profile = useStoredAccessProfile() || getStoredAccessProfile()
+    const podeAbaMkt = usuarioPodeVerAuditoriaEmermarketing(profile?.permissions || {})
+    const abaRaw = searchParams.get('aba')
+    const abaPrincipal =
+        abaRaw === 'qualidade'
+            ? 'qualidade'
+            : abaRaw === 'emermarketing'
+              ? 'emermarketing'
+              : 'logs'
 
     const selecionarAba = useCallback(
         (aba) => {
@@ -69,11 +83,20 @@ const AdminAuditoria = () => {
                 setSearchParams({ aba: 'qualidade' }, { replace: false })
                 return
             }
-            // Limpa ?aba=qualidade → volta à tela de auditoria (logs)
+            if (aba === 'emermarketing') {
+                setSearchParams({ aba: 'emermarketing' }, { replace: false })
+                return
+            }
             setSearchParams({}, { replace: true })
         },
         [setSearchParams],
     )
+
+    useEffect(() => {
+        if (abaPrincipal === 'emermarketing' && !podeAbaMkt) {
+            setSearchParams({}, { replace: true })
+        }
+    }, [abaPrincipal, podeAbaMkt, setSearchParams])
 
     const [loading, setLoading] = useState(true)
     const [exportando, setExportando] = useState(false)
@@ -99,6 +122,17 @@ const AdminAuditoria = () => {
     const [filtroDe, setFiltroDe] = useState('')
     const [filtroAte, setFiltroAte] = useState('')
     const [filtroQ, setFiltroQ] = useState('')
+    const mktAcoesRef = useRef(null)
+    const [mktStatus, setMktStatus] = useState({
+        loading: false,
+        exportando: false,
+    })
+    const onMktStatusChange = useCallback((s) => {
+        setMktStatus({
+            loading: Boolean(s?.loading),
+            exportando: Boolean(s?.exportando),
+        })
+    }, [])
 
     const totalPaginas = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -301,7 +335,9 @@ const AdminAuditoria = () => {
                 description={
                     abaPrincipal === 'qualidade'
                         ? 'Qualidade de dados dos credenciados: documentos, geocode LOCAL, especialidade RC e duplicatas.'
-                        : 'Auditoria operacional = mudanças de dados (cadastros, pagamentos, valores). Cada log expira 45 dias após a própria data. Histórico fino de convites/permissões fica em Gerenciar acessos.'
+                        : abaPrincipal === 'emermarketing'
+                          ? 'Logs do app EmerMarketing (mkt_audit_log): roleta, legendas, editor, relatórios e demais ações registradas no marketing.'
+                          : 'Auditoria operacional = mudanças de dados (cadastros, pagamentos, valores). Cada log expira 45 dias após a própria data. Histórico fino de convites/permissões fica em Gerenciar acessos.'
                 }
                 actions={
                     abaPrincipal === 'logs' ? (
@@ -323,6 +359,24 @@ const AdminAuditoria = () => {
                                 disabled={exportando || loading}
                             >
                                 {exportando ? 'Exportando…' : 'Exportar CSV'}
+                            </button>
+                        </div>
+                    ) : abaPrincipal === 'emermarketing' ? (
+                        <div className="admin_auditoria_header_acoes">
+                            <button
+                                type="button"
+                                onClick={() => mktAcoesRef.current?.atualizar?.()}
+                                disabled={mktStatus.loading}
+                            >
+                                Atualizar
+                            </button>
+                            <button
+                                type="button"
+                                className="is-primary"
+                                onClick={() => void mktAcoesRef.current?.exportar?.()}
+                                disabled={mktStatus.exportando || mktStatus.loading}
+                            >
+                                {mktStatus.exportando ? 'Exportando…' : 'Exportar CSV'}
                             </button>
                         </div>
                     ) : null
@@ -348,10 +402,26 @@ const AdminAuditoria = () => {
                 >
                     Qualidade de dados
                 </button>
+                {podeAbaMkt ? (
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={abaPrincipal === 'emermarketing'}
+                        className={`admin_auditoria_aba${abaPrincipal === 'emermarketing' ? ' is-active' : ''}`}
+                        onClick={() => selecionarAba('emermarketing')}
+                    >
+                        EmerMarketing
+                    </button>
+                ) : null}
             </div>
 
             {abaPrincipal === 'qualidade' ? (
                 <AdminQualidadePainel />
+            ) : abaPrincipal === 'emermarketing' ? (
+                <AdminAuditoriaEmermarketing
+                    acoesRef={mktAcoesRef}
+                    onStatusChange={onMktStatusChange}
+                />
             ) : (
                 <>
             {aviso ? <div className="admin_auditoria_aviso">{aviso}</div> : null}

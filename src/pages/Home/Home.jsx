@@ -15,6 +15,10 @@ import {
     podeLerFerramenta,
     useStoredAccessProfile,
 } from '../../lib/accessControl'
+import {
+    urlEmerMarketing,
+    usuarioPodeAbrirEmerMarketing,
+} from '../../lib/emermarketingAccess.js'
 import { listarEnvelopesComAtualizacoes } from '../../lib/clicksign/clicksignNotificacoes'
 import {
     contarEntradasFormularioPendentesNotificacao,
@@ -1029,6 +1033,33 @@ const Home = () => {
 
             {erro ? <div className="home_dash_alerta is-erro">{erro}</div> : null}
             {avisoTarefas ? <div className="home_dash_alerta is-aviso">{avisoTarefas}</div> : null}
+
+            {usuarioPodeAbrirEmerMarketing(permissions) ? (
+                <section className="home_dash_bookmarks home_dash_apps" aria-label="Apps">
+                    <div className="home_dash_bookmarks_bar">
+                        <div className="home_dash_bookmarks_top">
+                            <span className="home_dash_bookmarks_label" title="Apps">
+                                <span aria-hidden="true">↗</span>
+                                <span className="home_dash_bookmarks_label_txt">Apps</span>
+                            </span>
+                        </div>
+                        <div className="home_dash_bookmarks_track">
+                            <a
+                                className="home_dash_bookmark home_dash_bookmark_ext"
+                                href={urlEmerMarketing()}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Abrir EmerMarketing"
+                            >
+                                <span className="home_dash_bookmark_ico" aria-hidden="true">
+                                    M
+                                </span>
+                                <span className="home_dash_bookmark_txt">EmerMarketing</span>
+                            </a>
+                        </div>
+                    </div>
+                </section>
+            ) : null}
 
             <section className="home_dash_bookmarks" aria-label="Favoritos">
                 <div className="home_dash_bookmarks_bar">
