@@ -173,7 +173,8 @@ export function resumirConferencia(resultados = []) {
 }
 
 /**
- * Motor principal: MellisLab × Honorários (Honorários = valor oficial).
+ * Motor principal: Laboratório × Plano (Plano / Valores de Base = valor oficial).
+ * Nomenclatura genérica LABORATORIO — não amarra a um lab específico.
  */
 export function runConferencia({
     honorarios = [],

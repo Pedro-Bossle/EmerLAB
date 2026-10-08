@@ -6,7 +6,7 @@ export function arredondarValor(valor) {
 }
 
 /**
- * Honorários é o valor oficial. diferença = mellis - honorarios.
+ * Plano / Valores de Base é o valor oficial. diferença = laboratório - plano.
  */
 export function compareValues(valorHonorarios, valorMellis) {
     const h = arredondarValor(valorHonorarios)

@@ -26,7 +26,7 @@ function L(parcial) {
     }
 }
 
-describe('conferência MellisLab × Honorários', () => {
+describe('conferência Laboratório × Plano', () => {
     it('caso 1 — OK (João/Rex/Hemograma com equivalência)', () => {
         const { resultados } = runConferencia({
             honorarios: [L({ id: 'h1' })],

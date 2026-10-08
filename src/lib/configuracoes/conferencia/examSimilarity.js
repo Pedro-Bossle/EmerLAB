@@ -1,7 +1,18 @@
 import { normalizarTextoBusca } from '../../prestadorCadastroHelpers.js'
 
+/**
+ * Remove marcas de lab específico (ex.: MellisLab) do nome normalizado.
+ * A conferência trata o lado lab como LABORATORIO genérico, não um prestador nomeado.
+ */
+function removerMarcasLaboratorio(nomeNorm) {
+    return String(nomeNorm || '')
+        .replace(/\bmellislab\b/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+}
+
 export function normalizeExam(texto) {
-    return normalizarTextoBusca(texto)
+    return removerMarcasLaboratorio(normalizarTextoBusca(texto))
 }
 
 /** Score 0–1000. */
@@ -47,7 +58,7 @@ export const EQUIVALENCIAS_PADRAO = [
     },
     {
         a: 'HEMOGRAMA + PLAQUETAS',
-        b: 'HEMOGRAMA COMPLETO MELLISLAB - CITOMETRIA DE FLUXO',
+        b: 'HEMOGRAMA COMPLETO - CITOMETRIA DE FLUXO',
     },
 ]
 

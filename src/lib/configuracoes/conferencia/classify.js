@@ -53,7 +53,7 @@ export function classifyComparison({
         }
     }
     if (!petOk) {
-        return { status: 'PET_DIVERGENTE', motivo: 'Pet divergente entre Honorários e MellisLab.' }
+        return { status: 'PET_DIVERGENTE', motivo: 'Pet divergente entre Plano e Laboratório.' }
     }
     if (!tutorOk && !tutorAlias) {
         return {
@@ -111,7 +111,7 @@ export function classifyComparison({
     if (exame?.exact === false && !exame?.equivalent && (exame?.score || 0) < 650) {
         return {
             status: 'EXAME_DIVERGENTE',
-            motivo: 'Nome de exame divergente entre Honorários e MellisLab.',
+            motivo: 'Nome de exame divergente entre Plano e Laboratório.',
         }
     }
     return { status: 'OK', motivo: 'Correspondência conferida.' }
@@ -121,12 +121,12 @@ export function classifyOrphan(origem) {
     if (origem === 'mellislab') {
         return {
             status: 'ORFAO_MELLISLAB',
-            motivo: 'Exame no MellisLab sem correspondente nos Honorários.',
+            motivo: 'Exame no Laboratório sem correspondente no Plano.',
         }
     }
     return {
         status: 'ORFAO_HONORARIOS',
-        motivo: 'Exame nos Honorários sem correspondente no MellisLab.',
+        motivo: 'Exame no Plano sem correspondente no Laboratório.',
     }
 }
 

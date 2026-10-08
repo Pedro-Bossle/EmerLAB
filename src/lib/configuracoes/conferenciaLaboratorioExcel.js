@@ -1,4 +1,4 @@
-import { normalizarTextoBusca } from '../prestadorCadastroHelpers.js'
+import { normalizeExam } from './conferencia/examSimilarity.js'
 
 export const CAMPOS_CONFERENCIA = ['prontuario', 'tutor', 'pet', 'data', 'exame']
 export const CAMPOS_CONFERENCIA_BASE = ['tutor', 'pet', 'data', 'exame']
@@ -10,6 +10,7 @@ export function normalizarOrigemConferencia(origem) {
     const o = String(origem || '').toLowerCase()
     if (o === 'valores_base' || o === 'base') return 'valores_base'
     if (o === 'emerdog' || o === 'honorarios' || o === 'plano') return 'honorarios'
+    // Alias interno legado «mellislab»; a UI e os textos usam LABORATORIO genérico.
     if (o === 'lab' || o === 'mellislab' || o === 'laboratorio') return 'mellislab'
     return o || null
 }
@@ -23,7 +24,7 @@ export function requisitosMapeamento(origem) {
 }
 
 export function normalizarNomeExame(texto) {
-    return normalizarTextoBusca(texto)
+    return normalizeExam(texto)
 }
 
 export function normalizarCabecalho(texto) {

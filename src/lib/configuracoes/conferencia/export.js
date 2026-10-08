@@ -84,14 +84,14 @@ export async function exportarConferenciaHonorariosExcel({
     ]
     wsResumo.getRow(1).font = { bold: true }
     const indicadores = [
-        ['Total Honorários', '', tot.totalHonorarios],
-        ['Total MellisLab', '', tot.totalMellis],
+        ['Total Plano', '', tot.totalHonorarios],
+        ['Total Laboratório', '', tot.totalMellis],
         ['Itens conferidos', tot.itensConferidos, ''],
         ['Itens OK', tot.itensOk, ''],
         ['Valores divergentes', tot.valoresDivergentes, ''],
         ['Datas divergentes', tot.datasDivergentes, ''],
-        ['Órfãos MellisLab', tot.orfaosMellis, ''],
-        ['Órfãos Honorários', tot.orfaosHonorarios, ''],
+        ['Órfãos Laboratório', tot.orfaosMellis, ''],
+        ['Órfãos Plano', tot.orfaosHonorarios, ''],
         ['Revisões manuais', tot.revisoesManuais, ''],
         ['Diferença financeira', '', tot.diferencaFinanceira],
         ['Valores cobrados a mais', '', tot.valoresCobradosAMais],
@@ -107,11 +107,11 @@ export async function exportarConferenciaHonorariosExcel({
         resultados.filter((r) => statusEhDivergencia(r.status)),
     )
     preencherAba(
-        workbook.addWorksheet('ORFAOS_MELLISLAB'),
+        workbook.addWorksheet('ORFAOS_LABORATORIO'),
         resultados.filter((r) => r.status === 'ORFAO_MELLISLAB'),
     )
     preencherAba(
-        workbook.addWorksheet('ORFAOS_HONORARIOS'),
+        workbook.addWorksheet('ORFAOS_PLANO'),
         resultados.filter((r) => r.status === 'ORFAO_HONORARIOS'),
     )
 

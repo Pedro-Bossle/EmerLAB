@@ -2848,7 +2848,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
     background: rgba(96, 165, 250, 0.08);
 }
 
-/* —— Dashboard / tabela plana / drawer (MellisLab × Honorários) —— */
+/* —— Dashboard / tabela plana / drawer (Laboratório × Plano) —— */
 .conf_lab_dash {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
