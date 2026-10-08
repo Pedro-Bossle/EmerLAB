@@ -608,7 +608,8 @@ export function completarAclFerramentasCredenciamento(perms) {
         }
     }
 
-    // Conferência Laboratório: quem já tinha só «Ler» passa a poder criar/editar aliases e conferência
+    // Conferência Laboratório: leitura pode herdar de view; criar/editar só de permissão de escrita já persistida.
+    // Nunca promover credenciamento.view / só-leitura a create/update (isso virava credenciamento.edit no sync).
     const kConfRead = aclKey('configuracoes.conferencia_laboratorio', 'read')
     const kConfCreate = aclKey('configuracoes.conferencia_laboratorio', 'create')
     const kConfUpdate = aclKey('configuracoes.conferencia_laboratorio', 'update')
@@ -624,7 +625,6 @@ export function completarAclFerramentasCredenciamento(perms) {
     }
     if (!p[kConfCreate] || !p[kConfUpdate]) {
         if (
-            p[kConfRead] ||
             hasAcl(p, 'configuracoes.importar_credenciados', 'update') ||
             p[L.CREDENCIAMENTO_EDIT]
         ) {
@@ -737,15 +737,8 @@ export function syncLegacyFromAcl(perms) {
         hasAcl(p, 'credenciamento.prospectos_osm', 'delete') ||
         hasAcl(p, 'credenciamento.processos', 'update') ||
         hasAcl(p, 'credenciamento.processos', 'create') ||
-        hasAcl(p, 'configuracoes.importar_credenciados', 'update') ||
-        hasAcl(p, 'configuracoes.conferencia_laboratorio', 'update') ||
-        hasAcl(p, 'configuracoes.conferencia_laboratorio', 'create') ||
-        hasAcl(p, 'configuracoes.observacoes_honorarios', 'update') ||
-        hasAcl(p, 'configuracoes.observacoes_honorarios', 'create') ||
-        hasAcl(p, 'configuracoes.observacoes_honorarios', 'delete') ||
-        hasAcl(p, 'configuracoes.observacoes_planos', 'update') ||
-        hasAcl(p, 'configuracoes.observacoes_planos', 'create') ||
-        hasAcl(p, 'configuracoes.observacoes_planos', 'delete')
+        hasAcl(p, 'configuracoes.importar_credenciados', 'update')
+        // Conferência / observações NÃO elevam credenciamento.edit (evita gravação via geocode etc.).
 
     p[L.PLANOS_VIEW] = hasAcl(p, 'planos.impressao', 'read')
     p[L.COMPRAS_VIEW] = anyAclInGroup(p, 'compras', 'read')

@@ -6,13 +6,33 @@ const DEFAULT_BASE = 'https://sandbox.clicksign.com/api/v3'
 
 const normBase = (b) => String(b || DEFAULT_BASE).replace(/\/$/, '')
 
-function isPathAllowed(subPath) {
-    const raw = subPath.split('?')[0] || ''
-    if (!raw || raw.includes('..')) return false
-    const p = raw.replace(/\/+$/, '') || '/'
-    const lower = p.toLowerCase()
-    const prefixes = ['/envelopes', '/webhooks', '/templates', '/batch']
+const PREFIXOS_LEITURA = ['/envelopes', '/webhooks', '/templates', '/batch']
+/** Escrita só em envelopes (e batch ligado a envelopes). Webhooks/templates ficam só leitura. */
+const PREFIXOS_ESCRITA = ['/envelopes', '/batch']
+
+function normalizarSubPath(subPath) {
+    const raw = String(subPath || '').split('?')[0] || ''
+    if (!raw || raw.includes('..')) return ''
+    return (raw.replace(/\/+$/, '') || '/')
+}
+
+function caminhoNoPrefixo(subPath, prefixes) {
+    const lower = normalizarSubPath(subPath).toLowerCase()
+    if (!lower) return false
     return prefixes.some((pre) => lower === pre || lower.startsWith(`${pre}/`))
+}
+
+function isPathAllowed(subPath) {
+    return caminhoNoPrefixo(subPath, PREFIXOS_LEITURA)
+}
+
+function isWritePathAllowed(subPath) {
+    return caminhoNoPrefixo(subPath, PREFIXOS_ESCRITA)
+}
+
+function metodoEhLeitura(method) {
+    const m = String(method || 'GET').toUpperCase()
+    return m === 'GET' || m === 'HEAD' || m === 'OPTIONS'
 }
 
 async function readBody(req) {
@@ -53,13 +73,26 @@ export default async function clicksignProxyHandler(req, res) {
 
     if (!aplicarRateLimit(res, `clicksign:${getClientIp(req)}`, RATE_LIMITS.clicksign)) return
 
-    const auth = await validarJwtComPermissao(req, [
-        PERMISSION_KEYS.CONTRATOS_VIEW,
-        PERMISSION_KEYS.CONTRATOS_EDIT,
-        PERMISSION_KEYS.ACCESS_MANAGE,
-    ])
+    const method = (req.method || 'GET').toUpperCase()
+    const leitura = metodoEhLeitura(method)
+    const auth = await validarJwtComPermissao(
+        req,
+        leitura
+            ? [
+                  PERMISSION_KEYS.CONTRATOS_VIEW,
+                  PERMISSION_KEYS.CONTRATOS_EDIT,
+                  PERMISSION_KEYS.ACCESS_MANAGE,
+              ]
+            : [PERMISSION_KEYS.CONTRATOS_EDIT, PERMISSION_KEYS.ACCESS_MANAGE],
+    )
     if (auth.error) {
-        res.status(auth.status || 401).json({ error: auth.error })
+        res.status(auth.status || 401).json({
+            error: leitura
+                ? auth.error
+                : auth.status === 403
+                  ? 'Sem permissão para alterar Clicksign. É necessário contratos.edit.'
+                  : auth.error,
+        })
         return
     }
 
@@ -94,6 +127,13 @@ export default async function clicksignProxyHandler(req, res) {
         })
         return
     }
+    if (!leitura && !isWritePathAllowed(subPath)) {
+        res.status(403).json({
+            error:
+                'Escrita não permitida neste caminho. Use /envelopes ou /batch. /webhooks e /templates são só leitura.',
+        })
+        return
+    }
 
     // Rotas que exigem UUID do envelope: /envelopes/:id/...
     const precisaEnvelopeId = /^\/envelopes\/(documents|signers|requirements)(\/|$)/i.test(subPath)
@@ -105,7 +145,6 @@ export default async function clicksignProxyHandler(req, res) {
     }
 
     const upstreamUrl = `${base}${subPath}${search}`
-    const method = (req.method || 'GET').toUpperCase()
 
     const headers = {
         Authorization: token.replace(/^Bearer\s+/i, '').trim(),

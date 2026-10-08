@@ -5,7 +5,7 @@ import {
     getClientIp,
     readJsonBodyLimited,
     responderSePayloadGrande,
-    validarJwtComPermissao,
+    validarJwtFerramentaCredenciamento,
 } from '../src/lib/api/serverAuth.js'
 import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
 
@@ -18,7 +18,13 @@ export default async function handler(req, res) {
         const ip = getClientIp(req)
         if (!aplicarRateLimit(res, `geocode:${ip}`, RATE_LIMITS.geocode)) return
 
-        const auth = await validarJwtComPermissao(req, PERMISSION_KEYS.CREDENCIAMENTO_EDIT)
+        // Exige edição persistida em Cadastros (ACL), não só credenciamento.view / legado derivado.
+        const auth = await validarJwtFerramentaCredenciamento(
+            req,
+            'credenciamento.cadastro',
+            PERMISSION_KEYS.CREDENCIAMENTO_EDIT,
+            { requireEdit: true },
+        )
         if (auth.error) {
             res.status(auth.status || 401).json({ ok: false, error: auth.error })
             return
