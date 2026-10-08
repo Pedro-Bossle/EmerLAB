@@ -25,70 +25,144 @@ function isRpcIndisponivel(error) {
     )
 }
 
-const normalizarNomeCidade = (nome) =>
+export const normalizarNomeCidadeCredenciamento = (nome) =>
     String(nome || '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .trim()
         .toLowerCase()
 
+export function normalizarUfCredenciamento(uf) {
+    return String(uf || '')
+        .trim()
+        .toUpperCase()
+        .slice(0, 2)
+}
+
+/**
+ * Mesma localidade = mesmo nome normalizado e mesma UF (quando ambas têm UF).
+ * Sem UF em um dos lados, cai no cidadeId se disponível.
+ */
+export function cidadeCredenciamentoMesmaLocalidade(a, b) {
+    const nomeA = normalizarNomeCidadeCredenciamento(a?.nome)
+    const nomeB = normalizarNomeCidadeCredenciamento(b?.nome)
+    if (!nomeA || !nomeB || nomeA !== nomeB) return false
+
+    const ufA = normalizarUfCredenciamento(a?.uf)
+    const ufB = normalizarUfCredenciamento(b?.uf)
+    if (ufA && ufB) return ufA === ufB
+
+    const idA = Number(a?.cidadeId ?? a?.id ?? 0)
+    const idB = Number(b?.cidadeId ?? b?.id ?? 0)
+    if (idA && idB) return idA === idB
+
+    return !ufA && !ufB
+}
+
 function rowFromRpc(data) {
     const row = Array.isArray(data) ? data[0] : data
     const id = Number(row?.id)
     if (!id) return null
-    return { id, nome: String(row?.nome || '').trim() || '' }
+    return {
+        id,
+        nome: String(row?.nome || '').trim() || '',
+        uf: normalizarUfCredenciamento(row?.uf) || null,
+    }
 }
 
-async function obterOuCriarViaRpc(nomeCidade) {
+async function obterOuCriarViaRpc(nomeCidade, uf) {
     const nome = String(nomeCidade || '').trim()
     if (!nome) return null
+    const ufNorm = normalizarUfCredenciamento(uf) || null
 
-    const { data, error } = await supabase.rpc(RPC_OBTER_OU_CRIAR, { p_nome: nome })
+    const params = ufNorm ? { p_nome: nome, p_uf: ufNorm } : { p_nome: nome }
+    const { data, error } = await supabase.rpc(RPC_OBTER_OU_CRIAR, params)
     if (!error) return rowFromRpc(data)
     if (isRpcIndisponivel(error)) return null
     throw new Error(error.message)
 }
 
-async function obterOuCriarViaRest(nomeCidade) {
-    const nome = String(nomeCidade || '').trim()
-    if (!nome) return null
-
-    const chave = normalizarNomeCidade(nome)
-
+async function buscarExistenteRest(nome, ufNorm) {
+    const chave = normalizarNomeCidadeCredenciamento(nome)
     const { data: existentes, error: errBusca } = await supabase
         .from('cidades_credenciamento')
-        .select('id, nome')
+        .select('id, nome, uf')
         .ilike('nome', nome)
-        .limit(20)
+        .limit(40)
     if (errBusca) throw new Error(errBusca.message)
 
-    const hit =
-        (existentes || []).find((c) => normalizarNomeCidade(c.nome) === chave) ||
-        existentes?.[0]
-    if (hit?.id) {
-        return { id: Number(hit.id), nome: hit.nome || nome }
+    const rows = existentes || []
+    if (ufNorm) {
+        const exact =
+            rows.find(
+                (c) =>
+                    normalizarNomeCidadeCredenciamento(c.nome) === chave &&
+                    normalizarUfCredenciamento(c.uf) === ufNorm,
+            ) || null
+        if (exact?.id) {
+            return { id: Number(exact.id), nome: exact.nome || nome, uf: ufNorm }
+        }
+        const legado =
+            rows.find(
+                (c) =>
+                    normalizarNomeCidadeCredenciamento(c.nome) === chave &&
+                    !normalizarUfCredenciamento(c.uf),
+            ) || null
+        if (legado?.id) {
+            const { error: errUp } = await supabase
+                .from('cidades_credenciamento')
+                .update({ uf: ufNorm })
+                .eq('id', legado.id)
+            if (errUp && !isConflitoUnicidade(errUp)) throw new Error(errUp.message)
+            return { id: Number(legado.id), nome: legado.nome || nome, uf: ufNorm }
+        }
+        return null
     }
 
+    const hit =
+        rows.find(
+            (c) =>
+                normalizarNomeCidadeCredenciamento(c.nome) === chave &&
+                !normalizarUfCredenciamento(c.uf),
+        ) ||
+        rows.find((c) => normalizarNomeCidadeCredenciamento(c.nome) === chave) ||
+        null
+    if (hit?.id) {
+        return {
+            id: Number(hit.id),
+            nome: hit.nome || nome,
+            uf: normalizarUfCredenciamento(hit.uf) || null,
+        }
+    }
+    return null
+}
+
+async function obterOuCriarViaRest(nomeCidade, uf) {
+    const nome = String(nomeCidade || '').trim()
+    if (!nome) return null
+    const ufNorm = normalizarUfCredenciamento(uf) || null
+
+    const existente = await buscarExistenteRest(nome, ufNorm)
+    if (existente) return existente
+
+    const payload = ufNorm ? { nome, uf: ufNorm } : { nome }
     const { data: ins, error: errIns } = await supabase
         .from('cidades_credenciamento')
-        .insert({ nome })
-        .select('id, nome')
+        .insert(payload)
+        .select('id, nome, uf')
         .single()
 
     if (!errIns && ins?.id) {
-        return { id: Number(ins.id), nome: ins.nome || nome }
+        return {
+            id: Number(ins.id),
+            nome: ins.nome || nome,
+            uf: normalizarUfCredenciamento(ins.uf) || ufNorm,
+        }
     }
 
     if (isConflitoUnicidade(errIns)) {
-        const { data: retry, error: errRetry } = await supabase
-            .from('cidades_credenciamento')
-            .select('id, nome')
-            .ilike('nome', nome)
-            .limit(1)
-        if (errRetry) throw new Error(errRetry.message)
-        if (retry?.[0]?.id) {
-            return { id: Number(retry[0].id), nome: retry[0].nome || nome }
-        }
+        const retry = await buscarExistenteRest(nome, ufNorm)
+        if (retry) return retry
     }
 
     if (errIns) {
@@ -103,13 +177,15 @@ async function obterOuCriarViaRest(nomeCidade) {
 }
 
 /**
- * Busca cidade por nome (ilike) ou cria. Preferência: RPC security definer (formulário público).
- * @returns {Promise<{ id: number, nome: string }|null>}
+ * Busca ou cria cidade. Com UF, distingue homônimos (ex.: Santa Maria/RS ≠ Santa Maria/RN).
+ * @param {string} nomeCidade
+ * @param {string} [uf]
+ * @returns {Promise<{ id: number, nome: string, uf?: string|null }|null>}
  */
-export async function obterOuCriarCidadeCredenciamento(nomeCidade) {
-    const viaRpc = await obterOuCriarViaRpc(nomeCidade)
+export async function obterOuCriarCidadeCredenciamento(nomeCidade, uf) {
+    const viaRpc = await obterOuCriarViaRpc(nomeCidade, uf)
     if (viaRpc) return viaRpc
-    return obterOuCriarViaRest(nomeCidade)
+    return obterOuCriarViaRest(nomeCidade, uf)
 }
 
 /**
@@ -117,7 +193,7 @@ export async function obterOuCriarCidadeCredenciamento(nomeCidade) {
  */
 export async function obterOuCriarCidadeCredenciamentoPorMunicipio(uf, nomeMunicipio) {
     const nome = String(nomeMunicipio || '').trim()
-    const ufNorm = String(uf || '').trim().toUpperCase()
+    const ufNorm = normalizarUfCredenciamento(uf)
     if (!nome) return null
 
     const candidatos = [nome]
@@ -145,8 +221,8 @@ export async function obterOuCriarCidadeCredenciamentoPorMunicipio(uf, nomeMunic
     }
 
     for (const candidato of candidatos) {
-        const row = await obterOuCriarCidadeCredenciamento(candidato)
-        if (row?.id) return { ...row, nomeExibicao: nome, uf: ufNorm }
+        const row = await obterOuCriarCidadeCredenciamento(candidato, ufNorm)
+        if (row?.id) return { ...row, nomeExibicao: nome, uf: ufNorm || row.uf }
     }
     return null
 }

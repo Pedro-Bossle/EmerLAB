@@ -2,6 +2,7 @@
  * Cidades do tráfego → contadores diários → limiar 4 → fila cron Emer-Radar.
  */
 
+import { buscarMunicipiosPorUf } from '../ibgeLocalidades.js'
 import { supabase } from '../supabase.js'
 import { pipelineEnqueue, pipelinePreviewCities } from './emerRadarApi.js'
 import { cidadeDisponivel, cidadeEmCooldown } from './emerRadarUi.js'
@@ -97,6 +98,46 @@ export function parseCidadesTrafego(texto, ufPadrao = '') {
     out.push(parsed)
   }
   return out
+}
+
+/**
+ * Mantém só municípios que existem no IBGE para a UF informada.
+ * Se a API da UF falhar, preserva os itens (não bloqueia o fluxo).
+ * @param {{ cidade: string, uf: string }[]} cidades
+ * @returns {Promise<{ validas: { cidade: string, uf: string }[], rejeitadas: { cidade: string, uf: string }[] }>}
+ */
+export async function filtrarMunicipiosIbgeExistentes(cidades) {
+  const lista = Array.isArray(cidades) ? cidades : []
+  const porUf = new Map()
+  for (const item of lista) {
+    const cidade = String(item?.cidade || '').trim()
+    const uf = normalizarUfTrafego(item?.uf)
+    if (!cidade || !uf || !UFS_BR.has(uf)) continue
+    if (!porUf.has(uf)) porUf.set(uf, [])
+    porUf.get(uf).push({ cidade, uf })
+  }
+
+  const validas = []
+  const rejeitadas = []
+
+  for (const [uf, items] of porUf) {
+    let nomesOk = null
+    try {
+      const munis = await buscarMunicipiosPorUf(uf)
+      nomesOk = new Set((munis || []).map((m) => normalizarCidadeTrafego(m.nome)))
+    } catch {
+      // IBGE indisponível: não descarta o lote da UF
+      validas.push(...items)
+      continue
+    }
+
+    for (const item of items) {
+      if (nomesOk.has(normalizarCidadeTrafego(item.cidade))) validas.push(item)
+      else rejeitadas.push(item)
+    }
+  }
+
+  return { validas, rejeitadas }
 }
 
 /**
@@ -289,7 +330,7 @@ export async function enfileirarCidadesQueBateramLimiar(opts = {}) {
 }
 
 /**
- * Fluxo completo: parse → registar → enfileirar limiar.
+ * Fluxo completo: parse → validar IBGE → registar → enfileirar limiar.
  */
 export async function processarTrafegoDoDia(texto, ufPadrao, opts = {}) {
   const parsed = parseCidadesTrafego(texto, ufPadrao)
@@ -302,19 +343,47 @@ export async function processarTrafegoDoDia(texto, ufPadrao, opts = {}) {
       emCooldown: 0,
       cidadesEnfileiradas: [],
       cidadesCooldown: [],
+      rejeitadas: [],
       aviso: 'Nenhuma cidade válida no texto (informe UF padrão ou Cidade/UF por linha).',
     }
   }
-  const reg = await registrarAparicoesDoDia(parsed, { data: opts.data })
+
+  const { validas, rejeitadas } = await filtrarMunicipiosIbgeExistentes(parsed)
+  if (!validas.length) {
+    const amostra = rejeitadas
+      .slice(0, 5)
+      .map((r) => `${r.cidade}/${r.uf}`)
+      .join(', ')
+    return {
+      parsed: parsed.length,
+      novas: 0,
+      jaTinhamDia: 0,
+      enfileiradas: 0,
+      emCooldown: 0,
+      cidadesEnfileiradas: [],
+      cidadesCooldown: [],
+      rejeitadas,
+      aviso: `Nenhuma cidade encontrada no IBGE${amostra ? ` (ex.: ${amostra})` : ''}.`,
+    }
+  }
+
+  const reg = await registrarAparicoesDoDia(validas, { data: opts.data })
   const enq = await enfileirarCidadesQueBateramLimiar({ limiar: opts.limiar })
+  const avisoRejeitadas = rejeitadas.length
+    ? `Ignoradas ${rejeitadas.length} inexistente(s) no IBGE: ${rejeitadas
+        .slice(0, 8)
+        .map((r) => `${r.cidade}/${r.uf}`)
+        .join(', ')}${rejeitadas.length > 8 ? '…' : ''}.`
+    : ''
   return {
-    parsed: parsed.length,
+    parsed: validas.length,
     novas: reg.novas,
     jaTinhamDia: reg.jaTinhamDia,
     enfileiradas: enq.enfileiradas,
     emCooldown: enq.emCooldown,
     cidadesEnfileiradas: enq.cidadesEnfileiradas,
     cidadesCooldown: enq.cidadesCooldown,
-    aviso: '',
+    rejeitadas,
+    aviso: avisoRejeitadas,
   }
 }

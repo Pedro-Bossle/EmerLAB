@@ -1,12 +1,21 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   LIMIAR_MARCADORES_CRON,
   dataLocalYmd,
   filtrarCidadesNoLimiar,
+  filtrarMunicipiosIbgeExistentes,
   normalizarCidadeTrafego,
   parseCidadesTrafego,
   parseLinhaCidadeTrafego,
 } from './trafegoCidades.js'
+
+vi.mock('../ibgeLocalidades.js', () => ({
+  buscarMunicipiosPorUf: vi.fn(async (uf) => {
+    if (uf === 'PR') return [{ id: 1, nome: 'Pato Branco' }, { id: 2, nome: 'Cascavel' }]
+    if (uf === 'RS') return [{ id: 3, nome: 'Porto Alegre' }]
+    return []
+  }),
+}))
 
 describe('trafegoCidades parse', () => {
   it('parseia cidade simples com UF padrão', () => {
@@ -43,6 +52,22 @@ describe('trafegoCidades parse', () => {
 
   it('normaliza cidade para chave', () => {
     expect(normalizarCidadeTrafego('São José')).toBe('SAO JOSE')
+  })
+})
+
+describe('filtrarMunicipiosIbgeExistentes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejeita cidades inexistentes na UF', async () => {
+    const { validas, rejeitadas } = await filtrarMunicipiosIbgeExistentes([
+      { cidade: 'Pato Branco', uf: 'PR' },
+      { cidade: 'Cidade Inventada', uf: 'PR' },
+      { cidade: 'Porto Alegre', uf: 'RS' },
+    ])
+    expect(validas.map((r) => r.cidade)).toEqual(['Pato Branco', 'Porto Alegre'])
+    expect(rejeitadas).toEqual([{ cidade: 'Cidade Inventada', uf: 'PR' }])
   })
 })
 

@@ -23,7 +23,7 @@ import {
     montarEstabelecimentoPorVeterinarioDeListas,
     resolverLocalidadeEfetivaPrestador } from '../../../lib/prestadorLocalidadeVinculo.js'
 import { buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
-import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
+import { obterOuCriarCidadeCredenciamentoPorMunicipio } from '../../../lib/cidadesCredenciamento.js'
 import { montarNomeArquivoRc } from '../../../lib/rc/rcPdfNomeArquivo.js'
 import {
     agruparCidadesRcPorMalha,
@@ -771,7 +771,10 @@ const CredenciamentoCadastroLista = () => {
             setSalvandoSimples(true)
             setErro('')
             const agora = new Date().toISOString()
-            const cidadeObj = await obterOuCriarCidadeCredenciamento(simplesCidade.trim())
+            const cidadeObj = await obterOuCriarCidadeCredenciamentoPorMunicipio(
+                simplesUf,
+                simplesCidade.trim(),
+            )
             const tipoSalvar = String(espSelecionada.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
             const payload = {
                 nome: simplesNome.trim(),

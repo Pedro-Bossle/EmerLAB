@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { obterOuCriarCidadeCredenciamentoPorMunicipio } from '../../../lib/cidadesCredenciamento.js'
+import {
+    cidadeCredenciamentoMesmaLocalidade,
+    obterOuCriarCidadeCredenciamentoPorMunicipio,
+} from '../../../lib/cidadesCredenciamento.js'
 import { buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades'
 import { formatarCrmvEntrada, normalizarCrmvParaSalvar } from '../../../lib/prestadorCadastroHelpers'
 import {
@@ -90,19 +93,24 @@ export default function FormularioPublicoPerfilExtra({
         }
         setAdicionandoCidade(true)
         try {
-            const obj = await obterOuCriarCidadeCredenciamentoPorMunicipio(ufAtende, mun.nome)
+            const ufSel = String(ufAtende || '').trim().toUpperCase()
+            if (
+                cidadesAtende.some((c) =>
+                    cidadeCredenciamentoMesmaLocalidade(c, { nome: mun.nome, uf: ufSel }),
+                )
+            ) {
+                setErroLocal('Esta cidade/UF já está na lista.')
+                return
+            }
+            const obj = await obterOuCriarCidadeCredenciamentoPorMunicipio(ufSel, mun.nome)
             const cid = Number(obj?.id)
             if (!cid) {
                 setErroLocal('Não foi possível vincular a cidade.')
                 return
             }
-            if (cidadesAtende.some((c) => Number(c.cidadeId) === cid)) {
-                setErroLocal('Esta cidade já está na lista.')
-                return
-            }
             onCidadesAtendeChange([
                 ...cidadesAtende,
-                { cidadeId: cid, nome: mun.nome, uf: ufAtende },
+                { cidadeId: cid, nome: mun.nome, uf: ufSel },
             ])
             setMunicipioIbgeId('')
         } catch (e) {

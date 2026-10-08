@@ -15,6 +15,11 @@ import {
     uploadCertificadosConclusaoFormulario,
 } from './prestadorVeterinarioCadastro.js'
 
+async function obterOuCriarCidadeCredenciamento(nomeCidade, uf) {
+    const row = await obterOuCriarCidadeCredenciamentoDb(nomeCidade, uf)
+    return row?.id ? Number(row.id) : null
+}
+
 export const FORMULARIO_CRED_SLUG_PADRAO = 'parceiros'
 
 /** Link curto público (máscara) → mesmo formulário do slug padrão. */
@@ -608,11 +613,6 @@ async function resolverEspecialidadeIdPorTipoPerfil(tipoPerfil, especialidades) 
     return naoEstab ? Number(naoEstab.id) : Number(lista[0]?.id) || null
 }
 
-async function obterOuCriarCidadeCredenciamento(nomeCidade) {
-    const row = await obterOuCriarCidadeCredenciamentoDb(nomeCidade)
-    return row?.id ? Number(row.id) : null
-}
-
 function montarEnderecoLegado(payload) {
     const e = payload?.endereco || {}
     const partes = [
@@ -747,12 +747,15 @@ export async function converterEntradaFormularioEmPrestador(entradaId) {
     const end = payload.endereco || {}
     const tipoPerfil = String(entrada.tipo_perfil || '').toLowerCase()
     const cidadesPayload = Array.isArray(payload.cidadesAtende) ? payload.cidadesAtende : []
-    let cidadeId = await obterOuCriarCidadeCredenciamento(end.cidade)
+    let cidadeId = await obterOuCriarCidadeCredenciamento(end.cidade, end.uf)
     if (!cidadeId && cidadesPayload[0]?.cidadeId) {
         cidadeId = Number(cidadesPayload[0].cidadeId) || null
     }
     if (!cidadeId && cidadesPayload[0]?.nome) {
-        cidadeId = await obterOuCriarCidadeCredenciamento(cidadesPayload[0].nome)
+        cidadeId = await obterOuCriarCidadeCredenciamento(
+            cidadesPayload[0].nome,
+            cidadesPayload[0].uf || end.uf,
+        )
     }
 
     const crmvPrincipal =
@@ -800,7 +803,9 @@ export async function converterEntradaFormularioEmPrestador(entradaId) {
         for (let i = 0; i < cidadesPayload.length; i++) {
             const item = cidadesPayload[i]
             let cid = item.cidadeId ? Number(item.cidadeId) : null
-            if (!cid && item.nome) cid = await obterOuCriarCidadeCredenciamento(item.nome)
+            if (!cid && item.nome) {
+                cid = await obterOuCriarCidadeCredenciamento(item.nome, item.uf || end.uf)
+            }
             if (!cid) continue
             linhasCidades.push({
                 prestador_id: prestadorId,
@@ -930,12 +935,15 @@ export async function aplicarEntradaFormularioEmPrestadorExistente(entradaId, pr
     const end = payload.endereco || {}
     const tipoPerfil = String(entrada.tipo_perfil || '').toLowerCase()
     const cidadesPayload = Array.isArray(payload.cidadesAtende) ? payload.cidadesAtende : []
-    let cidadeId = await obterOuCriarCidadeCredenciamento(end.cidade)
+    let cidadeId = await obterOuCriarCidadeCredenciamento(end.cidade, end.uf)
     if (!cidadeId && cidadesPayload[0]?.cidadeId) {
         cidadeId = Number(cidadesPayload[0].cidadeId) || null
     }
     if (!cidadeId && cidadesPayload[0]?.nome) {
-        cidadeId = await obterOuCriarCidadeCredenciamento(cidadesPayload[0].nome)
+        cidadeId = await obterOuCriarCidadeCredenciamento(
+            cidadesPayload[0].nome,
+            cidadesPayload[0].uf || end.uf,
+        )
     }
 
     const crmvPrincipal =
@@ -979,7 +987,9 @@ export async function aplicarEntradaFormularioEmPrestadorExistente(entradaId, pr
         for (let i = 0; i < cidadesPayload.length; i++) {
             const item = cidadesPayload[i]
             let cid = item.cidadeId ? Number(item.cidadeId) : null
-            if (!cid && item.nome) cid = await obterOuCriarCidadeCredenciamento(item.nome)
+            if (!cid && item.nome) {
+                cid = await obterOuCriarCidadeCredenciamento(item.nome, item.uf || end.uf)
+            }
             if (!cid) continue
             linhasCidades.push({
                 prestador_id: prestadorId,

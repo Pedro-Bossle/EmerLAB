@@ -423,7 +423,7 @@ function PipelinePanel() {
     setTrafegoBusy(true)
     try {
       const res = await processarTrafegoDoDia(trafegoTexto, trafegoUf)
-      if (res.aviso) {
+      if (!res.parsed && res.aviso) {
         setTrafegoErro(res.aviso)
         return
       }
@@ -433,7 +433,11 @@ function PipelinePanel() {
         `${res.enfileiradas} enfileirada(s) no cron`,
       ]
       if (res.emCooldown) partes.push(`${res.emCooldown} em cooldown (aguardam)`)
+      if (res.rejeitadas?.length) {
+        partes.push(`${res.rejeitadas.length} inexistente(s) no IBGE ignorada(s)`)
+      }
       setTrafegoMsg(partes.join(' · '))
+      if (res.aviso && res.rejeitadas?.length) setTrafegoErro(res.aviso)
       if (res.novas || res.enfileiradas) setTrafegoTexto('')
       refreshTrafego()
       refreshRegistry()

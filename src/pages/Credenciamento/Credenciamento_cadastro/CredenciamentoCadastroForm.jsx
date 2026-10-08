@@ -63,7 +63,10 @@ import { sincronizarBeneficiosPrestador } from '../../../lib/credenciamento/pres
 import {
     validarResponsaveisCompletosSeInformados,
 } from '../../../lib/prestadorVeterinarioValidacao.js'
-import { obterOuCriarCidadeCredenciamento } from '../../../lib/cidadesCredenciamento.js'
+import {
+    cidadeCredenciamentoMesmaLocalidade,
+    obterOuCriarCidadeCredenciamentoPorMunicipio,
+} from '../../../lib/cidadesCredenciamento.js'
 import { solicitarGeocodePrestador } from '../../../lib/credenciamento/solicitarGeocodePrestador'
 import {
     coordenadasValidasBrasil,
@@ -252,7 +255,7 @@ const CredenciamentoCadastroForm = () => {
 
     const carregarBase = useCallback(async () => {
         const [c, s, e, p] = await Promise.all([
-            supabase.from('cidades_credenciamento').select('id, nome').order('nome'),
+            supabase.from('cidades_credenciamento').select('id, nome, uf').order('nome'),
             supabase.from('situacoes').select('id, descricao').eq('ativo', true).order('ordem'),
             supabase.from('especialidades').select('id, nome, tipo').order('nome'),
             supabase
@@ -291,7 +294,10 @@ const CredenciamentoCadastroForm = () => {
             }
             let cidadeIdForm = data.cidade_id != null ? String(data.cidade_id) : ''
             if (data.endereco_cidade?.trim()) {
-                const objEnd = await obterOuCriarCidadePorNome(data.endereco_cidade)
+                const objEnd = await obterOuCriarCidadeCredenciamentoPorMunicipio(
+                    data.endereco_uf,
+                    data.endereco_cidade,
+                )
                 if (objEnd?.id) cidadeIdForm = String(objEnd.id)
             }
             setForm({
@@ -359,14 +365,25 @@ const CredenciamentoCadastroForm = () => {
             })
             let mapaCid = new Map()
             if (idsC.length) {
-                const { data: rowsC } = await supabase.from('cidades_credenciamento').select('id, nome').in('id', idsC)
-                mapaCid = new Map((rowsC || []).map((c) => [Number(c.id), c.nome]))
+                const { data: rowsC } = await supabase
+                    .from('cidades_credenciamento')
+                    .select('id, nome, uf')
+                    .in('id', idsC)
+                mapaCid = new Map(
+                    (rowsC || []).map((c) => [
+                        Number(c.id),
+                        { nome: c.nome, uf: String(c.uf || '').trim().toUpperCase() },
+                    ]),
+                )
             }
-            const atendeBase = idsC.map((cid) => ({
-                cidadeId: cid,
-                nome: mapaCid.get(cid) || `Cidade #${cid}`,
-                uf: '',
-            }))
+            const atendeBase = idsC.map((cid) => {
+                const row = mapaCid.get(cid)
+                return {
+                    cidadeId: cid,
+                    nome: row?.nome || `Cidade #${cid}`,
+                    uf: row?.uf || '',
+                }
+            })
             const atende = await Promise.all(
                 atendeBase.map(async (item) => {
                     if (item.uf) return item
@@ -586,18 +603,26 @@ const CredenciamentoCadastroForm = () => {
             setErro('Selecione a cidade na lista da UF.')
             return
         }
-        const obj = await obterOuCriarCidadePorNome(mun.nome)
+        const ufSel = String(ufAtende || '').trim().toUpperCase()
+        if (
+            cidadesAtende.some((c) =>
+                cidadeCredenciamentoMesmaLocalidade(c, { nome: mun.nome, uf: ufSel }),
+            )
+        ) {
+            setErro('Esta cidade/UF já está na lista.')
+            return
+        }
+        const obj = await obterOuCriarCidadePorMunicipio(ufSel, mun.nome)
         if (!obj?.id) {
             setErro('Não foi possível registrar a cidade no credenciamento.')
             return
         }
         const cid = Number(obj.id)
-        if (cidadesAtende.some((c) => c.cidadeId === cid)) {
-            setErro('Esta cidade já está na lista.')
-            return
-        }
         setCidadesAtende((prev) => {
-            const next = [...prev, { cidadeId: cid, nome: mun.nome, uf: ufAtende }]
+            if (prev.some((c) => cidadeCredenciamentoMesmaLocalidade(c, { nome: mun.nome, uf: ufSel, cidadeId: cid }))) {
+                return prev
+            }
+            const next = [...prev, { cidadeId: cid, nome: mun.nome, uf: ufSel }]
             if (prev.length === 0) setCampo('cidade_id', String(cid))
             return next
         })
@@ -615,19 +640,26 @@ const CredenciamentoCadastroForm = () => {
         })
     }
 
-    const obterOuCriarCidadePorNome = async (nomeCidade) => {
+    const obterOuCriarCidadePorMunicipio = async (uf, nomeCidade) => {
         const nome = String(nomeCidade || '').trim()
+        const ufNorm = String(uf || '').trim().toUpperCase()
         if (!nome) return null
-        const existente = cidades.find((c) => c.nome.toLowerCase() === nome.toLowerCase())
+        const existente = cidades.find(
+            (c) =>
+                cidadeCredenciamentoMesmaLocalidade(
+                    { nome: c.nome, uf: c.uf, id: c.id },
+                    { nome, uf: ufNorm },
+                ),
+        )
         if (existente) return existente
         try {
-            const row = await obterOuCriarCidadeCredenciamento(nome)
+            const row = await obterOuCriarCidadeCredenciamentoPorMunicipio(ufNorm, nome)
             if (!row?.id) return null
             setCidades((prev) => {
                 if (prev.some((c) => Number(c.id) === Number(row.id))) return prev
-                return [...prev, { id: row.id, nome: row.nome }]
+                return [...prev, { id: row.id, nome: row.nome, uf: row.uf || ufNorm }]
             })
-            return { id: row.id, nome: row.nome }
+            return { id: row.id, nome: row.nome, uf: row.uf || ufNorm }
         } catch {
             return null
         }
@@ -666,7 +698,10 @@ const CredenciamentoCadastroForm = () => {
         try {
             let cidadePrincipalId = null
             if (form.endereco_cidade?.trim()) {
-                const obj = await obterOuCriarCidadePorNome(form.endereco_cidade)
+                const obj = await obterOuCriarCidadePorMunicipio(
+                    form.endereco_uf,
+                    form.endereco_cidade,
+                )
                 if (obj?.id) cidadePrincipalId = Number(obj.id)
             }
             if (!cidadePrincipalId && form.cidade_id) cidadePrincipalId = Number(form.cidade_id)
@@ -810,7 +845,10 @@ const CredenciamentoCadastroForm = () => {
                 let idsVets = [...vetsVinculados.map(Number)]
                 let cidadeVet = form.cidade_id ? Number(form.cidade_id) : null
                 if (!cidadeVet && form.endereco_cidade) {
-                    const obj = await obterOuCriarCidadePorNome(form.endereco_cidade)
+                    const obj = await obterOuCriarCidadePorMunicipio(
+                        form.endereco_uf,
+                        form.endereco_cidade,
+                    )
                     if (obj?.id) cidadeVet = Number(obj.id)
                 }
 
