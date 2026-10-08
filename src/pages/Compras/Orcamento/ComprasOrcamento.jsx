@@ -15,6 +15,7 @@ import {
   filtrarPlanosParaSelecaoGeral,
   mapearPlanos,
   nomePlanoPorId,
+  procedimentoPertenceAoPlanoSelecionado,
 } from "../../../lib/planosHierarquia";
 
 import {
@@ -36,6 +37,8 @@ import { buscarTodosPaginado, supabase } from "../../../lib/supabase";
 import { PageHeader } from "../../../components/ui";
 import SelectMunicipioBusca from "../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx";
 import SelectUfBusca from "../../../components/SelectUfBusca/SelectUfBusca.jsx";
+import { montarTextoCopiaRapidaOrcamento } from "../../../lib/compras/orcamentoExport.js";
+import { baixarOrcamentoPdf } from "../../../lib/compras/gerarOrcamentoPdf.js";
 
 import "./ComprasOrcamento.css";
 
@@ -53,50 +56,6 @@ const normalizarCod = (cod) =>
   String(cod || "")
     .trim()
     .toUpperCase();
-
-const formatarValorOrcamento = (valor) => {
-  if (valor == null || Number.isNaN(Number(valor))) return "—";
-  return Number(valor).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
-};
-
-const montarTextoCopiaRapidaOrcamento = ({ linhas, nomePlano }) => {
-  const itens = Array.isArray(linhas) ? linhas : [];
-  const planoLabel = String(nomePlano || "").trim() || "—";
-
-  const linhasCompra = itens.map((row) => {
-    const nome = String(row.nome || row.codigo || "Procedimento").trim();
-    const q = Math.max(1, Number(row.quantidade || 1));
-    const rotulo = q > 1 ? `${nome} (x${q})` : nome;
-    return `${rotulo} - ${formatarValorOrcamento(row.totalCompra)}`;
-  });
-
-  const linhasDiff = itens.map((row) => {
-    const nome = String(row.nome || row.codigo || "Procedimento").trim();
-    const q = Math.max(1, Number(row.quantidade || 1));
-    const rotulo = q > 1 ? `${nome} (x${q})` : nome;
-    return `${rotulo} - ${formatarValorOrcamento(row.totalCoparticipacao)}`;
-  });
-
-  const totalGasto = itens.reduce((acc, row) => {
-    const compra = row.totalCompra != null ? Number(row.totalCompra) : 0;
-    const cop = row.totalCoparticipacao != null ? Number(row.totalCoparticipacao) : 0;
-    return acc + compra + cop;
-  }, 0);
-
-  return [
-    "Segue o seu orçamento de compra de procedimentos:",
-    "Valor de Compra:",
-    ...linhasCompra,
-    "",
-    `Valor de Diferença Plano [${planoLabel}]:`,
-    ...linhasDiff,
-    "",
-    `Total gasto: ${formatarValorOrcamento(totalGasto)}`,
-  ].join("\n");
-};
 
 const ComprasOrcamento = () => {
   const calcLiveIdRef = useRef(0);
@@ -148,6 +107,8 @@ const ComprasOrcamento = () => {
   const [quantidadeRascunho, setQuantidadeRascunho] = useState({});
 
   const [copiaFeedback, setCopiaFeedback] = useState("");
+
+  const [pdfGerando, setPdfGerando] = useState(false);
 
   const mapaPlanos = useMemo(() => mapearPlanos(planos), [planos]);
 
@@ -307,6 +268,15 @@ const ComprasOrcamento = () => {
     return mapa;
   }, [resultado]);
 
+  const mapaProcedimentosPorCod = useMemo(() => {
+    const mapa = new Map();
+    for (const p of procedimentos || []) {
+      const cod = normalizarCod(p.codigo);
+      if (cod) mapa.set(cod, p);
+    }
+    return mapa;
+  }, [procedimentos]);
+
   const carregarBase = useCallback(async () => {
     setLoading(true);
 
@@ -322,7 +292,7 @@ const ComprasOrcamento = () => {
         buscarTodosPaginado(() =>
           supabase
             .from("procedimentos")
-            .select("codigo, nome")
+            .select("codigo, nome, plano_base_id")
             .order("codigo", { ascending: true }),
         ),
 
@@ -431,6 +401,25 @@ const ComprasOrcamento = () => {
           ? nomePlanoPorId(diffRes.planoUtilizadoId, planos, mapaPlanos)
           : "—";
 
+        const metaProc = mapaProcedimentosPorCod.get(cod);
+        const planoBaseId =
+          item.planoBaseId != null
+            ? Number(item.planoBaseId)
+            : metaProc?.plano_base_id != null
+              ? Number(metaProc.plano_base_id)
+              : null;
+        const planoBaseNome = planoBaseId
+          ? nomePlanoPorId(planoBaseId, planos, mapaPlanos)
+          : "";
+        const foraDaCobertura =
+          Boolean(planoCompradorId) &&
+          Boolean(planoBaseId) &&
+          !procedimentoPertenceAoPlanoSelecionado(
+            planoBaseId,
+            Number(planoCompradorId),
+            mapaPlanos,
+          );
+
         const q = Math.max(0, Number(item.quantidade || 0));
 
         if (q === 0) continue;
@@ -458,6 +447,12 @@ const ComprasOrcamento = () => {
           valorPlanoCidade: dif,
 
           planoUsadoNome,
+
+          planoBaseId,
+
+          planoBaseNome,
+
+          foraDaCobertura,
 
           origem: diffRes.origem,
 
@@ -490,6 +485,7 @@ const ComprasOrcamento = () => {
     planos,
     contextoComprador,
     ufComprador,
+    mapaProcedimentosPorCod,
   ]);
 
   useEffect(() => {
@@ -534,11 +530,27 @@ const ComprasOrcamento = () => {
           quantidade: 1,
 
           valorVenda: escolha.valor != null ? escolha.valor : null,
+
+          planoBaseId:
+            proc.plano_base_id != null ? Number(proc.plano_base_id) : null,
+
+          /** Incluir valor de compra na mensagem/PDF (default marcado). */
+          incluirCompra: true,
         },
       ];
     });
 
     setBuscaProc("");
+  };
+
+  const alternarIncluirCompra = (cartId) => {
+    setCarrinho((atual) =>
+      atual.map((item) =>
+        item.cartId === cartId
+          ? { ...item, incluirCompra: item.incluirCompra === false }
+          : item,
+      ),
+    );
   };
 
   const alterarQuantidade = (cartId, delta) => {
@@ -671,14 +683,30 @@ const ComprasOrcamento = () => {
     [planoCompradorId, planos, mapaPlanos],
   );
 
+  /** Resultado + flag de compra do carrinho (para mensagem/PDF). */
+  const linhasExport = useMemo(() => {
+    const mapaIncluir = new Map(
+      (carrinho || []).map((item) => [item.cartId, item.incluirCompra !== false]),
+    );
+    return (resultado || []).map((row) => ({
+      ...row,
+      incluirCompra: mapaIncluir.has(row.cartId)
+        ? mapaIncluir.get(row.cartId)
+        : true,
+    }));
+  }, [resultado, carrinho]);
+
   const podeCopiarOrcamento =
     Boolean(resultado?.length) && !gerando && !loading;
+
+  const podeGerarPdf = podeCopiarOrcamento && !pdfGerando;
 
   const copiarOrcamentoRapido = async () => {
     if (!podeCopiarOrcamento) return;
     const texto = montarTextoCopiaRapidaOrcamento({
-      linhas: resultado,
+      linhas: linhasExport,
       nomePlano: nomePlanoComprador,
+      meta: { uf: ufComprador, cidade: cidadeCompradorMunicipio },
     });
     try {
       await navigator.clipboard.writeText(texto);
@@ -686,6 +714,26 @@ const ComprasOrcamento = () => {
       window.setTimeout(() => setCopiaFeedback(""), 2000);
     } catch {
       setErro("Não foi possível copiar o orçamento. Verifique a permissão da área de transferência.");
+    }
+  };
+
+  const gerarPdfOrcamento = async () => {
+    if (!podeGerarPdf) return;
+    setPdfGerando(true);
+    setErro("");
+    try {
+      await baixarOrcamentoPdf({
+        linhas: linhasExport,
+        nomePlano: nomePlanoComprador,
+        uf: ufComprador,
+        cidade: cidadeCompradorMunicipio,
+      });
+      setCopiaFeedback("PDF gerado!");
+      window.setTimeout(() => setCopiaFeedback(""), 2000);
+    } catch (e) {
+      setErro(e?.message || "Não foi possível gerar o PDF do orçamento.");
+    } finally {
+      setPdfGerando(false);
     }
   };
 
@@ -916,7 +964,21 @@ const ComprasOrcamento = () => {
                     : "Calcule o orçamento (UF, cidade, plano e itens) para copiar"
                 }
               >
-                Copiar orçamento
+                Copiar
+              </button>
+
+              <button
+                type="button"
+                className="compras_orc_btn"
+                disabled={!podeGerarPdf}
+                onClick={() => void gerarPdfOrcamento()}
+                title={
+                  podeGerarPdf
+                    ? "Baixar PDF com logo Emerdog e os itens selecionados"
+                    : "Calcule o orçamento (UF, cidade, plano e itens) para gerar o PDF"
+                }
+              >
+                {pdfGerando ? "PDF…" : "PDF"}
               </button>
 
               <button
@@ -924,21 +986,15 @@ const ComprasOrcamento = () => {
                 className="compras_orc_btn secondary"
                 disabled={!carrinho.length}
                 onClick={limparCarrinho}
+                title="Limpar todos os itens"
               >
-                Limpar carrinho
+                Limpar
               </button>
             </div>
           </div>
 
           {ctxMsg && carrinho.length > 0 && (
             <p className="compras_orc_ctx_msg">{ctxMsg}</p>
-          )}
-
-          {carrinho.length > 0 && (
-            <p className="compras_orc_remove_hint">
-              Para retirar um procedimento do orçamento, defina a quantidade em{" "}
-              <strong>0</strong> (ou use o botão − até remover).
-            </p>
           )}
 
           {carrinho.length === 0 ? (
@@ -951,17 +1007,8 @@ const ComprasOrcamento = () => {
               <table className="table_main compras_orc_table_orc">
                 <colgroup>
                   <col className="compras_orc_col_proc" />
-
-                  <col className="compras_orc_col_num" />
-
-                  <col className="compras_orc_col_num" />
-
-                  <col className="compras_orc_col_plano" />
-
                   <col className="compras_orc_col_qty" />
-
                   <col className="compras_orc_col_num" />
-
                   <col className="compras_orc_col_num" />
                 </colgroup>
 
@@ -970,29 +1017,14 @@ const ComprasOrcamento = () => {
                     <th className="table_header table_header_no_sort">
                       Procedimento
                     </th>
-
                     <th className="table_header table_header_no_sort compras_orc_col_mid">
-                      Valor de Compra (Un)
+                      Qtd
                     </th>
-
                     <th className="table_header table_header_no_sort compras_orc_col_mid">
-                      Coparticipação (Un)
+                      Compra
                     </th>
-
                     <th className="table_header table_header_no_sort compras_orc_col_mid">
-                      Plano da Coparticipação
-                    </th>
-
-                    <th className="table_header table_header_no_sort compras_orc_col_mid">
-                      Quantidade
-                    </th>
-
-                    <th className="table_header table_header_no_sort compras_orc_col_mid">
-                      Total Compra
-                    </th>
-
-                    <th className="table_header table_header_no_sort compras_orc_col_mid">
-                      Total Cop.
+                      Cop.
                     </th>
                   </tr>
                 </thead>
@@ -1023,32 +1055,33 @@ const ComprasOrcamento = () => {
                         ? Number(calc.totalCoparticipacao)
                         : null;
 
+                    const foraCobertura =
+                      !gerando && Boolean(calc?.foraDaCobertura);
+                    const planoInclui =
+                      !gerando && calc?.planoBaseNome
+                        ? calc.planoBaseNome
+                        : "";
+                    const planoNome =
+                      !gerando && calc?.planoUsadoNome ? calc.planoUsadoNome : "";
+                    const incluirCompra = item.incluirCompra !== false;
+
                     return (
-                      <tr key={item.cartId}>
+                      <tr
+                        key={item.cartId}
+                        className={foraCobertura ? "compras_orc_row_fora" : undefined}
+                      >
                         <td className="table_text_left compras_orc_td_proc_full">
                           <span className="compras_orc_proc_nome">{item.nome}</span>
-                        </td>
-
-                        <td className="compras_orc_td_num compras_orc_col_mid">
-                          {valorCompraExib != null
-                            ? valorCompraExib.toFixed(2)
-                            : "—"}
-                        </td>
-
-                        <td className="compras_orc_td_num compras_orc_col_mid">
-                          {gerando
-                            ? "…"
-                            : copUn != null
-                              ? copUn.toFixed(2)
-                              : "—"}
-                        </td>
-
-                        <td className="compras_orc_td_plano compras_orc_col_mid">
-                          {!gerando && calc?.planoUsadoNome
-                            ? calc.planoUsadoNome
-                            : gerando
-                              ? "…"
-                              : "—"}
+                          {foraCobertura ? (
+                            <span className="compras_orc_proc_aviso">
+                              Fora da cobertura · comprar · incluso no plano{" "}
+                              {planoInclui || "—"}
+                            </span>
+                          ) : planoNome ? (
+                            <span className="compras_orc_proc_meta">
+                              Cop. plano {planoNome}
+                            </span>
+                          ) : null}
                         </td>
 
                         <td className="compras_orc_td_qty compras_orc_col_mid">
@@ -1057,7 +1090,8 @@ const ComprasOrcamento = () => {
                               type="button"
                               className="compras_orc_btn secondary compras_orc_qty_btn"
                               onClick={() => alterarQuantidade(item.cartId, -1)}
-                              aria-label="Diminuir quantidade"
+                              aria-label="Diminuir quantidade (0 remove)"
+                              title="Diminuir (0 remove o item)"
                             >
                               −
                             </button>
@@ -1067,7 +1101,8 @@ const ComprasOrcamento = () => {
                               inputMode="numeric"
                               pattern="[0-9]*"
                               className="compras_orc_qty_input"
-                              aria-label="Quantidade"
+                              aria-label="Quantidade (0 remove)"
+                              title="Quantidade — 0 remove o item"
                               value={obterTextoQuantidadeInput(item)}
                               onFocus={() => onQuantidadeFocus(item)}
                               onChange={(e) =>
@@ -1094,20 +1129,52 @@ const ComprasOrcamento = () => {
                           </span>
                         </td>
 
-                        <td className="compras_orc_td_num compras_orc_col_mid">
-                          {gerando
-                            ? "…"
-                            : totalCompraExib != null
-                              ? totalCompraExib.toFixed(2)
+                        <td
+                          className={`compras_orc_td_num compras_orc_col_mid compras_orc_td_stack compras_orc_td_compra${
+                            incluirCompra ? "" : " is-off"
+                          }`}
+                        >
+                          <label
+                            className="compras_orc_compra_check"
+                            title={
+                              incluirCompra
+                                ? "Incluir valor de compra na mensagem e no PDF"
+                                : "Compra fora da mensagem/PDF — só coparticipação"
+                            }
+                          >
+                            <input
+                              type="checkbox"
+                              checked={incluirCompra}
+                              onChange={() => alternarIncluirCompra(item.cartId)}
+                              aria-label={`Incluir compra de ${item.nome || item.codigo} na mensagem e no PDF`}
+                            />
+                            <span className="compras_orc_td_stack_main">
+                              {gerando
+                                ? "…"
+                                : totalCompraExib != null
+                                  ? totalCompraExib.toFixed(2)
+                                  : "—"}
+                            </span>
+                          </label>
+                          <span className="compras_orc_td_stack_sub">
+                            un{" "}
+                            {valorCompraExib != null
+                              ? valorCompraExib.toFixed(2)
                               : "—"}
+                          </span>
                         </td>
 
-                        <td className="compras_orc_td_num compras_orc_col_mid">
-                          {gerando
-                            ? "…"
-                            : totalCopExib != null
-                              ? totalCopExib.toFixed(2)
-                              : "—"}
+                        <td className="compras_orc_td_num compras_orc_col_mid compras_orc_td_stack">
+                          <strong className="compras_orc_td_stack_main">
+                            {gerando
+                              ? "…"
+                              : totalCopExib != null
+                                ? totalCopExib.toFixed(2)
+                                : "—"}
+                          </strong>
+                          <span className="compras_orc_td_stack_sub">
+                            un {gerando ? "…" : copUn != null ? copUn.toFixed(2) : "—"}
+                          </span>
                         </td>
                       </tr>
                     );
@@ -1116,17 +1183,9 @@ const ComprasOrcamento = () => {
 
                 <tfoot>
                   <tr className="compras_orc_tfoot_row">
-                    <td colSpan={5} className="compras_orc_subtotal_cell compras_orc_col_mid">
-                      <div className="compras_orc_subtotal_inner_centered">
-                        <strong>Totais</strong>
-
-                        <span className="compras_orc_subtotal_hint">
-                          {" "}
-                          (soma das colunas Total Compra e Total Cop.)
-                        </span>
-                      </div>
+                    <td colSpan={2} className="compras_orc_subtotal_cell compras_orc_col_mid">
+                      <strong>Totais</strong>
                     </td>
-
                     <td className="compras_orc_td_num compras_orc_tfoot_num compras_orc_col_mid">
                       <strong>
                         {resultado && !gerando
@@ -1134,7 +1193,6 @@ const ComprasOrcamento = () => {
                           : "—"}
                       </strong>
                     </td>
-
                     <td className="compras_orc_td_num compras_orc_tfoot_num compras_orc_col_mid">
                       <strong>
                         {resultado && !gerando

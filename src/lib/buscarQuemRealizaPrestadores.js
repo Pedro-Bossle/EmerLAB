@@ -348,9 +348,19 @@ export async function pesquisarQuemRealizaNaRede(supabase, opcoes) {
         resultadoPorId.set(Number(p.id), montarLinhaResultadoQuemRealiza(p, codigos, porPrestador, ctxLinha))
     })
 
-    return [...resultadoPorId.values()].sort((a, b) =>
-        a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }),
-    )
+    // Preferência: quem realiza mais dos procedimentos selecionados no topo.
+    return [...resultadoPorId.values()].sort((a, b) => {
+        const nA = Array.isArray(a.procedimentos) ? a.procedimentos.length : 0
+        const nB = Array.isArray(b.procedimentos) ? b.procedimentos.length : 0
+        if (nB !== nA) return nB - nA
+        // Empate: cidade principal antes de paralela; depois nome.
+        const paralelaA = a.viaCidadeParalela ? 1 : 0
+        const paralelaB = b.viaCidadeParalela ? 1 : 0
+        if (paralelaA !== paralelaB) return paralelaA - paralelaB
+        return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', {
+            sensitivity: 'base',
+        })
+    })
 }
 
 /**

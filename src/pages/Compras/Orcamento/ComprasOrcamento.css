@@ -289,6 +289,187 @@
 
 
 
+.compras_orc_compra_check {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: flex-end;
+
+    gap: 6px;
+
+    cursor: pointer;
+
+    user-select: none;
+
+}
+
+
+
+.compras_orc_compra_check input {
+
+    margin: 0;
+
+    flex-shrink: 0;
+
+    accent-color: var(--azul-destaque, #1e4d7a);
+
+}
+
+
+
+.compras_orc_td_compra.is-off .compras_orc_td_stack_main,
+.compras_orc_td_compra.is-off .compras_orc_td_stack_sub {
+
+    opacity: 0.45;
+
+    text-decoration: line-through;
+
+}
+
+
+
+.compras_orc_td_stack {
+
+    text-align: right;
+
+    line-height: 1.2;
+
+    vertical-align: middle;
+
+}
+
+
+
+.compras_orc_td_stack_main {
+
+    display: block;
+
+    font-variant-numeric: tabular-nums;
+
+    font-weight: 700;
+
+}
+
+
+
+.compras_orc_td_stack_sub {
+
+    display: block;
+
+    margin-top: 2px;
+
+    font-size: 0.72rem;
+
+    font-weight: 500;
+
+    color: #6a8298;
+
+    font-variant-numeric: tabular-nums;
+
+}
+
+
+
+.compras_orc_proc_meta {
+
+    display: block;
+
+    margin-top: 2px;
+
+    font-size: 0.72rem;
+
+    font-weight: 500;
+
+    color: #6a8298;
+
+}
+
+
+
+.compras_orc_proc_aviso {
+
+    display: block;
+
+    margin-top: 3px;
+
+    font-size: 0.72rem;
+
+    font-weight: 600;
+
+    color: #9a4d0c;
+
+    line-height: 1.3;
+
+}
+
+
+
+.compras_orc_aviso_cobertura {
+
+    margin: 0 0 12px;
+
+    padding: 10px 12px;
+
+    border: 1px solid #f0c48a;
+
+    border-radius: 10px;
+
+    background: #fff8ef;
+
+}
+
+
+
+.compras_orc_aviso_cobertura_titulo {
+
+    margin: 0 0 6px;
+
+    font-size: 0.84rem;
+
+    font-weight: 700;
+
+    color: #8a4508;
+
+    line-height: 1.4;
+
+}
+
+
+
+.compras_orc_aviso_cobertura_lista {
+
+    margin: 0;
+
+    padding-left: 1.1rem;
+
+    font-size: 0.8rem;
+
+    color: #6d3a0c;
+
+    line-height: 1.45;
+
+}
+
+
+
+.compras_orc_aviso_cobertura_lista li + li {
+
+    margin-top: 2px;
+
+}
+
+
+
+.compras_orc_row_fora {
+
+    background: #fffaf3;
+
+}
+
+
+
 .compras_orc_calc_badge {
 
     font-size: 0.82rem;
@@ -355,7 +536,7 @@
 
     width: 100%;
 
-    min-width: 920px;
+    min-width: 560px;
 
     table-layout: fixed;
 
@@ -365,7 +546,7 @@
 
 .compras_orc_table_orc col.compras_orc_col_proc {
 
-    width: 38%;
+    width: 48%;
 
 }
 
@@ -373,15 +554,7 @@
 
 .compras_orc_table_orc col.compras_orc_col_num {
 
-    width: 8%;
-
-}
-
-
-
-.compras_orc_table_orc col.compras_orc_col_plano {
-
-    width: 14%;
+    width: 18%;
 
 }
 
@@ -389,7 +562,7 @@
 
 .compras_orc_table_orc col.compras_orc_col_qty {
 
-    width: 11%;
+    width: 16%;
 
 }
 
@@ -912,6 +1085,57 @@ body.dark-mode .compras_orc_calc_badge {
 body.dark-mode .compras_orc_copia_feedback {
 
     color: #6dcea0;
+
+}
+
+
+
+body.dark-mode .compras_orc_td_stack_sub,
+body.dark-mode .compras_orc_proc_meta {
+
+    color: #8aa0b3;
+
+}
+
+
+
+body.dark-mode .compras_orc_proc_aviso {
+
+    color: #f0b46a;
+
+}
+
+
+
+body.dark-mode .compras_orc_aviso_cobertura {
+
+    border-color: #6a4820;
+
+    background: #2a1f12;
+
+}
+
+
+
+body.dark-mode .compras_orc_aviso_cobertura_titulo {
+
+    color: #f0b46a;
+
+}
+
+
+
+body.dark-mode .compras_orc_aviso_cobertura_lista {
+
+    color: #e0c29a;
+
+}
+
+
+
+body.dark-mode .compras_orc_row_fora {
+
+    background: #241c12;
 
 }
 
