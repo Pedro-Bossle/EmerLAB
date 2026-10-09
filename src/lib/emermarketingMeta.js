@@ -5,18 +5,25 @@
 import {
     EMERMARKETING_GROUP_ID,
     PERMISSION_CATALOG,
-    anyAclInGroup,
     hasAcl,
     podeLerFerramenta,
 } from './permissionCatalog.js'
 
 export { EMERMARKETING_GROUP_ID, EMERMARKETING_TOOL_ID } from './permissionCatalog.js'
 
+/** Tools do grupo que liberam o app (não a aba Auditoria do EmerLAB). */
+function toolsAcessoPortalEmermarketing() {
+    const grupo = PERMISSION_CATALOG.find((g) => g.id === EMERMARKETING_GROUP_ID)
+    return (grupo?.tools || []).filter((t) => t.id !== 'emermarketing.auditoria')
+}
+
+/**
+ * True se o perfil pode abrir o app EmerMarketing (portal ou algum módulo).
+ * Só «Auditoria (EmerLAB)» não conta — essa permissão é da tela de Auditoria do EmerLAB.
+ */
 export function usuarioPodeAbrirEmerMarketing(permissions) {
-    return (
-        anyAclInGroup(permissions, EMERMARKETING_GROUP_ID, 'read') ||
-        podeLerFerramenta(permissions, 'emermarketing.app')
-    )
+    if (podeLerFerramenta(permissions, 'emermarketing.app')) return true
+    return toolsAcessoPortalEmermarketing().some((t) => hasAcl(permissions, t.id, 'read'))
 }
 
 /**
@@ -54,6 +61,7 @@ export function usuarioPodeVerAuditoriaEmermarketing(permissions) {
 
 /**
  * Payload para app_metadata (lido pelo EmerMarketing).
+ * `emermarketing: true` só com portal ou módulo do app — não só auditoria EmerLAB.
  * @returns {{ emermarketing: boolean, emermarketing_acl: Record<string, Record<string, boolean>> }}
  */
 export function montarAppMetadataEmermarketing(permissions) {
@@ -66,8 +74,9 @@ export function montarAppMetadataEmermarketing(permissions) {
         }
         if (Object.keys(entry).length) acl[tool.id] = entry
     }
+    const liberaApp = Object.keys(acl).some((k) => k !== 'emermarketing.auditoria')
     return {
-        emermarketing: Object.keys(acl).length > 0,
+        emermarketing: liberaApp,
         emermarketing_acl: acl,
     }
 }

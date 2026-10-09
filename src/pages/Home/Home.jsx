@@ -1061,7 +1061,10 @@ const Home = () => {
                 </section>
             ) : null}
 
-            {usuarioPodeAbrirEmerMarketing(permissions) && !soEmerMarketing ? (
+            {/* Contas só-marketing: sem favoritos, tarefas nem resto do dashboard EmerLAB */}
+            {!soEmerMarketing ? (
+            <>
+            {usuarioPodeAbrirEmerMarketing(permissions) ? (
                 <section className="home_dash_bookmarks home_dash_apps" aria-label="Apps">
                     <div className="home_dash_bookmarks_bar">
                         <div className="home_dash_bookmarks_top">
@@ -2276,6 +2279,8 @@ const Home = () => {
                         </div>
                     </div>
                 </div>
+            ) : null}
+            </>
             ) : null}
 
             <div className="home_dash_footer_wrap">

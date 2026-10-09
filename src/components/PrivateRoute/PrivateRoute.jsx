@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { hasPermission, podeLerFerramenta } from '../../lib/accessControl'
 import { LEGACY_SCREEN_TO_TOOL } from '../../lib/permissionCatalog'
+import { usuarioSomenteEmerMarketing } from '../../lib/emermarketingMeta.js'
 import { clearAccessState } from '../../lib/supabase'
 import { carregarSessaoEPerfilAcesso } from '../../lib/authSession'
 import {
@@ -61,6 +62,12 @@ const PrivateRoute = ({ children, permission, screenPermission, toolId }) => {
   if (precisaTrocarSenha && location.pathname !== '/alterar-senha') {
     const next = `${location.pathname}${location.search || ''}`
     return <Navigate to={destinoAlterarSenhaAposRecuperacao(next)} replace />
+  }
+  if (usuarioSomenteEmerMarketing(profile?.permissions)) {
+    const path = String(location.pathname || '')
+    const permitido =
+      path === '/home' || path === '/alterar-senha' || path.startsWith('/alterar-senha')
+    if (!permitido) return <Navigate to="/home" replace />
   }
   if (permission && (!profile || !hasPermission(profile, permission))) return <Navigate to="/home" replace />
   if (screenPermission && (!profile || !hasPermission(profile, screenPermission))) {
