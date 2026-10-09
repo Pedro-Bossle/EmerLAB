@@ -67,12 +67,6 @@ export const PERMISSOES = [
         descricao:
             'Exibe a chave Dev (canto inferior direito): pesquisa NOT, colunas extras de cadastro, exclusão por lista e apagar prestadores/entradas do formulário no banco.',
       },
-      {
-        chave: PERMISSION_KEYS.BATE_PAPO,
-        rotulo: 'Bate-papo',
-        descricao:
-            'Exibe a gaveta flutuante de bate-papo entre usuários (arrastar, compactar e conversar).',
-      },
     ],
   },
   {
@@ -384,8 +378,8 @@ export const isDevToolsEnabled = (profileOrPermissions) =>
 
 export const hasStoredDevTools = () => isDevToolsEnabled(getStoredAccessProfile())
 
-export const isBatePapoEnabled = (profileOrPermissions) =>
-  hasPermission(profileOrPermissions, PERMISSION_KEYS.BATE_PAPO)
+/** Emerzap descontinuado — sempre desligado. */
+export const isBatePapoEnabled = () => false
 
 export const hasStoredBatePapo = () => isBatePapoEnabled(getStoredAccessProfile())
 

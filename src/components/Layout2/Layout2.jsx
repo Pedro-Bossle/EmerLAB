@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from '../Sidebar/Sidebar'
 import DevToolsFloating from '../DevTools/DevToolsFloating'
-import BatePapoFloating from '../BatePapo/BatePapoFloating'
 import FormularioInboxBell from '../Credenciamento/FormularioInboxBell'
 import SessionSecurity from '../SessionSecurity/SessionSecurity'
 import BottomNav from './BottomNav'
@@ -11,7 +10,6 @@ import FloatingLayerPortal from './FloatingLayerPortal'
 import { cn } from '../../lib/cn'
 import { lerSidebarFixada, salvarSidebarFixada } from '../../lib/sidebarPrefs'
 import {
-  isBatePapoEnabled,
   isDevToolsEnabled,
   PERMISSION_KEYS,
   useStoredAccessProfile,
@@ -37,10 +35,8 @@ const Layout2 = () => {
   )
   const [dockExpanded, setDockExpanded] = useState(false)
   const [activeFloatingTool, setActiveFloatingTool] = useState(null)
-  const [badgeBatePapo, setBadgeBatePapo] = useState(0)
   const [badgeNotif, setBadgeNotif] = useState(0)
 
-  const showBatePapo = isBatePapoEnabled(profile)
   const showDevTools = isDevToolsEnabled(profile)
   const showNotif = (podeNotifForm || podeNotifContratos) && pathname !== '/home'
 
@@ -116,11 +112,10 @@ const Layout2 = () => {
 
   const dockTools = useMemo(() => {
     const list = []
-    if (showBatePapo) list.push({ id: 'emerzap', label: 'Emerzap', badge: badgeBatePapo })
     if (showDevTools) list.push({ id: 'devtools', label: 'Dev Tools', badge: 0 })
     if (showNotif) list.push({ id: 'notif', label: 'Notificações', badge: badgeNotif })
     return list
-  }, [showBatePapo, showDevTools, showNotif, badgeBatePapo, badgeNotif])
+  }, [showDevTools, showNotif, badgeNotif])
 
   const onSelectTool = useCallback((id) => {
     setActiveFloatingTool(id)
@@ -190,18 +185,6 @@ const Layout2 = () => {
         ) : null}
 
         <div className={cn('el-floating-layer', isCompact && 'el-floating-layer--compact')}>
-          {showBatePapo ? (
-            <BatePapoFloating
-              mode={floatMode}
-              open={isCompact ? activeFloatingTool === 'emerzap' : undefined}
-              onOpenChange={
-                isCompact
-                  ? (v) => setActiveFloatingTool(v ? 'emerzap' : null)
-                  : undefined
-              }
-              onBadgeChange={setBadgeBatePapo}
-            />
-          ) : null}
           {showDevTools ? (
             <DevToolsFloating
               mode={floatMode}

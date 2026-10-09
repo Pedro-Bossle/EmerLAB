@@ -45,7 +45,6 @@ import ClicksignEmerdog from './pages/Contratos/ClicksignEmerdog';
 import PagamentosRegistro from './pages/Pagamentos/PagamentosRegistro';
 import PagamentosResumo from './pages/Pagamentos/PagamentosResumo';
 import NotFound from './pages/NotFound/NotFound';
-import Emerzap from './pages/Emerzap/Emerzap';
 function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
@@ -64,14 +63,7 @@ function App() {
         <Route path="/ser-parceiro" element={<Navigate to="/ser_parceiro" replace />} />
         <Route path="/credenciamento/cadastro-publico" element={<CredenciamentoFormularioPublico />} />
         <Route path="/credenciamento/cadastro-publico/:slug" element={<CredenciamentoFormularioPublico />} />
-        <Route
-          path="/emerzap"
-          element={
-            <PrivateRoute permission="bate.papo">
-              <Emerzap />
-            </PrivateRoute>
-          }
-        />
+        <Route path="/emerzap" element={<Navigate to="/home" replace />} />
         {/* Home pós-login: Layout2 (sidebar) */}
         <Route element={<Layout2 />}>
           <Route

@@ -1,6 +1,9 @@
 const clientId = import.meta.env.VITE_MSAL_CLIENT_ID || ''
 const tenantId = import.meta.env.VITE_MSAL_TENANT_ID || ''
 
+/** Redirect canônico registado no Azure (agenda Outlook). */
+export const MSAL_PRODUCTION_REDIRECT_ORIGIN = 'https://emerlab.com.br'
+
 function origemAtual() {
     if (typeof window === 'undefined' || !window.location?.origin) return ''
     return window.location.origin.replace(/\/$/, '')
@@ -14,24 +17,39 @@ function origemComBaseUrl(origin) {
     return `${origin.replace(/\/$/, '')}${path}`
 }
 
-/** Origem (+ path) para redirect MSAL: preserva path do env; no fallback usa BASE_URL. */
+function normalizarOrigemRedirect(raw) {
+    const from = String(raw || '').trim()
+    if (!from) return ''
+    try {
+        const u = new URL(from)
+        const path = u.pathname.replace(/\/$/, '')
+        return `${u.origin}${path === '/' ? '' : path}`.replace(/\/$/, '') || u.origin
+    } catch {
+        return ''
+    }
+}
+
+/**
+ * Origem (+ path) para redirect MSAL.
+ * Prioridade: VITE_MSAL_REDIRECT_URI → host de produção emerlab.com.br → origem atual.
+ */
 function origemDeEnvOuJanela() {
-    const fromEnv = String(import.meta.env.VITE_MSAL_REDIRECT_URI || '').trim()
-    if (fromEnv) {
-        try {
-            const u = new URL(fromEnv)
-            const path = u.pathname.replace(/\/$/, '')
-            return `${u.origin}${path === '/' ? '' : path}`.replace(/\/$/, '') || u.origin
-        } catch {
-            /* fallback */
+    const fromEnv = normalizarOrigemRedirect(import.meta.env.VITE_MSAL_REDIRECT_URI)
+    if (fromEnv) return fromEnv
+
+    if (typeof window !== 'undefined') {
+        const host = String(window.location.hostname || '').toLowerCase()
+        if (host === 'emerlab.com.br' || host === 'www.emerlab.com.br') {
+            return MSAL_PRODUCTION_REDIRECT_ORIGIN
         }
     }
+
     return origemComBaseUrl(origemAtual())
 }
 
 /**
  * Redirect da SPA (loginRedirect / retorno do Azure).
- * Tem de estar registado no Azure (ex.: http://localhost:5173).
+ * Produção Azure: https://emerlab.com.br (+ /auth-redirect.html no popup).
  */
 export function resolveMsalRedirectUri() {
     return origemDeEnvOuJanela()
@@ -39,7 +57,6 @@ export function resolveMsalRedirectUri() {
 
 /**
  * Redirect do popup (página estática). Evita carregar o React no popup.
- * Tem de estar registado no Azure (ex.: http://localhost:5173/auth-redirect.html).
  */
 export function resolveMsalPopupRedirectUri() {
     const origin = origemDeEnvOuJanela()
@@ -99,7 +116,6 @@ export function buildPopupLoginRequest() {
 export function buildGraphTokenRequest(account) {
     const req = {
         scopes: [...graphCalendarScopes],
-        // Token popup também deve voltar à página estática
         redirectUri: resolveMsalPopupRedirectUri(),
     }
     if (account) req.account = account

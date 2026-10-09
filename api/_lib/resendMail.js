@@ -1,10 +1,11 @@
 import { Resend } from 'resend'
+import { EMAIL_BRAND } from './emailBrand.js'
 import { montarEmailAuth, montarEmailAuthHtml, montarEmailPorTemplate } from './emailTemplates.js'
 
 export { montarEmailAuth, montarEmailAuthHtml, montarEmailPorTemplate }
 
-const DEFAULT_FROM_EMAIL = 'noreply@emerlab.com.br'
-const DEFAULT_FROM_NAME = 'EmerLAB'
+const DEFAULT_FROM_EMAIL = EMAIL_BRAND.fromEmail
+const DEFAULT_FROM_NAME = EMAIL_BRAND.name
 
 export function getResendFrom() {
     const email = String(process.env.RESEND_FROM_EMAIL || DEFAULT_FROM_EMAIL).trim() || DEFAULT_FROM_EMAIL

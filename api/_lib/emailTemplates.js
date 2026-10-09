@@ -1,19 +1,12 @@
 /**
  * Modelos HTML/texto dos e-mails EmerLAB (Resend).
- * Casos: invite | invite_existing | recovery | pipeline
+ * Casos: invite | invite_existing | recovery | pipeline | welcome
  */
 
-const BRAND = {
-    name: 'EmerLAB',
-    accent: '#0f766e',
-    accentDeep: '#0b5f59',
-    ink: '#122033',
-    muted: '#5b6b7c',
-    faint: '#8a97a5',
-    bg: '#eef3f7',
-    card: '#ffffff',
-    border: '#d7e1ea',
-}
+import { EMAIL_BRAND, emailLogoUrl } from './emailBrand.js'
+import { blocoAssinaturaEmailHtml, blocoAssinaturaEmailText } from './emailAssinaturas/index.js'
+
+const BRAND = EMAIL_BRAND
 
 const escapeHtml = (value) =>
     String(value ?? '')
@@ -31,8 +24,8 @@ const primeiroNome = (nomeOuEmail) => {
 }
 
 /**
- * Envelope visual comum a todos os modelos.
- * @param {{ preheader: string, titulo: string, corpoHtml: string, ctaLabel?: string, ctaHref?: string, rodapeExtra?: string }} opts
+ * Envelope visual comum (cores da plataforma + logo Emerdog).
+ * @param {{ preheader: string, titulo: string, corpoHtml: string, ctaLabel?: string, ctaHref?: string, rodapeExtra?: string, produto?: string }} opts
  */
 function envelopeHtml(opts) {
     const preheader = escapeHtml(opts.preheader)
@@ -40,6 +33,9 @@ function envelopeHtml(opts) {
     const ctaLabel = opts.ctaLabel ? escapeHtml(opts.ctaLabel) : ''
     const ctaHref = opts.ctaHref ? String(opts.ctaHref) : ''
     const rodapeExtra = opts.rodapeExtra || ''
+    const produto = escapeHtml(opts.produto || `${BRAND.productLine} · Credenciamento`)
+    const logoBranco = emailLogoUrl('branco')
+    const assinatura = blocoAssinaturaEmailHtml({ produto: opts.produto })
 
     const botao =
         ctaLabel && ctaHref
@@ -48,7 +44,7 @@ function envelopeHtml(opts) {
       </p>
       <p style="margin:0 0 8px;font-size:13px;color:${BRAND.muted};">Se o botão não funcionar, copie e cole este link no navegador:</p>
       <p style="margin:0 0 24px;font-size:12px;word-break:break-all;">
-        <a href="${escapeHtml(ctaHref)}" style="color:${BRAND.accentDeep};">${escapeHtml(ctaHref)}</a>
+        <a href="${escapeHtml(ctaHref)}" style="color:${BRAND.accent};">${escapeHtml(ctaHref)}</a>
       </p>`
             : ''
 
@@ -65,9 +61,18 @@ function envelopeHtml(opts) {
     <tr><td align="center">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:${BRAND.card};border:1px solid ${BRAND.border};border-radius:14px;overflow:hidden;">
         <tr>
-          <td style="background:linear-gradient(135deg,${BRAND.accentDeep} 0%,${BRAND.accent} 100%);padding:20px 24px;">
-            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:700;letter-spacing:0.02em;">${escapeHtml(BRAND.name)}</p>
-            <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:12px;">Emerdog · Credenciamento</p>
+          <td style="background:linear-gradient(135deg,${BRAND.accentDeep} 0%,${BRAND.accent} 100%);padding:18px 24px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td style="vertical-align:middle;">
+                  <img src="${escapeHtml(logoBranco)}" alt="${escapeHtml(BRAND.productLine)}" width="132" style="display:block;width:132px;max-width:45%;height:auto;border:0;" />
+                </td>
+                <td style="vertical-align:middle;text-align:right;">
+                  <p style="margin:0;color:#ffffff;font-size:16px;font-weight:700;letter-spacing:0.02em;">${escapeHtml(BRAND.name)}</p>
+                  <p style="margin:4px 0 0;color:rgba(255,255,255,0.88);font-size:12px;">${produto}</p>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
         <tr>
@@ -80,8 +85,9 @@ function envelopeHtml(opts) {
         <tr>
           <td style="padding:8px 24px 24px;border-top:1px solid ${BRAND.border};">
             ${rodapeExtra}
+            ${assinatura}
             <p style="margin:12px 0 0;font-size:12px;color:${BRAND.faint};line-height:1.45;">
-              Este e-mail foi enviado automaticamente por ${escapeHtml(BRAND.name)} (&lt;noreply@emerlab.com.br&gt;). Não responda.
+              Este e-mail foi enviado automaticamente por ${escapeHtml(BRAND.name)} (&lt;${escapeHtml(BRAND.fromEmail)}&gt;). Não responda.
             </p>
           </td>
         </tr>
@@ -92,26 +98,38 @@ function envelopeHtml(opts) {
 </html>`
 }
 
-/** @param {'invite' | 'invite_existing' | 'recovery'} tipo */
+/** Texto de boas-vindas padrão para convidados. */
+export function textoBoasVindasConvidado(nome) {
+    const n = primeiroNome(nome)
+    return {
+        html: `
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Olá, <strong>${escapeHtml(n)}</strong>.</p>
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Seja bem-vindo(a) ao <strong>${escapeHtml(BRAND.name)}</strong> — a plataforma da <strong>${escapeHtml(BRAND.productLine)}</strong> para credenciamento, compras, auditoria e operações do dia a dia.</p>
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Sua conta foi criada por um administrador. Com ela você poderá acessar as ferramentas liberadas para o seu perfil e colaborar com a equipe.</p>
+      <p style="margin:0 0 20px;font-size:14px;color:${BRAND.muted};line-height:1.5;">Para começar, defina sua senha no botão abaixo. O link é pessoal e expira conforme a política de segurança. Se você não esperava este convite, ignore este e-mail.</p>`,
+        text: `Olá, ${n}.\n\nSeja bem-vindo(a) ao ${BRAND.name} — a plataforma da ${BRAND.productLine} para credenciamento, compras, auditoria e operações.\n\nSua conta foi criada por um administrador. Defina sua senha pelo link do e-mail para começar.\n`,
+    }
+}
+
+/** @param {'invite' | 'invite_existing' | 'recovery' | 'welcome'} tipo */
 export function montarEmailAuth(tipo, opts = {}) {
     const nome = primeiroNome(opts.nome)
     const link = String(opts.actionLink || '').trim()
-    if (!link) throw new Error('actionLink é obrigatório no template de Auth.')
+    if (!link && tipo !== 'welcome') {
+        throw new Error('actionLink é obrigatório no template de Auth.')
+    }
 
-    if (tipo === 'invite') {
-        const subject = 'Convite para acessar o EmerLAB'
-        const corpoHtml = `
-          <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Olá, <strong>${escapeHtml(nome)}</strong>.</p>
-          <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Você foi convidado(a) a usar o <strong>EmerLAB</strong>. Para começar, defina sua senha e entre na plataforma.</p>
-          <p style="margin:0 0 20px;font-size:14px;color:${BRAND.muted};line-height:1.5;">O link é pessoal e expira conforme a política de segurança do sistema. Se você não esperava este convite, ignore este e-mail.</p>`
+    if (tipo === 'invite' || tipo === 'welcome') {
+        const subject = 'Bem-vindo(a) ao EmerLAB — defina sua senha'
+        const boas = textoBoasVindasConvidado(opts.nome)
         const html = envelopeHtml({
-            preheader: 'Defina sua senha e acesse o EmerLAB',
+            preheader: 'Bem-vindo(a)! Defina sua senha e acesse o EmerLAB',
             titulo: 'Bem-vindo(a) ao EmerLAB',
-            corpoHtml,
+            corpoHtml: boas.html,
             ctaLabel: 'Aceitar convite e definir senha',
             ctaHref: link,
         })
-        const text = `${subject}\n\nOlá, ${nome}.\n\nVocê foi convidado(a) a usar o EmerLAB. Defina sua senha neste link:\n${link}\n\nSe não esperava este convite, ignore este e-mail.\n`
+        const text = `${subject}\n\n${boas.text}\nLink: ${link}\n\n${blocoAssinaturaEmailText()}\n`
         return { subject, html, text }
     }
 
@@ -128,11 +146,10 @@ export function montarEmailAuth(tipo, opts = {}) {
             ctaLabel: 'Definir senha e entrar',
             ctaHref: link,
         })
-        const text = `${subject}\n\nOlá, ${nome}.\n\nSua conta no EmerLAB já existe. Defina ou redefina a senha neste link:\n${link}\n`
+        const text = `${subject}\n\nOlá, ${nome}.\n\nSua conta no EmerLAB já existe. Defina ou redefina a senha neste link:\n${link}\n\n${blocoAssinaturaEmailText()}\n`
         return { subject, html, text }
     }
 
-    // recovery (admin reset ou resetOwnPassword)
     const subject = 'Redefinição de senha — EmerLAB'
     const corpoHtml = `
       <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Olá, <strong>${escapeHtml(nome)}</strong>.</p>
@@ -145,7 +162,7 @@ export function montarEmailAuth(tipo, opts = {}) {
         ctaLabel: 'Redefinir senha',
         ctaHref: link,
     })
-    const text = `${subject}\n\nOlá, ${nome}.\n\nRecebemos um pedido para redefinir sua senha no EmerLAB.\n\nLink: ${link}\n\nSe não foi você, ignore este e-mail.\n`
+    const text = `${subject}\n\nOlá, ${nome}.\n\nRecebemos um pedido para redefinir sua senha no EmerLAB.\n\nLink: ${link}\n\nSe não foi você, ignore este e-mail.\n\n${blocoAssinaturaEmailText()}\n`
     return { subject, html, text }
 }
 
@@ -159,7 +176,7 @@ export function montarEmailPipeline(opts = {}) {
     const uf = String(opts.uf || '').trim().toUpperCase()
     const local = [cidade, uf].filter(Boolean).join(' / ')
     const resumo = String(opts.resumo || '').trim()
-    const appUrl = String(opts.appUrl || process.env.SITE_URL || 'https://emerlab.vercel.app').trim()
+    const appUrl = String(opts.appUrl || process.env.SITE_URL || 'https://emerlab.com.br').trim()
 
     const subject = local
         ? `Pipeline Emer-Radar — ${local}`
@@ -187,7 +204,7 @@ export function montarEmailPipeline(opts = {}) {
         rodapeExtra: `<p style="margin:0;font-size:12px;color:${BRAND.muted};">Anexos (Excel/HTML) podem acompanhar esta mensagem, conforme a configuração do worker.</p>`,
     })
 
-    const text = `${subject}\n\nOlá, ${nome}.\n\nO pipeline Emer-Radar gerou um novo relatório.${local ? `\nLocal: ${local}` : ''}${resumo ? `\n\n${resumo}` : ''}\n\nAbrir EmerLAB: ${appUrl}\n`
+    const text = `${subject}\n\nOlá, ${nome}.\n\nO pipeline Emer-Radar gerou um novo relatório.${local ? `\nLocal: ${local}` : ''}${resumo ? `\n\n${resumo}` : ''}\n\nAbrir EmerLAB: ${appUrl}\n\n${blocoAssinaturaEmailText()}\n`
     return { subject, html, text }
 }
 
@@ -202,8 +219,8 @@ export function montarEmailPorTemplate(template, vars = {}) {
         .toLowerCase()
         .replace(/[-_\s]+/g, '_')
 
-    if (key === 'invite' || key === 'convite') {
-        return montarEmailAuth('invite', vars)
+    if (key === 'invite' || key === 'convite' || key === 'welcome' || key === 'boas_vindas') {
+        return montarEmailAuth(key === 'welcome' || key === 'boas_vindas' ? 'welcome' : 'invite', vars)
     }
     if (key === 'invite_existing' || key === 'convite_existente' || key === 'acesso') {
         return montarEmailAuth('invite_existing', vars)
@@ -216,7 +233,7 @@ export function montarEmailPorTemplate(template, vars = {}) {
     }
 
     throw new Error(
-        `Template de e-mail desconhecido: «${template}». Use invite, invite_existing, recovery ou pipeline.`,
+        `Template de e-mail desconhecido: «${template}». Use invite, invite_existing, recovery, welcome ou pipeline.`,
     )
 }
 

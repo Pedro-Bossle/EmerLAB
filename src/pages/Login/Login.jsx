@@ -19,11 +19,6 @@ function destinoPosLogin(nextRaw) {
   return next
 }
 
-function isDestinoEmerzap(destino) {
-  const path = String(destino || '').split('?')[0].split('#')[0]
-  return path === '/emerzap' || path.startsWith('/emerzap/')
-}
-
 const IconEye = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path
@@ -54,24 +49,20 @@ const Login = () => {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [infoMsg, setInfoMsg] = useState('')
+  const [modoRecuperacao, setModoRecuperacao] = useState(false)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const destino = destinoPosLogin(searchParams.get('next'))
-  const loginEmerzap = isDestinoEmerzap(destino)
-  const marca = loginEmerzap ? 'Emerzap' : 'EmerLAB'
-  const marcaFundo = loginEmerzap ? 'ZAP' : 'LAB'
-  const textoApoio = loginEmerzap
-    ? 'Entre com sua conta para continuar no Emerzap.'
-    : 'Entre com sua conta para continuar no Livro de Apoio Base.'
 
   useEffect(() => {
     aplicarTemaSalvoNoBody()
     const prev = document.title
-    document.title = marca
+    document.title = 'EmerLAB'
     return () => {
       document.title = prev
     }
-  }, [marca])
+  }, [])
 
   useEffect(() => {
     let ativo = true
@@ -100,6 +91,7 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault()
     setErrorMsg('')
+    setInfoMsg('')
     setLoading(true)
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -134,6 +126,49 @@ const Login = () => {
     }
   }
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault()
+    setErrorMsg('')
+    setInfoMsg('')
+    const emailTrim = String(email || '').trim().toLowerCase()
+    if (!emailTrim.includes('@')) {
+      setErrorMsg('Informe o e-mail da conta para enviar o link de recuperação.')
+      return
+    }
+    setLoading(true)
+    try {
+      const resp = await fetch('/api/admin-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'forgotPassword',
+          email: emailTrim,
+          redirectTo: `${window.location.origin}/`,
+        }),
+      })
+      const json = await resp.json().catch(() => ({}))
+      if (resp.status === 429) {
+        setErrorMsg(
+          json?.error ||
+            'Demasiados pedidos de recuperação. Aguarde alguns minutos e tente de novo.',
+        )
+        return
+      }
+      if (!resp.ok || json?.ok === false) {
+        throw new Error(json?.error || 'Não foi possível enviar o e-mail de recuperação.')
+      }
+      setInfoMsg(
+        json?.message ||
+          'Se este e-mail estiver cadastrado, enviaremos um link para redefinir a senha. Verifique a caixa de entrada e o spam.',
+      )
+      setModoRecuperacao(false)
+    } catch (err) {
+      setErrorMsg(err?.message || 'Não foi possível enviar o e-mail de recuperação.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <main className="relative isolate flex min-h-dvh items-center justify-center overflow-hidden bg-[radial-gradient(1200px_700px_at_12%_-10%,#cfe8f8_0%,transparent_55%),radial-gradient(900px_600px_at_100%_0%,#d9eef7_0%,transparent_50%),linear-gradient(165deg,#eef6fb_0%,#f7fbfd_42%,#e8f2f8_100%)] p-6 dark:bg-[radial-gradient(1000px_640px_at_10%_-8%,#1a3a52_0%,transparent_55%),linear-gradient(165deg,#0d1520_0%,#121c2a_45%,#0f1a26_100%)]">
       <div
@@ -144,21 +179,27 @@ const Login = () => {
         className="pointer-events-none absolute left-1/2 top-[46%] -translate-x-1/2 -translate-y-1/2 font-display text-[clamp(8rem,28vw,16rem)] font-extrabold leading-none tracking-tighter text-ink/[0.05] dark:text-white/[0.04]"
         aria-hidden
       >
-        {marcaFundo}
+        LAB
       </p>
 
       <div className="el-stage relative z-10 w-full max-w-md animate-[fadeRise_0.7s_cubic-bezier(0.22,1,0.36,1)_both]">
         <p className="mb-4 font-display text-[clamp(1.85rem,4.5vw,2.5rem)] font-extrabold leading-none tracking-tight text-ink dark:text-[#e8f1f8]">
-          {marca}
+          EmerLAB
         </p>
         <h1 className="mb-2 font-sans text-xl font-extrabold tracking-tight text-[#123e59] dark:text-[#e8f1f8]">
-          Bem-vindo de volta
+          {modoRecuperacao ? 'Recuperar senha' : 'Bem-vindo de volta'}
         </h1>
         <p className="mb-6 max-w-[34ch] text-[0.95rem] font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
-          {textoApoio}
+          {modoRecuperacao
+            ? 'Informe o e-mail da conta. Se estiver cadastrado, enviaremos um link para redefinir a senha.'
+            : 'Entre com sua conta para continuar no Livro de Apoio Base.'}
         </p>
 
-        <form className="flex flex-col gap-4" onSubmit={handleLogin} noValidate>
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={modoRecuperacao ? handleForgotPassword : handleLogin}
+          noValidate
+        >
           <Input
             label="Email"
             type="email"
@@ -170,35 +211,69 @@ const Login = () => {
             autoFocus
           />
 
-          <div className="relative">
-            <Input
-              label="Senha"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              className="[&_input]:pr-12"
-            />
-            <button
-              type="button"
-              className="absolute bottom-2 right-2 inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-soft hover:bg-ink/5 dark:text-[#9eb4c8]"
-              onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-            >
-              {showPassword ? <IconEyeOff /> : <IconEye />}
-            </button>
-          </div>
+          {!modoRecuperacao ? (
+            <div className="relative">
+              <Input
+                label="Senha"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="[&_input]:pr-12"
+              />
+              <button
+                type="button"
+                className="absolute bottom-2 right-2 inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-soft hover:bg-ink/5 dark:text-[#9eb4c8]"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+              >
+                {showPassword ? <IconEyeOff /> : <IconEye />}
+              </button>
+            </div>
+          ) : null}
 
           {errorMsg ? (
-            <p className="rounded-xl border border-status-erro/20 bg-status-erro-bg px-3 py-2 text-sm font-semibold text-status-erro" role="alert">
+            <p
+              className="rounded-xl border border-status-erro/20 bg-status-erro-bg px-3 py-2 text-sm font-semibold text-status-erro"
+              role="alert"
+            >
               {errorMsg}
             </p>
           ) : null}
 
+          {infoMsg ? (
+            <p
+              className="rounded-xl border border-[#2F87C6]/25 bg-[#E7F4FC] px-3 py-2 text-sm font-semibold text-[#1E3148] dark:border-[#2F87C6]/35 dark:bg-[#1a334d] dark:text-[#9fd4ff]"
+              role="status"
+            >
+              {infoMsg}
+            </p>
+          ) : null}
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <button
+              type="button"
+              className="text-sm font-semibold text-[#2F87C6] underline-offset-2 hover:underline dark:text-[#7fc0f0]"
+              onClick={() => {
+                setErrorMsg('')
+                setInfoMsg('')
+                setModoRecuperacao((v) => !v)
+              }}
+            >
+              {modoRecuperacao ? 'Voltar ao login' : 'Esqueci minha senha'}
+            </button>
+          </div>
+
           <Button type="submit" className="mt-1 w-full" disabled={loading}>
-            {loading ? 'Entrando…' : 'Entrar'}
+            {loading
+              ? modoRecuperacao
+                ? 'Enviando…'
+                : 'Entrando…'
+              : modoRecuperacao
+                ? 'Enviar link de recuperação'
+                : 'Entrar'}
           </Button>
         </form>
       </div>

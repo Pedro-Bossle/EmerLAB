@@ -359,12 +359,6 @@ export const PERMISSION_CATALOG = [
                 descricao: 'Colunas extras e exclusão por lista.',
                 actions: R,
             },
-            {
-                id: 'admin.bate_papo',
-                label: 'Bate-papo',
-                descricao: 'Gaveta flutuante de mensagens entre usuários.',
-                actions: R,
-            },
         ],
     },
     {
@@ -606,9 +600,6 @@ export function expandLegacyToAcl(perms) {
     if (p[L.DEV_TOOLS]) {
         setTool('admin.dev_tools', { read: true })
     }
-    if (p[L.BATE_PAPO]) {
-        setTool('admin.bate_papo', { read: true })
-    }
     if (p[L.EMERMARKETING_VIEW]) {
         setTool('emermarketing.app', { read: true })
     }
@@ -834,7 +825,7 @@ export function syncLegacyFromAcl(perms) {
 
     p[L.ACCESS_MANAGE] = hasAcl(p, 'admin.acessos', 'read') && hasAcl(p, 'admin.acessos', 'update')
     p[L.DEV_TOOLS] = hasAcl(p, 'admin.dev_tools', 'read')
-    p[L.BATE_PAPO] = hasAcl(p, 'admin.bate_papo', 'read')
+    p[L.BATE_PAPO] = false
     p[L.EMERMARKETING_VIEW] = anyAclInGroup(p, 'emermarketing', 'read')
     p[L.EMERMARKETING_EDIT] =
         anyAclInGroup(p, 'emermarketing', 'update') ||

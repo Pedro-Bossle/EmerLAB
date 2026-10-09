@@ -63,6 +63,8 @@ export const RATE_LIMITS = {
     clicksign: { limit: 60, windowMs: 60_000 },
     webhook: { limit: 120, windowMs: 60_000 },
     adminUsers: { limit: 30, windowMs: 60_000 },
+    /** Recuperação de senha na tela de login (por IP). */
+    forgotPassword: { limit: 5, windowMs: 15 * 60_000 },
     auditLogs: { limit: 40, windowMs: 60_000 },
     geminiRate: { limit: 30, windowMs: 60_000 },
 }

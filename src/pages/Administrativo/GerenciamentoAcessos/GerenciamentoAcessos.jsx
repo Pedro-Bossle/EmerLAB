@@ -373,26 +373,6 @@ const GerenciamentoAcessos = () => {
         }
     }
 
-    const pedirRedefinirSenhaEmerzap = async () => {
-        if (!edicao?.id) {
-            mostrarErro('Selecione um usuário.')
-            return
-        }
-        setLoading(true)
-        try {
-            const json = await chamarAdminUsers({ action: 'resetEmerzapKey', userId: edicao.id })
-            if (abaDetalhe === 'historico') await carregarLogs(edicao.id)
-            mostrarMensagem(
-                json?.message ||
-                    'Notificação de redefinição da senha Emerzap enviada. O utilizador terá de definir uma nova senha ao abrir o chat.',
-            )
-        } catch (error) {
-            mostrarErro(error.message)
-        } finally {
-            setLoading(false)
-        }
-    }
-
     const alternarExigirTrocaSenha = async () => {
         if (!edicao?.id) {
             mostrarErro('Selecione um usuário.')
@@ -657,14 +637,6 @@ const GerenciamentoAcessos = () => {
                                             {usuarioSelecionado?.forcePasswordChangeReason === 'admin'
                                                 ? 'Cancelar troca no próximo acesso'
                                                 : 'Exigir troca no próximo acesso'}
-                                        </button>
-                                        <button
-                                            type='button'
-                                            onClick={pedirRedefinirSenhaEmerzap}
-                                            disabled={loading}
-                                            title="Invalida a senha da chave Emerzap e obriga o utilizador a definir uma nova ao abrir o chat"
-                                        >
-                                            Redefinir senha Emerzap
                                         </button>
                                         <button type='button' className='is-primary' onClick={salvarUsuario} disabled={loading}>
                                             Salvar conta

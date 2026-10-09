@@ -35,8 +35,8 @@ const resolveAdminAction = (raw) => {
         reset: 'reset',
         resetownpassword: 'resetOwnPassword',
         resetown: 'resetOwnPassword',
-        resetemerzapkey: 'resetEmerzapKey',
-        resetemerzap: 'resetEmerzapKey',
+        forgotpassword: 'forgotPassword',
+        esquecisenha: 'forgotPassword',
         updateprofile: 'updateProfile',
         listaudit: 'listAudit',
         deleteuser: 'deleteUser',
@@ -50,6 +50,7 @@ const resolveAdminAction = (raw) => {
         'createUser',
         'reset',
         'resetOwnPassword',
+        'forgotPassword',
         'updateProfile',
         'listAudit',
         'deleteUser',
@@ -408,9 +409,81 @@ export default async function handler(req, res) {
                 res,
                 400,
                 recebida
-                    ? `Ação inválida: «${recebida}». Use list, listAudit, invite, createUser, updateProfile, reset, resetOwnPassword, forcePasswordChange, clearOwnForcePassword ou deleteUser.`
+                    ? `Ação inválida: «${recebida}». Use list, listAudit, invite, createUser, updateProfile, reset, resetOwnPassword, forgotPassword, forcePasswordChange, clearOwnForcePassword ou deleteUser.`
                     : 'Ação inválida. Informe action no corpo da requisição.',
             )
+        }
+
+        // Público (tela de login): pedido de redefinição com rate limit estrito.
+        if (action === 'forgotPassword') {
+            const email = String(body.email || '').trim().toLowerCase()
+            if (!email || !email.includes('@')) {
+                return responderErro(res, 400, 'Informe um e-mail válido.')
+            }
+            if (
+                !aplicarRateLimit(
+                    res,
+                    `forgot-password:${ip}:${email}`,
+                    RATE_LIMITS.forgotPassword,
+                )
+            ) {
+                return
+            }
+
+            // Antes de consultar o usuário: falha de config não vaza existência da conta.
+            if (!String(process.env.RESEND_API_KEY || '').trim()) {
+                console.error(
+                    '[forgotPassword] RESEND_API_KEY ausente — defina em .env.local (dev) ou nas env vars do Vercel (prod).',
+                )
+                return responderErro(
+                    res,
+                    503,
+                    'Envio de e-mail temporariamente indisponível. Contacte o administrador.',
+                )
+            }
+
+            // Resposta genérica (não revela se a conta existe).
+            const okMsg =
+                'Se este e-mail estiver cadastrado, enviaremos um link para redefinir a senha. Verifique a caixa de entrada e o spam.'
+
+            try {
+                const { data: perfil } = await supabase
+                    .from('profiles')
+                    .select('id, name, email')
+                    .ilike('email', email)
+                    .maybeSingle()
+                const nome =
+                    String(perfil?.name || '').trim() ||
+                    String(perfil?.email || '').trim() ||
+                    email
+
+                await enviarLinkAuthPorResend('recovery', {
+                    supabase,
+                    email,
+                    nome,
+                    redirectTo: redirectAuthPadrao(body) || undefined,
+                })
+
+                if (perfil?.id) {
+                    await registrarAuditoria(supabase, {
+                        actorUserId: perfil.id,
+                        actorName: nome,
+                        targetUserId: perfil.id,
+                        action: 'forgot_password',
+                        summary: `Pedido de recuperação de senha (login) para ${email}`,
+                        details: { email, provider: 'resend', ip },
+                    })
+                }
+            } catch (errEnvio) {
+                const msg = String(errEnvio?.message || errEnvio || '')
+                console.error('[forgotPassword] falha no envio:', msg)
+                if (/rate limit|demasiad/i.test(msg)) {
+                    return responderErro(res, 429, msg)
+                }
+                // Conta inexistente / falha Resend pós-generateLink: mesma resposta genérica.
+            }
+
+            return res.status(200).json({ ok: true, message: okMsg })
         }
 
         // Qualquer usuário autenticado: pede e-mail de redefinição da própria conta via Resend.
@@ -825,84 +898,6 @@ export default async function handler(req, res) {
             })
 
             return res.status(200).json({ ok: true })
-        }
-
-        if (action === 'resetEmerzapKey') {
-            const userId = String(body.userId || '').trim()
-            if (!userId) return responderErro(res, 400, 'Usuário não informado.')
-
-            const { data: alvo, error: errAlvo } = await buscarProfile(supabase, userId)
-            if (errAlvo) return responderErro(res, 500, errAlvo.message)
-            if (!alvo?.id) return responderErro(res, 404, 'Usuário não encontrado.')
-
-            const agora = new Date().toISOString()
-            const { data: chaveExistente, error: errChave } = await supabase
-                .from('home_bate_papo_user_keys')
-                .select('user_id, public_jwk')
-                .eq('user_id', userId)
-                .maybeSingle()
-            if (errChave) {
-                return responderErro(
-                    res,
-                    500,
-                    `${errChave.message}. Execute scripts/sql/home_bate_papo_chave_conta.sql no Supabase.`,
-                )
-            }
-
-            if (chaveExistente?.user_id) {
-                // public_jwk é NOT NULL: não apagar. Só limpa o cipher e marca o pedido de reset.
-                const payloadUpdate = {
-                    priv_cipher: null,
-                    chave_reset_pedido_em: agora,
-                    atualizado_em: agora,
-                }
-                const { error: upErr } = await supabase
-                    .from('home_bate_papo_user_keys')
-                    .update(payloadUpdate)
-                    .eq('user_id', userId)
-                if (upErr) {
-                    if (/chave_reset_pedido_em|column/i.test(String(upErr.message || ''))) {
-                        const { error: upErr2 } = await supabase
-                            .from('home_bate_papo_user_keys')
-                            .update({
-                                priv_cipher: null,
-                                atualizado_em: agora,
-                            })
-                            .eq('user_id', userId)
-                        if (upErr2) {
-                            return responderErro(
-                                res,
-                                500,
-                                `${upErr2.message}. Execute scripts/sql/home_bate_papo_chave_conta.sql no Supabase.`,
-                            )
-                        }
-                    } else {
-                        return responderErro(
-                            res,
-                            500,
-                            `${upErr.message}. Execute scripts/sql/home_bate_papo_chave_conta.sql no Supabase.`,
-                        )
-                    }
-                }
-            }
-            // Sem linha de chave: não há o que limpar; o utilizador fará setup normal ao abrir o Emerzap.
-
-            const nome = String(alvo.name || '').trim() || 'Sem nome'
-            const email = String(alvo.email || '').trim().toLowerCase()
-            await registrarAuditoria(supabase, {
-                actorUserId: admin.user.id,
-                actorName: admin.profile.name,
-                targetUserId: userId,
-                action: 'reset_emerzap_key',
-                summary: `Pedido de redefinição da senha Emerzap para ${nome}${email ? ` (${email})` : ''}`,
-                details: { email, chave_reset_pedido_em: agora, tinha_chave: Boolean(chaveExistente?.user_id) },
-            })
-
-            return res.status(200).json({
-                ok: true,
-                message:
-                    'Notificação registada. Ao abrir o Emerzap, o utilizador verá o modal obrigatório para definir uma nova senha da chave.',
-            })
         }
 
         if (action === 'forcePasswordChange') {
