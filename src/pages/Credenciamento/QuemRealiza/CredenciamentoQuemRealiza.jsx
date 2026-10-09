@@ -19,6 +19,7 @@ import {
     carregarCatalogoBeneficios,
     gruposDoCatalogo,
     nomeGrupoBeneficioVisivel } from '../../../lib/credenciamento/prestadorBeneficios.js'
+import { carregarMapaBuscaNomesAlternativosRede } from '../../../lib/prestadorNomeAlternativo.js'
 import './CredenciamentoQuemRealiza.css'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
@@ -68,6 +69,7 @@ export default function CredenciamentoQuemRealiza() {
     const buscaProcRef = useRef(null)
     const [codigosSelecionados, setCodigosSelecionados] = useState(() => new Set())
     const [mapaNomePorCodigo, setMapaNomePorCodigo] = useState(() => new Map())
+    const [mapaAltsPorCodigo, setMapaAltsPorCodigo] = useState(() => new Map())
     const [procedimentosCatalogo, setProcedimentosCatalogo] = useState([])
 
     const [prestadores, setPrestadores] = useState([])
@@ -149,11 +151,20 @@ export default function CredenciamentoQuemRealiza() {
             const catalogo = procPaginado?.data || []
             setProcedimentosCatalogo(catalogo)
             const mapaProc = new Map()
+            const mapaIdParaCod = new Map()
             catalogo.forEach((row) => {
                 const cod = normCodigo(row.codigo)
                 if (cod) mapaProc.set(cod, String(row.nome || cod).trim())
+                const pid = Number(row.id)
+                if (pid && cod) mapaIdParaCod.set(pid, cod)
             })
             setMapaNomePorCodigo(mapaProc)
+            try {
+                const mapaAlts = await carregarMapaBuscaNomesAlternativosRede(mapaIdParaCod)
+                setMapaAltsPorCodigo(mapaAlts)
+            } catch {
+                setMapaAltsPorCodigo(new Map())
+            }
             const listaCats = cats || []
             setCategorias(listaCats)
             const idPadrao = idCategoriaPadrao(listaCats)
@@ -285,10 +296,11 @@ export default function CredenciamentoQuemRealiza() {
     const procedimentoCombinaTermo = useCallback(
         (p, termoBruto) => {
             const cat = normalizarTextoBusca(mapaCategoriaNome.get(Number(p.categoria_id)) || '')
-            const blob = normalizarTextoBusca([p.codigo, p.nome, cat].filter(Boolean).join(' '))
+            const alts = mapaAltsPorCodigo.get(normCodigo(p.codigo)) || ''
+            const blob = normalizarTextoBusca([p.codigo, p.nome, cat, alts].filter(Boolean).join(' '))
             return filtrarPorTermoBusca(blob, termoBruto)
         },
-        [mapaCategoriaNome],
+        [mapaCategoriaNome, mapaAltsPorCodigo],
     )
 
     const sugestoesProcedimento = useMemo(() => {
@@ -715,7 +727,7 @@ export default function CredenciamentoQuemRealiza() {
                                 <div className="quem_realiza_busca_input_wrap" ref={buscaProcRef}>
                                     <CampoBuscaComLimpar
                                         className="credenciamento_main_input"
-                                        placeholder="Buscar em todas as categorias (código, nome ou categoria)"
+                                        placeholder="Buscar em todas as categorias (código, nome, categoria ou nome alternativo)"
                                         value={buscaProc}
                                         onChange={(e) => setBuscaProc(e.target.value)}
                                         onFocus={() => {
@@ -739,6 +751,7 @@ export default function CredenciamentoQuemRealiza() {
                                             {sugestoesProcedimento.map((p) => {
                                                 const cod = normCodigo(p.codigo)
                                                 const catNome = mapaCategoriaNome.get(Number(p.categoria_id)) || '—'
+                                                const alts = mapaAltsPorCodigo.get(cod) || ''
                                                 const jaSel = codigosSelecionados.has(cod)
                                                 return (
                                                     <li key={p.id}>
@@ -752,6 +765,7 @@ export default function CredenciamentoQuemRealiza() {
                                                             </span>
                                                             <span className="quem_realiza_sug_cat">
                                                                 {catNome}
+                                                                {alts ? ` · alt.: ${alts}` : ''}
                                                                 {jaSel ? ' · selecionado' : ''}
                                                             </span>
                                                         </button>
@@ -799,6 +813,7 @@ export default function CredenciamentoQuemRealiza() {
                                     const cod = normCodigo(p.codigo)
                                     const marcado = codigosSelecionados.has(cod)
                                     const catNome = mapaCategoriaNome.get(Number(p.categoria_id))
+                                    const alts = mapaAltsPorCodigo.get(cod) || ''
                                     return (
                                         <label
                                             key={p.id}
@@ -815,6 +830,9 @@ export default function CredenciamentoQuemRealiza() {
                                                 </span>
                                                 {buscaEmTodasCategorias && catNome && (
                                                     <small className="quem_realiza_proc_cat">{catNome}</small>
+                                                )}
+                                                {buscaEmTodasCategorias && alts && (
+                                                    <small className="quem_realiza_proc_cat">Alt.: {alts}</small>
                                                 )}
                                             </span>
                                         </label>

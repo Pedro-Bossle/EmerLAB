@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js'
+import { supabase, buscarTodosPaginado } from './supabase.js'
 import {
     getPrestadorProcedimentosTemNomeAlternativo,
     isErroColunaNomeAlternativo,
@@ -215,4 +215,73 @@ export function nomeParaHonorariosPdf(nomeCatalogo, nomeAlternativo) {
     const alt = String(nomeAlternativo ?? '').trim()
     if (alt) return alt
     return String(nomeCatalogo ?? '').trim() || '—'
+}
+
+/**
+ * Agrega nomes alternativos por código (upper) a partir de linhas de cadastro/negociação.
+ * @param {Array<{ procedimento_cod?: unknown, procedimento_id?: unknown, nome_alternativo?: unknown }>} rows
+ * @param {Map<number, string>} [mapaCodigoPorProcedimentoId]
+ * @returns {Map<string, string>} código → alts distintos unidos por espaço (para blob de busca)
+ */
+export function agregarNomesAlternativosPorCodigo(rows, mapaCodigoPorProcedimentoId) {
+    const sets = new Map()
+    for (const row of rows || []) {
+        const alt = String(row?.nome_alternativo ?? '').trim()
+        if (!alt) continue
+        const cod =
+            normalizarCodigo(row.procedimento_cod) ||
+            (Number.isFinite(Number(row.procedimento_id))
+                ? mapaCodigoPorProcedimentoId?.get(Number(row.procedimento_id))
+                : '') ||
+            normalizarCodigo(row.procedimento_id)
+        if (!cod) continue
+        if (!sets.has(cod)) sets.set(cod, new Set())
+        sets.get(cod).add(alt)
+    }
+    const out = new Map()
+    for (const [cod, set] of sets) {
+        out.set(cod, [...set].join(' · '))
+    }
+    return out
+}
+
+/**
+ * Mapa código → nomes alternativos usados na rede (cadastro + legado negociação).
+ * Para busca no Quem Realiza: termo encontra procedimento pelo nome comercial do prestador.
+ */
+export async function carregarMapaBuscaNomesAlternativosRede(mapaCodigoPorProcedimentoId) {
+    const mapaId = mapaCodigoPorProcedimentoId || new Map()
+    const rows = []
+
+    if (getPrestadorProcedimentosTemNomeAlternativo()) {
+        const { data, error } = await buscarTodosPaginado(() =>
+            supabase
+                .from('prestador_procedimentos')
+                .select('procedimento_cod, procedimento_id, nome_alternativo')
+                .not('nome_alternativo', 'is', null)
+                .neq('nome_alternativo', '')
+                .order('id', { ascending: true }),
+        )
+        if (error && isErroColunaNomeAlternativo(error)) {
+            setPrestadorProcedimentosTemNomeAlternativo(false)
+        } else if (!error && data?.length) {
+            rows.push(...data)
+        }
+    }
+
+    try {
+        const { data: negRows, error: errNeg } = await buscarTodosPaginado(() =>
+            supabase
+                .from('negociacoes_vet')
+                .select('procedimento_id, nome_alternativo')
+                .not('nome_alternativo', 'is', null)
+                .neq('nome_alternativo', '')
+                .order('id', { ascending: true }),
+        )
+        if (!errNeg && negRows?.length) rows.push(...negRows)
+    } catch {
+        /* negociação opcional */
+    }
+
+    return agregarNomesAlternativosPorCodigo(rows, mapaId)
 }

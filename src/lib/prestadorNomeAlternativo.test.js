@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { coletarIdsVeterinariosVinculados } from './prestadorNomeAlternativo.js'
+import {
+    agregarNomesAlternativosPorCodigo,
+    coletarIdsVeterinariosVinculados,
+} from './prestadorNomeAlternativo.js'
 
 describe('coletarIdsVeterinariosVinculados', () => {
     it('sem vínculo, nenhum veterinario_id — não usa o número do cadastro', () => {
@@ -34,5 +37,28 @@ describe('coletarIdsVeterinariosVinculados', () => {
 
     it('permite o mesmo número de id se o vínculo prestador_id for do cadastro', () => {
         expect(coletarIdsVeterinariosVinculados([{ id: 82, prestador_id: 82 }], 82)).toEqual([82])
+    })
+})
+
+describe('agregarNomesAlternativosPorCodigo', () => {
+    it('agrupa alts distintos por código e ignora vazios', () => {
+        const mapa = agregarNomesAlternativosPorCodigo([
+            { procedimento_cod: 'ABC', nome_alternativo: 'Consulta especial' },
+            { procedimento_cod: 'abc', nome_alternativo: 'Check-up' },
+            { procedimento_cod: 'ABC', nome_alternativo: 'Consulta especial' },
+            { procedimento_cod: 'XYZ', nome_alternativo: '  ' },
+            { procedimento_cod: 'XYZ', nome_alternativo: null },
+        ])
+        expect(mapa.get('ABC')).toBe('Consulta especial · Check-up')
+        expect(mapa.has('XYZ')).toBe(false)
+    })
+
+    it('resolve código via procedimento_id quando não há procedimento_cod', () => {
+        const idParaCod = new Map([[10, 'PROC10']])
+        const mapa = agregarNomesAlternativosPorCodigo(
+            [{ procedimento_id: 10, nome_alternativo: 'Nome comercial' }],
+            idParaCod,
+        )
+        expect(mapa.get('PROC10')).toBe('Nome comercial')
     })
 })
