@@ -1,9 +1,11 @@
 const clientId = import.meta.env.VITE_MSAL_CLIENT_ID || ''
 const tenantId = import.meta.env.VITE_MSAL_TENANT_ID || ''
 
-/** Redirect canônico registado no Azure (agenda Outlook). */
-export const MSAL_PRODUCTION_REDIRECT_ORIGIN = 'https://emerlab.com.br'
-
+/**
+ * Redirect URI tem de ser a MESMA origem da página em que o utilizador
+ * clicou «Conectar» — o MSAL guarda o state no sessionStorage dessa origem.
+ * Saltos vercel.app → emerlab.com.br (ou www → apex) partem o state e o login falha.
+ */
 function origemAtual() {
     if (typeof window === 'undefined' || !window.location?.origin) return ''
     return window.location.origin.replace(/\/$/, '')
@@ -29,59 +31,46 @@ function normalizarOrigemRedirect(raw) {
     }
 }
 
-/** Domínios de produção / preview Vercel → redirect canónico no Azure. */
-function isHostProducaoEmerlab(host) {
-    return (
-        host === 'emerlab.com.br' ||
-        host === 'www.emerlab.com.br' ||
-        host === 'emerlab.vercel.app' ||
-        host.endsWith('.vercel.app')
-    )
-}
-
 /**
- * Origem (+ path) para redirect MSAL.
- * Em produção/preview: sempre https://emerlab.com.br (registado no Azure).
- * Em local: VITE_MSAL_REDIRECT_URI ou origem atual.
+ * Origem da página atual (ou VITE_MSAL_REDIRECT_URI em local se apontar para localhost).
  */
 function origemDeEnvOuJanela() {
-    if (typeof window !== 'undefined') {
-        const host = String(window.location.hostname || '').toLowerCase()
-        if (isHostProducaoEmerlab(host)) {
-            return MSAL_PRODUCTION_REDIRECT_ORIGIN
-        }
+    const atual = origemComBaseUrl(origemAtual())
+    if (typeof window === 'undefined') {
+        return normalizarOrigemRedirect(import.meta.env.VITE_MSAL_REDIRECT_URI) || ''
     }
 
-    const fromEnv = normalizarOrigemRedirect(import.meta.env.VITE_MSAL_REDIRECT_URI)
-    if (fromEnv) {
-        // Evita AADSTS50011 se a env apontar para *.vercel.app sem registo no Azure.
-        try {
-            const envHost = new URL(fromEnv).hostname.toLowerCase()
-            if (isHostProducaoEmerlab(envHost)) return MSAL_PRODUCTION_REDIRECT_ORIGIN
-        } catch {
-            /* usa fromEnv */
+    const host = String(window.location.hostname || '').toLowerCase()
+    if (host === 'localhost' || host === '127.0.0.1') {
+        const fromEnv = normalizarOrigemRedirect(import.meta.env.VITE_MSAL_REDIRECT_URI)
+        if (fromEnv) {
+            try {
+                const envHost = new URL(fromEnv).hostname.toLowerCase()
+                if (envHost === 'localhost' || envHost === '127.0.0.1') return fromEnv
+            } catch {
+                /* usa atual */
+            }
         }
-        return fromEnv
+        return atual
     }
 
-    return origemComBaseUrl(origemAtual())
+    // Produção / preview: sempre a origem onde a app está a correr.
+    return atual
 }
 
 /**
- * Redirect da SPA (loginRedirect / retorno do Azure).
- * Produção Azure: https://emerlab.com.br (+ /auth-redirect.html no popup).
+ * Redirect único (loginRedirect + popup): página estática, sem React/Supabase.
+ * Tem de estar registada no Azure AD (ex.: https://emerlab.com.br/auth-redirect.html).
  */
 export function resolveMsalRedirectUri() {
-    return origemDeEnvOuJanela()
-}
-
-/**
- * Redirect do popup (página estática). Evita carregar o React no popup.
- */
-export function resolveMsalPopupRedirectUri() {
     const origin = origemDeEnvOuJanela()
     if (!origin) return ''
     return `${origin}/auth-redirect.html`
+}
+
+/** @deprecated Preferir resolveMsalRedirectUri — popup e redirect usam a mesma URI. */
+export function resolveMsalPopupRedirectUri() {
+    return resolveMsalRedirectUri()
 }
 
 export function isMsalConfigured() {
@@ -99,12 +88,13 @@ export const msalConfig = {
         },
         navigateToLoginRequestUrl: false,
         get postLogoutRedirectUri() {
-            return resolveMsalRedirectUri()
+            return origemDeEnvOuJanela() || resolveMsalRedirectUri()
         },
     },
     cache: {
         cacheLocation: 'sessionStorage',
-        storeAuthStateInCookie: false,
+        // Ajuda a recuperar o state se o storage da sessão falhar no mesmo site.
+        storeAuthStateInCookie: true,
     },
     system: {
         allowRedirectInIframe: false,
@@ -125,18 +115,18 @@ export function buildLoginRequest() {
     }
 }
 
-/** loginPopup / acquireTokenPopup — usa página estática. */
+/** loginPopup / acquireTokenPopup — mesma URI estática. */
 export function buildPopupLoginRequest() {
     return {
         scopes: [...graphCalendarScopes],
-        redirectUri: resolveMsalPopupRedirectUri(),
+        redirectUri: resolveMsalRedirectUri(),
     }
 }
 
 export function buildGraphTokenRequest(account) {
     const req = {
         scopes: [...graphCalendarScopes],
-        redirectUri: resolveMsalPopupRedirectUri(),
+        redirectUri: resolveMsalRedirectUri(),
     }
     if (account) req.account = account
     return req
@@ -156,6 +146,6 @@ export const graphTokenRequest = {
         return [...graphCalendarScopes]
     },
     get redirectUri() {
-        return resolveMsalPopupRedirectUri()
+        return resolveMsalRedirectUri()
     },
 }

@@ -27,9 +27,6 @@
       "maxDuration": 30,
       "includeFiles": "public/email/**"
     },
-    "api/emer-radar-cron.js": {
-      "maxDuration": 15
-    },
     "api/audit-logs.js": {
       "maxDuration": 30
     },
@@ -50,6 +47,10 @@
     {
       "source": "/api/clicksign/:path*",
       "destination": "/api/clicksign-catchall?path=:path*"
+    },
+    {
+      "source": "/api/emer-radar-cron",
+      "destination": "/api/audit-logs?_route=emer-radar-cron"
     },
     {
       "source": "/api/nominatim-search",

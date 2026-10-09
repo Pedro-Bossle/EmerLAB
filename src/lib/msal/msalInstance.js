@@ -24,13 +24,15 @@ export async function initializeMsal() {
                 if (result?.account) {
                     app.setActiveAccount(result.account)
                     if (typeof window !== 'undefined') {
-                        const path = window.location.pathname || '/'
-                        const base = String(import.meta.env.BASE_URL || '/').replace(/\/$/, '')
-                        const homePath = `${base}/home`.replace(/\/+/g, '/') || '/home'
-                        // Retorno do Azure costuma cair na raiz (`/`) — vai para a Home
-                        if (path === '/' || path === base || path === `${base}/`) {
-                            window.location.replace(homePath.startsWith('/') ? homePath : `/${homePath}`)
-                            return app
+                        // Limpa ?code= / hash do Azure para não reprocessar nem confundir o Auth.
+                        try {
+                            const clean = window.location.pathname + window.location.search
+                                .replace(/[?&](code|state|session_state|client_info|error|error_description)=[^&]*/gi, '')
+                                .replace(/^&/, '?')
+                                .replace(/\?$/, '')
+                            window.history.replaceState({}, document.title, clean || window.location.pathname)
+                        } catch {
+                            /* ignore */
                         }
                         window.dispatchEvent(new CustomEvent('emerlab-outlook-agenda-refresh'))
                     }

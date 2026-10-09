@@ -161,7 +161,7 @@ export async function logoutSessao(opts = {}) {
       onError?.(error.message || 'Erro ao sair da sessão')
       return
     }
-    clearAccessState()
+    clearAccessState({ clearRecovery: true })
     limparRegistroAtividadeSessao()
     if (typeof window !== 'undefined') {
       try {

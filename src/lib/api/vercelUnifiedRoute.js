@@ -45,6 +45,13 @@ export function isGeminiRateRequest(req) {
     return pathnameOf(req).includes('gemini-rate')
 }
 
+/** Rewrite: /api/emer-radar-cron → /api/audit-logs?_route=emer-radar-cron */
+export function isEmerRadarCronRequest(req) {
+    const flag = searchRouteFlag(req)
+    if (flag === 'emer-radar-cron') return true
+    return pathnameOf(req).includes('emer-radar-cron')
+}
+
 /** Remove _route dos params repassados ao Nominatim. */
 export function queryParamsSemRota(req) {
     const params = {}

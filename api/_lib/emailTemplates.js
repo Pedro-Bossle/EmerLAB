@@ -106,56 +106,86 @@ function envelopeHtml(opts) {
 </html>`
 }
 
-/** Texto de boas-vindas padrão para convidados. */
-export function textoBoasVindasConvidado(nome) {
+function blocoSenhaTemporariaHtml(senha, emailConta) {
+    const s = escapeHtml(senha)
+    const em = escapeHtml(emailConta || '')
+    return `
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 20px;border:1px solid #d8e6ef;border-radius:12px;background:#f7fbfe;">
+        <tr><td style="padding:16px 18px;">
+          <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:${BRAND.muted};">Senha temporária (uso único)</p>
+          ${em ? `<p style="margin:0 0 6px;font-size:13px;color:${BRAND.muted};">Conta: <strong style="color:${BRAND.ink};">${em}</strong></p>` : ''}
+          <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:20px;font-weight:700;letter-spacing:0.06em;color:${BRAND.ink};">${s}</p>
+          <p style="margin:10px 0 0;font-size:13px;line-height:1.45;color:${BRAND.muted};">No primeiro acesso será obrigatório trocar esta senha. Não partilhe este e-mail.</p>
+        </td></tr>
+      </table>`
+}
+
+/** Texto de boas-vindas padrão para convidados (com senha temporária). */
+export function textoBoasVindasConvidado(nome, opts = {}) {
     const n = primeiroNome(nome)
+    const senha = String(opts.senhaTemporaria || '').trim()
+    const emailConta = String(opts.email || '').trim()
     return {
         html: `
       <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Olá, <strong>${escapeHtml(n)}</strong>.</p>
       <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Seja bem-vindo(a) ao <strong>${escapeHtml(BRAND.name)}</strong> — a plataforma da <strong>${escapeHtml(BRAND.productLine)}</strong> para credenciamento, compras, auditoria e operações do dia a dia.</p>
-      <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Sua conta foi criada por um administrador. Com ela você poderá acessar as ferramentas liberadas para o seu perfil e colaborar com a equipe.</p>
-      <p style="margin:0 0 20px;font-size:14px;color:${BRAND.muted};line-height:1.5;">Para começar, defina sua senha no botão abaixo. O link é pessoal e expira conforme a política de segurança. Se você não esperava este convite, ignore este e-mail.</p>`,
-        text: `Olá, ${n}.\n\nSeja bem-vindo(a) ao ${BRAND.name} — a plataforma da ${BRAND.productLine} para credenciamento, compras, auditoria e operações.\n\nSua conta foi criada por um administrador. Defina sua senha pelo link do e-mail para começar.\n`,
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Sua conta foi criada por um administrador. Use o e-mail e a <strong>senha temporária</strong> abaixo para entrar; no primeiro acesso pediremos que defina uma senha nova (a temporária deixa de valer).</p>
+      ${senha ? blocoSenhaTemporariaHtml(senha, emailConta) : ''}
+      <p style="margin:0 0 20px;font-size:14px;color:${BRAND.muted};line-height:1.5;">Se você não esperava este convite, ignore este e-mail e avise o administrador.</p>`,
+        text: `Olá, ${n}.\n\nSeja bem-vindo(a) ao ${BRAND.name}.\n\nConta: ${emailConta || '(seu e-mail)'}\nSenha temporária (uso único): ${senha || '(no e-mail HTML)'}\n\nNo primeiro acesso terá de definir uma senha nova.\n`,
     }
 }
 
 /** @param {'invite' | 'invite_existing' | 'recovery' | 'welcome'} tipo */
 export function montarEmailAuth(tipo, opts = {}) {
     const nome = primeiroNome(opts.nome)
-    const link = String(opts.actionLink || '').trim()
-    if (!link && tipo !== 'welcome') {
-        throw new Error('actionLink é obrigatório no template de Auth.')
-    }
+    const link = String(opts.actionLink || opts.loginUrl || '').trim()
+    const senha = String(opts.senhaTemporaria || '').trim()
+    const emailConta = String(opts.email || '').trim()
+    const loginUrl =
+        String(opts.loginUrl || '').trim() ||
+        String(process.env.SITE_URL || 'https://emerlab.com.br').replace(/\/$/, '') ||
+        'https://emerlab.com.br'
 
     if (tipo === 'invite' || tipo === 'welcome') {
-        const subject = 'Bem-vindo(a) ao EmerLAB — defina sua senha'
-        const boas = textoBoasVindasConvidado(opts.nome)
+        if (!senha) throw new Error('senhaTemporaria é obrigatória no convite.')
+        const subject = 'Bem-vindo(a) ao EmerLAB — senha temporária de acesso'
+        const boas = textoBoasVindasConvidado(opts.nome, {
+            senhaTemporaria: senha,
+            email: emailConta,
+        })
         const html = envelopeHtml({
-            preheader: 'Bem-vindo(a)! Defina sua senha e acesse o EmerLAB',
+            preheader: 'Senha temporária de uso único — troque no primeiro acesso',
             titulo: 'Bem-vindo(a) ao EmerLAB',
             corpoHtml: boas.html,
-            ctaLabel: 'Aceitar convite e definir senha',
-            ctaHref: link,
+            ctaLabel: 'Entrar no EmerLAB',
+            ctaHref: loginUrl,
         })
-        const text = `${subject}\n\n${boas.text}\nLink: ${link}\n\n${blocoAssinaturaEmailText()}\n`
+        const text = `${subject}\n\n${boas.text}\nEntrar: ${loginUrl}\n\n${blocoAssinaturaEmailText()}\n`
         return { subject, html, text }
     }
 
     if (tipo === 'invite_existing') {
-        const subject = 'Acesso ao EmerLAB — reative sua senha'
+        if (!senha) throw new Error('senhaTemporaria é obrigatória no convite.')
+        const subject = 'Acesso ao EmerLAB — nova senha temporária'
         const corpoHtml = `
           <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Olá, <strong>${escapeHtml(nome)}</strong>.</p>
-          <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Sua conta no <strong>EmerLAB</strong> já existe. Um administrador enviou um novo acesso — use o botão abaixo para definir ou redefinir a senha e entrar.</p>
+          <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Sua conta no <strong>EmerLAB</strong> já existia. Um administrador gerou uma <strong>senha temporária de uso único</strong> — entre com ela e defina uma senha nova no primeiro acesso.</p>
+          ${blocoSenhaTemporariaHtml(senha, emailConta)}
           <p style="margin:0 0 20px;font-size:14px;color:${BRAND.muted};line-height:1.5;">Se você não solicitou isso, fale com o administrador do sistema.</p>`
         const html = envelopeHtml({
-            preheader: 'Sua conta EmerLAB já existe — reative o acesso',
+            preheader: 'Nova senha temporária — troque no primeiro acesso',
             titulo: 'Novo acesso à sua conta',
             corpoHtml,
-            ctaLabel: 'Definir senha e entrar',
-            ctaHref: link,
+            ctaLabel: 'Entrar no EmerLAB',
+            ctaHref: loginUrl,
         })
-        const text = `${subject}\n\nOlá, ${nome}.\n\nSua conta no EmerLAB já existe. Defina ou redefina a senha neste link:\n${link}\n\n${blocoAssinaturaEmailText()}\n`
+        const text = `${subject}\n\nOlá, ${nome}.\n\nConta: ${emailConta}\nSenha temporária (uso único): ${senha}\n\nEntrar: ${loginUrl}\n\n${blocoAssinaturaEmailText()}\n`
         return { subject, html, text }
+    }
+
+    if (!link) {
+        throw new Error('actionLink é obrigatório no template de recuperação.')
     }
 
     const subject = 'Redefinição de senha — EmerLAB'

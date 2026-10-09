@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, Input } from '../../components/ui'
-import { normalizarProfileAcesso, setStoredAccessProfile } from '../../lib/accessControl'
 import { carregarSessaoEPerfilAcesso, invalidarCachePerfilAcesso } from '../../lib/authSession'
-import { supabase } from '../../lib/supabase'
+import { supabase, clearAccessState } from '../../lib/supabase'
 import {
   PASSWORD_MIN_LENGTH,
   textoAjudaPoliticaSenha,
@@ -14,6 +13,7 @@ import {
   isPasswordRecoveryPending,
   markPasswordRecoveryPending,
   urlIndicaRecuperacaoSenha,
+  waitForAuthBootstrap,
 } from '../../lib/passwordRecovery'
 
 const DARK_MODE_KEY = 'emerlab-dark-mode'
@@ -22,13 +22,6 @@ function aplicarTemaSalvoNoBody() {
   if (typeof window === 'undefined') return
   const ativo = window.localStorage.getItem(DARK_MODE_KEY) === '1'
   document.body.classList.toggle('dark-mode', ativo)
-}
-
-function destinoPosTroca(nextRaw) {
-  const next = String(nextRaw || '').trim()
-  if (!next.startsWith('/') || next.startsWith('//')) return '/home'
-  if (next === '/alterar-senha' || next.startsWith('/alterar-senha?')) return '/home'
-  return next
 }
 
 async function limparExigenciaSenha(password) {
@@ -56,17 +49,14 @@ async function limparExigenciaSenha(password) {
   if (!resp.ok || json?.ok === false) {
     throw new Error(json?.error || `Falha ao alterar a senha (HTTP ${resp.status}).`)
   }
-  if (json.profile) setStoredAccessProfile(json.profile)
   return json.profile
 }
 
 const AlterarSenha = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const destino = destinoPosTroca(searchParams.get('next'))
 
   const [ready, setReady] = useState(false)
-  const [obrigatorio, setObrigatorio] = useState(false)
   const [motivo, setMotivo] = useState(null)
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
@@ -83,19 +73,39 @@ const AlterarSenha = () => {
   }, [])
 
   useEffect(() => {
-    if (urlIndicaRecuperacaoSenha()) markPasswordRecoveryPending('url')
+    const fromRecoveryQuery = searchParams.get('from') === 'recovery'
+    if (fromRecoveryQuery || urlIndicaRecuperacaoSenha()) {
+      markPasswordRecoveryPending(fromRecoveryQuery ? 'recovery' : 'url')
+    }
     let ativo = true
     void (async () => {
       try {
+        await waitForAuthBootstrap(supabase)
+        if (!ativo) return
+        if (fromRecoveryQuery || urlIndicaRecuperacaoSenha()) {
+          markPasswordRecoveryPending('recovery')
+        }
+
         const { session, profile } = await carregarSessaoEPerfilAcesso()
         if (!ativo) return
+
         if (!session?.user?.id) {
-          navigate('/', { replace: true })
+          // Sem sessão após o link → voltar ao login (não entrar na app).
+          clearPasswordRecoveryPending()
+          navigate('/?erro=link-senha', { replace: true })
           return
         }
-        const viaLink = isPasswordRecoveryPending()
+
+        const viaLink =
+          isPasswordRecoveryPending() || searchParams.get('from') === 'recovery'
         const forcar = Boolean(profile?.forcePasswordChange) || viaLink
-        setObrigatorio(forcar)
+
+        // Chegou aqui com sessão normal (sem exigência) — não é fluxo de redef.
+        if (!forcar) {
+          navigate('/home', { replace: true })
+          return
+        }
+
         setMotivo(
           viaLink
             ? 'recovery'
@@ -110,7 +120,7 @@ const AlterarSenha = () => {
     return () => {
       ativo = false
     }
-  }, [navigate])
+  }, [navigate, searchParams])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -130,11 +140,10 @@ const AlterarSenha = () => {
     try {
       const { data: userData } = await supabase.auth.getUser()
       const uid = userData?.user?.id || null
+      const veioDeRecuperacao = isPasswordRecoveryPending() || motivo === 'recovery'
 
-      const agora = new Date().toISOString()
-      let profileLiberado = null
       try {
-        profileLiberado = await limparExigenciaSenha(password)
+        await limparExigenciaSenha(password)
       } catch (errClear) {
         console.warn('[AlterarSenha] Falha ao alterar senha / limpar exigência:', errClear?.message || errClear)
         setErrorMsg(errClear?.message || 'Não foi possível alterar a senha.')
@@ -143,17 +152,25 @@ const AlterarSenha = () => {
 
       clearPasswordRecoveryPending()
       invalidarCachePerfilAcesso(uid)
-      const base = profileLiberado || (await carregarSessaoEPerfilAcesso()).profile || {}
-      setStoredAccessProfile(
-        normalizarProfileAcesso({
-          ...base,
-          force_password_change: false,
-          forcePasswordChange: false,
-          password_changed_at: agora,
-          passwordChangedAt: agora,
-        }),
-      )
 
+      // Redefinição por e-mail: encerra a sessão do link e exige login com a nova senha.
+      if (veioDeRecuperacao) {
+        try {
+          await supabase.auth.signOut({ scope: 'local' })
+        } catch {
+          /* ignore */
+        }
+        clearAccessState({ clearRecovery: true })
+        navigate('/?senhaRedefinida=1', { replace: true })
+        return
+      }
+
+      // Troca forçada por admin / expiração: mantém sessão e segue para o destino.
+      const next = String(searchParams.get('next') || '').trim()
+      const destino =
+        next.startsWith('/') && !next.startsWith('//') && next !== '/alterar-senha'
+          ? next
+          : '/home'
       navigate(destino, { replace: true })
     } catch (err) {
       setErrorMsg(err?.message || 'Falha ao alterar a senha.')
@@ -165,20 +182,18 @@ const AlterarSenha = () => {
   if (!ready) {
     return (
       <main className="flex min-h-dvh items-center justify-center bg-[linear-gradient(165deg,#eef6fb_0%,#f7fbfd_42%,#e8f2f8_100%)] p-6 dark:bg-[linear-gradient(165deg,#0d1520_0%,#121c2a_45%,#0f1a26_100%)]">
-        <p className="text-sm font-semibold text-ink-soft dark:text-[#9eb4c8]">Carregando…</p>
+        <p className="text-sm font-semibold text-ink-soft dark:text-[#9eb4c8]">
+          A validar o link de redefinição…
+        </p>
       </main>
     )
-  }
-
-  if (!obrigatorio) {
-    return <Navigate to={destino} replace />
   }
 
   const textoApoio =
     motivo === 'expired'
       ? 'Por segurança, a senha precisa ser renovada a cada 90 dias. Escolha uma nova senha para continuar.'
       : motivo === 'recovery'
-        ? 'Use o formulário abaixo para definir uma nova senha. Só depois poderá aceder à plataforma.'
+        ? 'Defina a nova senha abaixo. Depois terá de entrar de novo com o e-mail e esta senha — o link não deixa a sessão aberta na app.'
         : 'Um administrador solicitou a alteração da sua senha neste acesso. Escolha uma nova senha para continuar.'
 
   return (

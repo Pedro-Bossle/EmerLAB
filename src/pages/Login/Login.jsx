@@ -9,6 +9,7 @@ import {
   isPasswordRecoveryPending,
   urlIndicaRecuperacaoSenha,
   markPasswordRecoveryPending,
+  waitForAuthBootstrap,
 } from '../../lib/passwordRecovery'
 
 const DARK_MODE_KEY = 'emerlab-dark-mode'
@@ -71,12 +72,29 @@ const Login = () => {
   }, [])
 
   useEffect(() => {
+    if (searchParams.get('senhaRedefinida') === '1') {
+      setInfoMsg('Senha redefinida. Entre com o e-mail e a nova senha.')
+    } else if (searchParams.get('erro') === 'link-senha') {
+      setErrorMsg('Link de redefinição inválido ou expirado. Peça um novo em «Esqueci a senha».')
+    }
+  }, [searchParams])
+
+  useEffect(() => {
     if (urlIndicaRecuperacaoSenha()) markPasswordRecoveryPending('url')
     let ativo = true
     void (async () => {
       try {
+        // Evita correr para /home antes do Supabase processar o link do e-mail.
+        await waitForAuthBootstrap(supabase)
+        if (!ativo) return
+        if (urlIndicaRecuperacaoSenha()) markPasswordRecoveryPending('url')
+
+        // Acabou de redefinir: não auto-entrar mesmo que reste sessão residual.
+        if (searchParams.get('senhaRedefinida') === '1') return
+
         const { session, profile } = await carregarSessaoEPerfilAcesso()
         if (!ativo || !session?.user?.id) return
+
         const precisaTrocarSenha =
           Boolean(profile?.forcePasswordChange) || isPasswordRecoveryPending()
         if (precisaTrocarSenha) {
@@ -91,7 +109,7 @@ const Login = () => {
     return () => {
       ativo = false
     }
-  }, [destino, navigate])
+  }, [destino, navigate, searchParams])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -144,7 +162,7 @@ const Login = () => {
         body: JSON.stringify({
           action: 'forgotPassword',
           email: emailTrim,
-          redirectTo: `${window.location.origin}/alterar-senha`,
+          redirectTo: `${window.location.origin}/alterar-senha?from=recovery`,
         }),
       })
       const json = await resp.json().catch(() => ({}))

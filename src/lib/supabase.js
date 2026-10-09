@@ -3,6 +3,7 @@ import { clearStoredAccessProfile } from './accessControl'
 import { mensagemErroFetchAmigavel } from './mensagemErroRede.js'
 import {
   clearPasswordRecoveryPending,
+  consumirCallbackSupabaseDaUrl,
   installPasswordRecoveryListener,
 } from './passwordRecovery.js'
 
@@ -47,10 +48,15 @@ export function isRotaFormularioPublicoCredenciamento() {
   )
 }
 
-export const clearAccessState = () => {
+/**
+ * Limpa flags de UI/ACL. Por omissão NÃO apaga o pending de recuperação de senha
+ * (PrivateRoute chamava isto em erros transitórios e liberava a home).
+ * @param {{ clearRecovery?: boolean }} [opts]
+ */
+export const clearAccessState = (opts = {}) => {
   setReadOnlyFlag(false)
   clearStoredAccessProfile()
-  clearPasswordRecoveryPending()
+  if (opts.clearRecovery) clearPasswordRecoveryPending()
 }
 
 /**
@@ -138,7 +144,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
+    // false: o ?code= do MSAL (Outlook) não pode ser consumido pelo Supabase.
+    // Recuperação de senha: consumirCallbackSupabaseDaUrl() abaixo.
+    detectSessionInUrl: false,
     storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
     lock: typeof window !== 'undefined' ? serialAuthLock : undefined,
   },
@@ -146,6 +154,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 
 if (typeof window !== 'undefined') {
   installPasswordRecoveryListener(supabase)
+  void consumirCallbackSupabaseDaUrl(supabase)
 }
 
 // O Supabase aplica um teto de 1000 linhas por requisição (PostgREST default).

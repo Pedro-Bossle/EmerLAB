@@ -18,6 +18,7 @@ import {
 } from '../src/lib/api/serverAuth.js'
 import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
 import { enviarEmailTemplate } from './_lib/resendMail.js'
+import { gerarSenhaTemporaria } from './_lib/gerarSenhaTemporaria.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
 dotenvConfig()
@@ -109,8 +110,8 @@ const mensagemErroAuthSupabase = (error) => {
     return msg || 'Falha na autenticação Supabase.'
 }
 
-/** Links de Auth devem abrir a tela de definir/alterar senha — nunca a home. */
-const PATH_ALTERAR_SENHA = '/alterar-senha'
+/** Links de Auth (recovery) devem abrir a tela de definir/alterar senha — nunca a home. */
+const PATH_ALTERAR_SENHA = '/alterar-senha?from=recovery'
 
 const redirectAuthPadrao = (body) => {
     const raw = String(body?.redirectTo || process.env.SITE_URL || '').trim()
@@ -118,10 +119,72 @@ const redirectAuthPadrao = (body) => {
     try {
         const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
         const u = new URL(withProto)
+        // Sempre /alterar-senha?from=recovery (ignora path do SITE_URL / body).
         return `${u.origin}${PATH_ALTERAR_SENHA}`
     } catch {
         return raw
     }
+}
+
+/** URL da tela de login (convite com senha temporária). */
+const loginUrlPublico = (body) => {
+    const raw = String(body?.redirectTo || process.env.SITE_URL || 'https://emerlab.com.br').trim()
+    try {
+        const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+        return new URL(withProto).origin
+    } catch {
+        return 'https://emerlab.com.br'
+    }
+}
+
+/**
+ * Cria ou atualiza utilizador com senha temporária e envia e-mail (Resend).
+ * A flag force_password_change obriga troca no primeiro acesso (uso único).
+ */
+const enviarConviteComSenhaTemporaria = async (opts) => {
+    const email = String(opts.email || '').trim().toLowerCase()
+    const nome = String(opts.nome || '').trim()
+    const supabase = opts.supabase
+    const template = opts.template === 'invite_existing' ? 'invite_existing' : 'invite'
+    const senha = gerarSenhaTemporaria()
+    const loginUrl = loginUrlPublico(opts.body || {})
+
+    let user = opts.user || null
+    if (!user?.id) {
+        const { data, error } = await supabase.auth.admin.createUser({
+            email,
+            password: senha,
+            email_confirm: true,
+            user_metadata: nome ? { name: nome } : undefined,
+        })
+        if (error) throw new Error(mensagemErroAuthSupabase(error))
+        user = data?.user || null
+    } else {
+        const { data, error } = await supabase.auth.admin.updateUserById(user.id, {
+            password: senha,
+            email_confirm: true,
+            user_metadata: nome ? { name: nome } : undefined,
+        })
+        if (error) throw new Error(mensagemErroAuthSupabase(error))
+        user = data?.user || user
+    }
+
+    if (!user?.id) throw new Error('Não foi possível criar ou atualizar o utilizador.')
+
+    await marcarExigirTrocaSenha(supabase, user.id)
+
+    await enviarEmailTemplate({
+        to: email,
+        template,
+        vars: {
+            nome: nome || email,
+            email,
+            senhaTemporaria: senha,
+            loginUrl,
+        },
+    })
+
+    return user
 }
 
 const marcarExigirTrocaSenha = async (supabase, userId) => {
@@ -646,29 +709,19 @@ export default async function handler(req, res) {
             if (!email || !email.includes('@')) return responderErro(res, 400, 'Informe um email válido.')
             if (!name) return responderErro(res, 400, 'Informe o nome do usuário.')
 
-            let user = await encontrarUsuarioPorEmail(supabase, email)
-            let conviteEnviado = false
-            const redirectTo = redirectAuthPadrao(body)
+            const existente = await encontrarUsuarioPorEmail(supabase, email)
+            const conviteNovo = !existente?.id
+            let user = existente
 
             try {
-                if (!user) {
-                    user = await enviarLinkAuthPorResend('invite', {
-                        supabase,
-                        email,
-                        nome: name,
-                        redirectTo,
-                    })
-                    conviteEnviado = true
-                } else {
-                    await enviarLinkAuthPorResend('recovery', {
-                        supabase,
-                        email,
-                        nome: name,
-                        userId: user.id,
-                        redirectTo,
-                        template: 'invite_existing',
-                    })
-                }
+                user = await enviarConviteComSenhaTemporaria({
+                    supabase,
+                    email,
+                    nome: name,
+                    user: existente,
+                    template: conviteNovo ? 'invite' : 'invite_existing',
+                    body,
+                })
             } catch (errEnvio) {
                 return responderErro(res, 500, errEnvio?.message || 'Falha ao enviar e-mail via Resend.')
             }
@@ -684,7 +737,8 @@ export default async function handler(req, res) {
                 email,
                 permissions,
                 force_password_change: true,
-                password_changed_at: new Date().toISOString(),
+                // Sem data de troca: a temporária obriga AlterarSenha no 1.º login.
+                password_changed_at: null,
             })
 
             if (profileError) return responderErro(res, 500, profileError.message)
@@ -695,15 +749,18 @@ export default async function handler(req, res) {
                 actorUserId: admin.user.id,
                 actorName: admin.profile.name,
                 targetUserId: profileNorm.id,
-                action: conviteEnviado ? 'invite' : 'invite_existing_reset',
-                summary: conviteEnviado ? `Convite enviado para ${email}` : `Convite/reset para usuário existente ${email}`,
-                details: { permissions: profileNorm.permissions },
+                action: conviteNovo ? 'invite' : 'invite_existing_reset',
+                summary: conviteNovo
+                    ? `Convite com senha temporária enviado para ${email}`
+                    : `Nova senha temporária enviada para ${email}`,
+                details: { permissions: profileNorm.permissions, tempPassword: true },
             })
 
             return res.status(200).json({
                 ok: true,
-                conviteEnviado,
+                conviteEnviado: true,
                 profile: profileNorm,
+                // Nunca devolver a senha temporária na API.
             })
         }
 

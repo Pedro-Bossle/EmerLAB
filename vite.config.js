@@ -11,7 +11,7 @@ import clicksignDownloadHandler from './api/clicksign-download.js'
 import clicksignUploadDocumentHandler from './api/clicksign-upload-document.js'
 import adminUsersHandler from './api/admin-users.js'
 import emailHandler from './api/email.js'
-import emerRadarCronHandler from './api/emer-radar-cron.js'
+import emerRadarCronHandler from './api/_lib/emerRadarCronHandler.js'
 import auditLogsHandler from './api/audit-logs.js'
 import { nodeHandler as ibgeMunicipiosHandler } from './api/ibge-municipios.js'
 

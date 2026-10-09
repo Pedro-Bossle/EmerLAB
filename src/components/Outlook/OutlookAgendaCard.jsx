@@ -173,7 +173,8 @@ const OutlookAgendaCardInner = () => {
             const acc = instance.getActiveAccount() || accounts[0]
             await instance.logoutPopup({
                 account: acc || undefined,
-                postLogoutRedirectUri: window.location.origin,
+                postLogoutRedirectUri: resolveMsalRedirectUri().replace(/\/auth-redirect\.html$/i, '') ||
+                    window.location.origin,
             })
             instance.setActiveAccount(null)
             setEventos([])

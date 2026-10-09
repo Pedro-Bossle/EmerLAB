@@ -108,7 +108,7 @@ const GerenciamentoAcessos = () => {
             },
             body: JSON.stringify({
                 ...payload,
-                redirectTo: `${window.location.origin}/alterar-senha`,
+                redirectTo: `${window.location.origin}/alterar-senha?from=recovery`,
             }),
         })
 
@@ -286,9 +286,7 @@ const GerenciamentoAcessos = () => {
                 mostrarMensagem('Usuário criado. Já pode fazer login com o email e a senha definidos.')
             } else {
                 mostrarMensagem(
-                    json.conviteEnviado
-                        ? 'Convite enviado.'
-                        : 'Usuário existente: reset de acesso enviado e perfil atualizado.',
+                    'Convite enviado por e-mail com senha temporária de uso único. No primeiro acesso a pessoa terá de definir uma senha nova.',
                 )
             }
         } catch (error) {
@@ -712,7 +710,7 @@ const GerenciamentoAcessos = () => {
                                 <p id='ga-convite-desc' className='gerenciamento_acessos_modal_lead'>
                                     {modoNovoUsuario === 'create'
                                         ? 'Cria a conta já com senha — a pessoa pode entrar de imediato no login.'
-                                        : 'Envia convite por email para a pessoa definir a própria senha.'}
+                                        : 'Envia e-mail com senha temporária aleatória de uso único. No primeiro acesso será obrigatório trocar a senha.'}
                                 </p>
                             </div>
                             <button
@@ -748,7 +746,7 @@ const GerenciamentoAcessos = () => {
                                 onClick={() => setModoNovoUsuario('invite')}
                                 disabled={loading}
                             >
-                                Convidar por email
+                                Convidar (senha temporária)
                             </button>
                         </div>
 
@@ -761,7 +759,7 @@ const GerenciamentoAcessos = () => {
                                         <p>
                                             {modoNovoUsuario === 'create'
                                                 ? 'Nome, email e senha inicial de acesso.'
-                                                : 'Nome e email usados no convite e no primeiro acesso.'}
+                                                : 'Nome e email: a senha temporária é gerada automaticamente e enviada só no e-mail.'}
                                         </p>
                                     </div>
                                 </div>

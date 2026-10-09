@@ -29,7 +29,7 @@ Opcionais (e-mail / tarefas EmerLAB):
 
 ### Secrets no EmerLAB (Vercel)
 
-Para o botão «Rodar cron (Actions)»:
+Para o botão «Rodar cron (Actions)» (`POST /api/emer-radar-cron`, rewrite → `audit-logs` — cabe no limite Hobby de 12 Serverless):
 
 - `EMER_RADAR_GITHUB_TOKEN` — PAT com permissão de disparar workflows
 - `EMER_RADAR_GITHUB_REPO` — default `Pedro-Bossle/teste-emeradar`

@@ -1,9 +1,13 @@
 /**
  * Política de senha de login (EmerLAB).
  * Alinhada no UI (AlterarSenha, GerenciamentoAcessos) e na API admin-users.
+ * (Sem APIs Node — este módulo também corre no browser.)
  */
 
 export const PASSWORD_MIN_LENGTH = 10
+
+/** Comprimento da senha temporária enviada no convite (gerada só no servidor). */
+export const TEMP_PASSWORD_LENGTH = 14
 
 /**
  * @param {string} password

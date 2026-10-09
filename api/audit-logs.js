@@ -14,6 +14,8 @@ import {
     responderSePayloadGrande,
 } from '../src/lib/api/serverAuth.js'
 import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
+import { isEmerRadarCronRequest } from '../src/lib/api/vercelUnifiedRoute.js'
+import emerRadarCronHandler from './_lib/emerRadarCronHandler.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
 dotenvConfig()
@@ -123,6 +125,11 @@ const podeVerAuditoriaMkt = (profile) =>
     podeLerFerramenta(profile?.permissions, 'emermarketing.auditoria')
 
 export default async function handler(req, res) {
+    // Hobby: 12 Serverless — Emer-Radar cron partilha esta function via rewrite.
+    if (isEmerRadarCronRequest(req)) {
+        return emerRadarCronHandler(req, res)
+    }
+
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
 
     if (req.method !== 'POST') {

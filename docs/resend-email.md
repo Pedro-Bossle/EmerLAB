@@ -55,9 +55,12 @@ Ver também [`docs/emer-radar.md`](emer-radar.md).
 
 ## Outlook (MSAL)
 
-Redirect URIs registados no Azure (já configurados):
+O app usa **a origem atual** + `/auth-redirect.html` (o state do MSAL fica no `sessionStorage` dessa origem — não se pode saltar de `*.vercel.app` para `emerlab.com.br`).
 
-- `https://emerlab.com.br`
+Registar no Azure AD (SPA → Redirect URIs), para cada host que usam:
+
+- `http://localhost:5173/auth-redirect.html`
 - `https://emerlab.com.br/auth-redirect.html`
+- `https://www.emerlab.com.br/auth-redirect.html` (se usarem www)
 
-Em produção o app usa `https://emerlab.com.br` automaticamente quando o host é `emerlab.com.br` / `www.emerlab.com.br`. Em local, use `VITE_MSAL_REDIRECT_URI=http://localhost:5173`.
+Em local: `VITE_MSAL_REDIRECT_URI=http://localhost:5173` (opcional; o path `/auth-redirect.html` é acrescentado no código).

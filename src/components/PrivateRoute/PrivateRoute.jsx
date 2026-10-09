@@ -25,6 +25,7 @@ const PrivateRoute = ({ children, permission, screenPermission, toolId }) => {
         if (!ativo) return
         setSession(sessaoAtual)
         if (!sessaoAtual?.user?.id) {
+          // Não limpar pending de recovery aqui (só ACL/UI).
           clearAccessState()
           setProfile(null)
           return

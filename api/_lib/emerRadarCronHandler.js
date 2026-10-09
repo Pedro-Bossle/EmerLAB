@@ -1,25 +1,21 @@
 /**
- * Dispara o workflow «Emer-Radar cron» no GitHub Actions (substitui o worker Railway).
+ * Dispara o workflow «Emer-Radar cron» no GitHub Actions.
+ * Hospedado em api/audit-logs.js (rewrite) para caber no limite Hobby de 12 Serverless.
  *
  * Secrets Vercel:
  *   EMER_RADAR_GITHUB_TOKEN  — PAT com scope `workflow` (ou fine-grained: Actions write)
  *   EMER_RADAR_GITHUB_REPO   — ex.: Pedro-Bossle/teste-emeradar (default)
  *   EMER_RADAR_WORKFLOW_FILE — default: emer-radar-cron.yml
  */
-import path from 'node:path'
-import { config as dotenvConfig } from 'dotenv'
-import { podeLerFerramenta } from '../src/lib/accessControl.js'
+import { podeLerFerramenta } from '../../src/lib/accessControl.js'
 import {
     createSupabaseAdminClient,
     getClientIp,
     readJsonBodyLimited,
     responderSePayloadGrande,
     validarJwtComPerfil,
-} from '../src/lib/api/serverAuth.js'
-import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
-
-dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
-dotenvConfig()
+} from '../../src/lib/api/serverAuth.js'
+import { aplicarRateLimit, RATE_LIMITS } from '../../src/lib/api/rateLimit.js'
 
 const responderErro = (res, status, mensagem) =>
     res.status(status).json({ ok: false, error: mensagem })
@@ -38,7 +34,7 @@ const tokenGithub = () =>
             '',
     ).trim()
 
-export default async function handler(req, res) {
+export default async function emerRadarCronHandler(req, res) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
 
     if (req.method !== 'POST') {
@@ -46,7 +42,13 @@ export default async function handler(req, res) {
     }
 
     const ip = getClientIp(req)
-    if (!aplicarRateLimit(res, `emer-radar-cron:${ip}`, RATE_LIMITS?.adminUsers || { windowMs: 60_000, max: 30 })) {
+    if (
+        !aplicarRateLimit(
+            res,
+            `emer-radar-cron:${ip}`,
+            RATE_LIMITS?.adminUsers || { windowMs: 60_000, max: 30 },
+        )
+    ) {
         return
     }
 

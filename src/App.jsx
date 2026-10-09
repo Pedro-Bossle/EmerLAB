@@ -51,14 +51,9 @@ function App() {
       <Routes>
         {/* Sem layout */}
         <Route path="/" element={<Login />} />
-        <Route
-          path="/alterar-senha"
-          element={
-            <PrivateRoute>
-              <AlterarSenha />
-            </PrivateRoute>
-          }
-        />
+        {/* Sem PrivateRoute: o link do e-mail cria sessão assíncrona; PrivateRoute
+            redirecionava para / antes dos tokens e o Login acabava na home. */}
+        <Route path="/alterar-senha" element={<AlterarSenha />} />
         <Route path="/ser_parceiro" element={<CredenciamentoFormularioPublico />} />
         <Route path="/ser-parceiro" element={<Navigate to="/ser_parceiro" replace />} />
         <Route path="/credenciamento/cadastro-publico" element={<CredenciamentoFormularioPublico />} />
