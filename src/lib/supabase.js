@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 import { clearStoredAccessProfile } from './accessControl'
 import { mensagemErroFetchAmigavel } from './mensagemErroRede.js'
+import {
+  clearPasswordRecoveryPending,
+  installPasswordRecoveryListener,
+} from './passwordRecovery.js'
 
 const supabaseUrl =
   import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL
@@ -46,6 +50,7 @@ export function isRotaFormularioPublicoCredenciamento() {
 export const clearAccessState = () => {
   setReadOnlyFlag(false)
   clearStoredAccessProfile()
+  clearPasswordRecoveryPending()
 }
 
 /**
@@ -138,6 +143,10 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     lock: typeof window !== 'undefined' ? serialAuthLock : undefined,
   },
 })
+
+if (typeof window !== 'undefined') {
+  installPasswordRecoveryListener(supabase)
+}
 
 // O Supabase aplica um teto de 1000 linhas por requisição (PostgREST default).
 // Quando temos tabelas como planos_cidade/procedimentos/repasses que excedem isso,

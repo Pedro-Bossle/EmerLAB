@@ -108,7 +108,7 @@ const GerenciamentoAcessos = () => {
             },
             body: JSON.stringify({
                 ...payload,
-                redirectTo: `${window.location.origin}/`,
+                redirectTo: `${window.location.origin}/alterar-senha`,
             }),
         })
 

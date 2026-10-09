@@ -4,6 +4,12 @@ import { hasPermission, podeLerFerramenta } from '../../lib/accessControl'
 import { LEGACY_SCREEN_TO_TOOL } from '../../lib/permissionCatalog'
 import { clearAccessState } from '../../lib/supabase'
 import { carregarSessaoEPerfilAcesso } from '../../lib/authSession'
+import {
+  destinoAlterarSenhaAposRecuperacao,
+  isPasswordRecoveryPending,
+  urlIndicaRecuperacaoSenha,
+  markPasswordRecoveryPending,
+} from '../../lib/passwordRecovery'
 
 const PrivateRoute = ({ children, permission, screenPermission, toolId }) => {
   const location = useLocation()
@@ -11,6 +17,7 @@ const PrivateRoute = ({ children, permission, screenPermission, toolId }) => {
   const [profile, setProfile] = useState(undefined)
 
   useEffect(() => {
+    if (urlIndicaRecuperacaoSenha()) markPasswordRecoveryPending('url')
     let ativo = true
     const carregarSessaoEPermissoes = async () => {
       try {
@@ -48,13 +55,11 @@ const PrivateRoute = ({ children, permission, screenPermission, toolId }) => {
     return <Navigate to={dest} replace />
   }
   if (profile === undefined) return <p>Carregando...</p>
-  if (profile?.forcePasswordChange && location.pathname !== '/alterar-senha') {
+  const precisaTrocarSenha =
+    Boolean(profile?.forcePasswordChange) || isPasswordRecoveryPending()
+  if (precisaTrocarSenha && location.pathname !== '/alterar-senha') {
     const next = `${location.pathname}${location.search || ''}`
-    const dest =
-      next && next !== '/' && next !== '/alterar-senha'
-        ? `/alterar-senha?next=${encodeURIComponent(next)}`
-        : '/alterar-senha'
-    return <Navigate to={dest} replace />
+    return <Navigate to={destinoAlterarSenhaAposRecuperacao(next)} replace />
   }
   if (permission && (!profile || !hasPermission(profile, permission))) return <Navigate to="/home" replace />
   if (screenPermission && (!profile || !hasPermission(profile, screenPermission))) {

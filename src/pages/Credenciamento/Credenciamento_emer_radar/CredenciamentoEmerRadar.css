@@ -857,3 +857,294 @@ body.dark-mode .emer-radar-map__meta {
   height: 520px;
   width: 100%;
 }
+
+/* —— UX: painéis numerados, modos, pré-visualização —— */
+.emer-radar-mode-toggle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid #d8e6ef;
+  border-radius: 999px;
+  padding: 0.2rem;
+  background: #fff;
+  gap: 0.15rem;
+}
+body.dark-mode .emer-radar-mode-toggle {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #121c2a;
+}
+.emer-radar-mode-toggle button {
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.4rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #5a7388;
+  cursor: pointer;
+}
+.emer-radar-mode-toggle button.is-active {
+  background: #123e59;
+  color: #fff;
+}
+body.dark-mode .emer-radar-mode-toggle button.is-active {
+  background: #1f7eb8;
+}
+
+.emer-radar-panel {
+  padding-top: 1.1rem;
+}
+.emer-radar-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+.emer-radar-panel__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #123e59;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1;
+}
+body.dark-mode .emer-radar-panel__step {
+  background: #1f7eb8;
+}
+.emer-radar-panel__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #123e59;
+  line-height: 1.3;
+}
+body.dark-mode .emer-radar-panel__title {
+  color: #e8f1f8;
+}
+.emer-radar-panel__hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #64748b;
+  max-width: 42rem;
+}
+body.dark-mode .emer-radar-panel__hint {
+  color: #9eb4c8;
+}
+.emer-radar-panel__actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.emer-radar-panel__body {
+  min-width: 0;
+}
+
+.emer-radar-form-grid {
+  display: grid;
+  gap: 0.85rem 1rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) {
+  .emer-radar-form-grid--trafego {
+    grid-template-columns: 10rem 1fr;
+  }
+  .emer-radar-form-grid--prospect {
+    grid-template-columns: 8rem 1fr 7.5rem;
+  }
+  .emer-radar-form-grid--catalog {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .emer-radar-form-grid--catalog {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.emer-radar-form-grid__wide {
+  grid-column: 1 / -1;
+}
+@media (min-width: 640px) {
+  .emer-radar-form-grid--trafego .emer-radar-form-grid__wide,
+  .emer-radar-form-grid--prospect .emer-radar-form-grid__wide {
+    grid-column: auto;
+  }
+}
+
+.emer-radar-preview {
+  border: 1px dashed #b8d0e0;
+  border-radius: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  background: #f7fbfe;
+}
+body.dark-mode .emer-radar-preview {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(31, 126, 184, 0.08);
+}
+.emer-radar-preview__title {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #5a7388;
+}
+body.dark-mode .emer-radar-preview__title {
+  color: #9eb4c8;
+}
+
+.emer-radar-checklist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.emer-radar-checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: #334155;
+}
+body.dark-mode .emer-radar-checklist li {
+  color: #c5d4e0;
+}
+.emer-radar-checklist li.is-ok {
+  color: #166534;
+}
+.emer-radar-checklist li.is-miss {
+  color: #b45309;
+}
+body.dark-mode .emer-radar-checklist li.is-ok {
+  color: #86efac;
+}
+body.dark-mode .emer-radar-checklist li.is-miss {
+  color: #fbbf24;
+}
+.emer-radar-checklist li span:first-child {
+  flex-shrink: 0;
+  font-weight: 700;
+  width: 1rem;
+  text-align: center;
+}
+
+.emer-radar-chip__uf {
+  margin-left: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.emer-radar-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: #e2e8f0;
+  color: #475569;
+}
+.emer-radar-status-pill--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+.emer-radar-status-pill--info {
+  background: #e0f2fe;
+  color: #075985;
+}
+.emer-radar-status-pill--neutral {
+  background: #e2e8f0;
+  color: #475569;
+}
+body.dark-mode .emer-radar-status-pill {
+  background: rgba(148, 163, 184, 0.2);
+  color: #cbd5e1;
+}
+body.dark-mode .emer-radar-status-pill--ok {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+}
+body.dark-mode .emer-radar-status-pill--info {
+  background: rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+}
+
+.emer-radar-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 7rem;
+}
+.emer-radar-meter__track {
+  flex: 1;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+  min-width: 3.5rem;
+}
+body.dark-mode .emer-radar-meter__track {
+  background: rgba(255, 255, 255, 0.12);
+}
+.emer-radar-meter__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #1f7eb8;
+  transition: width 0.25s ease;
+}
+.emer-radar-meter__fill.is-ready {
+  background: #16a34a;
+}
+.emer-radar-meter__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  white-space: nowrap;
+}
+body.dark-mode .emer-radar-meter__label {
+  color: #9eb4c8;
+}
+
+.emer-radar-details {
+  padding: 0.85rem 1rem;
+}
+.emer-radar-details__summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #123e59;
+  list-style: none;
+}
+.emer-radar-details__summary::-webkit-details-marker {
+  display: none;
+}
+.emer-radar-details__summary::before {
+  content: '▸ ';
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+.emer-radar-details[open] > .emer-radar-details__summary::before {
+  transform: rotate(90deg);
+}
+body.dark-mode .emer-radar-details__summary {
+  color: #e8f1f8;
+}
+.emer-radar-details__body {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 0.75rem;
+}
+body.dark-mode .emer-radar-details__body {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}

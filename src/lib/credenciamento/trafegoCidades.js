@@ -69,11 +69,23 @@ export function parseLinhaCidadeTrafego(linha, ufPadrao = '') {
     if (mDash) {
       cidade = mDash[1].trim()
       uf = mDash[2]
+    } else {
+      // «Cachoeirinha RS» (UF no fim, sem barra)
+      const mSpace = raw.match(/^(.+?)\s+([A-Za-z]{2})\s*$/)
+      if (mSpace && UFS_BR.has(normalizarUfTrafego(mSpace[2]))) {
+        cidade = mSpace[1].trim()
+        uf = mSpace[2]
+      }
     }
   }
 
   uf = normalizarUfTrafego(uf || ufPadrao)
   cidade = cidade.replace(/\s+/g, ' ').trim()
+  // Remove UF repetida no nome («Cachoeirinha RS» + uf=RS)
+  if (uf) {
+    const reSufixoUf = new RegExp(`(?:\\s+|[-–—/,])${uf}$`, 'i')
+    cidade = cidade.replace(reSufixoUf, '').trim()
+  }
   if (!cidade || cidade.length < 2) return null
   if (!uf || !UFS_BR.has(uf)) return null
 

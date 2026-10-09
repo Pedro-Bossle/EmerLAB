@@ -262,7 +262,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
         },
         body: JSON.stringify({
           action: "resetOwnPassword",
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: `${window.location.origin}/alterar-senha`,
         }),
       });
       const json = await resp.json().catch(() => ({}));

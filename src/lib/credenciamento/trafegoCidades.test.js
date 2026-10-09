@@ -36,6 +36,17 @@ describe('trafegoCidades parse', () => {
     })
   })
 
+  it('remove UF colada no nome (Cachoeirinha RS)', () => {
+    expect(parseLinhaCidadeTrafego('Cachoeirinha RS', 'RS')).toEqual({
+      cidade: 'Cachoeirinha',
+      uf: 'RS',
+    })
+    expect(parseLinhaCidadeTrafego('Cachoeirinha RS', '')).toEqual({
+      cidade: 'Cachoeirinha',
+      uf: 'RS',
+    })
+  })
+
   it('ignora cabeçalho e linha sem UF válida', () => {
     expect(parseLinhaCidadeTrafego('Cidade', 'RS')).toBeNull()
     expect(parseLinhaCidadeTrafego('Somewhere', '')).toBeNull()

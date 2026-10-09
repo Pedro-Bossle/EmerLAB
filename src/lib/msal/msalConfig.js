@@ -29,19 +29,39 @@ function normalizarOrigemRedirect(raw) {
     }
 }
 
+/** Domínios de produção / preview Vercel → redirect canónico no Azure. */
+function isHostProducaoEmerlab(host) {
+    return (
+        host === 'emerlab.com.br' ||
+        host === 'www.emerlab.com.br' ||
+        host === 'emerlab.vercel.app' ||
+        host.endsWith('.vercel.app')
+    )
+}
+
 /**
  * Origem (+ path) para redirect MSAL.
- * Prioridade: VITE_MSAL_REDIRECT_URI → host de produção emerlab.com.br → origem atual.
+ * Em produção/preview: sempre https://emerlab.com.br (registado no Azure).
+ * Em local: VITE_MSAL_REDIRECT_URI ou origem atual.
  */
 function origemDeEnvOuJanela() {
-    const fromEnv = normalizarOrigemRedirect(import.meta.env.VITE_MSAL_REDIRECT_URI)
-    if (fromEnv) return fromEnv
-
     if (typeof window !== 'undefined') {
         const host = String(window.location.hostname || '').toLowerCase()
-        if (host === 'emerlab.com.br' || host === 'www.emerlab.com.br') {
+        if (isHostProducaoEmerlab(host)) {
             return MSAL_PRODUCTION_REDIRECT_ORIGIN
         }
+    }
+
+    const fromEnv = normalizarOrigemRedirect(import.meta.env.VITE_MSAL_REDIRECT_URI)
+    if (fromEnv) {
+        // Evita AADSTS50011 se a env apontar para *.vercel.app sem registo no Azure.
+        try {
+            const envHost = new URL(fromEnv).hostname.toLowerCase()
+            if (isHostProducaoEmerlab(envHost)) return MSAL_PRODUCTION_REDIRECT_ORIGIN
+        } catch {
+            /* usa fromEnv */
+        }
+        return fromEnv
     }
 
     return origemComBaseUrl(origemAtual())

@@ -23,6 +23,7 @@ import {
   pipelineStart,
   pipelineStatus,
   pipelineStop,
+  triggerEmerRadarCron,
   scrapeExportExcelUrl,
   scrapeExportPdfUrl,
   scrapeResults,
@@ -48,6 +49,7 @@ import {
   LIMIAR_MARCADORES_CRON,
   enfileirarCidadesQueBateramLimiar,
   listarContadoresTrafego,
+  parseCidadesTrafego,
   processarTrafegoDoDia,
 } from '../../../lib/credenciamento/trafegoCidades.js'
 import { listarUsuariosParaAtribuicao } from '../../../lib/homeTarefas.js'
@@ -68,6 +70,50 @@ import './CredenciamentoEmerRadar.css'
 
 const SELECT_CIDADE_INPUT =
   'w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]'
+
+/** Secção numerada — um propósito por bloco (menos confusão). */
+function PanelStep({ step, title, hint, actions, children, className = '' }) {
+  return (
+    <section className={`el-stage emer-radar-panel ${className}`.trim()}>
+      <header className="emer-radar-panel__head">
+        {step != null ? (
+          <span className="emer-radar-panel__step" aria-hidden>
+            {step}
+          </span>
+        ) : null}
+        <div className="emer-radar-panel__intro min-w-0 flex-1">
+          <h2 className="emer-radar-panel__title">{title}</h2>
+          {hint ? <p className="emer-radar-panel__hint">{hint}</p> : null}
+        </div>
+        {actions ? <div className="emer-radar-panel__actions">{actions}</div> : null}
+      </header>
+      <div className="emer-radar-panel__body">{children}</div>
+    </section>
+  )
+}
+
+function StatusPill({ tone = 'neutral', children }) {
+  return <span className={`emer-radar-status-pill emer-radar-status-pill--${tone}`}>{children}</span>
+}
+
+function MarkerMeter({ value, limiar = LIMIAR_MARCADORES_CRON }) {
+  const m = Number(value) || 0
+  const pct = Math.min(100, Math.round((m / limiar) * 100))
+  const ready = m >= limiar
+  return (
+    <div className="emer-radar-meter" title={`${m} de ${limiar} marcadores`}>
+      <div className="emer-radar-meter__track" aria-hidden>
+        <div
+          className={`emer-radar-meter__fill${ready ? ' is-ready' : ''}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="emer-radar-meter__label tabular-nums">
+        {m}/{limiar}
+      </span>
+    </div>
+  )
+}
 
 /** Municípios IBGE por UF (cache no lib). */
 function useMunicipiosPorUf(uf) {
@@ -206,13 +252,14 @@ export default function CredenciamentoEmerRadar() {
       {apiOk === false ? (
         <div className="el-stage mb-4 text-sm">
           <p className="m-0 text-status-erro">
-            Worker inacessível (<code className="text-xs">{getEmerRadarApiBase()}</code>
+            Worker local inacessível (<code className="text-xs">{getEmerRadarApiBase()}</code>
             {apiError ? ` — ${apiError}` : ''}).
           </p>
           <p className="mt-2 mb-0 text-xs text-ink-muted">
-            Suba o worker: na pasta <code>teste-emeradar</code>, rode{' '}
-            <code>python backend/main.py</code>. Em dev o EmerLAB faz proxy de{' '}
-            <code>/emeradar</code> → porta 8000.
+            Em dev: na pasta <code>teste-emeradar</code>, rode{' '}
+            <code>python backend/main.py</code> (proxy Vite <code>/emeradar</code> → 8000). Em
+            produção o cron da fila corre no <strong>GitHub Actions</strong> — use «Rodar cron
+            (Actions)» abaixo; Prospect Maps interativo continua a precisar do worker local.
           </p>
         </div>
       ) : null}
@@ -256,8 +303,17 @@ function PipelinePanel() {
   const [trafegoErro, setTrafegoErro] = useState('')
   const [filaCron, setFilaCron] = useState([])
   const [filaCronErro, setFilaCronErro] = useState('')
+  const [cronActionsBusy, setCronActionsBusy] = useState(false)
+  const [cronActionsMsg, setCronActionsMsg] = useState('')
+  const [modoPipeline, setModoPipeline] = useState('trafego') // trafego | manual
+  const [avancadoAberto, setAvancadoAberto] = useState(false)
 
   const isRunning = snap?.status === 'RODANDO'
+
+  const trafegoPreview = useMemo(
+    () => parseCidadesTrafego(trafegoTexto, trafegoUf),
+    [trafegoTexto, trafegoUf],
+  )
 
   const refreshRuns = useCallback(() => {
     pipelineListRuns()
@@ -370,9 +426,20 @@ function PipelinePanel() {
 
   const addCity = () => {
     setError('')
+    if (!uf) {
+      setError('Selecione a UF.')
+      return
+    }
     const c = cidade.trim()
     if (!c) {
-      setError('Informe a cidade.')
+      setError('Selecione a cidade na lista IBGE.')
+      return
+    }
+    const ibgeOk = (municipios || []).some(
+      (m) => String(m?.nome || '').trim().toLowerCase() === c.toLowerCase(),
+    )
+    if (!ibgeOk) {
+      setError('Cidade inválida. Escolha um município da lista IBGE.')
       return
     }
     setRows((prev) => {
@@ -490,44 +557,90 @@ function PipelinePanel() {
 
   return (
     <div className="space-y-4">
-      <section className="el-stage">
-        <h2 className="mt-0 mb-1 text-lg font-bold text-[#123e59] dark:text-[#e8f1f8]">
-          Cidades do tráfego
-        </h2>
-        <p className="mt-0 mb-4 text-sm text-ink-muted">
-          Modalidade padrão: cole as cidades do dia. Cada aparição diária conta 1 marcador; ao
-          bater {LIMIAR_MARCADORES_CRON}, a cidade entra automaticamente na fila do cron.
-        </p>
+      <div className="emer-radar-mode-toggle" role="tablist" aria-label="Modo do pipeline">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={modoPipeline === 'trafego'}
+          className={modoPipeline === 'trafego' ? 'is-active' : ''}
+          onClick={() => setModoPipeline('trafego')}
+        >
+          1 · Tráfego do dia
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={modoPipeline === 'manual'}
+          className={modoPipeline === 'manual' ? 'is-active' : ''}
+          onClick={() => setModoPipeline('manual')}
+        >
+          2 · Pipeline manual
+        </button>
+      </div>
 
-        <div className="flex flex-wrap items-end gap-3 mb-3">
+      {modoPipeline === 'trafego' ? (
+      <PanelStep
+        step={1}
+        title="Registar cidades do tráfego"
+        hint={`Uma linha = uma cidade. Cada dia conta 1 marcador; ao chegar a ${LIMIAR_MARCADORES_CRON}, a cidade entra na fila do cron automaticamente.`}
+      >
+        <div className="emer-radar-form-grid emer-radar-form-grid--trafego">
           <label className="text-sm">
             <span className="mb-1 block font-semibold">UF padrão</span>
             <SelectUfBusca value={trafegoUf} onChange={setTrafegoUf} />
+            <span className="mt-1 block text-xs text-ink-muted">
+              Usada quando a linha não traz UF (ex.: só «Gramado»).
+            </span>
           </label>
-          <p className="text-xs text-ink-soft dark:text-[#9eb4c8] pb-2">
-            Linhas «Cidade/UF» ou «Cidade - UF» sobrescrevem a UF padrão.
-          </p>
+          <label className="text-sm emer-radar-form-grid__wide">
+            <span className="mb-1 block font-semibold">Lista de cidades (uma por linha)</span>
+            <textarea
+              className="w-full min-h-[140px] rounded-xl border border-line px-3 py-2 font-mono text-sm dark:border-white/15 dark:bg-[#152433]"
+              placeholder={'Gramado\nCascavel/PR\nJoinville - SC'}
+              value={trafegoTexto}
+              onChange={(e) => setTrafegoTexto(e.target.value)}
+              disabled={trafegoBusy}
+              aria-describedby="trafego-format-hint"
+            />
+            <span id="trafego-format-hint" className="mt-1 block text-xs text-ink-muted">
+              Formatos aceites: <code>Cidade</code>, <code>Cidade/UF</code>, <code>Cidade - UF</code>.
+              Não cole a UF no nome («Cachoeirinha RS» → use «Cachoeirinha» + UF).
+            </span>
+          </label>
         </div>
 
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold">Colar cidades do dia</span>
-          <textarea
-            className="w-full min-h-[120px] rounded-xl border border-line px-3 py-2 font-mono text-sm dark:border-white/15 dark:bg-[#152433]"
-            placeholder={'Pato Branco\nCascavel/PR\nJoinville - SC'}
-            value={trafegoTexto}
-            onChange={(e) => setTrafegoTexto(e.target.value)}
-            disabled={trafegoBusy}
-          />
-        </label>
+        {trafegoTexto.trim() ? (
+          <div className="emer-radar-preview mt-4" aria-live="polite">
+            <p className="emer-radar-preview__title">
+              Pré-visualização · {trafegoPreview.length} cidade
+              {trafegoPreview.length === 1 ? '' : 's'} válida
+              {trafegoPreview.length === 1 ? '' : 's'}
+            </p>
+            {trafegoPreview.length === 0 ? (
+              <p className="m-0 text-sm text-status-erro">
+                Nenhuma linha válida. Confira a UF padrão ou use «Cidade/UF».
+              </p>
+            ) : (
+              <div className="emer-radar-chip-row">
+                {trafegoPreview.map((c) => (
+                  <span key={`${c.cidade}|${c.uf}`} className="emer-radar-chip is-on">
+                    {c.cidade}
+                    <span className="emer-radar-chip__uf">{c.uf}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
             className={buttonClassName()}
-            disabled={trafegoBusy || !trafegoTexto.trim()}
+            disabled={trafegoBusy || trafegoPreview.length === 0}
             onClick={() => void handleRegistarTrafego()}
           >
-            {trafegoBusy ? 'A registar…' : 'Registar hoje'}
+            {trafegoBusy ? 'A registar…' : `Confirmar registo (${trafegoPreview.length})`}
           </button>
           <button
             type="button"
@@ -535,7 +648,7 @@ function PipelinePanel() {
             disabled={trafegoBusy}
             onClick={() => void handleReenfileirarLimiar()}
           >
-            Reprocessar limiar {LIMIAR_MARCADORES_CRON}
+            Enfileirar quem já tem {LIMIAR_MARCADORES_CRON} marcadores
           </button>
         </div>
 
@@ -551,35 +664,43 @@ function PipelinePanel() {
         )}
 
         {trafegoContadores.length > 0 && (
-          <div className="mt-4 overflow-x-auto rounded-xl border border-line dark:border-white/10">
+          <div className="mt-5 overflow-x-auto rounded-xl border border-line dark:border-white/10">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left dark:border-white/10">
-                  <th className="px-3 py-2">Cidade</th>
-                  <th className="px-3 py-2">UF</th>
-                  <th className="px-3 py-2">Marcadores</th>
-                  <th className="px-3 py-2">Última aparição</th>
-                  <th className="px-3 py-2">Estado</th>
+                  <th className="px-3 py-2.5">Cidade</th>
+                  <th className="px-3 py-2.5">UF</th>
+                  <th className="px-3 py-2.5">Progresso</th>
+                  <th className="px-3 py-2.5">Última aparição</th>
+                  <th className="px-3 py-2.5">Estado</th>
                 </tr>
               </thead>
               <tbody>
                 {trafegoContadores.map((row) => {
                   const m = Number(row.marcadores) || 0
                   let estado = 'A acumular'
-                  if (m >= LIMIAR_MARCADORES_CRON) estado = 'Pronta p/ cron'
-                  else if (row.enfileirado_em && m === 0) estado = 'Enfileirada (ciclo zerado)'
+                  let tone = 'neutral'
+                  if (m >= LIMIAR_MARCADORES_CRON) {
+                    estado = 'Pronta p/ cron'
+                    tone = 'ok'
+                  } else if (row.enfileirado_em && m === 0) {
+                    estado = 'Já enfileirada'
+                    tone = 'info'
+                  }
                   return (
                     <tr
                       key={row.id || `${row.cidade}-${row.uf}`}
                       className="border-b border-line/60 dark:border-white/5"
                     >
-                      <td className="px-3 py-2">{row.cidade}</td>
-                      <td className="px-3 py-2">{row.uf}</td>
-                      <td className="px-3 py-2 font-semibold">
-                        {m}/{LIMIAR_MARCADORES_CRON}
+                      <td className="px-3 py-2.5 font-medium">{row.cidade}</td>
+                      <td className="px-3 py-2.5">{row.uf}</td>
+                      <td className="px-3 py-2.5">
+                        <MarkerMeter value={m} />
                       </td>
-                      <td className="px-3 py-2">{formatDateBR(row.ultima_aparicao_em) || '—'}</td>
-                      <td className="px-3 py-2">{estado}</td>
+                      <td className="px-3 py-2.5">{formatDateBR(row.ultima_aparicao_em) || '—'}</td>
+                      <td className="px-3 py-2.5">
+                        <StatusPill tone={tone}>{estado}</StatusPill>
+                      </td>
                     </tr>
                   )
                 })}
@@ -587,18 +708,15 @@ function PipelinePanel() {
             </table>
           </div>
         )}
-      </section>
+      </PanelStep>
+      ) : null}
 
-      <section className="el-stage">
-        <h2 className="mt-0 mb-1 text-lg font-bold text-[#123e59] dark:text-[#e8f1f8]">
-          Pipeline diário
-        </h2>
-        <p className="mt-0 mb-4 text-sm text-ink-muted">
-          Preferência: tráfego acima (auto-fila ao bater {LIMIAR_MARCADORES_CRON} marcadores).
-          Abaixo: adicionar cidades e enfileirar manualmente. Cooldown de {cooldownDays} dias após
-          pesquisa bem-sucedida.
-        </p>
-
+      {modoPipeline === 'manual' ? (
+      <PanelStep
+        step={2}
+        title="Montar lista e correr / enfileirar"
+        hint={`Escolha UF e cidade na lista IBGE (evita nomes truncados). Cooldown de ${cooldownDays} dias após pesquisa bem-sucedida.`}
+      >
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-sm">
             <span className="mb-1 block font-semibold">UF</span>
@@ -611,7 +729,7 @@ function PipelinePanel() {
             />
           </label>
           <label className="min-w-[220px] flex-1 text-sm">
-            <span className="mb-1 block font-semibold">Cidade</span>
+            <span className="mb-1 block font-semibold">Cidade (IBGE)</span>
             <SelectMunicipioBusca
               value={cidade}
               valueKey="nome"
@@ -619,14 +737,17 @@ function PipelinePanel() {
               disabled={!uf || loadingMun}
               loading={loadingMun}
               inputClassName={SELECT_CIDADE_INPUT}
-              placeholder={!uf ? 'Selecione a UF' : 'Buscar cidade…'}
-              creatable
-              createLabel={(q) => `Usar «${q}»`}
+              placeholder={!uf ? 'Selecione a UF primeiro' : 'Buscar município…'}
               onChange={setCidade}
             />
           </label>
-          <button type="button" className={buttonClassName()} onClick={addCity}>
-            Adicionar
+          <button
+            type="button"
+            className={buttonClassName()}
+            disabled={!uf || !cidade.trim()}
+            onClick={addCity}
+          >
+            Adicionar à lista
           </button>
         </div>
 
@@ -664,8 +785,10 @@ function PipelinePanel() {
         )}
 
         <div className="mt-4">
-          <p className="mb-2 text-sm font-semibold">Fontes</p>
-          <div className="emer-radar-chip-row">
+          <p className="mb-2 text-sm font-semibold">
+            Fontes <span className="text-status-erro">*</span>
+          </p>
+          <div className="emer-radar-chip-row" role="group" aria-label="Fontes do pipeline">
             {FONTES.map((f) => (
               <label key={f.id} className={`emer-radar-chip ${fontes[f.id] ? 'is-on' : ''}`}>
                 <input
@@ -679,6 +802,33 @@ function PipelinePanel() {
           </div>
         </div>
 
+        {(preview.length > 0 || rows.length > 0) && (
+          <div className="emer-radar-preview mt-4" aria-live="polite">
+            <p className="emer-radar-preview__title">Antes de iniciar</p>
+            <ul className="emer-radar-checklist">
+              <li className={liberadas.length ? 'is-ok' : 'is-miss'}>
+                <span aria-hidden>{liberadas.length ? '✓' : '○'}</span>
+                {liberadas.length
+                  ? `${liberadas.length} cidade${liberadas.length === 1 ? '' : 's'} liberada${liberadas.length === 1 ? '' : 's'}`
+                  : 'Nenhuma cidade liberada (todas em cooldown?)'}
+              </li>
+              <li className={bloqueadas.length ? 'is-miss' : 'is-ok'}>
+                <span aria-hidden>{bloqueadas.length ? '!' : '✓'}</span>
+                {bloqueadas.length
+                  ? `${bloqueadas.length} em cooldown (serão ignoradas na corrida)`
+                  : 'Sem cidades em cooldown na lista'}
+              </li>
+              <li className={Object.values(fontes).some(Boolean) ? 'is-ok' : 'is-miss'}>
+                <span aria-hidden>{Object.values(fontes).some(Boolean) ? '✓' : '○'}</span>
+                Fontes:{' '}
+                {FONTES.filter((f) => fontes[f.id])
+                  .map((f) => f.label)
+                  .join(', ') || 'nenhuma'}
+              </li>
+            </ul>
+          </div>
+        )}
+
         <div className="mt-4 flex flex-wrap items-center gap-4">
           <label className="text-sm">
             Máx. por termo
@@ -689,6 +839,9 @@ function PipelinePanel() {
               className="ml-2 w-20 rounded-lg border border-line px-2 py-1 dark:border-white/15 dark:bg-[#152433]"
               value={maxPorTermo}
               onChange={(e) => setMaxPorTermo(Number(e.target.value) || 80)}
+              onBlur={() =>
+                setMaxPorTermo((v) => Math.min(Math.max(Number(v) || 80, 10), 200))
+              }
             />
           </label>
           <label className="inline-flex items-center gap-2 text-sm">
@@ -710,7 +863,19 @@ function PipelinePanel() {
             </button>
           ) : (
             <>
-              <button type="button" className={buttonClassName()} onClick={handleStart}>
+              <button
+                type="button"
+                className={buttonClassName()}
+                onClick={handleStart}
+                disabled={!liberadas.length || !Object.values(fontes).some(Boolean)}
+                title={
+                  !liberadas.length
+                    ? 'Adicione cidades liberadas (fora de cooldown)'
+                    : !Object.values(fontes).some(Boolean)
+                      ? 'Marque ao menos uma fonte'
+                      : undefined
+                }
+              >
                 Iniciar pipeline ({liberadas.length} liberada
                 {liberadas.length === 1 ? '' : 's'}
                 {bloqueadas.length ? ` · ${bloqueadas.length} em cooldown` : ''})
@@ -718,6 +883,7 @@ function PipelinePanel() {
               <button
                 type="button"
                 className={buttonClassName({ variant: 'secondary' })}
+                disabled={!rows.length && !cidade.trim()}
                 onClick={async () => {
                   setError('')
                   let lista = rows
@@ -758,56 +924,98 @@ function PipelinePanel() {
             {error}
           </p>
         )}
+      </PanelStep>
+      ) : null}
 
-        <div className="mt-4">
-          <h3 className="mt-0 mb-2 text-sm font-bold">Fila do cron</h3>
-          {filaCronErro && (
-            <p className="mt-0 mb-2 text-sm text-status-erro">{filaCronErro}</p>
-          )}
-          {filaCron.length === 0 && !filaCronErro ? (
-            <p className="m-0 text-sm text-ink-muted">Nenhuma cidade pendente na fila.</p>
-          ) : (
-            <ul className="m-0 flex list-none flex-col gap-2 p-0">
-              {filaCron.map((item) => {
-                const pendente = item.status === 'pending'
-                return (
-                  <li
-                    key={item.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2 text-sm dark:border-white/10"
-                  >
-                    <span>
-                      {item.cidade}/{item.uf}
-                      <span className="ml-2 text-ink-muted">
-                        {pendente ? 'Na fila' : 'A processar'}
-                      </span>
-                    </span>
-                    {pendente ? (
-                      <button
-                        type="button"
-                        className="border-0 bg-transparent text-status-erro cursor-pointer"
-                        onClick={async () => {
-                          setFilaCronErro('')
-                          try {
-                            await pipelineRemoveFromQueue(item.id)
-                            refreshFilaCron()
-                          } catch (e) {
-                            setFilaCronErro(e?.message || 'Não foi possível remover da fila.')
-                          }
-                        }}
-                      >
-                        Remover
-                      </button>
-                    ) : null}
-                  </li>
+      <PanelStep
+        step={3}
+        title="Fila do cron"
+        hint="Em produção a fila é processada pelo GitHub Actions (seg–sex ~18h BRT). Em local precisa do worker na porta 8000."
+        actions={
+          <button
+            type="button"
+            className={buttonClassName({ variant: 'secondary' })}
+            disabled={cronActionsBusy}
+            onClick={async () => {
+              setCronActionsMsg('')
+              setCronActionsBusy(true)
+              try {
+                const res = await triggerEmerRadarCron()
+                setCronActionsMsg(
+                  res?.message ||
+                    'Cron disparado no GitHub Actions. Acompanhe o run no repositório teste-emeradar.',
                 )
-              })}
-            </ul>
-          )}
-        </div>
-      </section>
+              } catch (e) {
+                setCronActionsMsg(e?.message || 'Falha ao disparar o cron.')
+              } finally {
+                setCronActionsBusy(false)
+              }
+            }}
+          >
+            {cronActionsBusy ? 'A disparar…' : 'Rodar cron (Actions)'}
+          </button>
+        }
+      >
+        {cronActionsMsg ? (
+          <p className="mt-0 mb-3 text-sm text-ink-muted">{cronActionsMsg}</p>
+        ) : null}
+        {filaCronErro && <p className="mt-0 mb-3 text-sm text-status-erro">{filaCronErro}</p>}
+        {filaCron.length === 0 && !filaCronErro ? (
+          <p className="m-0 text-sm text-ink-muted">
+            Fila vazia no worker local. Use o tráfego do dia ou «Enfileirar p/ cron» no modo manual.
+          </p>
+        ) : (
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {filaCron.map((item) => {
+              const pendente = item.status === 'pending'
+              return (
+                <li
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2 text-sm dark:border-white/10"
+                >
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    <strong>
+                      {item.cidade}/{item.uf}
+                    </strong>
+                    <StatusPill tone={pendente ? 'info' : 'ok'}>
+                      {pendente ? 'Na fila' : 'A processar'}
+                    </StatusPill>
+                  </span>
+                  {pendente ? (
+                    <button
+                      type="button"
+                      className="border-0 bg-transparent text-status-erro cursor-pointer text-sm font-semibold"
+                      onClick={async () => {
+                        setFilaCronErro('')
+                        try {
+                          await pipelineRemoveFromQueue(item.id)
+                          refreshFilaCron()
+                        } catch (e) {
+                          setFilaCronErro(e?.message || 'Não foi possível remover da fila.')
+                        }
+                      }}
+                    >
+                      Remover
+                    </button>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </PanelStep>
 
-      <section className="el-stage">
-        <h3 className="mt-0 font-bold">Configurações — destinatários das tarefas</h3>
+      <details
+        className="el-stage emer-radar-details"
+        open={avancadoAberto}
+        onToggle={(e) => setAvancadoAberto(e.currentTarget.open)}
+      >
+        <summary className="emer-radar-details__summary">
+          Opções avançadas (destinatários, runs, histórico de cidades)
+        </summary>
+        <div className="emer-radar-details__body space-y-5 pt-3">
+      <section>
+        <h3 className="mt-0 font-bold">Destinatários das tarefas</h3>
         <p className="text-sm text-ink-soft dark:text-[#9eb4c8]">
           Ao finalizar o pipeline, cria uma tarefa no Home para cada usuário marcado (Excel +
           HTML anexados).
@@ -869,62 +1077,7 @@ function PipelinePanel() {
         </button>
       </section>
 
-      {snap && (
-        <section className="el-stage">
-          {isRunning && (
-            <EmerRadarLoader
-              size="md"
-              label="Pipeline Emer-Radar em varredura…"
-              detail={[
-                snap.progress?.cidade_atual,
-                snap.progress?.fase,
-                snap.progress?.total
-                  ? `cidade ${snap.progress.index || 0}/${snap.progress.total}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            />
-          )}
-          <h3 className="mt-0 font-bold">
-            Status: {snap.status}
-            {snap.run_id ? ` · ${snap.run_id}` : ''}
-          </h3>
-          <p className="text-sm text-ink-muted">
-            {snap.progress?.cidade_atual || '—'} · {snap.progress?.index || 0}/
-            {snap.progress?.total || 0} · {snap.encontrados ?? results.length} registros
-          </p>
-          <PipelineBar snap={snap} />
-          {snap.error_message && (
-            <p className="text-sm text-status-erro">{snap.error_message}</p>
-          )}
-          <pre className="mt-3 max-h-40 overflow-auto rounded-xl bg-[#0d1520] p-3 text-xs text-[#cfe8f8]">
-            {(snap.logs || []).slice(-40).join('\n') || 'Sem logs ainda.'}
-          </pre>
-          {snap.status === 'CONCLUIDO' && (
-            <div className="mt-3 flex flex-wrap gap-3 text-sm">
-              <a
-                className="text-brand font-semibold underline"
-                href={pipelineExportUrl('xlsx', snap.run_id)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Exportar Excel
-              </a>
-              <a
-                className="text-brand font-semibold underline"
-                href={pipelineExportUrl('html', snap.run_id)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Relatório HTML
-              </a>
-            </div>
-          )}
-        </section>
-      )}
-
-      <section className="el-stage">
+      <section>
         <h3 className="mt-0 font-bold">Pipelines anteriores</h3>
         <div className="mt-2 flex flex-wrap items-end gap-3">
           <label className="min-w-[240px] flex-1 text-sm">
@@ -990,47 +1143,8 @@ function PipelinePanel() {
         </div>
       </section>
 
-      {results.length > 0 && (
-        <>
-          <section className="el-stage">
-            <h3 className="mt-0 font-bold">Google Maps ({mapsRows.length})</h3>
-            <p className="mt-0 mb-2 text-sm text-ink-muted">
-              Estabelecimentos do Maps. Badges coloridos indicam vínculo com planos.
-            </p>
-            <MapsTable rows={mapsRows.slice(0, 250)} />
-          </section>
-          <section className="el-stage">
-            <h3 className="mt-0 font-bold">
-              Somente planos ({planosPorFonte.reduce((n, g) => n + g.items.length, 0)})
-            </h3>
-            <p className="mt-0 mb-2 text-sm text-ink-muted">
-              Credenciados que aparecem só nas redes de plano (não encontrados no Maps).
-            </p>
-            {planosPorFonte.length === 0 ? (
-              <p className="m-0 text-sm text-ink-muted">Nenhum registro exclusivo de planos.</p>
-            ) : (
-              <div className="mt-3 space-y-6">
-                {planosPorFonte.map(({ fonte, items }) => (
-                  <div key={fonte}>
-                    <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                      <span className={`emer-radar-pill ${PLANO_CLASS[fonte] || ''}`}>
-                        {planoLabel(fonte)}
-                      </span>
-                      <span>
-                        {planoLabel(fonte)} ({items.length})
-                      </span>
-                    </h4>
-                    <PlanoTable fonte={fonte} rows={items.slice(0, 200)} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </>
-      )}
-
       {registry.length > 0 && (
-        <section className="el-stage">
+        <section>
           <h3 className="mt-0 font-bold">Histórico de cidades ({registry.length})</h3>
           <p className="mt-0 mb-3 text-sm text-ink-muted">
             Registry do worker (cooldown). Remover libera a cidade imediatamente.
@@ -1071,6 +1185,105 @@ function PipelinePanel() {
             ))}
           </div>
         </section>
+      )}
+        </div>
+      </details>
+
+      {snap && (
+        <PanelStep
+          title="Estado da execução"
+          hint={
+            isRunning
+              ? 'Pipeline a correr — pode acompanhar o progresso abaixo.'
+              : 'Última execução carregada ou em curso.'
+          }
+        >
+          {isRunning && (
+            <EmerRadarLoader
+              size="md"
+              label="Pipeline Emer-Radar em varredura…"
+              detail={[
+                snap.progress?.cidade_atual,
+                snap.progress?.fase,
+                snap.progress?.total
+                  ? `cidade ${snap.progress.index || 0}/${snap.progress.total}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            />
+          )}
+          <h3 className="mt-0 font-bold">
+            Status: {snap.status}
+            {snap.run_id ? ` · ${snap.run_id}` : ''}
+          </h3>
+          <p className="text-sm text-ink-muted">
+            {snap.progress?.cidade_atual || '—'} · {snap.progress?.index || 0}/
+            {snap.progress?.total || 0} · {snap.encontrados ?? results.length} registros
+          </p>
+          <PipelineBar snap={snap} />
+          {snap.error_message && (
+            <p className="text-sm text-status-erro">{snap.error_message}</p>
+          )}
+          <pre className="mt-3 max-h-40 overflow-auto rounded-xl bg-[#0d1520] p-3 text-xs text-[#cfe8f8]">
+            {(snap.logs || []).slice(-40).join('\n') || 'Sem logs ainda.'}
+          </pre>
+          {snap.status === 'CONCLUIDO' && (
+            <div className="mt-3 flex flex-wrap gap-3 text-sm">
+              <a
+                className="text-brand font-semibold underline"
+                href={pipelineExportUrl('xlsx', snap.run_id)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Exportar Excel
+              </a>
+              <a
+                className="text-brand font-semibold underline"
+                href={pipelineExportUrl('html', snap.run_id)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Relatório HTML
+              </a>
+            </div>
+          )}
+        </PanelStep>
+      )}
+
+      {results.length > 0 && (
+        <>
+          <PanelStep
+            title={`Google Maps (${mapsRows.length})`}
+            hint="Estabelecimentos do Maps. Badges coloridos indicam vínculo com planos."
+          >
+            <MapsTable rows={mapsRows.slice(0, 250)} />
+          </PanelStep>
+          <PanelStep
+            title={`Somente planos (${planosPorFonte.reduce((n, g) => n + g.items.length, 0)})`}
+            hint="Credenciados que aparecem só nas redes de plano (não encontrados no Maps)."
+          >
+            {planosPorFonte.length === 0 ? (
+              <p className="m-0 text-sm text-ink-muted">Nenhum registro exclusivo de planos.</p>
+            ) : (
+              <div className="mt-1 space-y-6">
+                {planosPorFonte.map(({ fonte, items }) => (
+                  <div key={fonte}>
+                    <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                      <span className={`emer-radar-pill ${PLANO_CLASS[fonte] || ''}`}>
+                        {planoLabel(fonte)}
+                      </span>
+                      <span>
+                        {planoLabel(fonte)} ({items.length})
+                      </span>
+                    </h4>
+                    <PlanoTable fonte={fonte} rows={items.slice(0, 200)} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </PanelStep>
+        </>
       )}
     </div>
   )
@@ -1672,6 +1885,14 @@ function ProspectPanel() {
     }
   }, [isRunning, onScrapeConcluido, avancarFilaAtualizacao, applySnap])
 
+  const cidadeIbgeOk = useMemo(() => {
+    const nome = String(cidade || '').trim().toLowerCase()
+    if (!nome || !uf) return false
+    return (municipios || []).some((m) => String(m?.nome || '').trim().toLowerCase() === nome)
+  }, [cidade, uf, municipios])
+
+  const buscaPronta = Boolean(uf && cidadeIbgeOk && termos.length > 0 && maxResults >= 20)
+
   const handleStart = async () => {
     setError('')
     setSaveMsg('')
@@ -1679,18 +1900,24 @@ function ProspectPanel() {
       setError('Aguarde a atualização do catálogo terminar (ou cancele).')
       return
     }
+    if (!uf) {
+      setError('Selecione a UF.')
+      return
+    }
     if (!cidade.trim()) {
-      setError('Informe a cidade.')
+      setError('Selecione a cidade na lista IBGE.')
+      return
+    }
+    if (!cidadeIbgeOk) {
+      setError('Cidade inválida. Escolha um município da lista IBGE (sem digitar à mão).')
       return
     }
     if (!termos.length) {
-      setError('Selecione ao menos um termo.')
+      setError('Marque ao menos um termo de busca.')
       return
     }
-    if (maxResults === 0) {
-      setError('Não é possível rodar a busca para zero resultados.')
-      return
-    }
+    const maxOk = Math.min(Math.max(Number(maxResults) || 80, 20), 150)
+    if (maxOk !== maxResults) setMaxResults(maxOk)
     try {
       filaAtualizacaoRef.current = null
       setAtualizandoCatalogo(false)
@@ -1699,7 +1926,7 @@ function ProspectPanel() {
         cidade: cidade.trim(),
         uf,
         termos,
-        max_results: maxResults,
+        max_results: maxOk,
       })
       setAba('busca')
     } catch (e) {
@@ -1780,249 +2007,311 @@ function ProspectPanel() {
 
   return (
     <div className="space-y-4">
-      <section className="el-stage">
-        <h2 className="mt-0 mb-1 text-lg font-bold text-[#123e59] dark:text-[#e8f1f8]">
-          Prospect Maps
-        </h2>
-        <p className="mt-0 mb-4 text-sm text-ink-muted">
-          Busca no Google Maps. Resultados são salvos no catálogo (sem fotos de fachada) para filtrar depois por
-          cidade/UF.
-        </p>
+      <div className="emer-radar-mode-toggle" role="tablist" aria-label="Prospect Maps">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === 'busca'}
+          className={aba === 'busca' ? 'is-active' : ''}
+          onClick={() => setAba('busca')}
+        >
+          1 · Nova busca
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === 'catalogo'}
+          className={aba === 'catalogo' ? 'is-active' : ''}
+          onClick={() => setAba('catalogo')}
+        >
+          2 · Catálogo salvo
+        </button>
+      </div>
 
-        <div className="emer-radar-view-toggle mb-4" role="tablist" aria-label="Prospect Maps">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={aba === 'busca'}
-            className={aba === 'busca' ? 'is-active' : ''}
-            onClick={() => setAba('busca')}
-          >
-            Nova busca
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={aba === 'catalogo'}
-            className={aba === 'catalogo' ? 'is-active' : ''}
-            onClick={() => setAba('catalogo')}
-          >
-            Catálogo salvo
-          </button>
-        </div>
+      {aba === 'busca' ? (
+        <PanelStep
+          step={1}
+          title="Definir local e termos"
+          hint="Cidade só pela lista IBGE (evita nomes errados). Resultados gravam no catálogo sem fotos de fachada."
+        >
+          <div className="emer-radar-form-grid emer-radar-form-grid--prospect">
+            <label className="text-sm">
+              <span className="mb-1 block font-semibold">
+                UF <span className="text-status-erro">*</span>
+              </span>
+              <SelectUfBusca
+                value={uf}
+                disabled={isRunning}
+                onChange={(u) => {
+                  setUf(u)
+                  setCidade('')
+                }}
+              />
+            </label>
+            <label className="text-sm emer-radar-form-grid__wide">
+              <span className="mb-1 block font-semibold">
+                Cidade (IBGE) <span className="text-status-erro">*</span>
+              </span>
+              <SelectMunicipioBusca
+                value={cidade}
+                valueKey="nome"
+                options={municipios}
+                disabled={!uf || loadingMun || isRunning}
+                loading={loadingMun}
+                inputClassName={SELECT_CIDADE_INPUT}
+                placeholder={!uf ? 'Selecione a UF primeiro' : 'Buscar município…'}
+                onChange={setCidade}
+              />
+              <span className="mt-1 block text-xs text-ink-muted">
+                Só municípios oficiais — não é possível criar cidade livre.
+              </span>
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block font-semibold">Máx. por termo</span>
+              <input
+                type="number"
+                min={20}
+                max={150}
+                step={10}
+                className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
+                value={maxResults}
+                disabled={isRunning}
+                onChange={(e) => {
+                  const n = Number(e.target.value)
+                  setMaxResults(Number.isFinite(n) ? n : 80)
+                }}
+                onBlur={() =>
+                  setMaxResults((v) => Math.min(Math.max(Number(v) || 80, 20), 150))
+                }
+              />
+              <span className="mt-1 block text-xs text-ink-muted">Entre 20 e 150.</span>
+            </label>
+          </div>
 
-        {aba === 'busca' ? (
-          <>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <label className="text-sm">
-                <span className="mb-1 block font-semibold">UF</span>
-                <SelectUfBusca
-                  value={uf}
+          <div className="mt-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="m-0 text-sm font-semibold">
+                Termos <span className="text-status-erro">*</span>
+              </p>
+              <div className="flex gap-2 text-xs">
+                <button
+                  type="button"
+                  className="border-0 bg-transparent cursor-pointer font-semibold text-brand"
                   disabled={isRunning}
-                  onChange={(u) => {
-                    setUf(u)
-                    setCidade('')
-                  }}
-                />
-              </label>
-              <label className="text-sm sm:col-span-1">
-                <span className="mb-1 block font-semibold">Cidade</span>
-                <SelectMunicipioBusca
-                  value={cidade}
-                  valueKey="nome"
-                  options={municipios}
-                  disabled={!uf || loadingMun || isRunning}
-                  loading={loadingMun}
-                  inputClassName={SELECT_CIDADE_INPUT}
-                  placeholder={!uf ? 'Selecione a UF' : 'Buscar cidade…'}
-                  creatable
-                  createLabel={(q) => `Usar «${q}»`}
-                  onChange={setCidade}
-                />
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block font-semibold">Máx. por termo</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={500}
-                  className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
-                  value={maxResults}
+                  onClick={() => setTermos([...terms])}
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  className="border-0 bg-transparent cursor-pointer font-semibold text-ink-muted"
                   disabled={isRunning}
-                  onChange={(e) => setMaxResults(Number(e.target.value) || 0)}
-                />
-              </label>
-            </div>
-
-            <div className="mt-4">
-              <p className="mb-2 text-sm font-semibold">Termos</p>
-              <div className="emer-radar-chip-row">
-                {terms.map((t) => {
-                  const on = termos.includes(t)
-                  return (
-                    <label key={t} className={`emer-radar-chip ${on ? 'is-on' : ''}`}>
-                      <input
-                        type="checkbox"
-                        disabled={isRunning}
-                        checked={on}
-                        onChange={() =>
-                          setTermos((prev) => (on ? prev.filter((x) => x !== t) : [...prev, t]))
-                        }
-                      />
-                      {t}
-                    </label>
-                  )
-                })}
+                  onClick={() => setTermos([])}
+                >
+                  Limpar
+                </button>
               </div>
             </div>
+            <div className="emer-radar-chip-row" role="group" aria-label="Termos de busca">
+              {terms.map((t) => {
+                const on = termos.includes(t)
+                return (
+                  <label key={t} className={`emer-radar-chip ${on ? 'is-on' : ''}`}>
+                    <input
+                      type="checkbox"
+                      disabled={isRunning}
+                      checked={on}
+                      onChange={() =>
+                        setTermos((prev) => (on ? prev.filter((x) => x !== t) : [...prev, t]))
+                      }
+                    />
+                    {t}
+                  </label>
+                )
+              })}
+            </div>
+          </div>
 
-            <div className="mt-4 flex flex-wrap gap-3">
-              {!isRunning ? (
-                <button
-                  type="button"
-                  className={buttonClassName()}
-                  onClick={handleStart}
-                  disabled={atualizandoCatalogo}
-                >
-                  Iniciar busca
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className={buttonClassName({ variant: 'danger' })}
-                  onClick={() => void handleCancelarBusca()}
-                >
-                  {atualizandoCatalogo ? 'Cancelar atualização' : 'Parar busca'}
-                </button>
-              )}
-              {results.length > 0 && (
-                <>
-                  <button
-                    type="button"
-                    className={buttonClassName({ variant: 'secondary' })}
-                    disabled={salvando || isRunning}
-                    onClick={salvarManual}
-                  >
-                    {salvando ? 'Salvando…' : 'Salvar no catálogo'}
-                  </button>
-                  <a
-                    className={buttonClassName({ variant: 'secondary' })}
-                    href={scrapeExportExcelUrl()}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Excel
-                  </a>
-                  <a
-                    className={buttonClassName({ variant: 'secondary' })}
-                    href={scrapeExportPdfUrl()}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    PDF
-                  </a>
-                </>
-              )}
+          {(uf || cidade || termos.length > 0) && (
+            <div className="emer-radar-preview mt-4" aria-live="polite">
+              <p className="emer-radar-preview__title">Resumo antes de iniciar</p>
+              <ul className="emer-radar-checklist">
+                <li className={uf ? 'is-ok' : 'is-miss'}>
+                  <span aria-hidden>{uf ? '✓' : '○'}</span>
+                  UF: {uf || 'em falta'}
+                </li>
+                <li className={cidadeIbgeOk ? 'is-ok' : 'is-miss'}>
+                  <span aria-hidden>{cidadeIbgeOk ? '✓' : '○'}</span>
+                  Cidade IBGE: {cidadeIbgeOk ? cidade : cidade ? 'não está na lista' : 'em falta'}
+                </li>
+                <li className={termos.length ? 'is-ok' : 'is-miss'}>
+                  <span aria-hidden>{termos.length ? '✓' : '○'}</span>
+                  {termos.length
+                    ? `${termos.length} termo${termos.length === 1 ? '' : 's'} · até ${maxResults} resultados cada`
+                    : 'Selecione ao menos 1 termo'}
+                </li>
+              </ul>
             </div>
-          </>
-        ) : (
-          <>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="text-sm">
-                <span className="mb-1 block font-semibold">UF</span>
-                <SelectUfBusca
-                  value={filtroUf}
-                  onChange={(v) => {
-                    setFiltroUf(v)
-                    setFiltroCidade('')
-                  }}
-                  emptyLabel="Todas"
-                  placeholder="Todas as UFs"
-                />
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block font-semibold">Cidade</span>
-                <SelectMunicipioBusca
-                  value={filtroCidade}
-                  valueKey="nome"
-                  options={municipiosCatalogo}
-                  disabled={loadingMunFiltro}
-                  loading={Boolean(filtroUf) && loadingMunFiltro}
-                  inputClassName={SELECT_CIDADE_INPUT}
-                  placeholder={
-                    filtroUf ? 'Buscar cidade…' : 'Selecione a UF (ou digite uma cidade salva)'
-                  }
-                  creatable
-                  createLabel={(q) => `Usar «${q}»`}
-                  onChange={setFiltroCidade}
-                />
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block font-semibold">Status</span>
-                <select
-                  className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
-                  value={filtroStatus}
-                  onChange={(e) => setFiltroStatus(e.target.value)}
-                >
-                  <option value="">Ativos (sem descartados)</option>
-                  {STATUS_PROSPECCAO_MAPS_OPCOES.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block font-semibold">Busca</span>
-                <input
-                  className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
-                  value={filtroBusca}
-                  onChange={(e) => setFiltroBusca(e.target.value)}
-                  placeholder="Nome, endereço, telefone…"
-                />
-              </label>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-3">
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            {!isRunning ? (
               <button
                 type="button"
                 className={buttonClassName()}
-                disabled={catalogoLoading || atualizandoCatalogo || isRunning}
-                onClick={() => void carregarCatalogo()}
+                onClick={handleStart}
+                disabled={atualizandoCatalogo || !buscaPronta}
+                title={
+                  !buscaPronta
+                    ? 'Preencha UF, cidade IBGE e ao menos um termo'
+                    : 'Iniciar busca no Google Maps'
+                }
               >
-                {catalogoLoading ? 'Carregando…' : 'Buscar no catálogo'}
+                Iniciar busca
+                {buscaPronta && cidade ? ` · ${cidade}/${uf}` : ''}
               </button>
-            </div>
-            <p className="mt-3 mb-0 text-xs text-ink-muted">
-              Depois de filtrar a lista, use «Atualizar filtrados» nos resultados para rebuscar no Maps e
-              sobrescrever telefone, endereço, horário e categoria dos registros já salvos.
-            </p>
-          </>
-        )}
+            ) : (
+              <button
+                type="button"
+                className={buttonClassName({ variant: 'danger' })}
+                onClick={() => void handleCancelarBusca()}
+              >
+                {atualizandoCatalogo ? 'Cancelar atualização' : 'Parar busca'}
+              </button>
+            )}
+            {results.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  className={buttonClassName({ variant: 'secondary' })}
+                  disabled={salvando || isRunning}
+                  onClick={salvarManual}
+                >
+                  {salvando ? 'Salvando…' : 'Salvar no catálogo'}
+                </button>
+                <a
+                  className={buttonClassName({ variant: 'secondary' })}
+                  href={scrapeExportExcelUrl()}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Excel
+                </a>
+                <a
+                  className={buttonClassName({ variant: 'secondary' })}
+                  href={scrapeExportPdfUrl()}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  PDF
+                </a>
+              </>
+            )}
+          </div>
+        </PanelStep>
+      ) : (
+        <PanelStep
+          step={2}
+          title="Filtrar catálogo salvo"
+          hint="Escolha UF/cidade na lista (IBGE + cidades já prospectadas). Depois use «Atualizar filtrados» nos resultados para rebuscar no Maps."
+        >
+          <div className="emer-radar-form-grid emer-radar-form-grid--catalog">
+            <label className="text-sm">
+              <span className="mb-1 block font-semibold">UF</span>
+              <SelectUfBusca
+                value={filtroUf}
+                onChange={(v) => {
+                  setFiltroUf(v)
+                  setFiltroCidade('')
+                }}
+                emptyLabel="Todas"
+                placeholder="Todas as UFs"
+              />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block font-semibold">Cidade</span>
+              <SelectMunicipioBusca
+                value={filtroCidade}
+                valueKey="nome"
+                options={municipiosCatalogo}
+                disabled={loadingMunFiltro}
+                loading={Boolean(filtroUf) && loadingMunFiltro}
+                inputClassName={SELECT_CIDADE_INPUT}
+                placeholder={
+                  filtroUf ? 'Buscar cidade…' : 'Todas · ou selecione UF para filtrar'
+                }
+                onChange={setFiltroCidade}
+              />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block font-semibold">Status</span>
+              <select
+                className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
+                value={filtroStatus}
+                onChange={(e) => setFiltroStatus(e.target.value)}
+              >
+                <option value="">Ativos (sem descartados)</option>
+                {STATUS_PROSPECCAO_MAPS_OPCOES.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block font-semibold">Busca livre</span>
+              <input
+                className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
+                value={filtroBusca}
+                onChange={(e) => setFiltroBusca(e.target.value)}
+                placeholder="Nome, endereço, telefone…"
+              />
+            </label>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              className={buttonClassName()}
+              disabled={catalogoLoading || atualizandoCatalogo || isRunning}
+              onClick={() => void carregarCatalogo()}
+            >
+              {catalogoLoading ? 'Carregando…' : 'Aplicar filtros'}
+            </button>
+          </div>
+        </PanelStep>
+      )}
 
-        {error && (
-          <p className="mt-3 mb-0 rounded-xl border border-status-erro/30 bg-status-erro-bg px-3 py-2 text-sm text-status-erro">
-            {error}
-          </p>
-        )}
-        {saveMsg && (
-          <p
-            className={`mt-3 mb-0 rounded-xl border px-3 py-2 text-sm ${
-              /ausente|falha|não foi|erro/i.test(saveMsg)
-                ? 'border-status-erro/30 bg-status-erro-bg text-status-erro'
-                : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
-            }`}
-          >
-            {saveMsg}
-          </p>
-        )}
-        {catalogoErro && aba === 'catalogo' && (
-          <p className="mt-3 mb-0 rounded-xl border border-status-erro/30 bg-status-erro-bg px-3 py-2 text-sm text-status-erro">
-            {catalogoErro}
-          </p>
-        )}
-      </section>
+      {error && (
+        <p className="m-0 rounded-xl border border-status-erro/30 bg-status-erro-bg px-3 py-2 text-sm text-status-erro">
+          {error}
+        </p>
+      )}
+      {saveMsg && (
+        <p
+          className={`m-0 rounded-xl border px-3 py-2 text-sm ${
+            /ausente|falha|não foi|erro/i.test(saveMsg)
+              ? 'border-status-erro/30 bg-status-erro-bg text-status-erro'
+              : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+          }`}
+        >
+          {saveMsg}
+        </p>
+      )}
+      {catalogoErro && aba === 'catalogo' && (
+        <p className="m-0 rounded-xl border border-status-erro/30 bg-status-erro-bg px-3 py-2 text-sm text-status-erro">
+          {catalogoErro}
+        </p>
+      )}
 
       {showProgress && (
-        <section className="el-stage">
+        <PanelStep
+          title="Progresso da busca"
+          hint={
+            isRunning
+              ? 'Acompanhe termo a termo. Pode parar a qualquer momento.'
+              : 'Última execução — logs e estado final.'
+          }
+        >
           {atualizacaoProgresso ? (
             <p className="mt-0 mb-3 rounded-xl border border-[#123e59]/20 bg-[#123e59]/5 px-3 py-2 text-sm text-[#123e59] dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-100">
               {atualizacaoProgresso}
@@ -2082,7 +2371,7 @@ function ProspectPanel() {
               {logs.slice(-30).join('\n')}
             </pre>
           )}
-        </section>
+        </PanelStep>
       )}
 
       {aba === 'busca' ? (
@@ -2096,16 +2385,16 @@ function ProspectPanel() {
           onEnviadoKanbanOk={(est) => aplicarStatusCatalogoLocal(est, 'contactado')}
         />
       ) : catalogoLoading && !catalogo.length ? (
-        <section className="el-stage">
+        <PanelStep title="Catálogo">
           <p className="m-0 text-sm text-ink-muted">Carregando catálogo…</p>
-        </section>
+        </PanelStep>
       ) : !catalogo.length ? (
-        <section className="el-stage">
+        <PanelStep title="Catálogo">
           <p className="m-0 text-sm text-ink-muted">
-            Nenhum prospecto salvo para estes filtros. Rode uma busca em «Nova busca» — os resultados entram no
-            catálogo automaticamente (sem fotos).
+            Nenhum prospecto para estes filtros. Rode uma busca em «Nova busca» — os resultados
+            entram no catálogo automaticamente (sem fotos).
           </p>
-        </section>
+        </PanelStep>
       ) : (
         <EmerRadarProspectResults
           results={catalogo}

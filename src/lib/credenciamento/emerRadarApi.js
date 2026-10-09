@@ -1,8 +1,11 @@
 /**
  * Cliente HTTP do worker Emer-Radar (FastAPI + Playwright).
  *
- * Dev: proxy Vite `/emeradar` → http://127.0.0.1:8000
- * Prod: VITE_EMERADAR_API_BASE=https://seu-worker.up.railway.app
+ * - Dev: proxy Vite `/emeradar` → http://127.0.0.1:8000
+ * - Prod: pipeline/cron via GitHub Actions (POST /api/emer-radar-cron);
+ *   scraping interativo exige worker local.
+ *
+ * Override raro: VITE_EMERADAR_API_BASE + VITE_EMERADAR_DIRECT=true
  */
 
 const DEFAULT_TERMS = [
@@ -13,8 +16,31 @@ const DEFAULT_TERMS = [
 ]
 
 export function getEmerRadarApiBase() {
+  const direct = String(import.meta.env.VITE_EMERADAR_DIRECT || '').trim() === 'true'
   const raw = (import.meta.env.VITE_EMERADAR_API_BASE || '').trim().replace(/\/$/, '')
-  return raw || '/emeradar'
+  if (direct && raw) return raw
+  return '/emeradar'
+}
+
+/** Dispara o workflow Emer-Radar cron no GitHub Actions. */
+export async function triggerEmerRadarCron(opts = {}) {
+  const { data: sess } = await (await import('../supabase.js')).supabase.auth.getSession()
+  const token = sess?.session?.access_token
+  if (!token) throw new Error('Faça login para disparar o cron.')
+
+  const res = await fetch('/api/emer-radar-cron', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ ref: opts.ref || undefined }),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok || json?.ok === false) {
+    throw new Error(json?.error || `Falha ao disparar o cron (HTTP ${res.status}).`)
+  }
+  return json
 }
 
 export function getDefaultSearchTerms() {

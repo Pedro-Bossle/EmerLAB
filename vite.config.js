@@ -11,6 +11,7 @@ import clicksignDownloadHandler from './api/clicksign-download.js'
 import clicksignUploadDocumentHandler from './api/clicksign-upload-document.js'
 import adminUsersHandler from './api/admin-users.js'
 import emailHandler from './api/email.js'
+import emerRadarCronHandler from './api/emer-radar-cron.js'
 import auditLogsHandler from './api/audit-logs.js'
 import { nodeHandler as ibgeMunicipiosHandler } from './api/ibge-municipios.js'
 
@@ -340,16 +341,15 @@ function adminUsersDevPlugin() {
     }
 }
 
-/** Em dev, atende POST /api/email (worker Emer-Radar → Resend). */
-function emailDevPlugin() {
+function makeJsonApiDevPlugin(name, pathPrefix, handler, erroLabel) {
     return {
-        name: 'email-dev',
+        name,
         enforce: 'pre',
         configureServer(server) {
             carregarEnvParaProcesso(server.config.envDir, server.config.mode)
             server.middlewares.use(async (req, res, next) => {
                 const url = req.url || ''
-                if (!url.startsWith('/api/email')) {
+                if (!url.startsWith(pathPrefix)) {
                     next()
                     return
                 }
@@ -373,8 +373,8 @@ function emailDevPlugin() {
                 }
                 const resLike = {
                     statusCode: 200,
-                    setHeader(name, value) {
-                        res.setHeader(name, value)
+                    setHeader(nameHdr, value) {
+                        res.setHeader(nameHdr, value)
                     },
                     status(code) {
                         this.statusCode = code
@@ -390,15 +390,30 @@ function emailDevPlugin() {
                     },
                 }
                 try {
-                    await emailHandler(reqLike, resLike)
+                    await handler(reqLike, resLike)
                 } catch (e) {
                     res.statusCode = 502
                     res.setHeader('Content-Type', 'application/json; charset=utf-8')
-                    res.end(JSON.stringify({ error: e?.message || 'Falha na API email.' }))
+                    res.end(JSON.stringify({ error: e?.message || erroLabel }))
                 }
             })
         },
     }
+}
+
+/** Em dev, atende POST /api/email (worker Emer-Radar → Resend). */
+function emailDevPlugin() {
+    return makeJsonApiDevPlugin('email-dev', '/api/email', emailHandler, 'Falha na API email.')
+}
+
+/** Em dev, atende POST /api/emer-radar-cron (GitHub Actions). */
+function emerRadarCronDevPlugin() {
+    return makeJsonApiDevPlugin(
+        'emer-radar-cron-dev',
+        '/api/emer-radar-cron',
+        emerRadarCronHandler,
+        'Falha ao disparar o cron Emer-Radar.',
+    )
 }
 
 /** Em dev, atende GET /api/gemini-rate no Vite (mesma function que prospectos). */
@@ -688,6 +703,7 @@ export default defineConfig(({ command, mode }) => {
             command === 'serve' ? prospectosOsmColetarDevPlugin() : null,
             command === 'serve' ? adminUsersDevPlugin() : null,
             command === 'serve' ? emailDevPlugin() : null,
+            command === 'serve' ? emerRadarCronDevPlugin() : null,
             command === 'serve' ? auditLogsDevPlugin() : null,
             command === 'serve' ? geminiRateDevPlugin() : null,
             command === 'serve' ? clicksignDevPlugin() : null,

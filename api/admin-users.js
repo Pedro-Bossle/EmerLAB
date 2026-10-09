@@ -109,18 +109,42 @@ const mensagemErroAuthSupabase = (error) => {
     return msg || 'Falha na autenticação Supabase.'
 }
 
-const redirectAuthPadrao = (body) =>
-    String(body?.redirectTo || process.env.SITE_URL || '').trim() || undefined
+/** Links de Auth devem abrir a tela de definir/alterar senha — nunca a home. */
+const PATH_ALTERAR_SENHA = '/alterar-senha'
+
+const redirectAuthPadrao = (body) => {
+    const raw = String(body?.redirectTo || process.env.SITE_URL || '').trim()
+    if (!raw) return undefined
+    try {
+        const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+        const u = new URL(withProto)
+        return `${u.origin}${PATH_ALTERAR_SENHA}`
+    } catch {
+        return raw
+    }
+}
+
+const marcarExigirTrocaSenha = async (supabase, userId) => {
+    const uid = String(userId || '').trim()
+    if (!uid) return
+    const { error } = await supabase
+        .from('profiles')
+        .update({ force_password_change: true })
+        .eq('id', uid)
+    if (error && !colunaAusenteNoErro(error, 'force_password_change')) {
+        console.error('[admin-users] falha ao marcar force_password_change:', error.message)
+    }
+}
 
 /**
  * Gera link de Auth sem enviar e-mail pelo Supabase e dispara via Resend.
  * @param {'invite' | 'recovery'} authType tipo do generateLink
- * @param {{ supabase: import('@supabase/supabase-js').SupabaseClient, email: string, nome?: string, redirectTo?: string, template?: 'invite' | 'invite_existing' | 'recovery' }} opts
+ * @param {{ supabase: import('@supabase/supabase-js').SupabaseClient, email: string, nome?: string, redirectTo?: string, template?: 'invite' | 'invite_existing' | 'recovery', userId?: string }} opts
  */
 const enviarLinkAuthPorResend = async (authType, opts) => {
     const email = String(opts.email || '').trim().toLowerCase()
     const nome = String(opts.nome || '').trim()
-    const redirectTo = opts.redirectTo
+    const redirectTo = opts.redirectTo || redirectAuthPadrao({})
     const template =
         opts.template || (authType === 'invite' ? 'invite' : 'recovery')
 
@@ -137,6 +161,11 @@ const enviarLinkAuthPorResend = async (authType, opts) => {
     const actionLink = String(data?.properties?.action_link || '').trim()
     if (!actionLink) {
         throw new Error('Não foi possível gerar o link de acesso.')
+    }
+
+    const userId = opts.userId || data?.user?.id
+    if (authType === 'recovery' || template === 'invite' || template === 'invite_existing') {
+        await marcarExigirTrocaSenha(opts.supabase, userId)
     }
 
     await enviarEmailTemplate({
@@ -461,6 +490,7 @@ export default async function handler(req, res) {
                     supabase,
                     email,
                     nome,
+                    userId: perfil?.id,
                     redirectTo: redirectAuthPadrao(body) || undefined,
                 })
 
@@ -505,6 +535,7 @@ export default async function handler(req, res) {
                     supabase,
                     email,
                     nome,
+                    userId: auth.user.id,
                     redirectTo: redirectAuthPadrao(body),
                 })
             } catch (errEnvio) {
@@ -633,6 +664,7 @@ export default async function handler(req, res) {
                         supabase,
                         email,
                         nome: name,
+                        userId: user.id,
                         redirectTo,
                         template: 'invite_existing',
                     })
@@ -651,6 +683,7 @@ export default async function handler(req, res) {
                 name,
                 email,
                 permissions,
+                force_password_change: true,
                 password_changed_at: new Date().toISOString(),
             })
 
@@ -882,6 +915,7 @@ export default async function handler(req, res) {
                     supabase,
                     email,
                     nome: nomeAlvo,
+                    userId: alvo.id,
                     redirectTo: redirectAuthPadrao(body),
                 })
             } catch (errEnvio) {

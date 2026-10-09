@@ -4,6 +4,12 @@ import { supabase } from '../../lib/supabase'
 import { registrarEventoAuthAuditoria } from '../../lib/auditoriaLogs.js'
 import { Button, Input } from '../../components/ui'
 import { carregarSessaoEPerfilAcesso } from '../../lib/authSession'
+import {
+  destinoAlterarSenhaAposRecuperacao,
+  isPasswordRecoveryPending,
+  urlIndicaRecuperacaoSenha,
+  markPasswordRecoveryPending,
+} from '../../lib/passwordRecovery'
 
 const DARK_MODE_KEY = 'emerlab-dark-mode'
 
@@ -65,17 +71,16 @@ const Login = () => {
   }, [])
 
   useEffect(() => {
+    if (urlIndicaRecuperacaoSenha()) markPasswordRecoveryPending('url')
     let ativo = true
     void (async () => {
       try {
         const { session, profile } = await carregarSessaoEPerfilAcesso()
         if (!ativo || !session?.user?.id) return
-        if (profile?.forcePasswordChange) {
-          const next =
-            destino && destino !== '/' && destino !== '/alterar-senha'
-              ? `/alterar-senha?next=${encodeURIComponent(destino)}`
-              : '/alterar-senha'
-          navigate(next, { replace: true })
+        const precisaTrocarSenha =
+          Boolean(profile?.forcePasswordChange) || isPasswordRecoveryPending()
+        if (precisaTrocarSenha) {
+          navigate(destinoAlterarSenhaAposRecuperacao(destino), { replace: true })
           return
         }
         navigate(destino, { replace: true })
@@ -111,12 +116,8 @@ const Login = () => {
     try {
       const { profile } = await carregarSessaoEPerfilAcesso()
       setLoading(false)
-      if (profile?.forcePasswordChange) {
-        const next =
-          destino && destino !== '/' && destino !== '/alterar-senha'
-            ? `/alterar-senha?next=${encodeURIComponent(destino)}`
-            : '/alterar-senha'
-        navigate(next)
+      if (profile?.forcePasswordChange || isPasswordRecoveryPending()) {
+        navigate(destinoAlterarSenhaAposRecuperacao(destino))
         return
       }
       navigate(destino)
@@ -143,7 +144,7 @@ const Login = () => {
         body: JSON.stringify({
           action: 'forgotPassword',
           email: emailTrim,
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: `${window.location.origin}/alterar-senha`,
         }),
       })
       const json = await resp.json().catch(() => ({}))

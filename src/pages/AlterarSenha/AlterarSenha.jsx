@@ -9,6 +9,12 @@ import {
   textoAjudaPoliticaSenha,
   validarPoliticaSenha,
 } from '../../lib/passwordPolicy'
+import {
+  clearPasswordRecoveryPending,
+  isPasswordRecoveryPending,
+  markPasswordRecoveryPending,
+  urlIndicaRecuperacaoSenha,
+} from '../../lib/passwordRecovery'
 
 const DARK_MODE_KEY = 'emerlab-dark-mode'
 
@@ -77,6 +83,7 @@ const AlterarSenha = () => {
   }, [])
 
   useEffect(() => {
+    if (urlIndicaRecuperacaoSenha()) markPasswordRecoveryPending('url')
     let ativo = true
     void (async () => {
       try {
@@ -86,8 +93,14 @@ const AlterarSenha = () => {
           navigate('/', { replace: true })
           return
         }
-        setObrigatorio(Boolean(profile?.forcePasswordChange))
-        setMotivo(profile?.forcePasswordChangeReason || null)
+        const viaLink = isPasswordRecoveryPending()
+        const forcar = Boolean(profile?.forcePasswordChange) || viaLink
+        setObrigatorio(forcar)
+        setMotivo(
+          viaLink
+            ? 'recovery'
+            : profile?.forcePasswordChangeReason || null,
+        )
         setReady(true)
       } catch {
         if (!ativo) return
@@ -128,6 +141,7 @@ const AlterarSenha = () => {
         return
       }
 
+      clearPasswordRecoveryPending()
       invalidarCachePerfilAcesso(uid)
       const base = profileLiberado || (await carregarSessaoEPerfilAcesso()).profile || {}
       setStoredAccessProfile(
@@ -163,7 +177,9 @@ const AlterarSenha = () => {
   const textoApoio =
     motivo === 'expired'
       ? 'Por segurança, a senha precisa ser renovada a cada 90 dias. Escolha uma nova senha para continuar.'
-      : 'Um administrador solicitou a alteração da sua senha neste acesso. Escolha uma nova senha para continuar.'
+      : motivo === 'recovery'
+        ? 'Use o formulário abaixo para definir uma nova senha. Só depois poderá aceder à plataforma.'
+        : 'Um administrador solicitou a alteração da sua senha neste acesso. Escolha uma nova senha para continuar.'
 
   return (
     <main className="relative isolate flex min-h-dvh items-center justify-center overflow-hidden bg-[radial-gradient(1200px_700px_at_12%_-10%,#cfe8f8_0%,transparent_55%),radial-gradient(900px_600px_at_100%_0%,#d9eef7_0%,transparent_50%),linear-gradient(165deg,#eef6fb_0%,#f7fbfd_42%,#e8f2f8_100%)] p-6 dark:bg-[radial-gradient(1000px_640px_at_10%_-8%,#1a3a52_0%,transparent_55%),linear-gradient(165deg,#0d1520_0%,#121c2a_45%,#0f1a26_100%)]">
@@ -172,7 +188,11 @@ const AlterarSenha = () => {
           EmerLAB
         </p>
         <h1 className="mb-2 font-sans text-xl font-extrabold tracking-tight text-[#123e59] dark:text-[#e8f1f8]">
-          {motivo === 'expired' ? 'Senha expirada' : 'Defina uma nova senha'}
+          {motivo === 'expired'
+            ? 'Senha expirada'
+            : motivo === 'recovery'
+              ? 'Redefinir senha'
+              : 'Defina uma nova senha'}
         </h1>
         <p className="mb-6 max-w-[38ch] text-[0.95rem] font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
           {textoApoio}
