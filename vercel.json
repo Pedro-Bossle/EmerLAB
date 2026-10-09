@@ -20,10 +20,12 @@
       "maxDuration": 15
     },
     "api/admin-users.js": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "public/email/**"
     },
     "api/email.js": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "public/email/**"
     },
     "api/audit-logs.js": {
       "maxDuration": 30
@@ -63,7 +65,7 @@
       "destination": "/api/prospectos-osm-coletar?_route=gemini-rate"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/((?!api/|email/).*)",
       "destination": "/index.html"
     }
   ],

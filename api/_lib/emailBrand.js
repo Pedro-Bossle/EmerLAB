@@ -19,23 +19,50 @@ export const EMAIL_BRAND = Object.freeze({
     border: '#d7e1ea',
 })
 
-/** Origem canônica para links e imagens nos e-mails. */
+const isLocalOrigin = (origin) =>
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(String(origin || ''))
+
+/**
+ * Apex emerlab.com.br responde 308 → www; clientes de e-mail (Outlook) muitas
+ * vezes não seguem o redirect nas <img>. Sempre usar www para assets.
+ */
+const canonicalizeEmailOrigin = (origin) => {
+    try {
+        const u = new URL(origin)
+        if (u.hostname === 'emerlab.com.br') {
+            u.hostname = 'www.emerlab.com.br'
+        }
+        return u.origin.replace(/\/$/, '')
+    } catch {
+        return origin
+    }
+}
+
+/** Origem pública para links/imagens nos e-mails (nunca localhost). */
 export function emailAssetOrigin() {
-    const raw = String(
-        process.env.SITE_URL ||
-            process.env.VITE_SITE_URL ||
-            process.env.VERCEL_PROJECT_PRODUCTION_URL ||
-            '',
-    ).trim()
-    if (raw) {
+    const candidates = [
+        process.env.EMAIL_PUBLIC_URL,
+        process.env.EMAIL_ASSET_ORIGIN,
+        process.env.VERCEL_PROJECT_PRODUCTION_URL
+            ? `https://${String(process.env.VERCEL_PROJECT_PRODUCTION_URL).replace(/^https?:\/\//i, '')}`
+            : '',
+        process.env.SITE_URL,
+        process.env.VITE_SITE_URL,
+    ]
+
+    for (const raw of candidates) {
+        const s = String(raw || '').trim()
+        if (!s) continue
         try {
-            const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
-            return new URL(withProto).origin.replace(/\/$/, '')
+            const withProto = /^https?:\/\//i.test(s) ? s : `https://${s}`
+            const origin = new URL(withProto).origin.replace(/\/$/, '')
+            if (isLocalOrigin(origin)) continue
+            return canonicalizeEmailOrigin(origin)
         } catch {
-            /* fallback */
+            /* próximo candidato */
         }
     }
-    return 'https://emerlab.com.br'
+    return 'https://www.emerlab.com.br'
 }
 
 export function emailLogoUrl(variant = 'azul') {

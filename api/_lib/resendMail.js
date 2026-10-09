@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { EMAIL_BRAND } from './emailBrand.js'
+import { getEmailLogoAttachments } from './emailLogoCid.js'
 import { montarEmailAuth, montarEmailAuthHtml, montarEmailPorTemplate } from './emailTemplates.js'
 
 export { montarEmailAuth, montarEmailAuthHtml, montarEmailPorTemplate }
@@ -49,22 +50,39 @@ export async function enviarEmailResend(opts) {
         throw new Error('Informe html ou text para o e-mail.')
     }
 
-    const attachments = Array.isArray(opts?.attachments)
-        ? opts.attachments
-              .map((a) => {
-                  if (!a?.filename) return null
-                  const content = a.content
-                  if (content == null) return null
-                  let buf
-                  if (Buffer.isBuffer(content)) buf = content
-                  else if (typeof content === 'string') buf = Buffer.from(content, 'base64')
-                  else buf = Buffer.from(content)
-                  const item = { filename: String(a.filename), content: buf }
-                  if (a.contentType) item.contentType = String(a.contentType)
-                  return item
-              })
-              .filter(Boolean)
-        : undefined
+    const normalizeAttachment = (a) => {
+        if (!a?.filename) return null
+        const content = a.content
+        if (content == null) return null
+        let buf
+        if (Buffer.isBuffer(content)) buf = content
+        else if (typeof content === 'string') buf = Buffer.from(content, 'base64')
+        else buf = Buffer.from(content)
+        const item = { filename: String(a.filename), content: buf }
+        if (a.contentType) item.contentType = String(a.contentType)
+        if (a.contentId) item.contentId = String(a.contentId).replace(/^<|>$/g, '')
+        return item
+    }
+
+    const extras = Array.isArray(opts?.attachments)
+        ? opts.attachments.map(normalizeAttachment).filter(Boolean)
+        : []
+
+    // Logos CID quando o HTML referencia cid:emerlab-logo-*
+    const needsLogoCid = Boolean(
+        (html && /cid:emerlab-logo-/i.test(html)) || opts?.embedLogos === true,
+    )
+    const logoAtts = needsLogoCid
+        ? getEmailLogoAttachments().map(normalizeAttachment).filter(Boolean)
+        : []
+
+    const seen = new Set()
+    const attachments = [...logoAtts, ...extras].filter((a) => {
+        const key = a.contentId || a.filename
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+    })
 
     const resend = getResendClient()
     const payload = {
@@ -74,7 +92,7 @@ export async function enviarEmailResend(opts) {
     }
     if (html) payload.html = html
     if (text) payload.text = text
-    if (attachments?.length) payload.attachments = attachments
+    if (attachments.length) payload.attachments = attachments
 
     const { data, error } = await resend.emails.send(payload)
     if (error) {

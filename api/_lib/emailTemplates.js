@@ -3,7 +3,8 @@
  * Casos: invite | invite_existing | recovery | pipeline | welcome
  */
 
-import { EMAIL_BRAND, emailLogoUrl } from './emailBrand.js'
+import { EMAIL_BRAND } from './emailBrand.js'
+import { emailLogoCidSrc } from './emailLogoCid.js'
 import { blocoAssinaturaEmailHtml, blocoAssinaturaEmailText } from './emailAssinaturas/index.js'
 
 const BRAND = EMAIL_BRAND
@@ -34,7 +35,7 @@ function envelopeHtml(opts) {
     const ctaHref = opts.ctaHref ? String(opts.ctaHref) : ''
     const rodapeExtra = opts.rodapeExtra || ''
     const produto = escapeHtml(opts.produto || `${BRAND.productLine} · Credenciamento`)
-    const logoBranco = emailLogoUrl('branco')
+    const logoBranco = emailLogoCidSrc('branco')
     const assinatura = blocoAssinaturaEmailHtml({ produto: opts.produto })
 
     const botao =
@@ -48,42 +49,49 @@ function envelopeHtml(opts) {
       </p>`
             : ''
 
+    // bgcolor + color-scheme:light ajudam Outlook (dark mode) a não inverter o layout.
     return `<!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light only" />
+  <meta name="supported-color-schemes" content="light" />
   <title>${titulo}</title>
+  <style type="text/css">
+    :root { color-scheme: light only; }
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:${BRAND.bg};font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${BRAND.ink};">
+<body style="margin:0;padding:0;background-color:${BRAND.bg};font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${BRAND.ink};" bgcolor="${BRAND.bg}">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${preheader}</div>
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${BRAND.bg};padding:28px 12px;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" bgcolor="${BRAND.bg}" style="background-color:${BRAND.bg};padding:28px 12px;">
     <tr><td align="center">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:${BRAND.card};border:1px solid ${BRAND.border};border-radius:14px;overflow:hidden;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" bgcolor="${BRAND.card}" style="max-width:560px;background-color:${BRAND.card};border:1px solid ${BRAND.border};border-radius:14px;overflow:hidden;">
         <tr>
-          <td style="background:linear-gradient(135deg,${BRAND.accentDeep} 0%,${BRAND.accent} 100%);padding:18px 24px;">
+          <td bgcolor="${BRAND.accentDeep}" style="background-color:${BRAND.accentDeep};padding:18px 24px;">
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
               <tr>
                 <td style="vertical-align:middle;">
-                  <img src="${escapeHtml(logoBranco)}" alt="${escapeHtml(BRAND.productLine)}" width="132" style="display:block;width:132px;max-width:45%;height:auto;border:0;" />
+                  <img src="${logoBranco}" alt="${escapeHtml(BRAND.productLine)}" width="132" style="display:block;width:132px;max-width:45%;height:auto;border:0;" />
                 </td>
                 <td style="vertical-align:middle;text-align:right;">
                   <p style="margin:0;color:#ffffff;font-size:16px;font-weight:700;letter-spacing:0.02em;">${escapeHtml(BRAND.name)}</p>
-                  <p style="margin:4px 0 0;color:rgba(255,255,255,0.88);font-size:12px;">${produto}</p>
+                  <p style="margin:4px 0 0;color:#e7f4fc;font-size:12px;">${produto}</p>
                 </td>
               </tr>
             </table>
           </td>
         </tr>
         <tr>
-          <td style="padding:28px 24px 8px;">
+          <td bgcolor="${BRAND.card}" style="padding:28px 24px 8px;background-color:${BRAND.card};color:${BRAND.ink};">
             <h1 style="margin:0 0 14px;font-size:22px;line-height:1.3;color:${BRAND.ink};">${titulo}</h1>
             ${opts.corpoHtml}
             ${botao}
           </td>
         </tr>
         <tr>
-          <td style="padding:8px 24px 24px;border-top:1px solid ${BRAND.border};">
+          <td bgcolor="${BRAND.card}" style="padding:8px 24px 24px;border-top:1px solid ${BRAND.border};background-color:${BRAND.card};">
             ${rodapeExtra}
             ${assinatura}
             <p style="margin:12px 0 0;font-size:12px;color:${BRAND.faint};line-height:1.45;">
