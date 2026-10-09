@@ -697,7 +697,7 @@ function PipelinePanel() {
               checked={sendEmail}
               onChange={(e) => setSendEmail(e.target.checked)}
             />
-            Enviar e-mail (SMTP)
+            Enviar e-mail (Resend)
           </label>
           <div className="flex-1" />
           {isRunning ? (

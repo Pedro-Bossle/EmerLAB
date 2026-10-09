@@ -8,6 +8,18 @@
 # VITE_EMERADAR_API_BASE=https://SEU-WORKER.up.railway.app
 # No worker: CORS_ORIGINS=https://SEU-EMERLAB.vercel.app
 #
+# E-mail do pipeline (Resend — sem SMTP no worker):
+# - No EmerLAB (Vercel): RESEND_API_KEY, RESEND_FROM_EMAIL=noreply@emerlab.com.br,
+#   RESEND_FROM_NAME=EmerLAB, EMAIL_INTERNAL_SECRET=<segredo compartilhado>
+# - No worker (Railway), quando send_email=true, chamar:
+#     POST https://SEU-EMERLAB.vercel.app/api/email
+#     Authorization: Bearer <EMAIL_INTERNAL_SECRET>
+#     Body JSON (modelo pipeline):
+#       { "template": "pipeline", "to": ["a@x.com"],
+#         "vars": { "nome": "...", "cidade": "...", "uf": "PR", "resumo": "..." },
+#         "attachments": [{ "filename": "relatorio.xlsx", "content": "<base64>" }] }
+# - A chave Resend fica só no EmerLAB; o worker não usa SMTP próprio.
+#
 # Rota na UI: /credenciamento/emer-radar (menu Credenciamento → Prospecção)
 # Legado: /credenciamento/prospectos-osm redireciona para Emer-Radar
 #

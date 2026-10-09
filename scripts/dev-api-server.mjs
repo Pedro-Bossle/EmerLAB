@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import http from 'node:http'
 import adminUsersHandler from '../api/admin-users.js'
+import emailHandler from '../api/email.js'
 import auditLogsHandler from '../api/audit-logs.js'
 import rcPdfHandler from '../api/rc-pdf.js'
 import consultaCnpjHandler from '../api/consulta-cnpj.js'
@@ -73,6 +74,7 @@ const server = http.createServer(async (req, res) => {
 
         const handlers = {
             '/api/admin-users': adminUsersHandler,
+            '/api/email': emailHandler,
             '/api/audit-logs': auditLogsHandler,
             '/api/rc-pdf': rcPdfHandler,
             '/api/consulta-cnpj': consultaCnpjHandler,

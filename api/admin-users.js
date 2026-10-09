@@ -17,6 +17,7 @@ import {
     responderSePayloadGrande,
 } from '../src/lib/api/serverAuth.js'
 import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
+import { enviarEmailTemplate } from './_lib/resendMail.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
 dotenvConfig()
@@ -32,6 +33,8 @@ const resolveAdminAction = (raw) => {
         create: 'createUser',
         createuser: 'createUser',
         reset: 'reset',
+        resetownpassword: 'resetOwnPassword',
+        resetown: 'resetOwnPassword',
         resetemerzapkey: 'resetEmerzapKey',
         resetemerzap: 'resetEmerzapKey',
         updateprofile: 'updateProfile',
@@ -46,6 +49,7 @@ const resolveAdminAction = (raw) => {
         'invite',
         'createUser',
         'reset',
+        'resetOwnPassword',
         'updateProfile',
         'listAudit',
         'deleteUser',
@@ -96,12 +100,51 @@ const responderErro = (res, status, mensagem) =>
 const mensagemErroAuthSupabase = (error) => {
     const msg = String(error?.message || error || '')
     if (/rate limit/i.test(msg)) {
-        return 'Limite de e-mails do Supabase atingido. Aguarde alguns minutos e tente de novo.'
+        return 'Limite de geração de links do Auth atingido. Aguarde alguns minutos e tente de novo.'
     }
     if (/redirect/i.test(msg)) {
         return `${msg} Confira as Redirect URLs em Supabase → Authentication → URL Configuration.`
     }
     return msg || 'Falha na autenticação Supabase.'
+}
+
+const redirectAuthPadrao = (body) =>
+    String(body?.redirectTo || process.env.SITE_URL || '').trim() || undefined
+
+/**
+ * Gera link de Auth sem enviar e-mail pelo Supabase e dispara via Resend.
+ * @param {'invite' | 'recovery'} authType tipo do generateLink
+ * @param {{ supabase: import('@supabase/supabase-js').SupabaseClient, email: string, nome?: string, redirectTo?: string, template?: 'invite' | 'invite_existing' | 'recovery' }} opts
+ */
+const enviarLinkAuthPorResend = async (authType, opts) => {
+    const email = String(opts.email || '').trim().toLowerCase()
+    const nome = String(opts.nome || '').trim()
+    const redirectTo = opts.redirectTo
+    const template =
+        opts.template || (authType === 'invite' ? 'invite' : 'recovery')
+
+    const { data, error } = await opts.supabase.auth.admin.generateLink({
+        type: authType,
+        email,
+        options: {
+            ...(nome ? { data: { name: nome } } : {}),
+            ...(redirectTo ? { redirectTo } : {}),
+        },
+    })
+    if (error) throw new Error(mensagemErroAuthSupabase(error))
+
+    const actionLink = String(data?.properties?.action_link || '').trim()
+    if (!actionLink) {
+        throw new Error('Não foi possível gerar o link de acesso.')
+    }
+
+    await enviarEmailTemplate({
+        to: email,
+        template,
+        vars: { nome: nome || email, actionLink },
+    })
+
+    return data?.user || null
 }
 
 const PROFILE_SELECT_CANDIDATES = [
@@ -365,9 +408,46 @@ export default async function handler(req, res) {
                 res,
                 400,
                 recebida
-                    ? `Ação inválida: «${recebida}». Use list, listAudit, invite, createUser, updateProfile, reset, forcePasswordChange, clearOwnForcePassword ou deleteUser.`
+                    ? `Ação inválida: «${recebida}». Use list, listAudit, invite, createUser, updateProfile, reset, resetOwnPassword, forcePasswordChange, clearOwnForcePassword ou deleteUser.`
                     : 'Ação inválida. Informe action no corpo da requisição.',
             )
+        }
+
+        // Qualquer usuário autenticado: pede e-mail de redefinição da própria conta via Resend.
+        if (action === 'resetOwnPassword') {
+            const auth = await validarUsuarioAutenticado(supabase, req)
+            if (auth.error) return responderErro(res, 403, auth.error)
+
+            const email = String(auth.user.email || '').trim().toLowerCase()
+            if (!email || !email.includes('@')) {
+                return responderErro(res, 400, 'Sua conta não tem e-mail válido para redefinição.')
+            }
+
+            const { data: perfil } = await buscarProfile(supabase, auth.user.id)
+            const nome =
+                String(perfil?.name || auth.user.user_metadata?.name || '').trim() || email
+
+            try {
+                await enviarLinkAuthPorResend('recovery', {
+                    supabase,
+                    email,
+                    nome,
+                    redirectTo: redirectAuthPadrao(body),
+                })
+            } catch (errEnvio) {
+                return responderErro(res, 500, errEnvio?.message || 'Falha ao enviar e-mail via Resend.')
+            }
+
+            await registrarAuditoria(supabase, {
+                actorUserId: auth.user.id,
+                actorName: nome,
+                targetUserId: auth.user.id,
+                action: 'reset_password_own',
+                summary: `Email de redefinição de senha solicitado por ${email}`,
+                details: { email, provider: 'resend' },
+            })
+
+            return res.status(200).json({ ok: true })
         }
 
         // Qualquer usuário autenticado: troca a própria senha no Auth e só então limpa a exigência.
@@ -464,22 +544,33 @@ export default async function handler(req, res) {
 
             let user = await encontrarUsuarioPorEmail(supabase, email)
             let conviteEnviado = false
+            const redirectTo = redirectAuthPadrao(body)
 
-            if (!user) {
-                const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-                    data: { name },
-                    redirectTo: body.redirectTo || process.env.SITE_URL || undefined,
-                })
-                if (error) return responderErro(res, 500, mensagemErroAuthSupabase(error))
-                user = data?.user || null
-                conviteEnviado = true
-            } else {
-                const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-                    redirectTo: body.redirectTo || process.env.SITE_URL || undefined,
-                })
-                if (resetError) return responderErro(res, 500, mensagemErroAuthSupabase(resetError))
+            try {
+                if (!user) {
+                    user = await enviarLinkAuthPorResend('invite', {
+                        supabase,
+                        email,
+                        nome: name,
+                        redirectTo,
+                    })
+                    conviteEnviado = true
+                } else {
+                    await enviarLinkAuthPorResend('recovery', {
+                        supabase,
+                        email,
+                        nome: name,
+                        redirectTo,
+                        template: 'invite_existing',
+                    })
+                }
+            } catch (errEnvio) {
+                return responderErro(res, 500, errEnvio?.message || 'Falha ao enviar e-mail via Resend.')
             }
 
+            if (!user?.id) {
+                user = await encontrarUsuarioPorEmail(supabase, email)
+            }
             if (!user?.id) return responderErro(res, 500, 'Não foi possível identificar o usuário criado.')
 
             const { data: profileData, error: profileError } = await upsertProfile(supabase, {
@@ -706,19 +797,31 @@ export default async function handler(req, res) {
             const email = String(body.email || '').trim().toLowerCase()
             if (!email || !email.includes('@')) return responderErro(res, 400, 'Email inválido para redefinição.')
 
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: body.redirectTo || process.env.SITE_URL || undefined,
-            })
-            if (error) return responderErro(res, 500, error.message)
-
             const alvo = await encontrarUsuarioPorEmail(supabase, email)
+            if (!alvo?.id) return responderErro(res, 404, 'Usuário não encontrado.')
+
+            const { data: perfilAlvo } = await buscarProfile(supabase, alvo.id)
+            const nomeAlvo =
+                String(perfilAlvo?.name || alvo.user_metadata?.name || '').trim() || email
+
+            try {
+                await enviarLinkAuthPorResend('recovery', {
+                    supabase,
+                    email,
+                    nome: nomeAlvo,
+                    redirectTo: redirectAuthPadrao(body),
+                })
+            } catch (errEnvio) {
+                return responderErro(res, 500, errEnvio?.message || 'Falha ao enviar e-mail via Resend.')
+            }
+
             await registrarAuditoria(supabase, {
                 actorUserId: admin.user.id,
                 actorName: admin.profile.name,
-                targetUserId: alvo?.id || null,
+                targetUserId: alvo.id,
                 action: 'reset_password',
                 summary: `Email de redefinição de senha enviado para ${email}`,
-                details: { email },
+                details: { email, provider: 'resend' },
             })
 
             return res.status(200).json({ ok: true })

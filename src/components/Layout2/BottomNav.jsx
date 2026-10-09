@@ -98,16 +98,35 @@ export default function BottomNav() {
   }
 
   const handleResetPassword = async () => {
-    const { data: userData, error: userError } = await supabase.auth.getUser()
-    if (userError || !userData?.user?.email) {
-      alert('Não foi possível identificar o usuário logado')
+    const refreshed = await supabase.auth.refreshSession()
+    const session =
+      refreshed.data?.session ||
+      (await supabase.auth.getSession()).data?.session
+    const token = session?.access_token
+    if (!token) {
+      alert('Sessão expirada. Faça login novamente.')
       return
     }
-    const { error } = await supabase.auth.resetPasswordForEmail(userData.user.email, {
-      redirectTo: window.location.origin,
-    })
-    if (error) alert('Erro ao enviar redefinição de senha')
-    else alert('E-mail de redefinição enviado com sucesso')
+    try {
+      const resp = await fetch('/api/admin-users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: 'resetOwnPassword',
+          redirectTo: `${window.location.origin}/`,
+        }),
+      })
+      const json = await resp.json().catch(() => ({}))
+      if (!resp.ok || json?.ok === false) {
+        throw new Error(json?.error || 'Erro ao enviar redefinição de senha')
+      }
+      alert('E-mail de redefinição enviado com sucesso')
+    } catch (error) {
+      alert(error?.message || 'Erro ao enviar redefinição de senha')
+    }
   }
 
   const openHub = (hub) => {
