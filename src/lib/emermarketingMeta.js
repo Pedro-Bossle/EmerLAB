@@ -19,6 +19,30 @@ export function usuarioPodeAbrirEmerMarketing(permissions) {
     )
 }
 
+/**
+ * True se há ACL em algum módulo do EmerLAB fora de EmerMarketing (e fora de «Início»).
+ * Usado para detectar contas só de marketing no dashboard.
+ */
+export function usuarioTemAcessoEmerlabAlemDeMarketing(permissions) {
+    for (const grupo of PERMISSION_CATALOG) {
+        if (grupo.id === EMERMARKETING_GROUP_ID || grupo.id === 'inicio') continue
+        for (const tool of grupo.tools || []) {
+            for (const action of tool.actions || []) {
+                if (hasAcl(permissions, tool.id, action)) return true
+            }
+        }
+    }
+    return false
+}
+
+/** Conta com EmerMarketing e sem outras ferramentas do EmerLAB. */
+export function usuarioSomenteEmerMarketing(permissions) {
+    return (
+        usuarioPodeAbrirEmerMarketing(permissions) &&
+        !usuarioTemAcessoEmerlabAlemDeMarketing(permissions)
+    )
+}
+
 export function usuarioPodeVerAuditoriaEmermarketing(permissions) {
     return (
         podeLerFerramenta(permissions, 'emermarketing.auditoria') ||

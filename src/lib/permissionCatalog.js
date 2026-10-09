@@ -427,7 +427,7 @@ export const PERMISSION_CATALOG = [
 
 export const EMERMARKETING_GROUP_ID = 'emermarketing'
 export const EMERMARKETING_TOOL_ID = 'emermarketing.app'
-export const EMERMARKETING_URL_PADRAO = 'https://marketing-emerlab.vercel.app'
+export const EMERMARKETING_URL_PADRAO = 'https://marketing.emerlab.com.br'
 
 export function aclKey(toolId, action) {
     return `${toolId}.${action}`

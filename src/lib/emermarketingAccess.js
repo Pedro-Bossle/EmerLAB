@@ -3,12 +3,16 @@ import {
     montarAppMetadataEmermarketing,
     usuarioPodeAbrirEmerMarketing,
     usuarioPodeVerAuditoriaEmermarketing,
+    usuarioSomenteEmerMarketing,
+    usuarioTemAcessoEmerlabAlemDeMarketing,
 } from './emermarketingMeta.js'
 
 export {
     montarAppMetadataEmermarketing,
     usuarioPodeAbrirEmerMarketing,
     usuarioPodeVerAuditoriaEmermarketing,
+    usuarioSomenteEmerMarketing,
+    usuarioTemAcessoEmerlabAlemDeMarketing,
 }
 
 /** URL pública do EmerMarketing (override com VITE_EMERMARKETING_URL). */

@@ -47,6 +47,13 @@ export function getDefaultSearchTerms() {
   return [...DEFAULT_TERMS]
 }
 
+/** True quando a app corre fora de localhost (Vercel / domínio). */
+export function isEmerRadarAmbienteRemoto() {
+  if (typeof window === 'undefined') return Boolean(import.meta.env.PROD)
+  const host = String(window.location.hostname || '').toLowerCase()
+  return host !== 'localhost' && host !== '127.0.0.1'
+}
+
 async function request(path, init = {}) {
   const base = getEmerRadarApiBase()
   const method = (init.method || 'GET').toUpperCase()
@@ -55,25 +62,60 @@ async function request(path, init = {}) {
   if (method !== 'GET' && method !== 'HEAD' && headers['Content-Type'] == null) {
     headers['Content-Type'] = 'application/json'
   }
-  const res = await fetch(`${base}${path}`, {
-    ...init,
-    headers,
-  })
-  if (!res.ok) {
-    let detail = 'Falha na requisição Emer-Radar'
-    try {
-      const body = await res.json()
-      detail = body.detail || body.error || detail
-    } catch {
-      /* ignore */
+  let res
+  try {
+    res = await fetch(`${base}${path}`, {
+      ...init,
+      headers,
+    })
+  } catch (e) {
+    const msg = e?.message || String(e)
+    if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+      throw new Error(
+        'Worker Emer-Radar inacessível (rede). Em local: python backend/main.py na pasta teste-emeradar (porta 8000).',
+      )
     }
+    throw e
+  }
+
+  const ct = String(res.headers.get('content-type') || '')
+  const text = await res.text()
+  const pareceHtml = /^\s*</.test(text) || /text\/html/i.test(ct)
+
+  if (pareceHtml) {
+    // Em produção /emeradar não existe → Vercel devolve index.html da SPA.
+    if (isEmerRadarAmbienteRemoto()) {
+      throw new Error('WORKER_AUSENTE_PROD')
+    }
+    throw new Error(
+      'Proxy /emeradar devolveu HTML (worker parado?). Na pasta teste-emeradar rode: python backend/main.py',
+    )
+  }
+
+  let body = null
+  if (text && res.status !== 204) {
+    try {
+      body = JSON.parse(text)
+    } catch {
+      throw new Error(
+        `Resposta inválida do Emer-Radar (HTTP ${res.status}). Confirme o worker na porta 8000.`,
+      )
+    }
+  }
+
+  if (!res.ok) {
+    const detail = body?.detail || body?.error || 'Falha na requisição Emer-Radar'
     throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
   }
   if (res.status === 204) return null
-  return res.json()
+  return body
 }
 
 export async function emerRadarHealth() {
+  // Em produção não há worker hospedado — o cron corre no GitHub Actions.
+  if (isEmerRadarAmbienteRemoto()) {
+    return { ok: false, mode: 'actions-only', message: 'WORKER_AUSENTE_PROD' }
+  }
   return request('/api/health')
 }
 

@@ -18,6 +18,7 @@ import {
 import {
     urlEmerMarketing,
     usuarioPodeAbrirEmerMarketing,
+    usuarioSomenteEmerMarketing,
 } from '../../lib/emermarketingAccess.js'
 import { listarEnvelopesComAtualizacoes } from '../../lib/clicksign/clicksignNotificacoes'
 import {
@@ -972,6 +973,8 @@ const Home = () => {
     }
 
     const primeiroNome = String(nome || '').trim().split(/\s+/)[0] || 'usuário'
+    const soEmerMarketing = usuarioSomenteEmerMarketing(permissions)
+    const linkMarketing = urlEmerMarketing()
 
     // Afazeres criados por outra pessoa para mim e ainda em aberto.
     const tarefasParaMim = useMemo(
@@ -1027,14 +1030,38 @@ const Home = () => {
                     Olá, {loading ? '…' : primeiroNome}
                 </h1>
                 <p className="mt-1.5 text-[0.92rem] font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8] xl:mt-2 xl:text-[0.98rem]">
-                    O que faremos hoje?
+                    {soEmerMarketing
+                        ? 'O seu acesso neste EmerLAB é ao EmerMarketing.'
+                        : 'O que faremos hoje?'}
                 </p>
             </header>
 
             {erro ? <div className="home_dash_alerta is-erro">{erro}</div> : null}
             {avisoTarefas ? <div className="home_dash_alerta is-aviso">{avisoTarefas}</div> : null}
 
-            {usuarioPodeAbrirEmerMarketing(permissions) ? (
+            {soEmerMarketing ? (
+                <section className="home_dash_mkt_only" aria-label="Acesso EmerMarketing">
+                    <p className="home_dash_mkt_only_kicker">Acesso limitado</p>
+                    <h2 className="home_dash_mkt_only_title">EmerMarketing</h2>
+                    <p className="home_dash_mkt_only_text">
+                        A sua conta não tem módulos do EmerLAB (credenciamento, compras, etc.).
+                        Use o botão abaixo para abrir o EmerMarketing — é aí que está o seu trabalho.
+                    </p>
+                    <a
+                        className="home_dash_mkt_only_cta"
+                        href={linkMarketing}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Abrir EmerMarketing
+                        <span className="home_dash_mkt_only_cta_url" aria-hidden="true">
+                            marketing.emerlab.com.br
+                        </span>
+                    </a>
+                </section>
+            ) : null}
+
+            {usuarioPodeAbrirEmerMarketing(permissions) && !soEmerMarketing ? (
                 <section className="home_dash_bookmarks home_dash_apps" aria-label="Apps">
                     <div className="home_dash_bookmarks_bar">
                         <div className="home_dash_bookmarks_top">
@@ -1046,10 +1073,10 @@ const Home = () => {
                         <div className="home_dash_bookmarks_track">
                             <a
                                 className="home_dash_bookmark home_dash_bookmark_ext"
-                                href={urlEmerMarketing()}
+                                href={linkMarketing}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                title="Abrir EmerMarketing"
+                                title="Abrir EmerMarketing (marketing.emerlab.com.br)"
                             >
                                 <span className="home_dash_bookmark_ico" aria-hidden="true">
                                     M

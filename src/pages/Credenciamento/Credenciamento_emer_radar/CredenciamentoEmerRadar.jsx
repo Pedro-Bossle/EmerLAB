@@ -9,6 +9,7 @@ import {
   emerRadarSaveSettings,
   getDefaultSearchTerms,
   getEmerRadarApiBase,
+  isEmerRadarAmbienteRemoto,
   listCities,
   openPipelineStream,
   openScrapeStream,
@@ -183,33 +184,51 @@ function PlanoPills({ row }) {
 
 export default function CredenciamentoEmerRadar() {
   const [tab, setTab] = useState('pipeline')
+  /** null | true | false | 'actions' (prod sem worker — cron via GitHub Actions) */
   const [apiOk, setApiOk] = useState(null)
   const [apiError, setApiError] = useState('')
+  const remoto = isEmerRadarAmbienteRemoto()
 
   useEffect(() => {
     let cancelled = false
     emerRadarHealth()
       .then((h) => {
-        if (!cancelled) {
-          setApiOk(true)
+        if (cancelled) return h
+        if (h?.mode === 'actions-only' || h?.message === 'WORKER_AUSENTE_PROD') {
+          setApiOk('actions')
           setApiError('')
+          return h
         }
+        setApiOk(true)
+        setApiError('')
         return h
       })
       .catch((e) => {
-        if (!cancelled) {
-          setApiOk(false)
-          setApiError(e?.message || 'Worker Emer-Radar inacessível')
+        if (cancelled) return
+        const msg = e?.message || 'Worker Emer-Radar inacessível'
+        if (msg === 'WORKER_AUSENTE_PROD' || remoto) {
+          setApiOk('actions')
+          setApiError('')
+          return
         }
+        setApiOk(false)
+        setApiError(msg)
       })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [remoto])
 
   const statusLabel =
-    apiOk === null ? 'Verificando API…' : apiOk ? 'API online' : `API offline${apiError ? ` — ${apiError}` : ''}`
-  const statusTone = apiOk === null ? 'checking' : apiOk ? 'ok' : 'erro'
+    apiOk === null
+      ? 'Verificando API…'
+      : apiOk === true
+        ? 'Worker online'
+        : apiOk === 'actions'
+          ? 'Cron via GitHub Actions (sem worker na Vercel)'
+          : `Worker offline${apiError ? ` — ${apiError}` : ''}`
+  const statusTone =
+    apiOk === null ? 'checking' : apiOk === true ? 'ok' : apiOk === 'actions' ? 'checking' : 'erro'
 
   return (
     <div className="el-page emer-radar-page">
@@ -249,6 +268,19 @@ export default function CredenciamentoEmerRadar() {
         }
       />
 
+      {apiOk === 'actions' ? (
+        <div className="el-stage mb-4 text-sm border border-[#123e59]/15 bg-[#123e59]/5 dark:border-sky-400/25 dark:bg-sky-400/10">
+          <p className="m-0 font-semibold text-[#123e59] dark:text-sky-100">
+            Produção (Vercel): sem worker Emer-Radar — isto é esperado.
+          </p>
+          <p className="mt-2 mb-0 text-xs text-ink-muted dark:text-sky-100/80">
+            O pedido a <code>/emeradar</code> devolvia o HTML da SPA (daí o erro de JSON). Em
+            produção use <strong>«Rodar cron (Actions)»</strong> para a fila. Tráfego do dia
+            grava no Supabase; Prospect Maps interativo só em local com o worker.
+          </p>
+        </div>
+      ) : null}
+
       {apiOk === false ? (
         <div className="el-stage mb-4 text-sm">
           <p className="m-0 text-status-erro">
@@ -256,20 +288,23 @@ export default function CredenciamentoEmerRadar() {
             {apiError ? ` — ${apiError}` : ''}).
           </p>
           <p className="mt-2 mb-0 text-xs text-ink-muted">
-            Em dev: na pasta <code>teste-emeradar</code>, rode{' '}
-            <code>python backend/main.py</code> (proxy Vite <code>/emeradar</code> → 8000). Em
-            produção o cron da fila corre no <strong>GitHub Actions</strong> — use «Rodar cron
-            (Actions)» abaixo; Prospect Maps interativo continua a precisar do worker local.
+            Na pasta <code>teste-emeradar</code> rode{' '}
+            <code>python backend/main.py</code> (porta 8000; o Vite faz proxy de{' '}
+            <code>/emeradar</code>). Depois recarregue esta página.
           </p>
         </div>
       ) : null}
 
-      {tab === 'pipeline' ? <PipelinePanel /> : <ProspectPanel />}
+      {tab === 'pipeline' ? (
+        <PipelinePanel workerDisponivel={apiOk === true} />
+      ) : (
+        <ProspectPanel workerDisponivel={apiOk === true} />
+      )}
     </div>
   )
 }
 
-function PipelinePanel() {
+function PipelinePanel({ workerDisponivel = false }) {
   const [uf, setUf] = useState('RS')
   const [cidade, setCidade] = useState('')
   const { municipios, loading: loadingMun } = useMunicipiosPorUf(uf)
@@ -352,9 +387,24 @@ function PipelinePanel() {
   }, [])
 
   useEffect(() => {
+    // Contadores de tráfego + utilizadores: Supabase (ok na Vercel).
+    refreshTrafego()
+    listarUsuariosParaAtribuicao()
+      .then(setUsuarios)
+      .catch(() => setUsuarios([]))
+
+    // Fila HTTP / registry / runs / settings: só com worker (dev).
+    if (!workerDisponivel) {
+      setPastRuns([])
+      setRegistry([])
+      setFilaCron([])
+      setFilaCronErro('')
+      setSnap(null)
+      return undefined
+    }
+
     refreshRuns()
     refreshRegistry()
-    refreshTrafego()
     refreshFilaCron()
     pipelineStatus()
       .then(setSnap)
@@ -362,10 +412,8 @@ function PipelinePanel() {
     emerRadarGetSettings()
       .then((s) => setDestinatarios(s.tarefa_destinatarios || []))
       .catch(() => undefined)
-    listarUsuariosParaAtribuicao()
-      .then(setUsuarios)
-      .catch(() => setUsuarios([]))
-  }, [refreshRuns, refreshRegistry, refreshTrafego, refreshFilaCron])
+    return undefined
+  }, [workerDisponivel, refreshRuns, refreshRegistry, refreshTrafego, refreshFilaCron])
 
   useEffect(() => {
     if (!rows.length) {
@@ -959,8 +1007,15 @@ function PipelinePanel() {
         {cronActionsMsg ? (
           <p className="mt-0 mb-3 text-sm text-ink-muted">{cronActionsMsg}</p>
         ) : null}
-        {filaCronErro && <p className="mt-0 mb-3 text-sm text-status-erro">{filaCronErro}</p>}
-        {filaCron.length === 0 && !filaCronErro ? (
+        {filaCronErro && workerDisponivel ? (
+          <p className="mt-0 mb-3 text-sm text-status-erro">{filaCronErro}</p>
+        ) : null}
+        {!workerDisponivel ? (
+          <p className="m-0 text-sm text-ink-muted">
+            Em produção a fila HTTP do worker não está disponível. Dispare o cron com «Rodar cron
+            (Actions)» — o job no GitHub Actions processa as cidades do tráfego/limiar.
+          </p>
+        ) : filaCron.length === 0 && !filaCronErro ? (
           <p className="m-0 text-sm text-ink-muted">
             Fila vazia no worker local. Use o tráfego do dia ou «Enfileirar p/ cron» no modo manual.
           </p>
@@ -1496,7 +1551,7 @@ function mapsIdPrimeiro(lista) {
   return est ? mapsIdDeEstabelecimento(est) : ''
 }
 
-function ProspectPanel() {
+function ProspectPanel({ workerDisponivel = false }) {
   const terms = getDefaultSearchTerms()
   const [uf, setUf] = useState('RS')
   const [cidade, setCidade] = useState('')
@@ -1771,14 +1826,20 @@ function ProspectPanel() {
   )
 
   useEffect(() => {
+    void carregarParesCidade()
+    if (!workerDisponivel) {
+      setSnap(null)
+      setResults([])
+      return undefined
+    }
     scrapeStatus()
       .then(applySnap)
       .catch(() => undefined)
     scrapeResults()
       .then((r) => setResults(r.results || []))
       .catch(() => undefined)
-    void carregarParesCidade()
-  }, [carregarParesCidade, applySnap])
+    return undefined
+  }, [workerDisponivel, carregarParesCidade, applySnap])
 
   useEffect(() => {
     if (aba === 'catalogo') void carregarCatalogo()
@@ -2007,6 +2068,14 @@ function ProspectPanel() {
 
   return (
     <div className="space-y-4">
+      {!workerDisponivel ? (
+        <p className="m-0 rounded-xl border border-amber-300/50 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-400/30 dark:bg-amber-950/40 dark:text-amber-100">
+          Nova busca no Maps precisa do worker local (Playwright). Em produção na Vercel use o
+          <strong> catálogo salvo</strong> abaixo; para prospectar ao vivo, rode o worker em
+          localhost.
+        </p>
+      ) : null}
+
       <div className="emer-radar-mode-toggle" role="tablist" aria-label="Prospect Maps">
         <button
           type="button"
@@ -2160,11 +2229,13 @@ function ProspectPanel() {
                 type="button"
                 className={buttonClassName()}
                 onClick={handleStart}
-                disabled={atualizandoCatalogo || !buscaPronta}
+                disabled={atualizandoCatalogo || !buscaPronta || !workerDisponivel}
                 title={
-                  !buscaPronta
-                    ? 'Preencha UF, cidade IBGE e ao menos um termo'
-                    : 'Iniciar busca no Google Maps'
+                  !workerDisponivel
+                    ? 'Worker indisponível na Vercel — use o catálogo ou rode o worker em local'
+                    : !buscaPronta
+                      ? 'Preencha UF, cidade IBGE e ao menos um termo'
+                      : 'Iniciar busca no Google Maps'
                 }
               >
                 Iniciar busca

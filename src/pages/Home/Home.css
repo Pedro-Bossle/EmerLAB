@@ -1169,6 +1169,81 @@ body.dark-mode .home_dash_tarefa_chat_msg.is-mine {
   color: inherit;
 }
 
+/* Conta só com EmerMarketing — painel no dashboard */
+.home_dash_mkt_only {
+  margin: 0 0 1.25rem;
+  padding: 1.15rem 1.25rem 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--home-accent, #1f7eb8) 35%, var(--home-line, #d8e6ef));
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--home-accent, #1f7eb8) 12%, transparent) 0%,
+      color-mix(in srgb, var(--home-card, #fff) 92%, var(--home-accent-soft, #e7f4fc)) 55%
+    );
+}
+body.dark-mode .home_dash_mkt_only {
+  border-color: rgba(126, 200, 240, 0.28);
+  background: linear-gradient(145deg, rgba(31, 126, 184, 0.22), rgba(18, 28, 42, 0.9));
+}
+.home_dash_mkt_only_kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--home-accent, #1f7eb8);
+}
+.home_dash_mkt_only_title {
+  margin: 0 0 0.45rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #123e59;
+}
+body.dark-mode .home_dash_mkt_only_title {
+  color: #e8f1f8;
+}
+.home_dash_mkt_only_text {
+  margin: 0 0 1rem;
+  max-width: 42rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--home-muted, #5a7388);
+}
+body.dark-mode .home_dash_mkt_only_text {
+  color: #9eb4c8;
+}
+.home_dash_mkt_only_cta {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.7rem 1.15rem;
+  border-radius: 12px;
+  background: #123e59;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.home_dash_mkt_only_cta:hover {
+  background: #1f7eb8;
+}
+.home_dash_mkt_only_cta_url {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.85;
+  letter-spacing: 0.02em;
+}
+body.dark-mode .home_dash_mkt_only_cta {
+  background: #1f7eb8;
+}
+body.dark-mode .home_dash_mkt_only_cta:hover {
+  background: #2a92d4;
+}
+
 .home_dash_bookmarks {
   margin-bottom: 1.1rem;
 }
