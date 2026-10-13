@@ -4,6 +4,7 @@ import {
     acharSituacaoPreenchendoFormularioId,
     normalizarCpfCnpjParaSalvar,
     normalizarCrmvParaSalvar,
+    obterResponsavelCadastroAtual,
     somenteDigitosCpfCnpj,
 } from './prestadorCadastroHelpers'
 import { obterOuCriarCidadeCredenciamento as obterOuCriarCidadeCredenciamentoDb } from './cidadesCredenciamento.js'
@@ -627,14 +628,22 @@ function montarEnderecoLegado(payload) {
 
 /**
  * Cria os veterinários informados no formulário da clínica e vincula ao estabelecimento.
- * Usado na conversão nova e ao aplicar a entrada num perfil já existente.
+ * Situação = da clínica (não credenciado automático). Só viram credenciados quando a clínica credenciar.
  */
-async function vincularVeterinariosPendentesDoFormulario(prestadorId, vets, { esps, situacoes, cidadeId }) {
+async function vincularVeterinariosPendentesDoFormulario(
+    prestadorId,
+    vets,
+    { esps, situacoes, cidadeId, situacaoIdClinica, responsavel },
+) {
     const lista = Array.isArray(vets) ? vets : []
     if (!lista.length) return
-    const credIdVet = acharSituacaoCredenciadoId(situacoes)
+    const sitClinica =
+        situacaoIdClinica != null && Number(situacaoIdClinica) > 0
+            ? Number(situacaoIdClinica)
+            : Number(acharSituacaoPreenchendoFormularioId(situacoes)) || null
     const espVetPadraoId = await resolverEspecialidadeIdPorTipoPerfil('volante', esps)
     const idsVets = []
+    const agora = new Date().toISOString()
     for (const v of lista) {
         const nomeV = String(v.nome || '').trim()
         if (!nomeV) continue
@@ -650,19 +659,24 @@ async function vincularVeterinariosPendentesDoFormulario(prestadorId, vets, { es
         const espVetId = espIdsV[0] || espVetPadraoId
         const espVet = (esps || []).find((e) => Number(e.id) === Number(espVetId))
         const tipoVet = String(espVet?.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
+        const rowVet = {
+            nome: nomeV,
+            crmv: normalizarCrmvParaSalvar(v.crmv),
+            especialidade_id: espVetId,
+            tipo: tipoVet,
+            cidade_id: cidadeId,
+            situacao_id: sitClinica,
+            ativo: true,
+            data_cadastro: agora,
+            data_atualizacao: agora,
+        }
+        if (responsavel?.id) {
+            rowVet.cadastrado_por = responsavel.id
+            rowVet.cadastrado_por_nome = responsavel.nome || null
+        }
         const { data: insV, error: errV } = await supabase
             .from('prestadores')
-            .insert({
-                nome: nomeV,
-                crmv: normalizarCrmvParaSalvar(v.crmv),
-                especialidade_id: espVetId,
-                tipo: tipoVet,
-                cidade_id: cidadeId,
-                situacao_id: credIdVet ? Number(credIdVet) : null,
-                ativo: true,
-                data_cadastro: new Date().toISOString(),
-                data_atualizacao: new Date().toISOString(),
-            })
+            .insert(rowVet)
             .select('id')
             .single()
         if (errV) throw new Error(errV.message)
@@ -763,6 +777,8 @@ export async function converterEntradaFormularioEmPrestador(entradaId) {
             ? normalizarCrmvParaSalvar(payload.crmv)
             : null
 
+    const responsavel = await obterResponsavelCadastroAtual(supabase)
+
     const row = {
         nome: String(payload.nome || '').trim() || 'Sem nome',
         cpf_cnpj: doc,
@@ -792,6 +808,9 @@ export async function converterEntradaFormularioEmPrestador(entradaId) {
         ativo: true,
         data_cadastro: new Date().toISOString(),
         data_atualizacao: new Date().toISOString(),
+        ...(responsavel.id
+            ? { cadastrado_por: responsavel.id, cadastrado_por_nome: responsavel.nome }
+            : {}),
     }
 
     const { data: ins, error: errIns } = await supabase.from('prestadores').insert(row).select('id').single()
@@ -828,6 +847,8 @@ export async function converterEntradaFormularioEmPrestador(entradaId) {
             esps,
             situacoes,
             cidadeId,
+            situacaoIdClinica: situacaoId,
+            responsavel,
         })
     }
 
@@ -1030,10 +1051,18 @@ export async function aplicarEntradaFormularioEmPrestadorExistente(entradaId, pr
     }
 
     if (tipoPerfil === 'clinica') {
+        const { data: clinicaSit } = await supabase
+            .from('prestadores')
+            .select('situacao_id')
+            .eq('id', prestadorId)
+            .maybeSingle()
+        const responsavelAplicar = await obterResponsavelCadastroAtual(supabase)
         await vincularVeterinariosPendentesDoFormulario(prestadorId, payload.vetsPendentes, {
             esps,
             situacoes,
             cidadeId,
+            situacaoIdClinica: clinicaSit?.situacao_id ?? null,
+            responsavel: responsavelAplicar,
         })
     }
 

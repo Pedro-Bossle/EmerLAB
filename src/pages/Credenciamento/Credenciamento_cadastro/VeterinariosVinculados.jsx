@@ -1,20 +1,21 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import {
-    acharSituacaoCredenciadoId,
     formatarCrmvEntrada,
     normalizarCrmvParaSalvar,
     normalizarTextoBusca,
+    obterResponsavelCadastroAtual,
     prestadorEhEstabelecimento,
 } from '../../../lib/prestadorCadastroHelpers'
 
 /**
  * Vínculo de veterinários a estabelecimento (clínica etc.): busca por nome, novo perfil mínimo ou existente.
+ * Novos vets herdam a situação da clínica (não entram como credenciados automaticamente).
  */
 export default function VeterinariosVinculados({
     estabelecimentoId,
     cidadeIdClinica,
-    situacoes,
+    situacaoIdClinica,
     especialidades,
     prestadoresTodos,
     onPrestadoresAtualizados,
@@ -116,7 +117,10 @@ export default function VeterinariosVinculados({
         try {
             const esp = especialidades.find((e) => Number(e.id) === Number(espEfetiva))
             const tipo = String(esp?.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
-            const credId = acharSituacaoCredenciadoId(situacoes)
+            const sitClinica =
+                situacaoIdClinica != null && Number(situacaoIdClinica) > 0
+                    ? Number(situacaoIdClinica)
+                    : null
 
             if (!estabelecimentoId) {
                 onChangeVetsPendentes((prev) => [
@@ -135,24 +139,34 @@ export default function VeterinariosVinculados({
             }
 
             if (!cidadeIdClinica) {
-                onErro?.('Defina a cidade da clínica (endereço ou cidades que atende) antes de criar veterinários.')
+                onErro?.(
+                    'Defina a cidade da clínica (endereço ou cidades que atende) antes de criar veterinários.',
+                )
                 return
             }
 
+            const responsavel = await obterResponsavelCadastroAtual(supabase)
+            const agora = new Date().toISOString()
             const payload = {
                 nome,
                 crmv: normalizarCrmvParaSalvar(crmvNovo),
                 especialidade_id: Number(espEfetiva),
                 tipo,
                 cidade_id: Number(cidadeIdClinica),
-                situacao_id: credId ? Number(credId) : null,
+                situacao_id: sitClinica,
                 ativo: true,
-                data_cadastro: new Date().toISOString(),
-                data_atualizacao: new Date().toISOString(),
-                ...(credId ? { credenciado_em: new Date().toISOString() } : {}),
+                data_cadastro: agora,
+                data_atualizacao: agora,
+                ...(responsavel.id
+                    ? { cadastrado_por: responsavel.id, cadastrado_por_nome: responsavel.nome }
+                    : {}),
             }
 
-            const { data: ins, error } = await supabase.from('prestadores').insert(payload).select('id, nome, especialidade_id, crmv').single()
+            const { data: ins, error } = await supabase
+                .from('prestadores')
+                .insert(payload)
+                .select('id, nome, especialidade_id, crmv')
+                .single()
             if (error) throw new Error(error.message)
 
             const novoId = Number(ins.id)
@@ -257,7 +271,11 @@ export default function VeterinariosVinculados({
                             {v.pendente ? ' (será criado ao salvar)' : ''}
                         </span>
                         {!somenteLeitura && (
-                            <button type="button" className="pcad_link_btn danger" onClick={() => removerVinculo(v.pendente ? v.id : v.id)}>
+                            <button
+                                type="button"
+                                className="pcad_link_btn danger"
+                                onClick={() => removerVinculo(v.pendente ? v.id : v.id)}
+                            >
                                 Remover
                             </button>
                         )}

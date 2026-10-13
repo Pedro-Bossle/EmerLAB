@@ -9,6 +9,7 @@ import {
     acharSituacaoCredenciadoId,
     acharSituacaoPreenchendoFormularioId,
     patchCredenciadoEmSeTransicao,
+    sincronizarSituacaoVetsDoEstabelecimento,
     situacaoDescricaoEhCredenciado,
 } from './prestadorCadastroHelpers.js'
 import { unifyContato } from './credenciamento/emerRadarUi.js'
@@ -435,6 +436,17 @@ async function aplicarSideEffectsColuna(card, de, para, situacoes) {
                 'situação credenciado',
                 supabase.from('prestadores').update(patch).eq('id', pid),
             )
+            try {
+                await sincronizarSituacaoVetsDoEstabelecimento(
+                    supabase,
+                    pid,
+                    credId,
+                    situacoes,
+                    prest?.situacao_id,
+                )
+            } catch (e) {
+                failures.push(`vets da clínica: ${e?.message || e}`)
+            }
         }
     }
 

@@ -15,7 +15,9 @@ import {
     opcoesTipoRepasse,
     TIPOS_CHAVE_PIX,
     acharSituacaoCredenciadoId,
+    obterResponsavelCadastroAtual,
     patchCredenciadoEmSeTransicao,
+    sincronizarSituacaoVetsDoEstabelecimento,
     formatarCpfCnpjEntrada,
     formatarChavePixEntrada,
     inferirTipoPixDaChave,
@@ -79,10 +81,13 @@ import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 
 const COLS_PRESTADOR =
-    'id, nome, tipo, telefone, celular, email, cpf_cnpj, crmv, cidade_id, endereco, modalidade, especialidade_id, situacao_id, cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_pais, endereco_uf, endereco_cidade, endereco_bairro, chave_pix, tipo_pix, tipo_repasse, ativo, latitude, longitude'
+    'id, nome, tipo, telefone, celular, email, cpf_cnpj, crmv, cidade_id, endereco, modalidade, especialidade_id, situacao_id, cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_pais, endereco_uf, endereco_cidade, endereco_bairro, chave_pix, tipo_pix, tipo_repasse, ativo, latitude, longitude, cadastrado_por, cadastrado_por_nome'
 
 const COLS_PRESTADOR_SEM_TIPO_PIX =
-    'id, nome, tipo, telefone, celular, email, cpf_cnpj, crmv, cidade_id, endereco, modalidade, especialidade_id, situacao_id, cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_pais, endereco_uf, endereco_cidade, endereco_bairro, chave_pix, tipo_repasse, ativo, latitude, longitude'
+    'id, nome, tipo, telefone, celular, email, cpf_cnpj, crmv, cidade_id, endereco, modalidade, especialidade_id, situacao_id, cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_pais, endereco_uf, endereco_cidade, endereco_bairro, chave_pix, tipo_repasse, ativo, latitude, longitude, cadastrado_por, cadastrado_por_nome'
+
+const COLS_PRESTADOR_SEM_CADASTRADO_POR =
+    'id, nome, tipo, telefone, celular, email, cpf_cnpj, crmv, cidade_id, endereco, modalidade, especialidade_id, situacao_id, cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_pais, endereco_uf, endereco_cidade, endereco_bairro, chave_pix, tipo_pix, tipo_repasse, ativo, latitude, longitude'
 
 const ORDEM_CIDADES_STORAGE_PREFIX = 'emerdog_prestador_cidades_ordem_'
 
@@ -177,6 +182,7 @@ const CredenciamentoCadastroForm = () => {
     const [carregandoMunicipiosEndereco, setCarregandoMunicipiosEndereco] = useState(false)
     const [vetsVinculados, setVetsVinculados] = useState([])
     const [vetsPendentes, setVetsPendentes] = useState([])
+    const [cadastradoPorNome, setCadastradoPorNome] = useState('')
     const [procSelecionados, setProcSelecionados] = useState([])
     const [laboratoriosSolicitacaoIds, setLaboratoriosSolicitacaoIds] = useState([])
     const [atendeEmClinica, setAtendeEmClinica] = useState(false)
@@ -279,6 +285,16 @@ const CredenciamentoCadastroForm = () => {
         setErro('')
         try {
             let { data, error } = await supabase.from('prestadores').select(COLS_PRESTADOR).eq('id', prestadorId).single()
+            const msgErr = String(error?.message || '').toLowerCase()
+            if (error && msgErr.includes('cadastrado_por')) {
+                const fallback = await supabase
+                    .from('prestadores')
+                    .select(COLS_PRESTADOR_SEM_CADASTRADO_POR)
+                    .eq('id', prestadorId)
+                    .single()
+                data = fallback.data
+                error = fallback.error
+            }
             if (error && String(error.message || '').toLowerCase().includes('tipo_pix')) {
                 const fallback = await supabase
                     .from('prestadores')
@@ -292,6 +308,7 @@ const CredenciamentoCadastroForm = () => {
                 setErro(error.message)
                 return
             }
+            setCadastradoPorNome(String(data.cadastrado_por_nome || '').trim())
             let cidadeIdForm = data.cidade_id != null ? String(data.cidade_id) : ''
             if (data.endereco_cidade?.trim()) {
                 const objEnd = await obterOuCriarCidadeCredenciamentoPorMunicipio(
@@ -773,7 +790,18 @@ const CredenciamentoCadastroForm = () => {
             let pid = prestadorId
             if (isNovo) {
                 payload.data_cadastro = new Date().toISOString()
+                const responsavel = await obterResponsavelCadastroAtual(supabase)
+                if (responsavel.id) {
+                    payload.cadastrado_por = responsavel.id
+                    payload.cadastrado_por_nome = responsavel.nome
+                }
                 let { data: ins, error: errIns } = await supabase.from('prestadores').insert(payload).select('id').single()
+                if (errIns && String(errIns.message || '').toLowerCase().includes('cadastrado_por')) {
+                    const { cadastrado_por: _c, cadastrado_por_nome: _n, ...semCad } = payload
+                    const retry = await supabase.from('prestadores').insert(semCad).select('id').single()
+                    ins = retry.data
+                    errIns = retry.error
+                }
                 if (errIns && erroColunaTipoPix(errIns)) {
                     const { tipo_pix: _t, ...semTipo } = payload
                     const retry = await supabase.from('prestadores').insert(semTipo).select('id').single()
@@ -782,6 +810,7 @@ const CredenciamentoCadastroForm = () => {
                 }
                 if (errIns) throw new Error(errIns.message)
                 pid = Number(ins.id)
+                if (responsavel.nome) setCadastradoPorNome(responsavel.nome)
             } else {
                 let { error: errUp } = await supabase.from('prestadores').update(payload).eq('id', pid)
                 if (errUp && erroColunaTipoPix(errUp)) {
@@ -841,7 +870,7 @@ const CredenciamentoCadastroForm = () => {
             }
 
             if (secaoVetsVinculados) {
-                const credIdVet = acharSituacaoCredenciadoId(situacoes)
+                const sitClinica = form.situacao_id ? Number(form.situacao_id) : null
                 let idsVets = [...vetsVinculados.map(Number)]
                 let cidadeVet = form.cidade_id ? Number(form.cidade_id) : null
                 if (!cidadeVet && form.endereco_cidade) {
@@ -852,6 +881,8 @@ const CredenciamentoCadastroForm = () => {
                     if (obj?.id) cidadeVet = Number(obj.id)
                 }
 
+                const responsavelVets = await obterResponsavelCadastroAtual(supabase)
+                const agoraVet = new Date().toISOString()
                 for (const v of vetsPendentes) {
                     const esp = especialidades.find((e) => Number(e.id) === Number(v.especialidade_id))
                     const tipoV = String(esp?.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
@@ -866,10 +897,16 @@ const CredenciamentoCadastroForm = () => {
                             especialidade_id: Number(v.especialidade_id),
                             tipo: tipoV,
                             cidade_id: cidadeVet,
-                            situacao_id: credIdVet ? Number(credIdVet) : null,
+                            situacao_id: sitClinica,
                             ativo: true,
-                            data_cadastro: new Date().toISOString(),
-                            data_atualizacao: new Date().toISOString(),
+                            data_cadastro: agoraVet,
+                            data_atualizacao: agoraVet,
+                            ...(responsavelVets.id
+                                ? {
+                                      cadastrado_por: responsavelVets.id,
+                                      cadastrado_por_nome: responsavelVets.nome,
+                                  }
+                                : {}),
                         })
                         .select('id')
                         .single()
@@ -888,6 +925,17 @@ const CredenciamentoCadastroForm = () => {
                     await supabase.from('prestador_estabelecimentos').insert(rows)
                 }
                 setVetsPendentes([])
+
+                // Mantém vets alinhados à situação da clínica (credenciados só quando a clínica credenciar).
+                if (sitClinica && idsVets.length) {
+                    await sincronizarSituacaoVetsDoEstabelecimento(
+                        supabase,
+                        pid,
+                        sitClinica,
+                        situacoes,
+                        isNovo ? null : situacaoIdInicial,
+                    )
+                }
             } else {
                 await supabase.from('prestador_estabelecimentos').delete().eq('estabelecimento_id', pid)
             }
@@ -1544,7 +1592,7 @@ const CredenciamentoCadastroForm = () => {
                         <VeterinariosVinculados
                             estabelecimentoId={prestadorId}
                             cidadeIdClinica={form.cidade_id ? Number(form.cidade_id) : null}
-                            situacoes={situacoes}
+                            situacaoIdClinica={form.situacao_id ? Number(form.situacao_id) : null}
                             especialidades={especialidades}
                             prestadoresTodos={prestadoresTodos}
                             onPrestadoresAtualizados={setPrestadoresTodos}
@@ -1560,6 +1608,25 @@ const CredenciamentoCadastroForm = () => {
                     )}
                 </section>
             </div>
+
+            <section className="pcad_card pcad_card_responsavel_cadastro">
+                <h2>Responsável pelo cadastro</h2>
+                <label className="pcad_field">
+                    Usuário que criou este perfil
+                    <input
+                        className="credenciamento_main_input"
+                        type="text"
+                        value={cadastradoPorNome || (isNovo ? 'Será gravado ao salvar' : '—')}
+                        readOnly
+                        disabled
+                        aria-readonly="true"
+                    />
+                </label>
+                <p className="pcad_muted pcad_hint">
+                    Campo automático e inalterável — preenchido com o nome do utilizador EmerLAB no momento do
+                    cadastro (formulário ou criação manual).
+                </p>
+            </section>
 
             <div className="pcad_form_footer">
                 <button

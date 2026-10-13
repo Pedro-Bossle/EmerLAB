@@ -243,6 +243,53 @@ export const patchCredenciadoEmSeTransicao = (situacaoIdAnterior, situacaoIdNova
     return {}
 }
 
+/**
+ * Alinha a situação dos veterinários vinculados à do estabelecimento.
+ * Credenciado_em só quando a clínica (e portanto os vets) passam a Credenciado.
+ */
+export async function sincronizarSituacaoVetsDoEstabelecimento(
+    client,
+    estabelecimentoId,
+    situacaoIdNova,
+    situacoes,
+    situacaoIdAnterior = null,
+) {
+    const eid = Number(estabelecimentoId)
+    const sid = Number(situacaoIdNova)
+    if (!client || !eid || !sid) return
+
+    const { data: links, error: errLinks } = await client
+        .from('prestador_estabelecimentos')
+        .select('veterinario_id')
+        .eq('estabelecimento_id', eid)
+    if (errLinks) throw new Error(errLinks.message)
+
+    const ids = [
+        ...new Set((links || []).map((r) => Number(r.veterinario_id)).filter((n) => Number.isFinite(n) && n > 0)),
+    ]
+    if (!ids.length) return
+
+    const patch = {
+        situacao_id: sid,
+        data_atualizacao: new Date().toISOString(),
+        ...patchCredenciadoEmSeTransicao(situacaoIdAnterior, situacaoIdNova, situacoes),
+    }
+    const { error } = await client.from('prestadores').update(patch).in('id', ids)
+    if (error) throw new Error(error.message)
+}
+
+/** Utilizador autenticado + nome em `profiles` (para `cadastrado_por` / `_nome`). */
+export async function obterResponsavelCadastroAtual(client) {
+    if (!client?.auth) return { id: null, nome: null }
+    const { data: sess } = await client.auth.getSession()
+    const uid = sess?.session?.user?.id || null
+    if (!uid) return { id: null, nome: null }
+    const email = String(sess?.session?.user?.email || '').trim()
+    const { data: profile } = await client.from('profiles').select('name').eq('id', uid).maybeSingle()
+    const nome = String(profile?.name || email || '').trim() || null
+    return { id: uid, nome }
+}
+
 /** Situação «Preenchendo formulário(s)» ou equivalente. */
 export const acharSituacaoPreenchendoFormularioId = (situacoes) => {
     const lista = situacoes || []
