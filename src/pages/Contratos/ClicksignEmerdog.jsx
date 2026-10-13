@@ -55,6 +55,7 @@ import {
     alternarFavoritoAgenda,
     atualizarContatoAgendaPorId,
     carregarAgendaSignatarios,
+    migrarAgendaLocalSeNecessario,
     removerContatoAgendaPorId,
     upsertContatoAgenda } from '../../lib/clicksign/agendaSignatarios.js'
 import {
@@ -229,7 +230,8 @@ export default function ClicksignEmerdog() {
     const [fluxoPhone, setFluxoPhone] = useState('')
     const [fluxoCanal, setFluxoCanal] = useState('email')
     const [fluxoPapel, setFluxoPapel] = useState('sign')
-    const [agendaSigs, setAgendaSigs] = useState(() => carregarAgendaSignatarios())
+    const [agendaSigs, setAgendaSigs] = useState([])
+    const [agendaCarregando, setAgendaCarregando] = useState(true)
     const [fluxoDropAtivo, setFluxoDropAtivo] = useState(false)
     const [fluxoDocs, setFluxoDocs] = useState([])
     const [fluxoSigs, setFluxoSigs] = useState([])
@@ -479,6 +481,30 @@ export default function ClicksignEmerdog() {
         const t = setTimeout(() => setToast(null), TOAST_AUTO_DISMISS_MS)
         return () => clearTimeout(t)
     }, [toast])
+
+    useEffect(() => {
+        let cancel = false
+        setAgendaCarregando(true)
+        void (async () => {
+            try {
+                await migrarAgendaLocalSeNecessario()
+                const lista = await carregarAgendaSignatarios()
+                if (!cancel) setAgendaSigs(lista)
+            } catch (e) {
+                if (!cancel) {
+                    setAgendaSigs([])
+                    pushToast('error', 'Agenda', e?.message || 'Não foi possível carregar a agenda partilhada.')
+                }
+            } finally {
+                if (!cancel) setAgendaCarregando(false)
+            }
+        })()
+        return () => {
+            cancel = true
+        }
+        // pushToast é estável (useCallback); carregar na montagem
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     const accessProfile = useStoredAccessProfile()
     const podeEditarContratos = hasPermission(accessProfile, PERMISSION_KEYS.CONTRATOS_EDIT)
@@ -1591,14 +1617,19 @@ export default function ClicksignEmerdog() {
                 pushToast('info', 'Signatário adicionado', 'Qualificação e autenticação criadas para cada documento em rascunho.')
             }
             if (gravarNaAgenda) {
-                setAgendaSigs(
-                    upsertContatoAgenda({
-                        name: nomeTrim,
-                        email: String(email || '').trim(),
-                        phone: maskTelefoneBr(phone || ''),
-                        channel: ch,
-                        papel: papelUsar }),
-                )
+                try {
+                    setAgendaSigs(
+                        await upsertContatoAgenda({
+                            name: nomeTrim,
+                            email: String(email || '').trim(),
+                            phone: maskTelefoneBr(phone || ''),
+                            channel: ch,
+                            papel: papelUsar,
+                        }),
+                    )
+                } catch (e) {
+                    pushToast('error', 'Agenda', e?.message || 'Não foi possível gravar na agenda partilhada.')
+                }
             }
             setFluxoPapel(papelUsar)
             setFluxoCanal(ch)
@@ -2522,9 +2553,11 @@ export default function ClicksignEmerdog() {
                                             </button>
                                         </div>
                                         <p className="contratos_hint cs_sig_agenda_count">
-                                            {agendaOrdenada.length === 0
-                                                ? 'Agenda vazia — os contactos guardados ao adicionar signatários aparecem em «Signatário da agenda».'
-                                                : `${agendaOrdenada.length} contacto(s) na agenda neste dispositivo.`}
+                                            {agendaCarregando
+                                                ? 'A carregar agenda partilhada…'
+                                                : agendaOrdenada.length === 0
+                                                  ? 'Agenda vazia — os contactos guardados ao adicionar signatários aparecem em «Signatário da agenda» (partilhados com a equipa).'
+                                                  : `${agendaOrdenada.length} contacto(s) na agenda partilhada.`}
                                         </p>
                                     </>
                                 )}
@@ -3063,22 +3096,34 @@ export default function ClicksignEmerdog() {
                                                                     pushToast(
                                                                         'confirm',
                                                                         'Remover da agenda',
-                                                                        `Remover «${nm}» deste dispositivo?`,
+                                                                        `Remover «${nm}» da agenda partilhada?`,
                                                                         {
                                                                             confirmLabel: 'Remover',
                                                                             cancelLabel: 'Cancelar',
                                                                             onConfirm: () => {
-                                                                                if (signModalAgendaSel.includes(localId)) {
-                                                                                    setSignModalAgendaSel((prev) => prev.filter((id) => id !== localId))
-                                                                                    setAgendaQualPorId((m) => {
-                                                                                        const next = { ...m }
-                                                                                        delete next[localId]
-                                                                                        return next
-                                                                                    })
-                                                                                }
-                                                                                setAgendaSigs(removerContatoAgendaPorId(localId))
-                                                                                pushToast('success', 'Agenda', 'Contacto removido.')
-                                                                            } },
+                                                                                void (async () => {
+                                                                                    try {
+                                                                                        if (signModalAgendaSel.includes(localId)) {
+                                                                                            setSignModalAgendaSel((prev) =>
+                                                                                                prev.filter((id) => id !== localId),
+                                                                                            )
+                                                                                            setAgendaQualPorId((m) => {
+                                                                                                const next = { ...m }
+                                                                                                delete next[localId]
+                                                                                                return next
+                                                                                            })
+                                                                                        }
+                                                                                        setAgendaSigs(await removerContatoAgendaPorId(localId))
+                                                                                        pushToast('success', 'Agenda', 'Contacto removido.')
+                                                                                    } catch (e) {
+                                                                                        pushToast(
+                                                                                            'error',
+                                                                                            'Agenda',
+                                                                                            e?.message || 'Falha ao remover contacto.',
+                                                                                        )
+                                                                                    }
+                                                                                })()
+                                                                            },
                                                                     )
                                                                 }}
                                                             >
@@ -3091,7 +3136,19 @@ export default function ClicksignEmerdog() {
                                                                 className={`cs_agenda_star ${c.favorite ? 'is-on' : ''}`}
                                                                 title={c.favorite ? 'Retirar favorito' : 'Favorito'}
                                                                 aria-label="Favorito"
-                                                                onClick={() => setAgendaSigs(alternarFavoritoAgenda(c.localId))}
+                                                                onClick={() => {
+                                                                    void (async () => {
+                                                                        try {
+                                                                            setAgendaSigs(await alternarFavoritoAgenda(c.localId))
+                                                                        } catch (e) {
+                                                                            pushToast(
+                                                                                'error',
+                                                                                'Agenda',
+                                                                                e?.message || 'Falha ao atualizar favorito.',
+                                                                            )
+                                                                        }
+                                                                    })()
+                                                                }}
                                                             >
                                                                 {c.favorite ? '★' : '☆'}
                                                             </button>
@@ -3265,33 +3322,56 @@ export default function ClicksignEmerdog() {
                                         className="contratos_btn contratos_btn_primary"
                                         disabled={fluxoBusy}
                                         onClick={() => {
-                                            if (!nomeSignatarioValido(signDraft.nome)) {
-                                                pushToast('error', 'Agenda', 'Indique o nome completo (pelo menos duas palavras).')
-                                                return
-                                            }
-                                            const chEd = canalSignatario(signDraft.channel)
-                                            if (!signDraft.email.trim()) {
-                                                pushToast('error', 'Agenda', 'Preencha o e-mail (obrigatório na Clicksign).')
-                                                return
-                                            }
-                                            if (chEd === 'whatsapp') {
-                                                const tel = normalizarTelefoneBr(signDraft.phone)
-                                                if (tel.length < 10 || tel.length > 11) {
-                                                    pushToast('error', 'Agenda', 'Telefone com DDD: 10 ou 11 dígitos.')
+                                            void (async () => {
+                                                if (!nomeSignatarioValido(signDraft.nome)) {
+                                                    pushToast(
+                                                        'error',
+                                                        'Agenda',
+                                                        'Indique o nome completo (pelo menos duas palavras).',
+                                                    )
                                                     return
                                                 }
-                                            }
-                                            setAgendaSigs(
-                                                atualizarContatoAgendaPorId(signAgendaEditId, {
-                                                    name: signDraft.nome.trim(),
-                                                    email: signDraft.email.trim(),
-                                                    phone: signDraft.phone,
-                                                    channel: chEd,
-                                                    papel: normalizarPapelQualificacao(signQualPapel) }),
-                                            )
-                                            pushToast('info', 'Agenda', 'Contacto atualizado.')
-                                            setSignAgendaEditId(null)
-                                            abrirSignModalKanban('agenda')
+                                                const chEd = canalSignatario(signDraft.channel)
+                                                if (!signDraft.email.trim()) {
+                                                    pushToast(
+                                                        'error',
+                                                        'Agenda',
+                                                        'Preencha o e-mail (obrigatório na Clicksign).',
+                                                    )
+                                                    return
+                                                }
+                                                if (chEd === 'whatsapp') {
+                                                    const tel = normalizarTelefoneBr(signDraft.phone)
+                                                    if (tel.length < 10 || tel.length > 11) {
+                                                        pushToast(
+                                                            'error',
+                                                            'Agenda',
+                                                            'Telefone com DDD: 10 ou 11 dígitos.',
+                                                        )
+                                                        return
+                                                    }
+                                                }
+                                                try {
+                                                    setAgendaSigs(
+                                                        await atualizarContatoAgendaPorId(signAgendaEditId, {
+                                                            name: signDraft.nome.trim(),
+                                                            email: signDraft.email.trim(),
+                                                            phone: signDraft.phone,
+                                                            channel: chEd,
+                                                            papel: normalizarPapelQualificacao(signQualPapel),
+                                                        }),
+                                                    )
+                                                    pushToast('info', 'Agenda', 'Contacto atualizado.')
+                                                    setSignAgendaEditId(null)
+                                                    abrirSignModalKanban('agenda')
+                                                } catch (e) {
+                                                    pushToast(
+                                                        'error',
+                                                        'Agenda',
+                                                        e?.message || 'Não foi possível atualizar o contacto.',
+                                                    )
+                                                }
+                                            })()
                                         }}
                                     >
                                         Guardar
