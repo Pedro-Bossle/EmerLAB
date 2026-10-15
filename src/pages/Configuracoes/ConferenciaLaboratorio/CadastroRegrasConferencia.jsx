@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { EQUIVALENCIAS_PADRAO } from '../../../lib/configuracoes/conferencia/examSimilarity.js'
 import ComboExame from './ComboExame.jsx'
@@ -11,10 +11,13 @@ export default function CadastroRegrasConferencia({
     perfis = [],
     examesOpcoes = [],
     onSalvarEquivalencia,
+    onAtualizarEquivalencia,
+    onRemoverEquivalencia,
     onSalvarPerfil,
 }) {
     const [nomeA, setNomeA] = useState('')
     const [nomeB, setNomeB] = useState('')
+    const [editIndex, setEditIndex] = useState(null)
     const [perfilNome, setPerfilNome] = useState('')
     const [perfilDesc, setPerfilDesc] = useState('')
     const [perfilValor, setPerfilValor] = useState('')
@@ -23,6 +26,38 @@ export default function CadastroRegrasConferencia({
     const [perfilExames, setPerfilExames] = useState([])
     const [examePerfil, setExamePerfil] = useState('')
     const closeRef = useDrawerDialog({ aberto, onClose })
+
+    const editando = editIndex != null && editIndex >= 0
+
+    const limparFormEquivalencia = () => {
+        setNomeA('')
+        setNomeB('')
+        setEditIndex(null)
+    }
+
+    useEffect(() => {
+        if (!aberto) limparFormEquivalencia()
+    }, [aberto])
+
+    const iniciarEdicao = (idx, p) => {
+        setEditIndex(idx)
+        setNomeA(p.a || '')
+        setNomeB(p.b || '')
+    }
+
+    const salvarOuAtualizar = () => {
+        const a = String(nomeA || '').trim()
+        const b = String(nomeB || '').trim()
+        if (!a || !b) return
+        if (editando) {
+            if (!onAtualizarEquivalencia) return
+            onAtualizarEquivalencia(editIndex, a, b)
+        } else {
+            if (!onSalvarEquivalencia) return
+            onSalvarEquivalencia(a, b)
+        }
+        limparFormEquivalencia()
+    }
 
     if (!aberto) return null
 
@@ -51,7 +86,7 @@ export default function CadastroRegrasConferencia({
                 </header>
 
                 <section>
-                    <h3>Nova equivalência de exame</h3>
+                    <h3>{editando ? 'Editar equivalência de exame' : 'Nova equivalência de exame'}</h3>
                     <div className="conf_lab_regras_grid">
                         <label>
                             Nome no plano
@@ -72,29 +107,68 @@ export default function CadastroRegrasConferencia({
                             />
                         </label>
                     </div>
-                    <button
-                        type="button"
-                        className="credenciamento_main_action_btn"
-                        disabled={!String(nomeA || '').trim() || !String(nomeB || '').trim()}
-                        onClick={() => {
-                            if (!onSalvarEquivalencia) return
-                            if (!String(nomeA || '').trim() || !String(nomeB || '').trim()) return
-                            onSalvarEquivalencia(nomeA, nomeB)
-                            setNomeA('')
-                            setNomeB('')
-                        }}
-                    >
-                        Salvar equivalência
-                    </button>
+                    <div className="conf_lab_regras_form_acoes">
+                        <button
+                            type="button"
+                            className="credenciamento_main_action_btn"
+                            disabled={!String(nomeA || '').trim() || !String(nomeB || '').trim()}
+                            onClick={salvarOuAtualizar}
+                        >
+                            {editando ? 'Atualizar equivalência' : 'Salvar equivalência'}
+                        </button>
+                        {editando ? (
+                            <button
+                                type="button"
+                                className="credenciamento_main_action_btn secondary"
+                                onClick={limparFormEquivalencia}
+                            >
+                                Cancelar
+                            </button>
+                        ) : null}
+                    </div>
                     <ul className="conf_lab_regras_lista">
                         {EQUIVALENCIAS_PADRAO.map((p) => (
-                            <li key={`pad-${p.a}`}>
-                                <em>Padrão:</em> {p.a} = {p.b}
+                            <li key={`pad-${p.a}`} className="conf_lab_regras_item">
+                                <span>
+                                    <em>Padrão:</em> {p.a} = {p.b}
+                                </span>
                             </li>
                         ))}
-                        {equivalencias.map((p) => (
-                            <li key={p.id || `${p.a}-${p.b}`}>
-                                {p.a} = {p.b}
+                        {equivalencias.map((p, idx) => (
+                            <li
+                                key={p.id || `eq-${idx}-${p.a}-${p.b}`}
+                                className={`conf_lab_regras_item${editIndex === idx ? ' is-editing' : ''}`}
+                            >
+                                <span>
+                                    {p.a} = {p.b}
+                                </span>
+                                <span className="conf_lab_regras_item_acoes">
+                                    <button
+                                        type="button"
+                                        className="credenciamento_main_action_btn secondary conf_lab_regras_btn"
+                                        onClick={() => iniciarEdicao(idx, p)}
+                                    >
+                                        Editar
+                                    </button>
+                                    {onRemoverEquivalencia ? (
+                                        <button
+                                            type="button"
+                                            className="credenciamento_main_action_btn secondary conf_lab_regras_btn"
+                                            aria-label={`Remover equivalência ${p.a} = ${p.b}`}
+                                            onClick={() => {
+                                                if (editIndex === idx) limparFormEquivalencia()
+                                                else if (editIndex != null && editIndex > idx) {
+                                                    setEditIndex((prev) =>
+                                                        prev == null ? null : prev - 1,
+                                                    )
+                                                }
+                                                onRemoverEquivalencia(idx)
+                                            }}
+                                        >
+                                            Remover
+                                        </button>
+                                    ) : null}
+                                </span>
                             </li>
                         ))}
                     </ul>

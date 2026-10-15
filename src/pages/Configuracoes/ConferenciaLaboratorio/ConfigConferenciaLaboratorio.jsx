@@ -1775,6 +1775,26 @@ const ConfigConferenciaLaboratorio = () => {
                     setEquivalencias((prev) => [...prev, { a: a.trim(), b: b.trim() }])
                     setFeedback('Equivalência adicionada nesta conferência.')
                 }}
+                onAtualizarEquivalencia={(idx, a, b) => {
+                    const i = Number(idx)
+                    if (!Number.isInteger(i) || i < 0) return
+                    if (!String(a || '').trim() || !String(b || '').trim()) {
+                        setErro('Informe os dois nomes da equivalência.')
+                        return
+                    }
+                    setEquivalencias((prev) =>
+                        prev.map((p, j) =>
+                            j === i ? { ...p, a: a.trim(), b: b.trim() } : p,
+                        ),
+                    )
+                    setFeedback('Equivalência atualizada nesta conferência.')
+                }}
+                onRemoverEquivalencia={(idx) => {
+                    const i = Number(idx)
+                    if (!Number.isInteger(i) || i < 0) return
+                    setEquivalencias((prev) => prev.filter((_, j) => j !== i))
+                    setFeedback('Equivalência removida desta conferência.')
+                }}
                 onSalvarPerfil={(dados) => {
                     if (!String(dados?.nome || '').trim()) {
                         setErro('Informe o nome do perfil.')

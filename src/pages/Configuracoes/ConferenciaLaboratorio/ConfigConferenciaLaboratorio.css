@@ -3593,8 +3593,44 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
 
 .conf_lab_regras_lista {
     margin: 0.75rem 0 1.25rem;
-    padding-left: 1.1rem;
+    padding-left: 0;
+    list-style: none;
     font-size: 0.82rem;
+}
+
+.conf_lab_regras_form_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-bottom: 0.35rem;
+}
+
+.conf_lab_regras_item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem 0.75rem;
+    border: 1px solid var(--conf-line);
+    border-radius: 8px;
+    padding: 0.45rem 0.55rem;
+    margin-bottom: 0.35rem;
+}
+
+.conf_lab_regras_item.is-editing {
+    border-color: #2a7ab0;
+    background: rgba(42, 122, 176, 0.06);
+}
+
+.conf_lab_regras_item_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.conf_lab_regras_btn {
+    padding: 0.28rem 0.55rem;
+    font-size: 0.75rem;
 }
 
 @media (max-width: 900px) {
