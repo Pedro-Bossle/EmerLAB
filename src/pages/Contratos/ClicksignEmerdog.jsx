@@ -3115,15 +3115,16 @@ export default function ClicksignEmerdog() {
                                                                                         }
                                                                                         setAgendaSigs(await removerContatoAgendaPorId(localId))
                                                                                         pushToast('success', 'Agenda', 'Contacto removido.')
-                                                                                    } catch (e) {
+                                                                                    } catch (err) {
                                                                                         pushToast(
                                                                                             'error',
                                                                                             'Agenda',
-                                                                                            e?.message || 'Falha ao remover contacto.',
+                                                                                            err?.message || 'Falha ao remover contacto.',
                                                                                         )
                                                                                     }
                                                                                 })()
                                                                             },
+                                                                        },
                                                                     )
                                                                 }}
                                                             >
