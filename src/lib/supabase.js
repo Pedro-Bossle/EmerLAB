@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { clearStoredAccessProfile } from './accessControl'
-import { mensagemErroFetchAmigavel } from './mensagemErroRede.js'
+import { comRetryRede, mensagemErroFetchAmigavel } from './mensagemErroRede.js'
 import {
   clearPasswordRecoveryPending,
   consumirCallbackSupabaseDaUrl,
@@ -101,7 +101,8 @@ const guardedFetch = async (input, init = {}) => {
   }
 
   try {
-    return await fetch(input, init)
+    // Falhas esporádicas de rede (mobile/5G) — tenta de novo antes de mostrar erro.
+    return await comRetryRede(() => fetch(input, init), { tentativas: 3, delayMs: 500 })
   } catch (err) {
     const ctx = isDbRestCall ? 'Supabase' : url.includes('/functions/v1/') ? 'API' : undefined
     throw new Error(mensagemErroFetchAmigavel(err, { contexto: ctx }))
