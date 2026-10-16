@@ -8,8 +8,11 @@ import {
     normalizarProfileAcesso,
     resumirAlteracoesPermissoes,
 } from '../src/lib/accessControl.js'
-import { sanitizarPermissionsParaSalvar } from '../src/lib/permissionCatalog.js'
-import { montarAppMetadataEmermarketing } from '../src/lib/emermarketingMeta.js'
+import { EMERMARKETING_URL_PADRAO, sanitizarPermissionsParaSalvar } from '../src/lib/permissionCatalog.js'
+import {
+    montarAppMetadataEmermarketing,
+    usuarioSomenteEmerMarketing,
+} from '../src/lib/emermarketingMeta.js'
 import { validarPoliticaSenha } from '../src/lib/passwordPolicy.js'
 import {
     getClientIp,
@@ -126,8 +129,24 @@ const redirectAuthPadrao = (body) => {
     }
 }
 
+/** URL pública do login EmerMarketing (API / Resend). */
+const loginUrlEmermarketing = () => {
+    const raw = String(
+        process.env.EMERMARKETING_URL ||
+            process.env.VITE_EMERMARKETING_URL ||
+            EMERMARKETING_URL_PADRAO,
+    ).trim()
+    try {
+        const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+        return new URL(withProto).origin
+    } catch {
+        return EMERMARKETING_URL_PADRAO
+    }
+}
+
 /** URL da tela de login (convite com senha temporária). */
-const loginUrlPublico = (body) => {
+const loginUrlPublico = (body, { somenteMarketing = false } = {}) => {
+    if (somenteMarketing) return loginUrlEmermarketing()
     const raw = String(body?.redirectTo || process.env.SITE_URL || 'https://emerlab.com.br').trim()
     try {
         const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
@@ -140,6 +159,7 @@ const loginUrlPublico = (body) => {
 /**
  * Cria ou atualiza utilizador com senha temporária e envia e-mail (Resend).
  * A flag force_password_change obriga troca no primeiro acesso (uso único).
+ * Contas só EmerMarketing recebem o link de login do marketing.
  */
 const enviarConviteComSenhaTemporaria = async (opts) => {
     const email = String(opts.email || '').trim().toLowerCase()
@@ -147,7 +167,9 @@ const enviarConviteComSenhaTemporaria = async (opts) => {
     const supabase = opts.supabase
     const template = opts.template === 'invite_existing' ? 'invite_existing' : 'invite'
     const senha = gerarSenhaTemporaria()
-    const loginUrl = loginUrlPublico(opts.body || {})
+    const somenteMarketing = usuarioSomenteEmerMarketing(opts.permissions)
+    const loginUrl = loginUrlPublico(opts.body || {}, { somenteMarketing })
+    const appNome = somenteMarketing ? 'EmerMarketing' : 'EmerLAB'
 
     let user = opts.user || null
     if (!user?.id) {
@@ -181,6 +203,7 @@ const enviarConviteComSenhaTemporaria = async (opts) => {
             email,
             senhaTemporaria: senha,
             loginUrl,
+            appNome,
         },
     })
 
@@ -721,6 +744,7 @@ export default async function handler(req, res) {
                     user: existente,
                     template: conviteNovo ? 'invite' : 'invite_existing',
                     body,
+                    permissions,
                 })
             } catch (errEnvio) {
                 return responderErro(res, 500, errEnvio?.message || 'Falha ao enviar e-mail via Resend.')

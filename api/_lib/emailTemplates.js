@@ -125,14 +125,20 @@ export function textoBoasVindasConvidado(nome, opts = {}) {
     const n = primeiroNome(nome)
     const senha = String(opts.senhaTemporaria || '').trim()
     const emailConta = String(opts.email || '').trim()
+    const appNome = String(opts.appNome || BRAND.name).trim() || BRAND.name
+    const soMarketing = String(appNome).toLowerCase() === 'emermarketing'
+    const intro = soMarketing
+        ? `Seja bem-vindo(a) ao <strong>${escapeHtml(appNome)}</strong> — a plataforma de marketing da <strong>${escapeHtml(BRAND.productLine)}</strong>.`
+        : `Seja bem-vindo(a) ao <strong>${escapeHtml(appNome)}</strong> — a plataforma da <strong>${escapeHtml(BRAND.productLine)}</strong> para credenciamento, compras, auditoria e operações do dia a dia.`
+    const introText = `Seja bem-vindo(a) ao ${appNome}.`
     return {
         html: `
       <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Olá, <strong>${escapeHtml(n)}</strong>.</p>
-      <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Seja bem-vindo(a) ao <strong>${escapeHtml(BRAND.name)}</strong> — a plataforma da <strong>${escapeHtml(BRAND.productLine)}</strong> para credenciamento, compras, auditoria e operações do dia a dia.</p>
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">${intro}</p>
       <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Sua conta foi criada por um administrador. Use o e-mail e a <strong>senha temporária</strong> abaixo para entrar; no primeiro acesso pediremos que defina uma senha nova (a temporária deixa de valer).</p>
       ${senha ? blocoSenhaTemporariaHtml(senha, emailConta) : ''}
       <p style="margin:0 0 20px;font-size:14px;color:${BRAND.muted};line-height:1.5;">Se você não esperava este convite, ignore este e-mail e avise o administrador.</p>`,
-        text: `Olá, ${n}.\n\nSeja bem-vindo(a) ao ${BRAND.name}.\n\nConta: ${emailConta || '(seu e-mail)'}\nSenha temporária (uso único): ${senha || '(no e-mail HTML)'}\n\nNo primeiro acesso terá de definir uma senha nova.\n`,
+        text: `Olá, ${n}.\n\n${introText}\n\nConta: ${emailConta || '(seu e-mail)'}\nSenha temporária (uso único): ${senha || '(no e-mail HTML)'}\n\nNo primeiro acesso terá de definir uma senha nova.\n`,
     }
 }
 
@@ -142,6 +148,7 @@ export function montarEmailAuth(tipo, opts = {}) {
     const link = String(opts.actionLink || opts.loginUrl || '').trim()
     const senha = String(opts.senhaTemporaria || '').trim()
     const emailConta = String(opts.email || '').trim()
+    const appNome = String(opts.appNome || 'EmerLAB').trim() || 'EmerLAB'
     const loginUrl =
         String(opts.loginUrl || '').trim() ||
         String(process.env.SITE_URL || 'https://emerlab.com.br').replace(/\/$/, '') ||
@@ -149,16 +156,17 @@ export function montarEmailAuth(tipo, opts = {}) {
 
     if (tipo === 'invite' || tipo === 'welcome') {
         if (!senha) throw new Error('senhaTemporaria é obrigatória no convite.')
-        const subject = 'Bem-vindo(a) ao EmerLAB — senha temporária de acesso'
+        const subject = `Bem-vindo(a) ao ${appNome} — senha temporária de acesso`
         const boas = textoBoasVindasConvidado(opts.nome, {
             senhaTemporaria: senha,
             email: emailConta,
+            appNome,
         })
         const html = envelopeHtml({
             preheader: 'Senha temporária de uso único — troque no primeiro acesso',
-            titulo: 'Bem-vindo(a) ao EmerLAB',
+            titulo: `Bem-vindo(a) ao ${appNome}`,
             corpoHtml: boas.html,
-            ctaLabel: 'Entrar no EmerLAB',
+            ctaLabel: `Entrar no ${appNome}`,
             ctaHref: loginUrl,
         })
         const text = `${subject}\n\n${boas.text}\nEntrar: ${loginUrl}\n\n${blocoAssinaturaEmailText()}\n`
@@ -167,17 +175,17 @@ export function montarEmailAuth(tipo, opts = {}) {
 
     if (tipo === 'invite_existing') {
         if (!senha) throw new Error('senhaTemporaria é obrigatória no convite.')
-        const subject = 'Acesso ao EmerLAB — nova senha temporária'
+        const subject = `Acesso ao ${appNome} — nova senha temporária`
         const corpoHtml = `
           <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Olá, <strong>${escapeHtml(nome)}</strong>.</p>
-          <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Sua conta no <strong>EmerLAB</strong> já existia. Um administrador gerou uma <strong>senha temporária de uso único</strong> — entre com ela e defina uma senha nova no primeiro acesso.</p>
+          <p style="margin:0 0 12px;font-size:15px;line-height:1.55;">Sua conta no <strong>${escapeHtml(appNome)}</strong> já existia. Um administrador gerou uma <strong>senha temporária de uso único</strong> — entre com ela e defina uma senha nova no primeiro acesso.</p>
           ${blocoSenhaTemporariaHtml(senha, emailConta)}
           <p style="margin:0 0 20px;font-size:14px;color:${BRAND.muted};line-height:1.5;">Se você não solicitou isso, fale com o administrador do sistema.</p>`
         const html = envelopeHtml({
             preheader: 'Nova senha temporária — troque no primeiro acesso',
             titulo: 'Novo acesso à sua conta',
             corpoHtml,
-            ctaLabel: 'Entrar no EmerLAB',
+            ctaLabel: `Entrar no ${appNome}`,
             ctaHref: loginUrl,
         })
         const text = `${subject}\n\nOlá, ${nome}.\n\nConta: ${emailConta}\nSenha temporária (uso único): ${senha}\n\nEntrar: ${loginUrl}\n\n${blocoAssinaturaEmailText()}\n`
