@@ -729,6 +729,12 @@ export default defineConfig(({ command, mode }) => {
         test: {
             environment: 'node',
             include: ['src/**/*.test.{js,jsx,ts,tsx}'],
+            // Valores fictícios: src/lib/supabase.js exige a config no import. Nenhum teste
+            // acessa a rede; o cliente só é criado.
+            env: {
+                VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
+                VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_teste_local',
+            },
         },
     }
 })

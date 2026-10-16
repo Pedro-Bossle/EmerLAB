@@ -696,13 +696,6 @@ const CredenciamentoMapa = () => {
         setFlyAlvo({ lat: it.lat, lng: it.lng, zoom: 15, seq: Date.now() })
     }
 
-    const irParaPinBuscaNoMapa = (pin) => {
-        if (!coordenadaValida(pin.lat, pin.lng)) return
-        setMobileAba('mapa')
-        setMarcadorDestaqueId(null)
-        setFlyAlvo({ lat: pin.lat, lng: pin.lng, zoom: 16, seq: Date.now() })
-    }
-
     const onBuscaLegendaChange = (e) => {
         const v = e.target.value
         setBuscaLegenda(v)

@@ -237,7 +237,7 @@ export function nomeArquivoPdfSeguro(name) {
     const ascii = n
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9._\-]+/g, '_')
+        .replace(/[^a-zA-Z0-9._-]+/g, '_')
         .replace(/_+/g, '_')
         .replace(/^_|_$/g, '')
     const out = (ascii || 'documento').slice(0, 180)

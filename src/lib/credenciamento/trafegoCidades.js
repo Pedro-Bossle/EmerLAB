@@ -60,7 +60,7 @@ export function parseLinhaCidadeTrafego(linha, ufPadrao = '') {
   let cidade = raw
   let uf = ''
 
-  const mSlash = raw.match(/^(.+?)[\/|,]\s*([A-Za-z]{2})\s*$/)
+  const mSlash = raw.match(/^(.+?)[/|,]\s*([A-Za-z]{2})\s*$/)
   if (mSlash) {
     cidade = mSlash[1].trim()
     uf = mSlash[2]

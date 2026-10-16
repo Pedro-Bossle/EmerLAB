@@ -28,8 +28,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: npm audit (high+)
-        run: npm audit --audit-level=high
+      # Bloqueia: dependências que vão para produção (bundle e funções da Vercel).
+      - name: npm audit — produção (high+)
+        run: npm audit --omit=dev --audit-level=high
+
+      # Informativo: ferramentas de build. Hoje só o Tailwind 3 (chokidar/braces/micromatch)
+      # aparece aqui; a correção é a migração para Tailwind 4, prevista no plano visual.
+      - name: npm audit — dev (informativo)
+        run: npm audit --audit-level=high || echo "::warning::Vulnerabilidades em devDependencies — ver relatório de auditoria (I-04)."
+
+      - name: Testes
+        run: npm test
 
       - name: Guard — no VITE_ secrets for server keys
         run: |

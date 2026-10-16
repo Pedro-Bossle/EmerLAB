@@ -76,7 +76,6 @@ import {
     montarEnderecoGeocodeFromPrestador,
     parseCoordenadaEntrada,
 } from '../../../lib/credenciamento/prestadorEnderecoGeocode'
-import { apenasDigitos } from '../../../lib/contratos/validarDocumentos.js'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 

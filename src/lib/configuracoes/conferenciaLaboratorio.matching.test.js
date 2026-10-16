@@ -17,7 +17,7 @@ import {
     scorePareamentoExame,
     scoreSimilaridadeNome,
 } from './conferenciaLaboratorio.js'
-import { parsearValorMonetario, matrizDeHtmlTabela, matrizDeSpreadsheetMl, matrizDeWorksheetXmlXlsx, linhaConferenciaTemRegistro } from './conferenciaLaboratorioExcel.js'
+import { parsearValorMonetario, matrizDeHtmlTabela, matrizDeWorksheetXmlXlsx, linhaConferenciaTemRegistro } from './conferenciaLaboratorioExcel.js'
 import { precoNegociacaoUtil } from './conferenciaLaboratorioPrecos.js'
 
 describe('scoreSimilaridadeNome', () => {

@@ -784,7 +784,6 @@ const Credenciamento_main = () => {
         setCidadeSecundariaInput('')
         setEspecialidadeSecundariaInput('')
         setCidadesSecundariasNovas([])
-        setCidadePrincipalEmFoco(false)
     }
 
     const salvarNovoPrestador = async () => {

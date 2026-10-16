@@ -23,20 +23,38 @@ Checklist operacional após as mudanças de código. Detalhes técnicos nos fich
 3. Confirmar **Password requirements** alinhados (mín. 10 se o painel permitir).
 4. **Não** ativar CAPTCHA até o Turnstile voltar ao front.
 
-## Executar SQL (item 2)
+## Migrações do banco (RLS e grants)
 
-No SQL Editor (staging → produção):
+As políticas agora ficam versionadas em `supabase/migrations/` (antes `*.sql` era ignorado pelo Git e as regras de produção divergiram do que a documentação dizia).
 
-```sql
--- conteúdo de scripts/sql/seguranca_rls_hardening.sql
+| Arquivo | O quê |
+| --- | --- |
+| `20261017000000_seguranca_rls_hardening.sql` | Remove a escalada de privilégio em `profiles`, a leitura anónima de perfis e repasses, exige permissão para escrever em `pagamentos_registros` e `prestadores`, fecha `audit_logs` e as funções `SECURITY DEFINER` para `anon` |
+| `20261017000100_rate_limit_distribuido.sql` | Contador de rate limit compartilhado entre instâncias (recuperação de senha) |
+| `rollback/…rollback.sql` | Recria o estado anterior exatamente como estava em 16/10/2026 |
+
+Aplicar (staging → produção), num horário de pouco uso:
+
+```bash
+npx supabase db push        # ou cole o arquivo no SQL Editor
 ```
 
-Depois: login com user normal e admin; alterar o próprio nome; tentar alterar `permissions` via PostgREST (deve falhar para user comum).
+Depois, testar com um utilizador comum (sem acesso administrativo):
+
+1. No console do navegador logado: `await supabase.from('profiles').update({ permissions: { 'access.manage': true } }).eq('id', '<id próprio>')` → deve falhar.
+2. `curl "$SUPABASE_URL/rest/v1/profiles?select=email" -H "apikey: <chave publicável>"` → deve devolver `[]`.
+3. Perfil só de leitura em Pagamentos tenta salvar uma linha → deve falhar; perfil com edição → salva.
+4. Formulário público `/ser_parceiro` continua enviando (cidades, especialidades, documento).
+
+## Painel Supabase (manual)
+
+- Authentication → **Password security** → ativar *Leaked password protection* (HaveIBeenPwned).
 
 ## Variáveis
 
 | Variável | Onde |
 | --- | --- |
+| `AUTH_REDIRECT_ORIGINS` | Vercel — origens extra aceitas nos links de convite/recuperação, além de `SITE_URL` |
 | `CLICKSIGN_WEBHOOK_SECRET` | Vercel / `.env.local` — obrigatória para aceitar webhooks |
 | `CLICKSIGN_WEBHOOK_ALLOW_INSECURE_DEV` | Só local, `true` se testar webhook sem secret |
 | Nunca `VITE_` em | `GEMINI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, tokens Clicksign |

@@ -23,8 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 
-*.sql
 .vercel
 .env*
 supabase/env.secrets
 supabase/.env.secrets
+
+# Diagnósticos locais e estado da CLI do Supabase (auditoria F-10)
+tmp/
+supabase/.temp/

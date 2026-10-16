@@ -132,7 +132,7 @@ function normalizarListaObservacoes(observacoes) {
         .map((item, idx) => ({ ...item, numero: idx + 1 }))
 }
 
-const URL_TOKEN_RE = /(https?:\/\/[^\s<>\[\]()]+|www\.[^\s<>\[\]()]+)/gi
+const URL_TOKEN_RE = /(https?:\/\/[^\s<>[\]()]+|www\.[^\s<>[\]()]+)/gi
 
 function normalizarUrlToken(raw) {
     let t = String(raw || '')
@@ -212,7 +212,7 @@ function parseLinhasCorpoObservacao(mensagem) {
             last = m.index + m[0].length
         }
         if (last < texto.length) segmentos.push({ text: texto.slice(last), bold: false })
-        if (!segmentos.length && texto) segmentos.push({ text, bold: false })
+        if (!segmentos.length && texto) segmentos.push({ text: texto, bold: false })
         return { nested, segmentos: expandirSegmentosComLinks(segmentos) }
     })
 }

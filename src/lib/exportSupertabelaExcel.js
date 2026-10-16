@@ -16,7 +16,7 @@ const FORMATO_MOEDA_PT = '#,##0.00'
 function sanitizarNomeArquivo(nomeArquivoBase) {
     return (
         String(nomeArquivoBase || 'export')
-            .replace(/[^\w\s-áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ\[\]]/gi, '')
+            .replace(/[^\w\s-áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ[\]]/gi, '')
             .trim()
             .slice(0, 80) || 'export'
     )

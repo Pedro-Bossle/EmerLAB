@@ -1,8 +1,9 @@
 name: Deploy Vite app to GitHub Pages
 
+# Desligado no push (auditoria F-08): a produção é a Vercel. O GitHub Pages publicava uma cópia
+# sem /api, sem variáveis de ambiente e sem os headers de segurança do vercel.json.
+# Para remover o site já publicado: Settings → Pages → Unpublish.
 on:
-  push:
-    branches: ["main"]
   workflow_dispatch:
 
 permissions:

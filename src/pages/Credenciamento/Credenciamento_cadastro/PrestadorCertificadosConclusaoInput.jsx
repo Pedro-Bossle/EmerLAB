@@ -7,7 +7,7 @@ import {
 import './PrestadorVeterinarioExtras.css'
 
 export default function PrestadorCertificadosConclusaoInput({
-    modo = 'prestador',
+    modo: _modo = 'prestador',
     somenteLeitura,
     salvos = [],
     pendentes = [],

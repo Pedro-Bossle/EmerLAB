@@ -17,7 +17,6 @@ import {
 } from '../../../lib/formularioCredenciamento'
 import {
     formatarCpfCnpjEntrada,
-    normalizarCpfCnpjParaSalvar,
     normalizarChavePixParaSalvar,
     normalizarCrmvParaSalvar,
     normalizarEmailParaSalvar,

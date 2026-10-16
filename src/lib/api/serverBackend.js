@@ -25,7 +25,7 @@ const ROTAS_COM_JWT_UTILIZADOR = new Set([
 ])
 
 /** @param {'cep-lookup'|'consulta-cnpj'|'nominatim-search'|'overpass-poi'|'geocode-prestador'|'prospectos-osm-coletar'|'prospectos-gemini-status'|'gemini-rate'} routeId */
-export function useSupabaseEdgeApi(routeId) {
+export function deveUsarSupabaseEdgeApi(routeId) {
   const env = typeof import.meta !== 'undefined' ? import.meta.env || {} : {}
   const flag = String(env.VITE_SUPABASE_EDGE_API || '').trim().toLowerCase()
   if (flag === '0' || flag === 'false' || flag === 'no' || flag === 'vercel') return false
@@ -65,7 +65,7 @@ function viteApiPrefix() {
  * @param {Record<string, string>} [queryParams]
  */
 export function buildServerApiUrl(routeId, queryParams = {}) {
-  if (useSupabaseEdgeApi(routeId)) {
+  if (deveUsarSupabaseEdgeApi(routeId)) {
     const fn = EDGE_ROUTE_MAP[routeId]
     const url = new URL(`${supabaseProjectUrl()}/functions/v1/${fn}`)
     if (routeId === 'nominatim-search') {
@@ -138,18 +138,18 @@ export async function userAccessTokenHeaders() {
  */
 export async function serverApiAuthHeaders(routeId = 'geocode-prestador') {
   const headers = {}
-  if (useSupabaseEdgeApi(routeId)) {
+  if (deveUsarSupabaseEdgeApi(routeId)) {
     const key = anonKey()
     if (key) {
       headers.Authorization = `Bearer ${key}`
       headers.apikey = key
     }
   }
-  if (ROTAS_COM_JWT_UTILIZADOR.has(routeId) || !useSupabaseEdgeApi(routeId)) {
+  if (ROTAS_COM_JWT_UTILIZADOR.has(routeId) || !deveUsarSupabaseEdgeApi(routeId)) {
     const user = await userAccessTokenHeaders()
     if (user.Authorization) {
       headers.Authorization = user.Authorization
-      if (useSupabaseEdgeApi(routeId) && anonKey()) {
+      if (deveUsarSupabaseEdgeApi(routeId) && anonKey()) {
         headers.apikey = anonKey()
       }
     }

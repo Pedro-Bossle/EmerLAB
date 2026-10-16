@@ -818,12 +818,6 @@ const Supertabelanegociacoes = () => {
         return String(Number(linha[campo] || 0).toFixed(2))
     }
 
-    const obterValorInputTexto = (linha, campo, categoriaId) => {
-        const chave = `${categoriaId}-${linha.codigo}-${campo}`
-        if (Object.prototype.hasOwnProperty.call(edicoesLocais, chave)) return edicoesLocais[chave]
-        return String(linha[campo] ?? '')
-    }
-
     const atualizarEdicaoLocal = (linha, campo, categoriaId, valor) => {
         const chave = `${categoriaId}-${linha.codigo}-${campo}`
         setEdicoesLocais((anterior) => ({ ...anterior, [chave]: valor }))

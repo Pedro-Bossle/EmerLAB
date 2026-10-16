@@ -45,6 +45,11 @@ export default function MultiEspecialidadesInput({
 
     const idsSec = useMemo(() => new Set((secundariasIds || []).map(Number)), [secundariasIds])
 
+    const idsParaNomesTexto = (ids) =>
+        (ids || [])
+            .map((eid) => especialidades.find((e) => Number(e.id) === Number(eid))?.nome)
+            .filter(Boolean)
+
     useEffect(() => {
         if (inputFocadoRef.current) return
         const labels = idsParaNomesTexto(secundariasIds)
@@ -79,11 +84,6 @@ export default function MultiEspecialidadesInput({
         setTexto(nomesSec.length ? `${nomesSec.join(', ')}, ` : '')
         setSugestoesAbertas(false)
     }
-
-    const idsParaNomesTexto = (ids) =>
-        (ids || [])
-            .map((eid) => especialidades.find((e) => Number(e.id) === Number(eid))?.nome)
-            .filter(Boolean)
 
     const removerSec = (id) => {
         const next = secundariasIds.filter((x) => Number(x) !== Number(id))

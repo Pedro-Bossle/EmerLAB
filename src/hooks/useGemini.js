@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { buildServerApiUrl, serverApiAuthHeaders, useSupabaseEdgeApi } from '../lib/api/serverBackend.js'
+import { buildServerApiUrl, serverApiAuthHeaders, deveUsarSupabaseEdgeApi } from '../lib/api/serverBackend.js'
 
 async function authHeaders() {
     const { data } = await supabase.auth.getSession()
@@ -10,7 +10,7 @@ async function authHeaders() {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
     }
-    if (useSupabaseEdgeApi('gemini-rate')) {
+    if (deveUsarSupabaseEdgeApi('gemini-rate')) {
         const edge = await serverApiAuthHeaders('gemini-rate')
         Object.assign(headers, edge)
         headers.Authorization = `Bearer ${token}`

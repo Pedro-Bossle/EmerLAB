@@ -104,7 +104,6 @@ export function previsaoRetornoGemini(ateIso, opts = {}) {
     const hora = quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     const data = quando.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
     const seg = Math.ceil(ms / 1000)
-    const linha = seg >= 3600 ? `≈ ${formatarTimerDescansoGemini(seg)} · ${hora}` : `≈ ${formatarTimerDescansoGeminiLive(ms)} · ${hora}`
     return {
         temPrevisao: true,
         linha: `volta ~${hora} (${data})`,

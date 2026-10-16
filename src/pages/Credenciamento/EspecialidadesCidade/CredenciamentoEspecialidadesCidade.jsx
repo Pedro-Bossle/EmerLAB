@@ -21,7 +21,7 @@ import { PageHeader } from '../../../components/ui'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 
-function usarContagemColunasEspecialidade() {
+function useContagemColunasEspecialidade() {
     const [cols, setCols] = useState(() => {
         if (typeof window === 'undefined') return 3
         if (window.matchMedia('(max-width: 620px)').matches) return 1
@@ -68,7 +68,7 @@ export default function CredenciamentoEspecialidadesCidade() {
     const [expandidas, setExpandidas] = useState({})
     const [copiadoEspId, setCopiadoEspId] = useState(null)
     const [ordenacao, setOrdenacao] = useState('desc')
-    const colunasCount = usarContagemColunasEspecialidade()
+    const colunasCount = useContagemColunasEspecialidade()
 
     useEffect(() => {
         const run = async () => {

@@ -29,13 +29,6 @@ import { PageHeader } from '../../../components/ui'
 const CATEGORIA_MIN = 3
 const CATEGORIA_MAX = 25
 
-const norm = (t) =>
-    String(t || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .trim()
-        .toLowerCase()
-
 const normCodigo = (c) => String(c || '').trim().toUpperCase()
 
 /** Aba inicial: categoria «Atendimento», senão a primeira da lista. */
@@ -347,8 +340,6 @@ export default function CredenciamentoQuemRealiza() {
         if (!q) setSugestoesAbertas(false)
     }, [buscaProc, sugestoesProcedimento.length])
 
-    const mapaEspNome = useMemo(() => new Map(especialidades.map((e) => [Number(e.id), e.nome])), [especialidades])
-
     const toggleCodigo = (codigo) => {
         const c = normCodigo(codigo)
         if (!c) return
@@ -438,8 +429,6 @@ export default function CredenciamentoQuemRealiza() {
         setPesquisou(false)
         setErro('')
     }
-
-    const nomeServico = (codigo) => mapaNomePorCodigo.get(normCodigo(codigo)) || codigo
 
     const mapaCodigoPorProcedimentoId = useMemo(
         () => mapaCodigoProcedimentoIdDeCatalogo(procedimentosCatalogo),

@@ -19,7 +19,7 @@ import {
     readJsonBodyLimited,
     responderSePayloadGrande,
 } from '../src/lib/api/serverAuth.js'
-import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
+import { aplicarRateLimit, aplicarRateLimitDistribuido, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
 import { enviarEmailTemplate } from './_lib/resendMail.js'
 import { gerarSenhaTemporaria } from './_lib/gerarSenhaTemporaria.js'
 
@@ -116,17 +116,42 @@ const mensagemErroAuthSupabase = (error) => {
 /** Links de Auth (recovery) devem abrir a tela de definir/alterar senha — nunca a home. */
 const PATH_ALTERAR_SENHA = '/alterar-senha?from=recovery'
 
-const redirectAuthPadrao = (body) => {
-    const raw = String(body?.redirectTo || process.env.SITE_URL || '').trim()
-    if (!raw) return undefined
-    try {
-        const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
-        const u = new URL(withProto)
-        // Sempre /alterar-senha?from=recovery (ignora path do SITE_URL / body).
-        return `${u.origin}${PATH_ALTERAR_SENHA}`
-    } catch {
-        return raw
+/** Origens aceitas no redirect dos links de Auth: SITE_URL, AUTH_REDIRECT_ORIGINS e localhost. */
+const origensRedirectPermitidas = () => {
+    const lista = [process.env.SITE_URL, ...String(process.env.AUTH_REDIRECT_ORIGINS || '').split(',')]
+    const origens = new Set()
+    for (const item of lista) {
+        const raw = String(item || '').trim()
+        if (!raw) continue
+        try {
+            origens.add(new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).origin)
+        } catch {
+            /* ignora entrada inválida */
+        }
     }
+    return origens
+}
+
+const origemDe = (raw) => {
+    const s = String(raw || '').trim()
+    if (!s) return null
+    try {
+        return new URL(/^https?:\/\//i.test(s) ? s : `https://${s}`).origin
+    } catch {
+        return null
+    }
+}
+
+const redirectAuthPadrao = (body) => {
+    // O corpo vem do navegador (inclusive sem login): só vale se a origem for conhecida.
+    const permitidas = origensRedirectPermitidas()
+    const pedida = origemDe(body?.redirectTo)
+    const ehLocal = pedida && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(pedida)
+    const origem =
+        (pedida && (permitidas.has(pedida) || ehLocal) && pedida) || origemDe(process.env.SITE_URL)
+    if (!origem) return undefined
+    // Sempre /alterar-senha?from=recovery (ignora path do SITE_URL / body).
+    return `${origem}${PATH_ALTERAR_SENHA}`
 }
 
 /** URL pública do login EmerMarketing (API / Resend). */
@@ -250,7 +275,11 @@ const enviarLinkAuthPorResend = async (authType, opts) => {
     }
 
     const userId = opts.userId || data?.user?.id
-    if (authType === 'recovery' || template === 'invite' || template === 'invite_existing') {
+    // Pedido anónimo (esqueci a senha) não marca troca obrigatória: senão qualquer pessoa que
+    // saiba o e-mail de um colega o obriga a trocar a senha no próximo login. Quem abre o link
+    // de recuperação já é levado a /alterar-senha pelo fluxo de recovery do front.
+    const marcarTroca = opts.marcarTrocaSenha !== false
+    if (marcarTroca && (authType === 'recovery' || template === 'invite' || template === 'invite_existing')) {
         await marcarExigirTrocaSenha(opts.supabase, userId)
     }
 
@@ -535,12 +564,24 @@ export default async function handler(req, res) {
             if (!email || !email.includes('@')) {
                 return responderErro(res, 400, 'Informe um e-mail válido.')
             }
+            // Contador compartilhado entre instâncias: por IP+e-mail e por e-mail (vários IPs).
             if (
-                !aplicarRateLimit(
+                !(await aplicarRateLimitDistribuido(
                     res,
+                    supabase,
                     `forgot-password:${ip}:${email}`,
                     RATE_LIMITS.forgotPassword,
-                )
+                ))
+            ) {
+                return
+            }
+            if (
+                !(await aplicarRateLimitDistribuido(
+                    res,
+                    supabase,
+                    `forgot-password-email:${email}`,
+                    RATE_LIMITS.forgotPasswordPorEmail,
+                ))
             ) {
                 return
             }
@@ -578,6 +619,7 @@ export default async function handler(req, res) {
                     nome,
                     userId: perfil?.id,
                     redirectTo: redirectAuthPadrao(body) || undefined,
+                    marcarTrocaSenha: false,
                 })
 
                 if (perfil?.id) {

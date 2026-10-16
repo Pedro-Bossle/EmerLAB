@@ -12,13 +12,15 @@ import {
   gerarNovoParChaves,
   importarParDePrivJwk,
   importarPublicaJwk,
-  lerPrivJwkLocal,
-  limparPrivJwkLocal,
+  lerIdentidadeLocal,
+  limparIdentidadeLocal,
   montarMetaImagem,
   normalizarSenhaChave,
   parseAnexoMeta,
+  parDaIdentidade,
   privadaCorrespondePublica,
-  salvarPrivJwkLocal,
+  publicaDaIdentidade,
+  salvarIdentidadeProtegida,
 } from './batePapoCrypto.js'
 
 const MSG_INDISPONIVEL = 'Mensagem indisponível neste dispositivo'
@@ -107,13 +109,16 @@ async function upsertChaveConta({ uid, publicJwk, privCipher, manterPrivCipher =
 export async function inspecionarChaveConta() {
   const uid = await uidAtual()
   const row = await buscarRowChaveConta(uid)
-  const local = lerPrivJwkLocal()
+  const identidade = await lerIdentidadeLocal()
+  const local = publicaDaIdentidade(identidade)
   const temCipher = Boolean(row?.priv_cipher)
   const temPublica = Boolean(row?.public_jwk?.n)
 
   if (temCipher) {
     if (local && privadaCorrespondePublica(local, row.public_jwk)) {
-      const pair = await importarParDePrivJwk(local)
+      // Chave legada (JWK em localStorage) com cópia já na cloud: migra para a forma protegida.
+      if (identidade.privJwk) await salvarIdentidadeProtegida(identidade.privJwk)
+      const pair = await parDaIdentidade(identidade)
       return { status: 'ok', pair }
     }
     return {
@@ -141,7 +146,7 @@ export async function inspecionarChaveConta() {
           'Este aparelho tem uma chave antiga diferente da conta. No aparelho onde o Emerzap já funciona, defina a senha da chave. Depois volte aqui e desbloqueie.',
       }
     }
-    const pair = await importarParDePrivJwk(local)
+    const pair = await parDaIdentidade(identidade)
     if (!temPublica) {
       await upsertChaveConta({ uid, publicJwk: pair.publicJwk, privCipher: null })
     }
@@ -192,12 +197,14 @@ export async function configurarChaveContaComSenha(senha, senhaConfirm) {
     throw erroChaveConta(CHAVE_CONTA_UNLOCK, 'Esta conta já tem chave sincronizada. Use desbloquear.')
   }
 
-  const local = lerPrivJwkLocal()
+  const identidade = await lerIdentidadeLocal()
+  // Só a chave ainda não sincronizada tem o `d` necessário para gerar a cópia cifrada.
+  const local = identidade?.privJwk || null
   const resetPedido = Boolean(row?.chave_reset_pedido_em)
 
   if (resetPedido) {
     // Reset admin: gera chave nova (não reutiliza privada antiga que pode divergir)
-    limparPrivJwkLocal()
+    await limparIdentidadeLocal()
     pair = await gerarNovoParChaves()
   } else if (local && (!row?.public_jwk || privadaCorrespondePublica(local, row.public_jwk))) {
     pair = await importarParDePrivJwk(local)
@@ -210,15 +217,19 @@ export async function configurarChaveContaComSenha(senha, senhaConfirm) {
     pair = await gerarNovoParChaves()
   }
 
-  const privJwk = pair.privJwk || lerPrivJwkLocal()
+  const privJwk = pair.privJwk || local
+  if (!privJwk?.d) {
+    throw new Error('A chave deste aparelho já está protegida. Use desbloquear com a senha da chave.')
+  }
   const privCipher = await envolverPrivComSenha(privJwk, s)
   // Garante que a mesma senha consegue abrir o blob antes de gravar na cloud
   const roundTrip = await desenrolarPrivComSenha(privCipher, s)
   if (!privadaCorrespondePublica(roundTrip, pair.publicJwk)) {
     throw new Error('Falha ao validar a senha da chave. Tente novamente.')
   }
-  salvarPrivJwkLocal(privJwk)
   await upsertChaveConta({ uid, publicJwk: pair.publicJwk, privCipher })
+  // Cópia cifrada gravada na cloud: a privada local passa a ser não exportável.
+  await salvarIdentidadeProtegida(privJwk)
   return pair
 }
 
@@ -233,7 +244,7 @@ export async function desbloquearChaveContaComSenha(senha) {
   if (!privadaCorrespondePublica(privJwk, row.public_jwk)) {
     throw new Error('A chave desbloqueada não corresponde à pública da conta.')
   }
-  salvarPrivJwkLocal(privJwk)
+  await salvarIdentidadeProtegida(privJwk)
   return importarParDePrivJwk(privJwk)
 }
 
