@@ -4,9 +4,18 @@
  * - Dev: proxy Vite `/emeradar` → http://127.0.0.1:8000
  * - Prod: pipeline/cron via GitHub Actions (POST /api/emer-radar-cron);
  *   scraping interativo exige worker local.
+ * - Fila / cooldown / preview: Supabase direto (sem worker).
  *
  * Override raro: VITE_EMERADAR_API_BASE + VITE_EMERADAR_DIRECT=true
  */
+import {
+  deleteCityFromDb,
+  enqueuePipelineCitiesFromDb,
+  listCitiesFromDb,
+  listPipelineQueueFromDb,
+  previewCitiesFromDb,
+  removePipelineQueueItemFromDb,
+} from './emerRadarQueue.js'
 
 const DEFAULT_TERMS = [
   'clínica veterinária',
@@ -172,25 +181,18 @@ export function fetchPlacePhotoEmerRadar(opts = {}) {
   return request(`/api/place-photo${qs ? `?${qs}` : ''}`)
 }
 
-/* --- Pipeline --- */
+/* --- Pipeline (registry/fila via Supabase — funciona na Vercel sem worker) --- */
 
 export function listCities() {
-  return request('/api/cities')
+  return listCitiesFromDb()
 }
 
 export function deleteCity(cidade, uf) {
-  const params = new URLSearchParams({
-    cidade: cidade || '',
-    uf: uf || '',
-  })
-  return request(`/api/cities?${params.toString()}`, { method: 'DELETE' })
+  return deleteCityFromDb(cidade, uf)
 }
 
 export function pipelinePreviewCities(cidades) {
-  return request('/api/cities/preview', {
-    method: 'POST',
-    body: JSON.stringify({ cidades }),
-  })
+  return previewCitiesFromDb(cidades)
 }
 
 export function pipelineStart(body) {
@@ -218,18 +220,15 @@ export function pipelineGetRun(runId) {
 }
 
 export function pipelineEnqueue(cidades) {
-  return request('/api/pipeline/queue', {
-    method: 'POST',
-    body: JSON.stringify({ cidades }),
-  })
+  return enqueuePipelineCitiesFromDb(cidades)
 }
 
 export function pipelineListQueue() {
-  return request('/api/pipeline/queue?limit=50')
+  return listPipelineQueueFromDb({ limit: 50 })
 }
 
 export function pipelineRemoveFromQueue(itemId) {
-  return request(`/api/pipeline/queue/${encodeURIComponent(itemId)}`, { method: 'DELETE' })
+  return removePipelineQueueItemFromDb(itemId)
 }
 
 export function openPipelineStream(lastId = 0) {

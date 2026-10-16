@@ -389,8 +389,10 @@ function PipelinePanel({ workerDisponivel = false }) {
   }, [])
 
   useEffect(() => {
-    // Contadores, utilizadores e destinatários: Supabase (ok na Vercel / cron).
+    // Contadores, utilizadores, destinatários, fila e registry: Supabase.
     refreshTrafego()
+    refreshRegistry()
+    refreshFilaCron()
     listarUsuariosParaAtribuicao()
       .then(setUsuarios)
       .catch(() => setUsuarios([]))
@@ -398,19 +400,14 @@ function PipelinePanel({ workerDisponivel = false }) {
       .then((s) => setDestinatarios(s.tarefa_destinatarios || []))
       .catch(() => undefined)
 
-    // Fila HTTP / registry / runs: só com worker (dev).
+    // Runs / status HTTP: só com worker (dev).
     if (!workerDisponivel) {
       setPastRuns([])
-      setRegistry([])
-      setFilaCron([])
-      setFilaCronErro('')
       setSnap(null)
       return undefined
     }
 
     refreshRuns()
-    refreshRegistry()
-    refreshFilaCron()
     pipelineStatus()
       .then(setSnap)
       .catch(() => undefined)
@@ -1009,17 +1006,13 @@ function PipelinePanel({ workerDisponivel = false }) {
         {cronActionsMsg ? (
           <p className="mt-0 mb-3 text-sm text-ink-muted">{cronActionsMsg}</p>
         ) : null}
-        {filaCronErro && workerDisponivel ? (
+        {filaCronErro ? (
           <p className="mt-0 mb-3 text-sm text-status-erro">{filaCronErro}</p>
         ) : null}
-        {!workerDisponivel ? (
+        {filaCron.length === 0 && !filaCronErro ? (
           <p className="m-0 text-sm text-ink-muted">
-            Em produção a fila HTTP do worker não está disponível. Dispare o cron com «Rodar cron
-            (Actions)» — o job no GitHub Actions processa as cidades do tráfego/limiar.
-          </p>
-        ) : filaCron.length === 0 && !filaCronErro ? (
-          <p className="m-0 text-sm text-ink-muted">
-            Fila vazia no worker local. Use o tráfego do dia ou «Enfileirar p/ cron» no modo manual.
+            Fila vazia. Use o tráfego do dia ou «Enfileirar p/ cron» no modo manual. Em produção,
+            dispare o cron com «Rodar cron (Actions)».
           </p>
         ) : (
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
