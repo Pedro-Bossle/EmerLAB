@@ -8,9 +8,17 @@ import PermissoesCascade from './PermissoesCascade'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import {
     EMERMARKETING_GROUP_ID,
+    EMERMARKETING_URL_PADRAO,
     PERMISSION_CATALOG,
+    aclKey,
+    aplicarFerramentaAcl,
     hasAcl,
+    syncLegacyFromAcl,
 } from '../../../lib/permissionCatalog'
+import {
+    urlEmerMarketing,
+    usuarioSomenteEmerMarketing,
+} from '../../../lib/emermarketingAccess'
 import { supabase } from '../../../lib/supabase'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
 import './GerenciamentoAcessos.css'
@@ -38,6 +46,42 @@ function contarFerramentasComAcesso(permissions) {
 
 const permissoesPadraoNovoUsuario = () => normalizarPermissions({ permissions: { ...DEFAULT_INVITED_PERMISSIONS } })
 
+/** Remove todas as ACL do grupo EmerMarketing. */
+function limparPermissoesEmermarketing(permissions = {}) {
+    let next = { ...permissions }
+    const grupo = PERMISSION_CATALOG.find((g) => g.id === EMERMARKETING_GROUP_ID)
+    for (const tool of grupo?.tools || []) {
+        for (const action of tool.actions || []) {
+            next[aclKey(tool.id, action)] = false
+        }
+    }
+    return syncLegacyFromAcl(next)
+}
+
+/** Conta só EmerMarketing: portal (+ dashboard). Sem ferramentas do EmerLAB. */
+function permissoesSomenteEmermarketing() {
+    let p = {}
+    p = aplicarFerramentaAcl(p, 'emermarketing.app', 'read', true)
+    p = aplicarFerramentaAcl(p, 'emermarketing.app', 'update', true)
+    p = aplicarFerramentaAcl(p, 'emermarketing.dashboard', 'read', true)
+    return syncLegacyFromAcl(p)
+}
+
+/** Mantém EmerLAB e liga o portal EmerMarketing. */
+function permissoesEmerlabComMarketing(base = permissoesPadraoNovoUsuario()) {
+    let p = limparPermissoesEmermarketing(base)
+    p = aplicarFerramentaAcl(p, 'emermarketing.app', 'read', true)
+    p = aplicarFerramentaAcl(p, 'emermarketing.dashboard', 'read', true)
+    return syncLegacyFromAcl(p)
+}
+
+/** @param {'emerlab' | 'emermarketing' | 'ambos'} destino */
+function permissoesParaDestinoConvite(destino) {
+    if (destino === 'emermarketing') return permissoesSomenteEmermarketing()
+    if (destino === 'ambos') return permissoesEmerlabComMarketing()
+    return limparPermissoesEmermarketing(permissoesPadraoNovoUsuario())
+}
+
 function formatarDataLog(iso) {
     if (!iso) return '—'
     const d = new Date(iso)
@@ -62,6 +106,8 @@ const GerenciamentoAcessos = () => {
     const [mostrarConvite, setMostrarConvite] = useState(false)
     /** 'invite' = email de convite | 'create' = criar com senha imediata */
     const [modoNovoUsuario, setModoNovoUsuario] = useState('create')
+    /** Destino do acesso no convite/criação. */
+    const [destinoConvite, setDestinoConvite] = useState('emerlab')
     const [logs, setLogs] = useState([])
     const [logsAviso, setLogsAviso] = useState('')
     const [logsLoading, setLogsLoading] = useState(false)
@@ -70,7 +116,8 @@ const GerenciamentoAcessos = () => {
         email: '',
         password: '',
         passwordConfirm: '',
-        permissions: permissoesPadraoNovoUsuario() })
+        permissions: permissoesParaDestinoConvite('emerlab'),
+    })
     const [edicao, setEdicao] = useState(null)
 
     const usuarioSelecionado = useMemo(
@@ -226,14 +273,23 @@ const GerenciamentoAcessos = () => {
     )
 
     const resetFormNovoUsuario = () => {
+        setDestinoConvite('emerlab')
         setConvite({
             name: '',
             email: '',
             password: '',
             passwordConfirm: '',
-            permissions: permissoesPadraoNovoUsuario(),
+            permissions: permissoesParaDestinoConvite('emerlab'),
         })
         setModoNovoUsuario('create')
+    }
+
+    const escolherDestinoConvite = (destino) => {
+        setDestinoConvite(destino)
+        setConvite((atual) => ({
+            ...atual,
+            permissions: permissoesParaDestinoConvite(destino),
+        }))
     }
 
     const abrirNovoUsuario = (modo = 'create') => {
@@ -282,11 +338,19 @@ const GerenciamentoAcessos = () => {
             resetFormNovoUsuario()
             setMostrarConvite(false)
             setAbaDetalhe('permissoes')
+            const soMkt = usuarioSomenteEmerMarketing(profile.permissions)
+            const linkMkt = urlEmerMarketing() || EMERMARKETING_URL_PADRAO
             if (modo === 'create') {
-                mostrarMensagem('Usuário criado. Já pode fazer login com o email e a senha definidos.')
+                mostrarMensagem(
+                    soMkt
+                        ? `Usuário criado (EmerMarketing). Login em ${linkMkt}.`
+                        : 'Usuário criado. Já pode fazer login com o email e a senha definidos.',
+                )
             } else {
                 mostrarMensagem(
-                    'Convite enviado por e-mail com senha temporária de uso único. No primeiro acesso a pessoa terá de definir uma senha nova.',
+                    soMkt
+                        ? `Convite enviado com link do EmerMarketing (${linkMkt}). Senha temporária de uso único — trocar no primeiro acesso.`
+                        : 'Convite enviado por e-mail com senha temporária de uso único. No primeiro acesso a pessoa terá de definir uma senha nova.',
                 )
             }
         } catch (error) {
@@ -834,36 +898,91 @@ const GerenciamentoAcessos = () => {
                                 </div>
                             </section>
 
-                            <section className='gerenciamento_acessos_convite_bloco' aria-labelledby='ga-convite-perms'>
+                            <section className='gerenciamento_acessos_convite_bloco' aria-labelledby='ga-convite-destino'>
                                 <div className='gerenciamento_acessos_convite_bloco_head'>
                                     <span className='gerenciamento_acessos_convite_passo' aria-hidden='true'>2</span>
                                     <div>
+                                        <h3 id='ga-convite-destino'>Para onde é o acesso?</h3>
+                                        <p>
+                                            Escolha EmerLAB, EmerMarketing ou ambos. Contas só de marketing
+                                            recebem o link de login do EmerMarketing no e-mail.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div
+                                    className='gerenciamento_acessos_destino_grid'
+                                    role='radiogroup'
+                                    aria-labelledby='ga-convite-destino'
+                                >
+                                    {[
+                                        {
+                                            id: 'emerlab',
+                                            titulo: 'EmerLAB',
+                                            desc: 'Ferramentas do EmerLAB (credenciamento, compras, contratos…).',
+                                        },
+                                        {
+                                            id: 'emermarketing',
+                                            titulo: 'EmerMarketing',
+                                            desc: `Só o app de marketing. E-mail com link para ${urlEmerMarketing() || EMERMARKETING_URL_PADRAO}.`,
+                                        },
+                                        {
+                                            id: 'ambos',
+                                            titulo: 'EmerLAB + EmerMarketing',
+                                            desc: 'Acesso ao EmerLAB e ao portal EmerMarketing.',
+                                        },
+                                    ].map((opt) => (
+                                        <button
+                                            key={opt.id}
+                                            type='button'
+                                            role='radio'
+                                            aria-checked={destinoConvite === opt.id}
+                                            className={`gerenciamento_acessos_destino_card${destinoConvite === opt.id ? ' is-active' : ''}`}
+                                            onClick={() => escolherDestinoConvite(opt.id)}
+                                            disabled={loading}
+                                        >
+                                            <strong>{opt.titulo}</strong>
+                                            <span>{opt.desc}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+
+                            <section className='gerenciamento_acessos_convite_bloco' aria-labelledby='ga-convite-perms'>
+                                <div className='gerenciamento_acessos_convite_bloco_head'>
+                                    <span className='gerenciamento_acessos_convite_passo' aria-hidden='true'>3</span>
+                                    <div>
                                         <h3 id='ga-convite-perms'>O que essa pessoa poderá acessar?</h3>
                                         <p>
-                                            Comece pelo essencial — dá para ajustar depois na ficha do usuário.
-                                            Use a busca e Expandir/Recolher para navegar.
+                                            Ajuste fino das permissões — dá para mudar depois na ficha do usuário.
                                         </p>
                                     </div>
                                     <span className='gerenciamento_acessos_convite_resumo' title='Ferramentas com algum acesso marcado'>
                                         {resumoPermissoesConvite.comAcesso} de {resumoPermissoesConvite.total} ferramentas
                                     </span>
                                 </div>
-                                <div className='gerenciamento_acessos_convite_perms'>
-                                    {renderPermissoes(convite.permissions, alterarPermissoesConvite, '', {
-                                        gruposIniciaisAbertos: false,
-                                        excluirGrupoIds: [EMERMARKETING_GROUP_ID],
-                                    })}
-                                </div>
-                                <div className='gerenciamento_acessos_convite_perms gerenciamento_acessos_convite_emermarketing'>
-                                    <h4 className='gerenciamento_acessos_convite_subtitulo'>EmerMarketing</h4>
-                                    <p className='gerenciamento_acessos_hint'>
-                                        Opcional. Sem estas permissões a pessoa não vê o link nem entra no app.
-                                    </p>
-                                    {renderPermissoes(convite.permissions, alterarPermissoesConvite, '', {
-                                        gruposIniciaisAbertos: true,
-                                        grupoIds: [EMERMARKETING_GROUP_ID],
-                                    })}
-                                </div>
+                                {destinoConvite !== 'emermarketing' ? (
+                                    <div className='gerenciamento_acessos_convite_perms'>
+                                        <h4 className='gerenciamento_acessos_convite_subtitulo'>EmerLAB</h4>
+                                        {renderPermissoes(convite.permissions, alterarPermissoesConvite, '', {
+                                            gruposIniciaisAbertos: false,
+                                            excluirGrupoIds: [EMERMARKETING_GROUP_ID],
+                                        })}
+                                    </div>
+                                ) : null}
+                                {destinoConvite !== 'emerlab' ? (
+                                    <div className='gerenciamento_acessos_convite_perms gerenciamento_acessos_convite_emermarketing'>
+                                        <h4 className='gerenciamento_acessos_convite_subtitulo'>EmerMarketing</h4>
+                                        <p className='gerenciamento_acessos_hint'>
+                                            {destinoConvite === 'emermarketing'
+                                                ? 'Portal liberado. Sem módulos específicos, todas as telas do marketing ficam disponíveis.'
+                                                : 'Sem estas permissões a pessoa não vê o link nem entra no app de marketing.'}
+                                        </p>
+                                        {renderPermissoes(convite.permissions, alterarPermissoesConvite, '', {
+                                            gruposIniciaisAbertos: true,
+                                            grupoIds: [EMERMARKETING_GROUP_ID],
+                                        })}
+                                    </div>
+                                ) : null}
                             </section>
 
                             <div className='gerenciamento_acessos_modal_footer'>
