@@ -5,8 +5,6 @@ import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 import {
   deleteCity,
   emerRadarHealth,
-  emerRadarGetSettings,
-  emerRadarSaveSettings,
   getDefaultSearchTerms,
   getEmerRadarApiBase,
   isEmerRadarAmbienteRemoto,
@@ -53,6 +51,10 @@ import {
   parseCidadesTrafego,
   processarTrafegoDoDia,
 } from '../../../lib/credenciamento/trafegoCidades.js'
+import {
+  loadEmerRadarSettings,
+  saveEmerRadarSettings,
+} from '../../../lib/credenciamento/emerRadarSettings.js'
 import { listarUsuariosParaAtribuicao } from '../../../lib/homeTarefas.js'
 import {
   STATUS_PROSPECCAO_MAPS_OPCOES,
@@ -387,13 +389,16 @@ function PipelinePanel({ workerDisponivel = false }) {
   }, [])
 
   useEffect(() => {
-    // Contadores de tráfego + utilizadores: Supabase (ok na Vercel).
+    // Contadores, utilizadores e destinatários: Supabase (ok na Vercel / cron).
     refreshTrafego()
     listarUsuariosParaAtribuicao()
       .then(setUsuarios)
       .catch(() => setUsuarios([]))
+    loadEmerRadarSettings()
+      .then((s) => setDestinatarios(s.tarefa_destinatarios || []))
+      .catch(() => undefined)
 
-    // Fila HTTP / registry / runs / settings: só com worker (dev).
+    // Fila HTTP / registry / runs: só com worker (dev).
     if (!workerDisponivel) {
       setPastRuns([])
       setRegistry([])
@@ -408,9 +413,6 @@ function PipelinePanel({ workerDisponivel = false }) {
     refreshFilaCron()
     pipelineStatus()
       .then(setSnap)
-      .catch(() => undefined)
-    emerRadarGetSettings()
-      .then((s) => setDestinatarios(s.tarefa_destinatarios || []))
       .catch(() => undefined)
     return undefined
   }, [workerDisponivel, refreshRuns, refreshRegistry, refreshTrafego, refreshFilaCron])
@@ -1072,8 +1074,8 @@ function PipelinePanel({ workerDisponivel = false }) {
       <section>
         <h3 className="mt-0 font-bold">Destinatários das tarefas</h3>
         <p className="text-sm text-ink-soft dark:text-[#9eb4c8]">
-          Ao finalizar o pipeline, cria uma tarefa no Home para cada usuário marcado (Excel +
-          HTML anexados).
+          Ao finalizar o pipeline (cron), cria uma tarefa no Home para cada usuário marcado
+          (Excel + HTML anexados). Salvo no Supabase — vale na Vercel e no GitHub Actions.
         </p>
         {settingsMsg && (
           <p className="rounded-xl border border-amber-300/40 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
@@ -1116,11 +1118,11 @@ function PipelinePanel({ workerDisponivel = false }) {
             setSettingsBusy(true)
             setSettingsMsg('')
             try {
-              const saved = await emerRadarSaveSettings({
+              const saved = await saveEmerRadarSettings({
                 tarefa_destinatarios: destinatarios,
               })
               setDestinatarios(saved.tarefa_destinatarios || [])
-              setSettingsMsg('Destinatários salvos no worker Emer-Radar.')
+              setSettingsMsg('Destinatários salvos (usados pelo cron no GitHub Actions).')
             } catch (e) {
               setSettingsMsg(e.message || 'Falha ao salvar.')
             } finally {

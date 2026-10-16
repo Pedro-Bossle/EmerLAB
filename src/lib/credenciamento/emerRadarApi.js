@@ -245,10 +245,12 @@ export function pipelineExportUrl(kind, runId) {
   return `${base}/api/pipeline/export/${kind}`
 }
 
+/** @deprecated Preferir loadEmerRadarSettings em emerRadarSettings.js (Supabase). */
 export function emerRadarGetSettings() {
   return request('/api/settings')
 }
 
+/** @deprecated Preferir saveEmerRadarSettings em emerRadarSettings.js (Supabase). */
 export function emerRadarSaveSettings(body) {
   return request('/api/settings', { method: 'PUT', body: JSON.stringify(body) })
 }
