@@ -369,14 +369,26 @@ export default function ClicksignEmerdog() {
         }
     }, [termoMencao])
 
-    const aplicarMencaoPerfil = useCallback((perfil) => {
+    const aplicarMencaoPerfil = useCallback(async (perfil) => {
         if (!perfil) return
+        let nomePerfil = String(perfil.nome || '').trim()
+        if (perfil.temCnpj && perfil.cpfCnpj) {
+            try {
+                const dados = await buscarDadosCNPJ(perfil.cpfCnpj, {
+                    origem: ORIGENS_CONSULTA_CNPJ.CONTRATOS_EMERDOG,
+                })
+                const razao = String(dados?.razaoSocial || '').trim()
+                if (razao) nomePerfil = razao
+            } catch {
+                /* mantém razão social do cadastro já resolvida na lista */
+            }
+        }
         setSignDraft((d) => {
             const semMencao = String(d.nome || '').replace(/(?:^|\s)@[^\s@]*$/, '').trim()
-            const nome = [semMencao, perfil.nome].filter(Boolean).join(' ').trim()
+            const nome = [semMencao, nomePerfil].filter(Boolean).join(' ').trim()
             return {
                 ...d,
-                nome: nome || perfil.nome,
+                nome: nome || nomePerfil,
                 email: perfil.email || d.email,
                 phone: perfil.telefone || d.phone,
             }
@@ -2843,10 +2855,11 @@ export default function ClicksignEmerdog() {
                                                                     <button
                                                                         type="button"
                                                                         className="cs_sign_kanban_item"
-                                                                        onClick={() => aplicarMencaoPerfil(p)}
+                                                                        onClick={() => void aplicarMencaoPerfil(p)}
                                                                     >
                                                                         <span className="cs_sign_kanban_item_nome">{p.nome}</span>
                                                                         <span className="cs_sign_kanban_item_meta">
+                                                                            {p.temCnpj ? 'CNPJ · ' : ''}
                                                                             {p.email || 'sem e-mail'}
                                                                         </span>
                                                                     </button>

@@ -4,10 +4,11 @@
  *
  * Nome para o formulário:
  * - prestador com CNPJ → razão social (campo nome do cadastro)
- * - caso contrário → nome inserido no card do Kanban
+ * - caso contrário → nome inserido no card do Kanban, sem Dr./Dra.
  */
 
 import { supabase } from '../supabase.js'
+import { removerTituloDrDra } from '../contratos/nomeContrato.js'
 import { maskTelefoneBr } from '../telefoneBrasil.js'
 import { tipoDocumentoCpfCnpj } from '../prestadorCadastroHelpers.js'
 
@@ -78,10 +79,10 @@ export async function listarSugestoesSignatarioKanbanAssinatura() {
         const temCnpj = tipoDocumentoCpfCnpj(cpfCnpj) === 'CNPJ'
         const razaoSocial = String(p.nome || '').trim()
         const nomeInserido = String(card.nome || '').trim()
-        // CNPJ → razão social do cadastro; senão → nome digitado no card do Kanban
+        // CNPJ → razão social do cadastro; PF → nome do card/cadastro sem Dr./Dra.
         const nome = temCnpj
             ? razaoSocial || nomeInserido
-            : nomeInserido || razaoSocial
+            : removerTituloDrDra(nomeInserido || razaoSocial)
 
         const email = String(p.email || '').trim().toLowerCase()
         const telBruto = String(p.celular || p.telefone || card.telefone || '').trim()
@@ -113,7 +114,8 @@ export function termoMencaoSignatario(nome) {
 
 /**
  * Perfis do sistema para preencher nome + e-mail do signatário a partir de @nome.
- * @returns {Promise<Array<{ id: number, nome: string, email: string, telefone: string }>>}
+ * CNPJ → razão social; PF → nome sem Dr./Dra.
+ * @returns {Promise<Array<{ id: number, nome: string, email: string, telefone: string, cpfCnpj: string, temCnpj: boolean }>>}
  */
 export async function buscarPerfisParaMencaoSignatario(termo) {
     const q = String(termo || '')
@@ -124,19 +126,27 @@ export async function buscarPerfisParaMencaoSignatario(termo) {
     if (q.length < 2) return []
     const { data, error } = await supabase
         .from('prestadores')
-        .select('id, nome, email, telefone, celular')
+        .select('id, nome, email, telefone, celular, cpf_cnpj')
         .eq('ativo', true)
         .ilike('nome', `%${q}%`)
         .order('nome')
         .limit(8)
     if (error) return []
     return (data || [])
-        .map((p) => ({
-            id: Number(p.id),
-            nome: String(p.nome || '').trim(),
-            email: String(p.email || '').trim(),
-            telefone: maskTelefoneBr(p.celular || p.telefone || ''),
-        }))
+        .map((p) => {
+            const cpfCnpj = String(p.cpf_cnpj || '').trim()
+            const temCnpj = tipoDocumentoCpfCnpj(cpfCnpj) === 'CNPJ'
+            const bruto = String(p.nome || '').trim()
+            const nome = temCnpj ? bruto : removerTituloDrDra(bruto)
+            return {
+                id: Number(p.id),
+                nome,
+                email: String(p.email || '').trim(),
+                telefone: maskTelefoneBr(p.celular || p.telefone || ''),
+                cpfCnpj,
+                temCnpj,
+            }
+        })
         .filter((p) => p.nome)
 }
 

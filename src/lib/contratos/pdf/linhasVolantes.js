@@ -1,5 +1,6 @@
 import { EMERDOG_CONTRATANTE, EMERDOG_RAZAO_VOLANTES } from '../emerdogDadosFixos.js'
 import { maskCNPJ, maskCPF } from '../mascarasDocumento.js'
+import { nomeContratadaVolante } from '../nomeContrato.js'
 import { L, LCampo } from './linhasUtil.js'
 
 /** @param {Record<string,string>} d */
@@ -13,7 +14,7 @@ export function getLinhasVolantes(d) {
             `Pelo presente instrumento e na melhor forma de direito, de um lado, a empresa ${R}, pessoa jurídica de direito privado, regularmente inscrita no CNPJ sob o nº ${E.cnpj}, com sede na ${E.endereco}, inscrita e homologada junto ao Conselho Regional de Medicina Veterinária portadora do CRMV ${E.crmv}, mantenedora do plano de Assistência e terceirização de Serviços Médicos Veterinários, a seguir denominada simplesmente Contratante, de outro lado, nomeada Contratada:`,
             { align: 'justify', gap: 4 },
         ),
-        LCampo('Razão Social ou Nome', pj ? d.razaoSocial : d.nomeCompleto),
+        LCampo('Razão Social ou Nome', nomeContratadaVolante(d)),
         LCampo('CNPJ ou CPF', pj ? maskCNPJ(d.cnpj) : maskCPF(d.cpf)),
         LCampo('CRMV', d.crmv),
         LCampo('E-mail', d.email),

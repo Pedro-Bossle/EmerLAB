@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf'
 import { OPCOES_JSPDF_A4 } from '../../pdf/serializarPdf.js'
 import autoTable from 'jspdf-autotable'
 import logoAzulUrl from '../../../assets/logo_azul_escuro.png'
+import { nomeContratadaVolante } from '../nomeContrato.js'
 import { getLinhas } from './linhasIndex.js'
 import { textoLinha } from './linhasUtil.js'
 
@@ -47,8 +48,7 @@ export function sanitizarNomeArquivoPdf(nome) {
 /** Nome / razão social da contratada para título e arquivo. */
 export function nomeRazaoSocialContrato(tipo, d) {
     if (tipo === 'volantes') {
-        const base = d?.docTipo === 'cnpj' ? d?.razaoSocial : d?.nomeCompleto
-        return String(base || d?.razaoSocial || d?.nomeCompleto || 'Contratada').trim()
+        return nomeContratadaVolante(d) || String(d?.razaoSocial || d?.nomeCompleto || 'Contratada').trim()
     }
     return String(d?.razaoSocial || d?.nomeCompleto || 'Contratada').trim()
 }
@@ -99,7 +99,8 @@ function tabelaAssinaturas(doc, tipo, d, startY) {
         })
         return
     }
-    const colContratada = tipo === 'volantes' && d.docTipo !== 'cnpj' ? d.nomeCompleto : d.razaoSocial
+    const colContratada =
+        tipo === 'volantes' ? nomeContratadaVolante(d) || d.razaoSocial : d.razaoSocial
     autoTable(doc, {
         startY: startY,
         margin,
