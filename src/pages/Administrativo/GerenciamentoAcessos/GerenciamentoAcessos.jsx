@@ -3,7 +3,8 @@ import {
     DEFAULT_INVITED_PERMISSIONS,
     normalizarProfileAcesso,
     normalizarPermissions,
-    setStoredAccessProfile } from '../../../lib/accessControl'
+    setStoredAccessProfile,
+} from '../../../lib/accessControl'
 import PermissoesCascade from './PermissoesCascade'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import {
@@ -23,12 +24,44 @@ import { supabase } from '../../../lib/supabase'
 import { useAutoDismiss } from '../../../lib/toastUi.js'
 import './GerenciamentoAcessos.css'
 import './PermissoesCascade.css'
-import { PageHeader } from '../../../components/ui'
+import {
+    Button,
+    EmptyState,
+    Input,
+    LoadingState,
+    Modal,
+    PageHeader,
+    buttonClassName,
+} from '../../../components/ui'
 import {
     PASSWORD_MIN_LENGTH,
     textoAjudaPoliticaSenha,
     validarPoliticaSenha,
 } from '../../../lib/passwordPolicy'
+
+const PASSOS_CONVITE = [
+    { id: 1, label: 'Conta' },
+    { id: 2, label: 'Destino' },
+    { id: 3, label: 'Permissões' },
+]
+
+const DESTINOS_CONVITE = [
+    {
+        id: 'emerlab',
+        titulo: 'EmerLAB',
+        desc: 'Credenciamento, compras, contratos e demais ferramentas.',
+    },
+    {
+        id: 'emermarketing',
+        titulo: 'EmerMarketing',
+        desc: 'Só o app de marketing. O e-mail leva ao login do marketing.',
+    },
+    {
+        id: 'ambos',
+        titulo: 'Ambos',
+        desc: 'EmerLAB e portal EmerMarketing no mesmo usuário.',
+    },
+]
 
 function contarFerramentasComAcesso(permissions) {
     let total = 0
@@ -44,9 +77,9 @@ function contarFerramentasComAcesso(permissions) {
     return { comAcesso, total }
 }
 
-const permissoesPadraoNovoUsuario = () => normalizarPermissions({ permissions: { ...DEFAULT_INVITED_PERMISSIONS } })
+const permissoesPadraoNovoUsuario = () =>
+    normalizarPermissions({ permissions: { ...DEFAULT_INVITED_PERMISSIONS } })
 
-/** Remove todas as ACL do grupo EmerMarketing. */
 function limparPermissoesEmermarketing(permissions = {}) {
     let next = { ...permissions }
     const grupo = PERMISSION_CATALOG.find((g) => g.id === EMERMARKETING_GROUP_ID)
@@ -58,7 +91,6 @@ function limparPermissoesEmermarketing(permissions = {}) {
     return syncLegacyFromAcl(next)
 }
 
-/** Conta só EmerMarketing: portal (+ dashboard). Sem ferramentas do EmerLAB. */
 function permissoesSomenteEmermarketing() {
     let p = {}
     p = aplicarFerramentaAcl(p, 'emermarketing.app', 'read', true)
@@ -67,7 +99,6 @@ function permissoesSomenteEmermarketing() {
     return syncLegacyFromAcl(p)
 }
 
-/** Mantém EmerLAB e liga o portal EmerMarketing. */
 function permissoesEmerlabComMarketing(base = permissoesPadraoNovoUsuario()) {
     let p = limparPermissoesEmermarketing(base)
     p = aplicarFerramentaAcl(p, 'emermarketing.app', 'read', true)
@@ -89,6 +120,13 @@ function formatarDataLog(iso) {
     return d.toLocaleString('pt-BR')
 }
 
+function badgeSenhaUsuario(usuario) {
+    if (usuario.forcePasswordChangeReason === 'admin') return 'Troca exigida'
+    if (usuario.forcePasswordChangeReason === 'expired') return 'Senha expirada'
+    if (usuario.forcePasswordChange) return 'Troca pendente'
+    return null
+}
+
 const GerenciamentoAcessos = () => {
     const [usuarios, setUsuarios] = useState([])
     const [usuarioSelecionadoId, setUsuarioSelecionadoId] = useState('')
@@ -102,15 +140,17 @@ const GerenciamentoAcessos = () => {
         setMensagem('')
         setErro('')
     })
+
     const [abaDetalhe, setAbaDetalhe] = useState('permissoes')
     const [mostrarConvite, setMostrarConvite] = useState(false)
+    const [passoConvite, setPassoConvite] = useState(1)
     /** 'invite' = email de convite | 'create' = criar com senha imediata */
     const [modoNovoUsuario, setModoNovoUsuario] = useState('create')
-    /** Destino do acesso no convite/criação. */
     const [destinoConvite, setDestinoConvite] = useState('emerlab')
     const [logs, setLogs] = useState([])
     const [logsAviso, setLogsAviso] = useState('')
     const [logsLoading, setLogsLoading] = useState(false)
+    const [erroPasso, setErroPasso] = useState('')
     const [convite, setConvite] = useState({
         name: '',
         email: '',
@@ -130,6 +170,11 @@ const GerenciamentoAcessos = () => {
         [convite.permissions],
     )
 
+    const resumoPermissoesEdicao = useMemo(
+        () => (edicao ? contarFerramentasComAcesso(edicao.permissions) : { comAcesso: 0, total: 0 }),
+        [edicao],
+    )
+
     const usuariosFiltrados = useMemo(() => {
         const termo = busca
         if (!String(termo || '').trim()) return usuarios
@@ -138,6 +183,8 @@ const GerenciamentoAcessos = () => {
             return filtrarPorTermoBusca(blob, termo)
         })
     }, [busca, usuarios])
+
+    const linkMarketing = urlEmerMarketing() || EMERMARKETING_URL_PADRAO
 
     const chamarAdminUsers = async (payload) => {
         const refreshed = await supabase.auth.refreshSession()
@@ -274,6 +321,8 @@ const GerenciamentoAcessos = () => {
 
     const resetFormNovoUsuario = () => {
         setDestinoConvite('emerlab')
+        setPassoConvite(1)
+        setErroPasso('')
         setConvite({
             name: '',
             email: '',
@@ -282,6 +331,12 @@ const GerenciamentoAcessos = () => {
             permissions: permissoesParaDestinoConvite('emerlab'),
         })
         setModoNovoUsuario('create')
+    }
+
+    const fecharConvite = () => {
+        if (loading) return
+        setMostrarConvite(false)
+        resetFormNovoUsuario()
     }
 
     const escolherDestinoConvite = (destino) => {
@@ -293,21 +348,52 @@ const GerenciamentoAcessos = () => {
     }
 
     const abrirNovoUsuario = (modo = 'create') => {
+        resetFormNovoUsuario()
         setModoNovoUsuario(modo)
+        setPassoConvite(1)
         setMostrarConvite(true)
+    }
+
+    const validarPasso1 = () => {
+        if (!String(convite.name || '').trim()) {
+            setErroPasso('Informe o nome completo.')
+            return false
+        }
+        if (!String(convite.email || '').trim()) {
+            setErroPasso('Informe o e-mail de login.')
+            return false
+        }
+        if (modoNovoUsuario === 'create') {
+            const check = validarPoliticaSenha(convite.password)
+            if (!check.ok) {
+                setErroPasso(check.error || textoAjudaPoliticaSenha())
+                return false
+            }
+            if (convite.password !== convite.passwordConfirm) {
+                setErroPasso('A confirmação de senha não confere.')
+                return false
+            }
+        }
+        setErroPasso('')
+        return true
+    }
+
+    const avancarPasso = () => {
+        if (passoConvite === 1 && !validarPasso1()) return
+        setErroPasso('')
+        setPassoConvite((p) => Math.min(3, p + 1))
+    }
+
+    const voltarPasso = () => {
+        setErroPasso('')
+        setPassoConvite((p) => Math.max(1, p - 1))
     }
 
     const salvarNovoUsuario = async (event) => {
         event.preventDefault()
-        if (modoNovoUsuario === 'create') {
-            if (!validarPoliticaSenha(convite.password).ok) {
-                mostrarErro(validarPoliticaSenha(convite.password).error || textoAjudaPoliticaSenha())
-                return
-            }
-            if (convite.password !== convite.passwordConfirm) {
-                mostrarErro('A confirmação de senha não confere.')
-                return
-            }
+        if (!validarPasso1()) {
+            setPassoConvite(1)
+            return
         }
 
         setLoading(true)
@@ -332,25 +418,26 @@ const GerenciamentoAcessos = () => {
             const profile = normalizarProfileAcesso(json.profile)
             setUsuarios((atuais) => {
                 const semDuplicado = atuais.filter((item) => String(item.id) !== String(profile.id))
-                return [...semDuplicado, profile].sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'))
+                return [...semDuplicado, profile].sort((a, b) =>
+                    String(a.name).localeCompare(String(b.name), 'pt-BR'),
+                )
             })
             setUsuarioSelecionadoId(profile.id)
             resetFormNovoUsuario()
             setMostrarConvite(false)
             setAbaDetalhe('permissoes')
             const soMkt = usuarioSomenteEmerMarketing(profile.permissions)
-            const linkMkt = urlEmerMarketing() || EMERMARKETING_URL_PADRAO
             if (modo === 'create') {
                 mostrarMensagem(
                     soMkt
-                        ? `Usuário criado (EmerMarketing). Login em ${linkMkt}.`
-                        : 'Usuário criado. Já pode fazer login com o email e a senha definidos.',
+                        ? `Usuário criado (EmerMarketing). Login em ${linkMarketing}.`
+                        : 'Usuário criado. Já pode fazer login com o e-mail e a senha definidos.',
                 )
             } else {
                 mostrarMensagem(
                     soMkt
-                        ? `Convite enviado com link do EmerMarketing (${linkMkt}). Senha temporária de uso único — trocar no primeiro acesso.`
-                        : 'Convite enviado por e-mail com senha temporária de uso único. No primeiro acesso a pessoa terá de definir uma senha nova.',
+                        ? `Convite enviado com link do EmerMarketing (${linkMarketing}).`
+                        : 'Convite enviado por e-mail com senha temporária. No primeiro acesso será preciso definir uma senha nova.',
                 )
             }
         } catch (error) {
@@ -373,10 +460,12 @@ const GerenciamentoAcessos = () => {
                 disableIdleLogout: Boolean(edicao.disableIdleLogout),
             })
             const profile = normalizarProfileAcesso(json.profile)
-            setUsuarios((atuais) => atuais.map((item) => (String(item.id) === String(profile.id) ? profile : item)))
+            setUsuarios((atuais) =>
+                atuais.map((item) => (String(item.id) === String(profile.id) ? profile : item)),
+            )
             if (String(profile.id) === String(usuarioAtualId)) setStoredAccessProfile(profile)
             if (abaDetalhe === 'historico') await carregarLogs(profile.id)
-            mostrarMensagem('Perfil, email e permissões salvos.')
+            mostrarMensagem('Alterações salvas.')
         } catch (error) {
             mostrarErro(error.message)
         } finally {
@@ -392,7 +481,7 @@ const GerenciamentoAcessos = () => {
         }
         const rotulo = edicao.name || edicao.email || edicao.id
         const confirmar = window.confirm(
-            `Excluir permanentemente «${rotulo}»?\n\nRemove o login (Auth) e o perfil. Esta ação não pode ser desfeita.`,
+            `Excluir permanentemente «${rotulo}»?\n\nRemove o login e o perfil. Esta ação não pode ser desfeita.`,
         )
         if (!confirmar) return
 
@@ -420,14 +509,14 @@ const GerenciamentoAcessos = () => {
 
     const redefinirSenha = async () => {
         if (!edicao?.email) {
-            mostrarErro('Informe e salve um email válido antes de redefinir a senha.')
+            mostrarErro('Informe e salve um e-mail válido antes de redefinir a senha.')
             return
         }
         setLoading(true)
         try {
             await chamarAdminUsers({ action: 'reset', email: edicao.email })
             if (abaDetalhe === 'historico') await carregarLogs(edicao.id)
-            mostrarMensagem('Link de redefinição de senha enviado por email.')
+            mostrarMensagem('Link de redefinição de senha enviado por e-mail.')
         } catch (error) {
             mostrarErro(error.message)
         } finally {
@@ -441,12 +530,11 @@ const GerenciamentoAcessos = () => {
             return
         }
         const motivo = usuarioSelecionado?.forcePasswordChangeReason
-        // Desligar só a exigência admin (force:false), mesmo se a senha também estiver expirada.
         const forcar = motivo !== 'admin'
         if (forcar) {
             const rotulo = edicao.name || edicao.email || edicao.id
             const confirmar = window.confirm(
-                `Exigir troca de senha no próximo acesso de «${rotulo}»?\n\nNo próximo login, a pessoa será obrigada a definir uma nova senha antes de usar o app.`,
+                `Exigir troca de senha no próximo acesso de «${rotulo}»?`,
             )
             if (!confirmar) return
         }
@@ -458,12 +546,16 @@ const GerenciamentoAcessos = () => {
                 userId: edicao.id,
                 force: forcar,
             })
-            const profile = normalizarProfileAcesso(json.profile || {
-                ...usuarioSelecionado,
-                force_password_change: forcar,
-            })
+            const profile = normalizarProfileAcesso(
+                json.profile || {
+                    ...usuarioSelecionado,
+                    force_password_change: forcar,
+                },
+            )
             setUsuarios((atuais) =>
-                atuais.map((item) => (String(item.id) === String(profile.id) ? { ...item, ...profile } : item)),
+                atuais.map((item) =>
+                    String(item.id) === String(profile.id) ? { ...item, ...profile } : item,
+                ),
             )
             if (abaDetalhe === 'historico') await carregarLogs(edicao.id)
             mostrarMensagem(
@@ -479,18 +571,54 @@ const GerenciamentoAcessos = () => {
         }
     }
 
+    const tabsDetalhe = [
+        { id: 'permissoes', label: 'EmerLAB' },
+        { id: 'emermarketing', label: 'Marketing' },
+        { id: 'conta', label: 'Conta' },
+        { id: 'historico', label: 'Histórico' },
+    ]
+
+    const tituloModal =
+        modoNovoUsuario === 'create' ? 'Criar usuário' : 'Convidar usuário'
+    const descModal =
+        modoNovoUsuario === 'create'
+            ? 'Conta pronta com senha — a pessoa já pode entrar.'
+            : 'Envia e-mail com senha temporária. No primeiro acesso será preciso trocar a senha.'
+
+    const destinoLabel =
+        DESTINOS_CONVITE.find((d) => d.id === destinoConvite)?.titulo || destinoConvite
+
     return (
-        <main className='el-page gerenciamento_acessos'>
+        <main className="el-page gerenciamento_acessos">
             <PageHeader
                 kicker="Administrativo"
-                title="Gerenciamento de Acessos"
-                description="Criar usuários, convites, permissões, email, senha e histórico."
+                title="Acessos e permissões"
+                description="Convide ou crie usuários e defina o que cada um pode ver e alterar."
                 actions={
-                    <div className='gerenciamento_acessos_header_acoes'>
-                        <button type='button' className='is-ghost' onClick={() => abrirNovoUsuario('create')} disabled={loading}>
+                    <div className="gerenciamento_acessos_header_acoes">
+                        <button
+                            type="button"
+                            className={buttonClassName({ variant: 'secondary', size: 'md' })}
+                            onClick={() => abrirNovoUsuario('invite')}
+                            disabled={loading}
+                        >
+                            Convidar
+                        </button>
+                        <button
+                            type="button"
+                            className={buttonClassName({ variant: 'primary', size: 'md' })}
+                            onClick={() => abrirNovoUsuario('create')}
+                            disabled={loading}
+                        >
                             Criar usuário
                         </button>
-                        <button type='button' onClick={carregarUsuarios} disabled={loading}>
+                        <button
+                            type="button"
+                            className={buttonClassName({ variant: 'ghost', size: 'md' })}
+                            onClick={carregarUsuarios}
+                            disabled={loading}
+                            aria-label="Atualizar lista de usuários"
+                        >
                             Atualizar
                         </button>
                     </div>
@@ -498,248 +626,323 @@ const GerenciamentoAcessos = () => {
             />
 
             {(mensagem || erro) && (
-                <div className={`gerenciamento_acessos_alerta ${erro ? 'is-error' : 'is-success'}`}>{erro || mensagem}</div>
+                <div
+                    className={`gerenciamento_acessos_alerta ${erro ? 'is-error' : 'is-success'}`}
+                    role="status"
+                >
+                    {erro || mensagem}
+                </div>
             )}
 
-            <section className='gerenciamento_acessos_layout'>
-                <aside className='gerenciamento_acessos_card gerenciamento_acessos_lista_card'>
-                    <div className='gerenciamento_acessos_lista_header'>
-                        <h2>Usuários</h2>
-                        <input
-                            type='search'
+            <section className="gerenciamento_acessos_layout">
+                <aside className="gerenciamento_acessos_card gerenciamento_acessos_lista_card">
+                    <div className="gerenciamento_acessos_lista_header">
+                        <div className="gerenciamento_acessos_lista_titulo">
+                            <h2>Usuários</h2>
+                            <span className="gerenciamento_acessos_count">
+                                {usuariosFiltrados.length}
+                                {busca.trim() ? ` de ${usuarios.length}` : ''}
+                            </span>
+                        </div>
+                        <Input
+                            type="search"
                             value={busca}
                             onChange={(event) => setBusca(event.target.value)}
-                            placeholder='Buscar nome ou email'
+                            placeholder="Buscar nome ou e-mail"
+                            aria-label="Buscar usuários"
                         />
                     </div>
-                    <div className='gerenciamento_acessos_lista'>
-                        {usuariosFiltrados.map((usuario) => (
-                            <button
-                                key={usuario.id}
-                                type='button'
-                                className={`gerenciamento_acessos_usuario ${String(usuario.id) === String(usuarioSelecionadoId) ? 'is-active' : ''}`}
-                                onClick={() => {
-                                    setUsuarioSelecionadoId(usuario.id)
-                                    setMostrarConvite(false)
-                                }}
-                            >
-                                <strong>{usuario.name || 'Sem nome'}</strong>
-                                <span>{usuario.email || usuario.id}</span>
-                                {usuario.forcePasswordChangeReason === 'admin' ? (
-                                    <em className='gerenciamento_acessos_usuario_badge'>Troca exigida (admin)</em>
-                                ) : usuario.forcePasswordChangeReason === 'expired' ? (
-                                    <em className='gerenciamento_acessos_usuario_badge'>Senha expirada (90 dias)</em>
-                                ) : usuario.forcePasswordChange ? (
-                                    <em className='gerenciamento_acessos_usuario_badge'>Troca de senha pendente</em>
-                                ) : null}
-                                {usuario.disableIdleLogout ? (
-                                    <em className='gerenciamento_acessos_usuario_badge'>Sem logoff por inatividade</em>
-                                ) : null}
-                            </button>
-                        ))}
+                    <div className="gerenciamento_acessos_lista">
+                        {loading && usuarios.length === 0 ? (
+                            <LoadingState label="Carregando usuários…" />
+                        ) : null}
+                        {usuariosFiltrados.map((usuario) => {
+                            const badge = badgeSenhaUsuario(usuario)
+                            const ativo = String(usuario.id) === String(usuarioSelecionadoId)
+                            return (
+                                <button
+                                    key={usuario.id}
+                                    type="button"
+                                    className={`gerenciamento_acessos_usuario ${ativo ? 'is-active' : ''}`}
+                                    onClick={() => {
+                                        setUsuarioSelecionadoId(usuario.id)
+                                        setMostrarConvite(false)
+                                    }}
+                                    aria-current={ativo ? 'true' : undefined}
+                                >
+                                    <strong>{usuario.name || 'Sem nome'}</strong>
+                                    <span>{usuario.email || usuario.id}</span>
+                                    <div className="gerenciamento_acessos_usuario_meta">
+                                        {badge ? (
+                                            <em className="gerenciamento_acessos_usuario_badge">{badge}</em>
+                                        ) : null}
+                                        {usuario.disableIdleLogout ? (
+                                            <em className="gerenciamento_acessos_usuario_badge is-muted">
+                                                Sem logoff
+                                            </em>
+                                        ) : null}
+                                        {usuarioSomenteEmerMarketing(usuario.permissions) ? (
+                                            <em className="gerenciamento_acessos_usuario_badge is-mkt">
+                                                Marketing
+                                            </em>
+                                        ) : null}
+                                    </div>
+                                </button>
+                            )
+                        })}
                         {!loading && usuariosFiltrados.length === 0 && (
-                            <p className='gerenciamento_acessos_vazio'>Nenhum usuário encontrado.</p>
+                            <EmptyState
+                                title="Nenhum usuário encontrado"
+                                description={
+                                    busca.trim()
+                                        ? 'Ajuste a busca ou limpe o filtro.'
+                                        : 'Crie ou convide o primeiro usuário.'
+                                }
+                                action={
+                                    !busca.trim() ? (
+                                        <Button onClick={() => abrirNovoUsuario('create')}>
+                                            Criar usuário
+                                        </Button>
+                                    ) : null
+                                }
+                            />
                         )}
                     </div>
                 </aside>
 
-                <section className='gerenciamento_acessos_card gerenciamento_acessos_painel'>
+                <section className="gerenciamento_acessos_card gerenciamento_acessos_painel">
                     {!edicao ? (
-                        <p className='gerenciamento_acessos_vazio'>Selecione um usuário na lista.</p>
+                        loading ? (
+                            <LoadingState label="Carregando…" />
+                        ) : (
+                            <EmptyState
+                                title="Selecione um usuário"
+                                description="Escolha alguém na lista à esquerda para ver e editar permissões."
+                            />
+                        )
                     ) : (
                         <>
-                            <div className='gerenciamento_acessos_painel_head'>
-                                <h2>{edicao.name || 'Usuário'}</h2>
-                                <nav className='gerenciamento_acessos_tabs' aria-label='Seções do usuário'>
-                                    <button
-                                        type='button'
-                                        className={abaDetalhe === 'permissoes' ? 'is-active' : ''}
-                                        onClick={() => setAbaDetalhe('permissoes')}
-                                    >
-                                        Permissões
-                                    </button>
-                                    <button
-                                        type='button'
-                                        className={abaDetalhe === 'emermarketing' ? 'is-active' : ''}
-                                        onClick={() => setAbaDetalhe('emermarketing')}
-                                    >
-                                        EmerMarketing
-                                    </button>
-                                    <button
-                                        type='button'
-                                        className={abaDetalhe === 'conta' ? 'is-active' : ''}
-                                        onClick={() => setAbaDetalhe('conta')}
-                                    >
-                                        Conta
-                                    </button>
-                                    <button
-                                        type='button'
-                                        className={abaDetalhe === 'historico' ? 'is-active' : ''}
-                                        onClick={() => setAbaDetalhe('historico')}
-                                    >
-                                        Histórico
-                                    </button>
+                            <div className="gerenciamento_acessos_painel_head">
+                                <div className="gerenciamento_acessos_painel_identidade">
+                                    <h2>{edicao.name || 'Usuário'}</h2>
+                                    <p>{edicao.email || 'Sem e-mail'}</p>
+                                    {(abaDetalhe === 'permissoes' ||
+                                        abaDetalhe === 'emermarketing') && (
+                                        <span className="gerenciamento_acessos_convite_resumo">
+                                            {resumoPermissoesEdicao.comAcesso} de{' '}
+                                            {resumoPermissoesEdicao.total} ferramentas
+                                        </span>
+                                    )}
+                                </div>
+                                <nav className="gerenciamento_acessos_tabs" aria-label="Seções do usuário">
+                                    {tabsDetalhe.map((tab) => (
+                                        <button
+                                            key={tab.id}
+                                            type="button"
+                                            className={abaDetalhe === tab.id ? 'is-active' : ''}
+                                            onClick={() => setAbaDetalhe(tab.id)}
+                                            aria-current={abaDetalhe === tab.id ? 'page' : undefined}
+                                        >
+                                            {tab.label}
+                                        </button>
+                                    ))}
                                 </nav>
                             </div>
 
-                            {abaDetalhe === 'permissoes' && (
-                                <>
-                                    {renderPermissoes(edicao.permissions, alterarPermissoesEdicao, edicao.id, {
-                                        excluirGrupoIds: [EMERMARKETING_GROUP_ID],
-                                    })}
-                                    <button
-                                        type='button'
-                                        className='gerenciamento_acessos_salvar_flutuante is-primary'
-                                        onClick={salvarUsuario}
-                                        disabled={loading}
-                                    >
-                                        {loading ? 'Salvando…' : 'Salvar permissões'}
-                                    </button>
-                                </>
-                            )}
-
-                            {abaDetalhe === 'emermarketing' && (
-                                <>
-                                    <p className='gerenciamento_acessos_hint'>
-                                        «Acesso ao portal» libera o link na Dashboard e a entrada no app. Sem módulos
-                                        específicos, todas as telas ficam liberadas. Marque módulos para restringir
-                                        (Dashboard, Calendário, Relatórios, Legendas, Editor, Métricas, Roleta).
-                                        «Auditoria (EmerLAB)» libera a aba EmerMarketing na tela de Auditoria.
-                                    </p>
-                                    {renderPermissoes(edicao.permissions, alterarPermissoesEdicao, edicao.id, {
-                                        grupoIds: [EMERMARKETING_GROUP_ID],
-                                        gruposIniciaisAbertos: true,
-                                    })}
-                                    <button
-                                        type='button'
-                                        className='gerenciamento_acessos_salvar_flutuante is-primary'
-                                        onClick={salvarUsuario}
-                                        disabled={loading}
-                                    >
-                                        {loading ? 'Salvando…' : 'Salvar EmerMarketing'}
-                                    </button>
-                                </>
-                            )}
-
-                            {abaDetalhe === 'conta' && (
-                                <>
-                                    <div className='gerenciamento_acessos_form gerenciamento_acessos_form_compact'>
-                                        <label>
-                                            Nome no perfil
-                                            <input
-                                                type='text'
-                                                value={edicao.name}
-                                                onChange={(event) =>
-                                                    setEdicao((atual) => ({ ...atual, name: event.target.value }))
-                                                }
-                                                disabled={loading}
-                                            />
-                                        </label>
-                                        <label>
-                                            Email (login)
-                                            <input
-                                                type='email'
-                                                value={edicao.email || ''}
-                                                onChange={(event) =>
-                                                    setEdicao((atual) => ({ ...atual, email: event.target.value }))
-                                                }
-                                                placeholder='usuario@emerdog.com.br'
-                                                disabled={loading}
-                                            />
-                                        </label>
-                                    </div>
-                                    <p className='gerenciamento_acessos_hint'>
-                                        Somente «Ver» nas ferramentas bloqueia criar, editar e excluir linhas nas tabelas.
-                                        A senha de login deve ser renovada a cada 90 dias.
-                                    </p>
-                                    <label className='gerenciamento_acessos_opcao_check'>
-                                        <input
-                                            type='checkbox'
-                                            checked={Boolean(edicao.disableIdleLogout)}
-                                            onChange={(event) =>
-                                                setEdicao((atual) => ({
-                                                    ...atual,
-                                                    disableIdleLogout: event.target.checked,
-                                                }))
-                                            }
-                                            disabled={loading}
-                                        />
-                                        <span>
-                                            <strong>Desativar logoff automático por inatividade</strong>
-                                            <small>
-                                                Este perfil permanece conectado mesmo sem interação. Use só quando necessário
-                                                (ex.: monitores ou postos de trabalho dedicados).
-                                            </small>
-                                        </span>
-                                    </label>
-                                    {usuarioSelecionado?.forcePasswordChangeReason === 'admin' ? (
-                                        <p className='gerenciamento_acessos_hint gerenciamento_acessos_hint_aviso'>
-                                            Troca exigida pelo administrador: no próximo login este usuário deverá definir uma nova senha.
+                            <div className="gerenciamento_acessos_painel_body">
+                                {abaDetalhe === 'permissoes' && (
+                                    <>
+                                        <p className="gerenciamento_acessos_hint">
+                                            Marque o que a pessoa pode ver e alterar no EmerLAB. «Ver»
+                                            sozinho bloqueia criar, editar e excluir.
                                         </p>
-                                    ) : null}
-                                    {usuarioSelecionado?.forcePasswordChangeReason === 'expired' ? (
-                                        <p className='gerenciamento_acessos_hint gerenciamento_acessos_hint_aviso'>
-                                            Senha expirada (mais de 90 dias): a troca será exigida no próximo acesso, independentemente do toggle admin.
-                                        </p>
-                                    ) : null}
-                                    <div className='gerenciamento_acessos_acoes gerenciamento_acessos_acoes_conta'>
-                                        <button type='button' onClick={redefinirSenha} disabled={loading || !edicao.email}>
-                                            Redefinir senha
-                                        </button>
-                                        <button
-                                            type='button'
-                                            onClick={alternarExigirTrocaSenha}
-                                            disabled={loading}
-                                            title={
-                                                usuarioSelecionado?.forcePasswordChangeReason === 'admin'
-                                                    ? 'Remove a exigência admin de troca no próximo acesso (a expiração por 90 dias pode continuar a aplicar)'
-                                                    : 'Obriga o usuário a definir nova senha no próximo login'
-                                            }
-                                        >
-                                            {usuarioSelecionado?.forcePasswordChangeReason === 'admin'
-                                                ? 'Cancelar troca no próximo acesso'
-                                                : 'Exigir troca no próximo acesso'}
-                                        </button>
-                                        <button type='button' className='is-primary' onClick={salvarUsuario} disabled={loading}>
-                                            Salvar conta
-                                        </button>
-                                        <button
-                                            type='button'
-                                            className='is-danger'
-                                            onClick={excluirUsuario}
-                                            disabled={loading || String(edicao.id) === String(usuarioAtualId)}
-                                            title={
-                                                String(edicao.id) === String(usuarioAtualId)
-                                                    ? 'Não é possível excluir a si mesmo'
-                                                    : 'Remove login e perfil'
-                                            }
-                                        >
-                                            Excluir usuário
-                                        </button>
-                                    </div>
-                                </>
-                            )}
+                                        {renderPermissoes(
+                                            edicao.permissions,
+                                            alterarPermissoesEdicao,
+                                            edicao.id,
+                                            { excluirGrupoIds: [EMERMARKETING_GROUP_ID] },
+                                        )}
+                                    </>
+                                )}
 
-                            {abaDetalhe === 'historico' && (
-                                <div className='gerenciamento_acessos_log'>
-                                    {logsLoading && <p className='gerenciamento_acessos_vazio'>A carregar histórico…</p>}
-                                    {!logsLoading && logsAviso && (
-                                        <p className='gerenciamento_acessos_vazio'>{logsAviso}</p>
-                                    )}
-                                    {!logsLoading && !logsAviso && logs.length === 0 && (
-                                        <p className='gerenciamento_acessos_vazio'>Nenhum registro para este usuário.</p>
-                                    )}
-                                    {!logsLoading &&
-                                        logs.map((item) => (
-                                            <article key={item.id} className='gerenciamento_acessos_log_item'>
-                                                <time dateTime={item.created_at}>{formatarDataLog(item.created_at)}</time>
-                                                <strong>{item.summary || item.action}</strong>
+                                {abaDetalhe === 'emermarketing' && (
+                                    <>
+                                        <p className="gerenciamento_acessos_hint">
+                                            «Acesso ao portal» libera o link e a entrada no app. Sem
+                                            módulos específicos, todas as telas do marketing ficam
+                                            liberadas. «Auditoria» libera a aba no EmerLAB.
+                                        </p>
+                                        {renderPermissoes(
+                                            edicao.permissions,
+                                            alterarPermissoesEdicao,
+                                            edicao.id,
+                                            {
+                                                grupoIds: [EMERMARKETING_GROUP_ID],
+                                                gruposIniciaisAbertos: true,
+                                            },
+                                        )}
+                                    </>
+                                )}
+
+                                {abaDetalhe === 'conta' && (
+                                    <div className="gerenciamento_acessos_conta">
+                                        <section className="gerenciamento_acessos_conta_bloco">
+                                            <h3>Perfil</h3>
+                                            <div className="gerenciamento_acessos_form gerenciamento_acessos_form_compact">
+                                                <Input
+                                                    label="Nome"
+                                                    type="text"
+                                                    value={edicao.name}
+                                                    onChange={(event) =>
+                                                        setEdicao((atual) => ({
+                                                            ...atual,
+                                                            name: event.target.value,
+                                                        }))
+                                                    }
+                                                    disabled={loading}
+                                                />
+                                                <Input
+                                                    label="E-mail (login)"
+                                                    type="email"
+                                                    value={edicao.email || ''}
+                                                    onChange={(event) =>
+                                                        setEdicao((atual) => ({
+                                                            ...atual,
+                                                            email: event.target.value,
+                                                        }))
+                                                    }
+                                                    placeholder="usuario@emerdog.com.br"
+                                                    disabled={loading}
+                                                />
+                                            </div>
+                                            <label className="gerenciamento_acessos_opcao_check">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={Boolean(edicao.disableIdleLogout)}
+                                                    onChange={(event) =>
+                                                        setEdicao((atual) => ({
+                                                            ...atual,
+                                                            disableIdleLogout: event.target.checked,
+                                                        }))
+                                                    }
+                                                    disabled={loading}
+                                                />
                                                 <span>
-                                                    {item.actor_name || 'Sistema'}
-                                                    {item.action ? ` · ${item.action}` : ''}
+                                                    <strong>Manter sessão sem logoff por inatividade</strong>
+                                                    <small>
+                                                        Use só em monitores ou postos dedicados. A senha
+                                                        ainda deve ser renovada a cada 90 dias.
+                                                    </small>
                                                 </span>
-                                            </article>
-                                        ))}
+                                            </label>
+                                        </section>
+
+                                        <section className="gerenciamento_acessos_conta_bloco">
+                                            <h3>Senha</h3>
+                                            {usuarioSelecionado?.forcePasswordChangeReason ===
+                                            'admin' ? (
+                                                <p className="gerenciamento_acessos_hint gerenciamento_acessos_hint_aviso">
+                                                    No próximo login esta pessoa deverá definir uma nova
+                                                    senha (exigência do administrador).
+                                                </p>
+                                            ) : null}
+                                            {usuarioSelecionado?.forcePasswordChangeReason ===
+                                            'expired' ? (
+                                                <p className="gerenciamento_acessos_hint gerenciamento_acessos_hint_aviso">
+                                                    Senha com mais de 90 dias — a troca será exigida no
+                                                    próximo acesso.
+                                                </p>
+                                            ) : null}
+                                            <div className="gerenciamento_acessos_acoes gerenciamento_acessos_acoes_conta">
+                                                <Button
+                                                    variant="secondary"
+                                                    onClick={redefinirSenha}
+                                                    disabled={loading || !edicao.email}
+                                                >
+                                                    Enviar link de redefinição
+                                                </Button>
+                                                <Button
+                                                    variant="secondary"
+                                                    onClick={alternarExigirTrocaSenha}
+                                                    disabled={loading}
+                                                >
+                                                    {usuarioSelecionado?.forcePasswordChangeReason ===
+                                                    'admin'
+                                                        ? 'Cancelar troca no próximo acesso'
+                                                        : 'Exigir troca no próximo acesso'}
+                                                </Button>
+                                            </div>
+                                        </section>
+
+                                        <section className="gerenciamento_acessos_conta_bloco is-danger">
+                                            <h3>Zona de risco</h3>
+                                            <p className="gerenciamento_acessos_hint">
+                                                Excluir remove o login. Posts e alterações do marketing
+                                                não são apagados.
+                                            </p>
+                                            <Button
+                                                variant="danger"
+                                                onClick={excluirUsuario}
+                                                disabled={
+                                                    loading ||
+                                                    String(edicao.id) === String(usuarioAtualId)
+                                                }
+                                            >
+                                                Excluir usuário
+                                            </Button>
+                                        </section>
+                                    </div>
+                                )}
+
+                                {abaDetalhe === 'historico' && (
+                                    <div className="gerenciamento_acessos_log">
+                                        {logsLoading && <LoadingState label="Carregando histórico…" />}
+                                        {!logsLoading && logsAviso && (
+                                            <EmptyState title="Aviso" description={logsAviso} />
+                                        )}
+                                        {!logsLoading && !logsAviso && logs.length === 0 && (
+                                            <EmptyState
+                                                title="Sem registros"
+                                                description="Ainda não há eventos de acesso para este usuário."
+                                            />
+                                        )}
+                                        {!logsLoading &&
+                                            logs.map((item) => (
+                                                <article
+                                                    key={item.id}
+                                                    className="gerenciamento_acessos_log_item"
+                                                >
+                                                    <time dateTime={item.created_at}>
+                                                        {formatarDataLog(item.created_at)}
+                                                    </time>
+                                                    <strong>{item.summary || item.action}</strong>
+                                                    <span>
+                                                        {item.actor_name || 'Sistema'}
+                                                        {item.action ? ` · ${item.action}` : ''}
+                                                    </span>
+                                                </article>
+                                            ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {(abaDetalhe === 'permissoes' ||
+                                abaDetalhe === 'emermarketing' ||
+                                abaDetalhe === 'conta') && (
+                                <div className="gerenciamento_acessos_painel_footer">
+                                    <Button
+                                        variant="primary"
+                                        onClick={salvarUsuario}
+                                        disabled={loading}
+                                    >
+                                        {loading
+                                            ? 'Salvando…'
+                                            : abaDetalhe === 'conta'
+                                              ? 'Salvar conta'
+                                              : abaDetalhe === 'emermarketing'
+                                                ? 'Salvar Marketing'
+                                                : 'Salvar permissões'}
+                                    </Button>
                                 </div>
                             )}
                         </>
@@ -747,269 +950,255 @@ const GerenciamentoAcessos = () => {
                 </section>
             </section>
 
-            {mostrarConvite && (
-                <div
-                    className='gerenciamento_acessos_modal_backdrop'
-                    role='presentation'
-                    onClick={() => {
-                        if (!loading) {
-                            setMostrarConvite(false)
-                            resetFormNovoUsuario()
-                        }
-                    }}
+            <Modal
+                open={mostrarConvite}
+                onClose={fecharConvite}
+                title={tituloModal}
+                description={descModal}
+                size="xl"
+                className="gerenciamento_acessos_modal_kit"
+                footer={
+                    <>
+                        {passoConvite > 1 ? (
+                            <Button variant="secondary" onClick={voltarPasso} disabled={loading}>
+                                Voltar
+                            </Button>
+                        ) : (
+                            <Button variant="ghost" onClick={fecharConvite} disabled={loading}>
+                                Cancelar
+                            </Button>
+                        )}
+                        {passoConvite < 3 ? (
+                            <Button variant="primary" onClick={avancarPasso} disabled={loading}>
+                                Continuar
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="primary"
+                                type="submit"
+                                form="ga-form-convite"
+                                disabled={loading}
+                            >
+                                {loading
+                                    ? modoNovoUsuario === 'create'
+                                        ? 'Criando…'
+                                        : 'Enviando…'
+                                    : modoNovoUsuario === 'create'
+                                      ? 'Criar usuário'
+                                      : 'Enviar convite'}
+                            </Button>
+                        )}
+                    </>
+                }
+            >
+                <ol className="gerenciamento_acessos_wizard_steps" aria-label="Etapas">
+                    {PASSOS_CONVITE.map((passo) => {
+                        const estado =
+                            passo.id < passoConvite
+                                ? 'is-done'
+                                : passo.id === passoConvite
+                                  ? 'is-current'
+                                  : ''
+                        return (
+                            <li key={passo.id} className={estado}>
+                                <span className="gerenciamento_acessos_wizard_num" aria-hidden="true">
+                                    {passo.id < passoConvite ? '✓' : passo.id}
+                                </span>
+                                <span>{passo.label}</span>
+                            </li>
+                        )
+                    })}
+                </ol>
+
+                {erroPasso ? (
+                    <p className="gerenciamento_acessos_alerta is-error" role="alert">
+                        {erroPasso}
+                    </p>
+                ) : null}
+
+                <form
+                    id="ga-form-convite"
+                    className="gerenciamento_acessos_form gerenciamento_acessos_form_convite"
+                    onSubmit={salvarNovoUsuario}
                 >
-                    <div
-                        className='gerenciamento_acessos_card gerenciamento_acessos_modal gerenciamento_acessos_modal_convite'
-                        role='dialog'
-                        aria-labelledby='ga-convite-title'
-                        aria-describedby='ga-convite-desc'
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className='gerenciamento_acessos_modal_head'>
-                            <div>
-                                <p className='gerenciamento_acessos_modal_kicker'>Novo acesso</p>
-                                <h2 id='ga-convite-title'>
-                                    {modoNovoUsuario === 'create' ? 'Criar usuário' : 'Convidar usuário'}
-                                </h2>
-                                <p id='ga-convite-desc' className='gerenciamento_acessos_modal_lead'>
-                                    {modoNovoUsuario === 'create'
-                                        ? 'Cria a conta já com senha — a pessoa pode entrar de imediato no login.'
-                                        : 'Envia e-mail com senha temporária aleatória de uso único. No primeiro acesso será obrigatório trocar a senha.'}
-                                </p>
-                            </div>
-                            <button
-                                type='button'
-                                className='gerenciamento_acessos_modal_close'
-                                onClick={() => {
-                                    setMostrarConvite(false)
-                                    resetFormNovoUsuario()
-                                }}
-                                disabled={loading}
-                                aria-label='Fechar'
+                    {passoConvite === 1 && (
+                        <div className="gerenciamento_acessos_wizard_pane">
+                            <div
+                                className="gerenciamento_acessos_modo_tabs"
+                                role="tablist"
+                                aria-label="Como criar o acesso"
                             >
-                                ×
-                            </button>
-                        </div>
-
-                        <div className='gerenciamento_acessos_modo_tabs' role='tablist' aria-label='Modo de criação'>
-                            <button
-                                type='button'
-                                role='tab'
-                                aria-selected={modoNovoUsuario === 'create'}
-                                className={modoNovoUsuario === 'create' ? 'is-active' : ''}
-                                onClick={() => setModoNovoUsuario('create')}
-                                disabled={loading}
-                            >
-                                Criar com senha
-                            </button>
-                            <button
-                                type='button'
-                                role='tab'
-                                aria-selected={modoNovoUsuario === 'invite'}
-                                className={modoNovoUsuario === 'invite' ? 'is-active' : ''}
-                                onClick={() => setModoNovoUsuario('invite')}
-                                disabled={loading}
-                            >
-                                Convidar (senha temporária)
-                            </button>
-                        </div>
-
-                        <form className='gerenciamento_acessos_form gerenciamento_acessos_form_convite' onSubmit={salvarNovoUsuario}>
-                            <section className='gerenciamento_acessos_convite_bloco' aria-labelledby='ga-convite-dados'>
-                                <div className='gerenciamento_acessos_convite_bloco_head'>
-                                    <span className='gerenciamento_acessos_convite_passo' aria-hidden='true'>1</span>
-                                    <div>
-                                        <h3 id='ga-convite-dados'>Dados da conta</h3>
-                                        <p>
-                                            {modoNovoUsuario === 'create'
-                                                ? 'Nome, email e senha inicial de acesso.'
-                                                : 'Nome e email: a senha temporária é gerada automaticamente e enviada só no e-mail.'}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className='gerenciamento_acessos_convite_campos'>
-                                    <label>
-                                        Nome completo
-                                        <input
-                                            type='text'
-                                            value={convite.name}
-                                            onChange={(event) =>
-                                                setConvite((atual) => ({ ...atual, name: event.target.value }))
-                                            }
-                                            placeholder='Ex.: Ana Silva'
-                                            required
-                                            disabled={loading}
-                                            autoFocus
-                                        />
-                                    </label>
-                                    <label>
-                                        Email (login)
-                                        <input
-                                            type='email'
-                                            value={convite.email}
-                                            onChange={(event) =>
-                                                setConvite((atual) => ({ ...atual, email: event.target.value }))
-                                            }
-                                            placeholder='nome@emerdog.com.br'
-                                            required
-                                            disabled={loading}
-                                        />
-                                    </label>
-                                    {modoNovoUsuario === 'create' && (
-                                        <>
-                                            <label>
-                                                Senha inicial
-                                                <input
-                                                    type='password'
-                                                    value={convite.password}
-                                                    onChange={(event) =>
-                                                        setConvite((atual) => ({
-                                                            ...atual,
-                                                            password: event.target.value,
-                                                        }))
-                                                    }
-                                                    placeholder={textoAjudaPoliticaSenha()}
-                                                    required
-                                                    minLength={PASSWORD_MIN_LENGTH}
-                                                    autoComplete='new-password'
-                                                    disabled={loading}
-                                                />
-                                            </label>
-                                            <label>
-                                                Confirmar senha
-                                                <input
-                                                    type='password'
-                                                    value={convite.passwordConfirm}
-                                                    onChange={(event) =>
-                                                        setConvite((atual) => ({
-                                                            ...atual,
-                                                            passwordConfirm: event.target.value,
-                                                        }))
-                                                    }
-                                                    placeholder='Repita a senha'
-                                                    required
-                                                    minLength={PASSWORD_MIN_LENGTH}
-                                                    autoComplete='new-password'
-                                                    disabled={loading}
-                                                />
-                                            </label>
-                                        </>
-                                    )}
-                                </div>
-                            </section>
-
-                            <section className='gerenciamento_acessos_convite_bloco' aria-labelledby='ga-convite-destino'>
-                                <div className='gerenciamento_acessos_convite_bloco_head'>
-                                    <span className='gerenciamento_acessos_convite_passo' aria-hidden='true'>2</span>
-                                    <div>
-                                        <h3 id='ga-convite-destino'>Para onde é o acesso?</h3>
-                                        <p>
-                                            Escolha EmerLAB, EmerMarketing ou ambos. Contas só de marketing
-                                            recebem o link de login do EmerMarketing no e-mail.
-                                        </p>
-                                    </div>
-                                </div>
-                                <div
-                                    className='gerenciamento_acessos_destino_grid'
-                                    role='radiogroup'
-                                    aria-labelledby='ga-convite-destino'
-                                >
-                                    {[
-                                        {
-                                            id: 'emerlab',
-                                            titulo: 'EmerLAB',
-                                            desc: 'Ferramentas do EmerLAB (credenciamento, compras, contratos…).',
-                                        },
-                                        {
-                                            id: 'emermarketing',
-                                            titulo: 'EmerMarketing',
-                                            desc: `Só o app de marketing. E-mail com link para ${urlEmerMarketing() || EMERMARKETING_URL_PADRAO}.`,
-                                        },
-                                        {
-                                            id: 'ambos',
-                                            titulo: 'EmerLAB + EmerMarketing',
-                                            desc: 'Acesso ao EmerLAB e ao portal EmerMarketing.',
-                                        },
-                                    ].map((opt) => (
-                                        <button
-                                            key={opt.id}
-                                            type='button'
-                                            role='radio'
-                                            aria-checked={destinoConvite === opt.id}
-                                            className={`gerenciamento_acessos_destino_card${destinoConvite === opt.id ? ' is-active' : ''}`}
-                                            onClick={() => escolherDestinoConvite(opt.id)}
-                                            disabled={loading}
-                                        >
-                                            <strong>{opt.titulo}</strong>
-                                            <span>{opt.desc}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </section>
-
-                            <section className='gerenciamento_acessos_convite_bloco' aria-labelledby='ga-convite-perms'>
-                                <div className='gerenciamento_acessos_convite_bloco_head'>
-                                    <span className='gerenciamento_acessos_convite_passo' aria-hidden='true'>3</span>
-                                    <div>
-                                        <h3 id='ga-convite-perms'>O que essa pessoa poderá acessar?</h3>
-                                        <p>
-                                            Ajuste fino das permissões — dá para mudar depois na ficha do usuário.
-                                        </p>
-                                    </div>
-                                    <span className='gerenciamento_acessos_convite_resumo' title='Ferramentas com algum acesso marcado'>
-                                        {resumoPermissoesConvite.comAcesso} de {resumoPermissoesConvite.total} ferramentas
-                                    </span>
-                                </div>
-                                {destinoConvite !== 'emermarketing' ? (
-                                    <div className='gerenciamento_acessos_convite_perms'>
-                                        <h4 className='gerenciamento_acessos_convite_subtitulo'>EmerLAB</h4>
-                                        {renderPermissoes(convite.permissions, alterarPermissoesConvite, '', {
-                                            gruposIniciaisAbertos: false,
-                                            excluirGrupoIds: [EMERMARKETING_GROUP_ID],
-                                        })}
-                                    </div>
-                                ) : null}
-                                {destinoConvite !== 'emerlab' ? (
-                                    <div className='gerenciamento_acessos_convite_perms gerenciamento_acessos_convite_emermarketing'>
-                                        <h4 className='gerenciamento_acessos_convite_subtitulo'>EmerMarketing</h4>
-                                        <p className='gerenciamento_acessos_hint'>
-                                            {destinoConvite === 'emermarketing'
-                                                ? 'Portal liberado. Sem módulos específicos, todas as telas do marketing ficam disponíveis.'
-                                                : 'Sem estas permissões a pessoa não vê o link nem entra no app de marketing.'}
-                                        </p>
-                                        {renderPermissoes(convite.permissions, alterarPermissoesConvite, '', {
-                                            gruposIniciaisAbertos: true,
-                                            grupoIds: [EMERMARKETING_GROUP_ID],
-                                        })}
-                                    </div>
-                                ) : null}
-                            </section>
-
-                            <div className='gerenciamento_acessos_modal_footer'>
                                 <button
-                                    type='button'
-                                    onClick={() => {
-                                        setMostrarConvite(false)
-                                        resetFormNovoUsuario()
-                                    }}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={modoNovoUsuario === 'create'}
+                                    className={modoNovoUsuario === 'create' ? 'is-active' : ''}
+                                    onClick={() => setModoNovoUsuario('create')}
                                     disabled={loading}
                                 >
-                                    Cancelar
+                                    Criar com senha
+                                    <small>Acesso imediato</small>
                                 </button>
-                                <button type='submit' className='is-primary' disabled={loading}>
-                                    {loading
-                                        ? modoNovoUsuario === 'create'
-                                            ? 'Criando…'
-                                            : 'Enviando…'
-                                        : modoNovoUsuario === 'create'
-                                          ? 'Criar usuário'
-                                          : 'Enviar convite'}
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={modoNovoUsuario === 'invite'}
+                                    className={modoNovoUsuario === 'invite' ? 'is-active' : ''}
+                                    onClick={() => setModoNovoUsuario('invite')}
+                                    disabled={loading}
+                                >
+                                    Convidar por e-mail
+                                    <small>Senha temporária</small>
                                 </button>
                             </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+
+                            <div className="gerenciamento_acessos_convite_campos">
+                                <Input
+                                    label="Nome completo"
+                                    type="text"
+                                    value={convite.name}
+                                    onChange={(event) =>
+                                        setConvite((atual) => ({
+                                            ...atual,
+                                            name: event.target.value,
+                                        }))
+                                    }
+                                    placeholder="Ex.: Ana Silva"
+                                    required
+                                    disabled={loading}
+                                    autoFocus
+                                />
+                                <Input
+                                    label="E-mail (login)"
+                                    type="email"
+                                    value={convite.email}
+                                    onChange={(event) =>
+                                        setConvite((atual) => ({
+                                            ...atual,
+                                            email: event.target.value,
+                                        }))
+                                    }
+                                    placeholder="nome@emerdog.com.br"
+                                    required
+                                    disabled={loading}
+                                />
+                                {modoNovoUsuario === 'create' && (
+                                    <>
+                                        <Input
+                                            label="Senha inicial"
+                                            type="password"
+                                            value={convite.password}
+                                            onChange={(event) =>
+                                                setConvite((atual) => ({
+                                                    ...atual,
+                                                    password: event.target.value,
+                                                }))
+                                            }
+                                            hint={textoAjudaPoliticaSenha()}
+                                            required
+                                            minLength={PASSWORD_MIN_LENGTH}
+                                            autoComplete="new-password"
+                                            disabled={loading}
+                                        />
+                                        <Input
+                                            label="Confirmar senha"
+                                            type="password"
+                                            value={convite.passwordConfirm}
+                                            onChange={(event) =>
+                                                setConvite((atual) => ({
+                                                    ...atual,
+                                                    passwordConfirm: event.target.value,
+                                                }))
+                                            }
+                                            placeholder="Repita a senha"
+                                            required
+                                            minLength={PASSWORD_MIN_LENGTH}
+                                            autoComplete="new-password"
+                                            disabled={loading}
+                                        />
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {passoConvite === 2 && (
+                        <div className="gerenciamento_acessos_wizard_pane">
+                            <p className="gerenciamento_acessos_hint">
+                                Contas só de marketing recebem o link de login do EmerMarketing (
+                                {linkMarketing}).
+                            </p>
+                            <div
+                                className="gerenciamento_acessos_destino_grid"
+                                role="radiogroup"
+                                aria-label="Destino do acesso"
+                            >
+                                {DESTINOS_CONVITE.map((opt) => (
+                                    <button
+                                        key={opt.id}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={destinoConvite === opt.id}
+                                        className={`gerenciamento_acessos_destino_card${
+                                            destinoConvite === opt.id ? ' is-active' : ''
+                                        }`}
+                                        onClick={() => escolherDestinoConvite(opt.id)}
+                                        disabled={loading}
+                                    >
+                                        <strong>{opt.titulo}</strong>
+                                        <span>{opt.desc}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {passoConvite === 3 && (
+                        <div className="gerenciamento_acessos_wizard_pane">
+                            <div className="gerenciamento_acessos_convite_bloco_head">
+                                <div>
+                                    <h3>Ajuste fino — {destinoLabel}</h3>
+                                    <p>
+                                        Dá para alterar depois na ficha do usuário. Padrão já aplicado
+                                        conforme o destino.
+                                    </p>
+                                </div>
+                                <span className="gerenciamento_acessos_convite_resumo">
+                                    {resumoPermissoesConvite.comAcesso} de{' '}
+                                    {resumoPermissoesConvite.total} ferramentas
+                                </span>
+                            </div>
+
+                            {destinoConvite !== 'emermarketing' ? (
+                                <div className="gerenciamento_acessos_convite_perms">
+                                    <h4 className="gerenciamento_acessos_convite_subtitulo">EmerLAB</h4>
+                                    {renderPermissoes(convite.permissions, alterarPermissoesConvite, '', {
+                                        gruposIniciaisAbertos: false,
+                                        excluirGrupoIds: [EMERMARKETING_GROUP_ID],
+                                    })}
+                                </div>
+                            ) : null}
+
+                            {destinoConvite !== 'emerlab' ? (
+                                <div className="gerenciamento_acessos_convite_perms gerenciamento_acessos_convite_emermarketing">
+                                    <h4 className="gerenciamento_acessos_convite_subtitulo">
+                                        EmerMarketing
+                                    </h4>
+                                    <p className="gerenciamento_acessos_hint">
+                                        {destinoConvite === 'emermarketing'
+                                            ? 'Portal liberado. Sem módulos específicos, todas as telas ficam disponíveis.'
+                                            : 'Sem estas permissões a pessoa não vê o link nem entra no marketing.'}
+                                    </p>
+                                    {renderPermissoes(convite.permissions, alterarPermissoesConvite, '', {
+                                        gruposIniciaisAbertos: true,
+                                        grupoIds: [EMERMARKETING_GROUP_ID],
+                                    })}
+                                </div>
+                            ) : null}
+                        </div>
+                    )}
+                </form>
+            </Modal>
         </main>
     )
 }

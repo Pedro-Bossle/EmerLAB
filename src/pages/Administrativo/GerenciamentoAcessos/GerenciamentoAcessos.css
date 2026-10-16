@@ -1,86 +1,23 @@
 .gerenciamento_acessos {
     width: 100%;
     min-height: 100%;
-    padding: 28px;
+    padding: 1.25rem 1.5rem 2rem;
     color: #1f3a4f;
 }
 
-.gerenciamento_acessos_header {
+.gerenciamento_acessos_header_acoes {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 18px;
-    padding-right: 3.25rem;
-}
-
-.gerenciamento_acessos_header h1 {
-    margin: 0;
-    color: var(--azul-escuro, #123e59);
-}
-
-.gerenciamento_acessos_header p {
-    margin: 6px 0 0;
-    color: #547084;
-}
-
-.gerenciamento_acessos_kicker {
-    margin: 0 0 4px !important;
-    color: #0f74b9 !important;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-size: 0.75rem;
-}
-
-.gerenciamento_acessos_header button,
-.gerenciamento_acessos_form button,
-.gerenciamento_acessos_acoes button {
-    border: 1px solid #bfd7e8;
-    background: #ffffff;
-    color: #174964;
-    border-radius: 10px;
-    padding: 9px 12px;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.gerenciamento_acessos_header button:disabled,
-.gerenciamento_acessos_form button:disabled,
-.gerenciamento_acessos_acoes button:disabled {
-    cursor: wait;
-    opacity: 0.65;
-}
-
-.gerenciamento_acessos_form button,
-.gerenciamento_acessos_acoes .is-primary,
-.gerenciamento_acessos_salvar_flutuante.is-primary {
-    background: #0f74b9;
-    border-color: #0f74b9;
-    color: #ffffff;
-}
-
-.gerenciamento_acessos_acoes .is-danger {
-    background: #fff5f5;
-    border-color: #e8a0a0;
-    color: #9a2424;
-}
-
-.gerenciamento_acessos_acoes .is-danger:hover:not(:disabled) {
-    background: #fdecec;
-    border-color: #c45c5c;
-}
-
-.gerenciamento_acessos_acoes_conta {
     flex-wrap: wrap;
-    justify-content: flex-start;
+    gap: 0.5rem;
+    align-items: center;
 }
 
 .gerenciamento_acessos_alerta {
-    margin-bottom: 14px;
-    padding: 10px 12px;
+    margin-bottom: 0.85rem;
+    padding: 0.65rem 0.85rem;
     border-radius: 10px;
     font-weight: 600;
+    font-size: 0.9rem;
 }
 
 .gerenciamento_acessos_alerta.is-success {
@@ -95,403 +32,11 @@
     color: #9a2424;
 }
 
-.gerenciamento_acessos_header_acoes {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-}
-
-.gerenciamento_acessos_header button.is-ghost {
-    background: transparent;
-}
-
 .gerenciamento_acessos_layout {
     display: grid;
-    grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
-    gap: 16px;
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+    gap: 1rem;
     align-items: start;
-}
-
-.gerenciamento_acessos_lista_card {
-    max-height: calc(100vh - 200px);
-    display: flex;
-    flex-direction: column;
-}
-
-.gerenciamento_acessos_painel {
-    min-height: 420px;
-}
-
-.gerenciamento_acessos_painel_head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-}
-
-.gerenciamento_acessos_painel_head h2 {
-    margin: 0;
-    font-size: 1.05rem;
-}
-
-.gerenciamento_acessos_tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.gerenciamento_acessos_tabs button {
-    border: 1px solid #c7dceb;
-    background: #f7fbfe;
-    color: #31566f;
-    border-radius: 999px;
-    padding: 6px 12px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.gerenciamento_acessos_tabs button.is-active {
-    background: #0f74b9;
-    border-color: #0f74b9;
-    color: #fff;
-}
-
-.gerenciamento_acessos_convite_subtitulo {
-    margin: 1.25rem 0 0.35rem;
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: inherit;
-}
-
-.gerenciamento_acessos_destino_grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.65rem;
-    margin: 0.35rem 0 0.25rem;
-}
-
-.gerenciamento_acessos_destino_card {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.35rem;
-    text-align: left;
-    padding: 0.75rem 0.85rem;
-    border: 1px solid #d5e4ef;
-    border-radius: 12px;
-    background: #f7fbfe;
-    color: #123e59;
-    cursor: pointer;
-    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.gerenciamento_acessos_destino_card strong {
-    font-size: 0.92rem;
-    font-weight: 750;
-}
-
-.gerenciamento_acessos_destino_card span {
-    font-size: 0.78rem;
-    line-height: 1.35;
-    color: #5b7488;
-    font-weight: 500;
-}
-
-.gerenciamento_acessos_destino_card:hover:not(:disabled) {
-    border-color: #2f87c6;
-    background: #eef7fc;
-}
-
-.gerenciamento_acessos_destino_card.is-active {
-    border-color: #0f74b9;
-    background: #e7f4fc;
-    box-shadow: 0 0 0 1px #0f74b9;
-}
-
-.gerenciamento_acessos_destino_card:disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
-}
-
-@media (max-width: 720px) {
-    .gerenciamento_acessos_destino_grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-.gerenciamento_acessos_convite_emermarketing {
-    margin-top: 0.75rem;
-    padding-top: 0.5rem;
-    border-top: 1px solid #e0ebf3;
-}
-
-.gerenciamento_acessos_hint {
-    margin: 0 0 10px;
-    font-size: 0.82rem;
-    color: #5b7488;
-    line-height: 1.4;
-}
-
-.gerenciamento_acessos_form_compact {
-    max-width: 420px;
-}
-
-.gerenciamento_acessos_log {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    max-height: min(56vh, 520px);
-    overflow-y: auto;
-}
-
-.gerenciamento_acessos_log_item {
-    border: 1px solid #e0ebf3;
-    border-radius: 10px;
-    padding: 10px 12px;
-    background: #f9fcfe;
-}
-
-.gerenciamento_acessos_log_item time {
-    display: block;
-    font-size: 0.75rem;
-    color: #5b7488;
-    margin-bottom: 4px;
-}
-
-.gerenciamento_acessos_log_item strong {
-    display: block;
-    color: #123e59;
-    font-size: 0.9rem;
-    margin-bottom: 4px;
-}
-
-.gerenciamento_acessos_log_item span {
-    font-size: 0.78rem;
-    color: #5d7384;
-}
-
-.gerenciamento_acessos_modal_backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 1200;
-    background: rgba(15, 35, 55, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    backdrop-filter: blur(2px);
-}
-
-.gerenciamento_acessos_modal {
-    width: min(96vw, 520px);
-    max-height: min(92vh, 720px);
-    overflow-y: auto;
-}
-
-.gerenciamento_acessos_modal_convite {
-    width: min(96vw, 760px);
-    max-height: min(94vh, 860px);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding: 0;
-}
-
-.gerenciamento_acessos_modal_head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 0;
-    padding: 1.15rem 1.25rem 0.85rem;
-    border-bottom: 1px solid #e3eef6;
-}
-
-.gerenciamento_acessos_modal_kicker {
-    margin: 0 0 0.2rem;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #5a7a90;
-}
-
-.gerenciamento_acessos_modal_head h2 {
-    margin: 0;
-    font-size: 1.35rem;
-    color: #123e59;
-}
-
-.gerenciamento_acessos_modal_lead {
-    margin: 0.4rem 0 0;
-    max-width: 42rem;
-    font-size: 0.9rem;
-    font-weight: 400;
-    line-height: 1.45;
-    color: #5b7488;
-}
-
-.gerenciamento_acessos_modo_tabs {
-    display: flex;
-    gap: 0.4rem;
-    padding: 0.75rem 1.25rem 0;
-}
-
-.gerenciamento_acessos_modo_tabs button {
-    flex: 1 1 0;
-    border: 1px solid #c7dceb;
-    background: #f4f9fc;
-    color: #31566f;
-    border-radius: 10px;
-    padding: 0.55rem 0.75rem;
-    font-weight: 700;
-    font-size: 0.88rem;
-    cursor: pointer;
-}
-
-.gerenciamento_acessos_modo_tabs button.is-active {
-    background: #0f74b9;
-    border-color: #0f74b9;
-    color: #ffffff;
-}
-
-.gerenciamento_acessos_modo_tabs button:disabled {
-    opacity: 0.65;
-    cursor: wait;
-}
-
-.gerenciamento_acessos_modal_close {
-    flex: 0 0 auto;
-    width: 2.1rem;
-    height: 2.1rem;
-    border: 1px solid #d0e0ec;
-    border-radius: 10px;
-    background: #f4f9fc;
-    color: #31566f;
-    font-size: 1.35rem;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.gerenciamento_acessos_modal_close:hover:not(:disabled) {
-    background: #e7f2fa;
-}
-
-.gerenciamento_acessos_form.gerenciamento_acessos_form_convite {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-    min-height: 0;
-    gap: 0;
-}
-
-.gerenciamento_acessos_convite_bloco {
-    padding: 1rem 1.25rem;
-}
-
-.gerenciamento_acessos_convite_bloco + .gerenciamento_acessos_convite_bloco {
-    border-top: 1px solid #e8f1f8;
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.gerenciamento_acessos_convite_bloco_head {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    margin-bottom: 0.85rem;
-}
-
-.gerenciamento_acessos_convite_bloco_head > div {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.gerenciamento_acessos_convite_passo {
-    flex: 0 0 auto;
-    width: 1.7rem;
-    height: 1.7rem;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 0.1rem;
-    background: #0f74b9;
-    color: #fff;
-    font-size: 0.82rem;
-    font-weight: 700;
-    line-height: 1;
-}
-
-.gerenciamento_acessos_convite_bloco h3 {
-    margin: 0;
-    font-size: 0.98rem;
-    color: #123e59;
-}
-
-.gerenciamento_acessos_convite_bloco_head p {
-    margin: 0.28rem 0 0;
-    font-size: 0.82rem;
-    line-height: 1.4;
-    color: #6a8496;
-    font-weight: 400;
-}
-
-.gerenciamento_acessos_convite_resumo {
-    flex: 0 0 auto;
-    align-self: center;
-    padding: 0.35rem 0.65rem;
-    border-radius: 999px;
-    border: 1px solid #c9dfef;
-    background: #eef6fc;
-    color: #1a5a82;
-    font-size: 0.74rem;
-    font-weight: 650;
-    white-space: nowrap;
-}
-
-.gerenciamento_acessos_convite_campos {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.85rem;
-}
-
-.gerenciamento_acessos_convite_perms {
-    flex: 1 1 auto;
-    min-height: 12rem;
-    overflow: auto;
-    padding: 0.45rem 0.55rem 0.55rem;
-    border: 1px solid #dceaf4;
-    border-radius: 12px;
-    background: #f7fbfe;
-}
-
-.gerenciamento_acessos_modal_footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-    padding: 0.85rem 1.25rem 1.1rem;
-    border-top: 1px solid #e3eef6;
-    background: #fafcfe;
-}
-
-.gerenciamento_acessos_modal_footer button {
-    min-width: 7.5rem;
-}
-
-.gerenciamento_acessos_modal_footer .is-primary {
-    background: #0f74b9;
-    border-color: #0f74b9;
-    color: #fff;
-    font-weight: 700;
 }
 
 .gerenciamento_acessos_card {
@@ -499,52 +44,52 @@
     border: 1px solid #d8e6ef;
     border-radius: 16px;
     box-shadow: 0 10px 28px rgba(16, 49, 73, 0.08);
-    padding: 16px;
+    padding: 1rem;
 }
 
-.gerenciamento_acessos_card h2 {
-    margin: 0 0 12px;
-    font-size: 1.05rem;
-    color: #123e59;
-}
-
-.gerenciamento_acessos_form {
+.gerenciamento_acessos_lista_card {
+    max-height: calc(100vh - 11rem);
     display: flex;
     flex-direction: column;
-    gap: 12px;
-}
-
-.gerenciamento_acessos_form label {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    color: #31566f;
-    font-weight: 700;
-    font-size: 0.9rem;
-}
-
-.gerenciamento_acessos_form input,
-.gerenciamento_acessos_lista_header input {
-    width: 100%;
-    border: 1px solid #c7dceb;
-    border-radius: 10px;
-    padding: 9px 10px;
-    color: #1f3a4f;
-    background: #ffffff;
+    position: sticky;
+    top: 0.75rem;
 }
 
 .gerenciamento_acessos_lista_header {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 0.65rem;
+    margin-bottom: 0.65rem;
+}
+
+.gerenciamento_acessos_lista_titulo {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.gerenciamento_acessos_lista_titulo h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #123e59;
+}
+
+.gerenciamento_acessos_count {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #5a7488;
+    background: #eef5fb;
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
 }
 
 .gerenciamento_acessos_lista {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    max-height: 620px;
+    gap: 0.5rem;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
 }
 
@@ -553,37 +98,167 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 3px;
+    gap: 0.15rem;
     border: 1px solid #dbe8f1;
     background: #f7fbfe;
     color: #254a64;
     border-radius: 12px;
-    padding: 10px;
+    padding: 0.65rem 0.75rem;
     text-align: left;
     cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.gerenciamento_acessos_usuario:hover {
+    border-color: #2f87c6;
 }
 
 .gerenciamento_acessos_usuario.is-active {
     border-color: #0f74b9;
     background: #e8f5ff;
+    box-shadow: 0 0 0 1px #0f74b9;
+}
+
+.gerenciamento_acessos_usuario:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(31, 126, 184, 0.35);
 }
 
 .gerenciamento_acessos_usuario span {
     color: #5d7384;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     word-break: break-all;
 }
 
+.gerenciamento_acessos_usuario_meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.25rem;
+}
+
 .gerenciamento_acessos_usuario_badge {
-    margin-top: 2px;
+    margin: 0;
     font-style: normal;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 700;
     color: #9a5b00;
     background: #fff6e5;
     border: 1px solid #f0d5a0;
     border-radius: 999px;
-    padding: 2px 8px;
+    padding: 0.1rem 0.45rem;
+}
+
+.gerenciamento_acessos_usuario_badge.is-muted {
+    color: #31566f;
+    background: #eef5fb;
+    border-color: #c7dceb;
+}
+
+.gerenciamento_acessos_usuario_badge.is-mkt {
+    color: #165f8c;
+    background: #e7f4fc;
+    border-color: #a8d4f0;
+}
+
+.gerenciamento_acessos_painel {
+    min-height: 26rem;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.gerenciamento_acessos_painel_head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid #e3eef6;
+}
+
+.gerenciamento_acessos_painel_identidade {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.gerenciamento_acessos_painel_identidade h2 {
+    margin: 0;
+    font-size: 1.15rem;
+    color: #123e59;
+}
+
+.gerenciamento_acessos_painel_identidade p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #5b7488;
+    word-break: break-all;
+}
+
+.gerenciamento_acessos_painel_identidade .gerenciamento_acessos_convite_resumo {
+    align-self: flex-start;
+    margin-top: 0.35rem;
+}
+
+.gerenciamento_acessos_tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.gerenciamento_acessos_tabs button {
+    border: 1px solid #c7dceb;
+    background: #f7fbfe;
+    color: #31566f;
+    border-radius: 999px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    min-height: 2.25rem;
+}
+
+.gerenciamento_acessos_tabs button:hover {
+    background: #eef7fc;
+}
+
+.gerenciamento_acessos_tabs button.is-active {
+    background: #0f74b9;
+    border-color: #0f74b9;
+    color: #fff;
+}
+
+.gerenciamento_acessos_tabs button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(31, 126, 184, 0.35);
+}
+
+.gerenciamento_acessos_painel_body {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.gerenciamento_acessos_painel_footer {
+    position: sticky;
+    bottom: 0;
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #e3eef6;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), #fff 40%);
+    display: flex;
+    justify-content: flex-end;
+    z-index: 2;
+}
+
+.gerenciamento_acessos_hint {
+    margin: 0 0 0.75rem;
+    font-size: 0.85rem;
+    color: #5b7488;
+    line-height: 1.45;
 }
 
 .gerenciamento_acessos_hint_aviso {
@@ -591,18 +266,56 @@
     background: #fff8eb;
     border: 1px solid #f0d5a0;
     border-radius: 10px;
-    padding: 8px 10px;
+    padding: 0.55rem 0.75rem;
+}
+
+.gerenciamento_acessos_form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.gerenciamento_acessos_form_compact {
+    max-width: 26rem;
+}
+
+.gerenciamento_acessos_conta {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.gerenciamento_acessos_conta_bloco {
+    padding: 1rem;
+    border: 1px solid #e0ebf3;
+    border-radius: 14px;
+    background: #f9fcfe;
+}
+
+.gerenciamento_acessos_conta_bloco h3 {
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+    color: #123e59;
+}
+
+.gerenciamento_acessos_conta_bloco.is-danger {
+    border-color: #f0b5b5;
+    background: #fff8f8;
+}
+
+.gerenciamento_acessos_conta_bloco.is-danger h3 {
+    color: #9a2424;
 }
 
 .gerenciamento_acessos_opcao_check {
     display: flex;
     align-items: flex-start;
     gap: 0.65rem;
-    margin: 0.85rem 0 0.35rem;
+    margin: 0.85rem 0 0;
     padding: 0.75rem 0.85rem;
     border: 1px solid #e0ebf3;
     border-radius: 12px;
-    background: #f9fcfe;
+    background: #fff;
     cursor: pointer;
 }
 
@@ -630,100 +343,286 @@
     color: #5f7588;
 }
 
-.gerenciamento_acessos_permissoes {
+.gerenciamento_acessos_acoes {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 0.55rem;
 }
 
-.gerenciamento_acessos_permissao_grupo {
+.gerenciamento_acessos_acoes_conta {
+    justify-content: flex-start;
+}
+
+.gerenciamento_acessos_log {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    max-height: min(56vh, 32rem);
+    overflow-y: auto;
+}
+
+.gerenciamento_acessos_log_item {
     border: 1px solid #e0ebf3;
-    border-radius: 12px;
-    padding: 10px;
+    border-radius: 10px;
+    padding: 0.65rem 0.85rem;
     background: #f9fcfe;
 }
 
-.gerenciamento_acessos_permissao_grupo h4 {
-    margin: 0 0 8px;
-    color: #0f6299;
-    font-size: 0.92rem;
+.gerenciamento_acessos_log_item time {
+    display: block;
+    font-size: 0.75rem;
+    color: #5b7488;
+    margin-bottom: 0.2rem;
 }
 
-.gerenciamento_acessos_permissao_item {
-    display: grid !important;
-    grid-template-columns: 18px 1fr;
-    gap: 9px !important;
-    align-items: start;
-    padding: 8px 0;
-    font-weight: 400 !important;
+.gerenciamento_acessos_log_item strong {
+    display: block;
+    color: #123e59;
+    font-size: 0.9rem;
+    margin-bottom: 0.2rem;
 }
 
-.gerenciamento_acessos_permissao_item + .gerenciamento_acessos_permissao_item {
-    border-top: 1px solid #e6eef5;
+.gerenciamento_acessos_log_item span {
+    font-size: 0.78rem;
+    color: #5d7384;
 }
 
-.gerenciamento_acessos_permissao_item input {
-    margin-top: 2px;
+/* —— Wizard convite (dentro do Modal do kit) —— */
+
+.gerenciamento_acessos_modal_kit {
+    max-width: min(96vw, 48rem) !important;
 }
 
-.gerenciamento_acessos_permissao_item span {
+.gerenciamento_acessos_wizard_steps {
+    list-style: none;
+    margin: 0 0 1rem;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+}
+
+.gerenciamento_acessos_wizard_steps li {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: 10px;
+    border: 1px solid #dceaf4;
+    background: #f7fbfe;
+    font-size: 0.8rem;
+    font-weight: 650;
+    color: #5b7488;
+}
+
+.gerenciamento_acessos_wizard_steps li.is-current {
+    border-color: #0f74b9;
+    background: #e7f4fc;
+    color: #123e59;
+}
+
+.gerenciamento_acessos_wizard_steps li.is-done {
+    border-color: #b7dfc2;
+    background: #eefaf1;
+    color: #1b6b34;
+}
+
+.gerenciamento_acessos_wizard_num {
+    flex: 0 0 auto;
+    width: 1.45rem;
+    height: 1.45rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #d8e6ef;
+    color: #31566f;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.gerenciamento_acessos_wizard_steps li.is-current .gerenciamento_acessos_wizard_num {
+    background: #0f74b9;
+    color: #fff;
+}
+
+.gerenciamento_acessos_wizard_steps li.is-done .gerenciamento_acessos_wizard_num {
+    background: #0a7a4a;
+    color: #fff;
+}
+
+.gerenciamento_acessos_wizard_pane {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0.85rem;
 }
 
-.gerenciamento_acessos_permissao_item small {
+.gerenciamento_acessos_modo_tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.gerenciamento_acessos_modo_tabs button {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    border: 1px solid #c7dceb;
+    background: #f4f9fc;
+    color: #31566f;
+    border-radius: 12px;
+    padding: 0.7rem 0.85rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-align: left;
+    cursor: pointer;
+    min-height: 3.25rem;
+}
+
+.gerenciamento_acessos_modo_tabs button small {
+    font-weight: 500;
+    font-size: 0.75rem;
     color: #5b7488;
+}
+
+.gerenciamento_acessos_modo_tabs button.is-active {
+    background: #0f74b9;
+    border-color: #0f74b9;
+    color: #ffffff;
+}
+
+.gerenciamento_acessos_modo_tabs button.is-active small {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.gerenciamento_acessos_modo_tabs button:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.gerenciamento_acessos_convite_campos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.85rem;
+}
+
+.gerenciamento_acessos_destino_grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+
+.gerenciamento_acessos_destino_card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    text-align: left;
+    padding: 0.85rem;
+    border: 1px solid #d5e4ef;
+    border-radius: 12px;
+    background: #f7fbfe;
+    color: #123e59;
+    cursor: pointer;
+    min-height: 5.5rem;
+    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gerenciamento_acessos_destino_card strong {
+    font-size: 0.95rem;
+    font-weight: 750;
+}
+
+.gerenciamento_acessos_destino_card span {
     font-size: 0.78rem;
     line-height: 1.35;
+    color: #5b7488;
+    font-weight: 500;
 }
 
-.gerenciamento_acessos_acoes {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 14px;
+.gerenciamento_acessos_destino_card:hover:not(:disabled) {
+    border-color: #2f87c6;
+    background: #eef7fc;
 }
 
-.gerenciamento_acessos_salvar_flutuante {
-    position: fixed;
-    right: max(0.85rem, env(safe-area-inset-right));
-    bottom: max(0.85rem, env(safe-area-inset-bottom));
-    z-index: 45;
-    border: none;
-    border-radius: 999px;
-    padding: 0.45rem 0.9rem;
-    min-height: 2.25rem;
-    max-width: min(16rem, calc(100vw - 1.75rem));
-    font-weight: 650;
-    font-size: 0.8125rem;
-    line-height: 1.2;
-    cursor: pointer;
-    box-shadow: 0 6px 18px rgba(18, 62, 89, 0.22);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.gerenciamento_acessos_destino_card.is-active {
+    border-color: #0f74b9;
+    background: #e7f4fc;
+    box-shadow: 0 0 0 1px #0f74b9;
 }
 
-.gerenciamento_acessos_salvar_flutuante:disabled {
-    opacity: 0.6;
+.gerenciamento_acessos_destino_card:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(31, 126, 184, 0.35);
+}
+
+.gerenciamento_acessos_destino_card:disabled {
+    opacity: 0.65;
     cursor: not-allowed;
 }
 
-@media (max-width: 1023px) {
-    .gerenciamento_acessos_salvar_flutuante {
-        bottom: calc(4.25rem + 0.55rem + env(safe-area-inset-bottom, 0px));
-        padding: 0.4rem 0.75rem;
-        min-height: 2.1rem;
-        font-size: 0.78rem;
-        box-shadow: 0 4px 14px rgba(18, 62, 89, 0.2);
-    }
+.gerenciamento_acessos_convite_bloco_head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.gerenciamento_acessos_convite_bloco_head h3 {
+    margin: 0;
+    font-size: 0.98rem;
+    color: #123e59;
+}
+
+.gerenciamento_acessos_convite_bloco_head p {
+    margin: 0.28rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    color: #6a8496;
+}
+
+.gerenciamento_acessos_convite_resumo {
+    flex: 0 0 auto;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid #c9dfef;
+    background: #eef6fc;
+    color: #1a5a82;
+    font-size: 0.72rem;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.gerenciamento_acessos_convite_subtitulo {
+    margin: 0 0 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: inherit;
+}
+
+.gerenciamento_acessos_convite_perms {
+    min-height: 10rem;
+    max-height: min(42vh, 22rem);
+    overflow: auto;
+    padding: 0.55rem;
+    border: 1px solid #dceaf4;
+    border-radius: 12px;
+    background: #f7fbfe;
+}
+
+.gerenciamento_acessos_convite_emermarketing {
+    margin-top: 0.5rem;
+}
+
+.gerenciamento_acessos_form_convite {
+    gap: 0;
 }
 
 .gerenciamento_acessos_vazio {
     color: #5b7488;
     margin: 0;
-    padding: 10px 0;
+    padding: 0.65rem 0;
 }
 
 @media (max-width: 900px) {
@@ -733,40 +632,75 @@
 
     .gerenciamento_acessos_lista_card {
         max-height: none;
+        position: static;
+    }
+
+    .gerenciamento_acessos_destino_grid {
+        grid-template-columns: 1fr;
     }
 }
+
+@media (max-width: 640px) {
+    .gerenciamento_acessos {
+        padding: 0.75rem 0.75rem 5.5rem;
+    }
+
+    .gerenciamento_acessos_convite_campos {
+        grid-template-columns: 1fr;
+    }
+
+    .gerenciamento_acessos_wizard_steps {
+        grid-template-columns: 1fr;
+    }
+
+    .gerenciamento_acessos_modo_tabs {
+        grid-template-columns: 1fr;
+    }
+
+    .gerenciamento_acessos_painel_footer {
+        bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+        padding-bottom: 0.35rem;
+    }
+
+    .gerenciamento_acessos_convite_bloco_head {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 1023px) {
+    .gerenciamento_acessos_painel_footer {
+        padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+    }
+}
+
+/* Dark mode */
 
 body.dark-mode .gerenciamento_acessos {
     color: #e7f4fc;
 }
 
-body.dark-mode .gerenciamento_acessos_header h1,
-body.dark-mode .gerenciamento_acessos_card h2,
-body.dark-mode .gerenciamento_acessos_painel_head h2 {
+body.dark-mode .gerenciamento_acessos_lista_titulo h2,
+body.dark-mode .gerenciamento_acessos_painel_identidade h2,
+body.dark-mode .gerenciamento_acessos_conta_bloco h3,
+body.dark-mode .gerenciamento_acessos_convite_bloco_head h3 {
     color: #e7f4fc;
 }
 
-body.dark-mode .gerenciamento_acessos_header p,
-body.dark-mode .gerenciamento_acessos_vazio,
-body.dark-mode .gerenciamento_acessos_hint {
+body.dark-mode .gerenciamento_acessos_hint,
+body.dark-mode .gerenciamento_acessos_painel_identidade p,
+body.dark-mode .gerenciamento_acessos_convite_bloco_head p,
+body.dark-mode .gerenciamento_acessos_count {
     color: #9fb4c8;
+}
+
+body.dark-mode .gerenciamento_acessos_count {
+    background: #223848;
 }
 
 body.dark-mode .gerenciamento_acessos_card {
     background: #1a2838;
     border-color: #2a4258;
     box-shadow: none;
-}
-
-body.dark-mode .gerenciamento_acessos_form label {
-    color: #c5d6e6;
-}
-
-body.dark-mode .gerenciamento_acessos_form input,
-body.dark-mode .gerenciamento_acessos_lista_header input {
-    background: #152433;
-    border-color: #3d5266;
-    color: #e7f4fc;
 }
 
 body.dark-mode .gerenciamento_acessos_usuario {
@@ -778,6 +712,7 @@ body.dark-mode .gerenciamento_acessos_usuario {
 body.dark-mode .gerenciamento_acessos_usuario.is-active {
     background: #1e3a52;
     border-color: #7eb8e8;
+    box-shadow: 0 0 0 1px #7eb8e8;
 }
 
 body.dark-mode .gerenciamento_acessos_usuario span {
@@ -790,36 +725,25 @@ body.dark-mode .gerenciamento_acessos_usuario_badge {
     border-color: #7a5c28;
 }
 
-body.dark-mode .gerenciamento_acessos_hint_aviso {
-    color: #ffd89a !important;
-    background: #2f2718;
-    border-color: #7a5c28;
+body.dark-mode .gerenciamento_acessos_usuario_badge.is-muted {
+    color: #c5d6e6;
+    background: #223848;
+    border-color: #3d5266;
 }
 
-body.dark-mode .gerenciamento_acessos_opcao_check {
-    background: #152433;
-    border-color: #2a4258;
-}
-
-body.dark-mode .gerenciamento_acessos_opcao_check strong {
-    color: #e8f3fb;
-}
-
-body.dark-mode .gerenciamento_acessos_opcao_check small {
-    color: #9fb4c8;
-}
-
-body.dark-mode .gerenciamento_acessos_permissao_grupo {
-    background: #152433;
-    border-color: #2a4258;
-}
-
-body.dark-mode .gerenciamento_acessos_permissao_grupo h4 {
+body.dark-mode .gerenciamento_acessos_usuario_badge.is-mkt {
     color: #a8d4f5;
+    background: #1a3348;
+    border-color: #3d5a72;
 }
 
-body.dark-mode .gerenciamento_acessos_permissao_item small {
-    color: #9fb4c8;
+body.dark-mode .gerenciamento_acessos_painel_head,
+body.dark-mode .gerenciamento_acessos_painel_footer {
+    border-color: #2a4258;
+}
+
+body.dark-mode .gerenciamento_acessos_painel_footer {
+    background: linear-gradient(180deg, rgba(26, 40, 56, 0.85), #1a2838 40%);
 }
 
 body.dark-mode .gerenciamento_acessos_tabs button {
@@ -834,16 +758,37 @@ body.dark-mode .gerenciamento_acessos_tabs button.is-active {
     color: #fff;
 }
 
-body.dark-mode .gerenciamento_acessos_modo_tabs button {
-    background: #152433;
-    border-color: #3d5266;
-    color: #c5d6e6;
+body.dark-mode .gerenciamento_acessos_hint_aviso {
+    color: #ffd89a !important;
+    background: #2f2718;
+    border-color: #7a5c28;
 }
 
-body.dark-mode .gerenciamento_acessos_modo_tabs button.is-active {
-    background: #2f87c6;
-    border-color: #2f87c6;
-    color: #fff;
+body.dark-mode .gerenciamento_acessos_conta_bloco {
+    background: #152433;
+    border-color: #2a4258;
+}
+
+body.dark-mode .gerenciamento_acessos_conta_bloco.is-danger {
+    background: #2a1a1a;
+    border-color: #8f4c58;
+}
+
+body.dark-mode .gerenciamento_acessos_conta_bloco.is-danger h3 {
+    color: #ffc8c8;
+}
+
+body.dark-mode .gerenciamento_acessos_opcao_check {
+    background: #1a2838;
+    border-color: #2a4258;
+}
+
+body.dark-mode .gerenciamento_acessos_opcao_check strong {
+    color: #e8f3fb;
+}
+
+body.dark-mode .gerenciamento_acessos_opcao_check small {
+    color: #9fb4c8;
 }
 
 body.dark-mode .gerenciamento_acessos_log_item {
@@ -855,92 +800,53 @@ body.dark-mode .gerenciamento_acessos_log_item strong {
     color: #e7f4fc;
 }
 
-body.dark-mode .gerenciamento_acessos_header button,
-body.dark-mode .gerenciamento_acessos_form button,
-body.dark-mode .gerenciamento_acessos_acoes button {
-    background: #243547;
-    border-color: #3d5266;
+body.dark-mode .gerenciamento_acessos_wizard_steps li {
+    background: #152433;
+    border-color: #2a4258;
+    color: #9fb4c8;
+}
+
+body.dark-mode .gerenciamento_acessos_wizard_steps li.is-current {
+    background: #1a3348;
+    border-color: #2f87c6;
     color: #e7f4fc;
 }
 
-body.dark-mode .gerenciamento_acessos_form button.is-primary,
-body.dark-mode .gerenciamento_acessos_acoes .is-primary,
-body.dark-mode .gerenciamento_acessos_salvar_flutuante.is-primary {
+body.dark-mode .gerenciamento_acessos_wizard_num {
+    background: #2a4258;
+    color: #c5d6e6;
+}
+
+body.dark-mode .gerenciamento_acessos_modo_tabs button {
+    background: #152433;
+    border-color: #3d5266;
+    color: #c5d6e6;
+}
+
+body.dark-mode .gerenciamento_acessos_modo_tabs button small {
+    color: #9fb4c8;
+}
+
+body.dark-mode .gerenciamento_acessos_modo_tabs button.is-active {
     background: #2f87c6;
     border-color: #2f87c6;
     color: #fff;
 }
 
-body.dark-mode .gerenciamento_acessos_acoes .is-danger {
-    background: #3d2222;
-    border-color: #8f4c58;
-    color: #ffc8c8;
-}
-
-body.dark-mode .gerenciamento_acessos_acoes .is-danger:hover:not(:disabled) {
-    background: #4d2e34;
-    border-color: #b86b6b;
-}
-
-@media (max-width: 640px) {
-    .gerenciamento_acessos {
-        padding: 12px;
-    }
-
-    .gerenciamento_acessos_header {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .gerenciamento_acessos_convite_campos {
-        grid-template-columns: 1fr;
-    }
-
-    .gerenciamento_acessos_convite_bloco_head {
-        flex-wrap: wrap;
-    }
-
-    .gerenciamento_acessos_convite_resumo {
-        margin-left: 2.45rem;
-    }
-
-    .gerenciamento_acessos_modal_convite {
-        width: 100%;
-        max-height: 96vh;
-        border-radius: 14px;
-    }
-
-    .gerenciamento_acessos_modal_footer {
-        flex-direction: column-reverse;
-    }
-
-    .gerenciamento_acessos_modal_footer button {
-        width: 100%;
-    }
-}
-
-body.dark-mode .gerenciamento_acessos_modal_head {
+body.dark-mode .gerenciamento_acessos_destino_card {
+    background: #152433;
     border-color: #2a4258;
+    color: #e7f4fc;
 }
 
-body.dark-mode .gerenciamento_acessos_modal_kicker,
-body.dark-mode .gerenciamento_acessos_modal_lead,
-body.dark-mode .gerenciamento_acessos_convite_bloco_head p {
+body.dark-mode .gerenciamento_acessos_destino_card span {
     color: #9fb4c8;
 }
 
-body.dark-mode .gerenciamento_acessos_modal_close {
-    background: #152433;
-    border-color: #3d5266;
-    color: #e7f4fc;
-}
-
-body.dark-mode .gerenciamento_acessos_convite_bloco + .gerenciamento_acessos_convite_bloco {
-    border-color: #2a4258;
-}
-
-body.dark-mode .gerenciamento_acessos_convite_bloco h3 {
-    color: #e7f4fc;
+body.dark-mode .gerenciamento_acessos_destino_card.is-active {
+    background: #1a3348;
+    border-color: #2f87c6;
+    box-shadow: 0 0 0 1px #2f87c6;
 }
 
 body.dark-mode .gerenciamento_acessos_convite_resumo {
@@ -950,11 +856,6 @@ body.dark-mode .gerenciamento_acessos_convite_resumo {
 }
 
 body.dark-mode .gerenciamento_acessos_convite_perms {
-    background: #152433;
-    border-color: #2a4258;
-}
-
-body.dark-mode .gerenciamento_acessos_modal_footer {
     background: #152433;
     border-color: #2a4258;
 }

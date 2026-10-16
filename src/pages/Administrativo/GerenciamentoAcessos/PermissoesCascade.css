@@ -168,6 +168,17 @@
     cursor: pointer;
 }
 
+.permissoes_cascade_acao_label {
+    display: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #31566f;
+}
+
+body.dark-mode .permissoes_cascade_acao_label {
+    color: #c5d6e6;
+}
+
 .permissoes_cascade_nota {
     margin: 8px 0 0;
     font-size: 0.8rem;
@@ -239,7 +250,11 @@ body.dark-mode .permissoes_cascade_linha {
 
     .permissoes_cascade_linha .permissoes_cascade_acao_col {
         justify-content: flex-start;
-        gap: 12px;
+        gap: 0.5rem;
+    }
+
+    .permissoes_cascade_acao_label {
+        display: inline;
     }
 
     .permissoes_cascade_grupo_header {

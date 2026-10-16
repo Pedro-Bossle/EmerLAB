@@ -282,6 +282,9 @@ export default function PermissoesCascade({
                                                                 }
                                                                 aria-label={`${acao.label} — ${tool.label}`}
                                                             />
+                                                            <span className='permissoes_cascade_acao_label'>
+                                                                {acao.label}
+                                                            </span>
                                                         </label>
                                                     )
                                                 })}
