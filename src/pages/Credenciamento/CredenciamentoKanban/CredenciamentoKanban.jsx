@@ -55,6 +55,7 @@ import {
     pareceColagemTabelaKanban,
 } from '../../../lib/credKanbanColagem.js'
 import './CredenciamentoKanban.css'
+import { avisar } from '../../../lib/dialogos.js'
 
 function novaEntradaRascunhoKanban(base = {}) {
     return {
@@ -548,8 +549,8 @@ export default function CredenciamentoKanban() {
                 else if (r?.criados > 0) {
                     setAviso(
                         r.criados === 1
-                            ? '1 utilizador notificado por menção.'
-                            : `${r.criados} utilizadores notificados por menção.`,
+                            ? '1 usuário notificado por menção.'
+                            : `${r.criados} usuários notificados por menção.`,
                     )
                 }
             }
@@ -587,8 +588,8 @@ export default function CredenciamentoKanban() {
             else if (r?.criados > 0) {
                 setAviso(
                     r.criados === 1
-                        ? '1 utilizador notificado por menção.'
-                        : `${r.criados} utilizadores notificados por menção.`,
+                        ? '1 usuário notificado por menção.'
+                        : `${r.criados} usuários notificados por menção.`,
                 )
             }
         }
@@ -1700,7 +1701,7 @@ function KanbanCardModal({
                 })
                 .filter(Boolean)
             if (!patches.length) {
-                window.alert('Informe o nome em pelo menos um card antes de criar.')
+                avisar({ titulo: 'Falta o nome', mensagem: 'Informe o nome em pelo menos um card antes de criar.' })
                 return
             }
             setSalvando(true)
@@ -1717,7 +1718,7 @@ function KanbanCardModal({
 
         const nomeLimpo = nomeSemArroba(nome)
         if (!String(nomeLimpo || '').trim()) {
-            window.alert('Informe o nome antes de salvar o card.')
+            avisar({ titulo: 'Falta o nome', mensagem: 'Informe o nome antes de salvar o card.' })
             return
         }
         setSalvando(true)
@@ -2116,7 +2117,7 @@ function KanbanCardModal({
                     </div>
                     <p className="cred_kanban_modal_tip" role="note">
                         <strong>Tip:</strong> digite <code>@</code> na descrição para mencionar um
-                        utilizador (notifica na Home). <code>[</code> cria checklist (
+                        usuário (notifica na Home). <code>[</code> cria checklist (
                         <code>- [ ]</code>). No campo Nome, <code>@</code> vincula prestador (mín. 4
                         letras).
                     </p>
@@ -2158,7 +2159,7 @@ function KanbanCardModal({
                             <ul
                                 className="cred_kanban_nome_sugestoes cred_kanban_mencao_sugestoes"
                                 role="listbox"
-                                aria-label="Mencionar utilizador"
+                                aria-label="Mencionar usuário"
                             >
                                 {sugestoesMencao.map((u) => (
                                     <li key={u.id}>

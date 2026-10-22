@@ -79,7 +79,7 @@
     width: 26px;
     height: 26px;
     flex-shrink: 0;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     line-height: 1;
     padding: 0;
     display: inline-flex;
@@ -89,7 +89,7 @@
 
 .manager_table_compact th.col_acoes {
     text-align: right;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     cursor: default;
     padding-right: 6px;
 }

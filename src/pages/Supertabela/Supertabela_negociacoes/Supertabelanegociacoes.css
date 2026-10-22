@@ -37,7 +37,7 @@ body.supertabelanegociacoes_no_bounce {
 }
 
 .supertabelanegociacoes_header.is-compact h2 {
-    font-size: 1.3rem;
+    font-size: 1.375rem;
     margin: 0;
     opacity: 0.95;
 }
@@ -92,7 +92,7 @@ body.supertabelanegociacoes_no_bounce {
 
 .supertabelanegociacoes_filter_item p {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--azul-escuro);
 }
@@ -105,7 +105,7 @@ body.supertabelanegociacoes_no_bounce {
     border: 1px solid var(--azul-destaque);
     background: #fff;
     min-width: 180px;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-family: inherit;
 }
 
@@ -122,7 +122,7 @@ body.supertabelanegociacoes_no_bounce {
     background: #e8f5ff;
     color: #0a5d96;
     font-weight: 700;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     white-space: nowrap;
     cursor: pointer;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -149,7 +149,7 @@ body.supertabelanegociacoes_no_bounce {
     border-radius: 7px;
     border: 1px solid #b8d3e5;
     background: #fff;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     white-space: nowrap;
 }
@@ -216,7 +216,7 @@ body.supertabelanegociacoes_no_bounce {
 
 .supertabelanegociacoes_form_grid label span,
 .supertabelanegociacoes_form_full span {
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #32566f;
 }
 
@@ -278,7 +278,7 @@ body.supertabelanegociacoes_no_bounce {
 
 .supertabelanegociacoes_vinculo_readonly {
     display: block;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #1e3148;
     line-height: 1.4;
@@ -288,7 +288,7 @@ body.supertabelanegociacoes_no_bounce {
 }
 
 .supertabelanegociacoes_lista_vinculo_cell .prestador_vinculo_busca_input {
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-weight: 500;
     padding: 0.45rem 0.6rem;
     overflow: hidden;
@@ -311,7 +311,7 @@ body.supertabelanegociacoes_no_bounce {
 
 .supertabelanegociacoes .categoria_titulo {
     text-align: left;
-    font-size: 1.5rem;
+    font-size: 1.375rem;
     color: var(--azul-escuro);
     margin: 0 0 4px 0;
 }
@@ -512,7 +512,7 @@ body.supertabelanegociacoes_no_bounce {
 .supertabelanegociacoes .row_add_suggest_empty {
     padding: 10px;
     color: #40617a;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .supertabelanegociacoes .row_add_cancel_btn {
@@ -538,7 +538,7 @@ body.supertabelanegociacoes_no_bounce {
     gap: 12px;
     padding: 12px 14px;
     border-radius: 8px;
-    border: 1px solid #2f87c6;
+    border: 1px solid #1f78ad;
     background: linear-gradient(180deg, #f1f8fc 0%, #e3f2fb 100%);
     box-shadow: 0 8px 22px rgba(30, 49, 72, 0.18);
 }
@@ -617,13 +617,13 @@ body.supertabelanegociacoes_no_bounce {
 }
 
 .supertabelanegociacoes_th_main {
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .supertabelanegociacoes_th_plan {
     display: block;
     max-width: 100%;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #3d6a8a;
     overflow: hidden;
@@ -633,7 +633,7 @@ body.supertabelanegociacoes_no_bounce {
 
 .supertabelanegociacoes_plano_acima {
     display: inline-block;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: #3490d1;
     line-height: 1.25;
@@ -671,7 +671,7 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
 }
 
 .supertabelanegociacoes_paginacao_info {
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     color: #35556d;
 }
 
@@ -687,7 +687,7 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--azul-escuro);
 }
@@ -699,7 +699,7 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
 .supertabelanegociacoes_paginacao_page {
     min-width: 110px;
     text-align: center;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #35556d;
 }
@@ -771,7 +771,7 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
 }
 
 .supertabelanegociacoes_pill_label {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 700;
     letter-spacing: 0.02em;
     white-space: nowrap;
@@ -825,7 +825,7 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
     }
 
     .supertabelanegociacoes_filters p {
-        font-size: 0.72rem;
+        font-size: 0.75rem;
         margin-bottom: 2px;
     }
 
@@ -840,7 +840,7 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
         box-sizing: border-box;
         height: 34px;
         min-height: 34px;
-        font-size: 0.82rem;
+        font-size: 0.875rem;
     }
 
     .supertabelanegociacoes_filter_busca .supertabelanegociacoes_input {
@@ -854,7 +854,7 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
         justify-content: center;
         white-space: normal;
         min-height: 34px;
-        font-size: 0.78rem;
+        font-size: 0.75rem;
         box-sizing: border-box;
     }
 
@@ -917,7 +917,7 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
 
     .supertabelanegociacoes .categoria_secao .table_main {
         min-width: 860px;
-        font-size: 0.84rem;
+        font-size: 0.875rem;
     }
 
     .supertabelanegociacoes .table_main th,
@@ -947,7 +947,7 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
 
 @media (max-width: 640px) {
     .supertabelanegociacoes h1 {
-        font-size: 1.2rem;
+        font-size: 1.125rem;
         margin: 0.35rem 0 0.15rem;
     }
 
@@ -961,7 +961,7 @@ body.dark-mode .supertabelanegociacoes_plano_acima.supertabelanegociacoes_plano_
     }
 
     .supertabelanegociacoes .categoria_secao .table_main {
-        font-size: 0.82rem;
+        font-size: 0.875rem;
         min-width: 780px;
     }
 }
@@ -1014,7 +1014,7 @@ li.supertabelanegociacoes_card.is-empty {
 }
 
 .supertabelanegociacoes_card_nome {
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 800;
     color: #123e59;
     line-height: 1.25;
@@ -1028,13 +1028,13 @@ li.supertabelanegociacoes_card.is-empty {
     grid-template-columns: 5.75rem minmax(0, 1fr);
     gap: 0.1rem 0.45rem;
     align-items: baseline;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     line-height: 1.25;
     color: #35556d;
 }
 
 .supertabelanegociacoes_card_label {
-    font-size: 0.62rem;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;

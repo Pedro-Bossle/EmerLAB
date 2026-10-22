@@ -12,6 +12,7 @@ import { Drawer } from '../ui'
 import { supabase } from '../../lib/supabase'
 import { logoutSessao } from '../../lib/authSession'
 import { lerDarkModeAtivo, salvarDarkModeAtivo } from '../../lib/sidebarPrefs'
+import { avisar } from '../../lib/dialogos.js'
 
 const HubIcon = ({ name }) => {
   const common = 'h-5 w-5'
@@ -93,7 +94,7 @@ export default function BottomNav() {
   const handleLogout = async () => {
     await logoutSessao({
       navigate,
-      onError: () => alert('Erro ao sair da sessão'),
+      onError: () => avisar({ titulo: 'Não foi possível sair', mensagem: 'Verifique a conexão e tente de novo.' }),
     })
   }
 
@@ -104,7 +105,7 @@ export default function BottomNav() {
       (await supabase.auth.getSession()).data?.session
     const token = session?.access_token
     if (!token) {
-      alert('Sessão expirada. Faça login novamente.')
+      avisar({ titulo: 'Sua sessão expirou', mensagem: 'Entre de novo para pedir a redefinição de senha.' })
       return
     }
     try {
@@ -123,9 +124,9 @@ export default function BottomNav() {
       if (!resp.ok || json?.ok === false) {
         throw new Error(json?.error || 'Erro ao enviar redefinição de senha')
       }
-      alert('E-mail de redefinição enviado com sucesso')
+      avisar({ titulo: 'E-mail de redefinição enviado', mensagem: 'Abra o link que chegou no seu e-mail para criar a nova senha. Confira também a caixa de spam.' })
     } catch (error) {
-      alert(error?.message || 'Erro ao enviar redefinição de senha')
+      avisar({ titulo: 'Não foi possível enviar o e-mail', mensagem: error?.message || 'Tente de novo em alguns minutos.' })
     }
   }
 
@@ -155,8 +156,8 @@ export default function BottomNav() {
                   type="button"
                   onClick={() => openHub(hub)}
                   className={cn(
-                    'flex w-full flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-[10px] font-bold',
-                    active ? 'text-brand' : 'text-ink-muted dark:text-[#9eb4c8]',
+                    'flex min-h-touch w-full flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-xs font-bold',
+                    active ? 'text-brand-deep dark:text-[#7cc4f0]' : 'text-ink-muted dark:text-[#9eb4c8]',
                   )}
                 >
                   <HubIcon name={hub.icon} />
@@ -214,7 +215,7 @@ export default function BottomNav() {
                   to={child.href}
                   className={cn(
                     'flex min-h-touch items-center rounded-xl px-3 text-sm font-bold text-ink hover:bg-brand-pale dark:text-[#e8f1f8] dark:hover:bg-white/5',
-                    pathname === child.href && 'bg-brand-pale text-brand dark:bg-white/10',
+                    pathname === child.href && 'bg-brand-pale text-brand-deep dark:bg-white/10',
                   )}
                   onClick={() => setDrawerHub(null)}
                 >

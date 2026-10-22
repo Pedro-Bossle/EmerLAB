@@ -17,7 +17,7 @@
     padding: 0.65rem 0.85rem;
     border-radius: 10px;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .gerenciamento_acessos_alerta.is-success {
@@ -71,12 +71,12 @@
 
 .gerenciamento_acessos_lista_titulo h2 {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 1rem;
     color: #123e59;
 }
 
 .gerenciamento_acessos_count {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: #5a7488;
     background: #eef5fb;
@@ -110,7 +110,7 @@
 }
 
 .gerenciamento_acessos_usuario:hover {
-    border-color: #2f87c6;
+    border-color: #1f78ad;
 }
 
 .gerenciamento_acessos_usuario.is-active {
@@ -126,7 +126,7 @@
 
 .gerenciamento_acessos_usuario span {
     color: #5d7384;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     word-break: break-all;
 }
 
@@ -140,7 +140,7 @@
 .gerenciamento_acessos_usuario_badge {
     margin: 0;
     font-style: normal;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: #9a5b00;
     background: #fff6e5;
@@ -188,13 +188,13 @@
 
 .gerenciamento_acessos_painel_identidade h2 {
     margin: 0;
-    font-size: 1.15rem;
+    font-size: 1.125rem;
     color: #123e59;
 }
 
 .gerenciamento_acessos_painel_identidade p {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: #5b7488;
     word-break: break-all;
 }
@@ -216,7 +216,7 @@
     color: #31566f;
     border-radius: 999px;
     padding: 0.4rem 0.85rem;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 700;
     cursor: pointer;
     min-height: 2.25rem;
@@ -256,7 +256,7 @@
 
 .gerenciamento_acessos_hint {
     margin: 0 0 0.75rem;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: #5b7488;
     line-height: 1.45;
 }
@@ -294,7 +294,7 @@
 
 .gerenciamento_acessos_conta_bloco h3 {
     margin: 0 0 0.75rem;
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: #123e59;
 }
 
@@ -332,13 +332,13 @@
 }
 
 .gerenciamento_acessos_opcao_check strong {
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #123047;
 }
 
 .gerenciamento_acessos_opcao_check small {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     line-height: 1.35;
     color: #5f7588;
 }
@@ -378,12 +378,12 @@
 .gerenciamento_acessos_log_item strong {
     display: block;
     color: #123e59;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     margin-bottom: 0.2rem;
 }
 
 .gerenciamento_acessos_log_item span {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #5d7384;
 }
 
@@ -410,7 +410,7 @@
     border-radius: 10px;
     border: 1px solid #dceaf4;
     background: #f7fbfe;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 650;
     color: #5b7488;
 }
@@ -437,7 +437,7 @@
     justify-content: center;
     background: #d8e6ef;
     color: #31566f;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
 }
 
@@ -474,7 +474,7 @@
     border-radius: 12px;
     padding: 0.7rem 0.85rem;
     font-weight: 700;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     text-align: left;
     cursor: pointer;
     min-height: 3.25rem;
@@ -530,19 +530,19 @@
 }
 
 .gerenciamento_acessos_destino_card strong {
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 750;
 }
 
 .gerenciamento_acessos_destino_card span {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     line-height: 1.35;
     color: #5b7488;
     font-weight: 500;
 }
 
 .gerenciamento_acessos_destino_card:hover:not(:disabled) {
-    border-color: #2f87c6;
+    border-color: #1f78ad;
     background: #eef7fc;
 }
 
@@ -571,13 +571,13 @@
 
 .gerenciamento_acessos_convite_bloco_head h3 {
     margin: 0;
-    font-size: 0.98rem;
+    font-size: 1rem;
     color: #123e59;
 }
 
 .gerenciamento_acessos_convite_bloco_head p {
     margin: 0.28rem 0 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     line-height: 1.4;
     color: #6a8496;
 }
@@ -589,14 +589,14 @@
     border: 1px solid #c9dfef;
     background: #eef6fc;
     color: #1a5a82;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 650;
     white-space: nowrap;
 }
 
 .gerenciamento_acessos_convite_subtitulo {
     margin: 0 0 0.35rem;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 700;
     color: inherit;
 }
@@ -753,8 +753,8 @@ body.dark-mode .gerenciamento_acessos_tabs button {
 }
 
 body.dark-mode .gerenciamento_acessos_tabs button.is-active {
-    background: #2f87c6;
-    border-color: #2f87c6;
+    background: #1f78ad;
+    border-color: #1f78ad;
     color: #fff;
 }
 
@@ -808,7 +808,7 @@ body.dark-mode .gerenciamento_acessos_wizard_steps li {
 
 body.dark-mode .gerenciamento_acessos_wizard_steps li.is-current {
     background: #1a3348;
-    border-color: #2f87c6;
+    border-color: #1f78ad;
     color: #e7f4fc;
 }
 
@@ -828,8 +828,8 @@ body.dark-mode .gerenciamento_acessos_modo_tabs button small {
 }
 
 body.dark-mode .gerenciamento_acessos_modo_tabs button.is-active {
-    background: #2f87c6;
-    border-color: #2f87c6;
+    background: #1f78ad;
+    border-color: #1f78ad;
     color: #fff;
 }
 
@@ -845,8 +845,8 @@ body.dark-mode .gerenciamento_acessos_destino_card span {
 
 body.dark-mode .gerenciamento_acessos_destino_card.is-active {
     background: #1a3348;
-    border-color: #2f87c6;
-    box-shadow: 0 0 0 1px #2f87c6;
+    border-color: #1f78ad;
+    box-shadow: 0 0 0 1px #1f78ad;
 }
 
 body.dark-mode .gerenciamento_acessos_convite_resumo {

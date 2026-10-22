@@ -70,7 +70,7 @@
     margin-bottom: 12px;
     padding: 10px 12px;
     border-radius: 10px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .admin_auditoria_aviso {
@@ -118,7 +118,7 @@
     border: 1px solid #9fc7e1;
     background: #fff;
     font: inherit;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: #1f3a4f;
 }
@@ -127,7 +127,7 @@
     display: flex;
     gap: 16px;
     margin-bottom: 8px;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #547084;
 }
@@ -142,7 +142,7 @@
 .admin_auditoria_table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
 }
 
 .admin_auditoria_table th,
@@ -162,7 +162,7 @@
 }
 
 .admin_auditoria_table code {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .admin_auditoria_cel_resumo {
@@ -181,7 +181,7 @@
     display: inline-flex;
     padding: 2px 8px;
     border-radius: 999px;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -267,20 +267,20 @@
 
 .admin_auditoria_modal header h2 {
     margin: 0;
-    font-size: 1.15rem;
+    font-size: 1.125rem;
     color: var(--azul-escuro, #123e59);
 }
 
 .admin_auditoria_modal_meta {
     margin: 8px 0 14px;
     color: #547084;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .admin_auditoria_diff_list h3,
 .admin_auditoria_json_grid h3 {
     margin: 0 0 8px;
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: var(--azul-escuro, #123e59);
 }
 
@@ -302,7 +302,7 @@
 
 .admin_auditoria_diff_campo {
     display: block;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 700;
     color: #174964;
     word-break: break-word;
@@ -333,7 +333,7 @@
 }
 
 .admin_auditoria_diff_cell_lbl {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -345,7 +345,7 @@
     padding: 0;
     border: 0;
     background: transparent;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     line-height: 1.35;
     white-space: pre-wrap;
     word-break: break-word;
@@ -459,8 +459,8 @@ body.dark-mode .admin_auditoria_modal header button {
 }
 
 body.dark-mode .admin_auditoria_header_acoes .is-primary {
-    background: #1f7eb8;
-    border-color: #1f7eb8;
+    background: #1a6fa3;
+    border-color: #1a6fa3;
     color: #fff;
 }
 
@@ -609,13 +609,13 @@ body.dark-mode .admin_auditoria_aba.is-active {
 .admin_auditoria_resumo_loading,
 .admin_auditoria_alertas_ok {
     margin: 4px 0 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     color: #547084;
 }
 
 .admin_auditoria_resumo_texto {
     margin: 0 0 12px;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     line-height: 1.45;
     color: #1f3a4f;
 }
@@ -635,12 +635,12 @@ body.dark-mode .admin_auditoria_aba.is-active {
     border-radius: 10px;
     background: #fff;
     border: 1px solid #e6eef4;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #547084;
 }
 
 .admin_auditoria_resumo_n {
-    font-size: 1.35rem;
+    font-size: 1.375rem;
     font-weight: 800;
     color: #123e59;
     line-height: 1.1;
@@ -652,7 +652,7 @@ body.dark-mode .admin_auditoria_aba.is-active {
 
 .admin_auditoria_alertas h3 {
     margin: 0 0 8px;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: #8a2f2f;
 }
 
@@ -688,7 +688,7 @@ body.dark-mode .admin_auditoria_aba.is-active {
 
 .admin_auditoria_alerta p {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .admin_auditoria_alerta button {
@@ -753,7 +753,7 @@ body.dark-mode .admin_auditoria_alerta button {
 
 .admin_auditoria_contexto h3 {
     margin: 0 0 10px;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: #123e59;
 }
 
@@ -788,7 +788,7 @@ body.dark-mode .admin_auditoria_alerta button {
 
 .admin_auditoria_contexto_loading {
     margin: 0 0 10px;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: #547084;
 }
 
@@ -800,7 +800,7 @@ body.dark-mode .admin_auditoria_alerta button {
 }
 
 .admin_auditoria_diff_campo_tech {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 500;
     color: #7a93a5;
     text-transform: none;
@@ -853,7 +853,7 @@ body.dark-mode .admin_auditoria_diff_campo_tech {
     border-radius: 999px;
     padding: 7px 14px;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     cursor: pointer;
 }
 
@@ -865,7 +865,7 @@ body.dark-mode .admin_auditoria_diff_campo_tech {
 
 .admin_auditoria_presets_hint {
     margin: 8px 0 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     color: #547084;
 }
 

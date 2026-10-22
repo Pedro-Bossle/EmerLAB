@@ -5,6 +5,7 @@ import { LEGACY_SCREEN_TO_TOOL } from '../../lib/permissionCatalog'
 import { usuarioSomenteEmerMarketing } from '../../lib/emermarketingMeta.js'
 import { clearAccessState } from '../../lib/supabase'
 import { carregarSessaoEPerfilAcesso } from '../../lib/authSession'
+import { SkeletonPagina } from '../ui/States'
 import {
   destinoAlterarSenhaAposRecuperacao,
   isPasswordRecoveryPending,
@@ -50,13 +51,13 @@ const PrivateRoute = ({ children, permission, screenPermission, toolId }) => {
     }
   }, [])
 
-  if (session === undefined) return <p>Carregando...</p>
+  if (session === undefined) return <SkeletonPagina />
   if (!session) {
     const next = `${location.pathname}${location.search || ''}`
     const dest = next && next !== '/' ? `/?next=${encodeURIComponent(next)}` : '/'
     return <Navigate to={dest} replace />
   }
-  if (profile === undefined) return <p>Carregando...</p>
+  if (profile === undefined) return <SkeletonPagina />
   const precisaTrocarSenha =
     Boolean(profile?.forcePasswordChange) || isPasswordRecoveryPending()
   if (precisaTrocarSenha && location.pathname !== '/alterar-senha') {

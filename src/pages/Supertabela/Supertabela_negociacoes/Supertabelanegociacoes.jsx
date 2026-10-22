@@ -22,6 +22,7 @@ import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planos
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelanegociacoes.css'
 import { PageHeader } from '../../../components/ui'
+import { useTelaPequena } from '../../../hooks/useTelaPequena.js'
 
 const ALTURA_LINHA_TABELA = 42
 const MAX_LINHAS_VISIVEIS = 10
@@ -109,6 +110,7 @@ const normalizarNumeroEntrada = (valorTexto) => {
 }
 
 const Supertabelanegociacoes = () => {
+    const telaPequena = useTelaPequena()
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
     const mostrarColunaVinculoLista = true
     const [cidades, setCidades] = useState([])
@@ -1910,7 +1912,7 @@ ou um código por linha`}
                     ) : (
                         <>
                             <div className='supertabelanegociacoes_lista_table_wrap'>
-                            <table className='table_main'>
+                            <table className='table_main tabela-cartoes'>
                                 <colgroup>
                                     <col
                                         style={{
@@ -2208,7 +2210,8 @@ ou um código por linha`}
                     ) : (
                         secoesDetalhePorCategoria.map((secao) => {
                             const totalLinhasSecao = secao.linhas.length
-                            const usarVirtualizacao = totalLinhasSecao > MAX_LINHAS_VISIVEIS
+                            // No celular as linhas viram cartões de altura variável: sem virtualização.
+                            const usarVirtualizacao = !telaPequena && totalLinhasSecao > MAX_LINHAS_VISIVEIS
                             const alturaVisivelCorpo = Math.min(totalLinhasSecao, MAX_LINHAS_VISIVEIS) * ALTURA_LINHA_TABELA
                             const janelaVirtual = calcularJanelaVirtualTabela({
                                 scrollTop: scrollTopoPorCategoria[secao.categoriaId] ?? 0,
@@ -2518,7 +2521,7 @@ ou um código por linha`}
                                             </div>
                                         </>
                                     ) : (
-                                        <table className='table_main'>
+                                        <table className='table_main tabela-cartoes'>
                                             <colgroup>
                                                 <col style={{ width: colunasDetalheWidths.cod }} />
                                                 <col style={{ width: colunasDetalheWidths.nom }} />

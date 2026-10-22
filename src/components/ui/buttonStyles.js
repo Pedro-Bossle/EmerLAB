@@ -9,12 +9,15 @@ export const buttonVariants = {
     'bg-transparent text-ink-soft hover:bg-brand-pale/60 dark:text-[#9eb4c8] dark:hover:bg-white/5',
   danger:
     'border border-status-erro/30 bg-status-erro-bg text-status-erro hover:bg-red-100',
+  /** Ação destrutiva confirmada (ex.: «Excluir prestador»). Branco sobre #b91c1c = 6,5:1. */
+  dangerSolid: 'bg-status-erro text-white shadow-soft hover:bg-red-800 disabled:opacity-60',
   success:
     'border border-status-ok/30 bg-status-ok-bg text-status-ok hover:bg-emerald-100',
 }
 
 export const buttonSizes = {
-  sm: 'min-h-9 px-3 text-sm',
+  /* 44 px no toque; compacto só com ponteiro fino (desktop). */
+  sm: 'min-h-touch px-3 text-sm sm:min-h-9',
   md: 'min-h-touch px-4 text-sm',
   lg: 'min-h-12 px-5 text-base',
   icon: 'h-11 w-11 p-0',

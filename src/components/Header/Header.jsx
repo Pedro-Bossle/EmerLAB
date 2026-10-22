@@ -6,6 +6,7 @@ import logoBranco from '../../assets/logo_branco.png'
 
 import { logoutSessao } from '../../lib/authSession'
 import { Link, useNavigate } from 'react-router-dom'
+import { avisar } from '../../lib/dialogos.js'
 
 
 
@@ -29,7 +30,7 @@ const Header = ({ onNavigate }) => {
     const handleLogout = async () => {
         await logoutSessao({
             navigate,
-            onError: () => alert('Erro ao sair da sessão'),
+            onError: () => avisar({ titulo: 'Não foi possível sair', mensagem: 'Verifique a conexão e tente de novo.' }),
         })
         onNavigate?.()
     }

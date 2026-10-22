@@ -23,7 +23,7 @@
   background: #fff;
   color: #1e3148;
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   text-align: left;
   cursor: pointer;
 }
@@ -80,7 +80,7 @@
   border-radius: 6px;
   background: transparent;
   color: #5a7188;
-  font-size: 1.05rem;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
   display: inline-flex;
@@ -130,7 +130,7 @@
   background: transparent;
   color: #e8f1f8;
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.875rem;
   outline: none;
 }
 
@@ -160,7 +160,7 @@
   padding: 0.5rem 0.55rem;
   border-radius: 8px;
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.875rem;
   color: #e8f1f8;
   cursor: pointer;
 }
@@ -193,7 +193,7 @@
 
 .select_municipio_busca_vazio {
   padding: 0.65rem 0.7rem;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   color: #9db0c4;
 }
 

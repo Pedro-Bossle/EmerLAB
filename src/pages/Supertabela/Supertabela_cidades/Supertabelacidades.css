@@ -33,7 +33,7 @@
 }
 
 .supertabelacidades_header.is-compact h2 {
-    font-size: 1.3rem;
+    font-size: 1.375rem;
     margin: 0;
     opacity: 0.95;
 }
@@ -64,7 +64,7 @@
 
 .supertabelacidades_filter_item p {
     margin: 0 0 4px 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .supertabelacidades_filter_item {
@@ -85,7 +85,7 @@
     background: white;
     min-width: 0;
     width: 100%;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .supertabelacidades_filter_busca {
@@ -108,7 +108,7 @@
     background: #e8f5ff;
     color: #0a5d96;
     font-weight: 700;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     white-space: nowrap;
     cursor: pointer;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -142,7 +142,7 @@
     border-radius: 7px;
     border: 1px solid #b8d3e5;
     background: #fff;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     white-space: nowrap;
     flex: 1 1 0;
@@ -183,7 +183,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .supertabelacidades_form_grid label.full {
@@ -223,7 +223,7 @@
     gap: 12px;
     padding: 12px 14px;
     border-radius: 8px;
-    border: 1px solid #2f87c6;
+    border: 1px solid #1f78ad;
     background: linear-gradient(180deg, #f1f8fc 0%, #e3f2fb 100%);
     box-shadow: 0 8px 22px rgba(30, 49, 72, 0.18);
 }
@@ -237,12 +237,12 @@
 
 .supertabelacidades_alert_text strong {
     color: #1e3148;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
 }
 
 .supertabelacidades_alert_text span {
     color: #30495f;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     line-height: 1.3;
 }
 
@@ -282,12 +282,12 @@
 
 .supertabelacidades_confirm_text strong {
     color: #7a2323;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
 }
 
 .supertabelacidades_confirm_text span {
     color: #5f2d2d;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     line-height: 1.3;
 }
 
@@ -337,7 +337,7 @@
 
 .categoria_titulo {
     text-align: left;
-    font-size: 1.8rem;
+    font-size: 1.75rem;
     color: var(--azul-escuro);
     margin: 0 0 4px 0;
 }
@@ -350,7 +350,7 @@
 }
 
 .categoria_contagem {
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: #7390a5;
     font-weight: 600;
     padding-right: 2px;
@@ -401,7 +401,7 @@
     border: 1px solid #b9cfde;
     background: #ffffff;
     text-align: right;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     box-sizing: border-box;
 }
 
@@ -505,7 +505,7 @@
 .row_add_suggest_empty {
     padding: 10px;
     color: #40617a;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .row_add_cancel_btn {
@@ -616,7 +616,7 @@
 .manager_split_list_title {
     margin: 0;
     padding: 10px 12px 8px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #32566f;
 }
@@ -637,7 +637,7 @@
 
 .manager_table_compact th,
 .manager_table_compact td {
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     padding: 7px 6px;
 }
 
@@ -665,7 +665,7 @@
 .manager_table_compact th.col_acoes {
     cursor: default;
     text-align: center;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     white-space: nowrap;
 }
 
@@ -679,7 +679,7 @@
     width: 27px;
     height: 27px;
     flex-shrink: 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     line-height: 1;
     padding: 0;
     display: inline-flex;
@@ -718,7 +718,7 @@
 
 .manager_edit_panel_title {
     margin: 0 0 10px;
-    font-size: 1.05rem;
+    font-size: 1rem;
     color: #2a4a63;
 }
 
@@ -804,7 +804,7 @@
 }
 
 .cidade_tabela_field_label > span {
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #32566f;
 }
@@ -821,7 +821,7 @@
     border: 1px solid #9fc5de;
     border-radius: 8px;
     background: #fff;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #1e3a4f;
     line-height: 1.35;
     transition:
@@ -870,7 +870,7 @@
 }
 
 .cidade_tabela_field_hint {
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     color: #8a4a4a;
 }
 
@@ -915,7 +915,7 @@
     border: none;
     background: transparent;
     padding: 8px 12px;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-family: inherit;
     cursor: pointer;
     color: #1e3148;
@@ -942,7 +942,7 @@
     border-radius: 999px;
     background: #e8f1fa;
     border: 1px solid #b9d4e8;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     max-width: 100%;
 }
 
@@ -956,7 +956,7 @@
     border: none;
     background: transparent;
     cursor: pointer;
-    font-size: 1.1rem;
+    font-size: 1.125rem;
     line-height: 1;
     padding: 0 2px;
     color: #40617a;
@@ -968,21 +968,21 @@
 
 .cidade_tabela_englobados_meta {
     margin: 0 0 10px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #5d7b92;
     flex-shrink: 0;
 }
 
 .cidade_tabela_englobados_vazio {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #40617a;
     padding: 8px 0;
 }
 
 .cidade_tabela_englobados_titulo {
     margin: 0 0 8px;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #32566f;
     font-weight: 600;
     flex-shrink: 0;
@@ -1003,13 +1003,13 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     cursor: pointer;
 }
 
 .cidade_tabela_englobados_hint {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #40617a;
 }
 
@@ -1023,7 +1023,7 @@
 
 .cidade_tabela_fora_malha_titulo {
     margin: 0 0 8px;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-weight: 700;
     color: #7a5a20;
 }
@@ -1040,7 +1040,7 @@
     color: #5c4518;
     border-radius: 999px;
     padding: 5px 10px;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;
@@ -1059,7 +1059,7 @@
 
 .cidade_tabela_fora_malha_vazio {
     margin: 0;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     color: #8a7040;
 }
 
@@ -1181,7 +1181,7 @@
     padding: 8px 10px;
     border-bottom: 1px solid #e8f1f7;
     white-space: nowrap;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .manager_table th {
@@ -1193,7 +1193,7 @@
     cursor: pointer;
     user-select: none;
     border-right: 1px solid #d6e5ef;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
 }
 
 .manager_table th:last-child {
@@ -1269,7 +1269,7 @@
     font-weight: 500 !important;
     color: #4a6b82 !important;
     line-height: 1.45;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
 }
 
 body.dark-mode .cidade_vazia_wrap {
@@ -1292,7 +1292,7 @@ body.dark-mode .cidade_vazia_tip {
 }
 
 .cidade_vazia_form label {
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #32566f;
 }
 
@@ -1323,7 +1323,7 @@ body.dark-mode .cidade_vazia_tip {
     }
 
     .supertabelacidades h1 {
-        font-size: 1.15rem;
+        font-size: 1.125rem;
         margin: 0.25rem 0 0.1rem;
     }
 
@@ -1384,7 +1384,7 @@ body.dark-mode .cidade_vazia_tip {
         height: 30px;
         min-height: 30px;
         padding: 0 6px;
-        font-size: 0.72rem;
+        font-size: 0.75rem;
         box-sizing: border-box;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1400,14 +1400,14 @@ body.dark-mode .cidade_vazia_tip {
         padding: 0 6px;
         white-space: nowrap;
         justify-content: center;
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         gap: 3px;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
     .supertabelacidades_filter_item p {
-        font-size: 0.65rem;
+        font-size: 0.75rem;
         margin: 0;
         line-height: 1.1;
         opacity: 0.85;
@@ -1420,7 +1420,7 @@ body.dark-mode .cidade_vazia_tip {
         height: 30px;
         min-height: 30px;
         padding: 2px 8px;
-        font-size: 0.78rem;
+        font-size: 0.75rem;
         box-sizing: border-box;
     }
 
@@ -1474,7 +1474,7 @@ body.dark-mode .cidade_vazia_tip {
 
     .supertabelacidades .categoria_secao .table_main {
         min-width: 760px;
-        font-size: 0.84rem;
+        font-size: 0.875rem;
     }
 
     .supertabelacidades .table_main th,
@@ -1505,7 +1505,7 @@ body.dark-mode .cidade_vazia_tip {
 
 @media (max-width: 640px) {
     .supertabelacidades h1 {
-        font-size: 1.1rem;
+        font-size: 1.125rem;
         margin: 0.2rem 0 0;
     }
 
@@ -1520,7 +1520,7 @@ body.dark-mode .cidade_vazia_tip {
     }
 
     .supertabelacidades .categoria_secao .table_main {
-        font-size: 0.82rem;
+        font-size: 0.875rem;
     }
 }
 
@@ -1536,7 +1536,7 @@ body.dark-mode .cidade_vazia_tip {
     align-items: center;
     padding: 1px 7px;
     border-radius: 4px;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.02em;
     text-transform: uppercase;
@@ -1578,24 +1578,24 @@ body.dark-mode .cidade_vazia_tip {
 
 .supertabelacidades_sugestoes_rede_hint {
     margin: 0;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     line-height: 1.4;
     color: #5a7a94;
 }
 
 .supertabelacidades_sugestoes_rede_hint code {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .supertabelacidades_sugestoes_rede_vazio {
     margin: 0.5rem 0 0;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #6a8499;
 }
 
 .supertabelacidades_sugestoes_add_btn {
     font: inherit;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     padding: 5px 10px;
     border-radius: 6px;

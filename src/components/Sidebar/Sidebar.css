@@ -72,7 +72,7 @@
 }
 
 .toggle_text {
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     font-weight: 600;
     white-space: nowrap;
 }
@@ -146,7 +146,7 @@
 }
 
 .sidebar_darkmode_text {
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     font-weight: 600;
     white-space: nowrap;
 }
@@ -178,7 +178,7 @@
 }
 
 .sidebar_admin_text {
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     font-weight: 600;
     white-space: nowrap;
 }
@@ -294,7 +294,7 @@
     text-decoration: none;
     opacity: 0.9;
     padding: 6px 0;
-    font-size: 0.95rem;
+    font-size: 1rem;
     transition: ease 0.2s;
 }
 
@@ -305,7 +305,7 @@
     text-decoration: none;
     opacity: 0.9;
     padding: 6px 0;
-    font-size: 0.95rem;
+    font-size: 1rem;
     text-align: left;
     cursor: pointer;
 }

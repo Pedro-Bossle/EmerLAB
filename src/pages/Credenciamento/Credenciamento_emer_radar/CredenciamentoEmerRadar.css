@@ -187,7 +187,7 @@ body.dark-mode .emer-radar-loader__sweep {
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: #1f7eb8;
+  background: #1a6fa3;
   box-shadow: 0 0 8px rgba(31, 126, 184, 0.8);
   animation: emerRadarBlip 2.2s ease-in-out infinite;
   pointer-events: none;
@@ -221,7 +221,7 @@ body.dark-mode .emer-radar-loader__blip {
 
 .emer-radar-loader__label strong {
   display: block;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   color: #165f8c;
 }
 
@@ -306,7 +306,7 @@ body.dark-mode .emer-radar-tabs button {
 }
 
 .emer-radar-tabs button.is-active {
-  background: #1f7eb8;
+  background: #1a6fa3;
   color: #fff;
 }
 
@@ -346,7 +346,7 @@ body.dark-mode .emer-radar-table td {
   margin: 0 0.2rem 0.2rem 0;
   border-radius: 999px;
   padding: 0.1rem 0.55rem;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #fff;
 }
@@ -378,7 +378,7 @@ body.dark-mode .emer-radar-table td {
   border: 1px solid #d8e6ef;
   border-radius: 999px;
   padding: 0.35rem 0.75rem;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   background: #fff;
 }
 
@@ -445,14 +445,14 @@ body.dark-mode .emer-radar-term-list li {
 }
 
 .emer-radar-term-list li.is-done .emer-radar-term-list__mark {
-  border-color: #1f7eb8;
-  background: #1f7eb8;
+  border-color: #1a6fa3;
+  background: #1a6fa3;
   box-shadow: inset 0 0 0 2px #fff;
 }
 
 .emer-radar-term-list li.is-current .emer-radar-term-list__mark {
-  border-color: #1f7eb8;
-  background: #1f7eb8;
+  border-color: #1a6fa3;
+  background: #1a6fa3;
   animation: emer-radar-status-pulse 1.1s ease-in-out infinite;
 }
 
@@ -494,7 +494,7 @@ body.dark-mode .emer-radar-stats__item {
 
 .emer-radar-stats__item strong {
   display: block;
-  font-size: 1.35rem;
+  font-size: 1.375rem;
   line-height: 1.1;
   color: #123e59;
 }
@@ -504,7 +504,7 @@ body.dark-mode .emer-radar-stats__item strong {
 }
 
 .emer-radar-stats__item span {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: #64748b;
 }
 
@@ -567,13 +567,13 @@ body.dark-mode .emer-radar-view-toggle {
   background: transparent;
   border-radius: 999px;
   padding: 0.35rem 0.9rem;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #5a7388;
   cursor: pointer;
 }
 .emer-radar-view-toggle button.is-active {
-  background: #1f7eb8;
+  background: #1a6fa3;
   color: #fff;
 }
 
@@ -630,7 +630,7 @@ body.dark-mode .emer-radar-card {
   min-height: 160px;
   height: 100%;
   color: #7a93a8;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   background: linear-gradient(135deg, #eef5fa, #dceaf4);
 }
 .emer-radar-card__body {
@@ -638,7 +638,7 @@ body.dark-mode .emer-radar-card {
 }
 .emer-radar-card__body h4 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1rem;
   color: #123e59;
 }
 .emer-radar-card__nome {
@@ -651,7 +651,7 @@ body.dark-mode .emer-radar-card {
   display: inline-block;
   padding: 1px 7px;
   border-radius: 999px;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -702,9 +702,9 @@ body.dark-mode .emer-radar-card__body h4 {
 .emer-radar-hours__hint {
   display: block;
   margin-top: 0.15rem;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #1f7eb8;
+  color: #1a6fa3;
 }
 .emer-radar-hours:hover .emer-radar-hours__hint,
 .emer-radar-hours:focus-within .emer-radar-hours__hint {
@@ -732,7 +732,7 @@ body.dark-mode .emer-radar-card__body h4 {
 }
 .emer-radar-hours__tooltip_tit {
   margin: 0 0 0.5rem;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -778,11 +778,11 @@ body.dark-mode .emer-radar-hours__dia {
 }
 .emer-radar-card__cat {
   margin: 0.25rem 0 0.6rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #1f7eb8;
+  color: #1a6fa3;
 }
 .emer-radar-card__body ul {
   margin: 0;
@@ -820,9 +820,9 @@ body.dark-mode .emer-radar-card__body ul {
 }
 .emer-radar-card__actions > a {
   display: inline-block;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: #1f7eb8;
+  color: #1a6fa3;
 }
 .emer-radar-card__btn-kanban,
 .emer-radar-card__btn-remover {
@@ -877,7 +877,7 @@ body.dark-mode .emer-radar-mode-toggle {
   background: transparent;
   border-radius: 999px;
   padding: 0.4rem 1rem;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #5a7388;
   cursor: pointer;
@@ -887,7 +887,7 @@ body.dark-mode .emer-radar-mode-toggle {
   color: #fff;
 }
 body.dark-mode .emer-radar-mode-toggle button.is-active {
-  background: #1f7eb8;
+  background: #1a6fa3;
 }
 
 .emer-radar-panel {
@@ -910,16 +910,16 @@ body.dark-mode .emer-radar-mode-toggle button.is-active {
   border-radius: 999px;
   background: #123e59;
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 800;
   line-height: 1;
 }
 body.dark-mode .emer-radar-panel__step {
-  background: #1f7eb8;
+  background: #1a6fa3;
 }
 .emer-radar-panel__title {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
   color: #123e59;
   line-height: 1.3;
@@ -929,7 +929,7 @@ body.dark-mode .emer-radar-panel__title {
 }
 .emer-radar-panel__hint {
   margin: 0.25rem 0 0;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   line-height: 1.45;
   color: #64748b;
   max-width: 42rem;
@@ -1013,7 +1013,7 @@ body.dark-mode .emer-radar-preview__title {
   display: flex;
   align-items: flex-start;
   gap: 0.45rem;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: #334155;
 }
 body.dark-mode .emer-radar-checklist li {
@@ -1040,7 +1040,7 @@ body.dark-mode .emer-radar-checklist li.is-miss {
 
 .emer-radar-chip__uf {
   margin-left: 0.25rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   opacity: 0.75;
 }
@@ -1050,7 +1050,7 @@ body.dark-mode .emer-radar-checklist li.is-miss {
   align-items: center;
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   background: #e2e8f0;
@@ -1101,14 +1101,14 @@ body.dark-mode .emer-radar-meter__track {
 .emer-radar-meter__fill {
   height: 100%;
   border-radius: 999px;
-  background: #1f7eb8;
+  background: #1a6fa3;
   transition: width 0.25s ease;
 }
 .emer-radar-meter__fill.is-ready {
   background: #16a34a;
 }
 .emer-radar-meter__label {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #64748b;
   white-space: nowrap;
@@ -1123,7 +1123,7 @@ body.dark-mode .emer-radar-meter__label {
 .emer-radar-details__summary {
   cursor: pointer;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   color: #123e59;
   list-style: none;
 }

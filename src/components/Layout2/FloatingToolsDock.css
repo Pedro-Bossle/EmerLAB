@@ -1,7 +1,7 @@
 /* Altura da bottom nav (sem safe-area) + faixa dos chips do dock */
 :root {
   --el-bottom-nav: 4.25rem;
-  --el-dock-chips: 2.75rem;
+  --el-dock-chips: 3.75rem;
   --el-float-above-nav: calc(var(--el-bottom-nav) + env(safe-area-inset-bottom, 0px));
   --el-float-above-dock: calc(var(--el-float-above-nav) + var(--el-dock-chips));
 }
@@ -14,9 +14,9 @@
   bottom: var(--el-float-above-nav);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0 0.75rem;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding: 0 max(0.75rem, env(safe-area-inset-right, 0px)) 0.5rem max(0.75rem, env(safe-area-inset-left, 0px));
   pointer-events: none;
 }
 
@@ -25,37 +25,41 @@
   pointer-events: auto;
 }
 
-/* Seta colada à bottom nav; chips ficam acima (não entram na gaveta da tool) */
+/* Botão único de ferramentas (V-M11): 44 px de altura, cores da marca, total de avisos */
 .floating_tools_dock_toggle {
   order: 2;
-  width: 2.5rem;
-  height: 1.35rem;
-  border: 1px solid #a8c0b4;
-  border-bottom: 0;
-  border-radius: 10px 10px 0 0;
-  background: linear-gradient(180deg, #f4faf7 0%, #e5f0ea 100%);
-  color: #2a5c4c;
-  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: #1a6fa3;
+  color: #fff;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
   line-height: 1;
-  box-shadow: 0 -2px 10px rgba(30, 49, 72, 0.12);
+  box-shadow: 0 8px 20px rgba(20, 32, 51, 0.22);
   cursor: pointer;
+}
+
+.floating_tools_dock_toggle:hover {
+  background: #165f8c;
 }
 
 .floating_tools_dock_chips {
   order: 1;
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.4rem;
+  justify-content: flex-end;
+  gap: 0.5rem;
   width: 100%;
   max-width: 28rem;
-  padding: 0.4rem 0.5rem 0.55rem;
-  border-radius: 12px 12px 0 0;
-  border: 1px solid #a8c0b4;
-  border-bottom: 0;
-  background: rgba(248, 252, 250, 0.96);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 -4px 18px rgba(30, 49, 72, 0.14);
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 /* Com tool aberta: só os chips sob a gaveta — esconde a seta para não clipar */
@@ -75,21 +79,22 @@ body.el-nav-drawer-open .el-floating-layer {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  min-height: 2rem;
-  padding: 0.35rem 0.75rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
   border-radius: 999px;
-  border: 1px solid #8fb8a8;
+  border: 1px solid #bfd7e8;
   background: #fff;
-  color: #1e3d34;
-  font-size: 0.82rem;
+  color: #142033;
+  box-shadow: 0 6px 16px rgba(20, 32, 51, 0.14);
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
 }
 
 .floating_tools_dock_chip.is-active {
-  border-color: #247a64;
-  background: #e3f6ef;
-  color: #165a48;
+  border-color: #165f8c;
+  background: #e7f4fc;
+  color: #165f8c;
 }
 
 .floating_tools_dock_chip_badge {
@@ -99,30 +104,24 @@ body.el-nav-drawer-open .el-floating-layer {
   border-radius: 999px;
   background: #c0392b;
   color: #fff;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.1rem;
   text-align: center;
 }
 
 body.dark-mode .floating_tools_dock_toggle {
-  background: linear-gradient(180deg, #1e2a26 0%, #15201c 100%);
-  border-color: #2f4a42;
-  color: #9fd0c0;
-}
-
-body.dark-mode .floating_tools_dock_chips {
-  background: rgba(18, 26, 24, 0.96);
-  border-color: #2f4a42;
+  background: #1f78ad;
 }
 
 body.dark-mode .floating_tools_dock_chip {
-  background: #1a2421;
-  border-color: #3d6b5a;
-  color: #e8f2ee;
+  background: #152234;
+  border-color: #2b4560;
+  color: #e8f0f7;
 }
 
 body.dark-mode .floating_tools_dock_chip.is-active {
-  background: #24483c;
-  border-color: #4a9b7e;
+  background: #183049;
+  border-color: #7cc4f0;
+  color: #e8f0f7;
 }

@@ -75,7 +75,7 @@
 
 .credenciamento_main_filter_item p {
     margin: 0;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--azul-escuro);
 }
@@ -88,7 +88,7 @@
     border: 1px solid var(--azul-destaque);
     background: #fff;
     min-width: 150px;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-family: inherit;
 }
 
@@ -109,7 +109,7 @@
     background: #e8f5ff;
     color: #0a5d96;
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     white-space: nowrap;
     cursor: pointer;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -193,7 +193,7 @@
 }
 
 .credenciamento_main_colunas_toggle_label {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #40617a;
 }
@@ -202,7 +202,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--azul-escuro);
     cursor: pointer;
@@ -216,7 +216,7 @@
 }
 
 .credenciamento_main .table_main td {
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     vertical-align: middle;
 }
 
@@ -368,7 +368,7 @@
 }
 
 .credenciamento_inline_relacoes span {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #35556d;
 }
 
@@ -384,7 +384,7 @@
     height: 28px;
     padding: 0;
     line-height: 1;
-    font-size: 14px;
+    font-size: 0.875rem;
     cursor: pointer;
     font-weight: 700;
 }
@@ -420,7 +420,7 @@
     gap: 12px;
     padding: 12px 14px;
     border-radius: 8px;
-    border: 1px solid #2f87c6;
+    border: 1px solid #1f78ad;
     background: linear-gradient(180deg, #f1f8fc 0%, #e3f2fb 100%);
     box-shadow: 0 8px 22px rgba(30, 49, 72, 0.18);
 }
@@ -496,7 +496,7 @@
 
 .credenciamento_main_paginacao_info {
     flex: 0 1 auto;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     color: #35556d;
 }
 
@@ -529,7 +529,7 @@
     align-items: center;
     gap: 6px;
     white-space: nowrap;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--azul-escuro);
 }
@@ -543,7 +543,7 @@
     min-width: 7.5rem;
     text-align: center;
     white-space: nowrap;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #35556d;
 }
@@ -645,7 +645,7 @@
 
 .credenciamento_modal_grid label span,
 .credenciamento_modal_full span {
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #32566f;
 }
 
@@ -701,7 +701,7 @@
     border: 1px solid #9ec6df;
     background: #e8f4fd;
     color: #2f4d63;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
 }
 
@@ -723,7 +723,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     font-weight: 600;
     border-radius: 6px;
     padding: 2px 6px;
@@ -750,12 +750,12 @@
     padding-bottom: 8px;
     border-bottom: 1px solid #d9e8f4;
     color: #1f4461;
-    font-size: 1.18rem;
+    font-size: 1.125rem;
 }
 
 .credenciamento_rc_modal_hint {
     margin: 0;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     line-height: 1.35;
     color: #5a7388;
 }
@@ -779,7 +779,7 @@
 .credenciamento_rc_modal .credenciamento_modal_full span {
     font-weight: 700;
     color: #2a4f6d;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .credenciamento_rc_filtro_uf select {
@@ -809,7 +809,7 @@
 
 .credenciamento_rc_selecao_resumo {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #2f6f9a;
 }
@@ -830,7 +830,7 @@
 .credenciamento_rc_lista_vazio {
     margin: 12px 4px;
     color: #6a8296;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .credenciamento_rc_regiao {
@@ -866,7 +866,7 @@
     flex: 1;
     min-width: 0;
     text-align: left;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
 }
 
 .credenciamento_rc_regiao_count {
@@ -895,7 +895,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: #2a4a63;
     padding: 6px 8px;
     border-radius: 8px;
@@ -912,7 +912,7 @@
 .credenciamento_rc_regiao_head input {
     width: 15px;
     height: 15px;
-    accent-color: #2f87c6;
+    accent-color: #1f78ad;
 }
 
 .credenciamento_rc_modal .credenciamento_modal_actions {
@@ -989,7 +989,7 @@
 }
 
 .credenciamento_switch_label {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 700;
     color: var(--azul-escuro);
 }
@@ -1127,7 +1127,7 @@ body.dark-mode .credenciamento_rc_modal .credenciamento_modal_actions {
     }
 
     .credenciamento_main_header h1 {
-        font-size: 1.35rem;
+        font-size: 1.375rem;
         padding-right: 2.5rem;
     }
 

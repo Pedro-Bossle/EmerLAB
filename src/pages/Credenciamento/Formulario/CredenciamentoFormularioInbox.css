@@ -58,7 +58,7 @@
 }
 
 .fcred_inbox_lista .fcred_paginas_head h2 {
-    font-size: 1.05rem;
+    font-size: 1rem;
 }
 
 .fcred_inbox_pad {
@@ -104,19 +104,19 @@
 
 .fcred_inbox_item:hover {
     background: #f5fbff;
-    border-color: var(--azul-destaque, #2f87c6);
+    border-color: var(--azul-destaque, #1f78ad);
 }
 
 .fcred_inbox_item.is-active {
     background: #e8f5ff;
-    border-color: var(--azul-destaque, #2f87c6);
+    border-color: var(--azul-destaque, #1f78ad);
     box-shadow: 0 2px 8px rgba(30, 49, 72, 0.08);
 }
 
 .fcred_inbox_item_nome {
     grid-column: 1;
     font-weight: 700;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: var(--azul-escuro, #1e3148);
 }
 
@@ -124,7 +124,7 @@
     grid-column: 2;
     grid-row: 1 / span 2;
     align-self: start;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 700;
     padding: 0.15rem 0.45rem;
     border-radius: 4px;
@@ -158,7 +158,7 @@
 .fcred_inbox_item_meta,
 .fcred_inbox_item_data {
     grid-column: 1 / -1;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #40617a;
 }
 
@@ -188,13 +188,13 @@
 
 .fcred_inbox_detalhe_tit {
     margin: 0;
-    font-size: 1.15rem;
+    font-size: 1.125rem;
     color: var(--azul-escuro, #1e3148);
 }
 
 .fcred_inbox_detalhe_sub {
     margin: 0 0 0.85rem;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .fcred_inbox_detail_box {
@@ -203,7 +203,7 @@
 
 .fcred_inbox_detail_box p {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     line-height: 1.45;
 }
 
@@ -213,7 +213,7 @@
 
 .fcred_inbox_sec_tit {
     margin: 0 0 0.65rem;
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #1e3148;
 }
@@ -228,7 +228,7 @@
 
 .fcred_inbox_proc_cat {
     margin: 0 0 0.4rem;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #2d6a9f;
 }
@@ -236,7 +236,7 @@
 .fcred_inbox_proc_list {
     margin: 0.35rem 0 0;
     padding-left: 1.15rem;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
 }
 
 .fcred_inbox_proc_list code {
@@ -278,12 +278,12 @@
 
 .fcred_inbox_dev_excluir_hint {
     margin: 0.35rem 0 0;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .fcred_inbox_readonly {
     margin-top: 0.65rem;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 /* Modo escuro — alinhado a tokens (--bg-surface / --text-main) */
@@ -409,7 +409,7 @@ body.dark-mode .fcred_inbox_ul {
 
 .fcred_inbox_vinculo_hint {
     margin: 0 0 0.75rem;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .fcred_inbox_vinculo_sug {
@@ -417,7 +417,7 @@ body.dark-mode .fcred_inbox_ul {
     flex-direction: column;
     gap: 0.35rem;
     margin-bottom: 0.75rem;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-weight: 600;
 }
 
@@ -435,7 +435,7 @@ body.dark-mode .fcred_inbox_ul {
     }
 
     .fcred_inbox .fcred_inbox_filtros .credenciamento_main_action_btn {
-        font-size: 0.78rem;
+        font-size: 0.75rem;
         padding: 0 0.5rem;
         height: auto;
         min-height: 36px;

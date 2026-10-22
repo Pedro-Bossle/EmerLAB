@@ -6,7 +6,7 @@
 
 .compras_vv_lojinha_nota {
     margin: 0 2em 0.5rem;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #40617a;
     line-height: 1.4;
 }
@@ -37,7 +37,7 @@
 }
 
 .compras_vv_header.is-compact h2 {
-    font-size: 1.3rem;
+    font-size: 1.375rem;
     margin: 0;
     opacity: 0.95;
 }
@@ -86,7 +86,7 @@
     border-radius: 7px;
     border: 1px solid #b8d3e5;
     background: #fff;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     white-space: nowrap;
     flex: 0 0 auto;
@@ -111,7 +111,7 @@
     height: 34px;
     padding: 6px 10px;
     border-radius: 7px;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
@@ -129,7 +129,7 @@
     background: #e8f5ff;
     color: #0a5d96;
     font-weight: 700;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     white-space: nowrap;
     cursor: pointer;
     flex: 0 0 auto;
@@ -175,7 +175,7 @@
 }
 
 .compras_vv_massa_form label {
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #32566f;
 }
 
@@ -186,7 +186,7 @@
     font-family: inherit;
     resize: vertical;
     min-height: 88px;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     box-sizing: border-box;
 }
 
@@ -199,7 +199,7 @@
     padding: 8px 12px;
     font-weight: 700;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-family: inherit;
 }
 
@@ -218,7 +218,7 @@
 
 .compras_vv_filter_item p {
     margin: 0 0 4px 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--azul-escuro);
 }
@@ -232,7 +232,7 @@
     background: #fff;
     width: 100%;
     min-width: 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-family: inherit;
 }
 
@@ -245,7 +245,7 @@
     border-radius: 6px;
     border: 1px solid var(--azul-destaque);
     background: #fff;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     font-family: inherit;
     text-align: right;
     box-sizing: border-box;
@@ -256,14 +256,14 @@
 }
 
 .compras_vv_valor_tab_hint {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #35556d;
     text-align: center;
     margin: 0 0 8px 0;
 }
 
 .compras_vv_valor_tab_hint kbd {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     padding: 1px 4px;
     border-radius: 4px;
     border: 1px solid #b9cfde;
@@ -297,7 +297,7 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
     background: #e8f5ff;
     color: #0a5d96;
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     white-space: nowrap;
     cursor: pointer;
 }
@@ -357,12 +357,12 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
 }
 
 .compras_vv_cell_cod {
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     vertical-align: middle;
 }
 
 .compras_vv_cell_nome {
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     vertical-align: middle;
 }
 
@@ -400,7 +400,7 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
 
 .categoria_titulo {
     text-align: left;
-    font-size: 1.8rem;
+    font-size: 1.75rem;
     color: var(--azul-escuro);
     margin: 0 0 4px 0;
 }
@@ -413,7 +413,7 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
 }
 
 .categoria_contagem {
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: #7390a5;
     font-weight: 600;
     padding-right: 2px;
@@ -518,7 +518,7 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
 .row_add_suggest_empty {
     padding: 10px;
     color: #40617a;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .row_add_cancel_btn {
@@ -554,7 +554,7 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
 
 .compras_vv_modal h3 {
     margin: 0 0 12px 0;
-    font-size: 1.05rem;
+    font-size: 1rem;
     color: var(--azul-escuro);
 }
 
@@ -569,7 +569,7 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .compras_vv_modal_actions {
@@ -597,7 +597,7 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
     gap: 12px;
     padding: 12px 14px;
     border-radius: 8px;
-    border: 1px solid #2f87c6;
+    border: 1px solid #1f78ad;
     background: linear-gradient(180deg, #f1f8fc 0%, #e3f2fb 100%);
     box-shadow: 0 8px 22px rgba(30, 49, 72, 0.18);
 }

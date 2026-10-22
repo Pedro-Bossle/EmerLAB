@@ -29,7 +29,7 @@ main.credenciamento_main.conf_lab_page {
 
 .conf_lab_header h1 {
     margin: 0;
-    font-size: 1.55rem;
+    font-size: 1.375rem;
     line-height: 1.2;
 }
 
@@ -61,7 +61,7 @@ main.credenciamento_main.conf_lab_page {
 }
 
 .conf_lab_btn_tutor_main {
-    font-size: 0.78rem !important;
+    font-size: 0.75rem !important;
     padding: 0.35rem 0.75rem !important;
     white-space: nowrap;
 }
@@ -108,13 +108,13 @@ main.credenciamento_main.conf_lab_page {
 
 .conf_lab_tutor_foco_copy p {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #123e59;
 }
 
 .conf_lab_tutor_foco_hint {
     margin-top: 0.25rem !important;
-    font-size: 0.8rem !important;
+    font-size: 0.75rem !important;
     color: #5b7386 !important;
 }
 
@@ -148,7 +148,7 @@ main.credenciamento_main.conf_lab_page {
     background: #fff;
     border-radius: 999px;
     padding: 0.25rem 0.6rem;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 650;
     color: #0f4f78;
     cursor: pointer;
@@ -292,7 +292,7 @@ body.dark-mode .conf_lab_pair_card.is-selecionado-unificar {
 }
 
 .conf_lab_pos_item > header > div > span {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--conf-muted);
 }
 
@@ -309,7 +309,7 @@ body.dark-mode .conf_lab_pair_card.is-selecionado-unificar {
 .conf_lab_pos_item > footer {
     padding: 0.65rem 0.9rem;
     border-top: 1px solid var(--conf-line);
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 body.dark-mode .conf_lab_flag {
@@ -344,7 +344,7 @@ body.dark-mode .conf_lab_pos_codigo {
     max-width: 42rem;
     margin: 0.35rem auto 0;
     line-height: 1.45;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
 }
 
 .conf_lab_sr {
@@ -373,7 +373,7 @@ body.dark-mode .conf_lab_pos_codigo {
     color: var(--conf-muted);
     border-radius: 999px;
     padding: 0.4rem 0.8rem;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 650;
     cursor: pointer;
     font-family: inherit;
@@ -413,7 +413,7 @@ body.dark-mode .conf_lab_pos_codigo {
 
 .conf_lab_card h2 {
     margin: 0 0 0.75rem;
-    font-size: 1.15rem;
+    font-size: 1.125rem;
     color: #123e59;
 }
 
@@ -465,7 +465,7 @@ body.dark-mode .conf_lab_pos_codigo {
     border-radius: 999px;
     background: #1f7ec2;
     color: #fff;
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     font-weight: 700;
     line-height: 1.1rem;
     text-align: center;
@@ -493,7 +493,7 @@ body.dark-mode .conf_lab_pos_codigo {
 }
 
 .conf_lab_hist_painel header strong {
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #123e59;
 }
 
@@ -537,19 +537,19 @@ body.dark-mode .conf_lab_pos_codigo {
 }
 
 .conf_lab_hist_quando {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: #123e59;
 }
 
 .conf_lab_hist_arqs {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     color: #3d5d72;
     overflow-wrap: anywhere;
 }
 
 .conf_lab_hist_tot {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: var(--conf-muted);
 }
 
@@ -557,7 +557,7 @@ body.dark-mode .conf_lab_pos_codigo {
     border: 0;
     background: transparent;
     color: #8a6a72;
-    font-size: 1.25rem;
+    font-size: 1.375rem;
     line-height: 1;
     padding: 0.4rem 0.55rem;
     cursor: pointer;
@@ -583,7 +583,7 @@ body.dark-mode .conf_lab_pos_codigo {
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #123e59;
     text-align: left;
@@ -666,12 +666,12 @@ body.dark-mode .conf_lab_pos_codigo {
 }
 
 .conf_lab_drop_copy strong {
-    font-size: 0.98rem;
+    font-size: 1rem;
     color: #123e59;
 }
 
 .conf_lab_drop_copy span {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: var(--conf-muted);
     line-height: 1.35;
 }
@@ -685,7 +685,7 @@ body.dark-mode .conf_lab_pos_codigo {
     border: 1px solid #9fc7e4;
     background: #fff;
     color: var(--conf-azul);
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     font-weight: 650;
     padding: 0.45rem 0.9rem;
 }
@@ -700,7 +700,7 @@ body.dark-mode .conf_lab_pos_codigo {
 
 .conf_lab_drop_nome {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #123e59;
     word-break: break-all;
@@ -709,7 +709,7 @@ body.dark-mode .conf_lab_pos_codigo {
 
 .conf_lab_drop_hint {
     margin: 0;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: var(--conf-muted);
 }
 
@@ -874,7 +874,7 @@ body.dark-mode .conf_lab_tutor_versus_row .conf_lab_map_side.is-selecionado-lado
 
 .conf_lab_progress_bar {
     height: 100%;
-    background: linear-gradient(90deg, #2f87c6, #0f4f78);
+    background: linear-gradient(90deg, #1f78ad, #0f4f78);
     border-radius: 999px;
     transition: width 0.25s ease;
 }
@@ -910,7 +910,7 @@ body.dark-mode .conf_lab_tutor_versus_row .conf_lab_map_side.is-selecionado-lado
 }
 
 .conf_lab_map_side_label {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -918,7 +918,7 @@ body.dark-mode .conf_lab_tutor_versus_row .conf_lab_map_side.is-selecionado-lado
 }
 
 .conf_lab_map_side strong {
-    font-size: 1.05rem;
+    font-size: 1rem;
     color: #123e59;
     line-height: 1.35;
 }
@@ -1047,7 +1047,7 @@ body.dark-mode .conf_lab_aliases_existentes li {
 
 .conf_lab_map_q {
     margin: 0 0 0.25rem;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #35556d;
     text-align: center;
 }
@@ -1082,7 +1082,7 @@ body.dark-mode .conf_lab_aliases_existentes li {
 
 .conf_lab_norm_titulo {
     margin: 0;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     color: #123e59;
     font-weight: 650;
 }
@@ -1124,7 +1124,7 @@ body.dark-mode .conf_lab_norm_titulo {
 
 .conf_lab_legenda_orfaos {
     margin: 0 0 0.5rem;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     line-height: 1.45;
     color: var(--conf-muted);
 }
@@ -1182,7 +1182,7 @@ body.dark-mode .conf_lab_orfaos_motivos li.is-bad {
     flex-direction: column;
     gap: 0.2rem;
     margin: 0.35rem 0 0;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     color: #35556d;
     line-height: 1.35;
 }
@@ -1200,7 +1200,7 @@ body.dark-mode .conf_lab_orfaos_motivos li.is-bad {
     display: flex;
     justify-content: space-between;
     gap: 0.5rem;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     padding: 0.3rem 0.4rem;
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.55);
@@ -1299,7 +1299,7 @@ body.dark-mode .conf_lab_orfaos_versus .conf_lab_orfao_cabeca > strong {
 
 .conf_lab_orfaos_versus .conf_lab_orfao_cabeca > strong {
     margin: 0;
-    font-size: 0.95rem;
+    font-size: 1rem;
     line-height: 1.25;
     color: #123e59;
 }
@@ -1321,7 +1321,7 @@ body.dark-mode .conf_lab_orfaos_versus .conf_lab_orfao_cabeca > strong {
 .conf_lab_orfaos_versus .conf_lab_orfao_meta {
     margin: 0;
     gap: 0.1rem 0.65rem;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     flex-direction: row;
     flex-wrap: wrap;
 }
@@ -1436,7 +1436,7 @@ body.dark-mode .conf_lab_orfaos_versus .conf_lab_orfao_cabeca > strong {
 
 .conf_lab_exame_lado_tutor {
     margin: 0;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     font-weight: 700;
     color: #123e59;
     line-height: 1.3;
@@ -1445,7 +1445,7 @@ body.dark-mode .conf_lab_orfaos_versus .conf_lab_orfao_cabeca > strong {
 
 .conf_lab_exame_lado_data {
     margin: 0;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     color: var(--conf-muted);
     line-height: 1.3;
     min-height: 1.2em;
@@ -1513,7 +1513,7 @@ body.dark-mode .conf_lab_orfaos_versus .conf_lab_orfao_cabeca > strong {
     border-radius: 7px;
     padding: 0.45rem 0.55rem;
     font: inherit;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     line-height: 1.35;
     color: #123e59;
     cursor: pointer;
@@ -1628,7 +1628,7 @@ body.dark-mode .conf_lab_plano_picker_menu button.is-active {
     border-radius: 10px;
     border: 1px solid #b7d4ea;
     background: linear-gradient(180deg, #fff 0%, #eaf4fb 100%);
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #35556d;
 }
 
@@ -1671,7 +1671,7 @@ body.dark-mode .conf_lab_orfaos_motivos li:not(.is-ok):not(.is-warn):not(.is-bad
     border-radius: 999px;
     padding: 0.35rem 0.75rem;
     cursor: pointer;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .conf_lab_busca_comparacao {
@@ -1698,7 +1698,7 @@ body.dark-mode .conf_lab_orfaos_motivos li:not(.is-ok):not(.is-warn):not(.is-bad
     background: #fff;
     border-radius: 8px;
     padding: 0.45rem 0.65rem;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     cursor: pointer;
     color: #35556d;
 }
@@ -1832,7 +1832,7 @@ body.dark-mode .conf_lab_pair_grid li.is-sem-par .conf_lab_bandeira {
 
 .conf_lab_mescla_bar p {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #123e59;
 }
 
@@ -1897,7 +1897,7 @@ body.dark-mode .conf_lab_orfao_exames li.is-mescla-sel {
 }
 
 .conf_lab_pair_card > header > div > span {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--conf-muted);
     font-weight: 400;
 }
@@ -1906,7 +1906,7 @@ body.dark-mode .conf_lab_orfao_exames li.is-mescla-sel {
     align-self: flex-start;
     border-radius: 999px;
     padding: 0.2rem 0.55rem;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     background: #e2e8f0;
     color: #334155;
@@ -1963,7 +1963,7 @@ body.dark-mode .conf_lab_orfao_exames li.is-mescla-sel {
 
 .conf_lab_pair_grid h4 {
     margin: 0 0 0.45rem;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--conf-muted);
@@ -1981,7 +1981,7 @@ body.dark-mode .conf_lab_orfao_exames li.is-mescla-sel {
     display: flex;
     justify-content: space-between;
     gap: 0.5rem;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     min-width: 0;
 }
 
@@ -2001,7 +2001,7 @@ body.dark-mode .conf_lab_orfao_exames li.is-mescla-sel {
 
 .conf_lab_valor_fonte {
     margin: 0.45rem 0 0;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     color: var(--conf-muted);
 }
 
@@ -2015,14 +2015,14 @@ body.dark-mode .conf_lab_orfao_exames li.is-mescla-sel {
     border-radius: 8px;
     border: 1px solid #b7d4ea;
     background: linear-gradient(180deg, #fff 0%, #eaf4fb 100%);
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 650;
     color: #35556d;
     flex: 0 0 auto;
 }
 
 .conf_lab_subtotal strong {
-    font-size: 1.12rem;
+    font-size: 1.125rem;
     font-weight: 800;
     color: #0f3a54;
     font-variant-numeric: tabular-nums;
@@ -2125,7 +2125,7 @@ body.dark-mode .conf_lab_float_nav {
     padding: 0.4rem 0.85rem;
     min-height: 2.15rem;
     font: inherit;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 650;
     color: #123e59;
     cursor: pointer;
@@ -2353,12 +2353,12 @@ body.dark-mode .conf_lab_drop_btn {
 }
 
 .conf_lab_alias_lista_card .conf_lab_map_head h2 {
-    font-size: 1.15rem;
+    font-size: 1.125rem;
     margin: 0 0 0.2rem;
 }
 
 .conf_lab_alias_lista_card .conf_lab_map_head .conf_lab_muted {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     line-height: 1.35;
     max-width: 42rem;
 }
@@ -2391,7 +2391,7 @@ body.dark-mode .conf_lab_drop_btn {
     border-radius: 999px;
     background: rgba(15, 79, 120, 0.07);
     border: 1px solid #c5dceb;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #35556d;
 }
 
@@ -2425,7 +2425,7 @@ body.dark-mode .conf_lab_drop_btn {
 
 .conf_lab_alias_filtros button {
     padding: 0.3rem 0.7rem;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
 }
 
 .conf_lab_alias_busca {
@@ -2437,7 +2437,7 @@ body.dark-mode .conf_lab_drop_btn {
 .conf_lab_alias_busca input {
     width: 100%;
     min-height: 2rem;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     padding: 0.35rem 0.7rem;
 }
 
@@ -2472,7 +2472,7 @@ body.dark-mode .conf_lab_drop_btn {
     border-collapse: separate;
     border-spacing: 0;
     table-layout: auto;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .conf_lab_alias_table th,
@@ -2488,7 +2488,7 @@ body.dark-mode .conf_lab_drop_btn {
     top: 0;
     background: #eef5fa;
     z-index: 1;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 750;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -2541,7 +2541,7 @@ body.dark-mode .conf_lab_drop_btn {
 
 .conf_lab_alias_lab_nome {
     display: block;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 700;
     line-height: 1.3;
     color: #123e59;
@@ -2551,7 +2551,7 @@ body.dark-mode .conf_lab_drop_btn {
 .conf_lab_alias_meta {
     display: block;
     margin-top: 0.12rem;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: var(--conf-muted);
     font-weight: 550;
 }
@@ -2565,7 +2565,7 @@ body.dark-mode .conf_lab_drop_btn {
 
 .conf_lab_alias_valores em {
     font-style: normal;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 650;
     padding: 0.12rem 0.4rem;
     border-radius: 999px;
@@ -2587,7 +2587,7 @@ body.dark-mode .conf_lab_drop_btn {
     width: 100%;
     min-width: 0;
     min-height: 1.9rem;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     padding: 0.22rem 1.6rem 0.22rem 0.45rem;
     border-radius: 6px;
     border: 1px solid var(--conf-line);
@@ -2616,7 +2616,7 @@ body.dark-mode .conf_lab_drop_btn {
     border: 0;
     background: transparent;
     color: #5a7488;
-    font-size: 1.05rem;
+    font-size: 1rem;
     line-height: 1;
     width: 1.35rem;
     height: 1.35rem;
@@ -2643,7 +2643,7 @@ body.dark-mode .conf_lab_drop_btn {
 
 .conf_lab_alias_combo_vazio {
     padding: 0.55rem 0.65rem;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: var(--conf-muted);
 }
 
@@ -2673,7 +2673,7 @@ body.dark-mode .conf_lab_drop_btn {
 
 .conf_lab_alias_combo_opcao_txt {
     display: block;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     line-height: 1.35;
     white-space: normal;
     overflow-wrap: anywhere;
@@ -2683,7 +2683,7 @@ body.dark-mode .conf_lab_drop_btn {
 .conf_lab_alias_aviso {
     display: block;
     margin-top: 0.2rem;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 650;
     line-height: 1.25;
     color: #b91c1c;
@@ -2708,7 +2708,7 @@ body.dark-mode .conf_lab_drop_btn {
     min-width: 4.2rem;
     border-radius: 999px;
     padding: 0.18rem 0.45rem;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 750;
     letter-spacing: 0.01em;
     white-space: nowrap;
@@ -2742,7 +2742,7 @@ body.dark-mode .conf_lab_drop_btn {
 .conf_lab_alias_btn {
     margin: 0 0 0 0.25rem;
     padding: 0.22rem 0.5rem !important;
-    font-size: 0.72rem !important;
+    font-size: 0.75rem !important;
     min-height: 1.7rem;
     line-height: 1.1;
 }
@@ -2755,7 +2755,7 @@ body.dark-mode .conf_lab_drop_btn {
 @media (max-width: 960px) {
     .conf_lab_alias_table {
         min-width: 720px;
-        font-size: 0.78rem;
+        font-size: 0.75rem;
     }
 
     .conf_lab_alias_col_lab,
@@ -2867,7 +2867,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
 }
 
 .conf_lab_dash_card span {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.03em;
     text-transform: uppercase;
@@ -2875,7 +2875,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
 }
 
 .conf_lab_dash_card strong {
-    font-size: 1.05rem;
+    font-size: 1rem;
     color: #123e59;
 }
 
@@ -2943,7 +2943,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
 .conf_lab_massa strong {
     margin-right: 0.35rem;
     color: var(--conf-azul);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .conf_lab_massa .credenciamento_main_action_btn {
@@ -2982,7 +2982,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     white-space: normal;
 }
 
@@ -3057,7 +3057,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
     background: #f0f7fc;
     white-space: normal;
     line-height: 1.15;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     text-transform: none;
     box-shadow: 0 1px 0 var(--conf-line);
 }
@@ -3084,7 +3084,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
 }
 
 .conf_lab_th_seta {
-    font-size: 0.62rem;
+    font-size: 0.75rem;
     opacity: 0.45;
     flex: none;
 }
@@ -3135,7 +3135,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
 
 .conf_lab_col_resultado small {
     margin-top: 0.2rem;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: var(--conf-azul);
 }
@@ -3152,7 +3152,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
     word-break: normal;
     line-height: 1.2;
     padding: 0.12rem 0.28rem;
-    font-size: 0.62rem;
+    font-size: 0.75rem;
     text-align: center;
 }
 
@@ -3197,7 +3197,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
     display: inline-block;
     border-radius: 999px;
     padding: 0.12rem 0.5rem;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 700;
 }
 
@@ -3271,13 +3271,13 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
 
 .conf_lab_vinculo_meta strong {
     color: #123e59;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .conf_lab_vinculo_meta em {
     font-style: normal;
     font-weight: 700;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     color: #0f4f78;
 }
 
@@ -3315,7 +3315,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
     background: #f0f7fc;
     border-radius: 999px;
     padding: 0.2rem 0.35rem 0.2rem 0.65rem;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     position: relative;
 }
 
@@ -3348,7 +3348,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
     padding: 0.45rem 0.6rem;
     cursor: pointer;
     font: inherit;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .conf_lab_preview_bloco h4,
@@ -3385,7 +3385,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
 
 .conf_lab_drawer h2 {
     margin: 0.15rem 0 0.25rem;
-    font-size: 1.15rem;
+    font-size: 1.125rem;
     color: #123e59;
 }
 
@@ -3419,13 +3419,13 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
 
 .conf_lab_cmp_head h3 {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     color: var(--conf-azul);
 }
 
 .conf_lab_cmp_row {
     border-bottom: 1px solid var(--conf-line);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .conf_lab_cmp_row:last-child {
@@ -3471,7 +3471,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
 
 .conf_lab_drawer_side h3 {
     margin: 0 0 0.5rem;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: var(--conf-azul);
 }
 
@@ -3480,7 +3480,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
     display: grid;
     grid-template-columns: 7rem 1fr;
     gap: 0.25rem 0.5rem;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .conf_lab_drawer_side dt {
@@ -3504,7 +3504,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
     grid-template-columns: 1.4rem 5rem 1fr;
     gap: 0.4rem;
     align-items: center;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .conf_lab_check_row.is-ok .conf_lab_check_mark {
@@ -3528,7 +3528,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
 
 .conf_lab_parear_orfao h3 {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: var(--conf-azul);
 }
 
@@ -3562,7 +3562,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
     border-radius: 8px;
     padding: 0.45rem 0.55rem;
     margin-bottom: 0.35rem;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .conf_lab_regras_grid {
@@ -3577,7 +3577,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 650;
     color: #123e59;
 }
@@ -3595,7 +3595,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
     margin: 0.75rem 0 1.25rem;
     padding-left: 0;
     list-style: none;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .conf_lab_regras_form_acoes {
@@ -3658,7 +3658,7 @@ body.dark-mode .conf_lab_alias_table tbody tr:hover td {
 
 @media (max-width: 520px) {
     .conf_lab_table_compact {
-        font-size: 0.68rem;
+        font-size: 0.75rem;
     }
 
     .conf_lab_col_sel {

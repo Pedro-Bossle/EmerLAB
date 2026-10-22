@@ -9,6 +9,7 @@ import {
   iniciarMonitorInatividadeSessao,
   obterSessaoSupabase,
 } from '../../lib/authSession'
+import { avisar } from '../../lib/dialogos.js'
 
 function minutosLabel(ms) {
   const m = Math.max(1, Math.round(ms / 60_000))
@@ -21,12 +22,14 @@ function criarCallbacksMonitor(desativado) {
     onAvisoInatividade: () => {
       const warn = getSessionIdleWarnMs()
       if (warn <= 0) return
-      window.alert(
-        `Por segurança, sua sessão será encerrada por inatividade em cerca de ${minutosLabel(warn)}. Mova o mouse ou use o teclado para continuar.`,
-      )
+      avisar({
+        titulo: 'Sua sessão vai encerrar',
+        mensagem: `Por segurança, sua sessão será encerrada por inatividade em cerca de ${minutosLabel(warn)}. Mova o mouse ou use o teclado para continuar.`,
+        ok: 'Continuar conectado',
+      })
     },
     onEncerrarPorInatividade: () => {
-      window.alert('Sessão encerrada por inatividade.')
+      avisar({ titulo: 'Sessão encerrada por inatividade', mensagem: 'Entre de novo para continuar.' })
     },
   }
 }

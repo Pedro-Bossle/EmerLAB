@@ -122,9 +122,9 @@ const Login = () => {
       setLoading(false)
       const msg = String(error.message || '').toLowerCase()
       if (msg.includes('rate') || msg.includes('too many') || error.status === 429) {
-        setErrorMsg('Demasiadas tentativas de login. Aguarde alguns minutos e tente de novo.')
+        setErrorMsg('Muitas tentativas de login. Aguarde alguns minutos e tente de novo.')
       } else {
-        setErrorMsg('Email ou senha inválidos.')
+        setErrorMsg('E-mail ou senha incorretos. Confira e tente de novo.')
       }
       return
     }
@@ -169,7 +169,7 @@ const Login = () => {
       if (resp.status === 429) {
         setErrorMsg(
           json?.error ||
-            'Demasiados pedidos de recuperação. Aguarde alguns minutos e tente de novo.',
+            'Muitos pedidos de recuperação. Aguarde alguns minutos e tente de novo.',
         )
         return
       }
@@ -189,26 +189,26 @@ const Login = () => {
   }
 
   return (
-    <main className="relative isolate flex min-h-dvh items-center justify-center overflow-hidden bg-[radial-gradient(1200px_700px_at_12%_-10%,#cfe8f8_0%,transparent_55%),radial-gradient(900px_600px_at_100%_0%,#d9eef7_0%,transparent_50%),linear-gradient(165deg,#eef6fb_0%,#f7fbfd_42%,#e8f2f8_100%)] p-6 dark:bg-[radial-gradient(1000px_640px_at_10%_-8%,#1a3a52_0%,transparent_55%),linear-gradient(165deg,#0d1520_0%,#121c2a_45%,#0f1a26_100%)]">
+    <main className="relative isolate flex min-h-dvh items-start justify-center overflow-hidden sm:items-center bg-[radial-gradient(1200px_700px_at_12%_-10%,#cfe8f8_0%,transparent_55%),radial-gradient(900px_600px_at_100%_0%,#d9eef7_0%,transparent_50%),linear-gradient(165deg,#eef6fb_0%,#f7fbfd_42%,#e8f2f8_100%)] p-6 dark:bg-[radial-gradient(1000px_640px_at_10%_-8%,#1a3a52_0%,transparent_55%),linear-gradient(165deg,#0d1520_0%,#121c2a_45%,#0f1a26_100%)] max-sm:px-4 max-sm:pt-10">
       <div
         className="pointer-events-none absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(20,32,51,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(20,32,51,0.03)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,#000_20%,transparent_75%)]"
         aria-hidden
       />
       <p
-        className="pointer-events-none absolute left-1/2 top-[46%] -translate-x-1/2 -translate-y-1/2 font-display text-[clamp(8rem,28vw,16rem)] font-extrabold leading-none tracking-tighter text-ink/[0.05] dark:text-white/[0.04]"
+        className="pointer-events-none absolute left-1/2 top-[46%] hidden sm:block -translate-x-1/2 -translate-y-1/2 font-display text-[clamp(8rem,28vw,16rem)] font-extrabold leading-none tracking-tighter text-ink/[0.05] dark:text-white/[0.04]"
         aria-hidden
       >
         LAB
       </p>
 
-      <div className="el-stage relative z-10 w-full max-w-md animate-[fadeRise_0.7s_cubic-bezier(0.22,1,0.36,1)_both]">
+      <div className="el-stage relative z-10 w-full max-w-md animate-[fadeRise_0.7s_cubic-bezier(0.22,1,0.36,1)_both] motion-reduce:animate-none max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none dark:max-sm:bg-transparent">
         <p className="mb-4 font-display text-[clamp(1.85rem,4.5vw,2.5rem)] font-extrabold leading-none tracking-tight text-ink dark:text-[#e8f1f8]">
           EmerLAB
         </p>
-        <h1 className="mb-2 font-sans text-xl font-extrabold tracking-tight text-[#123e59] dark:text-[#e8f1f8]">
+        <h1 className="mb-2 font-display text-[1.375rem] font-bold tracking-tight text-ink dark:text-[#e8f1f8]">
           {modoRecuperacao ? 'Recuperar senha' : 'Bem-vindo de volta'}
         </h1>
-        <p className="mb-6 max-w-[34ch] text-[0.95rem] font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
+        <p className="mb-6 max-w-[34ch] text-base font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
           {modoRecuperacao
             ? 'Informe o e-mail da conta. Se estiver cadastrado, enviaremos um link para redefinir a senha.'
             : 'Entre com sua conta para continuar no Livro de Apoio Base.'}
@@ -220,9 +220,9 @@ const Login = () => {
           noValidate
         >
           <Input
-            label="Email"
+            label="E-mail"
             type="email"
-            placeholder="seu@email.com"
+            placeholder="nome@emerdog.com.br"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -244,7 +244,7 @@ const Login = () => {
               />
               <button
                 type="button"
-                className="absolute bottom-2 right-2 inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-soft hover:bg-ink/5 dark:text-[#9eb4c8]"
+                className="absolute bottom-0.5 right-0.5 inline-flex h-11 w-11 items-center justify-center rounded-lg text-ink-soft hover:bg-ink/5 dark:text-[#9eb4c8]"
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
               >
@@ -264,7 +264,7 @@ const Login = () => {
 
           {infoMsg ? (
             <p
-              className="rounded-xl border border-[#2F87C6]/25 bg-[#E7F4FC] px-3 py-2 text-sm font-semibold text-[#1E3148] dark:border-[#2F87C6]/35 dark:bg-[#1a334d] dark:text-[#9fd4ff]"
+              className="rounded-xl border border-[#1f78ad]/25 bg-[#E7F4FC] px-3 py-2 text-sm font-semibold text-[#1E3148] dark:border-[#1f78ad]/35 dark:bg-[#1a334d] dark:text-[#9fd4ff]"
               role="status"
             >
               {infoMsg}
@@ -274,7 +274,7 @@ const Login = () => {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <button
               type="button"
-              className="text-sm font-semibold text-[#2F87C6] underline-offset-2 hover:underline dark:text-[#7fc0f0]"
+              className="inline-flex min-h-touch items-center text-[0.9375rem] font-semibold text-brand-deep underline-offset-2 hover:underline dark:text-[#7fc0f0]"
               onClick={() => {
                 setErrorMsg('')
                 setInfoMsg('')

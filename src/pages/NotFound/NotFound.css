@@ -3,7 +3,7 @@
 .nf {
     --nf-ink: #142033;
     --nf-ink-soft: #3d5168;
-    --nf-accent: #1f7eb8;
+    --nf-accent: #1a6fa3;
     --nf-accent-deep: #165f8c;
     --nf-surface: rgba(255, 255, 255, 0.72);
     --nf-line: rgba(20, 32, 51, 0.12);
@@ -140,7 +140,7 @@
     padding: 0.65rem 1.2rem;
     border-radius: 999px;
     font-family: inherit;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     font-weight: 700;
     text-decoration: none;
     transition:

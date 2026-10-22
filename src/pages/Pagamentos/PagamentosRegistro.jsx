@@ -1398,6 +1398,7 @@ export default function PagamentosRegistro() {
                         <table
                             className={[
                                 'pag_reg_table',
+                                'tabela-cartoes',
                                 ocultarColunaMes ? 'pag_reg_table--sem_mes' : '',
                             ]
                                 .filter(Boolean)

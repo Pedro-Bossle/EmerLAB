@@ -33,7 +33,7 @@
 }
 
 .supertabelaplanos_header.is-compact h2 {
-    font-size: 1.3rem;
+    font-size: 1.375rem;
     margin: 0;
     opacity: 0.95;
 }
@@ -69,7 +69,7 @@
 
 .supertabelaplanos_filter_item p {
     margin: 0 0 4px 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .supertabelaplanos_input,
@@ -82,7 +82,7 @@
     min-width: 0;
     width: 100%;
     max-width: 220px;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-family: inherit;
     box-sizing: border-box;
 }
@@ -110,7 +110,7 @@
     background: #e8f5ff;
     color: #0a5d96;
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     white-space: nowrap;
     cursor: pointer;
     flex: 0 1 auto;
@@ -135,7 +135,7 @@
     border-radius: 7px;
     border: 1px solid #b8d3e5;
     background: #fff;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     white-space: nowrap;
     flex: 0 1 auto;
@@ -156,7 +156,7 @@
 
 .supertabelaplanos_filter_mode_label {
     margin: 0 0 4px 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--azul-escuro, #1e3148);
 }
@@ -206,7 +206,7 @@
     border-radius: 999px;
     background: transparent;
     font-family: inherit;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 600;
     line-height: 1.15;
     color: #3d5c73;
@@ -242,7 +242,7 @@
 }
 
 .supertabelaplanos_header.is-compact .supertabelaplanos_mode_btn {
-    font-size: 0.66rem;
+    font-size: 0.75rem;
     padding: 4px 5px;
     line-height: 1.12;
 }
@@ -251,7 +251,7 @@
     .supertabelaplanos_input,
     .supertabelaplanos_select {
         max-width: 150px;
-        font-size: 0.82rem;
+        font-size: 0.875rem;
     }
 
     .supertabelaplanos_filter_busca .supertabelaplanos_input {
@@ -264,14 +264,14 @@
     }
 
     .supertabelaplanos_mode_btn {
-        font-size: 0.6rem;
+        font-size: 0.75rem;
         padding: 3px 4px;
         line-height: 1.1;
     }
 
     .supertabelaplanos_action_btn,
     .supertabelaplanos_edit_wrap {
-        font-size: 0.72rem;
+        font-size: 0.75rem;
         padding-left: 7px;
         padding-right: 7px;
         gap: 4px;
@@ -364,7 +364,7 @@
     gap: 12px;
     padding: 12px 14px;
     border-radius: 8px;
-    border: 1px solid #2f87c6;
+    border: 1px solid #1f78ad;
     background: linear-gradient(180deg, #f1f8fc 0%, #e3f2fb 100%);
     box-shadow: 0 8px 22px rgba(30, 49, 72, 0.18);
 }
@@ -455,7 +455,7 @@
 
 .supertabelaplanos .categoria_titulo {
     text-align: left;
-    font-size: 1.5rem;
+    font-size: 1.375rem;
     color: var(--azul-escuro);
     margin: 0 0 4px 0;
 }
@@ -554,13 +554,13 @@
 }
 
 .supertabelaplanos_th_main {
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .supertabelaplanos_th_plan {
     display: block;
     max-width: 100%;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #3d6a8a;
     overflow: hidden;
@@ -670,7 +670,7 @@
 .manager_split_list_title {
     margin: 0;
     padding: 10px 12px 8px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #32566f;
 }
@@ -692,7 +692,7 @@
 
 .manager_table_compact th,
 .manager_table_compact td {
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     padding: 7px 8px;
 }
 
@@ -764,7 +764,7 @@
 
 .manager_edit_panel_title {
     margin: 0 0 10px;
-    font-size: 1.05rem;
+    font-size: 1rem;
     color: #2a4a63;
 }
 
@@ -850,7 +850,7 @@
 }
 
 .cidade_tabela_field_label > span {
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #32566f;
 }
@@ -867,7 +867,7 @@
     border: 1px solid #9fc5de;
     border-radius: 8px;
     background: #fff;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #1e3a4f;
     line-height: 1.35;
     transition:
@@ -916,7 +916,7 @@
 }
 
 .cidade_tabela_field_hint {
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     color: #8a4a4a;
 }
 
@@ -961,7 +961,7 @@
     border: none;
     background: transparent;
     padding: 8px 12px;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-family: inherit;
     cursor: pointer;
     color: #1e3148;
@@ -988,7 +988,7 @@
     border-radius: 999px;
     background: #e8f1fa;
     border: 1px solid #b9d4e8;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     max-width: 100%;
 }
 
@@ -1002,7 +1002,7 @@
     border: none;
     background: transparent;
     cursor: pointer;
-    font-size: 1.1rem;
+    font-size: 1.125rem;
     line-height: 1;
     padding: 0 2px;
     color: #40617a;
@@ -1014,21 +1014,21 @@
 
 .cidade_tabela_englobados_meta {
     margin: 0 0 10px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #5d7b92;
     flex-shrink: 0;
 }
 
 .cidade_tabela_englobados_vazio {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #40617a;
     padding: 8px 0;
 }
 
 .cidade_tabela_englobados_titulo {
     margin: 0 0 8px;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #32566f;
     font-weight: 600;
     flex-shrink: 0;
@@ -1049,13 +1049,13 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     cursor: pointer;
 }
 
 .cidade_tabela_englobados_hint {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #40617a;
 }
 
@@ -1069,7 +1069,7 @@
 
 .cidade_tabela_fora_malha_titulo {
     margin: 0 0 8px;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-weight: 700;
     color: #7a5a20;
 }
@@ -1086,7 +1086,7 @@
     color: #5c4518;
     border-radius: 999px;
     padding: 5px 10px;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;
@@ -1105,7 +1105,7 @@
 
 .cidade_tabela_fora_malha_vazio {
     margin: 0;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     color: #8a7040;
 }
 
@@ -1227,7 +1227,7 @@
     padding: 8px 10px;
     border-bottom: 1px solid #e8f1f7;
     white-space: nowrap;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .manager_table th {
@@ -1239,7 +1239,7 @@
     cursor: pointer;
     user-select: none;
     border-right: 1px solid #d6e5ef;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
 }
 
 .manager_table th:last-child {
@@ -1300,7 +1300,7 @@
 }
 
 .supertabelaplanos_cidade_vazia_form label {
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #32566f;
 }
 
@@ -1345,7 +1345,7 @@
     align-items: center;
     gap: 12px;
     color: #31566f;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
 }
 
 .supertabelaplanos_progress_meta strong {
@@ -1468,7 +1468,7 @@
 .supertabelaplanos .row_add_suggest_empty {
     padding: 10px;
     color: #40617a;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .supertabelaplanos .row_add_cancel_btn {
@@ -1496,7 +1496,7 @@
 .supertabelaplanos_exclusao_lista_info {
     margin: 0;
     color: #28475c;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     line-height: 1.4;
     padding: 10px 12px;
     background: #fff3e8;
@@ -1507,7 +1507,7 @@
 .supertabelaplanos_exclusao_lista_body label {
     color: #2a4d66;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .supertabelaplanos_exclusao_lista_body textarea {
@@ -1517,7 +1517,7 @@
     border-radius: 10px;
     padding: 10px 12px;
     font-family: inherit;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     line-height: 1.4;
     color: #1f3a4f;
     background: #ffffff;
@@ -1541,7 +1541,7 @@
     padding: 4px 6px;
     border-radius: 6px;
     color: #31566f;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .supertabelaplanos_exclusao_lista_preview_row strong {
@@ -1589,7 +1589,7 @@
     cursor: pointer;
     color: #0f6299;
     font-weight: 600;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .supertabelaplanos_exclusao_lista_detalhes_body {
@@ -1598,7 +1598,7 @@
     overflow-y: auto;
     color: #2a3f51;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     line-height: 1.5;
     word-break: break-all;
     padding: 6px 4px;
@@ -1616,7 +1616,7 @@
     vertical-align: middle;
     text-align: center;
     font-weight: 600;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     line-height: 1.35;
     color: #1a4a6b;
     background: #f0f7fc;
@@ -1648,7 +1648,7 @@ body.dark-mode .supertabelaplanos_flag_loja {
     align-items: center;
     padding: 1px 7px;
     border-radius: 4px;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.02em;
     text-transform: uppercase;
@@ -1668,7 +1668,7 @@ body.dark-mode .supertabelaplanos_flag_loja {
     }
 
     .supertabelaplanos h1 {
-        font-size: 1.1rem;
+        font-size: 1.125rem;
         margin: 0.2rem 0 0.05rem;
     }
 
@@ -1731,7 +1731,7 @@ body.dark-mode .supertabelaplanos_flag_loja {
         height: 30px;
         min-height: 30px;
         padding: 0 6px;
-        font-size: 0.72rem;
+        font-size: 0.75rem;
         white-space: nowrap;
         justify-content: flex-start;
         box-sizing: border-box;
@@ -1747,7 +1747,7 @@ body.dark-mode .supertabelaplanos_flag_loja {
         height: 30px;
         min-height: 30px;
         padding: 0 6px;
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         gap: 3px;
         white-space: nowrap;
         justify-content: center;
@@ -1776,7 +1776,7 @@ body.dark-mode .supertabelaplanos_flag_loja {
     .supertabelaplanos_filter_item p,
     .supertabelaplanos_filter_busca p,
     .supertabelaplanos_filter_mode_label {
-        font-size: 0.65rem;
+        font-size: 0.75rem;
         margin: 0 0 1px 0;
         line-height: 1.1;
         opacity: 0.85;
@@ -1794,7 +1794,7 @@ body.dark-mode .supertabelaplanos_flag_loja {
         height: 30px;
         min-height: 30px;
         padding: 2px 8px;
-        font-size: 0.78rem;
+        font-size: 0.75rem;
         box-sizing: border-box;
     }
 
@@ -1817,7 +1817,7 @@ body.dark-mode .supertabelaplanos_flag_loja {
     }
 
     .supertabelaplanos_mode_btn {
-        font-size: 0.68rem;
+        font-size: 0.75rem;
         padding: 3px 4px;
         line-height: 1.15;
     }
@@ -1880,7 +1880,7 @@ body.dark-mode .supertabelaplanos_flag_loja {
     .supertabelaplanos_table_stage .table_main,
     .supertabelaplanos .categoria_secao .table_main {
         min-width: 820px;
-        font-size: 0.84rem;
+        font-size: 0.875rem;
     }
 
     .supertabelaplanos .table_main th,
@@ -1943,7 +1943,7 @@ body.dark-mode .supertabelaplanos_flag_loja {
 
 @media (max-width: 640px) {
     .supertabelaplanos h1 {
-        font-size: 1.05rem;
+        font-size: 1rem;
         margin: 0.15rem 0 0;
     }
 
@@ -1958,13 +1958,13 @@ body.dark-mode .supertabelaplanos_flag_loja {
     }
 
     .supertabelaplanos_mode_btn {
-        font-size: 0.64rem;
+        font-size: 0.75rem;
         padding: 2px 3px;
     }
 
     .supertabelaplanos_table_stage .table_main,
     .supertabelaplanos .categoria_secao .table_main {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         min-width: 760px;
     }
 
@@ -1998,24 +1998,24 @@ body.dark-mode .supertabelaplanos_flag_loja {
 
 .supertabelaplanos_sugestoes_rede_hint {
     margin: 0;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     line-height: 1.4;
     color: #5a7a94;
 }
 
 .supertabelaplanos_sugestoes_rede_hint code {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .supertabelaplanos_sugestoes_rede_vazio {
     margin: 0.5rem 0 0;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #6a8499;
 }
 
 .supertabelaplanos_sugestoes_add_btn {
     font: inherit;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     padding: 5px 10px;
     border-radius: 6px;

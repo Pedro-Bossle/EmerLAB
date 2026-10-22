@@ -209,7 +209,7 @@ const AlterarSenha = () => {
               ? 'Redefinir senha'
               : 'Defina uma nova senha'}
         </h1>
-        <p className="mb-6 max-w-[38ch] text-[0.95rem] font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
+        <p className="mb-6 max-w-[38ch] text-base font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
           {textoApoio}
         </p>
 

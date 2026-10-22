@@ -99,7 +99,7 @@ async function handleCep(url, ip) {
             429,
             {
                 ok: false,
-                error: 'Demasiados pedidos. Aguarde um momento e tente de novo.',
+                error: 'Muitas solicitações. Aguarde um momento e tente de novo.',
                 retryAfterSec: rate.retryAfterSec,
             },
             { ...rateHeaders, 'Retry-After': String(rate.retryAfterSec) },

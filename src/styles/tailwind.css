@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -12,7 +12,7 @@
   }
 
   body {
-    @apply bg-surface-page font-sans text-ink text-[15px] leading-relaxed;
+    @apply bg-surface-page font-sans text-ink text-base leading-relaxed;
     overflow-x: clip;
     max-width: 100vw;
   }
@@ -31,12 +31,30 @@
     @apply font-sans font-bold tracking-tight text-ink dark:text-[#e8f1f8];
   }
 
+  /* Escala tipográfica: 12 / 14 / 16 / 18 / 22 / 28 px. Syne só no título da página. */
   h1 {
-    @apply text-[1.65rem] leading-tight md:text-[1.85rem];
+    @apply font-display text-[1.75rem] leading-tight;
   }
 
   h2 {
-    @apply text-lg leading-snug md:text-xl;
+    @apply text-lg leading-snug md:text-[1.375rem];
+  }
+
+  /*
+   * Foco visível em todo controle (WCAG 2.4.7). O !important é deliberado: várias folhas
+   * legadas zeram o outline com seletores mais específicos, e este é o piso de acessibilidade.
+   */
+  :is(a, button, input, select, textarea, summary, [tabindex], [role='button'], [role='tab']):focus-visible {
+    outline: 2px solid #165f8c !important;
+    outline-offset: 2px !important;
+  }
+
+  :is(input, select, textarea):focus-visible {
+    outline-offset: 1px !important;
+  }
+
+  body.dark-mode :is(a, button, input, select, textarea, summary, [tabindex], [role='button'], [role='tab']):focus-visible {
+    outline-color: #7cc4f0 !important;
   }
 
   /* Campos nativos mais legíveis em páginas legadas */

@@ -4,6 +4,9 @@ import './styles/tailwind.css'
 import './styles/global-styles.css'
 import App from './App.jsx'
 import MsalAppProvider from './components/Outlook/MsalAppProvider.jsx'
+import { instalarRotulosTabelaCartoes } from './lib/tabelaCartoes.js'
+
+instalarRotulosTabelaCartoes()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -38,6 +38,7 @@ import {
     textoAjudaPoliticaSenha,
     validarPoliticaSenha,
 } from '../../../lib/passwordPolicy'
+import { confirmarAcao } from '../../../lib/dialogos.js'
 
 const PASSOS_CONVITE = [
     { id: 1, label: 'Conta' },
@@ -480,9 +481,13 @@ const GerenciamentoAcessos = () => {
             return
         }
         const rotulo = edicao.name || edicao.email || edicao.id
-        const confirmar = window.confirm(
-            `Excluir permanentemente «${rotulo}»?\n\nRemove o login e o perfil. Esta ação não pode ser desfeita.`,
-        )
+        const confirmar = await confirmarAcao({
+            titulo: `Excluir «${rotulo}»?`,
+            mensagem: 'Remove o login e o perfil. Esta ação não pode ser desfeita.',
+            confirmar: 'Excluir usuário',
+            cancelar: 'Manter usuário',
+            perigo: true,
+        })
         if (!confirmar) return
 
         setLoading(true)
@@ -533,9 +538,11 @@ const GerenciamentoAcessos = () => {
         const forcar = motivo !== 'admin'
         if (forcar) {
             const rotulo = edicao.name || edicao.email || edicao.id
-            const confirmar = window.confirm(
-                `Exigir troca de senha no próximo acesso de «${rotulo}»?`,
-            )
+            const confirmar = await confirmarAcao({
+                titulo: `Exigir troca de senha de «${rotulo}»?`,
+                mensagem: 'No próximo acesso, a pessoa só entra depois de criar uma senha nova.',
+                confirmar: 'Exigir troca de senha',
+            })
             if (!confirmar) return
         }
 

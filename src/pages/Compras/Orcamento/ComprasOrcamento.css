@@ -12,7 +12,7 @@
 }
 
 .compras_orc_hint {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #35556d;
     margin: 0 auto 10px;
     max-width: 960px;
@@ -21,7 +21,7 @@
 }
 
 .compras_orc_hint code {
-    font-size: 0.76rem;
+    font-size: 0.75rem;
 }
 
 /* Barra de controles — fluxo normal (sem sticky: evita cobrir título/sidebar) */
@@ -87,7 +87,7 @@
 
     margin: 0;
 
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 
     font-weight: 600;
 
@@ -125,7 +125,7 @@
 
     font-family: inherit;
 
-    font-size: 0.86rem;
+    font-size: 0.875rem;
 
     width: 100%;
 
@@ -193,7 +193,7 @@
 
     cursor: pointer;
 
-    font-size: 0.84rem;
+    font-size: 0.875rem;
 
 }
 
@@ -253,7 +253,7 @@
 
     margin: 0;
 
-    font-size: 1.35rem;
+    font-size: 1.375rem;
 
     color: var(--azul-escuro);
 
@@ -279,7 +279,7 @@
 
 .compras_orc_copia_feedback {
 
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 
     font-weight: 700;
 
@@ -360,7 +360,7 @@
 
     margin-top: 2px;
 
-    font-size: 0.72rem;
+    font-size: 0.75rem;
 
     font-weight: 500;
 
@@ -378,7 +378,7 @@
 
     margin-top: 2px;
 
-    font-size: 0.72rem;
+    font-size: 0.75rem;
 
     font-weight: 500;
 
@@ -394,7 +394,7 @@
 
     margin-top: 3px;
 
-    font-size: 0.72rem;
+    font-size: 0.75rem;
 
     font-weight: 600;
 
@@ -426,7 +426,7 @@
 
     margin: 0 0 6px;
 
-    font-size: 0.84rem;
+    font-size: 0.875rem;
 
     font-weight: 700;
 
@@ -444,7 +444,7 @@
 
     padding-left: 1.1rem;
 
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 
     color: #6d3a0c;
 
@@ -472,7 +472,7 @@
 
 .compras_orc_calc_badge {
 
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 
     font-weight: 700;
 
@@ -486,7 +486,7 @@
 
     margin: 0 0 10px 0;
 
-    font-size: 0.84rem;
+    font-size: 0.875rem;
 
     color: #5a7288;
 
@@ -500,7 +500,7 @@
 
     margin: 0 0 12px 0;
 
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 
     color: #4a6578;
 
@@ -516,7 +516,7 @@
 
     margin: 8px 0 0 0;
 
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 
     color: #5a7288;
 
@@ -602,7 +602,7 @@
 
     display: block;
 
-    font-size: 1.02rem;
+    font-size: 1rem;
 
     line-height: 1.38;
 
@@ -620,7 +620,7 @@
 
 .compras_orc_tfoot_num {
 
-    font-size: 1.02rem;
+    font-size: 1rem;
 
 }
 
@@ -642,7 +642,7 @@
 
     margin-bottom: 0;
 
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 
 }
 
@@ -670,7 +670,7 @@
 
     padding: 0 6px !important;
 
-    font-size: 0.95rem !important;
+    font-size: 1rem !important;
 
 }
 
@@ -696,7 +696,7 @@
 
     font-weight: 700;
 
-    font-size: 0.86rem;
+    font-size: 0.875rem;
 
     font-variant-numeric: tabular-nums;
 
@@ -728,7 +728,7 @@
 
     font-weight: 700;
 
-    font-size: 0.86rem;
+    font-size: 0.875rem;
 
 }
 
@@ -750,7 +750,7 @@
 
 .compras_orc_table_orc .compras_orc_td_num {
 
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 
 }
 
@@ -758,7 +758,7 @@
 
 .compras_orc_td_plano {
 
-    font-size: 0.84rem;
+    font-size: 0.875rem;
 
     vertical-align: middle;
 
@@ -798,7 +798,7 @@
 
     text-align: left;
 
-    font-size: 0.92rem;
+    font-size: 0.875rem;
 
     color: #2a4a63;
 
@@ -868,7 +868,7 @@
 
     display: block;
 
-    font-size: 0.72rem;
+    font-size: 0.75rem;
 
     font-weight: 500;
 
@@ -880,7 +880,7 @@
 
 .compras_orc_subtotal_amount {
 
-    font-size: 1.08rem;
+    font-size: 1.125rem;
 
     font-variant-numeric: tabular-nums;
 
@@ -912,7 +912,7 @@
 
     font-weight: 700;
 
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 
     cursor: pointer;
 
@@ -968,7 +968,7 @@
 
     border-radius: 8px;
 
-    border: 1px solid #2f87c6;
+    border: 1px solid #1f78ad;
 
     background: linear-gradient(180deg, #f1f8fc 0%, #e3f2fb 100%);
 
@@ -1316,14 +1316,14 @@ body.dark-mode .compras_orc hr {
 }
 
 .compras_orc_quem_titulo {
-    font-size: 1.2rem;
+    font-size: 1.125rem;
     color: var(--azul-escuro);
     margin: 0 0 0.85rem;
     text-align: left;
 }
 
 .compras_orc_quem_muted {
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     opacity: 0.85;
     text-align: center;
 }
@@ -1362,7 +1362,7 @@ body.dark-mode .compras_orc hr {
     right: 0.5rem;
     max-width: calc(100% - 1rem);
     padding: 0.2rem 0.5rem;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: #0c4a6e;
     background: #e0f2fe;
@@ -1404,7 +1404,7 @@ body.dark-mode .compras_orc hr {
 
 .compras_orc_quem_lbl {
     display: block;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     opacity: 0.65;
@@ -1412,7 +1412,7 @@ body.dark-mode .compras_orc hr {
 
 .compras_orc_quem_val {
     display: block;
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 600;
     word-break: break-word;
 }
@@ -1421,7 +1421,7 @@ body.dark-mode .compras_orc hr {
     margin: 0;
     margin-top: auto;
     padding-left: 1.15rem;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     line-height: 1.45;
 }
 

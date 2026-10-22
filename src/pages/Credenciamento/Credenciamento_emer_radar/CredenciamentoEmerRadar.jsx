@@ -70,6 +70,7 @@ import { buscarMunicipiosPorUf, mesclarMunicipiosComExtras } from '../../../lib/
 import EmerRadarLoader from './EmerRadarLoader.jsx'
 import EmerRadarProspectResults from './EmerRadarProspectResults.jsx'
 import './CredenciamentoEmerRadar.css'
+import { avisar, confirmarAcao } from '../../../lib/dialogos.js'
 
 const SELECT_CIDADE_INPUT =
   'w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]'
@@ -954,7 +955,7 @@ function PipelinePanel({ workerDisponivel = false }) {
                       lista.map((r) => ({ cidade: r.cidade, uf: r.uf })),
                     )
                     refreshFilaCron()
-                    alert(`${res.enqueued} cidade(s) enfileirada(s) para o cron.`)
+                    avisar({ titulo: 'Cidades enfileiradas', mensagem: `${res.enqueued} cidade(s) entraram na fila da próxima busca automática.` })
                   } catch (e) {
                     setError(e.message)
                   }
@@ -2005,12 +2006,14 @@ function ProspectPanel({ workerDisponivel = false }) {
       setError(fila.erro || 'Não foi possível montar a atualização.')
       return
     }
-    const ok = window.confirm(
-      `Rebuscar no Maps e atualizar o catálogo?\n\n` +
+    const ok = await confirmarAcao({
+      titulo: 'Rebuscar no Maps e atualizar o catálogo?',
+      confirmar: 'Atualizar catálogo',
+      mensagem:
         `• ${fila.totalProspectos} prospecto(s) filtrado(s)\n` +
         `• ${fila.jobs.length} cidade(s): ${fila.jobs.map((j) => `${j.cidade}/${j.uf}`).join(', ')}\n\n` +
         `Dados novos (telefone, endereço, horário, etc.) substituem os salvos quando o scrape trouxer valor.`,
-    )
+    })
     if (!ok) return
 
     filaAtualizacaoRef.current = { jobs: fila.jobs, index: 0, cancel: false }
@@ -2433,7 +2436,7 @@ function ProspectPanel({ workerDisponivel = false }) {
             </p>
           )}
           {logs.length > 0 && (
-            <pre className="mt-3 max-h-36 overflow-auto rounded-xl bg-[#0d1520] p-3 text-[11px] leading-relaxed text-[#cfe8f8]">
+            <pre className="mt-3 max-h-36 overflow-auto rounded-xl bg-[#0d1520] p-3 text-xs leading-relaxed text-[#cfe8f8]">
               {logs.slice(-30).join('\n')}
             </pre>
           )}
