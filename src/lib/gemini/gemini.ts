@@ -24,6 +24,31 @@ type GeminiVerificarOpcoes = {
     textoLivre?: boolean
 }
 
+type GeminiTentativa = {
+    ok: boolean
+    status?: number
+    erro?: string
+    erroOriginal?: string
+    modeloUsado: string
+    finishReason?: string | null
+    data?: unknown
+    texto?: string
+}
+
+type GeminiResultado = Partial<Omit<GeminiTentativa, 'ok'>> & {
+    ok: boolean
+    erro?: string
+    modeloConfigurado?: string
+    modeloEfetivo?: string
+    codigoErro?: string
+    quotaExceeded?: boolean
+    modeloInvalido?: boolean
+    retryAfterSec?: number
+    geminiDescansoAte?: string
+}
+
+type GeminiUmaTentativa = (apiKey: string, model: string, opts: GeminiGenerateOpts) => Promise<GeminiTentativa>
+
 function envInt(nome: string, fallback: number) {
     const n = Number(process.env[nome])
     if (Number.isFinite(n) && n > 0) return Math.floor(n)
@@ -43,7 +68,7 @@ export const GEMINI_MODEL_POC_LEGADO = 'gemini-2.0-flash-001'
 /**
  * Aliases curtos (ex.: gemini-1.5-flash no Vercel) costumam retornar HTTP 404.
  */
-const MODEL_ID_ALIASES = {
+const MODEL_ID_ALIASES: Record<string, string> = {
     'gemini-1.5-flash': 'gemini-2.5-flash',
     'gemini-1.5-pro': 'gemini-2.5-pro',
     'gemini-2.0-flash': 'gemini-2.5-flash',
@@ -54,8 +79,7 @@ const MODEL_ID_ALIASES = {
     'gemini-3.5-flash-lite-latest': 'gemini-3.5-flash-lite',
 }
 
-/** @type {{ modelo: string, configHash: string } | null} */
-let modeloEfetivoCache = null
+let modeloEfetivoCache: { modelo: string; configHash: string } | null = null
 
 function configHashGemini() {
     const m = String(process.env.GEMINI_MODEL || '').trim()
@@ -63,14 +87,14 @@ function configHashGemini() {
     return `${m}|${k.length}`
 }
 
-export function resolverModeloGemini(pedido) {
+export function resolverModeloGemini(pedido?: string) {
     const raw = String(pedido || process.env.GEMINI_MODEL || '').trim() || DEFAULT_GEMINI_MODEL
     const key = raw.toLowerCase()
     return MODEL_ID_ALIASES[key] || raw
 }
 
 /** Chaves do AI Studio: AIza… (clássica) ou AQ.… (formato recente). */
-export function avisoFormatoChaveGemini(apiKey) {
+export function avisoFormatoChaveGemini(apiKey?: string) {
     const k = String(apiKey || '').trim()
     if (!k || k.startsWith('AIza') || k.startsWith('AQ.')) return null
     return (
@@ -80,7 +104,7 @@ export function avisoFormatoChaveGemini(apiKey) {
 }
 
 /** Um fallback opcional — evita 3× 404 por requisição no painel Google. */
-function fallbacksApos404(modeloPrincipal) {
+function fallbacksApos404(modeloPrincipal: string) {
     const manual = String(process.env.GEMINI_MODEL_FALLBACK || '').trim()
     if (manual && manual !== modeloPrincipal) {
         return [resolverModeloGemini(manual)]
@@ -127,7 +151,7 @@ function modelosParaTentar(modeloInicial: string, opcoes: GeminiModelosOpcoes = 
     return lista
 }
 
-function gravarCacheModelo(modelo) {
+function gravarCacheModelo(modelo: string) {
     modeloEfetivoCache = { modelo, configHash: configHashGemini() }
 }
 
@@ -152,10 +176,8 @@ export function geminiRpdLimite() {
     return envInt('GEMINI_RPD', 1000)
 }
 
-/** @type {number[]} */
-let rpmHits = []
-/** @type {number[]} */
-let rpdHits = []
+let rpmHits: number[] = []
+let rpdHits: number[] = []
 let bloqueadoAteMs = 0
 
 function inicioDiaPacificoMs(agora = Date.now()) {
@@ -179,7 +201,7 @@ function inicioDiaPacificoMs(agora = Date.now()) {
     return Date.parse(`${ymd}T00:00:00-08:00`)
 }
 
-function podarHits(agora) {
+function podarHits(agora: number) {
     const rpmDesde = agora - 60_000
     const rpdDesde = inicioDiaPacificoMs(agora)
     rpmHits = rpmHits.filter((t) => t >= rpmDesde)
@@ -193,7 +215,7 @@ export function registarChamada() {
     podarHits(agora)
 }
 
-export function marcarRateEsgotado(retryAfterSec) {
+export function marcarRateEsgotado(retryAfterSec?: number | null) {
     const sec = Number(retryAfterSec)
     const espera = Number.isFinite(sec) && sec > 0 ? Math.min(sec, 24 * 3600) : 60
     bloqueadoAteMs = Date.now() + espera * 1000
@@ -242,7 +264,7 @@ export function geminiConfigSnapshot() {
 }
 
 /** @param {string} [msg] @param {number} [status] */
-export function isGeminiModelNotFound(msg, status) {
+export function isGeminiModelNotFound(msg?: string, status?: number) {
     if (status === 404) return true
     const m = String(msg || '').toLowerCase()
     return (
@@ -255,7 +277,7 @@ export function isGeminiModelNotFound(msg, status) {
 }
 
 /** 503 UNAVAILABLE — modelo sobrecarregado, não é cota. */
-export function isGeminiOverloaded(msg, status) {
+export function isGeminiOverloaded(msg?: string, status?: number) {
     if (status === 503) return true
     const m = String(msg || '').toLowerCase()
     return (
@@ -266,7 +288,7 @@ export function isGeminiOverloaded(msg, status) {
     )
 }
 
-function deveTentarProximoModelo(msg, status) {
+function deveTentarProximoModelo(msg?: string, status?: number) {
     const m = String(msg || '').toLowerCase()
     if (status === 400 && (m.includes('thinking') || m.includes('budget'))) return true
     if (m.includes('não retornou conteúdo') || m.includes('empty_content')) return true
@@ -278,13 +300,13 @@ function deveTentarProximoModelo(msg, status) {
     )
 }
 
-export function isGeminiTimeout(msg) {
+export function isGeminiTimeout(msg?: string) {
     const m = String(msg || '').toLowerCase()
     return m.includes('timeout') || m.includes('aborted') || m.includes('aborterror')
 }
 
 /** @param {string} [msg] @param {number} [status] */
-export function isGeminiQuotaOrRateLimit(msg, status) {
+export function isGeminiQuotaOrRateLimit(msg?: string, status?: number) {
     if (isGeminiModelNotFound(msg, status)) return false
     if (isGeminiOverloaded(msg, status)) return false
     const m = String(msg || '').toLowerCase()
@@ -298,7 +320,7 @@ export function isGeminiQuotaOrRateLimit(msg, status) {
 }
 
 /** @param {string} [msg] @param {number} [status] */
-export function classificarErroGemini(msg, status) {
+export function classificarErroGemini(msg?: string, status?: number) {
     if (isGeminiModelNotFound(msg, status)) return 'modelo_nao_encontrado'
     if (isGeminiQuotaOrRateLimit(msg, status)) return 'cota_ou_rate_limit'
     if (isGeminiOverloaded(msg, status)) return 'sobrecarregado'
@@ -307,7 +329,12 @@ export function classificarErroGemini(msg, status) {
 }
 
 /** Mensagem curta para UI quando a API devolve texto longo em inglês. */
-export function mensagemErroGeminiAmigavel(msg, status, modeloConfigurado, modeloUsado) {
+export function mensagemErroGeminiAmigavel(
+    msg?: string,
+    status?: number,
+    modeloConfigurado?: string,
+    modeloUsado?: string,
+) {
     const cfg = modeloConfigurado || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL
     const usado = modeloUsado || cfg
     if (isGeminiModelNotFound(msg, status)) {
@@ -341,7 +368,7 @@ export function mensagemErroGeminiAmigavel(msg, status, modeloConfigurado, model
     return raw || 'Falha na consulta Gemini.'
 }
 
-function limparTextoJson(texto) {
+function limparTextoJson(texto: string) {
     let t = String(texto || '').trim()
     if (t.startsWith('```')) {
         t = t.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '')
@@ -349,7 +376,7 @@ function limparTextoJson(texto) {
     return t.trim()
 }
 
-function extrairTextoGenerateContent(response) {
+function extrairTextoGenerateContent(response: any) {
     const direto = String(response?.text || '').trim()
     if (direto) return direto
     const parts = response?.candidates?.[0]?.content?.parts
@@ -362,7 +389,7 @@ function extrairTextoGenerateContent(response) {
     return out.trim()
 }
 
-function normalizarErroSdk(err) {
+function normalizarErroSdk(err: any): { status?: number; message: string } {
     if (err instanceof ApiError) {
         return { status: err.status, message: err.message || String(err) }
     }
@@ -371,15 +398,19 @@ function normalizarErroSdk(err) {
     return { status, message }
 }
 
-async function comTimeout(factoryOuPromessa, ms, rotulo) {
+async function comTimeout<T>(
+    factoryOuPromessa: ((signal: AbortSignal) => Promise<T>) | Promise<T>,
+    ms: number,
+    rotulo: string,
+): Promise<T> {
     const ctrl = new AbortController()
-    let timer
+    let timer: ReturnType<typeof setTimeout> | undefined
     const promessa =
         typeof factoryOuPromessa === 'function' ? factoryOuPromessa(ctrl.signal) : factoryOuPromessa
     try {
         return await Promise.race([
             promessa,
-            new Promise((_, reject) => {
+            new Promise<never>((_, reject) => {
                 timer = setTimeout(() => {
                     ctrl.abort()
                     reject(new Error(rotulo))
@@ -391,17 +422,17 @@ async function comTimeout(factoryOuPromessa, ms, rotulo) {
     }
 }
 
-function timeoutMsDe(opts) {
+function timeoutMsDe(opts: GeminiGenerateOpts) {
     const n = Number(opts?.timeoutMs)
     if (Number.isFinite(n) && n > 0) return Math.ceil(n)
     return timeoutEnvMs()
 }
 
-function aplicarConfigGeracao(config, opts) {
+function aplicarConfigGeracao(config: Record<string, unknown>, opts: GeminiGenerateOpts) {
     if (Number.isFinite(opts.temperature)) {
         config.temperature = opts.temperature
     }
-    if (Number.isFinite(opts.maxOutputTokens) && opts.maxOutputTokens > 0) {
+    if (opts.maxOutputTokens !== undefined && Number.isFinite(opts.maxOutputTokens) && opts.maxOutputTokens > 0) {
         config.maxOutputTokens = Math.ceil(opts.maxOutputTokens)
     }
     // Gemini 3.x: thinkingLevel (MINIMAL/LOW/MEDIUM/HIGH). thinkingBudget: 0 é da geração 2.5.
@@ -410,12 +441,12 @@ function aplicarConfigGeracao(config, opts) {
     }
 }
 
-function logGemini(nivel, mensagem, extra) {
+function logGemini(nivel: 'info' | 'warn', mensagem: string, extra?: unknown) {
     const fn = nivel === 'warn' ? console.warn : console.info
     fn(`[gemini] ${mensagem}`, extra || '')
 }
 
-function resumoRespostaGemini(response, texto) {
+function resumoRespostaGemini(response: any, texto: string) {
     const cand = response?.candidates?.[0]
     const usage = response?.usageMetadata || {}
     const parts = cand?.content?.parts
@@ -434,7 +465,11 @@ function resumoRespostaGemini(response, texto) {
  * @param {string} model
  * @param {{ prompt: string, jsonSchema?: object, temperature?: number, maxOutputTokens?: number }} opts
  */
-async function geminiGenerateJsonUmaTentativa(apiKey: string, model: string, opts: GeminiGenerateOpts) {
+async function geminiGenerateJsonUmaTentativa(
+    apiKey: string,
+    model: string,
+    opts: GeminiGenerateOpts,
+): Promise<GeminiTentativa> {
     const ai = new GoogleGenAI({ apiKey })
     const timeoutMs = timeoutMsDe(opts)
     const t0 = Date.now()
@@ -457,11 +492,11 @@ async function geminiGenerateJsonUmaTentativa(apiKey: string, model: string, opt
     let response
     try {
         response = await comTimeout(
-            (signal) => {
+            (signal: AbortSignal) => {
                 config.abortSignal = signal
                 return ai.models.generateContent({
                     model,
-                    contents: opts.prompt,
+                    contents: opts.prompt ?? '',
                     config,
                 })
             },
@@ -498,7 +533,10 @@ async function geminiGenerateJsonUmaTentativa(apiKey: string, model: string, opt
  * @param {{ prompt: string, model?: string, apenasModeloPrincipal?: boolean }} opts
  * @param {(apiKey: string, model: string, opts: object) => Promise<object>} umaTentativa
  */
-async function executarGenerateComCandidatos(opts, umaTentativa) {
+async function executarGenerateComCandidatos(
+    opts: GeminiGenerateOpts,
+    umaTentativa: GeminiUmaTentativa,
+): Promise<GeminiResultado> {
     const apiKey = String(process.env.GEMINI_API_KEY || '').trim()
     if (!apiKey) {
         return { ok: false, erro: 'GEMINI_API_KEY não configurada no servidor.' }
@@ -511,7 +549,7 @@ async function executarGenerateComCandidatos(opts, umaTentativa) {
         apenasPrincipal: Boolean(opts.apenasModeloPrincipal),
     })
     logGemini('info', 'candidatos', { modeloConfigurado, candidatos })
-    let ultimo = null
+    let ultimo: GeminiTentativa | null = null
     let algumFallback = false
 
     for (const model of candidatos) {
@@ -557,7 +595,7 @@ async function executarGenerateComCandidatos(opts, umaTentativa) {
         modeloConfigurado,
         modeloEfetivo: modeloUsado,
         retryAfterSec: retryAfterSec ?? undefined,
-        ...(quotaExceeded ? metaDescansoGemini(msg, retryAfterSec) : {}),
+        ...(quotaExceeded ? metaDescansoGemini(msg, retryAfterSec ?? undefined) : {}),
     }
 }
 
@@ -573,7 +611,11 @@ export async function geminiGenerateJson(opts: GeminiGenerateOpts) {
  * @param {string} model
  * @param {{ prompt: string, temperature?: number, maxOutputTokens?: number }} opts
  */
-async function geminiGenerateTextUmaTentativa(apiKey: string, model: string, opts: GeminiGenerateOpts) {
+async function geminiGenerateTextUmaTentativa(
+    apiKey: string,
+    model: string,
+    opts: GeminiGenerateOpts,
+): Promise<GeminiTentativa> {
     const ai = new GoogleGenAI({ apiKey })
     const timeoutMs = timeoutMsDe(opts)
     const t0 = Date.now()
@@ -591,11 +633,11 @@ async function geminiGenerateTextUmaTentativa(apiKey: string, model: string, opt
     let response
     try {
         response = await comTimeout(
-            (signal) => {
+            (signal: AbortSignal) => {
                 config.abortSignal = signal
                 return ai.models.generateContent({
                     model,
-                    contents: opts.prompt,
+                    contents: opts.prompt ?? '',
                     config,
                 })
             },
