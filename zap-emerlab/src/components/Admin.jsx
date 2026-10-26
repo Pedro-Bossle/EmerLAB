@@ -123,10 +123,10 @@ function Usuarios({ departamentos, avisar }) {
                         </div>
                         {!u.fixo ? (
                             <div className="tabela-acoes">
-                                <button className="icone-botao" title="Editar" onClick={() => setForm({ ...u, senha: '' })}>
+                                <button className="icone-botao" aria-label="Editar" data-dica="Editar" onClick={() => setForm({ ...u, senha: '' })}>
                                     <Icone nome="editar" tamanho={20} />
                                 </button>
-                                <button className="icone-botao perigo" title="Remover" onClick={() => remover(u)}>
+                                <button className="icone-botao perigo" aria-label="Remover" data-dica="Remover" onClick={() => remover(u)}>
                                     <Icone nome="lixo" tamanho={20} />
                                 </button>
                             </div>
@@ -205,10 +205,10 @@ function Departamentos({ departamentos, aoMudar, avisar }) {
                             {d.equipe_wati ? <small>Equipe WATI: {d.equipe_wati}</small> : null}
                         </div>
                         <div className="tabela-acoes">
-                            <button className="icone-botao" title="Editar" onClick={() => setForm({ id: d.id, nome: d.nome, cor: d.cor, equipeWati: d.equipe_wati || '' })}>
+                            <button className="icone-botao" aria-label="Editar" data-dica="Editar" onClick={() => setForm({ id: d.id, nome: d.nome, cor: d.cor, equipeWati: d.equipe_wati || '' })}>
                                 <Icone nome="editar" tamanho={20} />
                             </button>
-                            <button className="icone-botao perigo" title="Remover" onClick={() => remover(d)}>
+                            <button className="icone-botao perigo" aria-label="Remover" data-dica="Remover" onClick={() => remover(d)}>
                                 <Icone nome="lixo" tamanho={20} />
                             </button>
                         </div>
@@ -323,12 +323,12 @@ function Respostas({ departamentos, aoMudar, avisar }) {
                             <div className="tabela-acoes">
                                 <button
                                     className="icone-botao"
-                                    title="Editar"
+                                    aria-label="Editar" data-dica="Editar"
                                     onClick={() => setForm({ id: r.id, atalho: r.atalho, titulo: r.titulo || '', texto: r.texto, departamentoId: r.departamento_id || '' })}
                                 >
                                     <Icone nome="editar" tamanho={20} />
                                 </button>
-                                <button className="icone-botao perigo" title="Remover" onClick={() => remover(r)}>
+                                <button className="icone-botao perigo" aria-label="Remover" data-dica="Remover" onClick={() => remover(r)}>
                                     <Icone nome="lixo" tamanho={20} />
                                 </button>
                             </div>

@@ -11,9 +11,10 @@ const ADMIN_ENV_ID = 'admin-env'
 const MAX_ARQUIVO = 3 * 1024 * 1024 // limite de corpo da Vercel (~4,5 MB) com base64
 
 class HttpError extends Error {
-    constructor(status, message) {
+    constructor(status, message, codigo) {
         super(message)
         this.status = status
+        this.codigo = codigo
     }
 }
 
@@ -64,6 +65,22 @@ function ipDe(req) {
 
 const soDigitos = (v) => String(v || '').replace(/\D/g, '')
 
+// Identificador de conversa: WhatsApp = número (só dígitos); Instagram/Messenger = "ig:<contactId>" / "ms:<contactId>"
+const PREFIXO_CANAL = { instagram: 'ig', messenger: 'ms' }
+const CANAL_PREFIXO = { ig: 'instagram', ms: 'messenger' }
+
+function lerIdConversa(bruto) {
+    const m = String(bruto || '').match(/^(ig|ms):([A-Za-z0-9_-]{6,64})$/)
+    if (m) return { id: m[0], canal: CANAL_PREFIXO[m[1]], alvo: m[2] }
+    const d = soDigitos(bruto)
+    if (d.length < 8 || d.length > 15) throw new HttpError(400, 'Conversa inválida.', 'requisicao')
+    return { id: d, canal: 'whatsapp', alvo: d }
+}
+
+// alvo aceito pelos endpoints v1 da WATI (número ou ContactId)
+const alvoWati = (id) => lerIdConversa(id).alvo
+const canalDe = (id) => lerIdConversa(id).canal
+
 // ---------- limite de tentativas de login (por instância) ----------
 
 const tentativas = new Map()
@@ -110,7 +127,7 @@ async function metaConversa(waId) {
 
 async function exigirConversa(usuario, waId) {
     const meta = await metaConversa(waId)
-    if (!podeVerConversa(usuario, meta)) throw new HttpError(403, 'Esta conversa pertence a outro departamento.')
+    if (!podeVerConversa(usuario, meta)) throw new HttpError(403, 'Esta conversa foi transferida para outro departamento e saiu da sua fila.', 'outro_departamento')
     return meta
 }
 
@@ -136,8 +153,18 @@ function normalizarMensagem(m) {
         minha: Boolean(m.owner),
         status: String(m.statusString || m.status || '').toLowerCase(),
         operador: m.operatorName || null,
+        falha: m.failedDetail || m.failedReason || m.errorMessage || null,
         evento,
         descricao: m.eventDescription || null,
+    }
+}
+
+function normalizarContatoCanal(c, canal) {
+    return {
+        waId: `${PREFIXO_CANAL[canal]}:${c.id}`,
+        nome: c.name || c.display_name || c.username || null,
+        foto: c.photo || null,
+        atualizadoEm: c.last_updated || c.created || null,
     }
 }
 
@@ -186,10 +213,14 @@ async function login(req, res) {
 
 async function me(usuario) {
     const env = getEnv()
-    const departamentos = ok(await db().from('zap_departamentos').select('id, nome, cor, equipe_wati').order('nome'))
+    const [departamentos, canais] = await Promise.all([
+        db().from('zap_departamentos').select('id, nome, cor, equipe_wati').order('nome').then(ok),
+        wati.listarCanais(),
+    ])
     return {
         usuario,
         departamentos,
+        canais,
         config: { tenantId: env.watiTenantId, canalConfigurado: Boolean(env.watiChannel), webhook: Boolean(env.webhookSecret) },
     }
 }
@@ -206,8 +237,13 @@ async function trocarSenha(req, usuario) {
 
 async function listarConversas(usuario, query) {
     const busca = String(query.get('q') || '').trim()
-    const [{ contatos }, metas] = await Promise.all([
-        wati.listarContatos({ tamanho: 100, nome: busca && !/^\d+$/.test(busca) ? busca : undefined }),
+    const canal = PREFIXO_CANAL[query.get('canal')] ? query.get('canal') : 'whatsapp'
+    const buscarContatos =
+        canal === 'whatsapp'
+            ? wati.listarContatos({ tamanho: 100, nome: busca && !/^\d+$/.test(busca) ? busca : undefined }).then((r) => r.contatos.map(normalizarContato))
+            : wati.listarContatosCanal(canal).then((lista) => lista.map((c) => normalizarContatoCanal(c, canal)))
+    const [contatos, metasTodas] = await Promise.all([
+        buscarContatos,
         db()
             .from('zap_conversas')
             .select('*')
@@ -215,8 +251,9 @@ async function listarConversas(usuario, query) {
             .limit(300)
             .then(ok),
     ])
+    const metas = metasTodas.filter((m) => canalDe(m.wa_id) === canal)
     const porId = new Map()
-    for (const c of contatos.map(normalizarContato)) if (c.waId) porId.set(c.waId, { ...c })
+    for (const c of contatos) if (c.waId) porId.set(c.waId, { ...c })
     for (const m of metas) {
         const atual = porId.get(m.wa_id) || { waId: m.wa_id, nome: m.nome, foto: null, atualizadoEm: null }
         porId.set(m.wa_id, { ...atual, nome: atual.nome || m.nome, meta: m })
@@ -241,16 +278,16 @@ async function listarConversas(usuario, query) {
     if (busca) {
         const b = busca.toLowerCase()
         const d = soDigitos(busca)
-        lista = lista.filter((c) => (c.nome || '').toLowerCase().includes(b) || (d && c.waId.includes(d)))
+        lista = lista.filter((c) => (c.nome || '').toLowerCase().includes(b) || (d && canal === 'whatsapp' && c.waId.includes(d)))
     }
     lista.sort((a, b) => String(b.ultimaEm || '').localeCompare(String(a.ultimaEm || '')))
-    return { conversas: lista }
+    return { conversas: lista, canal }
 }
 
 async function mensagens(usuario, waId, query) {
     await exigirConversa(usuario, waId)
     const pagina = Math.max(1, Number(query.get('pagina')) || 1)
-    const { mensagens: itens, temMais } = await wati.listarMensagens(waId, { pagina, tamanho: 50 })
+    const { mensagens: itens, temMais } = await wati.listarMensagens(alvoWati(waId), { pagina, tamanho: 50 })
     const lista = itens.map(normalizarMensagem).sort((a, b) => String(a.em).localeCompare(String(b.em)))
     return { mensagens: lista, temMais }
 }
@@ -259,10 +296,10 @@ async function enviarTextoHandler(req, usuario, waId) {
     const meta = await exigirConversa(usuario, waId)
     const { texto, replyContextId } = await lerCorpo(req)
     const limpo = String(texto || '').trim()
-    if (!limpo) throw new HttpError(400, 'Mensagem vazia.')
-    if (limpo.length > 4096) throw new HttpError(400, 'Mensagem muito longa (máx. 4096).')
-    const final = preencherVariaveis(limpo, { nome: meta?.nome || '', atendente: usuario.nome, telefone: waId })
-    const msg = await wati.enviarTexto(waId, final, replyContextId)
+    if (!limpo) throw new HttpError(400, 'Mensagem vazia.', 'vazia')
+    if (limpo.length > 4096) throw new HttpError(400, `Mensagem muito longa: ${limpo.length} de 4096 caracteres. Divida em duas.`, 'longa')
+    const final = preencherVariaveis(limpo, { nome: meta?.nome || '', atendente: usuario.nome, telefone: canalDe(waId) === 'whatsapp' ? waId : '' })
+    const msg = await wati.enviarTexto(alvoWati(waId), final, replyContextId)
     await salvarMeta(waId, {
         ultima_msg: final.slice(0, 500),
         ultima_msg_em: new Date().toISOString(),
@@ -278,17 +315,18 @@ async function enviarArquivoHandler(req, usuario, waId) {
     const { nome, mime, base64, legenda } = await lerCorpo(req)
     if (!base64) throw new HttpError(400, 'Arquivo vazio.')
     const buffer = Buffer.from(String(base64).replace(/^data:[^,]*,/, ''), 'base64')
-    if (buffer.length > MAX_ARQUIVO) throw new HttpError(413, 'Arquivo acima de 3 MB.')
-    await wati.enviarArquivo(waId, { buffer, nomeArquivo: String(nome || 'arquivo').slice(0, 120), mime, legenda })
+    if (buffer.length > MAX_ARQUIVO) throw new HttpError(413, 'Arquivo acima de 3 MB. Comprima ou envie um link.', 'arquivo_grande')
+    await wati.enviarArquivo(alvoWati(waId), { buffer, nomeArquivo: String(nome || 'arquivo').slice(0, 120), mime, legenda })
     await salvarMeta(waId, { ultima_msg: `📎 ${nome || 'Arquivo'}`, ultima_msg_em: new Date().toISOString(), ultima_msg_minha: true, nao_lidas: 0 })
     return { ok: true }
 }
 
 async function enviarTemplateHandler(req, usuario, waId) {
     await exigirConversa(usuario, waId)
+    if (canalDe(waId) !== 'whatsapp') throw new HttpError(400, 'Templates existem só no WhatsApp. No Instagram e no Messenger, aguarde o cliente escrever.', 'canal')
     const { nome, parametros } = await lerCorpo(req)
     if (!nome) throw new HttpError(400, 'Escolha um template.')
-    await wati.enviarTemplate(waId, nome, parametros)
+    await wati.enviarTemplate(alvoWati(waId), nome, parametros)
     await salvarMeta(waId, { ultima_msg: `📄 Template: ${nome}`, ultima_msg_em: new Date().toISOString(), ultima_msg_minha: true })
     return { ok: true }
 }
@@ -307,7 +345,7 @@ async function atribuirHandler(req, usuario, waId) {
     }
     let avisoWati = null
     try {
-        await wati.atribuirAtendente(waId, alvo)
+        await wati.atribuirAtendente(alvoWati(waId), alvo)
     } catch (e) {
         // e-mail pode não existir como operador na WATI; mantém a atribuição local
         avisoWati = e.message
@@ -327,7 +365,7 @@ async function departamentoHandler(req, usuario, waId) {
     let avisoWati = null
     if (depto?.equipe_wati) {
         try {
-            await wati.atribuirEquipe(waId, [depto.equipe_wati])
+            await wati.atribuirEquipe(alvoWati(waId), [depto.equipe_wati])
         } catch (e) {
             avisoWati = e.message
         }
@@ -343,7 +381,7 @@ async function statusHandler(req, usuario, waId) {
     if (!['aberta', 'pendente', 'resolvida'].includes(status)) throw new HttpError(400, 'Status inválido.')
     let avisoWati = null
     try {
-        await wati.atualizarStatus(waId, status)
+        await wati.atualizarStatus(alvoWati(waId), status)
     } catch (e) {
         avisoWati = e.message
     }
@@ -353,7 +391,7 @@ async function statusHandler(req, usuario, waId) {
 
 async function midiaHandler(res, usuario, query) {
     const arquivo = String(query.get('arquivo') || '')
-    const waId = soDigitos(query.get('waId'))
+    const waId = query.get('waId') ? lerIdConversa(query.get('waId')).id : ''
     if (!arquivo || arquivo.includes('..')) throw new HttpError(400, 'Arquivo inválido.')
     if (waId) await exigirConversa(usuario, waId)
     const resp = await wati.baixarMidia(arquivo)
@@ -508,8 +546,7 @@ export async function handle(req, res, rotaForcada) {
         if (rota === 'equipe' && metodo === 'GET') return responder(await equipe())
 
         if (partes[0] === 'conversas' && partes[1]) {
-            const waId = soDigitos(partes[1])
-            if (waId.length < 8) throw new HttpError(400, 'Número inválido.')
+            const waId = lerIdConversa(decodeURIComponent(partes[1])).id
             const acao = partes[2]
             if (acao === 'mensagens' && metodo === 'GET') return responder(await mensagens(usuario, waId, query))
             if (acao === 'lida' && metodo === 'POST') {
@@ -574,6 +611,9 @@ export async function handle(req, res, rotaForcada) {
     } catch (e) {
         const status = e instanceof HttpError || e instanceof DbError || e instanceof wati.WatiError ? e.status : 500
         if (status >= 500) console.error('[zap]', e)
-        enviar(res, status, { erro: status === 500 && !(e instanceof DbError) ? 'Erro interno.' : e.message })
+        enviar(res, status, {
+            erro: status === 500 && !(e instanceof DbError) ? 'Erro interno no painel. Tente de novo; se persistir, avise o administrador.' : e.message,
+            codigo: e.codigo || (status === 401 ? 'sessao' : status === 403 ? 'acesso' : status >= 500 ? 'servidor' : 'requisicao'),
+        })
     }
 }

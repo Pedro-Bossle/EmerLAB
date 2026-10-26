@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 import Modal from './Modal.jsx'
+import Icone from './Icone.jsx'
 
 // extrai {{1}}, {{nome}} etc. do corpo do template
 function variaveis(corpo) {
@@ -30,12 +31,19 @@ export default function EnviarTemplate({ conversa, config, aoFechar, aoEnviado, 
         setValores(inicial)
     }
 
+    const faltando = vars.filter((v) => !String(valores[v] || '').trim())
+    const motivo = !config.canalConfigurado
+        ? 'Envio bloqueado: o administrador precisa definir WATI_CHANNEL_NUMBER no .env.'
+        : faltando.length
+          ? `Preencha ${faltando.length === 1 ? 'a variável' : 'as variáveis'} ${faltando.map((v) => `{{${v}}}`).join(', ')} para enviar.`
+          : ''
+
     const previa = escolhido ? escolhido.corpo.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, v) => valores[v] || `{{${v}}}`) : ''
 
     const enviar = async () => {
         setEnviando(true)
         try {
-            await api(`conversas/${conversa.waId}/template`, { method: 'POST', body: { nome: escolhido.nome, parametros: valores } })
+            await api(`conversas/${encodeURIComponent(conversa.waId)}/template`, { method: 'POST', body: { nome: escolhido.nome, parametros: valores } })
             aoEnviado()
         } catch (e) {
             avisar(e.message, 'erro')
@@ -85,11 +93,16 @@ export default function EnviarTemplate({ conversa, config, aoFechar, aoEnviado, 
                             </div>
                         </div>
                     </div>
+                    {motivo ? (
+                        <p className="ajuda ajuda-motivo" role="status">
+                            <Icone nome="info" tamanho={14} /> {motivo}
+                        </p>
+                    ) : null}
                     <div className="modal-acoes">
                         <button className="botao botao-secundario" onClick={() => setEscolhido(null)} disabled={enviando}>
                             Voltar
                         </button>
-                        <button className="botao" onClick={enviar} disabled={enviando || !config.canalConfigurado || vars.some((v) => !valores[v])}>
+                        <button className="botao" onClick={enviar} disabled={enviando || Boolean(motivo)}>
                             {enviando ? 'Enviando…' : 'Enviar template'}
                         </button>
                     </div>

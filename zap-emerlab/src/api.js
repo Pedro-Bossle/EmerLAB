@@ -1,10 +1,17 @@
 // Chamadas à API do painel (mesma origem, cookie HttpOnly de sessão)
 
 export class ApiError extends Error {
-    constructor(message, status) {
+    constructor(message, status, codigo) {
         super(message)
         this.status = status
+        this.codigo = codigo || 'requisicao'
     }
+}
+
+// Avisa o painel quando o servidor fica inacessível / volta
+let aoConexao = () => {}
+export function registrarAoConexao(fn) {
+    aoConexao = fn
 }
 
 let aoExpirar = () => {}
@@ -25,12 +32,14 @@ export async function api(caminho, { method = 'GET', body } = {}) {
             body: body !== undefined ? JSON.stringify(body) : undefined,
         })
     } catch {
-        throw new ApiError('Sem conexão com o servidor.', 0)
+        aoConexao(false)
+        throw new ApiError('Sem conexão com o servidor. Verifique sua internet.', 0, 'sem_conexao')
     }
+    aoConexao(true)
     const dados = await resp.json().catch(() => ({}))
     if (!resp.ok) {
         if (resp.status === 401 && !caminho.startsWith('auth/login')) aoExpirar()
-        throw new ApiError(dados.erro || `Erro ${resp.status}`, resp.status)
+        throw new ApiError(dados.erro || `Erro ${resp.status}`, resp.status, dados.codigo)
     }
     return dados
 }

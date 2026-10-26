@@ -1,6 +1,18 @@
 // Formatação e helpers de interface
 
+export const CANAIS = {
+    whatsapp: { rotulo: 'WhatsApp', cor: '#25D366', semNome: 'Contato do WhatsApp' },
+    instagram: { rotulo: 'Instagram', cor: '#E1306C', semNome: 'Contato do Instagram' },
+    messenger: { rotulo: 'Messenger', cor: '#0866FF', semNome: 'Contato do Messenger' },
+}
+
+export function canalDoId(id) {
+    const p = String(id || '').split(':')[0]
+    return p === 'ig' ? 'instagram' : p === 'ms' ? 'messenger' : 'whatsapp'
+}
+
 export function formatarTelefone(waId) {
+    if (canalDoId(waId) !== 'whatsapp') return ''
     const d = String(waId || '').replace(/\D/g, '')
     if (d.startsWith('55') && (d.length === 12 || d.length === 13)) {
         const ddd = d.slice(2, 4)
@@ -12,7 +24,7 @@ export function formatarTelefone(waId) {
 }
 
 export function nomeExibicao(c) {
-    return c?.nome || formatarTelefone(c?.waId)
+    return c?.nome || formatarTelefone(c?.waId) || CANAIS[canalDoId(c?.waId)].semNome
 }
 
 export function iniciais(nome) {

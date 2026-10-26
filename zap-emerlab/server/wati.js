@@ -3,11 +3,35 @@
 import { getEnv } from './env.js'
 
 export class WatiError extends Error {
-    constructor(message, status = 502, detalhe = null) {
+    constructor(message, status = 502, detalhe = null, codigo = 'wati') {
         super(message)
         this.status = status
         this.detalhe = detalhe
+        this.codigo = codigo
     }
+}
+
+// Traduz recusas comuns da WATI/WhatsApp para um código e uma explicação acionável
+const RECUSAS = [
+    [/24s*h|24-hour|session.*(expir|clos|not.*open)|ticket.*expir|window|outside.*time/i, 'janela_24h',
+        'A janela de 24h está fechada: o cliente não escreve há mais de 24 horas. Envie um template aprovado para retomar.'],
+    [/invalid.*(whatsapp|number|phone)|not.*valid.*number|validWhatsAppNumber|not.*whatsapp user|does not exist/i, 'numero_invalido',
+        'Número inválido ou sem WhatsApp. Confira o DDI e o DDD.'],
+    [/operator|user.*not.*found|assign/i, 'operador',
+        'Esse e-mail não existe como operador na WATI. A atribuição ficou só no painel.'],
+    [/template.*(not.*found|not.*approved|paused|disabled)|parameter/i, 'template',
+        'O template foi recusado: verifique se está aprovado e se todas as variáveis foram preenchidas.'],
+    [/file|media|size|too large|mime/i, 'arquivo',
+        'A WATI recusou o arquivo. Formatos aceitos: imagem, vídeo, áudio, PDF e documentos do Office.'],
+    [/blocked|spam/i, 'bloqueado', 'Este contato está bloqueado ou marcado como spam na WATI.'],
+]
+
+function recusa(msgOriginal, status, dados) {
+    const texto = String(msgOriginal || '')
+    for (const [re, codigo, amigavel] of RECUSAS) {
+        if (re.test(texto)) return new WatiError(amigavel, status, { ...dados, original: texto }, codigo)
+    }
+    return new WatiError(texto ? `A WATI recusou: ${texto}` : 'A WATI recusou a operação.', status, dados, 'wati')
 }
 
 // Cache curto por instância: a WATI limita getContacts/getMessages a 10 req / 10 s
@@ -37,6 +61,9 @@ function v1Url(caminho, query) {
     return url
 }
 
+// número do canal WhatsApp só vale para alvos que são telefone (Instagram/Messenger usam ContactId)
+const canalWa = (alvo, canal) => (canal && /^[0-9]+$/.test(String(alvo)) ? canal : undefined)
+
 function v3Url(caminho) {
     const { watiBase } = getEnv()
     return new URL(`${watiBase}/api/ext/v3/${caminho}`)
@@ -45,7 +72,9 @@ function v3Url(caminho) {
 async function chamar(url, { method = 'GET', body, headers, raw = false } = {}) {
     const { watiToken } = getEnv()
     const isForm = typeof FormData !== 'undefined' && body instanceof FormData
-    const resp = await fetch(url, {
+    let resp
+    try {
+        resp = await fetch(url, {
         method,
         headers: {
             Authorization: `Bearer ${watiToken}`,
@@ -53,9 +82,13 @@ async function chamar(url, { method = 'GET', body, headers, raw = false } = {}) 
             ...headers,
         },
         body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
-    })
+        signal: AbortSignal.timeout(20000),
+        })
+    } catch {
+        throw new WatiError('Não foi possível falar com a WATI (rede ou tempo esgotado). Tente novamente.', 502, null, 'wati_fora')
+    }
     if (raw) {
-        if (!resp.ok) throw new WatiError(`WATI respondeu ${resp.status}`, resp.status === 404 ? 404 : 502)
+        if (!resp.ok) throw new WatiError('Mídia indisponível na WATI (pode ter expirado).', resp.status === 404 ? 404 : 502, null, 'midia')
         return resp
     }
     const texto = await resp.text()
@@ -65,16 +98,14 @@ async function chamar(url, { method = 'GET', body, headers, raw = false } = {}) 
     } catch {
         dados = { info: texto }
     }
-    if (resp.status === 401) throw new WatiError('Token da WATI inválido ou expirado (WATI_API_TOKEN).', 502)
-    if (resp.status === 403) throw new WatiError('Token da WATI sem permissão para esta ação (verifique os escopos ou o plano).', 502)
-    if (resp.status === 429) throw new WatiError('Limite de requisições da WATI atingido. Tente em alguns segundos.', 429)
-    if (!resp.ok) {
-        const msg = dados?.info || dados?.message || dados?.error?.message || `WATI respondeu ${resp.status}`
-        throw new WatiError(String(msg), resp.status >= 500 ? 502 : 400, dados)
-    }
+    if (resp.status === 401) throw new WatiError('O token da WATI é inválido ou expirou. Avise o administrador (WATI_API_TOKEN).', 502, null, 'token')
+    if (resp.status === 403) throw new WatiError('O token da WATI não tem permissão para esta ação (escopo ou plano).', 502, null, 'permissao')
+    if (resp.status === 429) throw new WatiError('A WATI limitou as requisições por alguns segundos. Tente de novo já já.', 429, null, 'limite')
+    if (resp.status >= 500) throw new WatiError('A WATI está instável no momento. Tente novamente em instantes.', 502, dados, 'wati_fora')
+    if (!resp.ok) throw recusa(dados?.info || dados?.message || dados?.error?.message, 400, dados)
     // v1 pode responder 200 com { result: false, info }
-    if (dados && (dados.result === false || dados.ok === false)) {
-        throw new WatiError(String(dados.info || dados.error?.message || 'A WATI recusou a operação.'), 400, dados)
+    if (dados && (dados.result === false || dados.ok === false || dados.validWhatsAppNumber === false)) {
+        throw recusa(dados.info || dados.error?.message || (dados.validWhatsAppNumber === false ? 'invalid whatsapp number' : ''), 400, dados)
     }
     return dados
 }
@@ -95,7 +126,7 @@ export async function listarMensagens(waId, { pagina = 1, tamanho = 50 } = {}) {
     if (hit) return hit
     const { watiChannel } = getEnv()
     const dados = await chamar(
-        v1Url(`getMessages/${encodeURIComponent(waId)}`, { pageSize: tamanho, pageNumber: pagina, channelPhoneNumber: watiChannel || undefined }),
+        v1Url(`getMessages/${encodeURIComponent(waId)}`, { pageSize: tamanho, pageNumber: pagina, channelPhoneNumber: canalWa(waId, watiChannel) }),
     )
     const items = dados?.messages?.items || dados?.messages || []
     const r = { mensagens: Array.isArray(items) ? items : [], temMais: Boolean(dados?.link?.nextPage) }
@@ -109,7 +140,7 @@ export async function enviarTexto(waId, texto, replyContextId) {
         v1Url(`sendSessionMessage/${encodeURIComponent(waId)}`, {
             messageText: texto,
             replyContextId,
-            channelPhoneNumber: watiChannel || undefined,
+            channelPhoneNumber: canalWa(waId, watiChannel),
         }),
         { method: 'POST' },
     )
@@ -122,7 +153,7 @@ export async function enviarArquivo(waId, { buffer, nomeArquivo, mime, legenda }
     const form = new FormData()
     form.append('file', new Blob([buffer], { type: mime || 'application/octet-stream' }), nomeArquivo || 'arquivo')
     const dados = await chamar(
-        v1Url(`sendSessionFile/${encodeURIComponent(waId)}`, { caption: legenda, channelPhoneNumber: watiChannel || undefined }),
+        v1Url(`sendSessionFile/${encodeURIComponent(waId)}`, { caption: legenda, channelPhoneNumber: canalWa(waId, watiChannel) }),
         { method: 'POST', body: form },
     )
     invalidarCache(`msgs:${waId}:`)
@@ -135,14 +166,14 @@ export async function baixarMidia(nomeArquivo) {
 
 export async function atribuirAtendente(waId, email) {
     const { watiChannel } = getEnv()
-    return chamar(v1Url('assignOperator', { target: waId, email: email || undefined, channelPhoneNumber: watiChannel || undefined }), {
+    return chamar(v1Url('assignOperator', { target: waId, email: email || undefined, channelPhoneNumber: canalWa(waId, watiChannel) }), {
         method: 'POST',
     })
 }
 
 export async function atribuirEquipe(waId, equipes) {
     const { watiChannel } = getEnv()
-    return chamar(v1Url('assignTeam', { target: waId, teams: equipes, channelPhoneNumber: watiChannel || undefined }), { method: 'POST' })
+    return chamar(v1Url('assignTeam', { target: waId, teams: equipes, channelPhoneNumber: canalWa(waId, watiChannel) }), { method: 'POST' })
 }
 
 const STATUS_WATI = { aberta: 'open', pendente: 'pending', resolvida: 'solved' }
@@ -173,7 +204,7 @@ export async function listarTemplates() {
 
 export async function enviarTemplate(waId, nomeTemplate, parametros) {
     const { watiChannel } = getEnv()
-    if (!watiChannel) throw new WatiError('Configure WATI_CHANNEL_NUMBER para enviar templates.', 400)
+    if (!watiChannel) throw new WatiError('Envio de templates desativado: falta WATI_CHANNEL_NUMBER no .env.', 400, null, 'config')
     const dados = await chamar(v1Url('sendTemplateMessage', { whatsappNumber: waId }), {
         method: 'POST',
         body: {
@@ -185,4 +216,51 @@ export async function enviarTemplate(waId, nomeTemplate, parametros) {
     })
     invalidarCache(`msgs:${waId}:`)
     return dados
+}
+
+// ---------- multicanal (v3) ----------
+
+const CANAIS_V3 = { whatsapp: 'whatsapp', instagram: 'instagram', messenger: 'messenger' }
+
+// Canais conectados na conta (WhatsApp, Instagram, Messenger)
+export async function listarCanais() {
+    const hit = cacheGet('canais')
+    if (hit) return hit
+    let canais = []
+    try {
+        const url = v3Url('channels')
+        url.searchParams.set('page_number', '1')
+        url.searchParams.set('page_size', '100')
+        const dados = await chamar(url)
+        canais = (dados?.channels || [])
+            .filter((c) => c.enabled !== false)
+            .map((c) => ({ id: c.id, nome: c.name, tipo: String(c.channel || '').toLowerCase(), plataformaId: c.platform_id }))
+            .filter((c) => CANAIS_V3[c.tipo])
+    } catch (e) {
+        // token sem escopo v3 ou plano sem multicanal: segue só com WhatsApp
+        canais = [{ id: 'whatsapp', nome: 'WhatsApp', tipo: 'whatsapp', erro: e.message }]
+    }
+    if (!canais.some((c) => c.tipo === 'whatsapp')) canais.unshift({ id: 'whatsapp', nome: 'WhatsApp', tipo: 'whatsapp' })
+    cacheSet('canais', canais, 10 * 60 * 1000)
+    return canais
+}
+
+// Contatos de Instagram/Messenger (v3 traz channel_type); até 3 páginas de 100
+export async function listarContatosCanal(canal) {
+    const key = `contatos-canal:${canal}`
+    const hit = cacheGet(key)
+    if (hit) return hit
+    const todos = []
+    for (let pagina = 1; pagina <= 3; pagina++) {
+        const url = v3Url('contacts')
+        url.searchParams.set('page_number', String(pagina))
+        url.searchParams.set('page_size', '100')
+        const dados = await chamar(url)
+        const lista = dados?.contact_list || []
+        todos.push(...lista)
+        if (lista.length < 100) break
+    }
+    const r = todos.filter((c) => String(c.channel_type || '').toLowerCase() === canal)
+    cacheSet(key, r, 8000)
+    return r
 }

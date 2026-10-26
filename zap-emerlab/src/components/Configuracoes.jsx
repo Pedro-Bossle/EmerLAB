@@ -90,7 +90,8 @@ export default function Configuracoes({ usuario, prefs, setPrefs, aoFechar, avis
                                 key={k}
                                 role="radio"
                                 aria-checked={prefs.destaque === k}
-                                title={k}
+                                aria-label={`Destaque ${k}`}
+                                data-dica={k[0].toUpperCase() + k.slice(1)}
                                 className={`amostra ${prefs.destaque === k ? 'ativo' : ''}`}
                                 style={{ background: cor }}
                                 onClick={() => setPrefs({ destaque: k })}

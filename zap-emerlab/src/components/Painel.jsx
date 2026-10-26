@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { api } from '../api.js'
-import { iniciais, corAvatar, nomeExibicao } from '../util.js'
+import { api, registrarAoConexao } from '../api.js'
+import { iniciais, corAvatar, nomeExibicao, CANAIS, ler, gravar } from '../util.js'
 import Icone from './Icone.jsx'
+import IconeCanal from './IconeCanal.jsx'
 import ListaConversas from './ListaConversas.jsx'
 import Chat from './Chat.jsx'
 import Configuracoes from './Configuracoes.jsx'
@@ -10,6 +11,23 @@ import NovaConversa from './NovaConversa.jsx'
 import Menu from './Menu.jsx'
 
 const INTERVALO_LISTA = 10000
+
+const FILTROS = [
+    ['todas', 'Tudo'],
+    ['nao-lidas', 'Não lidas'],
+    ['minhas', 'Minhas'],
+    ['fila', 'Na fila'],
+    ['resolvidas', 'Resolvidas'],
+]
+
+// Texto da lista vazia conforme o filtro, para o atendente entender o porquê
+const VAZIO = {
+    todas: 'Nenhuma conversa neste canal ainda.',
+    'nao-lidas': 'Tudo lido por aqui. 🎉',
+    minhas: 'Nenhuma conversa atribuída a você. Use "Assumir" numa conversa da fila.',
+    fila: 'A fila está vazia: todas as conversas têm atendente.',
+    resolvidas: 'Nenhuma conversa resolvida ainda.',
+}
 
 function tocarBip() {
     try {
@@ -30,6 +48,14 @@ function tocarBip() {
 
 export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSessao }) {
     const { usuario, config } = sessao
+    const canais = useMemo(() => {
+        const tipos = new Set((sessao.canais || []).map((c) => c.tipo))
+        return ['whatsapp', 'instagram', 'messenger'].map((tipo) => ({ tipo, conectado: tipo === 'whatsapp' || tipos.has(tipo) }))
+    }, [sessao.canais])
+    const [canal, setCanal] = useState(() => {
+        const salvo = ler('zap.canal', 'whatsapp')
+        return CANAIS[salvo] ? salvo : 'whatsapp'
+    })
     const [departamentos, setDepartamentos] = useState(sessao.departamentos)
     const [conversas, setConversas] = useState([])
     const [carregando, setCarregando] = useState(true)
@@ -42,6 +68,7 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     const [equipe, setEquipe] = useState([])
     const [modal, setModal] = useState(null)
     const [toast, setToast] = useState(null)
+    const [online, setOnline] = useState(() => navigator.onLine)
     const naoLidasAntes = useRef(null)
 
     const avisar = useCallback((texto, tipo = 'info') => {
@@ -50,17 +77,30 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
 
     useEffect(() => {
         if (!toast) return
-        const t = setTimeout(() => setToast(null), 4500)
+        const t = setTimeout(() => setToast(null), toast.tipo === 'erro' ? 7000 : 4500)
         return () => clearTimeout(t)
     }, [toast])
+
+    useEffect(() => {
+        registrarAoConexao(setOnline)
+        const on = () => setOnline(true)
+        const off = () => setOnline(false)
+        window.addEventListener('online', on)
+        window.addEventListener('offline', off)
+        return () => {
+            window.removeEventListener('online', on)
+            window.removeEventListener('offline', off)
+        }
+    }, [])
 
     const carregarConversas = useCallback(
         async (q = busca) => {
             try {
-                const { conversas: lista } = await api(`conversas${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+                const params = new URLSearchParams({ canal })
+                if (q) params.set('q', q)
+                const { conversas: lista } = await api(`conversas?${params}`)
                 setConversas(lista)
                 setErroLista('')
-                // notificação de novas mensagens
                 const total = lista.reduce((s, c) => s + c.naoLidas, 0)
                 if (naoLidasAntes.current != null && total > naoLidasAntes.current) {
                     if (prefs.som) tocarBip()
@@ -77,7 +117,7 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                 setCarregando(false)
             }
         },
-        [busca, prefs.som, prefs.notificacoes],
+        [busca, canal, prefs.som, prefs.notificacoes],
     )
 
     const carregarApoio = useCallback(async () => {
@@ -103,9 +143,18 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         }
     }, [busca, carregarConversas])
 
+    const trocarCanal = (novo) => {
+        if (novo === canal) return
+        setCanal(novo)
+        gravar('zap.canal', novo)
+        setSelecionada(null)
+        setConversas([])
+        setCarregando(true)
+        naoLidasAntes.current = null
+    }
+
     const deptoPorId = useMemo(() => Object.fromEntries(departamentos.map((d) => [d.id, d])), [departamentos])
 
-    // departamentos que o usuário enxerga (admin: todos)
     const meusDeptos = useMemo(
         () => (usuario.papel === 'admin' ? departamentos : departamentos.filter((d) => usuario.departamentos.includes(d.id))),
         [departamentos, usuario],
@@ -132,7 +181,7 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         setSelecionada(c)
         if (c.naoLidas) {
             setConversas((lista) => lista.map((x) => (x.waId === c.waId ? { ...x, naoLidas: 0 } : x)))
-            api(`conversas/${c.waId}/lida`, { method: 'POST' }).catch(() => {})
+            api(`conversas/${encodeURIComponent(c.waId)}/lida`, { method: 'POST' }).catch(() => {})
         }
     }
 
@@ -142,44 +191,96 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     }
 
     const escuro = prefs.modo === 'escuro' || (prefs.modo === 'sistema' && window.matchMedia?.('(prefers-color-scheme: dark)').matches)
+    const infoCanal = CANAIS[canal]
 
     const itensMenu = [
-        { rotulo: 'Nova conversa', acao: () => setModal('nova') },
+        canal === 'whatsapp' && { rotulo: 'Nova conversa', acao: () => setModal('nova') },
         { rotulo: 'Configurações', acao: () => setModal('config') },
-        ...(usuario.papel === 'admin' ? [{ rotulo: 'Administração', acao: () => setModal('admin') }] : []),
-        { rotulo: 'Sair', acao: aoSair },
+        usuario.papel === 'admin' && { rotulo: 'Administração', acao: () => setModal('admin') },
+        { rotulo: escuro ? 'Usar modo claro' : 'Usar modo escuro', acao: () => setPrefs({ modo: escuro ? 'claro' : 'escuro' }) },
+        { rotulo: 'Sair', acao: aoSair, perigo: true },
     ]
+
+    const listaVazia = busca ? `Nada encontrado para "${busca}".` : VAZIO[filtro]
 
     return (
         <div className={`app ${conversaAtual ? 'com-chat' : ''}`}>
-            <aside className="lateral">
-                <header className="barra barra-lateral">
-                    <button className="avatar-botao" onClick={() => setModal('config')} title={`${usuario.nome} — configurações`}>
+            <nav className="trilho" aria-label="Canais">
+                <div className="trilho-canais">
+                    {canais.map(({ tipo, conectado }) => (
+                        <button
+                            key={tipo}
+                            className={`trilho-botao ${canal === tipo ? 'ativo' : ''}`}
+                            style={{ '--canal': CANAIS[tipo].cor }}
+                            aria-pressed={canal === tipo}
+                            aria-label={CANAIS[tipo].rotulo}
+                            data-dica={conectado ? CANAIS[tipo].rotulo : `${CANAIS[tipo].rotulo}: não conectado na WATI`}
+                            data-dica-lado="direita"
+                            disabled={!conectado}
+                            onClick={() => trocarCanal(tipo)}
+                        >
+                            <IconeCanal canal={tipo} tamanho={24} />
+                            <span className="trilho-rotulo">{CANAIS[tipo].rotulo}</span>
+                        </button>
+                    ))}
+                </div>
+                <div className="trilho-rodape">
+                    <button className="trilho-botao" aria-label={escuro ? 'Modo claro' : 'Modo escuro'} data-dica={escuro ? 'Modo claro' : 'Modo escuro'} data-dica-lado="direita" onClick={() => setPrefs({ modo: escuro ? 'claro' : 'escuro' })}>
+                        <Icone nome={escuro ? 'sol' : 'lua'} />
+                    </button>
+                    {usuario.papel === 'admin' ? (
+                        <button className="trilho-botao" aria-label="Administração" data-dica="Administração" data-dica-lado="direita" onClick={() => setModal('admin')}>
+                            <Icone nome="escudo" />
+                        </button>
+                    ) : null}
+                    <button className="trilho-botao" aria-label="Configurações" data-dica="Configurações" data-dica-lado="direita" onClick={() => setModal('config')}>
+                        <Icone nome="engrenagem" />
+                    </button>
+                    <button className="trilho-avatar" aria-label={`${usuario.nome}: conta`} data-dica={usuario.nome} data-dica-lado="direita" onClick={() => setModal('config')}>
                         <span className="avatar" style={{ background: corAvatar(usuario.email) }}>
                             {iniciais(usuario.nome)}
                         </span>
                     </button>
+                </div>
+            </nav>
+
+            <aside className="lateral">
+                <header className="barra barra-lateral">
                     <div className="barra-titulo">
-                        <strong>{usuario.nome}</strong>
-                        <small>{usuario.papel === 'admin' ? 'Administrador' : meusDeptos.map((d) => d.nome).join(', ') || 'Atendente'}</small>
+                        <strong className="titulo-canal">
+                            <IconeCanal canal={canal} tamanho={18} cor={infoCanal.cor} /> {infoCanal.rotulo}
+                        </strong>
+                        <small>
+                            {usuario.nome} · {usuario.papel === 'admin' ? 'Administrador' : meusDeptos.map((d) => d.nome).join(', ') || 'Atendente'}
+                        </small>
                     </div>
                     <div className="barra-acoes">
-                        <button className="icone-botao" title={escuro ? 'Modo claro' : 'Modo escuro'} onClick={() => setPrefs({ modo: escuro ? 'claro' : 'escuro' })}>
-                            <Icone nome={escuro ? 'sol' : 'lua'} tamanho={20} />
-                        </button>
-                        <button className="icone-botao" title="Nova conversa" onClick={() => setModal('nova')}>
-                            <Icone nome="novo" />
-                        </button>
-                        <Menu itens={itensMenu}>
+                        {canal === 'whatsapp' ? (
+                            <button className="icone-botao" aria-label="Nova conversa" data-dica="Nova conversa" onClick={() => setModal('nova')}>
+                                <Icone nome="novo" />
+                            </button>
+                        ) : null}
+                        <Menu itens={itensMenu} titulo="Mais opções">
                             <Icone nome="menu" />
                         </Menu>
                     </div>
                 </header>
 
+                {!online ? (
+                    <div className="faixa-offline" role="status">
+                        <Icone nome="offline" tamanho={18} /> Sem conexão. As listas voltam a atualizar sozinhas quando a internet voltar.
+                    </div>
+                ) : null}
+
                 <div className="busca">
                     <div className="busca-caixa">
                         <Icone nome="busca" tamanho={18} />
-                        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Pesquisar nome ou número" aria-label="Pesquisar conversas" />
+                        <input
+                            value={busca}
+                            onChange={(e) => setBusca(e.target.value)}
+                            placeholder={canal === 'whatsapp' ? 'Pesquisar nome ou número' : 'Pesquisar nome'}
+                            aria-label="Pesquisar conversas"
+                        />
                         {busca ? (
                             <button className="icone-botao mini" onClick={() => setBusca('')} aria-label="Limpar busca">
                                 <Icone nome="fechar" tamanho={16} />
@@ -188,28 +289,29 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                     </div>
                 </div>
 
-                <div className="filtros" role="tablist">
-                    {[
-                        ['todas', 'Tudo'],
-                        ['nao-lidas', 'Não lidas'],
-                        ['minhas', 'Minhas'],
-                        ['fila', 'Na fila'],
-                        ['resolvidas', 'Resolvidas'],
-                    ].map(([k, r]) => (
-                        <button key={k} role="tab" aria-selected={filtro === k} className={`chip ${filtro === k ? 'ativo' : ''}`} onClick={() => setFiltro(k)}>
-                            {r}
-                        </button>
-                    ))}
+                <div className="filtros" role="tablist" aria-label="Filtros">
+                    {FILTROS.map(([k, r]) => {
+                        const qtd = k === 'nao-lidas' ? conversas.filter((c) => c.naoLidas > 0).length : 0
+                        return (
+                            <button key={k} role="tab" aria-selected={filtro === k} className={`chip ${filtro === k ? 'ativo' : ''}`} onClick={() => setFiltro(k)}>
+                                {r}
+                                {qtd ? <span className="chip-qtd">{qtd}</span> : null}
+                            </button>
+                        )
+                    })}
                     {meusDeptos.length > 0 ? (
-                        <select className="chip chip-select" value={filtroDepto} onChange={(e) => setFiltroDepto(e.target.value)} aria-label="Filtrar por departamento">
-                            <option value="">Todos departamentos</option>
-                            {meusDeptos.map((d) => (
-                                <option key={d.id} value={d.id}>
-                                    {d.nome}
-                                </option>
-                            ))}
-                            <option value="sem">Sem departamento</option>
-                        </select>
+                        <label className="chip chip-select">
+                            <Icone nome="filtro" tamanho={14} />
+                            <select value={filtroDepto} onChange={(e) => setFiltroDepto(e.target.value)} aria-label="Filtrar por departamento">
+                                <option value="">Departamentos</option>
+                                {meusDeptos.map((d) => (
+                                    <option key={d.id} value={d.id}>
+                                        {d.nome}
+                                    </option>
+                                ))}
+                                <option value="sem">Sem departamento</option>
+                            </select>
+                        </label>
                     ) : null}
                 </div>
 
@@ -217,11 +319,13 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                     conversas={filtradas}
                     carregando={carregando}
                     erro={erroLista}
+                    textoVazio={listaVazia}
                     selecionada={conversaAtual?.waId}
                     deptoPorId={deptoPorId}
                     usuarioEmail={usuario.email}
                     equipe={equipe}
                     aoAbrir={abrir}
+                    aoTentar={() => carregarConversas(busca)}
                 />
             </aside>
 
@@ -244,17 +348,25 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                     />
                 ) : (
                     <div className="vazio">
-                        <img src="/favicon.svg" alt="" width="96" height="96" />
-                        <h2>zap.emerlab</h2>
-                        <p>Selecione uma conversa para começar o atendimento.</p>
-                        <small>Mensagens enviadas pela API oficial do WhatsApp (WATI).</small>
+                        <span className="vazio-logo" style={{ '--canal': infoCanal.cor }}>
+                            <IconeCanal canal={canal} tamanho={56} />
+                        </span>
+                        <h2>zap.emerlab · {infoCanal.rotulo}</h2>
+                        <p>Selecione uma conversa à esquerda para começar o atendimento.</p>
+                        <ul className="vazio-dicas">
+                            <li>
+                                <kbd>/</kbd> no campo de mensagem abre as respostas rápidas
+                            </li>
+                            <li>
+                                <strong>Assumir</strong> tira a conversa da fila e coloca no seu nome
+                            </li>
+                            <li>Troque de canal pelos ícones {window.innerWidth > 760 ? 'à esquerda' : 'abaixo'}</li>
+                        </ul>
                     </div>
                 )}
             </main>
 
-            {modal === 'config' ? (
-                <Configuracoes usuario={usuario} prefs={prefs} setPrefs={setPrefs} aoFechar={() => setModal(null)} avisar={avisar} />
-            ) : null}
+            {modal === 'config' ? <Configuracoes usuario={usuario} prefs={prefs} setPrefs={setPrefs} aoFechar={() => setModal(null)} avisar={avisar} /> : null}
             {modal === 'admin' ? (
                 <Admin
                     departamentos={departamentos}
@@ -279,8 +391,12 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
             ) : null}
 
             {toast ? (
-                <div key={toast.id} className={`toast toast-${toast.tipo}`} role="status">
-                    {toast.texto}
+                <div key={toast.id} className={`toast toast-${toast.tipo}`} role={toast.tipo === 'erro' ? 'alert' : 'status'}>
+                    <Icone nome={toast.tipo === 'erro' ? 'erro' : toast.tipo === 'aviso' ? 'info' : 'check'} tamanho={18} />
+                    <span>{toast.texto}</span>
+                    <button className="toast-fechar" aria-label="Fechar aviso" onClick={() => setToast(null)}>
+                        <Icone nome="fechar" tamanho={16} />
+                    </button>
                 </div>
             ) : null}
         </div>

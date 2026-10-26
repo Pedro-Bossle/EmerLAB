@@ -21,7 +21,7 @@ export default function Menu({ itens, children, titulo = 'Menu', alinhar = 'dire
 
     return (
         <div className="menu" ref={ref}>
-            <button className={`icone-botao ${aberto ? 'ativo' : ''}`} title={titulo} aria-haspopup="menu" aria-expanded={aberto} onClick={() => setAberto((v) => !v)}>
+            <button className={`icone-botao ${aberto ? 'ativo' : ''}`} aria-label={titulo} data-dica={aberto ? undefined : titulo} data-dica-lado="esquerda" aria-haspopup="menu" aria-expanded={aberto} onClick={() => setAberto((v) => !v)}>
                 {children}
             </button>
             {aberto ? (
