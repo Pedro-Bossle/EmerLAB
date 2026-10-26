@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently -k -n api,web -c green,cyan \"npm:dev:api\" \"npm:dev:web\"",
     "dev:web": "vite",
-    "dev:api": "node ./scripts/dev-server.mjs",
+    "dev:api": "node --watch-path=./server --watch-path=./src/regras.js --watch-path=./src/variaveis.js ./scripts/dev-server.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "hash-senha": "node ./scripts/hash-senha.mjs"

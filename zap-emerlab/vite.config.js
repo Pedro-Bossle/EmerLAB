@@ -11,4 +11,10 @@ export default defineConfig({
             '/api': `http://127.0.0.1:${apiPort}`,
         },
     },
+    // `npm run preview` testa o build de produção com a mesma API local
+    preview: {
+        proxy: {
+            '/api': `http://127.0.0.1:${apiPort}`,
+        },
+    },
 })

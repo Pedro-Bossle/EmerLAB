@@ -26,6 +26,7 @@ export function ok({ data, error }) {
     if (error) {
         if (error.code === '23505') throw new DbError('Já existe um registro com esse valor.', 409)
         if (error.code === '42P01') throw new DbError('Tabelas zap_* não encontradas. Rode supabase/schema.sql no Supabase.', 500)
+        if (error.code === '42703') throw new DbError('O banco está sem uma coluna nova do painel. Rode supabase/schema.sql no Supabase.', 500)
         throw new DbError(error.message || 'Erro no banco de dados.', 500)
     }
     return data

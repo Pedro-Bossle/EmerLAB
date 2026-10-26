@@ -35,7 +35,7 @@ A API pública da WATI autentica só por **token Bearer**. Ela não tem endpoint
 
 - **ID** é o tenant da WATI e precisa ser igual a `WATI_TENANT_ID`.
 - **E-mail** deve ser o mesmo e-mail do operador na WATI. É ele que vai no `assignOperator`, então as atribuições aparecem certas no painel da WATI.
-- **Senha** é própria do painel e fica guardada com hash scrypt no Supabase. O admin define a senha ao criar o usuário, e cada pessoa pode trocar a sua em Configurações → Conta.
+- **Senha** é própria do painel e fica guardada com hash scrypt no Supabase. Ao criar o usuário, o admin não define senha: a pessoa recebe um **e-mail de convite** (Resend, `RESEND_API_KEY`) com um link de uso único, válido por 7 dias, para criar a própria senha em `zap.emerlab.com.br`. Sem a chave da Resend, o painel mostra o link para o admin repassar. Cada pessoa pode trocar a senha em Configurações → Conta.
 
 O token da WATI e a service role do Supabase ficam **só no servidor**.
 
@@ -67,6 +67,7 @@ zap-emerlab/
 │  ├─ wati.js            cliente da API WATI (v1 + v3) com cache curto
 │  ├─ db.js              Supabase (service role)
 │  ├─ crypto.js          hash de senha e cookie de sessão assinado
+│  ├─ email.js           e-mail de convite (Resend) no visual do EmerLAB
 │  └─ env.js             variáveis de ambiente
 ├─ scripts/dev-server.mjs
 ├─ supabase/schema.sql

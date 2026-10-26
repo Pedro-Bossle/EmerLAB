@@ -75,13 +75,6 @@ export function chaveDia(iso) {
     return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
 }
 
-// Janela de 24h do WhatsApp: só dá para mandar mensagem livre se o cliente escreveu nas últimas 24h
-export function janelaAberta(mensagens) {
-    const ultimaDoCliente = [...mensagens].reverse().find((m) => !m.minha && m.evento === 'message')
-    if (!ultimaDoCliente?.em) return false
-    return Date.now() - new Date(ultimaDoCliente.em).getTime() < 24 * 3600 * 1000
-}
-
 // Negrito/itálico/tachado/mono no estilo WhatsApp (sobre texto já escapado pelo React via partes)
 export function formatarWhatsapp(texto) {
     const tokens = []
@@ -116,3 +109,127 @@ export function gravar(chave, valor) {
         /* armazenamento indisponível — só não persiste */
     }
 }
+
+// "há 12 min", "há 3 h", "há 2 dias" — tempo de espera em palavras
+export function tempoDesde(iso, agora = Date.now()) {
+    if (!iso) return '—'
+    const min = Math.max(0, Math.round((agora - new Date(iso).getTime()) / 60000))
+    if (min < 1) return 'agora'
+    if (min < 60) return `há ${min} min`
+    const h = Math.floor(min / 60)
+    if (h < 48) return `há ${h} h`
+    return `há ${Math.floor(h / 24)} dias`
+}
+
+// Janela de 24h contada a partir da última mensagem do cliente
+export const JANELA_MS = 24 * 3600 * 1000
+export function janela24h(iso, agora = Date.now()) {
+    if (!iso) return null
+    const passou = Math.max(0, agora - new Date(iso).getTime())
+    const restante = JANELA_MS - passou
+    return { fracao: Math.min(1, passou / JANELA_MS), restanteMs: restante, fechada: restante <= 0 }
+}
+
+export function restanteEmPalavras(ms) {
+    if (ms <= 0) return 'janela fechada'
+    const min = Math.ceil(ms / 60000)
+    if (min < 60) return `fecha em ${min} min`
+    return `fecha em ${Math.floor(min / 60)} h`
+}
+
+// Quem espera resposta: conversas abertas cuja última mensagem é do cliente, da mais antiga para a mais nova
+// com a janela de 24h fechada só dá para retomar por template, então a conversa sai da espera
+export function calcularEspera(conversas, agora = Date.now()) {
+    return conversas
+        .filter((c) => c.status !== 'resolvida' && c.ultimaMinha === false && c.ultimaEm && !janela24h(c.ultimaEm, agora).fechada)
+        .sort((a, b) => String(a.ultimaEm).localeCompare(String(b.ultimaEm)))
+}
+
+// Lê CSV/TSV (colado de planilha ou arquivo): separador detectado na 1ª linha, aspas com quebra de linha dentro
+export function lerPlanilha(texto) {
+    // \s também cobre o BOM que o Excel põe no início do CSV
+    const s = String(texto || '').replace(/^\s+/, '').replace(/\r\n?/g, '\n')
+    const primeira = s.split('\n', 1)[0]
+    const sep = ['\t', ';', ','].map((c) => [c, primeira.split(c).length]).sort((a, b) => b[1] - a[1])[0][0]
+    const linhas = []
+    let linha = []
+    let campo = ''
+    let aspas = false
+    for (let i = 0; i < s.length; i++) {
+        const c = s[i]
+        if (aspas) {
+            if (c === '"' && s[i + 1] === '"') {
+                campo += '"'
+                i++
+            } else if (c === '"') aspas = false
+            else campo += c
+        } else if (c === '"' && campo === '') aspas = true
+        else if (c === sep) {
+            linha.push(campo)
+            campo = ''
+        } else if (c === '\n') {
+            linha.push(campo)
+            linhas.push(linha)
+            linha = []
+            campo = ''
+        } else campo += c
+    }
+    linha.push(campo)
+    linhas.push(linha)
+    return linhas.filter((l) => l.some((c) => c.trim()))
+}
+
+// Nomes de coluna aceitos no cabeçalho (português e o que a WATI/planilhas costumam usar)
+const COLUNAS_RESPOSTA = {
+    atalho: ['atalho', 'shortcut', 'shortcode', 'comando', 'codigo', 'código', 'key', 'chave'],
+    titulo: ['titulo', 'título', 'title', 'nome', 'name'],
+    texto: ['texto', 'mensagem', 'message', 'text', 'content', 'conteudo', 'conteúdo', 'resposta', 'reply', 'body'],
+    regras: ['regras', 'regra', 'condicoes', 'condições', 'rules'],
+}
+
+// Planilha → respostas rápidas. Sem cabeçalho: 2 colunas = atalho, texto; 3+ = atalho, título, texto
+export function respostasDaPlanilha(texto) {
+    const linhas = lerPlanilha(texto)
+    if (!linhas.length) return { itens: [], erros: [], colunas: null }
+    const cab = linhas[0].map((c) => c.trim().toLowerCase())
+    const achar = (nomes) => cab.findIndex((c) => nomes.includes(c))
+    let col = { atalho: achar(COLUNAS_RESPOSTA.atalho), titulo: achar(COLUNAS_RESPOSTA.titulo), texto: achar(COLUNAS_RESPOSTA.texto), regras: achar(COLUNAS_RESPOSTA.regras) }
+    let corpo = linhas.slice(1)
+    if (col.texto < 0 || (col.atalho < 0 && col.titulo < 0)) {
+        corpo = linhas
+        col = linhas[0].length >= 3 ? { atalho: 0, titulo: 1, texto: 2, regras: -1 } : { atalho: 0, titulo: -1, texto: 1, regras: -1 }
+    }
+    const itens = []
+    const erros = []
+    corpo.forEach((l, i) => {
+        const pegar = (k) => (col[k] >= 0 ? String(l[col[k]] || '').trim() : '')
+        const titulo = pegar('titulo')
+        // sem coluna de atalho, o título vira atalho (como "/bom-dia")
+        const atalho = (pegar('atalho') || titulo).replace(/^\/+/, '').toLowerCase().replace(/\s+/g, '-')
+        const t = pegar('texto')
+        const n = i + (corpo === linhas ? 1 : 2)
+        if (!atalho || !t) erros.push(`Linha ${n}: falta ${!atalho ? 'o atalho' : 'o texto'}.`)
+        else itens.push({ atalho: atalho.slice(0, 40), titulo: titulo.slice(0, 80), texto: t.slice(0, 4096), regras: pegar('regras') })
+    })
+    // de onde veio cada campo, para a prévia mostrar (cabeçalho reconhecido ou posição da coluna)
+    const nomeColuna = (i) => (i < 0 ? null : corpo === linhas ? `coluna ${i + 1}` : `"${linhas[0][i].trim()}"`)
+    const colunas = { atalho: nomeColuna(col.atalho) || (col.titulo >= 0 ? `${nomeColuna(col.titulo)} (título)` : null), texto: nomeColuna(col.texto), semCabecalho: corpo === linhas }
+    return { itens, erros, colunas }
+}
+
+// ---- UF e municípios (mesmo comportamento de src/lib/ibgeLocalidades.js do projeto principal) ----
+
+export const UFS_BRASIL = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO']
+
+/** Tipos padrão do atributo "tipo" na ficha do contato (WATI). */
+export const TIPOS_CONTATO = ['Cliente', 'Não-Cliente', 'Credenciado', 'Não-Credenciado', 'Outros']
+
+// sem acento, minúsculo, só letras/números — para buscar "sao" e achar "São Paulo"
+export const normalizarTextoBusca = (texto) =>
+    String(texto || '')
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()

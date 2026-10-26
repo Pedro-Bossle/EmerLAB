@@ -2,11 +2,18 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, registrarAoExpirar } from './api.js'
 import { usePreferencias } from './tema.js'
 import Login from './components/Login.jsx'
+import CriarSenha from './components/CriarSenha.jsx'
 import Painel from './components/Painel.jsx'
 
 export default function App() {
     const [prefs, setPrefs] = usePreferencias()
     const [estado, setEstado] = useState({ fase: 'carregando' })
+    // link do e-mail de convite: ?convite=<token>
+    const [convite, setConvite] = useState(() => new URLSearchParams(location.search).get('convite'))
+    const sairDoConvite = () => {
+        history.replaceState(null, '', location.pathname)
+        setConvite(null)
+    }
 
     const carregarSessao = useCallback(async () => {
         try {
@@ -21,12 +28,29 @@ export default function App() {
 
     useEffect(() => {
         registrarAoExpirar(() => setEstado({ fase: 'login', aviso: 'Sua sessão expirou. Entre novamente.' }))
-        queueMicrotask(carregarSessao)
-    }, [carregarSessao])
+        // com convite na URL a sessão só é carregada depois de criar a senha (aoEntrar)
+        if (!convite) queueMicrotask(carregarSessao)
+    }, [carregarSessao]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const sair = async () => {
         await api('auth/logout', { method: 'POST' }).catch(() => {})
         setEstado({ fase: 'login' })
+    }
+
+    if (convite) {
+        return (
+            <CriarSenha
+                token={convite}
+                aoEntrar={async () => {
+                    sairDoConvite()
+                    await carregarSessao()
+                }}
+                aoDesistir={() => {
+                    sairDoConvite()
+                    setEstado({ fase: 'login' })
+                }}
+            />
+        )
     }
 
     if (estado.fase === 'carregando') {

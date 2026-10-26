@@ -76,27 +76,44 @@ function Midia({ m, waId }) {
 // Explicação + ações abaixo de uma mensagem que não saiu
 function Falha({ m, aoTentar, aoDescartar, aoTemplate }) {
     const local = m.status === 'erro'
-    const texto = local ? m.erro?.mensagem || 'Não foi possível enviar.' : m.falha || 'Não entregue ao cliente (contato inválido, bloqueio ou janela de 24h fechada).'
+    const texto = local
+        ? m.erro?.mensagem || 'Não foi possível enviar.'
+        : m.falha || 'Não entregue ao cliente (conta bloqueada, contato inválido ou janela de 24h fechada).'
     return (
         <div className="msg-falha" role="alert">
             <p className="msg-falha-texto">
-                <Icone nome="erro" tamanho={14} />
+                <Icone nome="erro" tamanho={16} />
                 <span>{texto}</span>
             </p>
             {local ? (
                 <span className="msg-falha-acoes">
                     {m.erro?.codigo === 'janela_24h' ? (
-                        <button onClick={aoTemplate}>Enviar template</button>
+                        <button type="button" onClick={aoTemplate}>
+                            Enviar template
+                        </button>
                     ) : (
-                        <button onClick={() => aoTentar(m)}>
+                        <button type="button" onClick={() => aoTentar(m)}>
                             <Icone nome="tentar" tamanho={14} /> Tentar de novo
                         </button>
                     )}
-                    <button onClick={() => aoDescartar(m)}>Descartar</button>
+                    <button type="button" onClick={() => aoDescartar(m)}>
+                        Descartar
+                    </button>
+                </span>
+            ) : temTemplatesHint(texto) ? (
+                <span className="msg-falha-acoes">
+                    <button type="button" onClick={aoTemplate}>
+                        Enviar template
+                    </button>
                 </span>
             ) : null}
         </div>
     )
+}
+
+function temTemplatesHint(texto) {
+    const t = String(texto || '').toLowerCase()
+    return t.includes('24') || t.includes('locked') || t.includes('bloque') || t.includes('janela')
 }
 
 export default function Mensagem({ m, waId, aoResponder, primeiraDoGrupo, aoTentar, aoDescartar, aoTemplate }) {
@@ -119,10 +136,12 @@ export default function Mensagem({ m, waId, aoResponder, primeiraDoGrupo, aoTent
     return (
         <div className={`msg-linha ${m.minha ? 'minha' : 'dele'} ${primeiraDoGrupo ? 'com-cauda' : ''}`}>
             <div className="msg-coluna">
-                <div className={`msg ${temMidia && m.tipo === 'sticker' ? 'msg-sem-fundo' : ''} ${falhou ? 'msg-com-falha' : ''}`}>
+                <div
+                    className={`msg ${temMidia && m.tipo === 'sticker' ? 'msg-sem-fundo' : ''} ${falhou ? 'msg-com-falha' : ''} ${m.evento === 'broadcastMessage' ? 'msg-template' : ''}`}
+                >
                     {m.minha && m.operador && primeiraDoGrupo ? <span className="msg-autor">{m.operador}</span> : null}
                     {m.evento === 'broadcastMessage' ? (
-                        <span className="msg-autor">
+                        <span className="msg-autor msg-autor-template">
                             <Icone nome="template" tamanho={13} /> Template
                         </span>
                     ) : null}

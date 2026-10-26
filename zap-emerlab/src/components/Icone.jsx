@@ -19,6 +19,7 @@ import {
     ListFilter,
     Lock,
     LogOut,
+    Mail,
     MapPin,
     MessageSquarePlus,
     Mic,
@@ -87,6 +88,7 @@ const ICONES = {
     video: Video,
     local: MapPin,
     baixar: Download,
+    email: Mail,
 }
 
 export default function Icone({ nome, tamanho = 22, className, titulo, traco = 2 }) {

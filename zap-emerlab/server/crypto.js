@@ -25,6 +25,11 @@ export function compararSeguro(a, b) {
     return crypto.timingSafeEqual(ba, bb)
 }
 
+export const segredoAleatorio = () => crypto.randomBytes(24).toString('base64url')
+
+// resumo curto de um valor (ex.: senha_hash) para amarrar um token ao estado atual dele
+export const impressao = (valor) => crypto.createHash('sha256').update(String(valor)).digest('base64url').slice(0, 16)
+
 function assinar(dados, segredo) {
     return crypto.createHmac('sha256', segredo).update(dados).digest('base64url')
 }

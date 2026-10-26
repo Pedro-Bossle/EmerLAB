@@ -2,13 +2,24 @@
 import { Buffer } from 'node:buffer'
 import process from 'node:process'
 import { getEnv, envFaltando } from './env.js'
-import { hashSenha, conferirSenha, criarToken, lerToken, compararSeguro } from './crypto.js'
+import { hashSenha, conferirSenha, criarToken, lerToken, compararSeguro, segredoAleatorio, impressao } from './crypto.js'
 import { db, ok, DbError, buscarUsuarioPorEmail, buscarUsuarioPorId, idsDepartamentos } from './db.js'
 import * as wati from './wati.js'
+import { emailConfigurado, enviarEmail, montarEmailConvite } from './email.js'
+import { municipiosPorUf } from './ibge.js'
+import { lerRegras } from '../src/regras.js'
+import { preencherVariaveis } from '../src/variaveis.js'
 
 const COOKIE = 'zap_sess'
 const ADMIN_ENV_ID = 'admin-env'
 const MAX_ARQUIVO = 3 * 1024 * 1024 // limite de corpo da Vercel (~4,5 MB) com base64
+const CONVITE_DIAS = 7
+// senha_hash de quem ainda não aceitou o convite: não é scrypt, então nenhum login confere
+const PREFIXO_CONVITE = 'convite$'
+// importação de atribuições: cada contato custa uma chamada getMessages; 40 por lote, 4 em paralelo (~10 s por lote)
+const LOTE_ATRIBUICOES = 40
+const PARALELO_ATRIBUICOES = 4
+const pausa = (ms) => new Promise((r) => setTimeout(r, ms))
 
 class HttpError extends Error {
     constructor(status, message, codigo) {
@@ -159,6 +170,15 @@ function normalizarMensagem(m) {
     }
 }
 
+// Texto curto do card da lista ("📷 Foto", "🎤 Áudio"…), como na prévia do WhatsApp
+const ROTULO_TIPO = { image: '📷 Foto', video: '🎥 Vídeo', audio: '🎤 Áudio', voice: '🎤 Áudio', document: '📄 Documento', sticker: '🏷️ Figurinha', location: '📍 Localização', contacts: '👤 Contato' }
+function textoPrevia(tipo, texto) {
+    const t = String(texto || '').trim()
+    if (!tipo || tipo === 'text') return t
+    const rotulo = ROTULO_TIPO[tipo] || '📎 Anexo'
+    return t ? `${rotulo}: ${t}` : rotulo
+}
+
 function normalizarContatoCanal(c, canal) {
     return {
         waId: `${PREFIXO_CANAL[canal]}:${c.id}`,
@@ -168,22 +188,40 @@ function normalizarContatoCanal(c, canal) {
     }
 }
 
+// atributos da WATI que entram na busca da lista (além de nome, telefone e etiquetas)
+const ATRIBUTOS_BUSCA = ['tipo', 'cidade', 'uf']
+
 function normalizarContato(c) {
     const waId = soDigitos(c.wAid || c.waId || c.phone)
+    const atributos = {}
+    for (const p of c.customParams || []) {
+        const k = String(p?.name || '').toLowerCase()
+        if (ATRIBUTOS_BUSCA.includes(k) && p.value) atributos[k] = String(p.value)
+    }
     return {
         waId,
         nome: c.fullName || [c.firstName, c.lastName].filter(Boolean).join(' ') || c.firstName || null,
         foto: c.photo || null,
         atualizadoEm: c.lastUpdated || c.created || null,
+        atributos,
     }
 }
 
-function preencherVariaveis(texto, ctx) {
-    return String(texto).replace(/\{\{\s*(nome|primeiro_nome|atendente|telefone)\s*\}\}/gi, (_, k) => {
-        const chave = k.toLowerCase()
-        if (chave === 'primeiro_nome') return (ctx.nome || '').split(' ')[0]
-        return ctx[chave] ?? ''
-    })
+// Busca no WhatsApp: a WATI tem dezenas de milhares de contatos, então a filtragem é feita lá —
+// uma consulta por nome/telefone e uma por atributo, em paralelo, juntando os resultados
+async function buscarContatosWhatsapp(busca) {
+    if (!busca) return (await wati.listarContatos({ tamanho: 100 })).contatos.map(normalizarContato)
+    const consultas = [
+        wati.listarContatos({ tamanho: 50, nome: busca }),
+        ...ATRIBUTOS_BUSCA.map((name) => wati.listarContatos({ tamanho: 50, atributo: { name, value: busca } })),
+    ]
+    const porId = new Map()
+    for (const r of await Promise.allSettled(consultas)) {
+        // um atributo que ainda não existe na conta (ex.: uf) só não traz nada
+        if (r.status !== 'fulfilled') continue
+        for (const c of r.value.contatos.map(normalizarContato)) if (c.waId && !porId.has(c.waId)) porId.set(c.waId, c)
+    }
+    return [...porId.values()]
 }
 
 // ---------- handlers ----------
@@ -209,6 +247,50 @@ async function login(req, res) {
     const token = criarToken({ ...sessao, exp: Date.now() + maxAge * 1000 }, env.sessionSecret)
     tentativas.delete(ipDe(req))
     enviar(res, 200, { ok: true }, { 'Set-Cookie': cookieSessao(req, token, maxAge) })
+}
+
+// ---- convite (criar a própria senha) ----
+// Token assinado sem estado: amarrado ao senha_hash atual, deixa de valer assim que a senha é criada
+
+const segredoConvite = () => `${getEnv().sessionSecret}:convite`
+
+async function enviarConvite(u) {
+    const env = getEnv()
+    const token = criarToken({ conv: u.id, v: impressao(u.senha_hash), exp: Date.now() + CONVITE_DIAS * 86400000 }, segredoConvite())
+    const link = `${env.publicUrl}/?convite=${token}`
+    // sem e-mail o admin recebe o link para repassar
+    if (!emailConfigurado()) return { emailEnviado: false, link, erroEmail: 'Falta RESEND_API_KEY no .env.' }
+    try {
+        await enviarEmail({
+            to: u.email,
+            ...montarEmailConvite({ nome: u.nome, email: u.email, link, tenantId: env.watiTenantId, validadeDias: CONVITE_DIAS }),
+        })
+        return { emailEnviado: true }
+    } catch (e) {
+        console.error('[zap] convite', e)
+        return { emailEnviado: false, link, erroEmail: e.message }
+    }
+}
+
+async function lerConvite(token) {
+    const falha = new HttpError(400, 'Este convite expirou ou já foi usado. Peça um novo ao administrador.', 'convite_invalido')
+    const p = lerToken(token, segredoConvite())
+    if (!p?.conv) throw falha
+    const u = ok(await db().from('zap_usuarios').select('id, nome, email, senha_hash, ativo').eq('id', p.conv).maybeSingle())
+    if (!u || !u.ativo || impressao(u.senha_hash) !== p.v) throw falha
+    return u
+}
+
+async function aceitarConvite(req, res) {
+    checarLimiteLogin(ipDe(req))
+    const env = getEnv()
+    const { token, senha } = await lerCorpo(req)
+    if (!senha || String(senha).length < 8) throw new HttpError(400, 'A senha precisa ter ao menos 8 caracteres.')
+    const u = await lerConvite(token)
+    ok(await db().from('zap_usuarios').update({ senha_hash: hashSenha(senha), atualizado_em: new Date().toISOString() }).eq('id', u.id))
+    const maxAge = Math.round(env.sessionHoras * 3600)
+    const sessao = criarToken({ uid: u.id, email: u.email, exp: Date.now() + maxAge * 1000 }, env.sessionSecret)
+    enviar(res, 200, { ok: true, tenantId: env.watiTenantId, email: u.email }, { 'Set-Cookie': cookieSessao(req, sessao, maxAge) })
 }
 
 async function me(usuario) {
@@ -240,7 +322,7 @@ async function listarConversas(usuario, query) {
     const canal = PREFIXO_CANAL[query.get('canal')] ? query.get('canal') : 'whatsapp'
     const buscarContatos =
         canal === 'whatsapp'
-            ? wati.listarContatos({ tamanho: 100, nome: busca && !/^\d+$/.test(busca) ? busca : undefined }).then((r) => r.contatos.map(normalizarContato))
+            ? buscarContatosWhatsapp(busca)
             : wati.listarContatosCanal(canal).then((lista) => lista.map((c) => normalizarContatoCanal(c, canal)))
     const [contatos, metasTodas] = await Promise.all([
         buscarContatos,
@@ -273,15 +355,87 @@ async function listarConversas(usuario, query) {
                 departamentoId: c.meta?.departamento_id || null,
                 atendenteEmail: c.meta?.atendente_email || null,
                 status: c.meta?.status || 'aberta',
+                tags: c.meta?.tags || [],
+                atributos: c.atributos || {},
             }
         })
     if (busca) {
         const b = busca.toLowerCase()
         const d = soDigitos(busca)
-        lista = lista.filter((c) => (c.nome || '').toLowerCase().includes(b) || (d && canal === 'whatsapp' && c.waId.includes(d)))
+        lista = lista.filter(
+            (c) =>
+                (c.nome || '').toLowerCase().includes(b) ||
+                c.tags.some((t) => t.toLowerCase().includes(b)) ||
+                Object.values(c.atributos).some((v) => v.toLowerCase().includes(b)) ||
+                (d && canal === 'whatsapp' && c.waId.includes(d)),
+        )
     }
+    await verificarNaWati(lista, new Map(metas.map((m) => [m.wa_id, m])))
     lista.sort((a, b) => String(b.ultimaEm || '').localeCompare(String(a.ultimaEm || '')))
     return { conversas: lista, canal }
+}
+
+// Sem webhook, o banco não fica sabendo das mensagens novas: a cada carregamento da lista, verifica na WATI
+// as últimas mensagens de algumas conversas (nunca vistas primeiro, depois as ativas há mais tempo sem checar)
+// e grava prévia, horário e quantidade de não lidas, para o card mostrar como no WhatsApp.
+// Com o webhook configurado, a verificação só confirma o que já chegou por ele.
+const VERIFICAR_POR_VEZ = 6
+const INTERVALO_VERIFICACAO = 20000
+const ATIVA_MS = 48 * 3600 * 1000
+const FOLGA_MS = 2000 // webhook grava em segundos; a WATI devolve com milissegundos
+const verificadas = new Map() // waId → quando foi checada (por instância do servidor)
+
+function escolherParaVerificar(lista) {
+    const agora = Date.now()
+    const nunca = lista.filter((c) => !verificadas.has(c.waId))
+    const ativas = lista
+        .filter((c) => verificadas.has(c.waId) && agora - verificadas.get(c.waId) > INTERVALO_VERIFICACAO)
+        .filter((c) => c.ultimaEm && agora - new Date(c.ultimaEm).getTime() < ATIVA_MS)
+        .sort((a, b) => verificadas.get(a.waId) - verificadas.get(b.waId))
+    return [...nunca, ...ativas].slice(0, VERIFICAR_POR_VEZ)
+}
+
+async function verificarNaWati(lista, metaPorId) {
+    await Promise.allSettled(
+        escolherParaVerificar(lista).map(async (c) => {
+            verificadas.set(c.waId, Date.now())
+            const { mensagens: itens } = await wati.listarMensagens(alvoWati(c.waId), { pagina: 1, tamanho: 20 })
+            const msgs = itens
+                .map(normalizarMensagem)
+                .filter((m) => (m.evento === 'message' || m.evento === 'broadcastMessage') && m.em)
+                .sort((a, b) => String(b.em).localeCompare(String(a.em)))
+            const ultima = msgs[0]
+            if (!ultima) return
+            const meta = metaPorId.get(c.waId)
+            const conhecidaMs = meta?.ultima_msg_em ? new Date(meta.ultima_msg_em).getTime() : null
+            const nova = (m) => conhecidaMs === null || new Date(m.em).getTime() > conhecidaMs + FOLGA_MS
+            if (conhecidaMs !== null && !nova(ultima)) return
+            // mensagens do cliente depois da última resposta nossa
+            const corte = msgs.findIndex((m) => m.minha)
+            const semResposta = corte < 0 ? msgs : msgs.slice(0, corte)
+            let naoLidas
+            if (conhecidaMs === null) {
+                // primeira vez: só conta como nova se ainda dá para responder (janela de 24h)
+                naoLidas = Date.now() - new Date(ultima.em).getTime() < 24 * 3600 * 1000 ? semResposta.length : 0
+            } else if (msgs.some((m) => m.minha && nova(m))) {
+                naoLidas = semResposta.length // alguém respondeu (pela WATI): conta só o que veio depois
+            } else {
+                naoLidas = (meta?.nao_lidas || 0) + semResposta.filter(nova).length
+            }
+            const texto = textoPrevia(ultima.tipo, ultima.texto).slice(0, 500)
+            const campos = { ultima_msg: texto, ultima_msg_em: ultima.em, ultima_msg_minha: ultima.minha, nao_lidas: naoLidas }
+            // cliente escreveu numa conversa resolvida → reabre (igual ao webhook)
+            if (!ultima.minha && meta?.status === 'resolvida') campos.status = 'aberta'
+            await salvarMeta(c.waId, campos)
+            Object.assign(c, {
+                ultimaMsg: texto,
+                ultimaMinha: ultima.minha,
+                ultimaEm: [c.ultimaEm, ultima.em].filter(Boolean).sort().pop(),
+                naoLidas,
+                ...(campos.status ? { status: campos.status } : {}),
+            })
+        }),
+    )
 }
 
 async function mensagens(usuario, waId, query) {
@@ -354,6 +508,165 @@ async function atribuirHandler(req, usuario, waId) {
     return { ok: true, avisoWati }
 }
 
+// ---- perfil do contato ----
+
+const MAX_TAGS = 20
+
+// mantém maiúsculas/minúsculas como digitado, para bater com o nome da tag na WATI
+function normalizarTag(t) {
+    return String(t || '').trim().replace(/\s+/g, ' ').slice(0, 30)
+}
+
+const mesmaTag = (a, b) => a.toLowerCase() === b.toLowerCase()
+
+/**
+ * Sugestões de etiquetas: catálogo da WATI (quando a API expõe) + etiquetas já usadas
+ * nas conversas do painel (que costumam ser as mesmas cadastradas na WATI).
+ */
+async function listarTagsSugestao() {
+    const [watiTags, rows] = await Promise.all([
+        wati.listarTags().catch(() => []),
+        db().from('zap_conversas').select('tags').then(ok).catch(() => []),
+    ])
+    const conta = new Map()
+    for (const t of watiTags) {
+        const nome = normalizarTag(t)
+        if (!nome) continue
+        const chave = nome.toLowerCase()
+        if (!conta.has(chave)) conta.set(chave, { nome, n: 1000 })
+    }
+    for (const r of rows || []) {
+        for (const t of r.tags || []) {
+            const nome = normalizarTag(t)
+            if (!nome) continue
+            const chave = nome.toLowerCase()
+            const atual = conta.get(chave)
+            if (atual) atual.n += 1
+            else conta.set(chave, { nome, n: 1 })
+        }
+    }
+    const tags = [...conta.values()].sort((a, b) => b.n - a.n || a.nome.localeCompare(b.nome, 'pt-BR')).map((x) => x.nome)
+    return { tags }
+}
+
+// Espelha na conversa da WATI o que mudou nas etiquetas do painel; devolve as que falharam
+async function sincronizarTags(waId, antes, depois) {
+    const adicionar = depois.filter((t) => !antes.some((x) => mesmaTag(x, t)))
+    const remover = antes.filter((t) => !depois.some((x) => mesmaTag(x, t)))
+    const alvo = alvoWati(waId)
+    const r = await Promise.allSettled([...adicionar.map((t) => wati.adicionarTag(alvo, t)), ...remover.map((t) => wati.removerTag(alvo, t))])
+    const falhas = []
+    r.forEach((x, i) => {
+        if (x.status === 'fulfilled') return
+        const tag = i < adicionar.length ? adicionar[i] : remover[i - adicionar.length]
+        falhas.push({ tag, acao: i < adicionar.length ? 'adicionar' : 'remover', motivo: x.reason?.message || 'erro' })
+    })
+    return falhas
+}
+
+// Atributos da WATI mostrados na ficha, nesta ordem; os demais (lead_stage, cx_score…) ficam só na WATI.
+// Comparados sem maiúsculas, espaços ou "_". Um que o contato ainda não tem aparece vazio e é criado ao preencher.
+const ATRIBUTOS_FICHA = ['name', 'phone', 'cidade', 'uf', 'tipo']
+const chaveAtributo = (nome) => String(nome).toLowerCase().replace(/[^a-z0-9]/g, '')
+const atributoDaFicha = (nome) => ATRIBUTOS_FICHA.includes(chaveAtributo(nome))
+
+// Dados do contato usados pelas regras das respostas rápidas (UF, cidade e todos os atributos da WATI)
+async function contextoHandler(usuario, waId) {
+    await exigirConversa(usuario, waId)
+    if (canalDe(waId) !== 'whatsapp') return { atributos: {} }
+    try {
+        const c = await wati.detalheContato(alvoWati(waId))
+        const atributos = {}
+        for (const p of c?.custom_params || []) if (p?.name && p.value) atributos[chaveRegra(p.name)] = String(p.value)
+        return { atributos }
+    } catch {
+        // sem os dados, as respostas com regra só vão para o grupo "não se aplicam"
+        return { atributos: {} }
+    }
+}
+
+// mesmo formato de chave que src/regras.js usa para atributos ("Lead Stage" → lead_stage)
+const chaveRegra = (nome) =>
+    String(nome)
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '')
+
+async function perfilHandler(usuario, waId) {
+    const meta = await exigirConversa(usuario, waId)
+    let ficha = null
+    let avisoWati = null
+    try {
+        const c = await wati.detalheContato(alvoWati(waId))
+        ficha = {
+            nome: c?.name || c?.display_name || null,
+            foto: c?.photo || null,
+            criadoEm: c?.created || null,
+            optIn: c?.opted_in ?? null,
+            segmentos: c?.segments || [],
+            equipes: c?.teams || [],
+            atributos: ATRIBUTOS_FICHA.map((k) => {
+                const p = (c?.custom_params || []).find((x) => x?.name && chaveAtributo(x.name) === k)
+                return { name: p?.name || k, value: p?.value ?? '' }
+            }),
+        }
+    } catch (e) {
+        avisoWati = e.message
+    }
+    return {
+        perfil: {
+            waId,
+            nomeWhatsapp: ficha?.nome || meta?.nome || '',
+            email: meta?.email || '',
+            tags: meta?.tags || [],
+            notas: meta?.notas || '',
+        },
+        wati: ficha,
+        avisoWati,
+    }
+}
+
+async function salvarPerfilHandler(req, usuario, waId) {
+    const meta = await exigirConversa(usuario, waId)
+    const b = await lerCorpo(req)
+    const email = String(b.email || '').trim().slice(0, 120)
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, 'E-mail inválido.')
+    const tags = []
+    for (const t of (Array.isArray(b.tags) ? b.tags : []).map(normalizarTag)) if (t && !tags.some((x) => mesmaTag(x, t))) tags.push(t)
+    tags.splice(MAX_TAGS)
+    await salvarMeta(waId, {
+        email: email || null,
+        tags,
+        notas: String(b.notas || '').trim().slice(0, 2000) || null,
+    })
+    const falhasTags = await sincronizarTags(waId, meta?.tags || [], tags)
+    if (falhasTags.length < tags.length || (meta?.tags || []).length !== tags.length) {
+        // alguma tag foi aplicada (ou removida) na WATI → atualiza o catálogo de sugestões
+        wati.invalidarCacheTags()
+    }
+    // atributos personalizados vão para a WATI (o painel só manda quando mudaram)
+    let avisoWati = null
+    let atributosVazios = []
+    if (Array.isArray(b.atributos)) {
+        const lista = b.atributos
+            .map((a) => ({ name: String(a?.name || '').trim().slice(0, 60), value: String(a?.value ?? '').trim().slice(0, 500) }))
+            .filter((a) => a.name && atributoDaFicha(a.name))
+        // a WATI recusa o lote inteiro se algum valor vier vazio ("CustomParam Value is required")
+        atributosVazios = lista.filter((a) => !a.value).map((a) => a.name)
+        const atributos = lista.filter((a) => a.value)
+        if (atributos.length) {
+            try {
+                await wati.atualizarAtributos(alvoWati(waId), atributos)
+            } catch (e) {
+                avisoWati = e.message
+            }
+        }
+    }
+    return { ok: true, tags, avisoWati, atributosVazios, falhasTags }
+}
+
 async function departamentoHandler(req, usuario, waId) {
     await exigirConversa(usuario, waId)
     const { departamentoId } = await lerCorpo(req)
@@ -403,20 +716,94 @@ async function midiaHandler(res, usuario, query) {
 
 // ---- respostas rápidas ----
 
+// banco ainda sem a coluna departamento_ids (supabase/schema.sql não rodado): erro 42703 do Postgres
+const semColunaNova = (r) => r.error?.code === '42703'
+
 async function listarRespostas(usuario) {
-    let q = db().from('zap_respostas_rapidas').select('id, atalho, titulo, texto, departamento_id').order('atalho')
-    if (usuario.papel !== 'admin') {
-        const ids = usuario.departamentos
-        q = ids.length ? q.or(`departamento_id.is.null,departamento_id.in.(${ids.join(',')})`) : q.is('departamento_id', null)
+    const ids = usuario.departamentos
+    const admin = usuario.papel === 'admin'
+    let q = db().from('zap_respostas_rapidas').select('id, atalho, titulo, texto, departamento_ids, regras, criado_em').order('atalho')
+    // sem departamento = para todos; senão precisa ter ao menos um departamento em comum com o atendente
+    if (!admin) q = ids.length ? q.or(`departamento_ids.eq.{},departamento_ids.ov.{${ids.join(',')}}`) : q.eq('departamento_ids', '{}')
+    const r = await q
+    if (!semColunaNova(r)) return { respostas: ok(r) }
+    // compatível com o banco antigo: um departamento por resposta
+    let antigo = db().from('zap_respostas_rapidas').select('id, atalho, titulo, texto, departamento_id, regras, criado_em').order('atalho')
+    if (!admin) antigo = ids.length ? antigo.or(`departamento_id.is.null,departamento_id.in.(${ids.join(',')})`) : antigo.is('departamento_id', null)
+    const lista = ok(await antigo)
+    return { respostas: lista.map(({ departamento_id, ...x }) => ({ ...x, departamento_ids: departamento_id ? [departamento_id] : [] })) }
+}
+
+// insert/update de resposta; no banco antigo grava sem departamento_ids (só dá para um departamento)
+async function gravarResposta(dados, gravar) {
+    const r = await gravar(dados)
+    if (!semColunaNova(r)) return ok(r)
+    if (dados.departamento_ids.length > 1) {
+        throw new HttpError(400, 'Para vincular vários departamentos, o banco precisa da atualização: rode supabase/schema.sql no Supabase.', 'migracao')
     }
-    return { respostas: ok(await q) }
+    const { departamento_ids: _, ...semIds } = dados
+    return ok(await gravar(semIds))
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// departamentoIds (vários) ou departamentoId (planilha); departamento_id só com exatamente um, ver schema.sql
+function departamentosDaResposta(b) {
+    const brutos = Array.isArray(b.departamentoIds) ? b.departamentoIds : b.departamentoId ? [b.departamentoId] : []
+    const ids = [...new Set(brutos.map(String).filter((id) => UUID.test(id)))]
+    return { departamento_ids: ids, departamento_id: ids.length === 1 ? ids[0] : null }
 }
 
 function validarResposta(b) {
     const atalho = String(b.atalho || '').trim().replace(/^\/+/, '').toLowerCase().replace(/\s+/g, '-')
     const texto = String(b.texto || '').trim()
     if (!atalho || !texto) throw new HttpError(400, 'Atalho e texto são obrigatórios.')
-    return { atalho: atalho.slice(0, 40), titulo: String(b.titulo || '').trim().slice(0, 80) || null, texto: texto.slice(0, 4096), departamento_id: b.departamentoId || null }
+    const regras = String(b.regras || '').trim().slice(0, 2000)
+    const { erros } = lerRegras(regras)
+    if (erros.length) throw new HttpError(400, `Regras: ${erros[0]}`)
+    return {
+        atalho: atalho.slice(0, 40),
+        titulo: String(b.titulo || '').trim().slice(0, 80) || null,
+        texto: texto.slice(0, 4096),
+        ...departamentosDaResposta(b),
+        regras: regras || null,
+    }
+}
+
+// Importação em massa: atalho já existente no mesmo escopo (departamento) é atualizado, o resto é criado
+const MAX_IMPORTACAO = 500
+
+async function importarRespostas(b) {
+    const departamentoId = b.departamentoId || null
+    const porAtalho = new Map()
+    let ignoradas = 0
+    let repetidas = 0
+    for (const item of (Array.isArray(b.itens) ? b.itens : []).slice(0, MAX_IMPORTACAO)) {
+        try {
+            const r = validarResposta({ ...item, departamentoId })
+            if (porAtalho.has(r.atalho)) repetidas += 1 // repetido no arquivo: vale a última linha
+            porAtalho.set(r.atalho, r)
+        } catch {
+            ignoradas += 1
+        }
+    }
+    if (!porAtalho.size) throw new HttpError(400, 'Nenhuma resposta válida para importar.')
+    let q = db().from('zap_respostas_rapidas').select('id, atalho').in('atalho', [...porAtalho.keys()])
+    q = departamentoId ? q.eq('departamento_id', departamentoId) : q.is('departamento_id', null)
+    const existentes = new Map(ok(await q).map((r) => [r.atalho, r.id]))
+    const novas = [...porAtalho.values()].filter((r) => !existentes.has(r.atalho))
+    const atualizar = [...porAtalho.values()].filter((r) => existentes.has(r.atalho))
+    // importação vincula no máximo um departamento: funciona com ou sem a coluna departamento_ids
+    const semIds = (r) => {
+        const { departamento_ids: _, ...resto } = r
+        return resto
+    }
+    if (novas.length) {
+        const r = await db().from('zap_respostas_rapidas').insert(novas)
+        ok(semColunaNova(r) ? await db().from('zap_respostas_rapidas').insert(novas.map(semIds)) : r)
+    }
+    await Promise.all(atualizar.map((r) => gravarResposta(r, (d) => db().from('zap_respostas_rapidas').update(d).eq('id', existentes.get(r.atalho)))))
+    return { criadas: novas.length, atualizadas: atualizar.length, ignoradas, repetidas }
 }
 
 // ---- departamentos ----
@@ -433,9 +820,17 @@ function validarDepto(b) {
 async function listarUsuarios() {
     const { adminEmail, adminNome } = getEnv()
     const lista = ok(
-        await db().from('zap_usuarios').select('id, nome, email, papel, ativo, criado_em, zap_usuario_departamentos(departamento_id)').order('nome'),
+        await db().from('zap_usuarios').select('id, nome, email, senha_hash, papel, ativo, criado_em, zap_usuario_departamentos(departamento_id)').order('nome'),
     )
-    const usuarios = lista.map((u) => ({ id: u.id, nome: u.nome, email: u.email, papel: u.papel, ativo: u.ativo, departamentos: idsDepartamentos(u) }))
+    const usuarios = lista.map((u) => ({
+        id: u.id,
+        nome: u.nome,
+        email: u.email,
+        papel: u.papel,
+        ativo: u.ativo,
+        departamentos: idsDepartamentos(u),
+        convitePendente: u.senha_hash.startsWith(PREFIXO_CONVITE),
+    }))
     if (adminEmail && !usuarios.some((u) => u.email === adminEmail)) {
         usuarios.unshift({ id: ADMIN_ENV_ID, nome: adminNome, email: adminEmail, papel: 'admin', ativo: true, departamentos: [], fixo: true })
     }
@@ -453,14 +848,20 @@ async function criarUsuario(req) {
     const nome = String(b.nome || '').trim()
     const email = String(b.email || '').trim().toLowerCase()
     if (!nome || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, 'Nome e e-mail válidos são obrigatórios.')
-    if (!b.senha || String(b.senha).length < 8) throw new HttpError(400, 'A senha precisa ter ao menos 8 caracteres.')
     if (email === getEnv().adminEmail) throw new HttpError(400, 'Esse e-mail é o administrador inicial do .env.')
     const papel = b.papel === 'admin' ? 'admin' : 'atendente'
-    const criado = ok(
-        await db().from('zap_usuarios').insert({ nome, email, papel, senha_hash: hashSenha(b.senha), ativo: b.ativo !== false }).select('id').single(),
-    )
+    const senha_hash = PREFIXO_CONVITE + segredoAleatorio()
+    const criado = ok(await db().from('zap_usuarios').insert({ nome, email, papel, senha_hash, ativo: b.ativo !== false }).select('id').single())
     await salvarDepartamentosDoUsuario(criado.id, b.departamentos)
-    return { ok: true, id: criado.id }
+    return { ok: true, id: criado.id, ...(await enviarConvite({ id: criado.id, nome, email, senha_hash })) }
+}
+
+async function reenviarConvite(id) {
+    if (id === ADMIN_ENV_ID) throw new HttpError(400, 'O administrador inicial é configurado no .env.')
+    const u = ok(await db().from('zap_usuarios').select('id, nome, email, senha_hash, ativo').eq('id', id).maybeSingle())
+    if (!u) throw new HttpError(404, 'Usuário não encontrado.')
+    if (!u.ativo) throw new HttpError(400, 'Ative o usuário antes de enviar o convite.')
+    return { ok: true, ...(await enviarConvite(u)) }
 }
 
 async function editarUsuario(req, id) {
@@ -479,6 +880,87 @@ async function editarUsuario(req, id) {
     return { ok: true }
 }
 
+// ---- importar da WATI ----
+
+async function operadoresWati() {
+    const { adminEmail } = getEnv()
+    const [ops, existentes] = await Promise.all([wati.listarOperadores(), db().from('zap_usuarios').select('email').then(ok)])
+    const jaTem = new Set(existentes.map((u) => u.email))
+    return ops
+        // fora robôs e o usuário técnico do token da API (api-token-user.<tenant>@clare.ai)
+        .filter((o) => !o.isBot && o.email && !/^api-token-user\./i.test(o.email))
+        .map((o) => {
+            const email = String(o.email).trim().toLowerCase()
+            return {
+                nome: String(o.fullName || o.firstName || email.split('@')[0]).trim(),
+                email,
+                papel: (o.roles || []).includes('ADMINISTRATOR') ? 'admin' : 'atendente',
+                jaExiste: jaTem.has(email) || email === adminEmail,
+            }
+        })
+}
+
+// cria só as contas (com convite pendente); os convites o admin envia depois pelo painel
+async function importarUsuariosWati(req) {
+    const { emails } = await lerCorpo(req)
+    const escolhidos = new Set((emails || []).map((e) => String(e).toLowerCase()))
+    const novos = (await operadoresWati()).filter((o) => !o.jaExiste && escolhidos.has(o.email))
+    if (novos.length) {
+        ok(
+            await db()
+                .from('zap_usuarios')
+                .insert(novos.map((o) => ({ nome: o.nome, email: o.email, papel: o.papel, senha_hash: PREFIXO_CONVITE + segredoAleatorio(), ativo: true }))),
+        )
+    }
+    return { ok: true, criados: novos.length }
+}
+
+// Um lote da importação de "quem está atendendo": a mensagem mais recente de cada conversa traz o operador (assignedId).
+// O navegador chama página a página até `fim`, porque a WATI limita as chamadas e a função tem 30 s.
+async function importarAtribuicoesWati(req) {
+    const { pagina = 1, desde, soSemAtendente = false } = await lerCorpo(req)
+    const limite = new Date(desde || Date.now() - 7 * 86400000).getTime()
+    const ops = await wati.listarOperadores()
+    const emailPorId = new Map(ops.filter((o) => !o.isBot && o.email).map((o) => [o.id, String(o.email).toLowerCase()]))
+    // getContacts vem do mais recente para o mais antigo (lastUpdated)
+    const { contatos } = await wati.listarContatos({ pagina: Number(pagina) || 1, tamanho: LOTE_ATRIBUICOES })
+    const dentro = contatos.filter((c) => new Date(c.lastUpdated || c.created || 0).getTime() >= limite)
+    let recentes = dentro.filter((c) => c.wAid)
+    // sincronização: só as conversas que ainda não têm atendente no painel (economiza chamadas à WATI)
+    if (soSemAtendente && recentes.length) {
+        const comAtendente = ok(
+            await db()
+                .from('zap_conversas')
+                .select('wa_id')
+                .in('wa_id', recentes.map((c) => soDigitos(c.wAid)))
+                .not('atendente_email', 'is', null),
+        )
+        const jaTem = new Set(comAtendente.map((m) => m.wa_id))
+        recentes = recentes.filter((c) => !jaTem.has(soDigitos(c.wAid)))
+    }
+    const mensagensDe = (waId) =>
+        wati.listarMensagens(waId, { tamanho: 20 }).catch(async (e) => {
+            if (e.codigo !== 'limite') return { mensagens: [] }
+            await pausa(2000)
+            return wati.listarMensagens(waId, { tamanho: 20 }).catch(() => ({ mensagens: [] }))
+        })
+    let atribuidas = 0
+    for (let i = 0; i < recentes.length; i += PARALELO_ATRIBUICOES) {
+        const grupo = recentes.slice(i, i + PARALELO_ATRIBUICOES)
+        const respostas = await Promise.all(grupo.map((c) => mensagensDe(c.wAid)))
+        for (const [j, { mensagens }] of respostas.entries()) {
+            const ultima = [...mensagens]
+                .filter((m) => m.assignedId)
+                .sort((a, b) => String(b.created || '').localeCompare(String(a.created || '')))[0]
+            const email = ultima ? emailPorId.get(ultima.assignedId) : null
+            if (!email) continue
+            await salvarMeta(soDigitos(grupo[j].wAid), { atendente_email: email })
+            atribuidas += 1
+        }
+    }
+    return { verificadas: recentes.length, atribuidas, fim: dentro.length < contatos.length || contatos.length < LOTE_ATRIBUICOES }
+}
+
 // Lista enxuta de colegas para "transferir para atendente"
 async function equipe() {
     const lista = ok(await db().from('zap_usuarios').select('nome, email, papel, zap_usuario_departamentos(departamento_id)').eq('ativo', true).order('nome'))
@@ -495,7 +977,7 @@ async function webhook(req, res, query) {
     const evento = b.eventType || ''
     if (waId && (evento === 'message' || evento === 'sessionMessageSent' || evento === 'templateMessageSent' || b.text !== undefined)) {
         const minha = Boolean(b.owner) || evento === 'sessionMessageSent' || evento === 'templateMessageSent'
-        const texto = b.text || b.finalText || (b.type && b.type !== 'text' ? `📎 ${b.type}` : '')
+        const texto = textoPrevia(b.type, b.text || b.finalText)
         const em = b.timestamp ? new Date(Number(b.timestamp) * 1000).toISOString() : b.created || new Date().toISOString()
         ok(
             await db().rpc('zap_registrar_mensagem', {
@@ -533,6 +1015,11 @@ export async function handle(req, res, rotaForcada) {
         if (metodo !== 'GET' && req.headers['x-zap'] !== '1') throw new HttpError(403, 'Requisição bloqueada.')
 
         if (rota === 'auth/login' && metodo === 'POST') return await login(req, res)
+        if (rota === 'auth/convite' && metodo === 'GET') {
+            const u = await lerConvite(query.get('token'))
+            return enviar(res, 200, { nome: u.nome, email: u.email })
+        }
+        if (rota === 'auth/convite' && metodo === 'POST') return await aceitarConvite(req, res)
         if (rota === 'auth/logout' && metodo === 'POST') return enviar(res, 200, { ok: true }, { 'Set-Cookie': cookieSessao(req, '', 0) })
 
         const usuario = await usuarioDaSessao(req)
@@ -542,8 +1029,17 @@ export async function handle(req, res, rotaForcada) {
         if (rota === 'auth/senha' && metodo === 'POST') return responder(await trocarSenha(req, usuario))
         if (rota === 'conversas' && metodo === 'GET') return responder(await listarConversas(usuario, query))
         if (rota === 'templates' && metodo === 'GET') return responder({ templates: await wati.listarTemplates() })
+        if (rota === 'tags' && metodo === 'GET') return responder(await listarTagsSugestao())
         if (rota === 'media' && metodo === 'GET') return await midiaHandler(res, usuario, query)
         if (rota === 'equipe' && metodo === 'GET') return responder(await equipe())
+        if (rota === 'ibge/municipios' && metodo === 'GET') {
+            const lista = await municipiosPorUf(query.get('uf')).catch(() => {
+                throw new HttpError(502, 'Não foi possível carregar as cidades do IBGE agora.')
+            })
+            if (!lista) throw new HttpError(400, 'UF inválida.')
+            res.setHeader('Cache-Control', 'private, max-age=86400')
+            return responder({ municipios: lista })
+        }
 
         if (partes[0] === 'conversas' && partes[1]) {
             const waId = lerIdConversa(decodeURIComponent(partes[1])).id
@@ -554,23 +1050,33 @@ export async function handle(req, res, rotaForcada) {
                 await salvarMeta(waId, { nao_lidas: 0 })
                 return responder({ ok: true })
             }
+            // "marcar como não lida" (só no painel: a WATI não tem isso na API) — mantém a contagem se já houver
+            if (acao === 'nao-lida' && metodo === 'POST') {
+                const meta = await exigirConversa(usuario, waId)
+                await salvarMeta(waId, { nao_lidas: Math.max(1, meta?.nao_lidas || 0) })
+                return responder({ ok: true })
+            }
             if (acao === 'texto' && metodo === 'POST') return responder(await enviarTextoHandler(req, usuario, waId))
             if (acao === 'arquivo' && metodo === 'POST') return responder(await enviarArquivoHandler(req, usuario, waId))
             if (acao === 'template' && metodo === 'POST') return responder(await enviarTemplateHandler(req, usuario, waId))
             if (acao === 'atribuir' && metodo === 'POST') return responder(await atribuirHandler(req, usuario, waId))
             if (acao === 'departamento' && metodo === 'POST') return responder(await departamentoHandler(req, usuario, waId))
             if (acao === 'status' && metodo === 'POST') return responder(await statusHandler(req, usuario, waId))
+            if (acao === 'perfil' && metodo === 'GET') return responder(await perfilHandler(usuario, waId))
+            if (acao === 'contexto' && metodo === 'GET') return responder(await contextoHandler(usuario, waId))
+            if (acao === 'perfil' && metodo === 'PUT') return responder(await salvarPerfilHandler(req, usuario, waId))
         }
 
         if (partes[0] === 'respostas') {
             if (!partes[1] && metodo === 'GET') return responder(await listarRespostas(usuario))
             exigirAdmin(usuario)
+            if (partes[1] === 'importar' && metodo === 'POST') return responder(await importarRespostas(await lerCorpo(req)))
             if (!partes[1] && metodo === 'POST') {
-                ok(await db().from('zap_respostas_rapidas').insert(validarResposta(await lerCorpo(req))))
+                await gravarResposta(validarResposta(await lerCorpo(req)), (d) => db().from('zap_respostas_rapidas').insert(d))
                 return responder({ ok: true })
             }
             if (partes[1] && metodo === 'PUT') {
-                ok(await db().from('zap_respostas_rapidas').update(validarResposta(await lerCorpo(req))).eq('id', partes[1]))
+                await gravarResposta(validarResposta(await lerCorpo(req)), (d) => db().from('zap_respostas_rapidas').update(d).eq('id', partes[1]))
                 return responder({ ok: true })
             }
             if (partes[1] && metodo === 'DELETE') {
@@ -599,6 +1105,10 @@ export async function handle(req, res, rotaForcada) {
             exigirAdmin(usuario)
             if (!partes[1] && metodo === 'GET') return responder(await listarUsuarios())
             if (!partes[1] && metodo === 'POST') return responder(await criarUsuario(req))
+            if (partes[1] === 'wati' && !partes[2] && metodo === 'GET') return responder({ operadores: await operadoresWati() })
+            if (partes[1] === 'wati' && partes[2] === 'importar' && metodo === 'POST') return responder(await importarUsuariosWati(req))
+            if (partes[1] === 'wati' && partes[2] === 'atribuicoes' && metodo === 'POST') return responder(await importarAtribuicoesWati(req))
+            if (partes[1] && partes[2] === 'convite' && metodo === 'POST') return responder(await reenviarConvite(partes[1]))
             if (partes[1] && metodo === 'PUT') return responder(await editarUsuario(req, partes[1]))
             if (partes[1] && metodo === 'DELETE') {
                 if (partes[1] === ADMIN_ENV_ID || partes[1] === usuario.id) throw new HttpError(400, 'Não é possível remover este usuário.')

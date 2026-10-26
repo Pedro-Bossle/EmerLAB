@@ -110,14 +110,22 @@ async function chamar(url, { method = 'GET', body, headers, raw = false } = {}) 
     return dados
 }
 
-export async function listarContatos({ pagina = 1, tamanho = 100, nome } = {}) {
-    const key = `contatos:${pagina}:${tamanho}:${nome || ''}`
+// `nome` busca no nome e no telefone; `atributo` filtra por atributo ({ name, value }, operador "contain" da WATI)
+export async function listarContatos({ pagina = 1, tamanho = 100, nome, atributo } = {}) {
+    const filtro = atributo ? [{ name: atributo.name, operator: 'contain', value: atributo.value }] : undefined
+    const key = `contatos:${pagina}:${tamanho}:${nome || ''}:${filtro ? JSON.stringify(filtro) : ''}`
     const hit = cacheGet(key)
     if (hit) return hit
-    const dados = await chamar(v1Url('getContacts', { pageSize: tamanho, pageNumber: pagina, name: nome }))
+    const dados = await chamar(v1Url('getContacts', { pageSize: tamanho, pageNumber: pagina, name: nome, attribute: filtro }))
     const r = { contatos: dados?.contact_list || [], total: dados?.link?.total ?? null }
     cacheSet(key, r, 8000)
     return r
+}
+
+// Operadores da conta (nome, e-mail, papéis) — usado para importar os usuários
+export async function listarOperadores() {
+    const dados = await chamar(v1Url('operators'))
+    return Array.isArray(dados?.result) ? dados.result : []
 }
 
 export async function listarMensagens(waId, { pagina = 1, tamanho = 50 } = {}) {
@@ -174,6 +182,76 @@ export async function atribuirAtendente(waId, email) {
 export async function atribuirEquipe(waId, equipes) {
     const { watiChannel } = getEnv()
     return chamar(v1Url('assignTeam', { target: waId, teams: equipes, channelPhoneNumber: canalWa(waId, watiChannel) }), { method: 'POST' })
+}
+
+// Ficha do contato na WATI (v3): atributos personalizados, segmentos, opt-in…
+export async function detalheContato(alvo) {
+    return chamar(v3Url(`contacts/${encodeURIComponent(alvo)}`))
+}
+
+// A API não permite mudar o nome do contato, só os atributos personalizados
+export async function atualizarAtributos(alvo, atributos) {
+    invalidarCache('contatos:')
+    return chamar(v3Url('contacts'), {
+        method: 'PUT',
+        body: { contacts: [{ target: alvo, customParams: atributos.map(({ name, value }) => ({ name, value: String(value ?? '') })) }] },
+    })
+}
+
+// Tags da conversa (v3). Adicionar só aplica tag que já existe na WATI: não cria a definição.
+// Não há rota documentada para LER as tags de uma conversa, então a sincronização é só painel → WATI.
+export async function adicionarTag(alvo, tag) {
+    return chamar(v3Url(`conversations/${encodeURIComponent(alvo)}/tags`), { method: 'POST', body: { tagName: tag } })
+}
+
+export async function removerTag(alvo, tag) {
+    return chamar(v3Url(`conversations/${encodeURIComponent(alvo)}/tags/${encodeURIComponent(tag)}`), { method: 'DELETE' })
+}
+
+/** Extrai nomes de tag de respostas heterogêneas da WATI. */
+function nomesDeTags(dados) {
+    const bruto = dados?.tagList || dados?.tags || dados?.data || dados?.result || dados
+    const lista = Array.isArray(bruto) ? bruto : Array.isArray(bruto?.items) ? bruto.items : []
+    const nomes = []
+    for (const item of lista) {
+        const n = typeof item === 'string' ? item : item?.tagName || item?.name || item?.tag || item?.title
+        const t = String(n || '').trim()
+        if (t) nomes.push(t)
+    }
+    return nomes
+}
+
+/**
+ * Tenta listar as tags cadastradas na conta WATI (não documentado de forma estável).
+ * Se a conta/plano não expuser a rota, devolve [] sem lançar — o painel completa com o histórico local.
+ */
+export async function listarTags() {
+    const hit = cacheGet('tags:catalogo')
+    if (hit) return hit
+    // POST /api/v1/tags (paginado) é o que responde hoje; getTags e v3/tags dão 404 nesta conta
+    const tentativas = [
+        () => chamar(v1Url('tags'), { method: 'POST', body: { pageSize: 500, pageNumber: 1 } }),
+        () => chamar(v1Url('tags/list')),
+        () => chamar(v1Url('getTags')),
+    ]
+    for (const tentativa of tentativas) {
+        try {
+            const nomes = nomesDeTags(await tentativa())
+            if (nomes.length) {
+                cacheSet('tags:catalogo', nomes, 5 * 60 * 1000)
+                return nomes
+            }
+        } catch {
+            /* próxima tentativa */
+        }
+    }
+    cacheSet('tags:catalogo', [], 60 * 1000)
+    return []
+}
+
+/** Após sync bem-sucedido, invalida o catálogo para a próxima leitura pegar tags novas. */
+export function invalidarCacheTags() {
+    invalidarCache('tags:')
 }
 
 const STATUS_WATI = { aberta: 'open', pendente: 'pending', resolvida: 'solved' }

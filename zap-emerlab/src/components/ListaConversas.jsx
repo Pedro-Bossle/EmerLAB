@@ -5,7 +5,7 @@ import IconeCanal from './IconeCanal.jsx'
 export function Avatar({ conversa, tamanho = 49 }) {
     const canal = canalDoId(conversa.waId)
     return (
-        <span className="avatar" style={{ width: tamanho, height: tamanho, background: corAvatar(conversa.waId), fontSize: tamanho * 0.36 }}>
+        <span className="avatar" style={{ width: tamanho, height: tamanho, '--av': corAvatar(conversa.waId), fontSize: tamanho * 0.36 }}>
             {conversa.foto ? (
                 <img src={conversa.foto} alt="" referrerPolicy="no-referrer" />
             ) : conversa.nome ? (
@@ -13,13 +13,13 @@ export function Avatar({ conversa, tamanho = 49 }) {
             ) : canal === 'whatsapp' ? (
                 <Icone nome="usuario" tamanho={tamanho * 0.5} />
             ) : (
-                <IconeCanal canal={canal} tamanho={tamanho * 0.46} cor="#fff" />
+                <IconeCanal canal={canal} tamanho={tamanho * 0.46} />
             )}
         </span>
     )
 }
 
-export default function ListaConversas({ conversas, carregando, erro, textoVazio, selecionada, deptoPorId, usuarioEmail, equipe, aoAbrir, aoTentar }) {
+export default function ListaConversas({ conversas, carregando, erro, textoVazio, selecionada, deptoPorId, usuarioEmail, equipe, aoAbrir, aoTentar, aoMenu }) {
     const nomeAtendente = (email) => (email === usuarioEmail ? 'Você' : equipe.find((u) => u.email === email)?.nome?.split(' ')[0] || email?.split('@')[0])
 
     if (carregando) {
@@ -58,7 +58,22 @@ export default function ListaConversas({ conversas, carregando, erro, textoVazio
             {conversas.map((c) => {
                 const depto = c.departamentoId ? deptoPorId[c.departamentoId] : null
                 return (
-                    <button key={c.waId} role="listitem" className={`item ${selecionada === c.waId ? 'selecionado' : ''} ${c.naoLidas ? 'nao-lida' : ''}`} onClick={() => aoAbrir(c)}>
+                    <button
+                        key={c.waId}
+                        role="listitem"
+                        className={`item ${selecionada === c.waId ? 'selecionado' : ''} ${c.naoLidas ? 'nao-lida' : ''} ${!c.atendenteEmail && c.status !== 'resolvida' ? 'na-fila' : ''}`}
+                        // a prévia corta em uma linha: o tooltip nativo mostra a última mensagem inteira
+                        title={c.ultimaMsg || undefined}
+                        onClick={() => aoAbrir(c)}
+                        onContextMenu={(e) => {
+                            if (!aoMenu) return
+                            e.preventDefault()
+                            // pela tecla Menu ou Shift+F10 o evento vem sem coordenadas: abre junto do card
+                            const r = e.currentTarget.getBoundingClientRect()
+                            const peloTeclado = e.clientX === 0 && e.clientY === 0
+                            aoMenu(c, peloTeclado ? { x: r.left + 24, y: r.top + r.height / 2 } : { x: e.clientX, y: e.clientY })
+                        }}
+                    >
                         <Avatar conversa={c} />
                         <div className="item-corpo">
                             <div className="item-linha">
@@ -78,7 +93,7 @@ export default function ListaConversas({ conversas, carregando, erro, textoVazio
                                     </span>
                                 ) : null}
                             </div>
-                            {depto || c.atendenteEmail ? (
+                            {depto || c.atendenteEmail || c.tags?.length || c.status !== 'resolvida' ? (
                                 <div className="item-tags">
                                     {depto ? (
                                         <span className="tag" style={{ '--tag': depto.cor }}>
@@ -86,10 +101,20 @@ export default function ListaConversas({ conversas, carregando, erro, textoVazio
                                         </span>
                                     ) : null}
                                     {c.atendenteEmail ? (
-                                        <span className="tag tag-neutra">
-                                            <Icone nome="usuario" tamanho={11} traco={2.5} /> {nomeAtendente(c.atendenteEmail)}
+                                        <span className="item-atendente">
+                                            <Icone nome="usuario" tamanho={12} traco={2.25} /> {nomeAtendente(c.atendenteEmail)}
+                                        </span>
+                                    ) : c.status !== 'resolvida' ? (
+                                        <span className="item-atendente">
+                                            <Icone nome="pendente" tamanho={12} traco={2.25} /> Na fila
                                         </span>
                                     ) : null}
+                                    {(c.tags || []).slice(0, 2).map((t) => (
+                                        <span key={t} className="tag tag-neutra tag-etiqueta">
+                                            {t}
+                                        </span>
+                                    ))}
+                                    {c.tags?.length > 2 ? <span className="tag tag-neutra tag-etiqueta">+{c.tags.length - 2}</span> : null}
                                 </div>
                             ) : null}
                         </div>

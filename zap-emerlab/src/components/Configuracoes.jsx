@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api } from '../api.js'
 import { DESTAQUES } from '../tema.js'
 import Modal from './Modal.jsx'
+import Instrucoes from './Instrucoes.jsx'
 
 function Segmentado({ valor, opcoes, aoMudar, rotulo }) {
     return (
@@ -68,6 +69,9 @@ export default function Configuracoes({ usuario, prefs, setPrefs, aoFechar, avis
                 <button className={aba === 'conta' ? 'ativo' : ''} onClick={() => setAba('conta')}>
                     Conta
                 </button>
+                <button className={aba === 'instrucoes' ? 'ativo' : ''} onClick={() => setAba('instrucoes')}>
+                    Instruções de uso
+                </button>
             </div>
 
             {aba === 'aparencia' ? (
@@ -131,6 +135,12 @@ export default function Configuracoes({ usuario, prefs, setPrefs, aoFechar, avis
                         valor={prefs.enterEnvia}
                         aoMudar={(v) => setPrefs({ enterEnvia: v })}
                     />
+                    <Alternar
+                        rotulo="Identificar o atendente nas mensagens"
+                        descricao={`Começa cada mensagem com "Atendente ${usuario.nome}" em negrito e uma quebra de linha.`}
+                        valor={prefs.identificarAtendente}
+                        aoMudar={(v) => setPrefs({ identificarAtendente: v })}
+                    />
                     <Alternar rotulo="Som de nova mensagem" valor={prefs.som} aoMudar={(v) => setPrefs({ som: v })} />
                     <Alternar
                         rotulo="Notificações da área de trabalho"
@@ -140,6 +150,8 @@ export default function Configuracoes({ usuario, prefs, setPrefs, aoFechar, avis
                     />
                 </div>
             ) : null}
+
+            {aba === 'instrucoes' ? <Instrucoes /> : null}
 
             {aba === 'conta' ? (
                 <div className="config-secao">

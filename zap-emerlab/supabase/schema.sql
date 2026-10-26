@@ -42,6 +42,14 @@ create table if not exists public.zap_respostas_rapidas (
     criado_em timestamptz not null default now()
 );
 create index if not exists zap_respostas_rapidas_depto_idx on public.zap_respostas_rapidas (departamento_id);
+-- Regras de relevância (texto "chave {valor}", ver src/regras.js): as que batem com o contato aparecem primeiro
+alter table public.zap_respostas_rapidas add column if not exists regras text;
+-- Vários departamentos por resposta (vazio = todos). departamento_id fica só quando há exatamente um,
+-- para a importação por planilha e o "on delete cascade" continuarem como antes.
+alter table public.zap_respostas_rapidas add column if not exists departamento_ids uuid[] not null default '{}';
+update public.zap_respostas_rapidas set departamento_ids = array[departamento_id]
+    where departamento_id is not null and departamento_ids = '{}';
+create index if not exists zap_respostas_rapidas_deptos_idx on public.zap_respostas_rapidas using gin (departamento_ids);
 
 -- Metadados por conversa (chave = número WhatsApp com DDI, só dígitos)
 create table if not exists public.zap_conversas (
@@ -56,6 +64,10 @@ create table if not exists public.zap_conversas (
     nao_lidas integer not null default 0,
     atualizado_em timestamptz not null default now()
 );
+-- Perfil do contato editado no painel (dados que ficam só aqui; o resto vai em atributos da WATI)
+alter table public.zap_conversas add column if not exists email text;
+alter table public.zap_conversas add column if not exists tags text[] not null default '{}';
+alter table public.zap_conversas add column if not exists notas text;
 create index if not exists zap_conversas_depto_idx on public.zap_conversas (departamento_id);
 create index if not exists zap_conversas_ultima_idx on public.zap_conversas (ultima_msg_em desc);
 

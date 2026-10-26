@@ -9,6 +9,7 @@ export const PADRAO = {
     fonte: 'normal', // pequena | normal | grande
     enterEnvia: true,
     som: true,
+    identificarAtendente: true, // "*Atendente <nome>*" + quebra de linha no início de cada mensagem
     notificacoes: false,
 }
 

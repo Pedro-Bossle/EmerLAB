@@ -20,6 +20,10 @@ export function getEnv() {
         supabaseUrl: str('SUPABASE_URL'),
         supabaseKey: str('SUPABASE_SERVICE_ROLE_KEY'),
         webhookSecret: str('ZAP_WEBHOOK_SECRET'),
+        resendKey: str('RESEND_API_KEY'),
+        emailFrom: str('RESEND_FROM_EMAIL', 'noreply@emerlab.com.br'),
+        emailFromNome: str('ZAP_EMAIL_FROM_NOME', 'Emerzap'),
+        publicUrl: str('ZAP_PUBLIC_URL', 'https://zap.emerlab.com.br').replace(/\/+$/, ''),
         atendenteVeSemDepto: str('ZAP_ATENDENTE_VE_SEM_DEPARTAMENTO', 'true') !== 'false',
     }
 }
