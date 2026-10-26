@@ -1,0 +1,25 @@
+{
+  "name": "zap-emerlab",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c green,cyan \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:web": "vite",
+    "dev:api": "node ./scripts/dev-server.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "hash-senha": "node ./scripts/hash-senha.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.105.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "dotenv": "^17.4.2",
+    "vite": "^8.0.4"
+  }
+}
