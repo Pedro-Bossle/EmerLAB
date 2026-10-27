@@ -1,0 +1,35 @@
+import { useState } from 'react'
+import Modal from './Modal.jsx'
+
+export default function NovaConversa({ aoFechar, aoAbrir }) {
+    const [numero, setNumero] = useState('')
+    const digitos = numero.replace(/\D/g, '')
+    // sem DDI, assume Brasil
+    const waId = digitos.length === 10 || digitos.length === 11 ? `55${digitos}` : digitos
+    const valido = waId.length >= 12 && waId.length <= 15
+
+    return (
+        <Modal titulo="Nova conversa" aoFechar={aoFechar}>
+            <form
+                onSubmit={(e) => {
+                    e.preventDefault()
+                    if (valido) aoAbrir(waId)
+                }}
+            >
+                <label className="campo">
+                    <span>Número do WhatsApp</span>
+                    <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="(51) 99999-9999 ou +55 51 99999-9999" inputMode="tel" autoFocus />
+                </label>
+                <p className="ajuda">Para iniciar contato com quem não escreveu nas últimas 24h, o WhatsApp exige um template aprovado — o painel vai oferecer essa opção ao abrir.</p>
+                <div className="modal-acoes">
+                    <button type="button" className="botao botao-secundario" onClick={aoFechar}>
+                        Cancelar
+                    </button>
+                    <button className="botao" disabled={!valido}>
+                        Abrir conversa
+                    </button>
+                </div>
+            </form>
+        </Modal>
+    )
+}

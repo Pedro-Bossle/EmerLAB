@@ -8,6 +8,22 @@ export { montarEmailAuth, montarEmailAuthHtml, montarEmailPorTemplate }
 const DEFAULT_FROM_EMAIL = EMAIL_BRAND.fromEmail
 const DEFAULT_FROM_NAME = EMAIL_BRAND.name
 
+/**
+ * Normaliza RESEND_API_KEY: remove BOM, aspas (comuns ao colar no Vercel) e prefixo Bearer.
+ * Sem isso a Resend responde "API key is invalid" mesmo com a chave certa no painel.
+ */
+export function normalizeResendApiKey(raw) {
+    let k = String(raw ?? '').trim()
+    if (k.charCodeAt(0) === 0xfeff) k = k.slice(1).trim()
+    k = k.replace(/^[\s"'“”‘’]+|[\s"'“”‘’]+$/g, '').trim()
+    k = k.replace(/^Bearer\s+/i, '').trim()
+    return k
+}
+
+export function getResendApiKey() {
+    return normalizeResendApiKey(process.env.RESEND_API_KEY || process.env.RESEND_KEY || '')
+}
+
 export function getResendFrom() {
     const email = String(process.env.RESEND_FROM_EMAIL || DEFAULT_FROM_EMAIL).trim() || DEFAULT_FROM_EMAIL
     const name = String(process.env.RESEND_FROM_NAME || DEFAULT_FROM_NAME).trim() || DEFAULT_FROM_NAME
@@ -15,9 +31,14 @@ export function getResendFrom() {
 }
 
 function getResendClient() {
-    const apiKey = String(process.env.RESEND_API_KEY || '').trim()
+    const apiKey = getResendApiKey()
     if (!apiKey) {
         throw new Error('Defina RESEND_API_KEY para enviar e-mails.')
+    }
+    if (!/^re_/i.test(apiKey)) {
+        throw new Error(
+            'RESEND_API_KEY com formato inválido (deve começar com re_). Confira aspas extras no .env / Vercel.',
+        )
     }
     return new Resend(apiKey)
 }
@@ -97,6 +118,11 @@ export async function enviarEmailResend(opts) {
     const { data, error } = await resend.emails.send(payload)
     if (error) {
         const msg = String(error?.message || error || 'Falha ao enviar e-mail via Resend.')
+        if (/api key is invalid|missing api key|invalid.?api.?key/i.test(msg)) {
+            throw new Error(
+                `${msg} — confira RESEND_API_KEY no Vercel/.env.local (sem aspas ao redor do valor) e se o projeto certo tem a variável.`,
+            )
+        }
         throw new Error(msg)
     }
     return data

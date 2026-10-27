@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.env.local
+.vercel
+
+# A raiz ignora .env* e *.sql — reabilita os modelos deste painel
+!.env.example
+!supabase/*.sql
+
+# saída do taste-skill (capturas e relatórios)
+.taste-skill/
