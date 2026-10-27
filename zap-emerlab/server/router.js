@@ -151,6 +151,30 @@ async function salvarMeta(waId, campos) {
     )
 }
 
+// Entrada por anúncio (Click-to-WhatsApp): a mensagem do cliente que veio do anúncio traz messageReferral
+// (ctwaClid, título, link). Guarda o mais recente na conversa para a pill "Tráfego".
+function anuncioDe(itens) {
+    const r = [...itens]
+        .filter((m) => !m.owner && (m.messageReferral?.ctwaClid || m.messageReferral?.sourceId))
+        .sort((a, b) => msData(b.created) - msData(a.created))[0]
+    if (!r) return null
+    const ref = r.messageReferral
+    return {
+        titulo: String(ref.headline || '').slice(0, 120) || null,
+        texto: String(ref.body || '').slice(0, 200) || null,
+        url: ref.url || ref.sourceUrl || null,
+        id: ref.sourceId || null,
+        em: r.created || null,
+    }
+}
+
+// só grava anúncio novo; sem a coluna anuncio (supabase/schema.sql) não faz nada, para não quebrar lista nem chat
+async function registrarAnuncio(waId, anuncio, atual) {
+    if (!anuncio || (atual && atual.em === anuncio.em)) return false
+    const r = await db().from('zap_conversas').upsert({ wa_id: waId, anuncio }, { onConflict: 'wa_id' })
+    return !r.error
+}
+
 // ---------- normalização ----------
 
 // Templates/broadcasts da WATI muitas vezes vêm sem owner=true; ainda assim são envio nosso
@@ -221,19 +245,25 @@ function normalizarContatoCanal(c, canal) {
     }
 }
 
-// atributos da WATI que entram na busca da lista (além de nome, telefone e etiquetas)
-const ATRIBUTOS_BUSCA = ['tipo', 'cidade', 'uf']
+// atributos da WATI que entram na busca da lista (além de nome/telefone WhatsApp e etiquetas)
+// `name` é o Nome da ficha (CRM), distinto do fullName do WhatsApp
+const ATRIBUTOS_BUSCA = ['name', 'tipo', 'cidade', 'uf']
 
 function normalizarContato(c) {
     const waId = soDigitos(c.wAid || c.waId || c.phone)
     const atributos = {}
+    let nomeFicha = null
     for (const p of c.customParams || []) {
-        const k = String(p?.name || '').toLowerCase()
-        if (ATRIBUTOS_BUSCA.includes(k) && p.value) atributos[k] = String(p.value)
+        const k = String(p?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+        if (!p?.value) continue
+        if (ATRIBUTOS_BUSCA.includes(k)) atributos[k] = String(p.value)
+        if (k === 'name') nomeFicha = String(p.value).trim()
     }
+    const nomeWati = c.fullName || [c.firstName, c.lastName].filter(Boolean).join(' ') || c.firstName || null
+    // ficha salva (atributo name) tem prioridade sobre o push name do WhatsApp
     return {
         waId,
-        nome: c.fullName || [c.firstName, c.lastName].filter(Boolean).join(' ') || c.firstName || null,
+        nome: nomeFicha || nomeWati || null,
         foto: c.photo || null,
         atualizadoEm: c.lastUpdated || c.created || null,
         atributos,
@@ -371,29 +401,41 @@ async function listarConversas(usuario, query) {
     for (const c of contatos) if (c.waId) porId.set(c.waId, { ...c })
     for (const m of metas) {
         const atual = porId.get(m.wa_id) || { waId: m.wa_id, nome: m.nome, foto: null, atualizadoEm: null }
-        porId.set(m.wa_id, { ...atual, nome: atual.nome || m.nome, meta: m })
+        // nome da ficha (WATI) > nome já gravado no painel > vazio
+        porId.set(m.wa_id, { ...atual, nome: atual.nome || m.nome || null, meta: m })
     }
-    let lista = [...porId.values()]
-        .filter((c) => podeVerConversa(usuario, c.meta))
-        .map((c) => {
-            // horário da última mensagem. O last_updated do contato na WATI também muda sem mensagem (chatbot expirando
-            // ~3h depois, atributo, atribuição): só serve de palpite enquanto a conversa não foi verificada
-            const ultimaEm = c.meta?.ultima_msg_em || c.atualizadoEm || null
-            return {
-                waId: c.waId,
-                nome: c.nome || null,
-                foto: c.foto,
-                ultimaMsg: c.meta?.ultima_msg || null,
-                ultimaMinha: c.meta?.ultima_msg_minha ?? null,
-                ultimaEm,
-                naoLidas: c.meta?.nao_lidas || 0,
-                departamentoId: c.meta?.departamento_id || null,
-                atendenteEmail: c.meta?.atendente_email || null,
-                status: c.meta?.status || 'aberta',
-                tags: c.meta?.tags || [],
-                atributos: c.atributos || {},
-            }
-        })
+    const brutos = [...porId.values()].filter((c) => podeVerConversa(usuario, c.meta))
+    // espelha nomes da ficha WATI no painel (só quando a meta ainda não tem nome)
+    const espelhar = brutos
+        .filter((c) => (c.nome || c.atributos?.name) && !c.meta?.nome)
+        .slice(0, 40)
+    if (espelhar.length) {
+        Promise.allSettled(
+            espelhar.map((c) => salvarMeta(c.waId, { nome: String(c.nome || c.atributos.name).slice(0, 120) })),
+        ).catch(() => {})
+    }
+    let lista = brutos.map((c) => {
+        // horário da última mensagem. O last_updated do contato na WATI também muda sem mensagem (chatbot expirando
+        // ~3h depois, atributo, atribuição): só serve de palpite enquanto a conversa não foi verificada
+        const ultimaEm = c.meta?.ultima_msg_em || c.atualizadoEm || null
+        return {
+            waId: c.waId,
+            nome: c.nome || c.atributos?.name || null,
+            foto: c.foto,
+            ultimaMsg: c.meta?.ultima_msg || null,
+            ultimaMinha: c.meta?.ultima_msg_minha ?? null,
+            ultimaEm,
+            // a janela de 24h do WhatsApp conta da última mensagem do cliente (null = ainda não se sabe)
+            ultimaClienteEm: c.meta?.ultima_cliente_em || (c.meta?.ultima_msg_minha === false ? ultimaEm : null),
+            anuncio: c.meta?.anuncio || null,
+            naoLidas: c.meta?.nao_lidas || 0,
+            departamentoId: c.meta?.departamento_id || null,
+            atendenteEmail: c.meta?.atendente_email || null,
+            status: c.meta?.status || 'aberta',
+            tags: c.meta?.tags || [],
+            atributos: c.atributos || {},
+        }
+    })
     if (busca) {
         const b = busca.toLowerCase()
         const d = soDigitos(busca)
@@ -401,7 +443,7 @@ async function listarConversas(usuario, query) {
             (c) =>
                 (c.nome || '').toLowerCase().includes(b) ||
                 c.tags.some((t) => t.toLowerCase().includes(b)) ||
-                Object.values(c.atributos).some((v) => v.toLowerCase().includes(b)) ||
+                Object.values(c.atributos).some((v) => String(v).toLowerCase().includes(b)) ||
                 (d && canal === 'whatsapp' && c.waId.includes(d)),
         )
     }
@@ -437,6 +479,19 @@ function escolherParaVerificar(lista, contatoEm) {
     return [...new Set([...nunca, ...mexidas, ...ativas])].slice(0, VERIFICAR_POR_VEZ)
 }
 
+// Quem atende segundo a WATI: o bot (round-robin) e o painel oficial atribuem lá, e o painel só ficava sabendo pelo
+// "Assumir". Vale o evento de atribuição mais recente ("The chat has been assigned to x@y by Bot…",
+// "Chat is now assigned to x@y"); sem evento nas mensagens lidas, nada muda.
+const RE_ATRIBUIDO = /assigned to ([^\s()]+@[^\s()]+?)[.,]?(?:\s|$)/i
+function atendenteDoHistorico(itens) {
+    const eventos = [...itens].filter((m) => m.eventType === 'ticket').sort((a, b) => msData(b.created) - msData(a.created))
+    for (const e of eventos) {
+        const m = String(e.eventDescription || e.text || '').match(RE_ATRIBUIDO)
+        if (m) return m[1].toLowerCase()
+    }
+    return null
+}
+
 async function verificarNaWati(lista, metaPorId, contatoEm) {
     await Promise.allSettled(
         escolherParaVerificar(lista, contatoEm).map(async (c) => {
@@ -446,11 +501,24 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
                 .map(normalizarMensagem)
                 .filter((m) => (m.evento === 'message' || m.evento === 'broadcastMessage') && m.em)
                 .sort((a, b) => msData(b.em) - msData(a.em))
+            const meta = metaPorId.get(c.waId)
+            const anuncio = anuncioDe(itens)
+            if (await registrarAnuncio(c.waId, anuncio, meta?.anuncio)) c.anuncio = anuncio
+            const atendente = atendenteDoHistorico(itens)
+            if (atendente && atendente !== meta?.atendente_email) {
+                await salvarMeta(c.waId, { atendente_email: atendente })
+                c.atendenteEmail = atendente
+            }
             const ultima = msgs[0]
             if (!ultima) return
             // horário certo mesmo quando não há nada novo (o card podia estar com o last_updated do contato)
             c.ultimaEm = ultima.em
-            const meta = metaPorId.get(c.waId)
+            // última do cliente entre as lidas: corrige a janela de 24h mesmo sem mensagem nova
+            const doCliente = msgs.find((m) => !m.minha)?.em
+            if (doCliente && msData(doCliente) > msData(meta?.ultima_cliente_em) + FOLGA_MS) {
+                await salvarMeta(c.waId, { ultima_cliente_em: doCliente })
+                c.ultimaClienteEm = doCliente
+            }
             const conhecidaMs = meta?.ultima_msg_em ? new Date(meta.ultima_msg_em).getTime() : null
             const nova = (m) => conhecidaMs === null || new Date(m.em).getTime() > conhecidaMs + FOLGA_MS
             if (conhecidaMs !== null && !nova(ultima)) return
@@ -482,9 +550,10 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
 }
 
 async function mensagens(usuario, waId, query) {
-    await exigirConversa(usuario, waId)
+    const meta = await exigirConversa(usuario, waId)
     const pagina = Math.max(1, Number(query.get('pagina')) || 1)
     const { mensagens: itens, temMais } = await wati.listarMensagens(alvoWati(waId), { pagina, tamanho: 50 })
+    await registrarAnuncio(waId, anuncioDe(itens), meta?.anuncio)
     const lista = itens.map(normalizarMensagem).sort((a, b) => msData(a.em) - msData(b.em))
     await Promise.all([nomesArquivosEnviados(waId, lista), wamidsDoWebhook(waId, lista)])
     return { mensagens: lista, temMais }
@@ -715,16 +784,22 @@ async function perfilHandler(usuario, waId) {
     } catch (e) {
         avisoWati = e.message
     }
+    // espelha o Nome da ficha (atributo WATI) em zap_conversas.nome para a lista não cair no telefone
+    const nomeFicha = String(ficha?.atributos?.find((a) => chaveAtributo(a.name) === 'name')?.value || '').trim().slice(0, 120)
+    if (nomeFicha && nomeFicha !== meta?.nome) {
+        await salvarMeta(waId, { nome: nomeFicha }).catch(() => {})
+    }
     return {
         perfil: {
             waId,
-            nomeWhatsapp: ficha?.nome || meta?.nome || '',
+            nomeWhatsapp: nomeFicha || ficha?.nome || meta?.nome || '',
             email: meta?.email || '',
             tags: meta?.tags || [],
             notas: meta?.notas || '',
         },
         wati: ficha,
         avisoWati,
+        nome: nomeFicha || ficha?.nome || meta?.nome || null,
     }
 }
 
@@ -736,10 +811,17 @@ async function salvarPerfilHandler(req, usuario, waId) {
     const tags = []
     for (const t of (Array.isArray(b.tags) ? b.tags : []).map(normalizarTag)) if (t && !tags.some((x) => mesmaTag(x, t))) tags.push(t)
     tags.splice(MAX_TAGS)
+    // nome da ficha (atributo) ou campo explícito — atualiza o título da lista
+    const nomeBody = String(b.nome || '').trim().slice(0, 120)
+    const nomeAttr = (Array.isArray(b.atributos) ? b.atributos : [])
+        .map((a) => ({ name: String(a?.name || '').trim(), value: String(a?.value ?? '').trim().slice(0, 500) }))
+        .find((a) => a.name && chaveAtributo(a.name) === 'name' && a.value)?.value?.slice(0, 120)
+    const nome = nomeBody || nomeAttr || null
     await salvarMeta(waId, {
         email: email || null,
         tags,
         notas: String(b.notas || '').trim().slice(0, 2000) || null,
+        ...(nome ? { nome } : {}),
     })
     const falhasTags = await sincronizarTags(waId, meta?.tags || [], tags)
     if (falhasTags.length < tags.length || (meta?.tags || []).length !== tags.length) {
@@ -764,7 +846,7 @@ async function salvarPerfilHandler(req, usuario, waId) {
             }
         }
     }
-    return { ok: true, tags, avisoWati, atributosVazios, falhasTags }
+    return { ok: true, tags, avisoWati, atributosVazios, falhasTags, nome: nome || meta?.nome || null }
 }
 
 async function departamentoHandler(req, usuario, waId) {
@@ -1100,6 +1182,7 @@ async function webhook(req, res, query) {
                 p_minha: minha,
             }),
         )
+        if (!minha && b.messageReferral) await registrarAnuncio(waId, anuncioDe([{ ...b, created: em }]), null)
         if (b.whatsappMessageId) {
             // guarda o wamid para o "Responder"; sem a tabela, o webhook segue normal
             await db()

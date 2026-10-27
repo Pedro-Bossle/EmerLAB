@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { tempoDesde, janela24h, calcularEspera, nomeExibicao, formatarTelefone, CANAIS } from '../util.js'
+import { tempoDesde, janelaDaConversa, calcularEspera, nomeExibicao, formatarTelefone, CANAIS } from '../util.js'
 import { Avatar, ContatoMetaPills } from './ListaConversas.jsx'
 import Icone from './Icone.jsx'
 
@@ -55,7 +55,7 @@ export default function FilaEspera({ conversas, canal, usuarioEmail, aoAbrir }) 
     }
 
     const maisAntiga = esperando[0]
-    const emRisco = esperando.filter((c) => janela24h(c.ultimaEm, agora).restanteMs <= RISCO_MS).length
+    const emRisco = esperando.filter((c) => janelaDaConversa(c, agora).restanteMs <= RISCO_MS).length
     const lista = listas[categoria] || []
     const meta = CATEGORIAS.find((c) => c.id === categoria)
 
@@ -115,7 +115,7 @@ export default function FilaEspera({ conversas, canal, usuarioEmail, aoAbrir }) 
                 ) : (
                     <ul className="fila-lista">
                         {lista.map((c) => {
-                            const janela = c.ultimaEm ? janela24h(c.ultimaEm, agora) : null
+                            const janela = c.ultimaEm ? janelaDaConversa(c, agora) : null
                             const risco = janela && !janela.fechada && janela.restanteMs <= RISCO_MS
                             const fone = formatarTelefone(c.waId)
                             return (
@@ -125,7 +125,7 @@ export default function FilaEspera({ conversas, canal, usuarioEmail, aoAbrir }) 
                                         <span className="fila-contato-corpo">
                                             <span className="fila-contato-linha">
                                                 <span className="fila-contato-nome">{nomeExibicao(c)}</span>
-                                                <ContatoMetaPills tipo={c.atributos?.tipo} cidade={c.atributos?.cidade} />
+                                                <ContatoMetaPills tipo={c.atributos?.tipo} cidade={c.atributos?.cidade} anuncio={c.anuncio} />
                                             </span>
                                             <span className="fila-contato-meta">
                                                 {fone ? <span>{fone}</span> : null}

@@ -68,6 +68,10 @@ create table if not exists public.zap_conversas (
 alter table public.zap_conversas add column if not exists email text;
 alter table public.zap_conversas add column if not exists tags text[] not null default '{}';
 alter table public.zap_conversas add column if not exists notas text;
+-- última mensagem do cliente: a janela de 24h do WhatsApp conta dela (ultima_msg_em pode ser resposta nossa)
+alter table public.zap_conversas add column if not exists ultima_cliente_em timestamptz;
+-- entrada por anúncio (Click-to-WhatsApp): { titulo, texto, url, id, em } do messageReferral da WATI
+alter table public.zap_conversas add column if not exists anuncio jsonb;
 create index if not exists zap_conversas_depto_idx on public.zap_conversas (departamento_id);
 create index if not exists zap_conversas_ultima_idx on public.zap_conversas (ultima_msg_em desc);
 
@@ -114,13 +118,14 @@ security definer
 set search_path = public
 as $$
 begin
-    insert into zap_conversas (wa_id, nome, ultima_msg, ultima_msg_em, ultima_msg_minha, nao_lidas, status)
-    values (p_wa_id, p_nome, p_texto, p_em, p_minha, case when p_minha then 0 else 1 end, 'aberta')
+    insert into zap_conversas (wa_id, nome, ultima_msg, ultima_msg_em, ultima_msg_minha, ultima_cliente_em, nao_lidas, status)
+    values (p_wa_id, p_nome, p_texto, p_em, p_minha, case when p_minha then null else p_em end, case when p_minha then 0 else 1 end, 'aberta')
     on conflict (wa_id) do update set
         nome = coalesce(excluded.nome, zap_conversas.nome),
         ultima_msg = excluded.ultima_msg,
         ultima_msg_em = excluded.ultima_msg_em,
         ultima_msg_minha = excluded.ultima_msg_minha,
+        ultima_cliente_em = case when p_minha then zap_conversas.ultima_cliente_em else greatest(zap_conversas.ultima_cliente_em, p_em) end,
         nao_lidas = case when p_minha then zap_conversas.nao_lidas else zap_conversas.nao_lidas + 1 end,
         -- cliente escreveu numa conversa resolvida → reabre
         status = case when p_minha then zap_conversas.status else 'aberta' end,

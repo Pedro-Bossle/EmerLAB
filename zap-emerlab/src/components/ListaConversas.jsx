@@ -3,12 +3,23 @@ import Icone from './Icone.jsx'
 import IconeCanal from './IconeCanal.jsx'
 
 /** Pills discretas de Tipo e Cidade (atributos WATI) ao lado do nome. */
-export function ContatoMetaPills({ tipo, cidade }) {
+// "Tráfego": a conversa entrou por anúncio Click-to-WhatsApp (anuncio = messageReferral guardado pelo servidor)
+function dicaAnuncio(a) {
+    const quando = a.em ? new Date(a.em).toLocaleDateString('pt-BR') : ''
+    return ['Entrou por anúncio' + (quando ? ` em ${quando}` : ''), a.titulo, a.url].filter(Boolean).join('\n')
+}
+
+export function ContatoMetaPills({ tipo, cidade, anuncio }) {
     const t = String(tipo || '').trim()
     const c = String(cidade || '').trim()
-    if (!t && !c) return null
+    if (!t && !c && !anuncio) return null
     return (
         <span className="meta-pills">
+            {anuncio ? (
+                <span className="tag tag-meta tag-trafego" title={dicaAnuncio(anuncio)}>
+                    Tráfego
+                </span>
+            ) : null}
             {t ? (
                 <span className="tag tag-neutra tag-meta" title={`Tipo: ${t}`}>
                     {t}
@@ -100,7 +111,7 @@ export default function ListaConversas({ conversas, carregando, erro, textoVazio
                             <div className="item-linha">
                                 <span className="item-nome-wrap">
                                     <span className="item-nome">{nomeExibicao(c)}</span>
-                                    <ContatoMetaPills tipo={c.atributos?.tipo} cidade={c.atributos?.cidade} />
+                                    <ContatoMetaPills tipo={c.atributos?.tipo} cidade={c.atributos?.cidade} anuncio={c.anuncio} />
                                 </span>
                                 <span className={`item-hora ${c.naoLidas ? 'destaque' : ''}`}>{dataLista(c.ultimaEm)}</span>
                             </div>

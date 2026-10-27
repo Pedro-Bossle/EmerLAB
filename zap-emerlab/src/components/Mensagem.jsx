@@ -1,8 +1,41 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { urlMidia } from '../api.js'
 import { formatarWhatsapp, horaCurta, pareceEventoSistemaWati, traduzirEventoSistema } from '../util.js'
 import Icone from './Icone.jsx'
 import MenuContexto from './MenuContexto.jsx'
+
+function VisaoImagem({ src, nome, sticker, aoFechar }) {
+    useEffect(() => {
+        const esc = (e) => e.key === 'Escape' && aoFechar()
+        document.addEventListener('keydown', esc)
+        return () => document.removeEventListener('keydown', esc)
+    }, [aoFechar])
+
+    return (
+        <div
+            className="visao-imagem"
+            role="dialog"
+            aria-modal="true"
+            aria-label={nome || 'Imagem'}
+            onMouseDown={(e) => e.target === e.currentTarget && aoFechar()}
+        >
+            <header className="visao-imagem-topo">
+                <span className="visao-imagem-titulo" title={nome}>
+                    {nome || (sticker ? 'Figurinha' : 'Imagem')}
+                </span>
+                <span className="visao-imagem-acoes">
+                    <a className="icone-botao" href={src} download={nome || undefined} aria-label="Baixar" data-dica="Baixar">
+                        <Icone nome="baixar" />
+                    </a>
+                    <button type="button" className="icone-botao" onClick={aoFechar} aria-label="Fechar" data-dica="Fechar">
+                        <Icone nome="fechar" />
+                    </button>
+                </span>
+            </header>
+            <img src={src} alt={nome || ''} className={sticker ? 'visao-imagem-sticker' : ''} onMouseDown={(e) => e.stopPropagation()} />
+        </div>
+    )
+}
 
 function TextoFormatado({ texto }) {
     if (!texto) return null
@@ -56,7 +89,7 @@ export function nomeDoArquivo(m) {
     return `${ROTULO_ARQUIVO[m.tipo] || 'Arquivo'}${quando}${ext ? `.${ext}` : ''}`
 }
 
-function Midia({ m, waId }) {
+function Midia({ m, waId, aoVerImagem }) {
     const [quebrou, setQuebrou] = useState(false)
     if (!m.arquivo || quebrou) {
         if (m.tipo === 'text') return null
@@ -68,12 +101,19 @@ function Midia({ m, waId }) {
     }
     const nomeArquivo = nomeDoArquivo(m)
     const src = urlMidia(m.arquivo, waId, nomeArquivo)
-    if (m.tipo === 'image' || m.tipo === 'sticker')
+    if (m.tipo === 'image' || m.tipo === 'sticker') {
+        const sticker = m.tipo === 'sticker'
         return (
-            <a href={src} target="_blank" rel="noopener noreferrer" className={`msg-imagem ${m.tipo === 'sticker' ? 'sticker' : ''}`}>
+            <button
+                type="button"
+                className={`msg-imagem ${sticker ? 'sticker' : ''}`}
+                aria-label={sticker ? 'Ver figurinha' : 'Ver imagem'}
+                onClick={() => aoVerImagem?.({ src, nome: nomeArquivo, sticker })}
+            >
                 <img src={src} alt={nomeArquivo} loading="lazy" onError={() => setQuebrou(true)} />
-            </a>
+            </button>
         )
+    }
     if (m.tipo === 'video') return <video className="msg-video" src={src} controls preload="metadata" onError={() => setQuebrou(true)} />
     if (m.tipo === 'audio' || m.tipo === 'voice') return <audio className="msg-audio" src={src} controls preload="none" onError={() => setQuebrou(true)} />
     return (
@@ -134,6 +174,7 @@ function temTemplatesHint(texto) {
 
 export default function Mensagem({ m, waId, aoResponder, primeiraDoGrupo, aoTentar, aoDescartar, aoTemplate }) {
     const [menu, setMenu] = useState(null) // { x, y } do botão direito no balão
+    const [visao, setVisao] = useState(null) // { src, nome, sticker } — modal de foto/figurinha
     const brutoSistema = m.descricao || m.texto
     // eventos do ticket (atribuições, status…) — e frases da WATI em inglês que às vezes vêm como message
     const ehSistema =
@@ -149,12 +190,19 @@ export default function Mensagem({ m, waId, aoResponder, primeiraDoGrupo, aoTent
     }
 
     const temMidia = m.tipo !== 'text' && m.tipo !== 'interactive' && m.tipo !== 'button'
+    const ehImagem = m.tipo === 'image' || m.tipo === 'sticker'
     // em mídia o texto costuma ser a legenda; evita repetir o caminho ou o nome do arquivo
     const texto = temMidia && (m.texto === m.arquivo || (m.nomeArquivo && m.texto?.trim() === m.nomeArquivo)) ? '' : m.texto
     const falhou = m.minha && (m.status === 'erro' || m.status === 'failed')
     const podeResponder = Boolean(m.wamid && aoResponder)
     // WATI grava "API Token <tenant>" quando o envio foi pela API — não mostrar como autor
     const autorVisivel = m.operador && !/^api\s*token\b/i.test(String(m.operador).trim()) ? m.operador : null
+
+    const abrirImagem = () => {
+        if (!m.arquivo) return
+        const nome = nomeDoArquivo(m)
+        setVisao({ src: urlMidia(m.arquivo, waId, nome), nome, sticker: m.tipo === 'sticker' })
+    }
 
     // botão direito no balão, como no WhatsApp; com texto selecionado fica o menu do navegador (para copiar o trecho)
     const abrirMenu = (e) => {
@@ -169,7 +217,11 @@ export default function Mensagem({ m, waId, aoResponder, primeiraDoGrupo, aoTent
             desabilitado: !podeResponder,
         },
         texto ? { rotulo: 'Copiar texto', acao: () => navigator.clipboard?.writeText(String(texto)).catch(() => {}) } : null,
-        temMidia && m.arquivo ? { rotulo: 'Abrir arquivo', acao: () => window.open(urlMidia(m.arquivo, waId, nomeDoArquivo(m)), '_blank', 'noopener') } : null,
+        temMidia && m.arquivo
+            ? ehImagem
+                ? { rotulo: m.tipo === 'sticker' ? 'Ver figurinha' : 'Ver imagem', acao: abrirImagem }
+                : { rotulo: 'Abrir arquivo', acao: () => window.open(urlMidia(m.arquivo, waId, nomeDoArquivo(m)), '_blank', 'noopener') }
+            : null,
     ]
 
     return (
@@ -188,7 +240,7 @@ export default function Mensagem({ m, waId, aoResponder, primeiraDoGrupo, aoTent
                             {autorVisivel ? ` · ${autorVisivel}` : ''}
                         </span>
                     ) : null}
-                    {temMidia ? <Midia m={m} waId={waId} /> : null}
+                    {temMidia ? <Midia m={m} waId={waId} aoVerImagem={setVisao} /> : null}
                     <TextoFormatado texto={texto} />
                     <span className="msg-meta">
                         {horaCurta(m.em)}
@@ -204,6 +256,7 @@ export default function Mensagem({ m, waId, aoResponder, primeiraDoGrupo, aoTent
                 </button>
             ) : null}
             {menu ? <MenuContexto x={menu.x} y={menu.y} titulo="Mensagem" itens={itensMenu} aoFechar={() => setMenu(null)} /> : null}
+            {visao ? <VisaoImagem src={visao.src} nome={visao.nome} sticker={visao.sticker} aoFechar={() => setVisao(null)} /> : null}
         </div>
     )
 }

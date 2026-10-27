@@ -66,12 +66,14 @@ export default function Perfil({ conversa, sugestoesTags, aoFechar, aoSalvo, avi
                 formAtual.current = f
                 setDados(r)
                 setForm(f)
+                // servidor espelhou o Nome da ficha → atualiza o título da lista na hora
+                if (r.nome && r.nome !== conversa.nome) aoSalvo({ nome: r.nome })
             })
             .catch((e) => vivo && setErro(e.message))
         return () => {
             vivo = false
         }
-    }, [caminho])
+    }, [caminho]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Esc fecha só o perfil (a conversa continua aberta)
     useEffect(() => {
@@ -100,12 +102,15 @@ export default function Perfil({ conversa, sugestoesTags, aoFechar, aoSalvo, avi
         q.rodando = true
         setEstadoSalvar('salvando')
         try {
+            const nomeFicha = String(f.atributos.find((a) => a.name.toLowerCase() === 'name')?.value || '').trim()
             const r = await api(caminho, {
                 method: 'PUT',
                 body: {
                     email: f.email,
                     tags: f.tags,
                     notas: f.notas,
+                    // espelha o Nome da ficha no título da lista
+                    ...(nomeFicha ? { nome: nomeFicha } : {}),
                     // só os atributos que mudaram: reenviar os vazios faria a WATI recusar tudo
                     atributos: f.atributos.filter((a, i) => a.value !== base.atributos[i]?.value),
                 },
@@ -114,7 +119,7 @@ export default function Perfil({ conversa, sugestoesTags, aoFechar, aoSalvo, avi
             // o servidor pode normalizar as etiquetas; só aplica se ninguém mexeu nelas durante o envio
             if (!igual(r.tags, f.tags) && igual(formAtual.current.tags, f.tags)) alterar({ ...formAtual.current, tags: r.tags })
             const atributos = Object.fromEntries(f.atributos.filter((a) => a.value).map((a) => [a.name.toLowerCase(), a.value]))
-            aoSalvo({ tags: r.tags }, atributos)
+            aoSalvo({ tags: r.tags, ...(r.nome || nomeFicha ? { nome: r.nome || nomeFicha } : {}) }, atributos)
             const avisos = []
             if (r.falhasTags?.length) {
                 const naoAdicionadas = r.falhasTags.filter((x) => x.acao === 'adicionar').map((x) => x.tag)
@@ -290,7 +295,13 @@ export default function Perfil({ conversa, sugestoesTags, aoFechar, aoSalvo, avi
             <div className="perfil-corpo">
                 <div className="perfil-cabeca">
                     <Avatar conversa={conversa} tamanho={96} />
-                    <h2>{form?.nomeWhatsapp || conversa.nome || fone || 'Contato'}</h2>
+                    <h2>
+                        {form?.atributos?.find((a) => a.name.toLowerCase() === 'name')?.value ||
+                            form?.nomeWhatsapp ||
+                            conversa.nome ||
+                            fone ||
+                            'Contato'}
+                    </h2>
                     <p>{fone || CANAIS[canal].rotulo}</p>
                 </div>
 

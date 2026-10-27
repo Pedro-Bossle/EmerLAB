@@ -24,7 +24,7 @@ export function formatarTelefone(waId) {
 }
 
 export function nomeExibicao(c) {
-    return c?.nome || formatarTelefone(c?.waId) || CANAIS[canalDoId(c?.waId)].semNome
+    return c?.nome || c?.atributos?.name || formatarTelefone(c?.waId) || CANAIS[canalDoId(c?.waId)].semNome
 }
 
 export function iniciais(nome) {
@@ -130,6 +130,12 @@ export function janela24h(iso, agora = Date.now()) {
     return { fracao: Math.min(1, passou / JANELA_MS), restanteMs: restante, fechada: restante <= 0 }
 }
 
+// Janela de uma conversa da lista: conta da última mensagem do cliente; sem ela (conversa ainda não conferida),
+// usa a última mensagem da conversa
+export function janelaDaConversa(c, agora = Date.now()) {
+    return janela24h(c.ultimaClienteEm || c.ultimaEm, agora)
+}
+
 export function restanteEmPalavras(ms) {
     if (ms <= 0) return 'janela fechada'
     const min = Math.ceil(ms / 60000)
@@ -141,7 +147,7 @@ export function restanteEmPalavras(ms) {
 // com a janela de 24h fechada só dá para retomar por template, então a conversa sai da espera
 export function calcularEspera(conversas, agora = Date.now()) {
     return conversas
-        .filter((c) => c.status !== 'resolvida' && c.ultimaMinha === false && c.ultimaEm && !janela24h(c.ultimaEm, agora).fechada)
+        .filter((c) => c.status !== 'resolvida' && c.ultimaMinha === false && c.ultimaEm && !janelaDaConversa(c, agora).fechada)
         .sort((a, b) => new Date(a.ultimaEm) - new Date(b.ultimaEm))
 }
 

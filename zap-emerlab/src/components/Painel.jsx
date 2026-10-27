@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, registrarAoConexao } from '../api.js'
-import { iniciais, corAvatar, nomeExibicao, CANAIS, ler, gravar, tempoDesde, calcularEspera } from '../util.js'
+import { iniciais, corAvatar, nomeExibicao, CANAIS, ler, gravar, tempoDesde, calcularEspera, janelaDaConversa } from '../util.js'
 import Icone from './Icone.jsx'
 import IconeCanal from './IconeCanal.jsx'
 import ListaConversas from './ListaConversas.jsx'
@@ -71,6 +71,8 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     const [carregando, setCarregando] = useState(true)
     const [erroLista, setErroLista] = useState('')
     const [selecionada, setSelecionada] = useState(null)
+    // sobrevive à troca de conversa (o Chat remonta por waId); fecha só ao voltar à lista
+    const [perfilAberto, setPerfilAberto] = useState(false)
     const [busca, setBusca] = useState('')
     // ao entrar, a lista abre sempre nas conversas atribuídas a quem logou
     const [filtro, setFiltro] = useState('minhas')
@@ -209,15 +211,26 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         [filtro, usuario.email],
     )
 
+    // setores em que a conversa conta; vazio = "sem setor". Concluída ou com a janela de 24h fechada sai do setor
+    // do atendente e volta para "sem setor", mesmo com atendente
+    const setoresDaConversa = useCallback(
+        (c) => {
+            if (c.status === 'resolvida' || janelaDaConversa(c)?.fechada) return null
+            const setores = setoresDoAtendente(c.atendenteEmail)
+            return setores?.size ? setores : null
+        },
+        [setoresDoAtendente],
+    )
+
     const passaFiltroDepto = useCallback(
         (c) => {
             if (!filtroDepto) return true
-            const setores = setoresDoAtendente(c.atendenteEmail)
-            if (filtroDepto === 'sem') return !c.atendenteEmail || !setores || setores.size === 0
+            const setores = setoresDaConversa(c)
+            if (filtroDepto === 'sem') return !setores
             // setor específico: atendente da conversa pertence a esse departamento
             return Boolean(setores?.has(filtroDepto))
         },
-        [filtroDepto, setoresDoAtendente],
+        [filtroDepto, setoresDaConversa],
     )
 
     const filtradas = useMemo(() => conversas.filter((c) => passaFiltroDepto(c) && passaFiltro(c)), [conversas, passaFiltroDepto, passaFiltro])
@@ -229,15 +242,15 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         for (const c of conversas) {
             if (!passaFiltro(c)) continue
             n[''] += 1
-            const setores = setoresDoAtendente(c.atendenteEmail)
-            if (!c.atendenteEmail || !setores || setores.size === 0) {
+            const setores = setoresDaConversa(c)
+            if (!setores) {
                 n.sem += 1
                 continue
             }
             for (const id of setores) if (n[id] !== undefined) n[id] += 1
         }
         return n
-    }, [conversas, passaFiltro, departamentos, setoresDoAtendente])
+    }, [conversas, passaFiltro, departamentos, setoresDaConversa])
 
     const faixaFiltros = useRef(null)
     useRolagemHorizontal(faixaFiltros)
@@ -267,6 +280,10 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         if (!selecionada) return null
         return conversas.find((c) => c.waId === selecionada.waId) || selecionada
     }, [conversas, selecionada])
+
+    useEffect(() => {
+        if (!selecionada) setPerfilAberto(false)
+    }, [selecionada])
 
     const abrir = (c) => {
         setSelecionada(c)
@@ -536,7 +553,12 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                         respostas={respostas}
                         equipe={equipe}
                         tagsConhecidas={tagsConhecidas}
-                        aoVoltar={() => setSelecionada(null)}
+                        perfilAberto={perfilAberto}
+                        aoPerfil={setPerfilAberto}
+                        aoVoltar={() => {
+                            setPerfilAberto(false)
+                            setSelecionada(null)
+                        }}
                         aoAtualizar={atualizarConversa}
                         aoRecarregarLista={() => {
                             carregarConversas(busca)

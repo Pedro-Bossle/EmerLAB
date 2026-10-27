@@ -25,7 +25,7 @@ function tempoRestante(ms) {
     return h ? `${h}h ${String(min % 60).padStart(2, '0')}min restantes` : `${min} min restantes`
 }
 
-export default function Chat({ conversa, usuario, config, prefs, departamentos, deptoPorId, respostas, equipe, tagsConhecidas, aoVoltar, aoAtualizar, aoRecarregarLista, avisar }) {
+export default function Chat({ conversa, usuario, config, prefs, departamentos, deptoPorId, respostas, equipe, tagsConhecidas, perfilAberto = false, aoPerfil, aoVoltar, aoAtualizar, aoRecarregarLista, avisar }) {
     const { waId } = conversa
     const caminho = `conversas/${encodeURIComponent(waId)}`
     const canal = canalDoId(waId)
@@ -45,7 +45,7 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
     const timerDia = useRef(null)
     useEffect(() => () => clearTimeout(timerDia.current), [])
     const [arrastando, setArrastando] = useState(false)
-    const [perfilAberto, setPerfilAberto] = useState(false)
+    const setPerfilAberto = aoPerfil || (() => {})
     // atributos do contato na WATI (UF, cidade, tipo…) para ordenar as respostas rápidas pelas regras
     const [atributosContato, setAtributosContato] = useState({})
     useEffect(() => {
@@ -76,7 +76,7 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
             vivo = false
         }
     }, [codigosRespostas, ufContato, cidadeContato])
-    const fecharPerfil = useCallback(() => setPerfilAberto(false), [])
+    const fecharPerfil = useCallback(() => setPerfilAberto(false), [setPerfilAberto])
     const area = useRef(null)
     const alturaAntes = useRef(null)
     const composer = useRef(null)
@@ -302,6 +302,7 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                             <ContatoMetaPills
                                 tipo={atributosContato.tipo || conversa.atributos?.tipo}
                                 cidade={atributosContato.cidade || conversa.atributos?.cidade}
+                                anuncio={conversa.anuncio}
                             />
                         </div>
                         <small>

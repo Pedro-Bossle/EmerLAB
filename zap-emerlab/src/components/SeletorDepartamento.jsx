@@ -9,11 +9,11 @@ export default function SeletorDepartamento({ departamentos, valor, aoMudar, con
     const botao = useRef(null)
     const menu = useRef(null)
 
-    // filtro pelo setor do atendente da conversa (não pelo departamento_id gravado nela)
+    // filtro pelo setor do atendente da conversa (não pelo departamento_id gravado nela); concluídas e expiradas contam como sem setor
     const opcoes = [
         { id: '', nome: 'Todos os setores', cor: null },
         ...departamentos.map((d) => ({ id: d.id, nome: d.nome, cor: d.cor })),
-        { id: 'sem', nome: 'Sem atendente / sem setor', cor: null },
+        { id: 'sem', nome: 'Sem setor (fila, concluídas e expiradas)', cor: null },
     ]
     const atual = opcoes.find((o) => o.id === valor) || opcoes[0]
 
