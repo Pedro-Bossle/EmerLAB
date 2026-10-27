@@ -93,18 +93,29 @@ function lerIdConversa(bruto) {
 const alvoWati = (id) => lerIdConversa(id).alvo
 const canalDe = (id) => lerIdConversa(id).canal
 
-// ---------- limite de tentativas de login (por instância) ----------
+// ---------- limite de tentativas de login ----------
+// No banco (zap_registrar_tentativa_login): vale para todas as instâncias da Vercel, que não dividem memória.
+// O Map é só a reserva se o banco não responder.
 
+const JANELA_LOGIN_SEG = 15 * 60
+const MAX_TENTATIVAS_LOGIN = 10
 const tentativas = new Map()
-function checarLimiteLogin(ip) {
-    const agora = Date.now()
-    const t = tentativas.get(ip)
-    if (!t || t.reset < agora) {
-        tentativas.set(ip, { n: 1, reset: agora + 15 * 60 * 1000 })
-        return
+async function checarLimiteLogin(ip) {
+    const r = await db().rpc('zap_registrar_tentativa_login', { p_chave: `login:${ip}`, p_janela_seg: JANELA_LOGIN_SEG })
+    let n = typeof r.data === 'number' && !r.error ? r.data : null
+    if (n === null) {
+        const agora = Date.now()
+        const t = tentativas.get(ip)
+        if (!t || t.reset < agora) tentativas.set(ip, { n: 1, reset: agora + JANELA_LOGIN_SEG * 1000 })
+        else t.n += 1
+        n = tentativas.get(ip).n
     }
-    t.n += 1
-    if (t.n > 10) throw new HttpError(429, 'Muitas tentativas. Aguarde alguns minutos.')
+    if (n > MAX_TENTATIVAS_LOGIN) throw new HttpError(429, 'Muitas tentativas. Aguarde alguns minutos.')
+}
+
+async function limparTentativasLogin(ip) {
+    tentativas.delete(ip)
+    await db().from('zap_login_tentativas').delete().eq('chave', `login:${ip}`)
 }
 
 // ---------- sessão / permissões ----------
@@ -119,6 +130,8 @@ async function usuarioDaSessao(req) {
     }
     const u = await buscarUsuarioPorId(payload.uid)
     if (!u || !u.ativo) throw new HttpError(401, 'Usuário desativado.')
+    // sessão amarrada à senha (pv): trocou a senha, as sessões abertas em outros lugares caem
+    if (payload.pv && payload.pv !== impressao(u.senha_hash)) throw new HttpError(401, 'Sua senha foi alterada. Entre novamente.')
     return { id: u.id, nome: u.nome, email: u.email, papel: u.papel, departamentos: idsDepartamentos(u) }
 }
 
@@ -290,7 +303,7 @@ async function buscarContatosWhatsapp(busca) {
 // ---------- handlers ----------
 
 async function login(req, res) {
-    checarLimiteLogin(ipDe(req))
+    await checarLimiteLogin(ipDe(req))
     const env = getEnv()
     const { tenantId, email, senha } = await lerCorpo(req)
     const emailN = String(email || '').trim().toLowerCase()
@@ -304,11 +317,11 @@ async function login(req, res) {
     } else {
         const u = await buscarUsuarioPorEmail(emailN)
         if (!u || !u.ativo || !conferirSenha(senha, u.senha_hash)) throw falha
-        sessao = { uid: u.id, email: u.email }
+        sessao = { uid: u.id, email: u.email, pv: impressao(u.senha_hash) }
     }
     const maxAge = Math.round(env.sessionHoras * 3600)
     const token = criarToken({ ...sessao, exp: Date.now() + maxAge * 1000 }, env.sessionSecret)
-    tentativas.delete(ipDe(req))
+    await limparTentativasLogin(ipDe(req))
     enviar(res, 200, { ok: true }, { 'Set-Cookie': cookieSessao(req, token, maxAge) })
 }
 
@@ -345,14 +358,15 @@ async function lerConvite(token) {
 }
 
 async function aceitarConvite(req, res) {
-    checarLimiteLogin(ipDe(req))
+    await checarLimiteLogin(ipDe(req))
     const env = getEnv()
     const { token, senha } = await lerCorpo(req)
     if (!senha || String(senha).length < 8) throw new HttpError(400, 'A senha precisa ter ao menos 8 caracteres.')
     const u = await lerConvite(token)
-    ok(await db().from('zap_usuarios').update({ senha_hash: hashSenha(senha), atualizado_em: new Date().toISOString() }).eq('id', u.id))
+    const senhaHash = hashSenha(senha)
+    ok(await db().from('zap_usuarios').update({ senha_hash: senhaHash, atualizado_em: new Date().toISOString() }).eq('id', u.id))
     const maxAge = Math.round(env.sessionHoras * 3600)
-    const sessao = criarToken({ uid: u.id, email: u.email, exp: Date.now() + maxAge * 1000 }, env.sessionSecret)
+    const sessao = criarToken({ uid: u.id, email: u.email, pv: impressao(senhaHash), exp: Date.now() + maxAge * 1000 }, env.sessionSecret)
     enviar(res, 200, { ok: true, tenantId: env.watiTenantId, email: u.email }, { 'Set-Cookie': cookieSessao(req, sessao, maxAge) })
 }
 
@@ -370,14 +384,19 @@ async function me(usuario) {
     }
 }
 
-async function trocarSenha(req, usuario) {
+// responde com um cookie novo: a sessão de quem trocou continua; as de outros aparelhos caem (pv)
+async function trocarSenha(req, res, usuario) {
     if (usuario.id === ADMIN_ENV_ID) throw new HttpError(400, 'A senha do administrador inicial é definida no .env (ZAP_ADMIN_SENHA).')
     const { atual, nova } = await lerCorpo(req)
     if (!nova || String(nova).length < 8) throw new HttpError(400, 'A nova senha precisa ter ao menos 8 caracteres.')
     const u = await buscarUsuarioPorEmail(usuario.email)
     if (!u || !conferirSenha(atual || '', u.senha_hash)) throw new HttpError(400, 'Senha atual incorreta.')
-    ok(await db().from('zap_usuarios').update({ senha_hash: hashSenha(nova), atualizado_em: new Date().toISOString() }).eq('id', u.id))
-    return { ok: true }
+    const senhaHash = hashSenha(nova)
+    ok(await db().from('zap_usuarios').update({ senha_hash: senhaHash, atualizado_em: new Date().toISOString() }).eq('id', u.id))
+    const env = getEnv()
+    const maxAge = Math.round(env.sessionHoras * 3600)
+    const token = criarToken({ uid: u.id, email: u.email, pv: impressao(senhaHash), exp: Date.now() + maxAge * 1000 }, env.sessionSecret)
+    enviar(res, 200, { ok: true }, { 'Set-Cookie': cookieSessao(req, token, maxAge) })
 }
 
 async function listarConversas(usuario, query) {
@@ -935,7 +954,9 @@ async function midiaHandler(res, usuario, query) {
     const arquivo = String(query.get('arquivo') || '')
     const waId = query.get('waId') ? lerIdConversa(query.get('waId')).id : ''
     if (!arquivo || arquivo.includes('..')) throw new HttpError(400, 'Arquivo inválido.')
-    if (waId) await exigirConversa(usuario, waId)
+    // a conversa é obrigatória: sem ela, qualquer atendente baixaria mídia de conversa de outro setor
+    if (!waId) throw new HttpError(400, 'Informe a conversa do arquivo.')
+    await exigirConversa(usuario, waId)
     const resp = await wati.baixarMidia(arquivo)
     res.statusCode = 200
     res.setHeader('Content-Type', resp.headers.get('content-type') || 'application/octet-stream')
@@ -1300,7 +1321,7 @@ export async function handle(req, res, rotaForcada) {
         const responder = (corpo) => enviar(res, 200, corpo)
 
         if (rota === 'auth/me' && metodo === 'GET') return responder(await me(usuario))
-        if (rota === 'auth/senha' && metodo === 'POST') return responder(await trocarSenha(req, usuario))
+        if (rota === 'auth/senha' && metodo === 'POST') return await trocarSenha(req, res, usuario)
         if (rota === 'conversas' && metodo === 'GET') return responder(await listarConversas(usuario, query))
         if (rota === 'templates' && metodo === 'GET') return responder({ templates: await wati.listarTemplates() })
         if (rota === 'tags' && metodo === 'GET') return responder(await listarTagsSugestao())

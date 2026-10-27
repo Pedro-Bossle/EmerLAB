@@ -99,6 +99,29 @@ create table if not exists public.zap_mensagens_wamid (
 create index if not exists zap_mensagens_wamid_wa_idx on public.zap_mensagens_wamid (wa_id, em desc);
 alter table public.zap_mensagens_wamid enable row level security;
 
+-- Limite de tentativas de login compartilhado entre as instâncias da Vercel (memória não é dividida)
+create table if not exists public.zap_login_tentativas (
+    chave text primary key,
+    n integer not null default 0,
+    reset_em timestamptz not null
+);
+alter table public.zap_login_tentativas enable row level security;
+
+create or replace function public.zap_registrar_tentativa_login(p_chave text, p_janela_seg integer)
+returns integer
+language sql
+security definer
+set search_path = public
+as $$
+    insert into zap_login_tentativas as t (chave, n, reset_em)
+    values (p_chave, 1, now() + make_interval(secs => p_janela_seg))
+    on conflict (chave) do update set
+        n = case when t.reset_em < now() then 1 else t.n + 1 end,
+        reset_em = case when t.reset_em < now() then now() + make_interval(secs => p_janela_seg) else t.reset_em end
+    returning n;
+$$;
+revoke all on function public.zap_registrar_tentativa_login(text, integer) from public, anon, authenticated;
+
 alter table public.zap_departamentos enable row level security;
 alter table public.zap_usuarios enable row level security;
 alter table public.zap_usuario_departamentos enable row level security;

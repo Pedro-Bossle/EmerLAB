@@ -46,7 +46,7 @@ export async function buscarUsuarioPorId(id) {
     return ok(
         await db()
             .from('zap_usuarios')
-            .select('id, nome, email, papel, ativo, zap_usuario_departamentos(departamento_id)')
+            .select('id, nome, email, papel, ativo, senha_hash, zap_usuario_departamentos(departamento_id)')
             .eq('id', id)
             .maybeSingle(),
     )
