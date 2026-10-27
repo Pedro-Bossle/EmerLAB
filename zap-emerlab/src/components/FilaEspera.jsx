@@ -55,7 +55,7 @@ export default function FilaEspera({ conversas, canal, usuarioEmail, aoAbrir }) 
     }
 
     const maisAntiga = esperando[0]
-    const emRisco = esperando.filter((c) => janelaDaConversa(c, agora).restanteMs <= RISCO_MS).length
+    const emRisco = esperando.filter((c) => (janelaDaConversa(c, agora)?.restanteMs ?? 0) <= RISCO_MS).length
     const lista = listas[categoria] || []
     const meta = CATEGORIAS.find((c) => c.id === categoria)
 

@@ -1295,12 +1295,25 @@ const Supertabelaplanos = () => {
         const nomeBase = modoLimitacoes
             ? `planos-limites-${cidadeSlug}-${planoDetalheNome}`
             : `planos-diferencas-${cidadeSlug}`
+        const cidadesValidas = [
+            ...new Set(
+                [
+                    cidadeSelecionada?.nome,
+                    ...(vinculosDaCidadeSelecionada || []).map((v) => v.municipio_nome),
+                ]
+                    .map((n) => String(n || '').trim())
+                    .filter(Boolean),
+            ),
+        ]
         setExportandoExcelTela(true)
         try {
             if (modoLimitacoes) {
                 await exportarTabelaPlanosLimitesParaExcel(secoesPorCategoria, nomeBase)
             } else {
-                await exportarTabelaPlanosDiferencasParaExcel(secoesPorCategoria, nomeBase)
+                await exportarTabelaPlanosDiferencasParaExcel(secoesPorCategoria, {
+                    nomeArquivoBase: nomeBase,
+                    cidadesValidas,
+                })
             }
         } catch (error) {
             mostrarErroToast(`Erro ao exportar Excel: ${error.message}`)

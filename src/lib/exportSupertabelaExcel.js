@@ -71,18 +71,37 @@ function valorCelulaPlano(linha, chave) {
 }
 
 /**
- * @param {{ categoriaNome: string, linhas: object[] }[]} secoes
+ * Lista única de municípios/cidades para o cabeçalho do export.
+ * @param {string[]|string|null|undefined} cidadesValidas
  */
-export async function exportarTabelaPlanosDiferencasParaExcel(secoes, nomeArquivoBase = 'supertabela-planos') {
+function normalizarCidadesValidas(cidadesValidas) {
+    if (Array.isArray(cidadesValidas)) {
+        return [...new Set(cidadesValidas.map((c) => String(c || '').trim()).filter(Boolean))].sort((a, b) =>
+            a.localeCompare(b, 'pt-BR'),
+        )
+    }
+    const t = String(cidadesValidas || '').trim()
+    return t ? [t] : []
+}
+
+/**
+ * @param {{ categoriaNome: string, linhas: object[] }[]} secoes
+ * @param {string|{ nomeArquivoBase?: string, cidadesValidas?: string[]|string }} [opcoes]
+ */
+export async function exportarTabelaPlanosDiferencasParaExcel(secoes, opcoes = 'supertabela-planos') {
+    const opts = typeof opcoes === 'string' ? { nomeArquivoBase: opcoes } : opcoes || {}
+    const nomeArquivoBase = opts.nomeArquivoBase || 'supertabela-planos'
+    const cidades = normalizarCidadesValidas(opts.cidadesValidas)
+
     const { default: ExcelJS } = await import('exceljs')
     const workbook = new ExcelJS.Workbook()
     workbook.creator = 'EmerLAB'
     const ws = workbook.addWorksheet('Diferencas')
     const colunas = [
-        { key: 'codigo', title: 'Código', width: 14 },
+        { key: 'codigo', title: 'Cod', width: 14 },
         { key: 'procedimento', title: 'Procedimento', width: 48 },
-        { key: 'basico', title: 'Básico', width: 12 },
-        { key: 'classico', title: 'Clássico', width: 12 },
+        { key: 'basico', title: 'Basico', width: 12 },
+        { key: 'classico', title: 'Classico', width: 12 },
         { key: 'avancado', title: 'Avançado', width: 12 },
         { key: 'ultra', title: 'Ultra', width: 12 },
     ]
@@ -97,6 +116,22 @@ export async function exportarTabelaPlanosDiferencasParaExcel(secoes, nomeArquiv
         await baixarWorkbook(workbook, nomeArquivoBase)
         return
     }
+
+    // cabeçalho: cidades que compartilham esta tabela de valores
+    ws.mergeCells(row, 1, row, colunas.length)
+    const tituloCidades = ws.getCell(row, 1)
+    tituloCidades.value = 'Cidades validas para os valores abaixo'
+    estiloCabecalho(tituloCidades)
+    tituloCidades.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
+    row += 1
+
+    ws.mergeCells(row, 1, row, colunas.length)
+    const listaCidades = ws.getCell(row, 1)
+    listaCidades.value = cidades.length ? cidades.join(', ') : '—'
+    estiloTexto(listaCidades)
+    listaCidades.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
+    ws.getRow(row).height = Math.max(18, Math.min(72, 14 + Math.ceil(String(listaCidades.value).length / 80) * 12))
+    row += 2
 
     lista.forEach((secao, idxSec) => {
         if (idxSec > 0) row += 1

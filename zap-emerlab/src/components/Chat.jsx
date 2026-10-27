@@ -202,17 +202,25 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
         area.current.scrollTo({ top: area.current.scrollHeight, behavior: 'smooth' })
     }
 
-    // janela de atendimento da Meta: 24h desde a última mensagem do cliente para responder sem template
+    // janela de atendimento da Meta: 24h desde a última mensagem do cliente para responder sem template.
+    // Sem mensagem do cliente (número novo / abertura nossa) = janela fechada → só template.
     const [agora, setAgora] = useState(() => Date.now())
     useEffect(() => {
         const id = setInterval(() => setAgora(Date.now()), 30000)
         return () => clearInterval(id)
     }, [])
     const ultimaDoCliente = [...mensagens].reverse().find((m) => !m.minha && m.evento === 'message' && m.em)
-    const janela = ultimaDoCliente ? janela24h(ultimaDoCliente.em, agora) : null
+    const isoCliente = ultimaDoCliente?.em || conversa.ultimaClienteEm || null
+    const janela = isoCliente ? janela24h(isoCliente, agora) : null
     const aberta = Boolean(janela && !janela.fechada)
+    const inicioNosso = !isoCliente
 
     const enviarTexto = async (texto, existente) => {
+        // abertura nossa / janela fechada: não dispara texto livre (WATI/API ban)
+        if (!aberta) {
+            abrirTemplate()
+            return
+        }
         const temp = existente
             ? { ...existente, status: 'pendente', erro: null }
             : { id: `tmp-${Date.now()}`, tipo: 'text', texto, em: new Date().toISOString(), minha: true, status: 'pendente', evento: 'message', operador: usuario.nome }
@@ -235,6 +243,10 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
 
     // erros de arquivo voltam para o modal do Composer, que mantém o arquivo para nova tentativa
     const enviarArquivo = async (dados) => {
+        if (!aberta) {
+            abrirTemplate()
+            throw new Error('Janela fechada: envie um template antes de anexar arquivos.')
+        }
         await api(`${caminho}/arquivo`, { method: 'POST', body: dados })
         avisar('Arquivo enviado.')
         setNoFim(true)
@@ -462,13 +474,17 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                     </button>
                 ) : null}
 
-                {!carregando && !erro && !aberta ? (
+                {!aberta ? (
                     <div className="janela-fechada" role="status">
                         <span>
                             <Icone nome="cadeado" tamanho={18} />
                             {temTemplates
-                                ? 'Janela de 24h fechada: o cliente não escreve há mais de 24 horas. Só templates aprovados podem ser enviados.'
-                                : `Janela de 24h fechada: o ${CANAIS[canal].rotulo} só permite responder até 24 horas depois da última mensagem do cliente.`}
+                                ? inicioNosso
+                                    ? 'Abertura nossa: o WhatsApp exige um template aprovado para iniciar contato com este número. Mensagem livre só depois que o cliente responder.'
+                                    : 'Janela de 24h fechada: o cliente não escreve há mais de 24 horas. Só templates aprovados podem ser enviados.'
+                                : inicioNosso
+                                  ? `Aguarde o cliente escrever no ${CANAIS[canal].rotulo} para liberar a resposta.`
+                                  : `Janela de 24h fechada: o ${CANAIS[canal].rotulo} só permite responder até 24 horas depois da última mensagem do cliente.`}
                         </span>
                         {temTemplates ? (
                             <button className="botao botao-pequeno" onClick={() => setModal('template')}>
@@ -479,7 +495,9 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                 ) : null}
 
                 <Composer
-                    desabilitado={!carregando && !erro && !aberta}
+                    // trava sempre que não há janela aberta (inclui carregando / número novo) — nunca liberar texto livre na abertura nossa
+                    desabilitado={!aberta}
+                    inicioNosso={inicioNosso}
                     temTemplates={temTemplates}
                     prefs={prefs}
                     respostas={respostas}

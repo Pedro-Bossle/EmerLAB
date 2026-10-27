@@ -609,8 +609,50 @@ async function nomesArquivosEnviados(waId, lista) {
     }
 }
 
+/** Sessão livre (texto/arquivo) só com mensagem do cliente nas últimas 24h — abertura nossa exige template. */
+async function exigirSessaoLivre(waId, meta) {
+    const iso = meta?.ultima_cliente_em || null
+    if (iso) {
+        const restante = 24 * 3600 * 1000 - (Date.now() - new Date(iso).getTime())
+        if (restante > 0) return
+    }
+    // meta pode estar atrasada: confere as mensagens recentes na WATI
+    try {
+        const { mensagens } = await wati.listarMensagens(alvoWati(waId), { tamanho: 30 })
+        const doCliente = (mensagens || [])
+            .map(normalizarMensagem)
+            .filter((m) => !m.minha && m.evento === 'message' && m.em)
+            .sort((a, b) => String(b.em).localeCompare(String(a.em)))[0]
+        if (doCliente?.em) {
+            const restante = 24 * 3600 * 1000 - (Date.now() - new Date(doCliente.em).getTime())
+            if (restante > 0) {
+                await salvarMeta(waId, { ultima_cliente_em: doCliente.em }).catch(() => {})
+                return
+            }
+        }
+    } catch {
+        /* se a WATI falhar, mantém o bloqueio pelo meta */
+    }
+    const canal = canalDe(waId)
+    if (canal === 'whatsapp') {
+        throw new HttpError(
+            400,
+            iso
+                ? 'Janela de 24h fechada. Envie um template aprovado para retomar o contato.'
+                : 'Abertura nossa: envie um template aprovado para iniciar o contato. Mensagem livre só depois que o cliente responder.',
+            'janela_24h',
+        )
+    }
+    throw new HttpError(
+        400,
+        'Só é possível responder depois que o cliente escrever (janela de 24h).',
+        'janela_24h',
+    )
+}
+
 async function enviarTextoHandler(req, usuario, waId) {
     const meta = await exigirConversa(usuario, waId)
+    await exigirSessaoLivre(waId, meta)
     const { texto, replyContextId } = await lerCorpo(req)
     const limpo = String(texto || '').trim()
     if (!limpo) throw new HttpError(400, 'Mensagem vazia.', 'vazia')
@@ -630,7 +672,8 @@ async function enviarTextoHandler(req, usuario, waId) {
 }
 
 async function enviarArquivoHandler(req, usuario, waId) {
-    await exigirConversa(usuario, waId)
+    const meta = await exigirConversa(usuario, waId)
+    await exigirSessaoLivre(waId, meta)
     const { nome, mime, base64, legenda } = await lerCorpo(req)
     if (!base64) throw new HttpError(400, 'Arquivo vazio.')
     const buffer = Buffer.from(String(base64).replace(/^data:[^,]*,/, ''), 'base64')

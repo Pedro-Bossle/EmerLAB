@@ -130,10 +130,11 @@ export function janela24h(iso, agora = Date.now()) {
     return { fracao: Math.min(1, passou / JANELA_MS), restanteMs: restante, fechada: restante <= 0 }
 }
 
-// Janela de uma conversa da lista: conta da última mensagem do cliente; sem ela (conversa ainda não conferida),
-// usa a última mensagem da conversa
+// Janela de uma conversa da lista: só conta mensagem do cliente.
+// Sem ultimaClienteEm, se a última for do cliente (ultimaMinha === false) usa ultimaEm; senão null (abertura nossa → template).
 export function janelaDaConversa(c, agora = Date.now()) {
-    return janela24h(c.ultimaClienteEm || c.ultimaEm, agora)
+    const iso = c.ultimaClienteEm || (c.ultimaMinha === false ? c.ultimaEm : null)
+    return janela24h(iso, agora)
 }
 
 export function restanteEmPalavras(ms) {
@@ -147,7 +148,7 @@ export function restanteEmPalavras(ms) {
 // com a janela de 24h fechada só dá para retomar por template, então a conversa sai da espera
 export function calcularEspera(conversas, agora = Date.now()) {
     return conversas
-        .filter((c) => c.status !== 'resolvida' && c.ultimaMinha === false && c.ultimaEm && !janelaDaConversa(c, agora).fechada)
+        .filter((c) => c.status !== 'resolvida' && c.ultimaMinha === false && c.ultimaEm && !janelaDaConversa(c, agora)?.fechada)
         .sort((a, b) => new Date(a.ultimaEm) - new Date(b.ultimaEm))
 }
 

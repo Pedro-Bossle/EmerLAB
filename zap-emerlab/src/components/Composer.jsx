@@ -45,7 +45,7 @@ function SeloIndicada() {
     )
 }
 
-export default function Composer({ desabilitado, temTemplates, prefs, respostas, respondendo, aoCancelarResposta, aoEnviarTexto, aoEnviarArquivo, aoAbrirTemplate, contexto, contextoRegras, quemRealiza, controle, chave }) {
+export default function Composer({ desabilitado, inicioNosso = false, temTemplates, prefs, respostas, respondendo, aoCancelarResposta, aoEnviarTexto, aoEnviarArquivo, aoAbrirTemplate, contexto, contextoRegras, quemRealiza, controle, chave }) {
     const [texto, setTexto] = useState(() => rascunhos.get(chave) || '')
     const [indice, setIndice] = useState(0)
     const [painel, setPainel] = useState(null) // 'emoji' | 'respostas'
@@ -296,11 +296,15 @@ export default function Composer({ desabilitado, temTemplates, prefs, respostas,
             <footer className="composer composer-bloqueado">
                 {temTemplates ? (
                     <button className="botao botao-secundario" onClick={aoAbrirTemplate}>
-                        <Icone nome="template" tamanho={18} /> Enviar template para reabrir a conversa
+                        <Icone nome="template" tamanho={18} />{' '}
+                        {inicioNosso ? 'Enviar template para iniciar o contato' : 'Enviar template para reabrir a conversa'}
                     </button>
                 ) : (
                     <p className="composer-aviso">
-                        <Icone nome="cadeado" tamanho={16} /> Respostas liberadas assim que o cliente escrever de novo.
+                        <Icone nome="cadeado" tamanho={16} />{' '}
+                        {inicioNosso
+                            ? 'Respostas liberadas assim que o cliente escrever.'
+                            : 'Respostas liberadas assim que o cliente escrever de novo.'}
                     </p>
                 )}
             </footer>
