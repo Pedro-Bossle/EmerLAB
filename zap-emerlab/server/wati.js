@@ -306,6 +306,20 @@ export async function atualizarStatus(waId, status) {
     return chamar(v3Url(`conversations/${encodeURIComponent(waId)}/status`), { method: 'PUT', body: { new_status: novo } })
 }
 
+/** Texto de botões do template (URL dinâmica costuma trazer {{1}} / {{nome}}). */
+function textoBotoesTemplate(t) {
+    const botoes = t?.buttons || t?.buttonsOriginal || t?.localizableButtons || []
+    if (!Array.isArray(botoes) || !botoes.length) return ''
+    return botoes
+        .map((b) =>
+            [b?.text, b?.parameter, b?.url, b?.phone_number, b?.example, ...(Array.isArray(b?.example) ? b.example : [])]
+                .filter(Boolean)
+                .map(String)
+                .join(' '),
+        )
+        .join('\n')
+}
+
 export async function listarTemplates() {
     const hit = cacheGet('templates')
     if (hit) return hit
@@ -318,8 +332,10 @@ export async function listarTemplates() {
             categoria: t.category,
             idioma: t.language?.value || t.language?.key || t.language || '',
             corpo: t.bodyOriginal || t.body || '',
-            cabecalho: t.header?.text || '',
-            rodape: t.footer || '',
+            // headerOriginal / textOriginal: placeholders; header.text às vezes já vem “resolvido”
+            cabecalho: t.headerOriginal || t.header?.textOriginal || t.header?.text || '',
+            rodape: t.footerOriginal || t.footer || '',
+            botoes: textoBotoesTemplate(t),
         }))
     cacheSet('templates', lista, 5 * 60 * 1000)
     return lista

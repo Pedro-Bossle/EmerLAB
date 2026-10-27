@@ -144,7 +144,7 @@ export default function Configuracoes({ usuario, prefs, setPrefs, aoFechar, avis
                             <p className="conta-info" style={{ marginTop: 4 }}>
                                 <span>
                                     {prefs.visao === 'atendente'
-                                        ? 'Inbox, notificações e contagens: só as suas ou do seu setor. A busca cobre toda a base WATI.'
+                                        ? 'Inbox, notificações e contagens: só as suas e a fila sem atendente do seu setor (não mostra chats já atribuídos a colegas). A busca cobre toda a base WATI.'
                                         : 'Lista, notificações e contagens de todas as conversas (visão total de administrador).'}
                                 </span>
                             </p>

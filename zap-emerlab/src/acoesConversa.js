@@ -14,7 +14,7 @@ export async function transferir(conversa, { departamentoId, email }, acao) {
 
 // Itens de status/atribuição conforme o estado da conversa (mesma ordem do menu do chat)
 export function itensDeAtendimento(conversa, usuarioEmail, { acao, aoTransferir }) {
-    const minha = conversa.atendenteEmail === usuarioEmail
+    const minha = String(conversa.atendenteEmail || '').toLowerCase() === String(usuarioEmail || '').toLowerCase()
     return [
         !minha && { rotulo: 'Assumir conversa', acao: () => acao('atribuir', {}, 'Conversa atribuída a você.', { atendenteEmail: usuarioEmail }) },
         { rotulo: 'Transferir…', acao: aoTransferir },

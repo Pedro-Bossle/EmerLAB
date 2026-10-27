@@ -71,6 +71,8 @@ alter table public.zap_conversas add column if not exists notas text;
 alter table public.zap_conversas add column if not exists ultima_cliente_em timestamptz;
 -- entrada por anúncio (Click-to-WhatsApp): { titulo, texto, url, id, em } do messageReferral da WATI
 alter table public.zap_conversas add column if not exists anuncio jsonb;
+-- última resposta de pessoa (painel, WATI ou template de atendente; bot não conta): filtro "Não respondidas"
+alter table public.zap_conversas add column if not exists ultima_humana_em timestamptz;
 create index if not exists zap_conversas_depto_idx on public.zap_conversas (departamento_id);
 create index if not exists zap_conversas_ultima_idx on public.zap_conversas (ultima_msg_em desc);
 

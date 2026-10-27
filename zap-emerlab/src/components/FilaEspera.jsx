@@ -41,7 +41,10 @@ export default function FilaEspera({ conversas, canal, usuarioEmail, aoAbrir }) 
     const semDados = abertas.length > 0 && abertas.every((c) => c.ultimaMinha === null)
     const esperando = useMemo(() => calcularEspera(conversas, agora), [conversas, agora])
     const semAtendente = useMemo(() => abertas.filter((c) => !c.atendenteEmail), [abertas])
-    const minhas = useMemo(() => abertas.filter((c) => c.atendenteEmail === usuarioEmail), [abertas, usuarioEmail])
+    const minhas = useMemo(
+        () => abertas.filter((c) => String(c.atendenteEmail || '').toLowerCase() === String(usuarioEmail || '').toLowerCase()),
+        [abertas, usuarioEmail],
+    )
 
     const listas = {
         esperando: semDados ? [] : esperando,

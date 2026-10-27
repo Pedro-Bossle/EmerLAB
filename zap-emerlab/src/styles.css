@@ -352,6 +352,11 @@ html[data-tema='escuro'] .avatar { background: color-mix(in srgb, var(--av) 26%,
 }
 .chip:hover { color: var(--texto); background: var(--moldura-hover); }
 .chip.ativo { background: var(--ativo); border-color: var(--ativo); color: var(--texto); font-weight: 600; }
+/* filtros de atendente e status: mesmo visual dos chips, com a seta do select */
+.chip-select { appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 28px; font: inherit; font-size: 0.85rem; }
+.chip-select, .chip-select.ativo {
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
 .filtros.arrastando { cursor: grabbing; user-select: none; }
 .filtros.arrastando .chip { pointer-events: none; }
 /* filtro de departamentos: pill + menu com cor e contagem */

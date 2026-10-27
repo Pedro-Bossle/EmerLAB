@@ -380,7 +380,8 @@ export default function Perfil({ conversa, sugestoesTags, aoFechar, aoSalvo, avi
 
                         <label className="campo">
                             <span>Notas</span>
-                            <textarea rows={4} value={form.notas} onChange={(e) => alterar({ ...form, notas: e.target.value })} onBlur={salvar} maxLength={2000} placeholder="Preferências, histórico, combinados…" />
+                            <textarea rows={4} value={form.notas} onChange={(e) => alterar({ ...form, notas: e.target.value })} onBlur={salvar} maxLength={2000} placeholder="Preferências, histórico, combinados… Use @nome para avisar um colega" />
+                            <small className="ajuda">Escreva @nome (ou @e-mail) para a conversa aparecer em Menções para essa pessoa.</small>
                         </label>
 
                     </form>

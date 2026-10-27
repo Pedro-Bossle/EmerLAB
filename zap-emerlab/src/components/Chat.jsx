@@ -387,8 +387,10 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
     }, [conversa.status])
 
     const depto = conversa.departamentoId ? deptoPorId[conversa.departamentoId] : null
-    const atendente = conversa.atendenteEmail ? equipe.find((u) => u.email === conversa.atendenteEmail)?.nome || conversa.atendenteEmail : null
-    const minha = conversa.atendenteEmail === usuario.email
+    const atendente = conversa.atendenteEmail
+        ? equipe.find((u) => String(u.email || '').toLowerCase() === String(conversa.atendenteEmail || '').toLowerCase())?.nome || conversa.atendenteEmail
+        : null
+    const minha = String(conversa.atendenteEmail || '').toLowerCase() === String(usuario.email || '').toLowerCase()
     const abrirTemplate = () =>
         temTemplates ? setModal('template') : avisar('Instagram e Messenger não têm templates: só dá para responder depois que o cliente escrever.', 'aviso')
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usarAtualizacao } from '../atualizacao.js'
 import { api, registrarAoConexao } from '../api.js'
-import { iniciais, corAvatar, nomeExibicao, CANAIS, ler, gravar, tempoDesde, calcularEspera, janelaDaConversa, normalizarWaId } from '../util.js'
+import { iniciais, corAvatar, nomeExibicao, CANAIS, ler, gravar, tempoDesde, calcularEspera, janelaDaConversa, normalizarWaId, mesmoEmail } from '../util.js'
 import Icone from './Icone.jsx'
 import IconeCanal from './IconeCanal.jsx'
 import ListaConversas from './ListaConversas.jsx'
@@ -23,21 +23,43 @@ import { ATALHOS, MOD, comMod, teclaDe, haSobreposicao } from '../atalhos.js'
 
 const INTERVALO_LISTA = 10000
 
+// Filtros como na Team Inbox da WATI (support.wati.io, "How to search or filter conversations"):
+//   Todos = tudo; Ativos = abertas/pendentes com a janela de 24h aberta (expirada não é ativa);
+//   Atribuídos a mim; Não atribuídos = sem atendente; Não respondidas = cliente esperando resposta de pessoa
+//   (bot não conta, template enviado por atendente conta); Menções = citado com @ nas notas.
+// Combinam com setor, atendente e status (como os filtros de equipe, responsável e status da WATI).
 const FILTROS = [
-    ['todas', 'Tudo'],
-    ['nao-lidas', 'Não lidas'],
-    ['minhas', 'Minhas'],
-    ['fila', 'Na fila'],
-    ['resolvidas', 'Resolvidas'],
+    ['todos', 'Todos'],
+    ['ativos', 'Ativos'],
+    ['atribuidos', 'Atribuídos a mim'],
+    ['nao-atribuidos', 'Não atribuídos'],
+    ['nao-respondidas', 'Não respondidas'],
+    ['mencoes', 'Menções'],
 ]
 
 // Texto da lista vazia conforme o filtro, para o atendente entender o porquê
 const VAZIO = {
-    todas: 'Nenhuma conversa neste canal ainda.',
-    'nao-lidas': 'Nenhuma conversa com mensagem não lida.',
-    minhas: 'Nenhuma conversa aberta atribuída a você. Use "Assumir" numa conversa da fila, ou veja as resolvidas no filtro Resolvidas.',
-    fila: 'A fila está vazia: todas as conversas têm atendente.',
-    resolvidas: 'Nenhuma conversa resolvida ainda.',
+    todos: 'Nenhuma conversa neste canal ainda.',
+    ativos: 'Nenhuma conversa aberta ou pendente com a janela de 24h ativa.',
+    atribuidos: 'Nenhuma conversa aberta atribuída a você. Use "Assumir" numa conversa de Não atribuídos.',
+    'nao-atribuidos': 'Todas as conversas abertas têm atendente.',
+    'nao-respondidas': 'Nenhum cliente esperando resposta de um atendente.',
+    mencoes: 'Ninguém citou você nas notas de uma conversa. Para citar, escreva @nome nas notas do contato.',
+}
+
+const STATUS_FILTRO = [
+    ['', 'Qualquer status'],
+    ['aberta', 'Aberta'],
+    ['pendente', 'Pendente'],
+    ['resolvida', 'Resolvida'],
+    ['expirada', 'Expirada'],
+]
+
+// status como a WATI mostra: aberta/pendente com a janela de 24h fechada = expirada
+function statusExibido(c) {
+    if (c.status === 'resolvida') return 'resolvida'
+    if (janelaDaConversa(c)?.fechada) return 'expirada'
+    return c.status === 'pendente' ? 'pendente' : 'aberta'
 }
 
 function tocarBip() {
@@ -76,8 +98,10 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     const [perfilAberto, setPerfilAberto] = useState(false)
     const [busca, setBusca] = useState('')
     // ao entrar, a lista abre sempre nas conversas atribuídas a quem logou
-    const [filtro, setFiltro] = useState('minhas')
+    const [filtro, setFiltro] = useState('atribuidos')
     const [filtroDepto, setFiltroDepto] = useState('')
+    const [filtroStatus, setFiltroStatus] = useState('')
+    const [filtroAtendente, setFiltroAtendente] = useState('') // '' todos · 'sem' sem atendente · e-mail
     const [respostas, setRespostas] = useState([])
     const [equipe, setEquipe] = useState([])
     const [tagsCatalogo, setTagsCatalogo] = useState([])
@@ -109,20 +133,16 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         return new Set()
     }, [usuario.departamentos, usuario.papel, usuario.fixo, departamentos])
 
-    // inbox / notificações / Na fila: minhas OU do meu departamento (com ou sem atendente)
+    // visão atendente: só as minhas + fila do meu setor (sem atendente).
+    // chats já atribuídos a colegas NÃO entram — senão parece que a conversa da Ju “está nas minhas”.
     const noEscopoNotificacao = useCallback(
         (c) => {
             if (!visaoAtendente) return true
-            if (c.atendenteEmail === usuario.email) return true
-            // conversa do departamento → membro do setor vê (fila para Assumir ou chat do colega)
-            if (c.departamentoId && meusDeptoIds.has(c.departamentoId)) return true
-            if (c.atendenteEmail && meusDeptoIds.size) {
-                const colega = equipe.find((u) => u.email === c.atendenteEmail)
-                if (colega?.departamentos?.some((id) => meusDeptoIds.has(id))) return true
-            }
+            if (mesmoEmail(c.atendenteEmail, usuario.email)) return true
+            if (!c.atendenteEmail && c.departamentoId && meusDeptoIds.has(c.departamentoId)) return true
             return false
         },
-        [visaoAtendente, usuario.email, meusDeptoIds, equipe],
+        [visaoAtendente, usuario.email, meusDeptoIds],
     )
 
     // Na fila do setor: sem atendente, aberta, e departamento do qual faço parte
@@ -263,22 +283,39 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
 
     const buscando = Boolean(busca.trim())
 
+    // filtro de cima, com a regra da WATI (ver FILTROS)
+    const passaFiltroWati = useCallback(
+        (c, st = statusExibido(c)) => {
+            if (filtro === 'todos') return true
+            if (filtro === 'ativos') return st === 'aberta' || st === 'pendente'
+            if (filtro === 'atribuidos') return mesmoEmail(c.atendenteEmail, usuario.email) && st !== 'resolvida'
+            if (filtro === 'nao-atribuidos') return naFilaDoSetor(c)
+            if (filtro === 'nao-respondidas') return Boolean(c.aguardandoHumano) && st !== 'resolvida'
+            if (filtro === 'mencoes') return (c.mencionados || []).some((e) => mesmoEmail(e, usuario.email))
+            return true
+        },
+        [filtro, usuario.email, naFilaDoSetor],
+    )
+
+    // pessoas para o filtro de atendente: a equipe do painel e quem está logado (o admin do .env não está na equipe)
+    const atendentesFiltro = useMemo(() => {
+        const lista = (equipe || []).map((u) => ({ nome: u.nome || u.email, email: u.email }))
+        if (usuario.email && !lista.some((u) => mesmoEmail(u.email, usuario.email))) lista.push({ nome: usuario.nome || usuario.email, email: usuario.email })
+        return lista.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+    }, [equipe, usuario.email, usuario.nome])
+
     const passaFiltro = useCallback(
         (c) => {
             // visão atendente sem busca: só eu + meu setor. Com busca: toda a base (API WATI).
             if (visaoAtendente && !buscando && !noEscopoNotificacao(c)) return false
-            if (buscando) {
-                if (filtro === 'nao-lidas') return c.naoLidas > 0
-                if (filtro === 'resolvidas') return c.status === 'resolvida'
-                return true
-            }
-            if (filtro === 'nao-lidas') return c.naoLidas > 0
-            if (filtro === 'minhas') return c.atendenteEmail === usuario.email && c.status !== 'resolvida'
-            if (filtro === 'fila') return naFilaDoSetor(c)
-            if (filtro === 'resolvidas') return c.status === 'resolvida'
-            return true
+            // status e atendente escolhidos valem também na busca
+            const st = statusExibido(c)
+            if (filtroStatus && st !== filtroStatus) return false
+            if (filtroAtendente === 'sem' ? c.atendenteEmail : filtroAtendente && !mesmoEmail(c.atendenteEmail, filtroAtendente)) return false
+            if (buscando) return filtro === 'todos' || passaFiltroWati(c, st)
+            return passaFiltroWati(c, st)
         },
-        [filtro, usuario.email, visaoAtendente, buscando, noEscopoNotificacao, naFilaDoSetor],
+        [visaoAtendente, buscando, noEscopoNotificacao, filtroStatus, filtroAtendente, filtro, passaFiltroWati],
     )
 
     const conversasVisao = useMemo(() => conversas.filter(noEscopoNotificacao), [conversas, noEscopoNotificacao])
@@ -524,7 +561,7 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                             aria-label={visaoAtendente ? 'Visão atendente (clique para ver tudo)' : 'Visão administrador (clique para só os seus)'}
                             data-dica={
                                 visaoAtendente
-                                    ? 'Visão: Atendente — inbox seu/setor; busca na base toda'
+                                    ? 'Visão: Atendente — só as suas e a fila do setor; busca na base toda'
                                     : 'Visão: Administrador — tudo'
                             }
                             data-dica-lado="direita"
@@ -533,11 +570,12 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                                 const prox = visaoAtendente ? 'admin' : 'atendente'
                                 setPrefs({ visao: prox })
                                 if (prox === 'atendente') {
-                                    setFiltro('tudo')
+                                    setFiltro('atribuidos')
                                     setSelecionada((s) => {
                                         if (!s) return null
-                                        if (s.atendenteEmail === usuario.email) return s
-                                        if (s.departamentoId && (usuario.departamentos || []).includes(s.departamentoId)) return s
+                                        if (mesmoEmail(s.atendenteEmail, usuario.email)) return s
+                                        // fila do setor ainda pode ficar aberta para Assumir
+                                        if (!s.atendenteEmail && s.departamentoId && (usuario.departamentos || []).includes(s.departamentoId)) return s
                                         return null
                                     })
                                 }
@@ -640,9 +678,11 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
 
                 <div className="filtros" role="tablist" aria-label="Filtros" ref={faixaFiltros}>
                     {FILTROS.map(([k, r]) => {
+                        // contagem só onde ajuda a agir (como os marcadores da WATI)
                         let qtd = 0
-                        if (k === 'nao-lidas') qtd = conversasVisao.filter((c) => c.naoLidas > 0).length
-                        else if (k === 'fila') qtd = conversas.filter(naFilaDoSetor).length
+                        if (k === 'nao-atribuidos') qtd = conversas.filter((c) => naFilaDoSetor(c) && noEscopoNotificacao(c)).length
+                        else if (k === 'nao-respondidas') qtd = conversasVisao.filter((c) => c.aguardandoHumano && c.status !== 'resolvida').length
+                        else if (k === 'mencoes') qtd = conversasVisao.filter((c) => (c.mencionados || []).some((e) => mesmoEmail(e, usuario.email))).length
                         return (
                             <button key={k} role="tab" aria-selected={filtro === k} className={`chip ${filtro === k ? 'ativo' : ''}`} onClick={() => setFiltro(k)}>
                                 {r}
@@ -653,6 +693,34 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                     {meusDeptos.length > 0 ? (
                         <SeletorDepartamento departamentos={meusDeptos} valor={filtroDepto} aoMudar={setFiltroDepto} contagem={contagemDepto} />
                     ) : null}
+                    {!visaoAtendente ? (
+                        <select
+                            className={`chip chip-select ${filtroAtendente ? 'ativo' : ''}`}
+                            value={filtroAtendente}
+                            onChange={(e) => setFiltroAtendente(e.target.value)}
+                            aria-label="Filtrar por atendente"
+                        >
+                            <option value="">Todos os atendentes</option>
+                            <option value="sem">Sem atendente</option>
+                            {atendentesFiltro.map((p) => (
+                                <option key={p.email} value={p.email}>
+                                    {p.nome}
+                                </option>
+                            ))}
+                        </select>
+                    ) : null}
+                    <select
+                        className={`chip chip-select ${filtroStatus ? 'ativo' : ''}`}
+                        value={filtroStatus}
+                        onChange={(e) => setFiltroStatus(e.target.value)}
+                        aria-label="Filtrar por status"
+                    >
+                        {STATUS_FILTRO.map(([v, r]) => (
+                            <option key={v} value={v}>
+                                {r}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 {esperando.length ? (

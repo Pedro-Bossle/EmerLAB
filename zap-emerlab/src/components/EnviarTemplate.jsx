@@ -3,9 +3,52 @@ import { api } from '../api.js'
 import Modal from './Modal.jsx'
 import Icone from './Icone.jsx'
 
-// extrai {{1}}, {{nome}} etc. do corpo do template
-function variaveis(corpo) {
-    return [...new Set([...String(corpo).matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)].map((m) => m[1]))]
+const RE_VAR = /\{\{\s*([\w.]+)\s*\}\}/g
+
+function nomesEm(texto) {
+    return [...String(texto || '').matchAll(RE_VAR)].map((m) => m[1])
+}
+
+function ordenarVars(nomes) {
+    return [...nomes].sort((a, b) => {
+        const na = /^\d+$/.test(a)
+        const nb = /^\d+$/.test(b)
+        if (na && nb) return Number(a) - Number(b)
+        if (na !== nb) return na ? -1 : 1
+        return a.localeCompare(b, 'pt')
+    })
+}
+
+/** Variáveis do cabeçalho, corpo, rodapé e botões (a WATI manda cada trecho separado). */
+function variaveisDoTemplate(t) {
+    if (!t) return []
+    const ordem = []
+    const visto = new Set()
+    for (const parte of [t.cabecalho, t.corpo, t.rodape, t.botoes]) {
+        for (const v of nomesEm(parte)) {
+            if (visto.has(v)) continue
+            visto.add(v)
+            ordem.push(v)
+        }
+    }
+    return ordenarVars(ordem)
+}
+
+function ondeAparece(t, nome) {
+    const partes = []
+    if (nomesEm(t.cabecalho).includes(nome)) partes.push('cabeçalho')
+    if (nomesEm(t.corpo).includes(nome)) partes.push('corpo')
+    if (nomesEm(t.rodape).includes(nome)) partes.push('rodapé')
+    if (nomesEm(t.botoes).includes(nome)) partes.push('botão')
+    return partes
+}
+
+function substituir(texto, valores) {
+    return String(texto || '').replace(RE_VAR, (_, v) => (valores[v] != null && String(valores[v]).trim() !== '' ? valores[v] : `{{${v}}}`))
+}
+
+function valorInicial(v, conversa) {
+    return v === '1' || /nome|name/i.test(v) ? conversa.nome?.split(' ')[0] || '' : ''
 }
 
 export default function EnviarTemplate({ conversa, config, aoFechar, aoEnviado, avisar }) {
@@ -22,12 +65,12 @@ export default function EnviarTemplate({ conversa, config, aoFechar, aoEnviado, 
             .catch((e) => setErro(e.message))
     }, [])
 
-    const vars = useMemo(() => (escolhido ? variaveis(escolhido.corpo) : []), [escolhido])
+    const vars = useMemo(() => (escolhido ? variaveisDoTemplate(escolhido) : []), [escolhido])
 
     const escolher = (t) => {
         setEscolhido(t)
         const inicial = {}
-        for (const v of variaveis(t.corpo)) inicial[v] = v === '1' || /nome|name/i.test(v) ? conversa.nome?.split(' ')[0] || '' : ''
+        for (const v of variaveisDoTemplate(t)) inicial[v] = valorInicial(v, conversa)
         setValores(inicial)
     }
 
@@ -38,7 +81,8 @@ export default function EnviarTemplate({ conversa, config, aoFechar, aoEnviado, 
           ? `Preencha ${faltando.length === 1 ? 'a variável' : 'as variáveis'} ${faltando.map((v) => `{{${v}}}`).join(', ')} para enviar.`
           : ''
 
-    const previa = escolhido ? escolhido.corpo.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, v) => valores[v] || `{{${v}}}`) : ''
+    const previaCabecalho = escolhido ? substituir(escolhido.cabecalho, valores) : ''
+    const previaCorpo = escolhido ? substituir(escolhido.corpo, valores) : ''
 
     const enviar = async () => {
         setEnviando(true)
@@ -51,7 +95,15 @@ export default function EnviarTemplate({ conversa, config, aoFechar, aoEnviado, 
         }
     }
 
-    const filtrados = (templates || []).filter((t) => !busca || t.nome.toLowerCase().includes(busca.toLowerCase()) || t.corpo.toLowerCase().includes(busca.toLowerCase()))
+    const filtrados = (templates || []).filter(
+        (t) =>
+            !busca ||
+            t.nome.toLowerCase().includes(busca.toLowerCase()) ||
+            t.corpo.toLowerCase().includes(busca.toLowerCase()) ||
+            String(t.cabecalho || '')
+                .toLowerCase()
+                .includes(busca.toLowerCase()),
+    )
 
     return (
         <Modal titulo={escolhido ? `Template: ${escolhido.nome}` : 'Enviar template'} aoFechar={aoFechar} largo>
@@ -62,34 +114,42 @@ export default function EnviarTemplate({ conversa, config, aoFechar, aoEnviado, 
                     <input className="entrada" placeholder="Buscar template…" value={busca} onChange={(e) => setBusca(e.target.value)} autoFocus />
                     {templates === null && !erro ? <div className="spinner spinner-centro" /> : null}
                     <div className="lista-templates">
-                        {filtrados.map((t) => (
-                            <button key={`${t.nome}-${t.idioma}`} className="template-item" onClick={() => escolher(t)}>
-                                <div>
-                                    <strong>{t.nome}</strong>
-                                    <small>
-                                        {t.categoria} {t.idioma ? `· ${t.idioma}` : ''}
-                                    </small>
-                                </div>
-                                <p>{t.corpo}</p>
-                            </button>
-                        ))}
+                        {filtrados.map((t) => {
+                            const nVars = variaveisDoTemplate(t).length
+                            return (
+                                <button key={`${t.nome}-${t.idioma}`} className="template-item" onClick={() => escolher(t)}>
+                                    <div>
+                                        <strong>{t.nome}</strong>
+                                        <small>
+                                            {t.categoria} {t.idioma ? `· ${t.idioma}` : ''}
+                                            {nVars ? ` · ${nVars} var.` : ''}
+                                        </small>
+                                    </div>
+                                    <p>{t.corpo}</p>
+                                </button>
+                            )
+                        })}
                         {templates && filtrados.length === 0 ? <p className="lista-vazia">Nenhum template aprovado encontrado.</p> : null}
                     </div>
                 </>
             ) : (
                 <>
-                    {vars.map((v) => (
-                        <label key={v} className="campo">
-                            <span>Variável {`{{${v}}}`}</span>
-                            <input value={valores[v] || ''} onChange={(e) => setValores((s) => ({ ...s, [v]: e.target.value }))} />
-                        </label>
-                    ))}
+                    {vars.map((v) => {
+                        const onde = ondeAparece(escolhido, v)
+                        const rotulo = onde.length === 1 ? `${onde[0][0].toUpperCase()}${onde[0].slice(1)} {{${v}}}` : `Variável {{${v}}}`
+                        return (
+                            <label key={v} className="campo">
+                                <span>{rotulo}</span>
+                                <input value={valores[v] || ''} onChange={(e) => setValores((s) => ({ ...s, [v]: e.target.value }))} />
+                            </label>
+                        )
+                    })}
                     <div className="previa-template">
                         <div className="msg-linha minha com-cauda">
                             <div className="msg">
-                                {escolhido.cabecalho ? <strong className="msg-texto">{escolhido.cabecalho}</strong> : null}
-                                <span className="msg-texto">{previa}</span>
-                                {escolhido.rodape ? <small className="msg-rodape">{escolhido.rodape}</small> : null}
+                                {previaCabecalho ? <strong className="msg-texto">{previaCabecalho}</strong> : null}
+                                <span className="msg-texto">{previaCorpo}</span>
+                                {escolhido.rodape ? <small className="msg-rodape">{substituir(escolhido.rodape, valores)}</small> : null}
                             </div>
                         </div>
                     </div>

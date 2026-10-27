@@ -283,6 +283,11 @@ export const normalizarTextoBusca = (texto) =>
         .replace(/\s+/g, ' ')
         .trim()
 
+/** Compara e-mails de atendente sem cair em diferença de maiúsculas. */
+export function mesmoEmail(a, b) {
+    return Boolean(a) && Boolean(b) && String(a).trim().toLowerCase() === String(b).trim().toLowerCase()
+}
+
 /** Frases típicas da WATI em inglês (pills de atribuição / chatbot / status). */
 export function pareceEventoSistemaWati(texto) {
     const t = String(texto || '').replace(/\s+/g, ' ').trim()
@@ -295,8 +300,12 @@ export function pareceEventoSistemaWati(texto) {
         || /^(ended|opened|closed|started|resolved|expired)\s*:/i.test(t)
         || /\bvia\s+round[-\s]?robin\b/i.test(t)
         || /\bby\s+(bot|rule|operator|team|agent)\b/i.test(t)
+        || /\bby\s+an?\s+operator\b/i.test(t)
+        || /\bby\s+a\s+system\s+event\b/i.test(t)
         || /\bmarked as (resolved|pending|open|solved)\b/i.test(t)
         || /\bstatus (was )?changed to\b/i.test(t)
+        || /\bsession\s+is\s+in\s+['"]?ask['"]?\s+mode\b/i.test(t)
+        || /you\s+can'?t\s+send\s+messages\s+now/i.test(t)
 }
 
 /**
@@ -335,10 +344,16 @@ export function traduzirEventoSistema(texto) {
         // "by agent Bot" (nome do bot) → "pelo Bot"; demais agentes ficam "pelo atendente X"
         .replace(/\bby\s+agent\s+Bot\b/gi, 'pelo Bot')
         .replace(/\bby\s+Bot\b/gi, 'pelo Bot')
+        .replace(/\bby\s+an?\s+operator\s+via\s+WhatsApp\b/gi, 'por um operador via WhatsApp')
+        .replace(/\bby\s+a\s+system\s+event\s+via\s+backend\b/gi, 'por um evento do sistema')
+        .replace(/\bby\s+a\s+system\s+event\b/gi, 'por um evento do sistema')
+        .replace(/\bby\s+an?\s+operator\b/gi, 'por um operador')
         .replace(/\bby\s+Operator\b/gi, 'pelo operador')
         .replace(/\bby\s+agent\b/gi, 'pelo atendente')
         .replace(/\bby\s+Rule\b/gi, 'pela regra')
         .replace(/\bby\s+Team\b/gi, 'pela equipe')
+        .replace(/\bvia\s+WhatsApp\b/gi, 'via WhatsApp')
+        .replace(/\bvia\s+backend\b/gi, 'via sistema')
         .replace(/\bvia\s+round[-\s]?robin(?:\s+assignment)?\b/gi, 'via distribuição em rodízio')
         .replace(/\bvia\s+load[-\s]?based(?:\s+assignment)?\b/gi, 'via distribuição por carga')
         .replace(/\bvia\s+last\s+assignee\b/gi, 'via último atendente')
@@ -357,12 +372,17 @@ export function traduzirEventoSistema(texto) {
         .replace(/\bmarked\s+as\s+solved\b/gi, 'marcada como resolvida')
         .replace(/\bmarked\s+as\s+pending\b/gi, 'marcada como pendente')
         .replace(/\bmarked\s+as\s+open\b/gi, 'marcada como aberta')
+        .replace(/^This\s+session\s+is\s+in\s+['"]?Ask['"]?\s+mode\.?\s*/i, 'Esta sessão está no modo Pergunta (Ask). ')
+        .replace(/You\s+can'?t\s+send\s+messages\s+now\.?/gi, 'Não é possível enviar mensagens agora.')
         // valores de status que sobram após o prefixo ("… definido como Pending pelo Bot")
+        .replace(/\bPending\/Open\b/gi, 'Pendente/Aberto')
+        .replace(/\bOpen\/Pending\b/gi, 'Aberto/Pendente')
         .replace(/\bPending\b/g, 'Pendente')
         .replace(/\bSolved\b/g, 'Resolvido')
         .replace(/\bResolved\b/g, 'Resolvido')
         .replace(/\bOpen\b/g, 'Aberto')
         .replace(/\bClosed\b/g, 'Fechado')
+        .replace(/\bat\s+(\d{1,2}:\d{2})\b/gi, 'às $1')
 
     return t.replace(/\s{2,}/g, ' ').trim()
 }

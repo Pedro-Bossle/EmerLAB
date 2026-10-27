@@ -185,9 +185,13 @@ function exigirAdmin(usuario) {
     if (usuario.papel !== 'admin') throw new HttpError(403, 'Apenas administradores.')
 }
 
+function mesmoEmail(a, b) {
+    return Boolean(a) && Boolean(b) && String(a).trim().toLowerCase() === String(b).trim().toLowerCase()
+}
+
 function podeVerConversa(usuario, meta) {
     if (usuario.papel === 'admin') return true
-    if (meta?.atendente_email && meta.atendente_email === usuario.email) return true
+    if (meta?.atendente_email && mesmoEmail(meta.atendente_email, usuario.email)) return true
     // fila do setor: sem atendente + departamento do qual o usuário faz parte
     if (!meta?.atendente_email && meta?.departamento_id) {
         return usuario.departamentos.includes(meta.departamento_id)
@@ -239,6 +243,51 @@ async function registrarAnuncio(waId, anuncio, atual) {
     if (!anuncio || (atual && atual.em === anuncio.em)) return false
     const r = await db().from('zap_conversas').upsert({ wa_id: waId, anuncio }, { onConflict: 'wa_id' })
     return !r.error
+}
+
+// Mensagem nossa feita por pessoa (atendente na WATI ou no painel), não pelo bot: o bot aparece como "Bot"
+// (operatorName) e sem e-mail. Usado no filtro "Não respondidas", que como na WATI ignora respostas do bot.
+function respostaHumanaWati(operador, email) {
+    if (email && !/^api-token-user\./i.test(String(email))) return true
+    const nome = String(operador || '').trim()
+    return Boolean(nome) && !/^bot(\s|$)/i.test(nome) && !/^api\s*token/i.test(nome)
+}
+
+// "Não respondidas": o cliente escreveu depois da última resposta humana (sem resposta humana ainda = esperando).
+// Sem a hora do cliente, vale a última mensagem ser dele.
+function aguardaHumano(meta, ultimaEm) {
+    if (!meta || meta.status === 'resolvida') return false
+    const cliente = msData(meta.ultima_cliente_em) || (meta.ultima_msg_minha === false ? msData(ultimaEm) : 0)
+    if (!cliente) return false
+    return cliente > msData(meta.ultima_humana_em) + FOLGA_MS
+}
+
+// Pessoas do painel para as menções nas notas (@Ana, @ana.souza, @ana@emerdog.com.br), guardadas por 5 min
+let pessoasCache = null
+async function pessoasDoPainel() {
+    if (pessoasCache && Date.now() - pessoasCache.em < 5 * 60 * 1000) return pessoasCache.lista
+    const env = getEnv()
+    const r = await db().from('zap_usuarios').select('nome, email').eq('ativo', true)
+    const lista = [...(r.data || []), ...(env.adminEmail ? [{ nome: env.adminNome || '', email: env.adminEmail }] : [])]
+        .filter((p) => p.email)
+        .map((p) => ({ email: String(p.email).toLowerCase(), apelidos: apelidosDe(p) }))
+    pessoasCache = { em: Date.now(), lista }
+    return lista
+}
+
+const semAcento = (t) => String(t || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+function apelidosDe(p) {
+    const email = String(p.email).toLowerCase()
+    const primeiro = semAcento(String(p.nome || '').trim().split(/\s+/)[0])
+    return new Set([email, email.split('@')[0], primeiro].filter((x) => x && x.length >= 2))
+}
+
+/** E-mails das pessoas citadas com @ nas notas da conversa. */
+function mencionadosNasNotas(notas, pessoas) {
+    const texto = semAcento(notas)
+    if (!texto.includes('@') || !pessoas?.length) return []
+    const citados = new Set([...texto.matchAll(/@([\p{L}0-9._-]+(?:@[a-z0-9.-]+)?)/gu)].map((m) => m[1].replace(/[.,;:!?]+$/, '')))
+    return pessoas.filter((p) => [...citados].some((c) => p.apelidos.has(c))).map((p) => p.email)
 }
 
 // ---------- normalização ----------
@@ -344,6 +393,8 @@ const ATRIBUTOS_BUSCA = ['name', 'tipo', 'cidade', 'uf']
 
 function normalizarContato(c) {
     const waId = normalizarWaId(c.wAid || c.waId || c.phone)
+    // número exatamente como a WATI guarda (com ou sem o 9º dígito): getMessages acerta de primeira
+    const alvoWati = String(c.wAid || c.waId || c.phone || '').replace(/\D/g, '') || null
     const atributos = {}
     let nomeFicha = null
     for (const p of c.customParams || []) {
@@ -356,6 +407,7 @@ function normalizarContato(c) {
     // ficha salva (atributo name) tem prioridade sobre o push name do WhatsApp
     return {
         waId,
+        alvoWati,
         nome: nomeFicha || nomeWati || null,
         foto: c.photo || null,
         atualizadoEm: c.lastUpdated || c.created || null,
@@ -371,6 +423,10 @@ function fundirMeta(a, b) {
     const bEm = msData(b.ultima_msg_em)
     const recente = bEm > aEm ? b : a
     const outro = recente === a ? b : a
+    // estado da conversa (status, atendente, setor) vem da linha gravada por último, não da mensagem mais nova:
+    // o painel grava na linha canônica; a antiga (sem o 9º dígito) podia ter mensagem mais nova e status velho,
+    // e o "Resolver"/"Pendente" recém-marcado parecia não pegar
+    const gravada = msData(b.atualizado_em) > msData(a.atualizado_em) ? b : a
     return {
         ...outro,
         ...recente,
@@ -378,8 +434,10 @@ function fundirMeta(a, b) {
         nome: recente.nome || outro.nome || null,
         tags: (recente.tags?.length ? recente.tags : outro.tags) || [],
         anuncio: recente.anuncio || outro.anuncio || null,
-        atendente_email: recente.atendente_email || outro.atendente_email || null,
-        departamento_id: recente.departamento_id || outro.departamento_id || null,
+        status: gravada.status || recente.status,
+        atendente_email: gravada.atendente_email ?? null,
+        departamento_id: gravada.departamento_id ?? null,
+        atualizado_em: msData(a.atualizado_em) >= msData(b.atualizado_em) ? a.atualizado_em : b.atualizado_em,
         nao_lidas: Math.max(recente.nao_lidas || 0, outro.nao_lidas || 0),
         ultima_cliente_em: msData(recente.ultima_cliente_em) >= msData(outro.ultima_cliente_em) ? recente.ultima_cliente_em : outro.ultima_cliente_em,
     }
@@ -519,7 +577,12 @@ async function listarConversas(usuario, query) {
     ])
     const metas = metasTodas.filter((m) => canalDe(m.wa_id) === canal)
     const porId = new Map()
-    for (const c of contatos) if (c.waId) porId.set(c.waId, { ...c })
+    for (const c of contatos) {
+        if (!c.waId) continue
+        porId.set(c.waId, { ...c })
+        // lista da WATI diz a variante certa do número: a conferência e o chat não gastam uma chamada errando
+        if (c.alvoWati) alvoWatiOk.set(c.waId, c.alvoWati)
+    }
     for (const m of metas) {
         // canônico: evita card duplicado quando o banco tem o número com e sem o 9º dígito
         const waId = normalizarWaId(m.wa_id)
@@ -539,6 +602,7 @@ async function listarConversas(usuario, query) {
             espelhar.map((c) => salvarMeta(c.waId, { nome: String(c.nome || c.atributos.name).slice(0, 120) })),
         ).catch(() => {})
     }
+    const pessoas = await pessoasDoPainel().catch(() => [])
     let lista = brutos.map((c) => {
         // horário da última mensagem. O last_updated do contato na WATI também muda sem mensagem (chatbot expirando
         // ~3h depois, atributo, atribuição): só serve de palpite enquanto a conversa não foi verificada
@@ -552,6 +616,10 @@ async function listarConversas(usuario, query) {
             ultimaEm,
             // a janela de 24h do WhatsApp conta da última mensagem do cliente (null = ainda não se sabe)
             ultimaClienteEm: c.meta?.ultima_cliente_em || (c.meta?.ultima_msg_minha === false ? ultimaEm : null),
+            // "Não respondidas" (como a WATI): cliente escreveu depois da última resposta humana; bot não conta
+            aguardandoHumano: aguardaHumano(c.meta, ultimaEm),
+            // "Menções": e-mails de quem foi citado com @ nas notas da conversa
+            mencionados: mencionadosNasNotas(c.meta?.notas, pessoas),
             anuncio: c.meta?.anuncio || null,
             naoLidas: c.meta?.nao_lidas || 0,
             departamentoId: c.meta?.departamento_id || null,
@@ -590,6 +658,8 @@ async function listarConversas(usuario, query) {
 // com o webhook gravando, a conferência só corrige o que escapou: 3 por carga, ativa de novo após 60 s
 const VERIFICAR_POR_VEZ = 3
 const INTERVALO_VERIFICACAO = 60000
+const ATIVA_MS = 24 * 3600 * 1000
+const RECONFERIR_ATIVA_MS = 3 * 60 * 1000
 const FOLGA_MS = 2000 // webhook grava em segundos; a WATI devolve com milissegundos
 const verificadas = new Map() // waId → quando foi checada (por instância do servidor)
 // datas da WATI ("…Z") e do Postgres ("…+00:00") não se comparam como texto
@@ -642,12 +712,23 @@ function escolherParaVerificar(lista, metaPorId, contatoEm) {
         .filter((c) => metaPorId.has(c.waId) && !recente(c))
         .filter((c) => msData(contatoEm.get(c.waId)) > msData(metaPorId.get(c.waId).atualizado_em) + FOLGA_MS)
         .sort((a, b) => msData(contatoEm.get(b.waId)) - msData(contatoEm.get(a.waId)))
-    return [...mexidas, ...desconhecidas].slice(0, VERIFICAR_POR_VEZ)
+    // Conversa ativa (mensagem nas últimas 24 h, não resolvida) é conferida de novo a cada 3 min mesmo sem mudança
+    // no contato: o bot da WATI atribui/transfere sem mexer no last_updated do contato e não há webhook de atribuição.
+    // A mais antiga no banco primeiro; como a conferência grava atualizado_em, vale para todas as instâncias.
+    const ativas = lista
+        .filter((c) => metaPorId.has(c.waId) && !recente(c))
+        .filter((c) => {
+            const m = metaPorId.get(c.waId)
+            return m.status !== 'resolvida' && agora - msData(m.ultima_msg_em) < ATIVA_MS && agora - msData(m.atualizado_em) > RECONFERIR_ATIVA_MS
+        })
+        .sort((a, b) => msData(metaPorId.get(a.waId).atualizado_em) - msData(metaPorId.get(b.waId).atualizado_em))
+    // no máximo 1 ativa por carga: o resto das vagas fica para o que mudou; evita pico quando a instância é nova
+    return [...new Set([...mexidas, ...desconhecidas, ...ativas.slice(0, 1)])].slice(0, VERIFICAR_POR_VEZ)
 }
 
 // Quem atende segundo a WATI: o bot (round-robin) e o painel oficial atribuem lá, e o painel só ficava sabendo pelo
 // "Assumir". Vale o evento de atribuição mais recente ("The chat has been assigned to x@y by Bot…",
-// "Chat is now assigned to x@y"); sem evento nas mensagens lidas, nada muda.
+// "Chat is now assigned to x@y"); sem evento, usa o operatorEmail da última mensagem humana.
 const RE_ATRIBUIDO = /assigned to ([^\s()]+@[^\s()]+?)[.,]?(?:\s|$)/i
 function atendenteDoHistorico(itens) {
     const eventos = [...itens].filter((m) => m.eventType === 'ticket').sort((a, b) => msData(b.created) - msData(a.created))
@@ -655,7 +736,51 @@ function atendenteDoHistorico(itens) {
         const m = String(e.eventDescription || e.text || '').match(RE_ATRIBUIDO)
         if (m) return m[1].toLowerCase()
     }
+    // Ju responde na WATI sem novo assign → o card não pode continuar como “do Alfa”
+    const enviadas = [...itens]
+        .filter((m) => m.owner && m.operatorEmail && !/^api\s*token\b/i.test(String(m.operatorEmail)))
+        .sort((a, b) => msData(b.created || b.timestamp) - msData(a.created || a.timestamp))
+    const email = enviadas[0]?.operatorEmail
+    return email ? String(email).trim().toLowerCase() : null
+}
+
+/**
+ * Status do ticket segundo o evento mais recente da WATI (solved/open/pending).
+ * Devolve também o horário do evento — só sincroniza se for mais novo que meta.atualizado_em,
+ * senão um "Open" antigo desfaz o Resolver feito agora pela API.
+ */
+function statusDoHistorico(itens) {
+    const eventos = [...itens].filter((m) => m.eventType === 'ticket').sort((a, b) => msData(b.created) - msData(a.created))
+    for (const e of eventos) {
+        const t = String(e.eventDescription || e.text || e.finalText || '')
+        if (!/\bstatus\b/i.test(t) && !/\bmarked as\b/i.test(t)) continue
+        let status = null
+        if (/\b(solved|resolved)\b/i.test(t)) status = 'resolvida'
+        else if (/\bpending\b/i.test(t)) status = 'pendente'
+        else if (/\bopen\b/i.test(t)) status = 'aberta'
+        if (status) return { status, em: e.created || e.timestamp || null }
+    }
     return null
+}
+
+function aplicarStatusDoHistorico(meta, itens) {
+    const ev = statusDoHistorico(itens)
+    if (!ev || ev.status === (meta?.status || 'aberta')) return null
+    // evento sem data: só aceita "resolvida" (não reabre por Open antigo sem timestamp)
+    if (!ev.em) return ev.status === 'resolvida' ? ev.status : null
+    if (msData(ev.em) <= msData(meta?.atualizado_em) + FOLGA_MS) return null
+    return ev.status
+}
+
+/** Frases de sistema/Ask mode que a WATI manda como “mensagem” — não reabrem ticket resolvido. */
+function textoPareceSistemaWati(texto) {
+    const t = String(texto || '').replace(/\s+/g, ' ').trim()
+    if (!t) return false
+    return /\b(ticket|chat)\s+status\s+has\s+been\s+set\b/i.test(t)
+        || /\bsession\s+is\s+in\s+['"]?ask['"]?\s+mode\b/i.test(t)
+        || /you\s+can'?t\s+send\s+messages\s+now/i.test(t)
+        || /^(the\s+)?(chat|ticket)\s+(has\s+been|was|is\s+now)\s+(assigned|unassigned|opened|closed)\b/i.test(t)
+        || /^(ended|opened|closed|started|resolved|expired)\s*:/i.test(t)
 }
 
 async function verificarNaWati(lista, metaPorId, contatoEm) {
@@ -674,16 +799,27 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
             const anuncio = anuncioDe(itens)
             if (await registrarAnuncio(c.waId, anuncio, meta?.anuncio)) c.anuncio = anuncio
             const atendente = atendenteDoHistorico(itens)
-            if (atendente && atendente !== meta?.atendente_email) {
+            if (atendente && !mesmoEmail(atendente, meta?.atendente_email)) {
                 await salvarMeta(c.waId, { atendente_email: atendente })
                 c.atendenteEmail = atendente
+            }
+            const statusWati = aplicarStatusDoHistorico(meta, itens)
+            if (statusWati) {
+                await salvarMeta(c.waId, { status: statusWati })
+                c.status = statusWati
+                if (meta) meta.status = statusWati
             }
             const ultima = msgs[0]
             if (!ultima) return
             // horário certo mesmo quando não há nada novo (o card podia estar com o last_updated do contato)
             c.ultimaEm = ultima.em
             // última do cliente entre as lidas: corrige a janela de 24h mesmo sem mensagem nova
-            const doCliente = msgs.find((m) => !m.minha)?.em
+            const humana = msgs.find((m) => m.minha && respostaHumanaWati(m.operador))?.em
+            if (humana && msData(humana) > msData(meta?.ultima_humana_em) + FOLGA_MS) {
+                await salvarMeta(c.waId, { ultima_humana_em: humana })
+                c.ultimaHumanaEm = humana
+            }
+            const doCliente = msgs.find((m) => !m.minha && !textoPareceSistemaWati(m.texto))?.em
             // espelha o horário da WATI mesmo se a meta local estava adiantada/atrasada (fuso errado)
             if (doCliente && Math.abs(msData(doCliente) - msData(meta?.ultima_cliente_em)) > FOLGA_MS) {
                 await salvarMeta(c.waId, { ultima_cliente_em: doCliente })
@@ -694,15 +830,16 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
             const texto = textoPrevia(ultima.tipo, ultima.texto).slice(0, 500)
             const previaDesatualizada =
                 texto !== (meta?.ultima_msg || '') || Boolean(ultima.minha) !== Boolean(meta?.ultima_msg_minha)
-            // mensagens do cliente depois da última resposta nossa
-            const corte = msgs.findIndex((m) => m.minha)
-            const semResposta = corte < 0 ? msgs : msgs.slice(0, corte)
+            // mensagens do cliente depois da última resposta nossa (ignora pills Ask/status)
+            const msgsCliente = msgs.filter((m) => !textoPareceSistemaWati(m.texto))
+            const corte = msgsCliente.findIndex((m) => m.minha)
+            const semResposta = corte < 0 ? msgsCliente.filter((m) => !m.minha) : msgsCliente.slice(0, corte).filter((m) => !m.minha)
             let naoLidas = meta?.nao_lidas || 0
             if (conhecidaMs === null || nova(ultima)) {
                 if (conhecidaMs === null) {
                     // primeira vez: só conta como nova se ainda dá para responder (janela de 24h)
                     naoLidas = Date.now() - new Date(ultima.em).getTime() < 24 * 3600 * 1000 ? semResposta.length : 0
-                } else if (msgs.some((m) => m.minha && nova(m))) {
+                } else if (msgsCliente.some((m) => m.minha && nova(m))) {
                     naoLidas = semResposta.length // alguém respondeu (pela WATI): conta só o que veio depois
                 } else {
                     naoLidas = (meta?.nao_lidas || 0) + semResposta.filter(nova).length
@@ -717,7 +854,8 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
             const campos = { ultima_msg: texto, ultima_msg_em: ultima.em, ultima_msg_minha: ultima.minha, nao_lidas: naoLidas }
             // cliente escreveu numa conversa resolvida → reabre (igual ao webhook)
             // espelha na WATI: senão o ticket fica Solved lá e o Assumir falha
-            if (!ultima.minha && meta?.status === 'resolvida') {
+            // Ask mode / pills de status NÃO contam como mensagem do cliente
+            if (!ultima.minha && !textoPareceSistemaWati(ultima.texto) && (meta?.status || c.status) === 'resolvida') {
                 campos.status = 'aberta'
                 await comAlvoWati(c.waId, (alvo) => wati.atualizarStatus(alvo, 'aberta')).catch(() => {})
             }
@@ -770,7 +908,9 @@ async function mensagens(usuario, waId, query) {
             campos.ultima_cliente_em = doCliente.em
         }
         const atendente = atendenteDoHistorico(itens)
-        if (atendente && atendente !== meta?.atendente_email) campos.atendente_email = atendente
+        if (atendente && !mesmoEmail(atendente, meta?.atendente_email)) campos.atendente_email = atendente
+        const statusWati = aplicarStatusDoHistorico(meta, itens)
+        if (statusWati) campos.status = statusWati
         if (Object.keys(campos).length) await salvarMeta(waId, campos).catch(() => {})
     }
     return { mensagens: lista, temMais }
@@ -883,6 +1023,7 @@ async function enviarTextoHandler(req, usuario, waId) {
         ultima_msg: final.slice(0, 500),
         ultima_msg_em: new Date().toISOString(),
         ultima_msg_minha: true,
+        ultima_humana_em: new Date().toISOString(),
         nao_lidas: 0,
         ...(meta?.atendente_email ? {} : { atendente_email: usuario.email }),
     })
@@ -901,7 +1042,7 @@ async function enviarArquivoHandler(req, usuario, waId) {
     // guarda o nome original (a WATI renomeia para um UUID); sem a tabela, o envio segue normal
     const caminho = typeof enviada?.data === 'string' ? semBarraInicial(enviada.data) : null
     await db().from('zap_arquivos').insert({ wa_id: waId, nome: nomeArquivo, arquivo: caminho })
-    await salvarMeta(waId, { ultima_msg: `📎 ${nome || 'Arquivo'}`, ultima_msg_em: new Date().toISOString(), ultima_msg_minha: true, nao_lidas: 0 })
+    await salvarMeta(waId, { ultima_msg: `📎 ${nome || 'Arquivo'}`, ultima_msg_em: new Date().toISOString(), ultima_msg_minha: true, ultima_humana_em: new Date().toISOString(), nao_lidas: 0 })
     return { ok: true }
 }
 
@@ -911,7 +1052,8 @@ async function enviarTemplateHandler(req, usuario, waId) {
     const { nome, parametros } = await lerCorpo(req)
     if (!nome) throw new HttpError(400, 'Escolha um template.')
     await comAlvoWati(waId, (alvo) => wati.enviarTemplate(alvo, nome, parametros))
-    await salvarMeta(waId, { ultima_msg: `📄 Template: ${nome}`, ultima_msg_em: new Date().toISOString(), ultima_msg_minha: true })
+    // template enviado por atendente conta como resposta (regra do "Não respondidas" da WATI)
+    await salvarMeta(waId, { ultima_msg: `📄 Template: ${nome}`, ultima_msg_em: new Date().toISOString(), ultima_msg_minha: true, ultima_humana_em: new Date().toISOString() })
     return { ok: true }
 }
 
@@ -1144,6 +1286,8 @@ async function statusHandler(req, usuario, waId) {
     try {
         await comAlvoWati(waId, (alvo) => wati.atualizarStatus(alvo, status))
     } catch (e) {
+        // resolvida só no painel some da lista e a WATI reabre/recusa — o atendente acha que “não encerra”
+        if (status === 'resolvida') throw e
         avisoWati = e.message
     }
     await salvarMeta(waId, { status })
@@ -1479,6 +1623,10 @@ async function webhook(req, res, query) {
                 p_minha: minha,
             }),
         )
+        // resposta de atendente (na WATI ou no painel) zera o "Não respondidas"; mensagem do bot não conta
+        if (minha && respostaHumanaWati(b.operatorName, b.operatorEmail)) {
+            await db().from('zap_conversas').update({ ultima_humana_em: em }).eq('wa_id', waId).or(`ultima_humana_em.is.null,ultima_humana_em.lt.${em}`)
+        }
         if (!minha && metaAntes?.status === 'resolvida') {
             await comAlvoWati(waId, (alvo) => wati.atualizarStatus(alvo, 'aberta')).catch(() => {})
         }

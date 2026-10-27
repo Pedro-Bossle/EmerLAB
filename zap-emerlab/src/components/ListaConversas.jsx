@@ -52,7 +52,10 @@ export function Avatar({ conversa, tamanho = 49 }) {
 }
 
 export default function ListaConversas({ conversas, carregando, erro, textoVazio, selecionada, deptoPorId, usuarioEmail, equipe, aoAbrir, aoTentar, aoMenu }) {
-    const nomeAtendente = (email) => (email === usuarioEmail ? 'Você' : equipe.find((u) => u.email === email)?.nome?.split(' ')[0] || email?.split('@')[0])
+    const nomeAtendente = (email) =>
+        String(email || '').toLowerCase() === String(usuarioEmail || '').toLowerCase()
+            ? 'Você'
+            : equipe.find((u) => String(u.email || '').toLowerCase() === String(email || '').toLowerCase())?.nome?.split(' ')[0] || email?.split('@')[0]
 
     if (carregando) {
         return (
