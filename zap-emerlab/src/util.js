@@ -29,6 +29,30 @@ export function normalizarWaId(id) {
     return d
 }
 
+/**
+ * Variantes do mesmo celular BR para falar com a WATI.
+ * A WATI pode ter o contato gravado com ou sem o 9º dígito — getMessages no formato
+ * “errado” volta 400/vazio e o chat parece novo (só template), mesmo com prévia na lista.
+ * Ordem: formato recebido primeiro, depois canônico, depois o alternativo.
+ */
+export function variantesWaId(id) {
+    const s = String(id || '').trim()
+    if (/^(ig|ms):/i.test(s)) return [s]
+    const bruto = s.replace(/\D/g, '')
+    if (!bruto) return []
+    const canon = normalizarWaId(bruto)
+    const out = []
+    const add = (x) => {
+        if (x && !out.includes(x)) out.push(x)
+    }
+    add(bruto)
+    add(canon)
+    if (canon.startsWith('55') && canon.length === 13 && canon[4] === '9') {
+        add(`${canon.slice(0, 4)}${canon.slice(5)}`)
+    }
+    return out
+}
+
 export function formatarTelefone(waId) {
     if (canalDoId(waId) !== 'whatsapp') return ''
     const d = normalizarWaId(waId)

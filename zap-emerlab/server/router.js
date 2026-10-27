@@ -10,7 +10,7 @@ import { municipiosPorUf } from './ibge.js'
 import { lerRegras, codigosServicos, erroMarcaServicos, temMarcaServicos, MARCA_SERVICOS } from '../src/regras.js'
 import { catalogoProcedimentos, servicosNaCidade } from './quemRealiza.js'
 import { preencherVariaveis } from '../src/variaveis.js'
-import { normalizarWaId } from '../src/util.js'
+import { normalizarWaId, variantesWaId } from '../src/util.js'
 
 const COOKIE = 'zap_sess'
 const ADMIN_ENV_ID = 'admin-env'
@@ -93,6 +93,51 @@ function lerIdConversa(bruto) {
 // alvo aceito pelos endpoints v1 da WATI (número ou ContactId)
 const alvoWati = (id) => lerIdConversa(id).alvo
 const canalDe = (id) => lerIdConversa(id).canal
+
+// Qual variante do número a WATI aceitou nesta instância (evita repetir tentativa a cada envio)
+const alvoWatiOk = new Map()
+
+/** getMessages: tenta com/sem 9º dígito até achar histórico (ou esgotar variantes). */
+async function listarMensagensWati(waId, opts = {}) {
+    const preferido = alvoWatiOk.get(normalizarWaId(waId))
+    const ordem = preferido ? [preferido, ...variantesWaId(waId).filter((v) => v !== preferido)] : variantesWaId(waId)
+    let vazio = { mensagens: [], temMais: false }
+    let ultimoErro = null
+    for (const alvo of ordem) {
+        try {
+            const r = await wati.listarMensagens(alvo, opts)
+            const itens = r.mensagens || []
+            if (itens.length) {
+                alvoWatiOk.set(normalizarWaId(waId), alvo)
+                return { ...r, mensagens: itens, alvoUsado: alvo }
+            }
+            vazio = { ...r, mensagens: itens, alvoUsado: alvo }
+        } catch (e) {
+            ultimoErro = e
+            if (!(e instanceof wati.WatiError && (e.status === 400 || e.status === 404 || e.codigo === 'numero_invalido'))) throw e
+        }
+    }
+    if (ultimoErro && !vazio.alvoUsado) throw ultimoErro
+    return vazio
+}
+
+/** Envio/atribuir: usa a variante que já funcionou; senão tenta todas. */
+async function comAlvoWati(waId, fn) {
+    const preferido = alvoWatiOk.get(normalizarWaId(waId))
+    const ordem = preferido ? [preferido, ...variantesWaId(waId).filter((v) => v !== preferido)] : variantesWaId(waId)
+    let ultimoErro = null
+    for (const alvo of ordem) {
+        try {
+            const r = await fn(alvo)
+            alvoWatiOk.set(normalizarWaId(waId), alvo)
+            return r
+        } catch (e) {
+            ultimoErro = e
+            if (!(e instanceof wati.WatiError && (e.status === 400 || e.status === 404 || e.codigo === 'numero_invalido'))) throw e
+        }
+    }
+    throw ultimoErro || new wati.WatiError('Número inválido ou sem WhatsApp. Confira o DDI e o DDD.', 400, null, 'numero_invalido')
+}
 
 // ---------- limite de tentativas de login ----------
 // No banco (zap_registrar_tentativa_login): vale para todas as instâncias da Vercel, que não dividem memória.
@@ -583,7 +628,7 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
     await Promise.allSettled(
         escolherParaVerificar(lista, metaPorId, contatoEm).map(async (c) => {
             verificadas.set(c.waId, Date.now())
-            const { mensagens: itens } = await wati.listarMensagens(alvoWati(c.waId), { pagina: 1, tamanho: 20 })
+            const { mensagens: itens } = await listarMensagensWati(c.waId, { pagina: 1, tamanho: 20 })
             // marca como conferida no banco (atualizado_em), mesmo que não haja nada novo
             await salvarMeta(c.waId, {})
             const msgs = itens
@@ -629,7 +674,7 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
             // espelha na WATI: senão o ticket fica Solved lá e o Assumir falha
             if (!ultima.minha && meta?.status === 'resolvida') {
                 campos.status = 'aberta'
-                await wati.atualizarStatus(alvoWati(c.waId), 'aberta').catch(() => {})
+                await comAlvoWati(c.waId, (alvo) => wati.atualizarStatus(alvo, 'aberta')).catch(() => {})
             }
             await salvarMeta(c.waId, campos)
             Object.assign(c, {
@@ -648,7 +693,7 @@ async function mensagens(usuario, waId, query) {
     let itens = []
     let temMais = false
     try {
-        const r = await wati.listarMensagens(alvoWati(waId), { pagina, tamanho: 50 })
+        const r = await listarMensagensWati(waId, { pagina, tamanho: 50 })
         itens = r.mensagens || []
         temMais = Boolean(r.temMais)
     } catch (e) {
@@ -663,6 +708,11 @@ async function mensagens(usuario, waId, query) {
     const lista = itens.map(normalizarMensagem).sort((a, b) => msData(a.em) - msData(b.em))
     await Promise.all([nomesArquivosEnviados(waId, lista), wamidsDoWebhook(waId, lista)])
     anexarRespostasCitadas(lista)
+    // se achou histórico do cliente, libera a janela mesmo quando a meta ainda não tinha ultima_cliente_em
+    if (lista.some((m) => !m.minha && m.evento === 'message' && m.em) && !meta?.ultima_cliente_em) {
+        const doCliente = [...lista].reverse().find((m) => !m.minha && m.evento === 'message' && m.em)
+        if (doCliente?.em) await salvarMeta(waId, { ultima_cliente_em: doCliente.em }).catch(() => {})
+    }
     return { mensagens: lista, temMais }
 }
 
@@ -723,9 +773,9 @@ async function exigirSessaoLivre(waId, meta) {
         const restante = 24 * 3600 * 1000 - (Date.now() - new Date(iso).getTime())
         if (restante > 0) return
     }
-    // meta pode estar atrasada: confere as mensagens recentes na WATI
+    // meta pode estar atrasada: confere as mensagens recentes na WATI (com/sem 9º dígito)
     try {
-        const { mensagens } = await wati.listarMensagens(alvoWati(waId), { tamanho: 30 })
+        const { mensagens } = await listarMensagensWati(waId, { tamanho: 30 })
         const doCliente = (mensagens || [])
             .map(normalizarMensagem)
             .filter((m) => !m.minha && m.evento === 'message' && m.em)
@@ -767,7 +817,7 @@ async function enviarTextoHandler(req, usuario, waId) {
     // a lista de quem realiza é montada no navegador; a marca crua não pode chegar ao cliente
     if (temMarcaServicos(limpo)) throw new HttpError(400, `A mensagem ainda tem ${MARCA_SERVICOS}: a lista de quem realiza não foi preenchida. Confira a UF e a cidade do contato.`)
     const final = preencherVariaveis(limpo, { nome: meta?.nome || '', atendente: usuario.nome, telefone: canalDe(waId) === 'whatsapp' ? waId : '' })
-    const msg = await wati.enviarTexto(alvoWati(waId), final, replyContextId)
+    const msg = await comAlvoWati(waId, (alvo) => wati.enviarTexto(alvo, final, replyContextId))
     await salvarMeta(waId, {
         ultima_msg: final.slice(0, 500),
         ultima_msg_em: new Date().toISOString(),
@@ -786,7 +836,7 @@ async function enviarArquivoHandler(req, usuario, waId) {
     const buffer = Buffer.from(String(base64).replace(/^data:[^,]*,/, ''), 'base64')
     if (buffer.length > MAX_ARQUIVO) throw new HttpError(413, 'Arquivo acima de 3 MB. Comprima ou envie um link.', 'arquivo_grande')
     const nomeArquivo = String(nome || 'arquivo').slice(0, 120)
-    const enviada = await wati.enviarArquivo(alvoWati(waId), { buffer, nomeArquivo, mime, legenda })
+    const enviada = await comAlvoWati(waId, (alvo) => wati.enviarArquivo(alvo, { buffer, nomeArquivo, mime, legenda }))
     // guarda o nome original (a WATI renomeia para um UUID); sem a tabela, o envio segue normal
     const caminho = typeof enviada?.data === 'string' ? semBarraInicial(enviada.data) : null
     await db().from('zap_arquivos').insert({ wa_id: waId, nome: nomeArquivo, arquivo: caminho })
@@ -799,7 +849,7 @@ async function enviarTemplateHandler(req, usuario, waId) {
     if (canalDe(waId) !== 'whatsapp') throw new HttpError(400, 'Templates existem só no WhatsApp. No Instagram e no Messenger, aguarde o cliente escrever.', 'canal')
     const { nome, parametros } = await lerCorpo(req)
     if (!nome) throw new HttpError(400, 'Escolha um template.')
-    await wati.enviarTemplate(alvoWati(waId), nome, parametros)
+    await comAlvoWati(waId, (alvo) => wati.enviarTemplate(alvo, nome, parametros))
     await salvarMeta(waId, { ultima_msg: `📄 Template: ${nome}`, ultima_msg_em: new Date().toISOString(), ultima_msg_minha: true })
     return { ok: true }
 }
@@ -818,7 +868,7 @@ async function atribuirHandler(req, usuario, waId) {
     }
     let avisoWati = null
     try {
-        await wati.atribuirAtendente(alvoWati(waId), alvo)
+        await comAlvoWati(waId, (num) => wati.atribuirAtendente(num, alvo))
     } catch (e) {
         // mantém a atribuição local; inclui o texto original da WATI quando o mapeamento for genérico
         const original = e?.detalhe?.original || e?.detalhe?.info || e?.detalhe?.message
@@ -876,7 +926,8 @@ async function listarTagsSugestao() {
 async function sincronizarTags(waId, antes, depois) {
     const adicionar = depois.filter((t) => !antes.some((x) => mesmaTag(x, t)))
     const remover = antes.filter((t) => !depois.some((x) => mesmaTag(x, t)))
-    const alvo = alvoWati(waId)
+    if (!adicionar.length && !remover.length) return []
+    const alvo = alvoWatiOk.get(normalizarWaId(waId)) || variantesWaId(waId)[0] || alvoWati(waId)
     const r = await Promise.allSettled([...adicionar.map((t) => wati.adicionarTag(alvo, t)), ...remover.map((t) => wati.removerTag(alvo, t))])
     const falhas = []
     r.forEach((x, i) => {
@@ -898,7 +949,7 @@ async function contextoHandler(usuario, waId) {
     await exigirConversa(usuario, waId)
     if (canalDe(waId) !== 'whatsapp') return { atributos: {} }
     try {
-        const c = await wati.detalheContato(alvoWati(waId))
+        const c = await comAlvoWati(waId, (alvo) => wati.detalheContato(alvo))
         const atributos = {}
         for (const p of c?.custom_params || []) if (p?.name && p.value) atributos[chaveRegra(p.name)] = String(p.value)
         return { atributos }
@@ -922,7 +973,7 @@ async function perfilHandler(usuario, waId) {
     let ficha = null
     let avisoWati = null
     try {
-        const c = await wati.detalheContato(alvoWati(waId))
+        const c = await comAlvoWati(waId, (alvo) => wati.detalheContato(alvo))
         ficha = {
             nome: c?.name || c?.display_name || null,
             foto: c?.photo || null,
@@ -994,7 +1045,7 @@ async function salvarPerfilHandler(req, usuario, waId) {
         const atributos = lista.filter((a) => a.value)
         if (atributos.length) {
             try {
-                await wati.atualizarAtributos(alvoWati(waId), atributos)
+                await comAlvoWati(waId, (alvo) => wati.atualizarAtributos(alvo, atributos))
             } catch (e) {
                 avisoWati = e.message
             }
@@ -1014,7 +1065,7 @@ async function departamentoHandler(req, usuario, waId) {
     let avisoWati = null
     if (depto?.equipe_wati) {
         try {
-            await wati.atribuirEquipe(alvoWati(waId), [depto.equipe_wati])
+            await comAlvoWati(waId, (alvo) => wati.atribuirEquipe(alvo, [depto.equipe_wati]))
         } catch (e) {
             avisoWati = e.message
         }
@@ -1030,7 +1081,7 @@ async function statusHandler(req, usuario, waId) {
     if (!['aberta', 'pendente', 'resolvida'].includes(status)) throw new HttpError(400, 'Status inválido.')
     let avisoWati = null
     try {
-        await wati.atualizarStatus(alvoWati(waId), status)
+        await comAlvoWati(waId, (alvo) => wati.atualizarStatus(alvo, status))
     } catch (e) {
         avisoWati = e.message
     }
@@ -1368,7 +1419,7 @@ async function webhook(req, res, query) {
             }),
         )
         if (!minha && metaAntes?.status === 'resolvida') {
-            await wati.atualizarStatus(waId, 'aberta').catch(() => {})
+            await comAlvoWati(waId, (alvo) => wati.atualizarStatus(alvo, 'aberta')).catch(() => {})
         }
         if (!minha && b.messageReferral) await registrarAnuncio(waId, anuncioDe([{ ...b, created: em }]), null)
         if (b.whatsappMessageId) {
