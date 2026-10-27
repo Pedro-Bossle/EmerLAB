@@ -30,6 +30,15 @@ const SECOES = [
         ],
     },
     {
+        titulo: 'WATI aberta = online para o robô',
+        itens: [
+            [
+                'Mantenha a WATI aberta enquanto atende',
+                'O Emerzap não consegue marcar você como online na WATI pela API. Sem a WATI aberta (aba ou app), o robô auxiliar e o round-robin tratam o operador como offline e a distribuição fica incorreta. Deixe a WATI logada em segundo plano ao usar este painel.',
+            ],
+        ],
+    },
+    {
         titulo: 'Lista de conversas e fila',
         itens: [
             ['Prévia e mensagens novas: melhor com o webhook', 'Com o webhook da WATI configurado, a prévia da última mensagem e o número de mensagens novas de cada conversa atualizam na hora. Sem ele, o painel confere na WATI algumas conversas a cada atualização da lista (as ativas nas últimas 48h, uma a cada ~20 s no máximo): os números chegam, mas com atraso, e conversas paradas há mais de 48h não são reconferidas.'],

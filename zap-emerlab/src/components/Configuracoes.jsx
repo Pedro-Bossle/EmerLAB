@@ -169,6 +169,13 @@ export default function Configuracoes({ usuario, prefs, setPrefs, aoFechar, avis
                         valor={prefs.notificacoes}
                         aoMudar={alternarNotificacoes}
                     />
+                    <p className="conta-info" style={{ marginTop: 8 }}>
+                        <strong>WATI aberta</strong>
+                        <span>
+                            Mantenha a WATI logada em outra aba ou no app enquanto usa o Emerzap. Só assim você aparece online lá e o robô auxiliar
+                            distribui as conversas corretamente.
+                        </span>
+                    </p>
                 </div>
             ) : null}
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usarAtualizacao } from '../atualizacao.js'
 import { api, registrarAoConexao } from '../api.js'
-import { iniciais, corAvatar, nomeExibicao, CANAIS, ler, gravar, tempoDesde, calcularEspera, janelaDaConversa } from '../util.js'
+import { iniciais, corAvatar, nomeExibicao, CANAIS, ler, gravar, tempoDesde, calcularEspera, janelaDaConversa, normalizarWaId } from '../util.js'
 import Icone from './Icone.jsx'
 import IconeCanal from './IconeCanal.jsx'
 import ListaConversas from './ListaConversas.jsx'
@@ -84,6 +84,8 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     const [modal, setModal] = useState(null)
     const [toast, setToast] = useState(null)
     const [online, setOnline] = useState(() => navigator.onLine)
+    // aviso: WATI aberta = operador online para o robô / round-robin
+    const [avisoWatiAberta, setAvisoWatiAberta] = useState(() => !ler('zap.avisoWatiAbertaOk', false))
     const naoLidasAntes = useRef(null)
     const campoBusca = useRef(null)
     const raiz = useRef(null)
@@ -573,6 +575,27 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                     </div>
                 ) : null}
 
+                {avisoWatiAberta ? (
+                    <div className="faixa-aviso-wati" role="status">
+                        <Icone nome="info" tamanho={18} />
+                        <span>
+                            Mantenha a <strong>WATI aberta</strong> (outra aba ou app) enquanto atende. Só assim você aparece como online lá e o robô auxiliar
+                            distribui as conversas corretamente.
+                        </span>
+                        <button
+                            type="button"
+                            className="faixa-aviso-fechar"
+                            aria-label="Entendi, ocultar aviso"
+                            onClick={() => {
+                                gravar('zap.avisoWatiAbertaOk', true)
+                                setAvisoWatiAberta(false)
+                            }}
+                        >
+                            Entendi
+                        </button>
+                    </div>
+                ) : null}
+
                 <div className="busca">
                     <div className="busca-caixa">
                         <Icone nome="busca" tamanho={18} />
@@ -736,8 +759,9 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                     aoFechar={() => setModal(null)}
                     aoAbrir={(waId) => {
                         setModal(null)
-                        const existente = conversas.find((c) => c.waId === waId)
-                        abrir(existente || { waId, nome: null, naoLidas: 0, status: 'aberta', departamentoId: null, atendenteEmail: null })
+                        const id = normalizarWaId(waId)
+                        const existente = conversas.find((c) => normalizarWaId(c.waId) === id)
+                        abrir(existente || { waId: id, nome: null, naoLidas: 0, status: 'aberta', departamentoId: null, atendenteEmail: null })
                     }}
                 />
             ) : null}

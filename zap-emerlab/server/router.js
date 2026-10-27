@@ -10,6 +10,7 @@ import { municipiosPorUf } from './ibge.js'
 import { lerRegras, codigosServicos, erroMarcaServicos, temMarcaServicos, MARCA_SERVICOS } from '../src/regras.js'
 import { catalogoProcedimentos, servicosNaCidade } from './quemRealiza.js'
 import { preencherVariaveis } from '../src/variaveis.js'
+import { normalizarWaId } from '../src/util.js'
 
 const COOKIE = 'zap_sess'
 const ADMIN_ENV_ID = 'admin-env'
@@ -84,7 +85,7 @@ const CANAL_PREFIXO = { ig: 'instagram', ms: 'messenger' }
 function lerIdConversa(bruto) {
     const m = String(bruto || '').match(/^(ig|ms):([A-Za-z0-9_-]{6,64})$/)
     if (m) return { id: m[0], canal: CANAL_PREFIXO[m[1]], alvo: m[2] }
-    const d = soDigitos(bruto)
+    const d = normalizarWaId(bruto)
     if (d.length < 8 || d.length > 15) throw new HttpError(400, 'Conversa inválida.', 'requisicao')
     return { id: d, canal: 'whatsapp', alvo: d }
 }
@@ -297,7 +298,7 @@ function normalizarContatoCanal(c, canal) {
 const ATRIBUTOS_BUSCA = ['name', 'tipo', 'cidade', 'uf']
 
 function normalizarContato(c) {
-    const waId = soDigitos(c.wAid || c.waId || c.phone)
+    const waId = normalizarWaId(c.wAid || c.waId || c.phone)
     const atributos = {}
     let nomeFicha = null
     for (const p of c.customParams || []) {
@@ -314,6 +315,28 @@ function normalizarContato(c) {
         foto: c.photo || null,
         atualizadoEm: c.lastUpdated || c.created || null,
         atributos,
+    }
+}
+
+/** Junta duas metas do mesmo número (ex.: gravadas com e sem o 9º dígito). */
+function fundirMeta(a, b) {
+    if (!a) return b
+    if (!b) return a
+    const aEm = msData(a.ultima_msg_em)
+    const bEm = msData(b.ultima_msg_em)
+    const recente = bEm > aEm ? b : a
+    const outro = recente === a ? b : a
+    return {
+        ...outro,
+        ...recente,
+        wa_id: normalizarWaId(recente.wa_id || outro.wa_id),
+        nome: recente.nome || outro.nome || null,
+        tags: (recente.tags?.length ? recente.tags : outro.tags) || [],
+        anuncio: recente.anuncio || outro.anuncio || null,
+        atendente_email: recente.atendente_email || outro.atendente_email || null,
+        departamento_id: recente.departamento_id || outro.departamento_id || null,
+        nao_lidas: Math.max(recente.nao_lidas || 0, outro.nao_lidas || 0),
+        ultima_cliente_em: msData(recente.ultima_cliente_em) >= msData(outro.ultima_cliente_em) ? recente.ultima_cliente_em : outro.ultima_cliente_em,
     }
 }
 
@@ -453,9 +476,12 @@ async function listarConversas(usuario, query) {
     const porId = new Map()
     for (const c of contatos) if (c.waId) porId.set(c.waId, { ...c })
     for (const m of metas) {
-        const atual = porId.get(m.wa_id) || { waId: m.wa_id, nome: m.nome, foto: null, atualizadoEm: null }
+        // canônico: evita card duplicado quando o banco tem o número com e sem o 9º dígito
+        const waId = normalizarWaId(m.wa_id)
+        const atual = porId.get(waId) || { waId, nome: m.nome, foto: null, atualizadoEm: null }
+        const meta = fundirMeta(atual.meta, { ...m, wa_id: waId })
         // nome da ficha (WATI) > nome já gravado no painel > vazio
-        porId.set(m.wa_id, { ...atual, nome: atual.nome || m.nome || null, meta: m })
+        porId.set(waId, { ...atual, waId, nome: atual.nome || meta?.nome || m.nome || null, meta })
     }
     // com busca: toda a base WATI (mesmo sem atribuição). sem busca: só o que o atendente pode ver
     const brutos = [...porId.values()].filter((c) => Boolean(busca) || podeVerConversa(usuario, c.meta))
@@ -502,7 +528,12 @@ async function listarConversas(usuario, query) {
         )
     }
     const contatoEm = new Map([...porId.values()].map((c) => [c.waId, c.atualizadoEm]))
-    await verificarNaWati(lista, new Map(metas.map((m) => [m.wa_id, m])), contatoEm)
+    const metaPorId = new Map()
+    for (const m of metas) {
+        const id = normalizarWaId(m.wa_id)
+        metaPorId.set(id, fundirMeta(metaPorId.get(id), { ...m, wa_id: id }))
+    }
+    await verificarNaWati(lista, metaPorId, contatoEm)
     lista.sort((a, b) => msData(b.ultimaEm) - msData(a.ultimaEm))
     return { conversas: lista, canal }
 }
@@ -1247,15 +1278,16 @@ async function importarAtribuicoesWati(req) {
     let recentes = dentro.filter((c) => c.wAid)
     // sincronização: só as conversas que ainda não têm atendente no painel (economiza chamadas à WATI)
     if (soSemAtendente && recentes.length) {
+        const ids = [...new Set(recentes.map((c) => normalizarWaId(c.wAid)).filter(Boolean))]
         const comAtendente = ok(
             await db()
                 .from('zap_conversas')
                 .select('wa_id')
-                .in('wa_id', recentes.map((c) => soDigitos(c.wAid)))
+                .in('wa_id', ids)
                 .not('atendente_email', 'is', null),
         )
-        const jaTem = new Set(comAtendente.map((m) => m.wa_id))
-        recentes = recentes.filter((c) => !jaTem.has(soDigitos(c.wAid)))
+        const jaTem = new Set(comAtendente.map((m) => normalizarWaId(m.wa_id)))
+        recentes = recentes.filter((c) => !jaTem.has(normalizarWaId(c.wAid)))
     }
     const mensagensDe = (waId) =>
         wati.listarMensagens(waId, { tamanho: 20 }).catch(async (e) => {
@@ -1273,7 +1305,7 @@ async function importarAtribuicoesWati(req) {
                 .sort((a, b) => String(b.created || '').localeCompare(String(a.created || '')))[0]
             const email = ultima ? emailPorId.get(ultima.assignedId) : null
             if (!email) continue
-            await salvarMeta(soDigitos(grupo[j].wAid), { atendente_email: email })
+            await salvarMeta(normalizarWaId(grupo[j].wAid), { atendente_email: email })
             atribuidas += 1
         }
     }
@@ -1318,7 +1350,7 @@ async function webhook(req, res, query) {
         throw new HttpError(401, 'Token inválido.')
     }
     const b = await lerCorpo(req)
-    const waId = soDigitos(b.waId || b.whatsappNumber)
+    const waId = normalizarWaId(b.waId || b.whatsappNumber)
     const evento = b.eventType || ''
     if (waId && (evento === 'message' || EVENTOS_ENVIADOS.has(evento) || /^templateMessage/i.test(evento) || b.text !== undefined)) {
         const minha = Boolean(b.owner) || EVENTOS_ENVIADOS.has(evento) || /^templateMessage/i.test(evento) || String(b.type || '').toLowerCase() === 'template'

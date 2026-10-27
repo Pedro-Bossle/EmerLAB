@@ -25,7 +25,6 @@ create table if not exists public.zap_usuarios (
     criado_em timestamptz not null default now(),
     atualizado_em timestamptz not null default now()
 );
-
 create table if not exists public.zap_usuario_departamentos (
     usuario_id uuid not null references public.zap_usuarios(id) on delete cascade,
     departamento_id uuid not null references public.zap_departamentos(id) on delete cascade,

@@ -324,6 +324,19 @@ html[data-tema='escuro'] .avatar { background: color-mix(in srgb, var(--av) 26%,
 .botao-assumir:hover:not(:disabled) { filter: brightness(1.1); }
 
 .faixa-offline { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--aviso-fundo); color: var(--aviso-texto); font-size: 0.85rem; line-height: 1.35; }
+.faixa-aviso-wati {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px 10px 16px;
+    background: var(--aviso-fundo); color: var(--aviso-texto); font-size: 0.84rem; line-height: 1.4;
+}
+.faixa-aviso-wati > .icone { flex-shrink: 0; margin-top: 1px; }
+.faixa-aviso-wati span { flex: 1; min-width: 0; }
+.faixa-aviso-wati strong { font-weight: 650; }
+.faixa-aviso-fechar {
+    flex-shrink: 0; border: 1px solid color-mix(in srgb, var(--aviso-texto) 35%, transparent);
+    background: transparent; color: var(--aviso-texto); font-size: 0.8rem; font-weight: 600;
+    height: 28px; padding: 0 10px; border-radius: 8px; white-space: nowrap;
+}
+.faixa-aviso-fechar:hover { background: color-mix(in srgb, var(--aviso-texto) 12%, transparent); }
 
 .busca { padding: 8px 12px 4px; }
 .busca-caixa { display: flex; align-items: center; gap: 12px; background: var(--entrada); border: 1px solid var(--folha-borda); border-radius: 8px; padding: 0 6px 0 14px; height: 38px; color: var(--texto-3); }

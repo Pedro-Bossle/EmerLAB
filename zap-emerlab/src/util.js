@@ -11,9 +11,27 @@ export function canalDoId(id) {
     return p === 'ig' ? 'instagram' : p === 'ms' ? 'messenger' : 'whatsapp'
 }
 
+/**
+ * Forma canônica do waId WhatsApp BR: celular com o 9º dígito.
+ * Sem isso a WATI e o painel criam dois cards do mesmo contato (12 vs 13 dígitos).
+ * Instagram/Messenger (`ig:` / `ms:`) passam intactos.
+ */
+export function normalizarWaId(id) {
+    const s = String(id || '').trim()
+    if (/^(ig|ms):/i.test(s)) return s
+    const d = s.replace(/\D/g, '')
+    if (!d) return ''
+    // 55 + DDD + 8 dígitos começando em 6–9 = celular sem o 9
+    if (d.startsWith('55') && d.length === 12) {
+        const local = d.slice(4)
+        if (local[0] >= '6' && local[0] <= '9') return `${d.slice(0, 4)}9${local}`
+    }
+    return d
+}
+
 export function formatarTelefone(waId) {
     if (canalDoId(waId) !== 'whatsapp') return ''
-    const d = String(waId || '').replace(/\D/g, '')
+    const d = normalizarWaId(waId)
     if (d.startsWith('55') && (d.length === 12 || d.length === 13)) {
         const ddd = d.slice(2, 4)
         const resto = d.slice(4)
