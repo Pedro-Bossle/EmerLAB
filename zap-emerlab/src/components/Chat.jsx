@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { nomeExibicao, formatarTelefone, rotuloDia, chaveDia, janela24h, canalDoId, CANAIS } from '../util.js'
 import Icone from './Icone.jsx'
@@ -12,6 +12,7 @@ import Transferir from './Transferir.jsx'
 import EnviarTemplate from './EnviarTemplate.jsx'
 import { comMod, teclaDe, emCampo, haSobreposicao } from '../atalhos.js'
 import { transferir, itensDeAtendimento } from '../acoesConversa.js'
+import { codigosServicos } from '../regras.js'
 
 const INTERVALO_CHAT = 5000
 
@@ -57,6 +58,24 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
         }
         // o que a ficha salva entra direto pelo aoSalvo: reler a WATI aqui sobrescrevia com dado ainda não atualizado
     }, [caminho])
+    // regra services {…}: quem da rede realiza os códigos usados nas respostas, na cidade do contato
+    // (null = ainda não se sabe; {services.content} não é preenchido até a busca voltar)
+    const codigosRespostas = useMemo(() => [...new Set((respostas || []).flatMap((r) => codigosServicos(r.regras)))].sort().join(','), [respostas])
+    const [servicosCidade, setServicosCidade] = useState(null)
+    const ufContato = atributosContato.uf || ''
+    const cidadeContato = atributosContato.cidade || ''
+    useEffect(() => {
+        setServicosCidade(null)
+        if (!codigosRespostas || !cidadeContato) return
+        let vivo = true
+        const q = new URLSearchParams({ uf: ufContato, cidade: cidadeContato, codigos: codigosRespostas })
+        api(`servicos?${q}`)
+            .then((r) => vivo && setServicosCidade({ prestadores: r.prestadores || [] }))
+            .catch(() => vivo && setServicosCidade({ erro: true }))
+        return () => {
+            vivo = false
+        }
+    }, [codigosRespostas, ufContato, cidadeContato])
     const fecharPerfil = useCallback(() => setPerfilAberto(false), [])
     const area = useRef(null)
     const alturaAntes = useRef(null)
@@ -438,6 +457,15 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                         uf: atributosContato.uf || '',
                         cidade: atributosContato.cidade || '',
                     }}
+                    quemRealiza={
+                        !cidadeContato
+                            ? { estado: 'sem-cidade' }
+                            : !servicosCidade
+                              ? { estado: 'carregando' }
+                              : servicosCidade.erro
+                                ? { estado: 'erro' }
+                                : { estado: 'pronto', prestadores: servicosCidade.prestadores }
+                    }
                     contextoRegras={{
                         uf: atributosContato.uf || '',
                         cidade: atributosContato.cidade || '',

@@ -4,6 +4,8 @@
 //   locais {RS+Porto Alegre, RS+Canoas, SC}     UF, ou UF+cidade
 //   departamentos {Comercial, Credenciamento}   departamento da conversa no painel
 //   clientes {sim}                              atalho para o atributo tipo = cliente ("não" = qualquer outro)
+//   services {CONS-001, US-010}                 não filtra: só diz de quais procedimentos o {services.content} do
+//                                               texto lista quem realiza (busca do Credenciamento > Quem realiza)
 //   situacao {ativo, credenciada}               qualquer outro nome = atributo do contato na WATI
 //
 // Valores da mesma chave: basta um (OU). Chaves diferentes: todas precisam bater (E).
@@ -26,15 +28,64 @@ const CHAVES = {
     depto: 'departamentos',
     cliente: 'clientes',
     clientes: 'clientes',
+    services: 'servicos',
+    service: 'servicos',
+    servicos: 'servicos',
+    servico: 'servicos',
 }
 const SIM = ['sim', 's', 'yes', 'true']
 const NAO = ['nao', 'n', 'no', 'false']
 
+// códigos de procedimento comparados como no projeto principal (sem espaços nas pontas, maiúsculos)
+export const normCodigo = (c) => String(c || '').trim().toUpperCase()
+
+// Códigos usados em regras services {…}, sem repetir; soIncluidos deixa de fora os {!código}
+export function codigosServicos(texto, { soIncluidos = false } = {}) {
+    const codigos = new Set()
+    for (const r of lerRegras(texto).regras) {
+        if (r.chave !== 'servicos') continue
+        for (const c of soIncluidos ? r.incluir : [...r.incluir, ...r.excluir]) codigos.add(normCodigo(c))
+    }
+    return [...codigos]
+}
+
+// {services.content} no texto da resposta: um prestador por linha, dos que realizam os códigos da regra
+// services {…} daquela resposta na cidade do contato
+export const MARCA_SERVICOS = '{services.content}'
+const RE_MARCA_SERVICOS = /\{\s*services\.content\s*\}/gi
+export const temMarcaServicos = (texto) => new RegExp(RE_MARCA_SERVICOS.source, 'i').test(String(texto || ''))
+
 /**
- * Lê o texto das regras.
+ * Nomes de quem realiza, na ordem do Quem realiza: quem faz mais dos procedimentos primeiro, depois A–Z.
+ * @param {string[]} codigos
+ * @param {Array<{ nome: string, codigos: string[] }>} prestadores da cidade do contato
+ */
+export function listaQuemRealiza(codigos, prestadores) {
+    const pedidos = new Set(codigos.map(normCodigo))
+    return (prestadores || [])
+        .map((p) => ({ nome: String(p.nome || '').trim(), n: p.codigos.filter((c) => pedidos.has(c)).length }))
+        .filter((p) => p.nome && p.n)
+        .sort((a, b) => b.n - a.n || a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
+        .map((p) => p.nome)
+        .join('\n')
+}
+
+// texto com {services.content} precisa de services {código} nas regras (senão não há o que listar)
+export function erroMarcaServicos(texto, regras) {
+    if (!temMarcaServicos(texto) || codigosServicos(regras, { soIncluidos: true }).length) return null
+    return `O texto usa ${MARCA_SERVICOS}: inclua nas regras services {código} com os procedimentos a listar.`
+}
+
+export function preencherServicos(texto, codigos, prestadores) {
+    return String(texto).replace(RE_MARCA_SERVICOS, () => listaQuemRealiza(codigos, prestadores))
+}
+
+/**
+ * Lê o texto das regras. `procedimentos` (Map código → nome) confere os códigos de services {…};
+ * sem ele, os códigos não são conferidos.
  * @returns {{ regras: Array<{ chave: string, nome: string, incluir: string[], excluir: string[] }>, erros: string[] }}
  */
-export function lerRegras(texto, { departamentos } = {}) {
+export function lerRegras(texto, { departamentos, procedimentos } = {}) {
     const fonte = String(texto || '').trim()
     const regras = []
     const erros = []
@@ -59,11 +110,12 @@ export function lerRegras(texto, { departamentos } = {}) {
         for (const bruto of valores) {
             const negado = bruto.startsWith('!')
             const valor = negado ? bruto.slice(1).trim() : bruto
-            const erro = validarValor(chave, valor, departamentos)
+            const erro = validarValor(chave, valor, departamentos, procedimentos)
             if (erro) erros.push(erro)
             else (negado ? excluir : incluir).push(valor)
         }
         if (chave === 'clientes' && excluir.length) erros.push('Em clientes use só {sim} ou {não}.')
+        if (chave === 'servicos' && excluir.length) erros.push('Em services não use "!": liste só os códigos dos procedimentos.')
         regras.push({ chave, nome, incluir, excluir })
     }
     const resto = fonte.slice(fim).trim()
@@ -71,7 +123,7 @@ export function lerRegras(texto, { departamentos } = {}) {
     return { regras, erros }
 }
 
-function validarValor(chave, valor, departamentos) {
+function validarValor(chave, valor, departamentos, procedimentos) {
     if (!valor) return 'Há um "!" sem valor depois.'
     if (chave === 'locais') {
         const [uf, ...cidade] = valor.split('+')
@@ -83,6 +135,10 @@ function validarValor(chave, valor, departamentos) {
     }
     if (chave === 'departamentos' && departamentos) {
         if (!departamentos.some((d) => norm(d.nome) === norm(valor))) return `Departamento "${valor}" não existe no painel.`
+        return null
+    }
+    if (chave === 'servicos') {
+        if (procedimentos && !procedimentos.has(normCodigo(valor))) return `Procedimento "${valor}" não existe no cadastro de procedimentos.`
         return null
     }
     if (chave === 'clientes' && ![...SIM, ...NAO].includes(norm(valor))) return `Em clientes use {sim} ou {não} (veio "${valor}").`
@@ -118,12 +174,15 @@ function regraBate(regra, ctx) {
     return regra.incluir.some((v) => valorBate(regra, v, ctx))
 }
 
+// services {…} não é condição: só alimenta o {services.content}
+const filtraContato = (r) => r.chave !== 'servicos'
+
 /**
  * Situação de uma resposta para o contato: 'bate' (tem regras e todas batem), 'livre' (sem regras) ou 'fora'.
  * @param {{ uf?: string, cidade?: string, departamento?: string, atributos?: Record<string, string> }} ctx
  */
 export function avaliarRegras(texto, ctx) {
-    const { regras } = lerRegras(texto)
+    const regras = lerRegras(texto).regras.filter(filtraContato)
     if (!regras.length) return 'livre'
     return regras.every((r) => regraBate(r, ctx)) ? 'bate' : 'fora'
 }
@@ -131,8 +190,9 @@ export function avaliarRegras(texto, ctx) {
 // Resumo em português para o cadastro ("Aparece primeiro para: …")
 export function resumirRegras(regras) {
     return regras
+        .filter(filtraContato)
         .map((r) => {
-            const rotulo = r.chave === 'locais' ? 'locais' : r.chave === 'departamentos' ? 'departamento' : r.chave === 'clientes' ? 'clientes' : r.nome
+            const rotulo = { locais: 'locais', departamentos: 'departamento', clientes: 'clientes' }[r.chave] || r.nome
             const partes = []
             if (r.incluir.length) partes.push(r.incluir.join(' ou '))
             if (r.excluir.length) partes.push(`exceto ${r.excluir.join(', ')}`)

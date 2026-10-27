@@ -26,14 +26,16 @@ const CAMPOS_WATI = {
     tipo: ['Tipo', {}],
 }
 
-// municípios do IBGE por UF (via servidor do painel), guardados enquanto a página está aberta
+// municípios do IBGE por UF, do arquivo src/municipios.js (carregado uma vez, sem ir ao servidor nem ao IBGE)
+let municipiosModulo = null
 const municipiosCache = new Map()
-function carregarMunicipios(uf) {
-    if (!municipiosCache.has(uf)) {
-        const pedido = api(`ibge/municipios?uf=${encodeURIComponent(uf)}`).then((r) => r.municipios)
-        pedido.catch(() => municipiosCache.delete(uf))
-        municipiosCache.set(uf, pedido)
+async function carregarMunicipios(uf) {
+    if (!municipiosModulo) {
+        municipiosModulo = import('../municipios.js')
+        municipiosModulo.catch(() => (municipiosModulo = null))
     }
+    const { MUNICIPIOS_POR_UF } = await municipiosModulo
+    if (!municipiosCache.has(uf)) municipiosCache.set(uf, (MUNICIPIOS_POR_UF[String(uf).toUpperCase()] || []).map(([id, nome]) => ({ id, nome })))
     return municipiosCache.get(uf)
 }
 
@@ -165,6 +167,10 @@ export default function Perfil({ conversa, sugestoesTags, aoFechar, aoSalvo, avi
     const indiceDe = (chave) => (form?.atributos || []).findIndex((x) => x.name.toLowerCase() === chave)
     const ufAtual = form?.atributos[indiceDe('uf')]?.value || ''
     const [municipios, setMunicipios] = useState({ uf: '', lista: [], carregando: false })
+    // já baixa a lista ao abrir a ficha: quando a UF for escolhida, as cidades aparecem na hora
+    useEffect(() => {
+        carregarMunicipios('RS').catch(() => {})
+    }, [])
     useEffect(() => {
         if (!ufAtual) return
         let vivo = true
@@ -212,8 +218,7 @@ export default function Perfil({ conversa, sugestoesTags, aoFechar, aoSalvo, avi
                         onChange={(v) => mudarAtributo(i, v, true)}
                         loading={Boolean(ufAtual) && municipios.carregando}
                         placeholder={ufAtual ? 'Selecionar cidade…' : 'Escolha a UF primeiro'}
-                        creatable
-                        createLabel={(q) => `Usar «${q}»`}
+                        disabled={!ufAtual}
                         aria-label="Cidade"
                     />
                 </div>

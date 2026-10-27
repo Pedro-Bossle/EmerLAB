@@ -9,10 +9,11 @@ export default function SeletorDepartamento({ departamentos, valor, aoMudar, con
     const botao = useRef(null)
     const menu = useRef(null)
 
+    // filtro pelo setor do atendente da conversa (não pelo departamento_id gravado nela)
     const opcoes = [
-        { id: '', nome: 'Todos os departamentos', cor: null },
+        { id: '', nome: 'Todos os setores', cor: null },
         ...departamentos.map((d) => ({ id: d.id, nome: d.nome, cor: d.cor })),
-        { id: 'sem', nome: 'Sem departamento', cor: null },
+        { id: 'sem', nome: 'Sem atendente / sem setor', cor: null },
     ]
     const atual = opcoes.find((o) => o.id === valor) || opcoes[0]
 
@@ -73,15 +74,15 @@ export default function SeletorDepartamento({ departamentos, valor, aoMudar, con
                 className={`chip seletor-depto ${valor ? 'ativo' : ''}`}
                 aria-haspopup="menu"
                 aria-expanded={aberto}
-                aria-label={`Filtrar por departamento: ${atual.nome}`}
+                aria-label={`Filtrar por setor do atendente: ${atual.nome}`}
                 onClick={() => setAberto((v) => !v)}
             >
                 {atual.cor ? <span className="depto-ponto" style={{ '--tag': atual.cor }} /> : <Icone nome="filtro" tamanho={14} />}
-                {valor ? atual.nome : 'Departamentos'}
+                {valor ? atual.nome : 'Setores'}
                 <Icone nome="baixo" tamanho={14} className={`seletor-depto-seta ${aberto ? 'aberto' : ''}`} />
             </button>
             {aberto && pos ? (
-                <ul ref={menu} className="menu-depto" role="menu" aria-label="Departamentos" style={pos} onKeyDown={navegar}>
+                <ul ref={menu} className="menu-depto" role="menu" aria-label="Setores do atendente" style={pos} onKeyDown={navegar}>
                     {opcoes.map((o, i) => (
                         <li key={o.id || 'todos'} role="none" className={i === 1 || i === opcoes.length - 1 ? 'separado' : ''}>
                             <button type="button" role="menuitemradio" aria-checked={o.id === valor} onClick={() => escolher(o.id)}>

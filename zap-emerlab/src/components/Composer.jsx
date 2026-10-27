@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { arquivoParaBase64 } from '../api.js'
 import Icone from './Icone.jsx'
 import Modal from './Modal.jsx'
-import { avaliarRegras } from '../regras.js'
+import { avaliarRegras, codigosServicos, listaQuemRealiza, preencherServicos, temMarcaServicos, MARCA_SERVICOS } from '../regras.js'
 import { preencherVariaveis } from '../variaveis.js'
 
 // seletor de emoji do campo de mensagem: recurso do produto (o cliente usa emoji), não enfeite da interface
@@ -12,6 +12,15 @@ const MAX_MB = 3
 const rascunhos = new Map()
 const MAX_CARACTERES = 4096
 const AVISO_CARACTERES = 3500
+
+// por que {services.content} ainda não virou a lista de prestadores
+const MOTIVO_SERVICOS = {
+    'sem-cidade': 'Preencha a UF e a cidade do contato para listar quem realiza',
+    carregando: 'Buscando quem realiza na cidade do contato…',
+    erro: 'Não foi possível buscar quem realiza agora',
+    vazio: 'Ninguém da rede realiza esses procedimentos na cidade do contato',
+    'sem-regra': `${MARCA_SERVICOS} só é preenchido por uma resposta rápida com regra services {…}`,
+}
 
 
 // separa as respostas cujas regras não batem com o contato aberto
@@ -36,7 +45,7 @@ function SeloIndicada() {
     )
 }
 
-export default function Composer({ desabilitado, temTemplates, prefs, respostas, respondendo, aoCancelarResposta, aoEnviarTexto, aoEnviarArquivo, aoAbrirTemplate, contexto, contextoRegras, controle, chave }) {
+export default function Composer({ desabilitado, temTemplates, prefs, respostas, respondendo, aoCancelarResposta, aoEnviarTexto, aoEnviarArquivo, aoAbrirTemplate, contexto, contextoRegras, quemRealiza, controle, chave }) {
     const [texto, setTexto] = useState(() => rascunhos.get(chave) || '')
     const [indice, setIndice] = useState(0)
     const [painel, setPainel] = useState(null) // 'emoji' | 'respostas'
@@ -47,6 +56,8 @@ export default function Composer({ desabilitado, temTemplates, prefs, respostas,
     const [avisoAnexo, setAvisoAnexo] = useState('')
     const campo = useRef(null)
     const inputArquivo = useRef(null)
+    // códigos da regra services {…} da última resposta inserida com {services.content} (para preencher quando a busca voltar)
+    const codigosMarca = useRef([])
 
     // posição do cursor no campo: as respostas rápidas entram ali, sem apagar o que já foi digitado
     const [cursor, setCursor] = useState(() => texto.length)
@@ -81,6 +92,9 @@ export default function Composer({ desabilitado, temTemplates, prefs, respostas,
     const semResultadoAtalho = termoAtalho !== null && termoAtalho.length > 0 && sugestoes.length === 0
 
     useEffect(() => setIndice(0), [termoAtalho])
+    useEffect(() => {
+        codigosMarca.current = []
+    }, [chave])
 
     // apagou a barra que tinha sido dispensada: a próxima volta a abrir sugestões
     useEffect(() => {
@@ -111,7 +125,14 @@ export default function Composer({ desabilitado, temTemplates, prefs, respostas,
 
     const usarResposta = (r) => {
         // o que ainda não se sabe (ex.: UF sem cadastro) fica como {{uf}} e é resolvido no envio
-        const conteudo = preencherVariaveis(r.texto, contexto, { manterVazias: true })
+        let conteudo = preencherVariaveis(r.texto, contexto, { manterVazias: true })
+        if (temMarcaServicos(conteudo)) {
+            codigosMarca.current = codigosServicos(r.regras, { soIncluidos: true })
+            // sem a lista ainda (ou sem ninguém), a marca fica no campo e o envio espera; ver motivoServicos
+            if (quemRealiza?.estado === 'pronto' && listaQuemRealiza(codigosMarca.current, quemRealiza.prestadores)) {
+                conteudo = preencherServicos(conteudo, codigosMarca.current, quemRealiza.prestadores)
+            }
+        }
         let novo
         let pos
         if (gatilho) {
@@ -134,9 +155,21 @@ export default function Composer({ desabilitado, temTemplates, prefs, respostas,
         })
     }
 
+    // a busca de quem realiza voltou depois de a resposta entrar no campo: troca a marca pela lista ali mesmo
+    const prestadoresProntos = quemRealiza?.estado === 'pronto' ? quemRealiza.prestadores : null
+    useEffect(() => {
+        if (!prestadoresProntos || !codigosMarca.current.length || !listaQuemRealiza(codigosMarca.current, prestadoresProntos)) return
+        setTexto((t) => (temMarcaServicos(t) ? preencherServicos(t, codigosMarca.current, prestadoresProntos) : t))
+    }, [prestadoresProntos])
+
     const limpo = texto.trim()
     const longo = limpo.length > MAX_CARACTERES
-    const motivoBloqueioEnvio = !limpo ? 'Digite uma mensagem' : longo ? `Passou de ${MAX_CARACTERES} caracteres` : null
+    const motivoServicos = !temMarcaServicos(limpo)
+        ? null
+        : !codigosMarca.current.length
+          ? MOTIVO_SERVICOS['sem-regra']
+          : MOTIVO_SERVICOS[quemRealiza?.estado === 'pronto' ? 'vazio' : quemRealiza?.estado || 'carregando']
+    const motivoBloqueioEnvio = !limpo ? 'Digite uma mensagem' : longo ? `Passou de ${MAX_CARACTERES} caracteres` : motivoServicos
 
     const enviar = () => {
         if (motivoBloqueioEnvio || desabilitado) return
@@ -221,6 +254,20 @@ export default function Composer({ desabilitado, temTemplates, prefs, respostas,
             controle.current = null
         }
     })
+
+    // Esc fecha o painel de respostas/emojis mesmo sem foco no textarea (o Painel ignora Esc com role=dialog aberto)
+    useEffect(() => {
+        if (!painel) return
+        const ouvir = (e) => {
+            if (e.key !== 'Escape') return
+            e.preventDefault()
+            e.stopPropagation()
+            setPainel(null)
+            campo.current?.focus()
+        }
+        window.addEventListener('keydown', ouvir, true)
+        return () => window.removeEventListener('keydown', ouvir, true)
+    }, [painel])
 
     const fecharArquivo = () => {
         if (enviandoArquivo) return
@@ -335,6 +382,11 @@ export default function Composer({ desabilitado, temTemplates, prefs, respostas,
             {avisoAnexo ? (
                 <div className="composer-alerta" role="alert">
                     <Icone nome="erro" tamanho={16} /> {avisoAnexo}
+                </div>
+            ) : null}
+            {motivoServicos ? (
+                <div className="composer-alerta" role="status">
+                    <Icone nome="erro" tamanho={16} /> {motivoServicos}. Até lá, {MARCA_SERVICOS} fica no texto e a mensagem não é enviada.
                 </div>
             ) : null}
 

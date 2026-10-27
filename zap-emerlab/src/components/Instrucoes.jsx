@@ -9,7 +9,7 @@ const SECOES = [
         itens: [
             ['E-mail e notas internas do contato', 'Ficam no banco do painel e não aparecem na WATI. Para dados que precisam estar na WATI (nome, cidade, situação…), use os atributos da WATI no perfil.'],
             ['Respostas rápidas', 'As respostas rápidas da WATI não vêm para o painel (a API não as disponibiliza). Cadastre em Administração → Respostas rápidas, ou use "Importar planilha" para trazer várias de uma vez.'],
-            ['Regras das respostas rápidas', 'Respostas com regras (locais, departamentos, clientes, atributos) aparecem no topo, marcadas como "indicada", quando batem com o contato aberto; as que não batem vão para o fim, depois da divisória "Não se aplicam a este contato". As regras usam a UF, a cidade e os atributos do contato na WATI: contato sem esses dados preenchidos não bate com regra de local.'],
+            ['Regras das respostas rápidas', 'Respostas com regras (locais, departamentos, clientes, atributos) aparecem no topo, marcadas como "indicada", quando batem com o contato aberto; as que não batem vão para o fim, depois da divisória "Não se aplicam a este contato". As regras usam a UF, a cidade e os atributos do contato na WATI: contato sem esses dados preenchidos não bate com regra de local. A regra services {código, código} não muda a ordem: só diz de quais procedimentos o {services.content} do texto lista quem realiza na cidade do contato (mesma busca do Credenciamento > Quem realiza), um prestador por linha; sem UF e cidade no contato a lista não é preenchida e a mensagem não sai.'],
             ['Rascunhos', 'O texto digitado e não enviado fica guardado por conversa enquanto a página está aberta. Recarregar a página apaga os rascunhos.'],
         ],
     },

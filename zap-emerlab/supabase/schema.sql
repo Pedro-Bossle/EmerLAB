@@ -71,6 +71,30 @@ alter table public.zap_conversas add column if not exists notas text;
 create index if not exists zap_conversas_depto_idx on public.zap_conversas (departamento_id);
 create index if not exists zap_conversas_ultima_idx on public.zap_conversas (ultima_msg_em desc);
 
+-- Nome original dos arquivos enviados pelo painel: a WATI guarda cada arquivo com um nome aleatório (UUID).
+-- arquivo = caminho na WATI, quando a resposta do envio traz; senão é ligado à mensagem pelo horário.
+create table if not exists public.zap_arquivos (
+    id bigserial primary key,
+    wa_id text not null,
+    nome text not null,
+    arquivo text,
+    enviado_em timestamptz not null default now()
+);
+create index if not exists zap_arquivos_wa_idx on public.zap_arquivos (wa_id, enviado_em desc);
+alter table public.zap_arquivos enable row level security;
+
+-- ID do WhatsApp (wamid) de cada mensagem, que só chega pelo webhook: o getMessages da WATI devolve
+-- whatsappMessageId vazio, e sem ele não dá para responder citando a mensagem (replyContextId)
+create table if not exists public.zap_mensagens_wamid (
+    id text primary key,
+    wa_id text not null,
+    wamid text not null,
+    em timestamptz not null,
+    minha boolean not null default false
+);
+create index if not exists zap_mensagens_wamid_wa_idx on public.zap_mensagens_wamid (wa_id, em desc);
+alter table public.zap_mensagens_wamid enable row level security;
+
 alter table public.zap_departamentos enable row level security;
 alter table public.zap_usuarios enable row level security;
 alter table public.zap_usuario_departamentos enable row level security;

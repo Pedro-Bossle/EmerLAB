@@ -5,7 +5,7 @@ import Modal from './Modal.jsx'
 import Icone from './Icone.jsx'
 import TextoComSugestoes from './TextoComSugestoes.jsx'
 import SeletorDepartamentos from './SeletorDepartamentos.jsx'
-import { lerRegras, resumirRegras } from '../regras.js'
+import { lerRegras, resumirRegras, normCodigo, erroMarcaServicos } from '../regras.js'
 
 const USUARIO_VAZIO = { nome: '', email: '', senha: '', papel: 'atendente', ativo: true, departamentos: [] }
 const DEPTO_VAZIO = { nome: '', cor: '#25d366', equipeWati: '' }
@@ -14,6 +14,24 @@ const RESPOSTA_VAZIA = { atalho: '', titulo: '', texto: '', departamentoIds: [],
 const EXEMPLO_REGRAS = 'locais {RS+Porto Alegre, SC}\nclientes {sim}\ndepartamentos {Comercial}'
 
 const DIAS_ATRIBUICOES = 7
+
+// catálogo de procedimentos (código → nome) para conferir services {…} enquanto digita; o servidor confere de novo ao salvar
+let pedidoProcedimentos = null
+function useProcedimentos() {
+    const [mapa, setMapa] = useState(undefined)
+    useEffect(() => {
+        let vivo = true
+        if (!pedidoProcedimentos) {
+            pedidoProcedimentos = api('procedimentos').then((r) => new Map(r.procedimentos.map((p) => [p.codigo, p.nome])))
+            pedidoProcedimentos.catch(() => (pedidoProcedimentos = null))
+        }
+        pedidoProcedimentos.then((m) => vivo && setMapa(m)).catch(() => {})
+        return () => {
+            vivo = false
+        }
+    }, [])
+    return mapa
+}
 
 // Busca na WATI quem atende cada conversa dos últimos 7 dias, lote a lote (o servidor responde até `fim`)
 async function sincronizarAtribuicoes({ soSemAtendente = false, aoProgresso }) {
@@ -462,6 +480,7 @@ function comAtalhosUnicos(itens) {
 }
 
 function ImportarRespostas({ departamentos, aoConcluir, aoCancelar, avisar }) {
+    const procedimentos = useProcedimentos()
     const [texto, setTexto] = useState('')
     const [departamentoId, setDepartamentoId] = useState('')
     const [enviando, setEnviando] = useState(false)
@@ -469,7 +488,7 @@ function ImportarRespostas({ departamentos, aoConcluir, aoCancelar, avisar }) {
     const [numerarRepetidos, setNumerarRepetidos] = useState(true)
     const lidas = respostasDaPlanilha(texto)
     // linha com regra inválida não entra (o servidor também a recusaria)
-    const errosRegra = lidas.itens.map((r) => [r, lerRegras(r.regras, { departamentos }).erros[0]]).filter(([, e]) => e)
+    const errosRegra = lidas.itens.map((r) => [r, lerRegras(r.regras, { departamentos, procedimentos }).erros[0] || erroMarcaServicos(r.texto, r.regras)]).filter(([, e]) => e)
     const validas = lidas.itens.filter((r) => !errosRegra.some(([x]) => x === r))
     const repetidos = validas.length - new Set(validas.map((r) => r.atalho)).size
     const itens = numerarRepetidos ? comAtalhosUnicos(validas) : validas
@@ -574,8 +593,12 @@ function ImportarRespostas({ departamentos, aoConcluir, aoCancelar, avisar }) {
 }
 
 // Regras de relevância da resposta (ver src/regras.js), com validação e resumo enquanto digita
-function CampoRegras({ valor, aoMudar, departamentos }) {
-    const { regras, erros } = lerRegras(valor, { departamentos })
+function CampoRegras({ valor, texto, aoMudar, departamentos, procedimentos }) {
+    const lidas = lerRegras(valor, { departamentos, procedimentos })
+    const { regras } = lidas
+    const erros = [...lidas.erros, erroMarcaServicos(texto, valor)].filter(Boolean)
+    const servicos = procedimentos ? regras.filter((r) => r.chave === 'servicos').flatMap((r) => r.incluir) : []
+    const resumo = resumirRegras(regras)
     return (
         <label className="campo">
             <span>Regras (opcional)</span>
@@ -584,8 +607,11 @@ function CampoRegras({ valor, aoMudar, departamentos }) {
                 <small className="ajuda ajuda-motivo" role="alert">
                     {erros[0]}
                 </small>
-            ) : regras.length ? (
-                <small className="ajuda">Aparece no topo da lista para contatos com {resumirRegras(regras)}.</small>
+            ) : resumo ? (
+                <small className="ajuda">Aparece no topo da lista para contatos com {resumo}.</small>
+            ) : null}
+            {!erros.length && servicos.length ? (
+                <small className="ajuda">{'{services.content}'} lista quem realiza: {servicos.map((c) => `${normCodigo(c)} (${procedimentos.get(normCodigo(c))})`).join(', ')}.</small>
             ) : null}
             <details className="ajuda regras-ajuda">
                 <summary>Como escrever regras</summary>
@@ -602,6 +628,14 @@ function CampoRegras({ valor, aoMudar, departamentos }) {
                     </li>
                     <li>
                         <code>clientes {'{'}sim{'}'}</code> ou <code>{'{'}não{'}'}</code>: contato com tipo &quot;cliente&quot; na WATI.
+                    </li>
+                    <li>
+                        <code>services {'{'}CONS-001, US-010{'}'}</code>: códigos de procedimento do cadastro. Não muda a ordem nem o selo &quot;indicada&quot;: só diz de
+                        quais procedimentos o <code>{'{services.content}'}</code> do texto lista quem realiza (a mesma busca do Credenciamento &gt; Quem realiza).
+                    </li>
+                    <li>
+                        No texto, <code>{'{services.content}'}</code> vira a lista de quem realiza os procedimentos de <code>services {'{…}'}</code> na cidade do
+                        contato, um prestador por linha (quem faz mais dos procedimentos primeiro, depois A–Z).
                     </li>
                     <li>
                         Qualquer atributo da WATI: <code>tipo {'{'}clinica{'}'}</code>, <code>situacao {'{'}ativo, credenciada{'}'}</code>.
@@ -624,6 +658,7 @@ const ORDENS_RESPOSTA = {
 }
 
 function Respostas({ departamentos, aoMudar, avisar }) {
+    const procedimentos = useProcedimentos()
     const [lista, setLista] = useState(null)
     const [form, setForm] = useState(null)
     const [importando, setImportando] = useState(false)
@@ -719,12 +754,12 @@ function Respostas({ departamentos, aoMudar, avisar }) {
                     </small>
                 </label>
                 <SeletorDepartamentos departamentos={departamentos} valor={form.departamentoIds} aoMudar={(departamentoIds) => setForm({ ...form, departamentoIds })} />
-                <CampoRegras valor={form.regras} aoMudar={(regras) => setForm({ ...form, regras })} departamentos={departamentos} />
+                <CampoRegras valor={form.regras} texto={form.texto} aoMudar={(regras) => setForm({ ...form, regras })} departamentos={departamentos} procedimentos={procedimentos} />
                 <div className="modal-acoes">
                     <button type="button" className="botao botao-secundario" onClick={() => setForm(null)}>
                         Cancelar
                     </button>
-                    <button className="botao" disabled={lerRegras(form.regras, { departamentos }).erros.length > 0}>
+                    <button className="botao" disabled={lerRegras(form.regras, { departamentos, procedimentos }).erros.length > 0 || Boolean(erroMarcaServicos(form.texto, form.regras))}>
                         Salvar
                     </button>
                 </div>
@@ -811,9 +846,14 @@ function Respostas({ departamentos, aoMudar, avisar }) {
                                     ) : (
                                         <span className="tag tag-neutra">Todos</span>
                                     )}
-                                    {r.regras ? (
+                                    {r.regras && resumirRegras(lerRegras(r.regras).regras) ? (
                                         <span className="tag tag-neutra" title={r.regras}>
                                             Regras: {resumirRegras(lerRegras(r.regras).regras)}
+                                        </span>
+                                    ) : null}
+                                    {lerRegras(r.regras).regras.some((x) => x.chave === 'servicos') ? (
+                                        <span className="tag tag-neutra" title={r.regras}>
+                                            Quem realiza: {lerRegras(r.regras).regras.filter((x) => x.chave === 'servicos').flatMap((x) => x.incluir).join(', ')}
                                         </span>
                                     ) : null}
                                 </div>

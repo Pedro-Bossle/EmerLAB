@@ -34,7 +34,7 @@ const FILTROS = [
 const VAZIO = {
     todas: 'Nenhuma conversa neste canal ainda.',
     'nao-lidas': 'Nenhuma conversa com mensagem não lida.',
-    minhas: 'Nenhuma conversa atribuída a você. Use "Assumir" numa conversa da fila.',
+    minhas: 'Nenhuma conversa aberta atribuída a você. Use "Assumir" numa conversa da fila, ou veja as resolvidas no filtro Resolvidas.',
     fila: 'A fila está vazia: todas as conversas têm atendente.',
     resolvidas: 'Nenhuma conversa resolvida ainda.',
 }
@@ -182,10 +182,26 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         [departamentos, usuario],
     )
 
+    // setores do filtro = departamentos do atendente atribuído (não o departamento_id da conversa)
+    const deptosPorAtendente = useMemo(() => {
+        const map = new Map()
+        for (const u of equipe) map.set(String(u.email || '').toLowerCase(), new Set(u.departamentos || []))
+        map.set(String(usuario.email || '').toLowerCase(), new Set(usuario.departamentos || []))
+        return map
+    }, [equipe, usuario])
+
+    const setoresDoAtendente = useCallback(
+        (email) => {
+            if (!email) return null
+            return deptosPorAtendente.get(String(email).toLowerCase()) || new Set()
+        },
+        [deptosPorAtendente],
+    )
+
     const passaFiltro = useCallback(
         (c) => {
             if (filtro === 'nao-lidas') return c.naoLidas > 0
-            if (filtro === 'minhas') return c.atendenteEmail === usuario.email
+            if (filtro === 'minhas') return c.atendenteEmail === usuario.email && c.status !== 'resolvida'
             if (filtro === 'fila') return !c.atendenteEmail && c.status !== 'resolvida'
             if (filtro === 'resolvidas') return c.status === 'resolvida'
             return true
@@ -193,26 +209,35 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         [filtro, usuario.email],
     )
 
-    const filtradas = useMemo(() => {
-        return conversas.filter((c) => {
-            if (filtroDepto === 'sem' && c.departamentoId) return false
-            if (filtroDepto && filtroDepto !== 'sem' && c.departamentoId !== filtroDepto) return false
-            return passaFiltro(c)
-        })
-    }, [conversas, filtroDepto, passaFiltro])
+    const passaFiltroDepto = useCallback(
+        (c) => {
+            if (!filtroDepto) return true
+            const setores = setoresDoAtendente(c.atendenteEmail)
+            if (filtroDepto === 'sem') return !c.atendenteEmail || !setores || setores.size === 0
+            // setor específico: atendente da conversa pertence a esse departamento
+            return Boolean(setores?.has(filtroDepto))
+        },
+        [filtroDepto, setoresDoAtendente],
+    )
 
-    // quantas conversas cada departamento tem dentro do filtro atual (Tudo, Minhas…), para o menu de departamentos
+    const filtradas = useMemo(() => conversas.filter((c) => passaFiltroDepto(c) && passaFiltro(c)), [conversas, passaFiltroDepto, passaFiltro])
+
+    // contagem por setor do atendente (uma conversa pode entrar em vários setores se o atendente tiver mais de um)
     const contagemDepto = useMemo(() => {
         const n = { '': 0, sem: 0 }
+        for (const d of departamentos) n[d.id] ??= 0
         for (const c of conversas) {
             if (!passaFiltro(c)) continue
             n[''] += 1
-            const k = c.departamentoId || 'sem'
-            n[k] = (n[k] || 0) + 1
+            const setores = setoresDoAtendente(c.atendenteEmail)
+            if (!c.atendenteEmail || !setores || setores.size === 0) {
+                n.sem += 1
+                continue
+            }
+            for (const id of setores) if (n[id] !== undefined) n[id] += 1
         }
-        for (const d of departamentos) n[d.id] ??= 0
         return n
-    }, [conversas, passaFiltro, departamentos])
+    }, [conversas, passaFiltro, departamentos, setoresDoAtendente])
 
     const faixaFiltros = useRef(null)
     useRolagemHorizontal(faixaFiltros)

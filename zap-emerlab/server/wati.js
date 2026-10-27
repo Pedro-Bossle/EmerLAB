@@ -179,9 +179,10 @@ export async function atribuirAtendente(waId, email) {
     })
 }
 
+// Equipe da conversa pela v3 (PUT contacts/teams): o v1 assignTeam responde 403 para este token (só no plano Pro).
+// target aceita telefone ou ContactId; substitui as equipes que o contato já tinha.
 export async function atribuirEquipe(waId, equipes) {
-    const { watiChannel } = getEnv()
-    return chamar(v1Url('assignTeam', { target: waId, teams: equipes, channelPhoneNumber: canalWa(waId, watiChannel) }), { method: 'POST' })
+    return chamar(v3Url('contacts/teams'), { method: 'PUT', body: { target: String(waId), teams: equipes } })
 }
 
 // Ficha do contato na WATI (v3): atributos personalizados, segmentos, opt-in…

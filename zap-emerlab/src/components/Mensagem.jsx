@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { urlMidia } from '../api.js'
-import { formatarWhatsapp, horaCurta } from '../util.js'
+import { formatarWhatsapp, horaCurta, pareceEventoSistemaWati, traduzirEventoSistema } from '../util.js'
 import Icone from './Icone.jsx'
+import MenuContexto from './MenuContexto.jsx'
 
 function TextoFormatado({ texto }) {
     if (!texto) return null
@@ -42,6 +43,19 @@ function Status({ status }) {
     )
 }
 
+// A WATI guarda os arquivos com nome aleatório (UUID). Sem o nome original, mostra e baixa com um nome legível:
+// "Documento 27-10-2026 09h22.pdf"
+const ROTULO_ARQUIVO = { image: 'Imagem', sticker: 'Figurinha', video: 'Vídeo', audio: 'Áudio', voice: 'Áudio', document: 'Documento' }
+export function nomeDoArquivo(m) {
+    if (m.nomeArquivo) return m.nomeArquivo
+    const ext = String(m.arquivo || '').match(/\.([a-z0-9]{2,5})$/i)?.[1]?.toLowerCase()
+    const d = m.em ? new Date(m.em) : null
+    const quando = d && !Number.isNaN(d.getTime())
+        ? ` ${d.toLocaleDateString('pt-BR').replace(/\//g, '-')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h')}`
+        : ''
+    return `${ROTULO_ARQUIVO[m.tipo] || 'Arquivo'}${quando}${ext ? `.${ext}` : ''}`
+}
+
 function Midia({ m, waId }) {
     const [quebrou, setQuebrou] = useState(false)
     if (!m.arquivo || quebrou) {
@@ -52,12 +66,12 @@ function Midia({ m, waId }) {
             </span>
         )
     }
-    const src = urlMidia(m.arquivo, waId)
-    const nomeArquivo = m.arquivo.split('/').pop()
+    const nomeArquivo = nomeDoArquivo(m)
+    const src = urlMidia(m.arquivo, waId, nomeArquivo)
     if (m.tipo === 'image' || m.tipo === 'sticker')
         return (
             <a href={src} target="_blank" rel="noopener noreferrer" className={`msg-imagem ${m.tipo === 'sticker' ? 'sticker' : ''}`}>
-                <img src={src} alt="Imagem recebida" loading="lazy" onError={() => setQuebrou(true)} />
+                <img src={src} alt={nomeArquivo} loading="lazy" onError={() => setQuebrou(true)} />
             </a>
         )
     if (m.tipo === 'video') return <video className="msg-video" src={src} controls preload="metadata" onError={() => setQuebrou(true)} />
@@ -67,7 +81,9 @@ function Midia({ m, waId }) {
             <span className="msg-doc-icone">
                 <Icone nome="documento" tamanho={22} />
             </span>
-            <span className="msg-doc-nome">{nomeArquivo}</span>
+            <span className="msg-doc-nome" title={nomeArquivo}>
+                {nomeArquivo}
+            </span>
             <Icone nome="baixar" tamanho={18} />
         </a>
     )
@@ -117,9 +133,13 @@ function temTemplatesHint(texto) {
 }
 
 export default function Mensagem({ m, waId, aoResponder, primeiraDoGrupo, aoTentar, aoDescartar, aoTemplate }) {
-    // eventos do ticket (atribuições, status…) aparecem como aviso central
-    if (m.evento !== 'message' && m.evento !== 'broadcastMessage') {
-        const txt = m.descricao || m.texto
+    const [menu, setMenu] = useState(null) // { x, y } do botão direito no balão
+    const brutoSistema = m.descricao || m.texto
+    // eventos do ticket (atribuições, status…) — e frases da WATI em inglês que às vezes vêm como message
+    const ehSistema =
+        (m.evento !== 'message' && m.evento !== 'broadcastMessage') || pareceEventoSistemaWati(brutoSistema)
+    if (ehSistema) {
+        const txt = traduzirEventoSistema(brutoSistema)
         if (!txt) return null
         return (
             <div className="msg-sistema">
@@ -129,20 +149,43 @@ export default function Mensagem({ m, waId, aoResponder, primeiraDoGrupo, aoTent
     }
 
     const temMidia = m.tipo !== 'text' && m.tipo !== 'interactive' && m.tipo !== 'button'
-    // em mídia o texto costuma ser a legenda; evita repetir o caminho do arquivo
-    const texto = temMidia && m.texto === m.arquivo ? '' : m.texto
+    // em mídia o texto costuma ser a legenda; evita repetir o caminho ou o nome do arquivo
+    const texto = temMidia && (m.texto === m.arquivo || (m.nomeArquivo && m.texto?.trim() === m.nomeArquivo)) ? '' : m.texto
     const falhou = m.minha && (m.status === 'erro' || m.status === 'failed')
+    const podeResponder = Boolean(m.wamid && aoResponder)
+    // WATI grava "API Token <tenant>" quando o envio foi pela API — não mostrar como autor
+    const autorVisivel = m.operador && !/^api\s*token\b/i.test(String(m.operador).trim()) ? m.operador : null
+
+    // botão direito no balão, como no WhatsApp; com texto selecionado fica o menu do navegador (para copiar o trecho)
+    const abrirMenu = (e) => {
+        if (window.getSelection?.().toString()) return
+        e.preventDefault()
+        setMenu({ x: e.clientX, y: e.clientY })
+    }
+    const itensMenu = [
+        {
+            rotulo: podeResponder ? 'Responder' : !m.wamid ? 'Responder (mensagem ainda sem ID do WhatsApp)' : 'Responder (janela de 24h fechada)',
+            acao: () => aoResponder(m),
+            desabilitado: !podeResponder,
+        },
+        texto ? { rotulo: 'Copiar texto', acao: () => navigator.clipboard?.writeText(String(texto)).catch(() => {}) } : null,
+        temMidia && m.arquivo ? { rotulo: 'Abrir arquivo', acao: () => window.open(urlMidia(m.arquivo, waId, nomeDoArquivo(m)), '_blank', 'noopener') } : null,
+    ]
 
     return (
         <div className={`msg-linha ${m.minha ? 'minha' : 'dele'} ${primeiraDoGrupo ? 'com-cauda' : ''}`}>
             <div className="msg-coluna">
                 <div
+                    onContextMenu={abrirMenu}
                     className={`msg ${temMidia && m.tipo === 'sticker' ? 'msg-sem-fundo' : ''} ${falhou ? 'msg-com-falha' : ''} ${m.evento === 'broadcastMessage' ? 'msg-template' : ''}`}
                 >
-                    {m.minha && m.operador && primeiraDoGrupo ? <span className="msg-autor">{m.operador}</span> : null}
-                    {m.evento === 'broadcastMessage' ? (
+                    {m.minha && autorVisivel && primeiraDoGrupo && m.evento !== 'broadcastMessage' && m.tipo !== 'template' ? (
+                        <span className="msg-autor">{autorVisivel}</span>
+                    ) : null}
+                    {m.evento === 'broadcastMessage' || m.tipo === 'template' || /^templateMessage/i.test(m.evento || '') ? (
                         <span className="msg-autor msg-autor-template">
                             <Icone nome="template" tamanho={13} /> Template
+                            {autorVisivel ? ` · ${autorVisivel}` : ''}
                         </span>
                     ) : null}
                     {temMidia ? <Midia m={m} waId={waId} /> : null}
@@ -151,14 +194,16 @@ export default function Mensagem({ m, waId, aoResponder, primeiraDoGrupo, aoTent
                         {horaCurta(m.em)}
                         {m.minha ? <Status status={m.status} /> : null}
                     </span>
-                    {m.wamid && aoResponder ? (
-                        <button className="msg-acao" aria-label="Responder esta mensagem" data-dica="Responder" onClick={() => aoResponder(m)}>
-                            <Icone nome="responder" tamanho={16} />
-                        </button>
-                    ) : null}
                 </div>
                 {falhou ? <Falha m={m} aoTentar={aoTentar} aoDescartar={aoDescartar} aoTemplate={aoTemplate} /> : null}
             </div>
+            {/* ao lado do balão, como no WhatsApp: à direita das mensagens do cliente, à esquerda das nossas */}
+            {podeResponder ? (
+                <button className="msg-acao" aria-label="Responder esta mensagem" data-dica="Responder" onClick={() => aoResponder(m)}>
+                    <Icone nome="responder" tamanho={16} />
+                </button>
+            ) : null}
+            {menu ? <MenuContexto x={menu.x} y={menu.y} titulo="Mensagem" itens={itensMenu} aoFechar={() => setMenu(null)} /> : null}
         </div>
     )
 }

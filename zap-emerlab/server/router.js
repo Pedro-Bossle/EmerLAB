@@ -7,7 +7,8 @@ import { db, ok, DbError, buscarUsuarioPorEmail, buscarUsuarioPorId, idsDepartam
 import * as wati from './wati.js'
 import { emailConfigurado, enviarEmail, montarEmailConvite } from './email.js'
 import { municipiosPorUf } from './ibge.js'
-import { lerRegras } from '../src/regras.js'
+import { lerRegras, codigosServicos, erroMarcaServicos, temMarcaServicos, MARCA_SERVICOS } from '../src/regras.js'
+import { catalogoProcedimentos, servicosNaCidade } from './quemRealiza.js'
 import { preencherVariaveis } from '../src/variaveis.js'
 
 const COOKIE = 'zap_sess'
@@ -152,21 +153,53 @@ async function salvarMeta(waId, campos) {
 
 // ---------- normalização ----------
 
+// Templates/broadcasts da WATI muitas vezes vêm sem owner=true; ainda assim são envio nosso
+const EVENTOS_ENVIADOS = new Set([
+    'broadcastMessage',
+    'templateMessageSent',
+    'templateMessageSent_v2',
+    'sessionMessageSent',
+    'sessionMessageSent_v2',
+])
+
+// Documento recebido: o WhatsApp do cliente manda o nome original no texto ("Comprovante_27-10.pdf")
+const PARECE_NOME_ARQUIVO = /^[^\n\\/]{1,180}\.[a-z0-9]{2,5}$/i
+const extensao = (nome) => (String(nome || '').match(/\.([a-z0-9]{2,5})$/i)?.[1] || '').toLowerCase()
+const semBarraInicial = (c) => String(c || '').replace(/^\/+/, '')
+
+// Envios via API da WATI vêm com operatorName "API Token 10265430" — não é um atendente
+function nomeOperadorUtil(nome, email) {
+    const n = String(nome || '').trim()
+    if (n && !/^api\s*token\b/i.test(n)) return n
+    const e = String(email || '').trim()
+    if (e && !/^api\s*token\b/i.test(e)) return e
+    return null
+}
+
 function normalizarMensagem(m) {
     const evento = m.eventType || 'message'
+    // WATI manda a frase da pill em eventDescription; em alguns tipos também em text/finalText
+    const descricao = m.eventDescription || m.description || null
+    const textoBruto = m.text ?? m.finalText ?? ''
+    const tipo = String(m.type || 'text').toLowerCase()
+    const minha =
+        Boolean(m.owner) || EVENTOS_ENVIADOS.has(evento) || tipo === 'template' || /^templateMessage/i.test(evento)
     return {
         id: m.id || m.whatsappMessageId || `${m.created}-${Math.random()}`,
         wamid: m.whatsappMessageId || m.messageId || null,
         tipo: m.type || 'text',
-        texto: m.text ?? m.finalText ?? '',
+        texto: textoBruto,
         arquivo: typeof m.data === 'string' ? m.data : null,
+        // nome original quando se sabe (recebido: no texto; enviado pelo painel: ver nomesArquivosEnviados)
+        nomeArquivo:
+            String(m.type).toLowerCase() === 'document' && !m.owner && PARECE_NOME_ARQUIVO.test(String(textoBruto).trim()) ? String(textoBruto).trim() : null,
         em: m.created || (m.timestamp ? new Date(Number(m.timestamp) * 1000).toISOString() : null),
-        minha: Boolean(m.owner),
+        minha,
         status: String(m.statusString || m.status || '').toLowerCase(),
-        operador: m.operatorName || null,
+        operador: nomeOperadorUtil(m.operatorName, m.operatorEmail),
         falha: m.failedDetail || m.failedReason || m.errorMessage || null,
         evento,
-        descricao: m.eventDescription || null,
+        descricao,
     }
 }
 
@@ -343,7 +376,9 @@ async function listarConversas(usuario, query) {
     let lista = [...porId.values()]
         .filter((c) => podeVerConversa(usuario, c.meta))
         .map((c) => {
-            const ultimaEm = [c.meta?.ultima_msg_em, c.atualizadoEm].filter(Boolean).sort().pop() || null
+            // horário da última mensagem. O last_updated do contato na WATI também muda sem mensagem (chatbot expirando
+            // ~3h depois, atributo, atribuição): só serve de palpite enquanto a conversa não foi verificada
+            const ultimaEm = c.meta?.ultima_msg_em || c.atualizadoEm || null
             return {
                 waId: c.waId,
                 nome: c.nome || null,
@@ -370,8 +405,9 @@ async function listarConversas(usuario, query) {
                 (d && canal === 'whatsapp' && c.waId.includes(d)),
         )
     }
-    await verificarNaWati(lista, new Map(metas.map((m) => [m.wa_id, m])))
-    lista.sort((a, b) => String(b.ultimaEm || '').localeCompare(String(a.ultimaEm || '')))
+    const contatoEm = new Map([...porId.values()].map((c) => [c.waId, c.atualizadoEm]))
+    await verificarNaWati(lista, new Map(metas.map((m) => [m.wa_id, m])), contatoEm)
+    lista.sort((a, b) => msData(b.ultimaEm) - msData(a.ultimaEm))
     return { conversas: lista, canal }
 }
 
@@ -384,28 +420,36 @@ const INTERVALO_VERIFICACAO = 20000
 const ATIVA_MS = 48 * 3600 * 1000
 const FOLGA_MS = 2000 // webhook grava em segundos; a WATI devolve com milissegundos
 const verificadas = new Map() // waId → quando foi checada (por instância do servidor)
+// datas da WATI ("…Z") e do Postgres ("…+00:00") não se comparam como texto
+const msData = (iso) => (iso ? new Date(iso).getTime() || 0 : 0)
 
-function escolherParaVerificar(lista) {
+function escolherParaVerificar(lista, contatoEm) {
     const agora = Date.now()
     const nunca = lista.filter((c) => !verificadas.has(c.waId))
+    // contato mexido na WATI depois da última checagem: pode ter mensagem nova (sem webhook, é o único sinal)
+    const mexidas = lista.filter(
+        (c) => verificadas.has(c.waId) && agora - verificadas.get(c.waId) > INTERVALO_VERIFICACAO && msData(contatoEm.get(c.waId)) > verificadas.get(c.waId),
+    )
     const ativas = lista
         .filter((c) => verificadas.has(c.waId) && agora - verificadas.get(c.waId) > INTERVALO_VERIFICACAO)
         .filter((c) => c.ultimaEm && agora - new Date(c.ultimaEm).getTime() < ATIVA_MS)
         .sort((a, b) => verificadas.get(a.waId) - verificadas.get(b.waId))
-    return [...nunca, ...ativas].slice(0, VERIFICAR_POR_VEZ)
+    return [...new Set([...nunca, ...mexidas, ...ativas])].slice(0, VERIFICAR_POR_VEZ)
 }
 
-async function verificarNaWati(lista, metaPorId) {
+async function verificarNaWati(lista, metaPorId, contatoEm) {
     await Promise.allSettled(
-        escolherParaVerificar(lista).map(async (c) => {
+        escolherParaVerificar(lista, contatoEm).map(async (c) => {
             verificadas.set(c.waId, Date.now())
             const { mensagens: itens } = await wati.listarMensagens(alvoWati(c.waId), { pagina: 1, tamanho: 20 })
             const msgs = itens
                 .map(normalizarMensagem)
                 .filter((m) => (m.evento === 'message' || m.evento === 'broadcastMessage') && m.em)
-                .sort((a, b) => String(b.em).localeCompare(String(a.em)))
+                .sort((a, b) => msData(b.em) - msData(a.em))
             const ultima = msgs[0]
             if (!ultima) return
+            // horário certo mesmo quando não há nada novo (o card podia estar com o last_updated do contato)
+            c.ultimaEm = ultima.em
             const meta = metaPorId.get(c.waId)
             const conhecidaMs = meta?.ultima_msg_em ? new Date(meta.ultima_msg_em).getTime() : null
             const nova = (m) => conhecidaMs === null || new Date(m.em).getTime() > conhecidaMs + FOLGA_MS
@@ -430,7 +474,6 @@ async function verificarNaWati(lista, metaPorId) {
             Object.assign(c, {
                 ultimaMsg: texto,
                 ultimaMinha: ultima.minha,
-                ultimaEm: [c.ultimaEm, ultima.em].filter(Boolean).sort().pop(),
                 naoLidas,
                 ...(campos.status ? { status: campos.status } : {}),
             })
@@ -442,8 +485,59 @@ async function mensagens(usuario, waId, query) {
     await exigirConversa(usuario, waId)
     const pagina = Math.max(1, Number(query.get('pagina')) || 1)
     const { mensagens: itens, temMais } = await wati.listarMensagens(alvoWati(waId), { pagina, tamanho: 50 })
-    const lista = itens.map(normalizarMensagem).sort((a, b) => String(a.em).localeCompare(String(b.em)))
+    const lista = itens.map(normalizarMensagem).sort((a, b) => msData(a.em) - msData(b.em))
+    await Promise.all([nomesArquivosEnviados(waId, lista), wamidsDoWebhook(waId, lista)])
     return { mensagens: lista, temMais }
+}
+
+// Responder citando precisa do wamid, que o getMessages não traz: vem do que o webhook gravou,
+// pelo id da mensagem na WATI ou, se não bater, pelo horário (até 3 s) e pelo lado (cliente/nós)
+async function wamidsDoWebhook(waId, lista) {
+    const faltando = lista.filter((m) => !m.wamid && m.em && (m.evento === 'message' || m.evento === 'broadcastMessage'))
+    if (!faltando.length) return
+    const tempos = faltando.map((m) => msData(m.em))
+    const r = await db()
+        .from('zap_mensagens_wamid')
+        .select('id, wamid, em, minha')
+        .eq('wa_id', waId)
+        .gte('em', new Date(Math.min(...tempos) - 60000).toISOString())
+        .lte('em', new Date(Math.max(...tempos) + 60000).toISOString())
+    if (r.error || !r.data.length) return // tabela ainda não criada ou webhook desligado: fica sem "Responder"
+    const porId = new Map(r.data.map((x) => [x.id, x.wamid]))
+    for (const m of faltando) {
+        m.wamid =
+            porId.get(String(m.id)) ||
+            r.data.find((x) => x.minha === m.minha && Math.abs(msData(x.em) - msData(m.em)) <= 3000)?.wamid ||
+            null
+    }
+}
+
+// Arquivo enviado pelo painel: liga a mensagem ao nome guardado no envio, pelo caminho na WATI ou, sem ele,
+// pelo horário (até 2 min depois do envio, mesma extensão). O que casa pelo horário grava o caminho para a próxima vez.
+const JANELA_ARQUIVO_MS = 120000
+async function nomesArquivosEnviados(waId, lista) {
+    const midias = lista.filter((m) => m.minha && m.arquivo && !m.nomeArquivo)
+    if (!midias.length) return
+    const r = await db().from('zap_arquivos').select('id, nome, arquivo, enviado_em').eq('wa_id', waId).order('enviado_em', { ascending: false }).limit(200)
+    if (r.error) return // tabela ainda não criada (supabase/schema.sql): fica o nome amigável do navegador
+    const livres = r.data.filter((a) => !a.arquivo)
+    const porCaminho = new Map(r.data.filter((a) => a.arquivo).map((a) => [semBarraInicial(a.arquivo), a.nome]))
+    for (const m of midias) {
+        const conhecido = porCaminho.get(semBarraInicial(m.arquivo))
+        if (conhecido) {
+            m.nomeArquivo = conhecido
+            continue
+        }
+        const em = msData(m.em)
+        const i = livres.findIndex((a) => {
+            const dif = em - msData(a.enviado_em)
+            return dif > -10000 && dif < JANELA_ARQUIVO_MS && extensao(a.nome) === extensao(m.arquivo)
+        })
+        if (i < 0) continue
+        const [a] = livres.splice(i, 1)
+        m.nomeArquivo = a.nome
+        await db().from('zap_arquivos').update({ arquivo: semBarraInicial(m.arquivo) }).eq('id', a.id)
+    }
 }
 
 async function enviarTextoHandler(req, usuario, waId) {
@@ -452,6 +546,8 @@ async function enviarTextoHandler(req, usuario, waId) {
     const limpo = String(texto || '').trim()
     if (!limpo) throw new HttpError(400, 'Mensagem vazia.', 'vazia')
     if (limpo.length > 4096) throw new HttpError(400, `Mensagem muito longa: ${limpo.length} de 4096 caracteres. Divida em duas.`, 'longa')
+    // a lista de quem realiza é montada no navegador; a marca crua não pode chegar ao cliente
+    if (temMarcaServicos(limpo)) throw new HttpError(400, `A mensagem ainda tem ${MARCA_SERVICOS}: a lista de quem realiza não foi preenchida. Confira a UF e a cidade do contato.`)
     const final = preencherVariaveis(limpo, { nome: meta?.nome || '', atendente: usuario.nome, telefone: canalDe(waId) === 'whatsapp' ? waId : '' })
     const msg = await wati.enviarTexto(alvoWati(waId), final, replyContextId)
     await salvarMeta(waId, {
@@ -470,7 +566,11 @@ async function enviarArquivoHandler(req, usuario, waId) {
     if (!base64) throw new HttpError(400, 'Arquivo vazio.')
     const buffer = Buffer.from(String(base64).replace(/^data:[^,]*,/, ''), 'base64')
     if (buffer.length > MAX_ARQUIVO) throw new HttpError(413, 'Arquivo acima de 3 MB. Comprima ou envie um link.', 'arquivo_grande')
-    await wati.enviarArquivo(alvoWati(waId), { buffer, nomeArquivo: String(nome || 'arquivo').slice(0, 120), mime, legenda })
+    const nomeArquivo = String(nome || 'arquivo').slice(0, 120)
+    const enviada = await wati.enviarArquivo(alvoWati(waId), { buffer, nomeArquivo, mime, legenda })
+    // guarda o nome original (a WATI renomeia para um UUID); sem a tabela, o envio segue normal
+    const caminho = typeof enviada?.data === 'string' ? semBarraInicial(enviada.data) : null
+    await db().from('zap_arquivos').insert({ wa_id: waId, nome: nomeArquivo, arquivo: caminho })
     await salvarMeta(waId, { ultima_msg: `📎 ${nome || 'Arquivo'}`, ultima_msg_em: new Date().toISOString(), ultima_msg_minha: true, nao_lidas: 0 })
     return { ok: true }
 }
@@ -710,6 +810,9 @@ async function midiaHandler(res, usuario, query) {
     const resp = await wati.baixarMidia(arquivo)
     res.statusCode = 200
     res.setHeader('Content-Type', resp.headers.get('content-type') || 'application/octet-stream')
+    // abre no navegador, mas "Salvar como" usa o nome original em vez do UUID da WATI
+    const nome = String(query.get('nome') || '').replace(/[\r\n"]/g, '').slice(0, 180)
+    if (nome) res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(nome)}`)
     res.setHeader('Cache-Control', 'private, max-age=86400')
     res.end(Buffer.from(await resp.arrayBuffer()))
 }
@@ -754,13 +857,20 @@ function departamentosDaResposta(b) {
     return { departamento_ids: ids, departamento_id: ids.length === 1 ? ids[0] : null }
 }
 
-function validarResposta(b) {
+// catálogo de procedimentos só quando alguma regra usa services {…} (confere se os códigos existem)
+async function procedimentosDasRegras(textos) {
+    return textos.some((t) => codigosServicos(t).length) ? await catalogoProcedimentos() : undefined
+}
+
+function validarResposta(b, procedimentos) {
     const atalho = String(b.atalho || '').trim().replace(/^\/+/, '').toLowerCase().replace(/\s+/g, '-')
     const texto = String(b.texto || '').trim()
     if (!atalho || !texto) throw new HttpError(400, 'Atalho e texto são obrigatórios.')
     const regras = String(b.regras || '').trim().slice(0, 2000)
-    const { erros } = lerRegras(regras)
+    const { erros } = lerRegras(regras, { procedimentos })
     if (erros.length) throw new HttpError(400, `Regras: ${erros[0]}`)
+    const erroMarca = erroMarcaServicos(texto, regras)
+    if (erroMarca) throw new HttpError(400, erroMarca)
     return {
         atalho: atalho.slice(0, 40),
         titulo: String(b.titulo || '').trim().slice(0, 80) || null,
@@ -778,9 +888,11 @@ async function importarRespostas(b) {
     const porAtalho = new Map()
     let ignoradas = 0
     let repetidas = 0
-    for (const item of (Array.isArray(b.itens) ? b.itens : []).slice(0, MAX_IMPORTACAO)) {
+    const itens = (Array.isArray(b.itens) ? b.itens : []).slice(0, MAX_IMPORTACAO)
+    const procedimentos = await procedimentosDasRegras(itens.map((i) => String(i?.regras || '')))
+    for (const item of itens) {
         try {
-            const r = validarResposta({ ...item, departamentoId })
+            const r = validarResposta({ ...item, departamentoId }, procedimentos)
             if (porAtalho.has(r.atalho)) repetidas += 1 // repetido no arquivo: vale a última linha
             porAtalho.set(r.atalho, r)
         } catch {
@@ -975,8 +1087,8 @@ async function webhook(req, res, query) {
     const b = await lerCorpo(req)
     const waId = soDigitos(b.waId || b.whatsappNumber)
     const evento = b.eventType || ''
-    if (waId && (evento === 'message' || evento === 'sessionMessageSent' || evento === 'templateMessageSent' || b.text !== undefined)) {
-        const minha = Boolean(b.owner) || evento === 'sessionMessageSent' || evento === 'templateMessageSent'
+    if (waId && (evento === 'message' || EVENTOS_ENVIADOS.has(evento) || /^templateMessage/i.test(evento) || b.text !== undefined)) {
+        const minha = Boolean(b.owner) || EVENTOS_ENVIADOS.has(evento) || /^templateMessage/i.test(evento) || String(b.type || '').toLowerCase() === 'template'
         const texto = textoPrevia(b.type, b.text || b.finalText)
         const em = b.timestamp ? new Date(Number(b.timestamp) * 1000).toISOString() : b.created || new Date().toISOString()
         ok(
@@ -988,6 +1100,12 @@ async function webhook(req, res, query) {
                 p_minha: minha,
             }),
         )
+        if (b.whatsappMessageId) {
+            // guarda o wamid para o "Responder"; sem a tabela, o webhook segue normal
+            await db()
+                .from('zap_mensagens_wamid')
+                .upsert({ id: String(b.id || `${waId}:${b.whatsappMessageId}`), wa_id: waId, wamid: String(b.whatsappMessageId), em, minha })
+        }
         wati.invalidarCache(`msgs:${waId}:`)
     }
     enviar(res, 200, { ok: true })
@@ -1041,6 +1159,16 @@ export async function handle(req, res, rotaForcada) {
             return responder({ municipios: lista })
         }
 
+        // regra services {…}: códigos que a rede realiza na cidade do contato (Credenciamento > Quem realiza)
+        if (rota === 'servicos' && metodo === 'GET') {
+            const codigos = String(query.get('codigos') || '').split(',').filter(Boolean).slice(0, 100)
+            return responder(await servicosNaCidade({ uf: query.get('uf'), cidade: query.get('cidade'), codigos }))
+        }
+        if (rota === 'procedimentos' && metodo === 'GET') {
+            const catalogo = await catalogoProcedimentos()
+            return responder({ procedimentos: [...catalogo].map(([codigo, nome]) => ({ codigo, nome })) })
+        }
+
         if (partes[0] === 'conversas' && partes[1]) {
             const waId = lerIdConversa(decodeURIComponent(partes[1])).id
             const acao = partes[2]
@@ -1072,11 +1200,13 @@ export async function handle(req, res, rotaForcada) {
             exigirAdmin(usuario)
             if (partes[1] === 'importar' && metodo === 'POST') return responder(await importarRespostas(await lerCorpo(req)))
             if (!partes[1] && metodo === 'POST') {
-                await gravarResposta(validarResposta(await lerCorpo(req)), (d) => db().from('zap_respostas_rapidas').insert(d))
+                const b = await lerCorpo(req)
+                await gravarResposta(validarResposta(b, await procedimentosDasRegras([String(b.regras || '')])), (d) => db().from('zap_respostas_rapidas').insert(d))
                 return responder({ ok: true })
             }
             if (partes[1] && metodo === 'PUT') {
-                await gravarResposta(validarResposta(await lerCorpo(req)), (d) => db().from('zap_respostas_rapidas').update(d).eq('id', partes[1]))
+                const b = await lerCorpo(req)
+                await gravarResposta(validarResposta(b, await procedimentosDasRegras([String(b.regras || '')])), (d) => db().from('zap_respostas_rapidas').update(d).eq('id', partes[1]))
                 return responder({ ok: true })
             }
             if (partes[1] && metodo === 'DELETE') {

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { VARIAVEIS } from '../variaveis.js'
+import { MARCA_SERVICOS } from '../regras.js'
 
 // Formatação do WhatsApp: a marca envolve o texto
 const FORMATOS = [
@@ -23,13 +24,16 @@ function detectar(texto, pos) {
 function opcoesPara(g) {
     if (!g) return []
     if (g.tipo === 'var') {
-        return VARIAVEIS.filter(([k, d]) => k.includes(g.termo) || d.toLowerCase().includes(g.termo)).map(([k, d]) => ({
+        const vars = VARIAVEIS.filter(([k, d]) => k.includes(g.termo) || d.toLowerCase().includes(g.termo)).map(([k, d]) => ({
             chave: k,
             rotulo: `{{${k}}}`,
             descricao: d,
             inserir: `{{${k}}}`,
             cursor: 0,
         }))
+        // lista de quem realiza (regra services {…}); marca com chave simples, não é variável {{…}}
+        const servicos = { chave: 'services', rotulo: MARCA_SERVICOS, descricao: 'Quem realiza, um por linha', inserir: MARCA_SERVICOS, cursor: 0 }
+        return 'services.content'.includes(g.termo) || servicos.descricao.toLowerCase().includes(g.termo) ? [...vars, servicos] : vars
     }
     // a marca digitada vem primeiro; as outras continuam disponíveis
     const marca = g.marca.startsWith('`') ? '```' : g.marca

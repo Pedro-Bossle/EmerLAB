@@ -44,7 +44,9 @@ export async function api(caminho, { method = 'GET', body } = {}) {
     return dados
 }
 
-export const urlMidia = (arquivo, waId) => `/api/media?arquivo=${encodeURIComponent(arquivo)}&waId=${encodeURIComponent(waId || '')}`
+// nome: como o arquivo aparece ao salvar (a WATI guarda com um UUID)
+export const urlMidia = (arquivo, waId, nome) =>
+    `/api/media?arquivo=${encodeURIComponent(arquivo)}&waId=${encodeURIComponent(waId || '')}${nome ? `&nome=${encodeURIComponent(nome)}` : ''}`
 
 export function arquivoParaBase64(file) {
     return new Promise((resolve, reject) => {

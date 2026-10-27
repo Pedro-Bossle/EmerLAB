@@ -142,7 +142,7 @@ export function restanteEmPalavras(ms) {
 export function calcularEspera(conversas, agora = Date.now()) {
     return conversas
         .filter((c) => c.status !== 'resolvida' && c.ultimaMinha === false && c.ultimaEm && !janela24h(c.ultimaEm, agora).fechada)
-        .sort((a, b) => String(a.ultimaEm).localeCompare(String(b.ultimaEm)))
+        .sort((a, b) => new Date(a.ultimaEm) - new Date(b.ultimaEm))
 }
 
 // Lê CSV/TSV (colado de planilha ou arquivo): separador detectado na 1ª linha, aspas com quebra de linha dentro
@@ -233,3 +233,56 @@ export const normalizarTextoBusca = (texto) =>
         .replace(/[^a-z0-9\s]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
+
+/** Frases típicas da WATI em inglês (pills de atribuição / chatbot / status). */
+export function pareceEventoSistemaWati(texto) {
+    const t = String(texto || '').replace(/\s+/g, ' ').trim()
+    if (!t) return false
+    return /^(the\s+)?chat\s+(has\s+been|was)\s+(assigned|unassigned)\b/i.test(t)
+        || /^(ended|opened|closed|started|resolved)\s*:/i.test(t)
+        || /\bvia\s+round[-\s]?robin\b/i.test(t)
+        || /\bby\s+(bot|rule|operator|team)\b/i.test(t)
+        || /\bmarked as (resolved|pending|open)\b/i.test(t)
+        || /\bstatus (was )?changed to\b/i.test(t)
+}
+
+/**
+ * Traduz pills de evento da WATI (eventDescription / texto) para PT-BR.
+ * Nomes de chatbot, regra e e-mail do operador são preservados.
+ */
+export function traduzirEventoSistema(texto) {
+    let t = String(texto || '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    if (!t) return ''
+
+    t = t
+        .replace(/^(?:the\s+)?chat\s+has\s+been\s+assigned\s+to\s+/i, 'Conversa atribuída a ')
+        .replace(/^(?:the\s+)?chat\s+was\s+assigned\s+to\s+/i, 'Conversa atribuída a ')
+        .replace(/^chat\s+assigned\s+to\s+/i, 'Conversa atribuída a ')
+        .replace(/^(?:the\s+)?chat\s+has\s+been\s+unassigned(?:\s+from\s+(.+))?$/i, (_, de) =>
+            de ? `Conversa desatribuída de ${de}` : 'Conversa desatribuída',
+        )
+        .replace(/^(?:the\s+)?chat\s+was\s+unassigned(?:\s+from\s+(.+))?$/i, (_, de) =>
+            de ? `Conversa desatribuída de ${de}` : 'Conversa desatribuída',
+        )
+        .replace(/\bby\s+Bot\b/gi, 'pelo Bot')
+        .replace(/\bby\s+Operator\b/gi, 'pelo operador')
+        .replace(/\bby\s+Rule\b/gi, 'pela regra')
+        .replace(/\bby\s+Team\b/gi, 'pela equipe')
+        .replace(/\bvia\s+round[-\s]?robin(?:\s+assignment)?\b/gi, 'via distribuição em rodízio')
+        .replace(/\bvia\s+load[-\s]?based(?:\s+assignment)?\b/gi, 'via distribuição por carga')
+        .replace(/\bvia\s+last\s+assignee\b/gi, 'via último atendente')
+        .replace(/^Ended\s*:\s*/i, 'Encerrado: ')
+        .replace(/^Opened\s*:\s*/i, 'Aberto: ')
+        .replace(/^Closed\s*:\s*/i, 'Fechado: ')
+        .replace(/^Started\s*:\s*/i, 'Iniciado: ')
+        .replace(/^Resolved\s*:\s*/i, 'Resolvido: ')
+        .replace(/\bstatus\s+(?:was\s+)?changed\s+to\b/gi, 'status alterado para')
+        .replace(/\bmarked\s+as\s+resolved\b/gi, 'marcada como resolvida')
+        .replace(/\bmarked\s+as\s+pending\b/gi, 'marcada como pendente')
+        .replace(/\bmarked\s+as\s+open\b/gi, 'marcada como aberta')
+
+    return t.replace(/\s{2,}/g, ' ').trim()
+}
