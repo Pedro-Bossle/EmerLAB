@@ -155,15 +155,18 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         carregarApoio()
     }, [carregarApoio])
 
-    // busca com pequeno atraso; polling só com a aba visível
+    // busca com pequeno atraso; polling também com a aba oculta (senão o desktop notification nunca dispara)
     useEffect(() => {
         const t = setTimeout(() => carregarConversas(busca), busca ? 400 : 0)
-        const id = setInterval(() => {
+        const id = setInterval(() => carregarConversas(busca), INTERVALO_LISTA)
+        const aoVisivel = () => {
             if (!document.hidden) carregarConversas(busca)
-        }, INTERVALO_LISTA)
+        }
+        document.addEventListener('visibilitychange', aoVisivel)
         return () => {
             clearTimeout(t)
             clearInterval(id)
+            document.removeEventListener('visibilitychange', aoVisivel)
         }
     }, [busca, carregarConversas])
 

@@ -82,31 +82,71 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
     const composer = useRef(null)
     const teclado = useRef(null)
 
+    // null = ainda não houve primeira carga (evita tratar o histórico inicial como "mensagem nova")
+    const idsVistos = useRef(null)
+    const aoAtualizarRef = useRef(aoAtualizar)
+    const aoRecarregarListaRef = useRef(aoRecarregarLista)
+    aoAtualizarRef.current = aoAtualizar
+    aoRecarregarListaRef.current = aoRecarregarLista
+
     const carregar = useCallback(async () => {
         try {
             const r = await api(`${caminho}/mensagens?pagina=1`)
+            const msgs = r.mensagens || []
             setMensagens((atual) => {
                 // mantém páginas antigas já carregadas e substitui as recentes
-                const ids = new Set(r.mensagens.map((m) => m.id))
-                const antigas = atual.filter((m) => !ids.has(m.id) && r.mensagens.length && m.em < r.mensagens[0].em)
-                return [...antigas, ...r.mensagens]
+                const ids = new Set(msgs.map((m) => m.id))
+                const antigas = atual.filter((m) => !ids.has(m.id) && msgs.length && m.em < msgs[0].em)
+                return [...antigas, ...msgs]
             })
             // pendente que já apareceu no histórico da WATI some da fila local
-            setPendentes((p) => p.filter((x) => x.status === 'erro' || !r.mensagens.some((m) => m.minha && m.texto === x.texto)))
+            setPendentes((p) => p.filter((x) => x.status === 'erro' || !msgs.some((m) => m.minha && m.texto === x.texto)))
             setTemMais((v) => (pagina === 1 ? r.temMais : v))
             setErro('')
+
+            const chatMsgs = msgs.filter((m) => !m.evento || m.evento === 'message' || m.evento === 'broadcastMessage')
+            const ultima = [...chatMsgs].sort((a, b) => String(a.em || '').localeCompare(String(b.em || ''))).at(-1)
+            const previaDe = (m) => {
+                if (!m) return null
+                const texto = String(m.texto || '').trim()
+                if (texto) return texto.slice(0, 500)
+                if (m.tipo && m.tipo !== 'text') return `📎 ${m.tipo}`
+                return ''
+            }
+
+            if (idsVistos.current == null) {
+                idsVistos.current = new Set(msgs.map((m) => m.id).filter(Boolean))
+                if (ultima && aoAtualizarRef.current) {
+                    aoAtualizarRef.current(waId, {
+                        ultimaMsg: previaDe(ultima),
+                        ultimaMinha: Boolean(ultima.minha),
+                        ultimaEm: ultima.em,
+                    })
+                }
+            } else {
+                const novas = msgs.filter((m) => m.id && !idsVistos.current.has(m.id))
+                for (const m of msgs) if (m.id) idsVistos.current.add(m.id)
+                if (novas.length && ultima && aoAtualizarRef.current) {
+                    aoAtualizarRef.current(waId, {
+                        ultimaMsg: previaDe(ultima),
+                        ultimaMinha: Boolean(ultima.minha),
+                        ultimaEm: ultima.em,
+                    })
+                    // cliente escreveu: recarrega a lista para bip / badge / meta do banco
+                    if (novas.some((m) => !m.minha) && aoRecarregarListaRef.current) aoRecarregarListaRef.current()
+                }
+            }
         } catch (e) {
             setErro(e.message)
         } finally {
             setCarregando(false)
         }
-    }, [caminho, pagina])
+    }, [caminho, pagina, waId])
 
     useEffect(() => {
+        idsVistos.current = null
         carregar()
-        const id = setInterval(() => {
-            if (!document.hidden) carregar()
-        }, INTERVALO_CHAT)
+        const id = setInterval(() => carregar(), INTERVALO_CHAT)
         return () => clearInterval(id)
     }, [carregar])
 

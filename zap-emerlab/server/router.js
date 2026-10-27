@@ -1163,9 +1163,35 @@ async function equipe() {
 
 // ---- webhook WATI ----
 
+/** Token do webhook: query `token`, header `x-zap-webhook-token`, ou `Authorization: Bearer …`.
+ *  Decodifica URI e rejeita segredos com `#` (fragmento de URL — a WATI corta o token). */
+function tokenWebhookRecebido(req, query) {
+    const q = query.get('token') || ''
+    const h = req.headers['x-zap-webhook-token'] || ''
+    const auth = String(req.headers.authorization || '')
+    const bearer = /^Bearer\s+(.+)$/i.exec(auth)?.[1] || ''
+    const bruto = q || h || bearer || ''
+    try {
+        return decodeURIComponent(String(bruto).trim())
+    } catch {
+        return String(bruto).trim()
+    }
+}
+
+function tokenWebhookValido(recebido, esperado) {
+    if (!esperado || !recebido) return false
+    if (compararSeguro(recebido, esperado)) return true
+    // legado: URL com `#` no secret — a WATI só envia o trecho antes do `#`
+    const corte = esperado.indexOf('#')
+    if (corte > 0 && compararSeguro(recebido, esperado.slice(0, corte))) return true
+    return false
+}
+
 async function webhook(req, res, query) {
     const { webhookSecret } = getEnv()
-    if (!webhookSecret || !compararSeguro(query.get('token') || '', webhookSecret)) throw new HttpError(401, 'Token inválido.')
+    if (!webhookSecret || !tokenWebhookValido(tokenWebhookRecebido(req, query), webhookSecret)) {
+        throw new HttpError(401, 'Token inválido.')
+    }
     const b = await lerCorpo(req)
     const waId = soDigitos(b.waId || b.whatsappNumber)
     const evento = b.eventType || ''

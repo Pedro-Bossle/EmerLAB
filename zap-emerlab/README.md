@@ -53,6 +53,8 @@ Sem webhook, o painel funciona por polling: a lista atualiza a cada 10 s e o cha
 https://SEU-DOMINIO/api/webhook?token=<ZAP_WEBHOOK_SECRET>
 ```
 
+O `ZAP_WEBHOOK_SECRET` precisa ser **URL-safe** (letras, números, `_`, `-`). **Não use `#`**: vira fragmento de URL, a WATI envia o token cortado e o painel responde 401 — aí só atualiza no refresh.
+
 ## Deploy (Vercel)
 
 Crie um projeto novo na Vercel com **Root Directory = `zap-emerlab`** e cadastre as variáveis do `.env.example`. O [`vercel.json`](vercel.json) já reescreve `/api/*` para uma única função (`api/zap.js`), então o painel não consome o limite de funções do projeto principal.
