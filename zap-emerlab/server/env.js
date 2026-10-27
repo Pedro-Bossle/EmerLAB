@@ -6,6 +6,15 @@ function str(name, fallback = '') {
     return v == null || v === '' ? fallback : String(v).trim()
 }
 
+/** Remove BOM, aspas e "Bearer " — evita "API key is invalid" com chave certa no painel. */
+function normalizeResendApiKey(raw) {
+    let k = String(raw ?? '').trim()
+    if (k.charCodeAt(0) === 0xfeff) k = k.slice(1).trim()
+    k = k.replace(/^[\s"'“”‘’]+|[\s"'“”‘’]+$/g, '').trim()
+    k = k.replace(/^Bearer\s+/i, '').trim()
+    return k
+}
+
 export function getEnv() {
     return {
         watiTenantId: str('WATI_TENANT_ID'),
@@ -20,9 +29,9 @@ export function getEnv() {
         supabaseUrl: str('SUPABASE_URL'),
         supabaseKey: str('SUPABASE_SERVICE_ROLE_KEY'),
         webhookSecret: str('ZAP_WEBHOOK_SECRET'),
-        resendKey: str('RESEND_API_KEY'),
+        resendKey: normalizeResendApiKey(process.env.RESEND_API_KEY || process.env.RESEND_KEY || ''),
         emailFrom: str('RESEND_FROM_EMAIL', 'noreply@emerlab.com.br'),
-        emailFromNome: str('ZAP_EMAIL_FROM_NOME', 'Emerzap'),
+        emailFromNome: str('ZAP_EMAIL_FROM_NOME') || str('RESEND_FROM_NAME', 'Emerzap'),
         publicUrl: str('ZAP_PUBLIC_URL', 'https://zap.emerlab.com.br').replace(/\/+$/, ''),
         atendenteVeSemDepto: str('ZAP_ATENDENTE_VE_SEM_DEPARTAMENTO', 'true') !== 'false',
     }

@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { api } from '../api.js'
 import { ler, gravar } from '../util.js'
+import Icone from './Icone.jsx'
 
 export default function Login({ aviso, aoEntrar }) {
     const [tenantId, setTenantId] = useState(() => ler('zap.tenant', ''))
     const [email, setEmail] = useState(() => ler('zap.email', ''))
     const [senha, setSenha] = useState('')
+    const [mostrarSenha, setMostrarSenha] = useState(false)
     const [erro, setErro] = useState('')
     const [enviando, setEnviando] = useState(false)
 
@@ -48,7 +50,24 @@ export default function Login({ aviso, aoEntrar }) {
                 </label>
                 <label className="campo">
                     <span>Senha</span>
-                    <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="current-password" required />
+                    <div className="campo-senha">
+                        <input
+                            type={mostrarSenha ? 'text' : 'password'}
+                            value={senha}
+                            onChange={(e) => setSenha(e.target.value)}
+                            autoComplete="current-password"
+                            required
+                        />
+                        <button
+                            type="button"
+                            className="icone-botao mini campo-senha-toggle"
+                            aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+                            aria-pressed={mostrarSenha}
+                            onClick={() => setMostrarSenha((v) => !v)}
+                        >
+                            <Icone nome={mostrarSenha ? 'olhoFechado' : 'olho'} tamanho={18} />
+                        </button>
+                    </div>
                 </label>
 
                 {erro ? <div className="alerta alerta-erro">{erro}</div> : null}

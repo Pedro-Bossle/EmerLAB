@@ -2,6 +2,27 @@ import { iniciais, corAvatar, nomeExibicao, dataLista, canalDoId } from '../util
 import Icone from './Icone.jsx'
 import IconeCanal from './IconeCanal.jsx'
 
+/** Pills discretas de Tipo e Cidade (atributos WATI) ao lado do nome. */
+export function ContatoMetaPills({ tipo, cidade }) {
+    const t = String(tipo || '').trim()
+    const c = String(cidade || '').trim()
+    if (!t && !c) return null
+    return (
+        <span className="meta-pills">
+            {t ? (
+                <span className="tag tag-neutra tag-meta" title={`Tipo: ${t}`}>
+                    {t}
+                </span>
+            ) : null}
+            {c ? (
+                <span className="tag tag-neutra tag-meta" title={`Cidade: ${c}`}>
+                    {c}
+                </span>
+            ) : null}
+        </span>
+    )
+}
+
 export function Avatar({ conversa, tamanho = 49 }) {
     const canal = canalDoId(conversa.waId)
     return (
@@ -77,7 +98,10 @@ export default function ListaConversas({ conversas, carregando, erro, textoVazio
                         <Avatar conversa={c} />
                         <div className="item-corpo">
                             <div className="item-linha">
-                                <span className="item-nome">{nomeExibicao(c)}</span>
+                                <span className="item-nome-wrap">
+                                    <span className="item-nome">{nomeExibicao(c)}</span>
+                                    <ContatoMetaPills tipo={c.atributos?.tipo} cidade={c.atributos?.cidade} />
+                                </span>
                                 <span className={`item-hora ${c.naoLidas ? 'destaque' : ''}`}>{dataLista(c.ultimaEm)}</span>
                             </div>
                             <div className="item-linha">

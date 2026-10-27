@@ -4,7 +4,7 @@ import { nomeExibicao, formatarTelefone, rotuloDia, chaveDia, janela24h, canalDo
 import Icone from './Icone.jsx'
 import IconeCanal from './IconeCanal.jsx'
 import Menu from './Menu.jsx'
-import { Avatar } from './ListaConversas.jsx'
+import { Avatar, ContatoMetaPills } from './ListaConversas.jsx'
 import Mensagem from './Mensagem.jsx'
 import Composer from './Composer.jsx'
 import Perfil from './Perfil.jsx'
@@ -276,9 +276,15 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                         </span>
                     </button>
                     <div className="barra-titulo">
-                        <button className="abrir-perfil titulo-perfil" onClick={() => setPerfilAberto(true)} title="Dados do contato">
-                            {nomeExibicao(conversa)}
-                        </button>
+                        <div className="titulo-linha">
+                            <button className="abrir-perfil titulo-perfil" onClick={() => setPerfilAberto(true)} title="Dados do contato">
+                                {nomeExibicao(conversa)}
+                            </button>
+                            <ContatoMetaPills
+                                tipo={atributosContato.tipo || conversa.atributos?.tipo}
+                                cidade={atributosContato.cidade || conversa.atributos?.cidade}
+                            />
+                        </div>
                         <small>
                             {conversa.nome && formatarTelefone(waId) ? <span className="sub-fone">{formatarTelefone(waId)}</span> : null}
                             {depto ? (
@@ -476,7 +482,7 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                     aoFechar={fecharPerfil}
                     aoSalvo={(campos, atributos) => {
                         if (atributos) setAtributosContato((a) => ({ ...a, ...atributos }))
-                        aoAtualizar(waId, campos)
+                        aoAtualizar(waId, atributos ? { ...campos, atributos: { ...(conversa.atributos || {}), ...atributos } } : campos)
                         aoRecarregarLista()
                     }}
                     avisar={avisar}

@@ -143,9 +143,17 @@ export function montarEmailConvite({ nome, email, link, tenantId, validadeDias }
 export async function enviarEmail({ to, subject, html, text }) {
     const { resendKey, emailFrom, emailFromNome } = getEnv()
     if (!resendKey) throw new Error('Envio de e-mail desativado: falta RESEND_API_KEY no .env.')
+    if (!/^re_/i.test(resendKey)) {
+        throw new Error('RESEND_API_KEY com formato inválido (deve começar com re_). Remova aspas extras no .env / Vercel.')
+    }
+    // User-Agent é obrigatório na API Resend; sem ele a borda devolve 403 e parece falha de chave
     const resp = await fetch('https://api.resend.com/emails', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+        headers: {
+            Authorization: `Bearer ${resendKey}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'emerlab-zap/1.0',
+        },
         body: JSON.stringify({
             from: `${emailFromNome} <${emailFrom}>`,
             to: [to],
@@ -159,6 +167,14 @@ export async function enviarEmail({ to, subject, html, text }) {
         }),
     })
     const dados = await resp.json().catch(() => ({}))
-    if (!resp.ok) throw new Error(dados.message || `A Resend recusou o e-mail (HTTP ${resp.status}).`)
+    if (!resp.ok) {
+        const msg = dados.message || `A Resend recusou o e-mail (HTTP ${resp.status}).`
+        if (/api key is invalid|missing api key|invalid.?api.?key/i.test(msg)) {
+            throw new Error(
+                `${msg} — confira RESEND_API_KEY no projeto Vercel do zap (sem aspas) e se o domínio do remetente está verificado.`,
+            )
+        }
+        throw new Error(msg)
+    }
     return dados
 }

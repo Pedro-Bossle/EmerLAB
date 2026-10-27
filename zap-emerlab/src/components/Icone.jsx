@@ -10,6 +10,8 @@ import {
     Clock,
     Download,
     EllipsisVertical,
+    Eye,
+    EyeOff,
     FileText,
     Hourglass,
     Image,
@@ -89,6 +91,8 @@ const ICONES = {
     local: MapPin,
     baixar: Download,
     email: Mail,
+    olho: Eye,
+    olhoFechado: EyeOff,
 }
 
 export default function Icone({ nome, tamanho = 22, className, titulo, traco = 2 }) {

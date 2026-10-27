@@ -20,7 +20,7 @@ import {
     responderSePayloadGrande,
 } from '../src/lib/api/serverAuth.js'
 import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
-import { enviarEmailTemplate } from './_lib/resendMail.js'
+import { enviarEmailTemplate, getResendApiKey } from './_lib/resendMail.js'
 import { gerarSenhaTemporaria } from './_lib/gerarSenhaTemporaria.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
@@ -546,7 +546,7 @@ export default async function handler(req, res) {
             }
 
             // Antes de consultar o usuário: falha de config não vaza existência da conta.
-            if (!String(process.env.RESEND_API_KEY || '').trim()) {
+            if (!getResendApiKey()) {
                 console.error(
                     '[forgotPassword] RESEND_API_KEY ausente — defina em .env.local (dev) ou nas env vars do Vercel (prod).',
                 )

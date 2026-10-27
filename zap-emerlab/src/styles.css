@@ -186,6 +186,13 @@ html[data-tema='escuro'] .campo > span { color: var(--destaque); }
 .campo input:focus, .campo select:focus, .campo textarea:focus, .entrada:focus { border-color: var(--destaque); }
 .campo input[type='color'] { width: 64px; height: 38px; border: 0; background: none; padding: 0; }
 .campo input:disabled { opacity: 0.6; }
+.campo-senha { position: relative; }
+.campo-senha input { padding-right: 42px; }
+.campo-senha-toggle {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    color: var(--texto-3);
+}
+.campo-senha-toggle:hover:not(:disabled) { color: var(--texto); }
 .entrada { margin-bottom: 12px; }
 .ajuda { color: var(--texto-2); font-size: 0.85rem; margin: 4px 0 12px; line-height: 1.4; }
 .ajuda-motivo { display: flex; align-items: center; gap: 6px; color: var(--aviso-texto); background: var(--aviso-fundo); padding: 8px 10px; border-radius: 8px; }
@@ -286,6 +293,7 @@ html[data-tema='escuro'] .avatar { background: color-mix(in srgb, var(--av) 26%,
 .barra-chat { background: var(--painel); }
 .barra-titulo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .barra-titulo strong { font-weight: 500; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.titulo-linha { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
 .barra-titulo small { color: var(--texto-2); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; min-width: 0; }
 .titulo-canal { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; font-weight: 600; line-height: 1.2; }
 .barra-acoes { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
@@ -384,9 +392,17 @@ html[data-tema='escuro'] .link-botao { color: var(--destaque); }
 .item.selecionado { background: var(--ativo); }
 .item-corpo { flex: 1; min-width: 0; padding: 12px 15px 12px 0; border-bottom: 1px solid var(--borda); display: flex; flex-direction: column; gap: 3px; align-self: stretch; justify-content: center; }
 .item-linha { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.item-nome { flex: 1; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-nome-wrap { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; }
+.item-nome { flex: 1 1 auto; min-width: 0; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nao-lida .item-nome { font-weight: 600; }
-.item-hora { font-size: 12px; color: var(--texto-2); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.meta-pills { display: inline-flex; align-items: center; gap: 4px; flex: 0 1 auto; min-width: 0; max-width: 46%; overflow: hidden; }
+.tag-meta {
+    flex: 0 1 auto; min-width: 0; max-width: 7.5em;
+    font-size: 11px; font-weight: 500; line-height: 1.2; padding: 2px 7px; border-radius: 999px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    color: var(--texto-3); background: var(--selecionado); --tag: var(--texto-3);
+}
+.item-hora { font-size: 12px; color: var(--texto-2); flex: 0 0 auto; font-variant-numeric: tabular-nums; }
 .item-hora.destaque { color: var(--destaque); font-weight: 600; }
 .item-previa { flex: 1; min-width: 0; color: var(--texto-2); font-size: 0.9rem; display: flex; align-items: center; gap: 3px; }
 .item-previa-texto { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -820,7 +836,9 @@ html[data-tema='escuro'] .fila-numero.lider dd { color: var(--destaque); }
 /* perfil do contato: abre ao clicar no nome/foto da conversa */
 .abrir-perfil { background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; text-align: left; border-radius: 8px; }
 .abrir-perfil:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
-.titulo-perfil { font-weight: 500; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.titulo-perfil { font-weight: 500; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 100%; }
+.titulo-linha .titulo-perfil { flex: 0 1 auto; }
+.titulo-linha .meta-pills { max-width: 50%; }
 .titulo-perfil:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 .chat-area { flex: 1; display: flex; min-width: 0; min-height: 0; position: relative; }
