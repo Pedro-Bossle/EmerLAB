@@ -1,0 +1,1286 @@
+{
+ "url": "http://localhost:5180",
+ "at": "2026-10-26T14:53:58.828Z",
+ "allow": [],
+ "viewports": [
+  {
+   "width": 1440,
+   "height": 900,
+   "load": "load",
+   "screens": 2,
+   "filled": [
+    1,
+    0.93
+   ],
+   "motion": {
+    "elements": 17,
+    "css": 17,
+    "transitions": 0,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "page": {
+     "height": 919,
+     "screens": 1,
+     "words": 96,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 15,
+     "sections": 0,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 0,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 0,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 1,
+     "brokenImages": [],
+     "emoji": [
+      "🐶"
+     ],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "zap.emerlab · WhatsApp",
+     "words": 3,
+     "chars": 22,
+     "lines": 1,
+     "size": 29,
+     "vw": 2,
+     "font": "Segoe UI",
+     "weight": 300,
+     "tracking": 0,
+     "leading": 1.2,
+     "top": 433,
+     "tag": "h2",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "h1": null,
+    "headings": [
+     {
+      "text": "zap.emerlab · WhatsApp",
+      "words": 3,
+      "chars": 22,
+      "lines": 1,
+      "size": 29,
+      "vw": 2,
+      "font": "Segoe UI",
+      "weight": 300,
+      "tracking": 0,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "right",
+      "widthRatio": 0.21,
+      "top": 433,
+      "tag": "h2",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 1,
+     "maxLines": 1,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 1,
+     "medianWords": null,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Segoe UI",
+       "share": 1,
+       "mono": false
+      },
+      {
+       "family": "Consolas",
+       "share": 0,
+       "mono": true
+      }
+     ],
+     "familyCount": 2,
+     "sizes": [
+      10,
+      11,
+      12,
+      13,
+      15,
+      17,
+      18,
+      29
+     ],
+     "sizeCount": 8,
+     "notLoaded": [],
+     "body": {
+      "font": "Segoe UI",
+      "size": 14.5,
+      "leading": 1.2,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 9.1
+     },
+     "measureChars": 58,
+     "max": {
+      "size": 29,
+      "vw": 2,
+      "font": "Segoe UI",
+      "text": "zap.emerlab · WhatsApp"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [
+      "Consolas"
+     ],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.54,
+     "smallText": 4
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#0b141a",
+     "bodyBgHsl": {
+      "h": 204,
+      "s": 0.41,
+      "l": 0.07
+     },
+     "dark": true,
+     "sectionBgs": [
+      {
+       "color": "#111b21",
+       "top": 19,
+       "hsl": {
+        "h": 203,
+        "s": 0.32,
+        "l": 0.1
+       }
+      },
+      {
+       "color": "#0b141a",
+       "top": 19,
+       "hsl": {
+        "h": 204,
+        "s": 0.41,
+        "l": 0.07
+       }
+      },
+      {
+       "color": "#1f2c33",
+       "top": 19,
+       "hsl": {
+        "h": 201,
+        "s": 0.24,
+        "l": 0.16
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#c5d0d6",
+       "share": 0.36
+      },
+      {
+       "color": "#9aabb4",
+       "share": 0.3
+      },
+      {
+       "color": "#f0f4f7",
+       "share": 0.23
+      },
+      {
+       "color": "#f6c177",
+       "share": 0.02
+      },
+      {
+       "color": "#008069",
+       "share": 0.02
+      }
+     ],
+     "button": {
+      "bg": "#1f2c33",
+      "hsl": {
+       "h": 201,
+       "s": 0.24,
+       "l": 0.16
+      },
+      "fg": "#c5d0d6"
+     },
+     "lowContrast": [
+      {
+       "text": "Resolvida ·",
+       "ratio": 3.6,
+       "need": 4.5,
+       "size": 13.1,
+       "fg": "#008069",
+       "bg": "#111b21"
+      }
+     ]
+    },
+    "buttons": {
+     "count": 5,
+     "inHero": 5,
+     "radius": "pill",
+     "height": 32,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Não lidas 1",
+      "Minhas 1",
+      "Na fila 1",
+      "Resolvidas",
+      "+55 11 97777-6666 Ontem Resolvida · Qual"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 1,
+     "shadowOverlay": 0,
+     "shadowSamples": [
+      "div.app → rgba(0, 0, 0, 0.55) 0px 8px 28px 0px"
+     ],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 6,
+     "hairlineSamples": [
+      "nav.trilho 64px",
+      "aside.lateral 432px",
+      "div.filtros 431px",
+      "div.item-corpo 356px",
+      "div.item-corpo 356px"
+     ],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 0,
+     "boxRadius": 0,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 0,
+     "fixed": false,
+     "height": 862,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": []
+   },
+   "layout": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "pageH": 919,
+    "margins": {
+     "left": 10,
+     "right": 319
+    },
+    "sections": [],
+    "gaps": [],
+    "h1s": [],
+    "edgeText": [],
+    "edges": [],
+    "leftBlocks": 0,
+    "bodySize": 13,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0.32,
+    "voidBox": {
+     "x": 60,
+     "y": 600,
+     "w": 1380,
+     "h": 300
+    }
+   },
+   "app": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "dark": true,
+    "ground": "#0b141a",
+    "sidebar": {
+     "w": 64,
+     "tag": "nav",
+     "links": 7,
+     "share": 0.04
+    },
+    "topbar": null,
+    "canvas": {
+     "left": 0,
+     "right": 319
+    },
+    "hero": {
+     "text": "zap.emerlab · WhatsApp",
+     "words": 3,
+     "chars": 22,
+     "lines": 1,
+     "size": 29,
+     "vw": 2,
+     "font": "Segoe UI",
+     "weight": 300,
+     "tracking": 0,
+     "leading": 1.2,
+     "top": 433,
+     "tag": "h2",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "charts": 0,
+    "layout": {
+     "panels": 1,
+     "firstScreen": 1,
+     "ragged": [],
+     "voids": []
+    },
+    "tiles": 0,
+    "panels": {
+     "count": 2,
+     "radii": [
+      [
+       0,
+       2
+      ]
+     ],
+     "heavyBorders": 0,
+     "borderSamples": [],
+     "heavyShadows": 0,
+     "softShadows": 0,
+     "shadowSamples": [],
+     "glass": 0
+    },
+    "chips": {
+     "count": 2,
+     "hues": 2,
+     "samples": [
+      {
+       "hue": 142,
+       "size": 44,
+       "radius": "50%"
+      },
+      {
+       "hue": 165,
+       "size": 49,
+       "radius": "50%"
+      }
+     ]
+    },
+    "numbers": {
+     "cells": 0,
+     "leftAligned": 0,
+     "figures": 0,
+     "tabularShare": null,
+     "kpiMax": null
+    },
+    "rows": null,
+    "chartHues": 0,
+    "placeholders": [],
+    "type": {
+     "under13": 0.29,
+     "tiny": 4,
+     "tinySamples": [
+      "Comercial 10px",
+      "Na fila 10px",
+      "Suporte 10px",
+      "Você 10px"
+     ],
+     "sizes": [
+      10,
+      11,
+      12,
+      13,
+      15,
+      17,
+      18,
+      29
+     ]
+    },
+    "title": null,
+    "colourShare": 0.018
+   },
+   "consoleErrors": []
+  },
+  {
+   "width": 768,
+   "height": 1024,
+   "load": "load",
+   "screens": 1,
+   "filled": [
+    1
+   ],
+   "motion": {
+    "elements": 1,
+    "css": 1,
+    "transitions": 0,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "page": {
+     "height": 1024,
+     "screens": 1,
+     "words": 96,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 15,
+     "sections": 0,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 0,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 0,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 1,
+     "brokenImages": [],
+     "emoji": [
+      "🐶"
+     ],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "zap.emerlab · WhatsApp",
+     "words": 3,
+     "chars": 22,
+     "lines": 1,
+     "size": 20,
+     "vw": 2.6,
+     "font": "Segoe UI",
+     "weight": 300,
+     "tracking": 0,
+     "leading": 1.2,
+     "top": 490,
+     "tag": "h2",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "h1": null,
+    "headings": [],
+    "headingSummary": {
+     "count": 0,
+     "maxLines": 0,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 0,
+     "medianWords": null,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Segoe UI",
+       "share": 1,
+       "mono": false
+      },
+      {
+       "family": "Consolas",
+       "share": 0,
+       "mono": true
+      }
+     ],
+     "familyCount": 2,
+     "sizes": [
+      10,
+      11,
+      12,
+      13,
+      15,
+      17,
+      18,
+      20
+     ],
+     "sizeCount": 8,
+     "notLoaded": [],
+     "body": {
+      "font": "Segoe UI",
+      "size": 14.5,
+      "leading": 1.2,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 9.1
+     },
+     "measureChars": 49,
+     "max": {
+      "size": 20.3,
+      "vw": 2.6,
+      "font": "Segoe UI",
+      "text": "zap.emerlab · WhatsApp"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [
+      "Consolas"
+     ],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.54,
+     "smallText": 4
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#0b141a",
+     "bodyBgHsl": {
+      "h": 204,
+      "s": 0.41,
+      "l": 0.07
+     },
+     "dark": true,
+     "sectionBgs": [
+      {
+       "color": "#111b21",
+       "top": 0,
+       "hsl": {
+        "h": 203,
+        "s": 0.32,
+        "l": 0.1
+       }
+      },
+      {
+       "color": "#0b141a",
+       "top": 0,
+       "hsl": {
+        "h": 204,
+        "s": 0.41,
+        "l": 0.07
+       }
+      },
+      {
+       "color": "#1f2c33",
+       "top": 0,
+       "hsl": {
+        "h": 201,
+        "s": 0.24,
+        "l": 0.16
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#c5d0d6",
+       "share": 0.36
+      },
+      {
+       "color": "#9aabb4",
+       "share": 0.3
+      },
+      {
+       "color": "#f0f4f7",
+       "share": 0.23
+      },
+      {
+       "color": "#f6c177",
+       "share": 0.02
+      },
+      {
+       "color": "#008069",
+       "share": 0.02
+      }
+     ],
+     "button": {
+      "bg": "#1f2c33",
+      "hsl": {
+       "h": 201,
+       "s": 0.24,
+       "l": 0.16
+      },
+      "fg": "#c5d0d6"
+     },
+     "lowContrast": [
+      {
+       "text": "Resolvida ·",
+       "ratio": 3.6,
+       "need": 4.5,
+       "size": 13.1,
+       "fg": "#008069",
+       "bg": "#111b21"
+      }
+     ]
+    },
+    "buttons": {
+     "count": 5,
+     "inHero": 5,
+     "radius": "pill",
+     "height": 32,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Não lidas 1",
+      "Minhas 1",
+      "Na fila 1",
+      "Resolvidas",
+      "+55 11 97777-6666 Ontem Resolvida · Qual"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 3,
+     "hairlineSamples": [
+      "nav.trilho 56px",
+      "aside.lateral 290px",
+      "div.filtros 289px"
+     ],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 0,
+     "boxRadius": 0,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 0,
+     "fixed": false,
+     "height": 1024,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": []
+   },
+   "layout": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "pageH": 1024,
+    "margins": {
+     "left": 6,
+     "right": 58
+    },
+    "sections": [],
+    "gaps": [],
+    "h1s": [],
+    "edgeText": [],
+    "edges": [],
+    "leftBlocks": 0,
+    "bodySize": 13,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "dark": true,
+    "ground": "#0b141a",
+    "sidebar": {
+     "w": 56,
+     "tag": "nav",
+     "links": 7,
+     "share": 0.07
+    },
+    "topbar": null,
+    "canvas": {
+     "left": 0,
+     "right": 58
+    },
+    "hero": {
+     "text": "zap.emerlab · WhatsApp",
+     "words": 3,
+     "chars": 22,
+     "lines": 1,
+     "size": 20,
+     "vw": 2.6,
+     "font": "Segoe UI",
+     "weight": 300,
+     "tracking": 0,
+     "leading": 1.2,
+     "top": 490,
+     "tag": "h2",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "charts": 0,
+    "layout": {
+     "panels": 1,
+     "firstScreen": 1,
+     "ragged": [],
+     "voids": []
+    },
+    "tiles": 0,
+    "panels": {
+     "count": 2,
+     "radii": [
+      [
+       0,
+       2
+      ]
+     ],
+     "heavyBorders": 0,
+     "borderSamples": [],
+     "heavyShadows": 0,
+     "softShadows": 0,
+     "shadowSamples": [],
+     "glass": 0
+    },
+    "chips": {
+     "count": 2,
+     "hues": 2,
+     "samples": [
+      {
+       "hue": 142,
+       "size": 44,
+       "radius": "50%"
+      },
+      {
+       "hue": 165,
+       "size": 49,
+       "radius": "50%"
+      }
+     ]
+    },
+    "numbers": {
+     "cells": 0,
+     "leftAligned": 0,
+     "figures": 0,
+     "tabularShare": null,
+     "kpiMax": null
+    },
+    "rows": null,
+    "chartHues": 0,
+    "placeholders": [],
+    "type": {
+     "under13": 0.29,
+     "tiny": 4,
+     "tinySamples": [
+      "Comercial 10px",
+      "Na fila 10px",
+      "Suporte 10px",
+      "Você 10px"
+     ],
+     "sizes": [
+      10,
+      11,
+      12,
+      13,
+      15,
+      17,
+      18,
+      20
+     ]
+    },
+    "title": null,
+    "colourShare": 0.018
+   },
+   "consoleErrors": []
+  },
+  {
+   "width": 390,
+   "height": 844,
+   "load": "load",
+   "screens": 1,
+   "filled": [
+    1
+   ],
+   "motion": {
+    "elements": 17,
+    "css": 17,
+    "transitions": 0,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "page": {
+     "height": 844,
+     "screens": 1,
+     "words": 59,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 15,
+     "sections": 0,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 0,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 0,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 1,
+     "brokenImages": [],
+     "emoji": [
+      "🐶"
+     ],
+     "videosNoPoster": 0
+    },
+    "hero": null,
+    "h1": null,
+    "headings": [],
+    "headingSummary": {
+     "count": 0,
+     "maxLines": 0,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 0,
+     "medianWords": null,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Segoe UI",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      10,
+      11,
+      12,
+      13,
+      15,
+      17,
+      18
+     ],
+     "sizeCount": 7,
+     "notLoaded": [],
+     "body": null,
+     "measureChars": null,
+     "max": {
+      "size": 17.6,
+      "vw": 4.5,
+      "font": "Segoe UI",
+      "text": "MS"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.23,
+     "smallText": 1
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#0b141a",
+     "bodyBgHsl": {
+      "h": 204,
+      "s": 0.41,
+      "l": 0.07
+     },
+     "dark": true,
+     "sectionBgs": [
+      {
+       "color": "#111b21",
+       "top": 0,
+       "hsl": {
+        "h": 203,
+        "s": 0.32,
+        "l": 0.1
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#c5d0d6",
+       "share": 0.46
+      },
+      {
+       "color": "#f0f4f7",
+       "share": 0.3
+      },
+      {
+       "color": "#f6c177",
+       "share": 0.04
+      },
+      {
+       "color": "#008069",
+       "share": 0.04
+      },
+      {
+       "color": "#9aabb4",
+       "share": 0.03
+      }
+     ],
+     "button": {
+      "bg": "#1f2c33",
+      "hsl": {
+       "h": 201,
+       "s": 0.24,
+       "l": 0.16
+      },
+      "fg": "#c5d0d6"
+     },
+     "lowContrast": [
+      {
+       "text": "Resolvida ·",
+       "ratio": 3.6,
+       "need": 4.5,
+       "size": 13.1,
+       "fg": "#008069",
+       "bg": "#111b21"
+      }
+     ]
+    },
+    "buttons": {
+     "count": 4,
+     "inHero": 4,
+     "radius": 16,
+     "height": 36,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Não lidas 1",
+      "Minhas 1",
+      "Na fila 1",
+      "Resolvidas"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 5,
+     "hairlineSamples": [
+      "nav.trilho 390px",
+      "div.filtros 390px",
+      "div.item-corpo 326px",
+      "div.item-corpo 326px",
+      "div.item-corpo 326px"
+     ],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 0,
+     "boxRadius": 0,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 0,
+     "fixed": false,
+     "height": 63,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": []
+   },
+   "layout": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "pageH": 844,
+    "margins": {
+     "left": 12,
+     "right": 6
+    },
+    "sections": [],
+    "gaps": [
+     {
+      "top": 404,
+      "height": 380
+     }
+    ],
+    "h1s": [],
+    "edgeText": [
+     {
+      "text": "Pedro Bossle",
+      "side": "left",
+      "px": 12
+     },
+     {
+      "text": "Resolvidas",
+      "side": "right",
+      "px": 0
+     },
+     {
+      "text": "11:51",
+      "side": "right",
+      "px": 15
+     },
+     {
+      "text": "11:03",
+      "side": "right",
+      "px": 15
+     },
+     {
+      "text": "Ontem",
+      "side": "right",
+      "px": 15
+     }
+    ],
+    "edges": [],
+    "leftBlocks": 0,
+    "bodySize": 13,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "dark": true,
+    "ground": "#0b141a",
+    "sidebar": null,
+    "topbar": {
+     "h": 56
+    },
+    "canvas": {
+     "left": 0,
+     "right": -86
+    },
+    "hero": null,
+    "charts": 0,
+    "layout": {
+     "panels": 0,
+     "firstScreen": 0,
+     "ragged": [],
+     "voids": []
+    },
+    "tiles": 0,
+    "panels": {
+     "count": 0,
+     "radii": [],
+     "heavyBorders": 0,
+     "borderSamples": [],
+     "heavyShadows": 0,
+     "softShadows": 0,
+     "shadowSamples": [],
+     "glass": 0
+    },
+    "chips": {
+     "count": 1,
+     "hues": 1,
+     "samples": [
+      {
+       "hue": 165,
+       "size": 44,
+       "radius": "50%"
+      }
+     ]
+    },
+    "numbers": {
+     "cells": 0,
+     "leftAligned": 0,
+     "figures": 0,
+     "tabularShare": null,
+     "kpiMax": null
+    },
+    "rows": null,
+    "chartHues": 0,
+    "placeholders": [],
+    "type": {
+     "under13": 0.33,
+     "tiny": 7,
+     "tinySamples": [
+      "WhatsApp 10px",
+      "Instagram 10px",
+      "Messenger 10px",
+      "Comercial 10px"
+     ],
+     "sizes": [
+      10,
+      11,
+      12,
+      13,
+      15,
+      17,
+      18,
+      20
+     ]
+    },
+    "title": null,
+    "colourShare": 0.024
+   },
+   "consoleErrors": []
+  }
+ ],
+ "findings": [
+  {
+   "level": "FAIL",
+   "id": "emoji",
+   "width": 1440,
+   "message": "Emoji in the page: 🐶",
+   "fix": "Remove. Use words or real imagery.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "WARN",
+   "id": "contrast",
+   "width": 1440,
+   "message": "Low-contrast text: \"Resolvida ·\" 3.6:1 needs 4.5:1",
+   "fix": "Darken or lighten the text colour.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "WARN",
+   "id": "dev-server",
+   "width": 1440,
+   "message": "This page is served by a development server (Vite, webpack or Next in dev mode).",
+   "fix": "Run the last gate on the production build too (vite build && vite preview, next build && next start, or the built index.html): minifiers and bundlers change the CSS a visitor receives.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "WARN",
+   "id": "hero-void",
+   "width": 1440,
+   "message": "32% of the first screen is one empty block (1380×300px at 60,600).",
+   "fix": "Place the void on purpose or fill it: move the picture, the film or one fact into it, grow the headline to meet it, or shrink the screen to its content. A void reads as placed only when something closes it on the far side and it is the screen's one rest."
+  },
+  {
+   "level": "WARN",
+   "id": "unused-canvas",
+   "width": 1440,
+   "message": "The content stops 319px short of the right edge while it starts 0px from the sidebar.",
+   "fix": "Let the grid fill the canvas (columns in fr units), or centre a capped canvas with equal margins. A dead strip on one side reads as unfinished."
+  },
+  {
+   "level": "FAIL",
+   "id": "tiny-text",
+   "width": 1440,
+   "message": "4 text blocks under 11px: Comercial 10px, Na fila 10px, Suporte 10px, Você 10px.",
+   "fix": "Nothing below 11px; secondary text 12px, data 13–14px.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "no-title",
+   "width": 1440,
+   "message": "The screen has no h1.",
+   "fix": "Name the screen in an h1 at the top of the canvas (18–28px): \"Overview\", \"Payouts\", the project's name.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "WARN",
+   "id": "blank-gap",
+   "width": 390,
+   "message": "A 380px stretch at 404px holds nothing.",
+   "fix": "Check that it is a deliberate rest (once per page at most); otherwise close it to the normal section gap."
+  },
+  {
+   "level": "FAIL",
+   "id": "edge-text",
+   "width": 390,
+   "message": "1 text block(s) sit within 12px of the screen edge: \"Resolvidas\" (0px from the right)",
+   "fix": "Keep text inside the page margin (16–20px). Only display type deliberately bled past the edge may touch it."
+  }
+ ],
+ "images": [
+  {
+   "viewport": "desktop",
+   "width": 1440,
+   "fold": "C:\\Users\\loopy\\Documents\\GitHub\\Emerdog_SFSC_SUPERTOOL\\zap-emerlab\\.taste-skill\\before\\desktop-fold.jpg",
+   "pages": [
+    "C:\\Users\\loopy\\Documents\\GitHub\\Emerdog_SFSC_SUPERTOOL\\zap-emerlab\\.taste-skill\\before\\desktop-page-01.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "tablet",
+   "width": 768,
+   "fold": "C:\\Users\\loopy\\Documents\\GitHub\\Emerdog_SFSC_SUPERTOOL\\zap-emerlab\\.taste-skill\\before\\tablet-fold.jpg",
+   "pages": [
+    "C:\\Users\\loopy\\Documents\\GitHub\\Emerdog_SFSC_SUPERTOOL\\zap-emerlab\\.taste-skill\\before\\tablet-page-01.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "mobile",
+   "width": 390,
+   "fold": "C:\\Users\\loopy\\Documents\\GitHub\\Emerdog_SFSC_SUPERTOOL\\zap-emerlab\\.taste-skill\\before\\mobile-fold.jpg",
+   "pages": [
+    "C:\\Users\\loopy\\Documents\\GitHub\\Emerdog_SFSC_SUPERTOOL\\zap-emerlab\\.taste-skill\\before\\mobile-page-01.jpg"
+   ],
+   "film": []
+  }
+ ]
+}

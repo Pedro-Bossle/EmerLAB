@@ -1,0 +1,1267 @@
+{
+ "url": "http://localhost:5181",
+ "at": "2026-10-26T15:03:57.523Z",
+ "allow": [],
+ "viewports": [
+  {
+   "width": 1440,
+   "height": 900,
+   "load": "load",
+   "screens": 1,
+   "filled": [
+    0.19
+   ],
+   "motion": {
+    "elements": 1,
+    "css": 1,
+    "transitions": 0,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "page": {
+     "height": 900,
+     "screens": 1,
+     "words": 188,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 19,
+     "sections": 1,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 0,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 0,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 1,
+     "brokenImages": [],
+     "emoji": [
+      "🐶"
+     ],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "WhatsApp",
+     "words": 1,
+     "chars": 8,
+     "lines": 1,
+     "size": 18,
+     "vw": 1.3,
+     "font": "Segoe UI",
+     "weight": 600,
+     "tracking": 0,
+     "leading": 1.2,
+     "top": 10,
+     "tag": "h1",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "h1": {
+     "text": "WhatsApp",
+     "words": 1,
+     "lines": 1,
+     "size": 18,
+     "font": "Segoe UI"
+    },
+    "headings": [
+     {
+      "text": "4",
+      "words": 1,
+      "chars": 1,
+      "lines": 1,
+      "size": 32,
+      "vw": 2.2,
+      "font": "Segoe UI",
+      "weight": 600,
+      "tracking": 0,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.15,
+      "top": 159,
+      "tag": "dd",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 1,
+     "maxLines": 1,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 0,
+     "medianWords": null,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Segoe UI",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      18,
+      24,
+      32
+     ],
+     "sizeCount": 8,
+     "notLoaded": [],
+     "body": {
+      "font": "Segoe UI",
+      "size": 15,
+      "leading": 1.45,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 11.1
+     },
+     "measureChars": 61,
+     "max": {
+      "size": 32,
+      "vw": 2.2,
+      "font": "Segoe UI",
+      "text": "4"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.07,
+     "smallText": 9
+    },
+    "eyebrows": [
+     {
+      "text": "Esperando",
+      "above": "4",
+      "upper": false,
+      "tracked": false,
+      "mono": false,
+      "pill": false,
+      "size": 13,
+      "top": 138
+     }
+    ],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#111b21",
+     "bodyBgHsl": {
+      "h": 203,
+      "s": 0.32,
+      "l": 0.1
+     },
+     "dark": true,
+     "sectionBgs": [
+      {
+       "color": "#111b21",
+       "top": 0,
+       "hsl": {
+        "h": 203,
+        "s": 0.32,
+        "l": 0.1
+       }
+      },
+      {
+       "color": "#0b141a",
+       "top": 8,
+       "hsl": {
+        "h": 204,
+        "s": 0.41,
+        "l": 0.07
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#c5d0d6",
+       "share": 0.46
+      },
+      {
+       "color": "#f0f4f7",
+       "share": 0.39
+      },
+      {
+       "color": "#00a884",
+       "share": 0.02
+      },
+      {
+       "color": "#f57c00",
+       "share": 0.02
+      },
+      {
+       "color": "#111b21",
+       "share": 0.02
+      }
+     ],
+     "button": {
+      "bg": "#111b21",
+      "hsl": {
+       "h": 203,
+       "s": 0.32,
+       "l": 0.1
+      },
+      "fg": "#c5d0d6"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 5,
+     "inHero": 5,
+     "radius": "pill",
+     "height": 32,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Não lidas 4",
+      "Minhas",
+      "Na fila 3",
+      "Resolvidas",
+      "Abrir a mais antiga"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 10,
+     "hairlineSamples": [
+      "div.item-corpo 357px",
+      "div.item-corpo 357px",
+      "div.item-corpo 357px",
+      "div.item-corpo 357px",
+      "div.item-corpo 357px"
+     ],
+     "outlinedBoxes": 2,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 2,
+     "boxRadius": 16,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 0,
+     "fixed": false,
+     "height": 900,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": []
+   },
+   "layout": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "pageH": 900,
+    "margins": {
+     "left": 10,
+     "right": 96
+    },
+    "sections": [],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "WhatsApp",
+      "size": 18,
+      "top": 10,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 584,
+      "n": 2
+     },
+     {
+      "x": 106,
+      "n": 1
+     }
+    ],
+    "leftBlocks": 3,
+    "bodySize": 15,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0.25,
+    "voidBox": {
+     "x": 540,
+     "y": 540,
+     "w": 900,
+     "h": 360
+    }
+   },
+   "app": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "dark": true,
+    "ground": "#111b21",
+    "sidebar": {
+     "w": 64,
+     "tag": "nav",
+     "links": 7,
+     "share": 0.04
+    },
+    "topbar": null,
+    "canvas": {
+     "left": 0,
+     "right": 96
+    },
+    "hero": {
+     "text": "WhatsApp",
+     "words": 1,
+     "chars": 8,
+     "lines": 1,
+     "size": 18,
+     "vw": 1.3,
+     "font": "Segoe UI",
+     "weight": 600,
+     "tracking": 0,
+     "leading": 1.2,
+     "top": 10,
+     "tag": "h1",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "charts": 0,
+    "layout": {
+     "panels": 1,
+     "firstScreen": 1,
+     "ragged": [],
+     "voids": []
+    },
+    "tiles": 0,
+    "panels": {
+     "count": 3,
+     "radii": [
+      [
+       16,
+       1
+      ],
+      [
+       0,
+       1
+      ],
+      [
+       12,
+       1
+      ]
+     ],
+     "heavyBorders": 0,
+     "borderSamples": [],
+     "heavyShadows": 0,
+     "softShadows": 0,
+     "shadowSamples": [],
+     "glass": 0
+    },
+    "chips": {
+     "count": 2,
+     "hues": 2,
+     "samples": [
+      {
+       "hue": 142,
+       "size": 44,
+       "radius": "50%"
+      },
+      {
+       "hue": 171,
+       "size": 49,
+       "radius": "50%"
+      }
+     ]
+    },
+    "numbers": {
+     "cells": 0,
+     "leftAligned": 0,
+     "figures": 0,
+     "tabularShare": null,
+     "kpiMax": null
+    },
+    "rows": null,
+    "chartHues": 0,
+    "placeholders": [],
+    "type": {
+     "under13": 0.37,
+     "tiny": 0,
+     "tinySamples": [],
+     "sizes": [
+      12,
+      13,
+      14,
+      15,
+      18,
+      24
+     ]
+    },
+    "title": {
+     "text": "WhatsApp",
+     "size": 18,
+     "top": 10
+    },
+    "colourShare": 0.008
+   },
+   "consoleErrors": []
+  },
+  {
+   "width": 768,
+   "height": 1024,
+   "load": "load",
+   "screens": 1,
+   "filled": [
+    0.24
+   ],
+   "motion": {
+    "elements": 17,
+    "css": 17,
+    "transitions": 0,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "page": {
+     "height": 1024,
+     "screens": 1,
+     "words": 175,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 19,
+     "sections": 1,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 0,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 0,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 1,
+     "brokenImages": [],
+     "emoji": [
+      "🐶"
+     ],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "WhatsApp",
+     "words": 1,
+     "chars": 8,
+     "lines": 1,
+     "size": 18,
+     "vw": 2.3,
+     "font": "Segoe UI",
+     "weight": 600,
+     "tracking": 0,
+     "leading": 1.2,
+     "top": 10,
+     "tag": "h1",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "h1": {
+     "text": "WhatsApp",
+     "words": 1,
+     "lines": 1,
+     "size": 18,
+     "font": "Segoe UI"
+    },
+    "headings": [
+     {
+      "text": "4",
+      "words": 1,
+      "chars": 1,
+      "lines": 1,
+      "size": 32,
+      "vw": 4.2,
+      "font": "Segoe UI",
+      "weight": 600,
+      "tracking": 0,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.1,
+      "top": 237,
+      "tag": "dd",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 1,
+     "maxLines": 1,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 0,
+     "medianWords": null,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Segoe UI",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      18,
+      24,
+      32
+     ],
+     "sizeCount": 8,
+     "notLoaded": [],
+     "body": {
+      "font": "Segoe UI",
+      "size": 15,
+      "leading": 1.45,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 11.1
+     },
+     "measureChars": 47,
+     "max": {
+      "size": 32,
+      "vw": 4.2,
+      "font": "Segoe UI",
+      "text": "4"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.07,
+     "smallText": 9
+    },
+    "eyebrows": [
+     {
+      "text": "Esperando",
+      "above": "4",
+      "upper": false,
+      "tracked": false,
+      "mono": false,
+      "pill": false,
+      "size": 13,
+      "top": 216
+     }
+    ],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#111b21",
+     "bodyBgHsl": {
+      "h": 203,
+      "s": 0.32,
+      "l": 0.1
+     },
+     "dark": true,
+     "sectionBgs": [
+      {
+       "color": "#111b21",
+       "top": 0,
+       "hsl": {
+        "h": 203,
+        "s": 0.32,
+        "l": 0.1
+       }
+      },
+      {
+       "color": "#0b141a",
+       "top": 8,
+       "hsl": {
+        "h": 204,
+        "s": 0.41,
+        "l": 0.07
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#c5d0d6",
+       "share": 0.47
+      },
+      {
+       "color": "#f0f4f7",
+       "share": 0.37
+      },
+      {
+       "color": "#00a884",
+       "share": 0.03
+      },
+      {
+       "color": "#f57c00",
+       "share": 0.03
+      },
+      {
+       "color": "#111b21",
+       "share": 0.02
+      }
+     ],
+     "button": {
+      "bg": "#111b21",
+      "hsl": {
+       "h": 203,
+       "s": 0.32,
+       "l": 0.1
+      },
+      "fg": "#c5d0d6"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 5,
+     "inHero": 5,
+     "radius": "pill",
+     "height": 32,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Não lidas 4",
+      "Minhas",
+      "Na fila 3",
+      "Resolvidas",
+      "Abrir a mais antiga"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 4,
+     "hairlineSamples": [
+      "li.fila-cabecalho 351px",
+      "li 351px",
+      "li 351px",
+      "li 351px"
+     ],
+     "outlinedBoxes": 2,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 2,
+     "boxRadius": 16,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 0,
+     "fixed": false,
+     "height": 1024,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": []
+   },
+   "layout": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "pageH": 1024,
+    "margins": {
+     "left": 6,
+     "right": 40
+    },
+    "sections": [],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "WhatsApp",
+      "size": 18,
+      "top": 10,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 378,
+      "n": 2
+     },
+     {
+      "x": 98,
+      "n": 1
+     }
+    ],
+    "leftBlocks": 3,
+    "bodySize": 15,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "dark": true,
+    "ground": "#111b21",
+    "sidebar": {
+     "w": 56,
+     "tag": "nav",
+     "links": 7,
+     "share": 0.07
+    },
+    "topbar": null,
+    "canvas": {
+     "left": 0,
+     "right": 40
+    },
+    "hero": {
+     "text": "WhatsApp",
+     "words": 1,
+     "chars": 8,
+     "lines": 1,
+     "size": 18,
+     "vw": 2.3,
+     "font": "Segoe UI",
+     "weight": 600,
+     "tracking": 0,
+     "leading": 1.2,
+     "top": 10,
+     "tag": "h1",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "charts": 0,
+    "layout": {
+     "panels": 1,
+     "firstScreen": 1,
+     "ragged": [],
+     "voids": []
+    },
+    "tiles": 0,
+    "panels": {
+     "count": 3,
+     "radii": [
+      [
+       16,
+       1
+      ],
+      [
+       0,
+       1
+      ],
+      [
+       12,
+       1
+      ]
+     ],
+     "heavyBorders": 0,
+     "borderSamples": [],
+     "heavyShadows": 0,
+     "softShadows": 0,
+     "shadowSamples": [],
+     "glass": 0
+    },
+    "chips": {
+     "count": 2,
+     "hues": 2,
+     "samples": [
+      {
+       "hue": 142,
+       "size": 44,
+       "radius": "50%"
+      },
+      {
+       "hue": 171,
+       "size": 49,
+       "radius": "50%"
+      }
+     ]
+    },
+    "numbers": {
+     "cells": 0,
+     "leftAligned": 0,
+     "figures": 0,
+     "tabularShare": null,
+     "kpiMax": null
+    },
+    "rows": null,
+    "chartHues": 0,
+    "placeholders": [],
+    "type": {
+     "under13": 0.37,
+     "tiny": 0,
+     "tinySamples": [],
+     "sizes": [
+      12,
+      13,
+      14,
+      15,
+      18,
+      24
+     ]
+    },
+    "title": {
+     "text": "WhatsApp",
+     "size": 18,
+     "top": 10
+    },
+    "colourShare": 0.014
+   },
+   "consoleErrors": []
+  },
+  {
+   "width": 390,
+   "height": 844,
+   "load": "load",
+   "screens": 1,
+   "filled": [
+    0.37
+   ],
+   "motion": {
+    "elements": 17,
+    "css": 17,
+    "transitions": 0,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "page": {
+     "height": 844,
+     "screens": 1,
+     "words": 113,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 19,
+     "sections": 1,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 0,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 0,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [
+      "🐶"
+     ],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "WhatsApp",
+     "words": 1,
+     "chars": 8,
+     "lines": 1,
+     "size": 18,
+     "vw": 4.6,
+     "font": "Segoe UI",
+     "weight": 600,
+     "tracking": 0,
+     "leading": 1.2,
+     "top": 8,
+     "tag": "h1",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "h1": {
+     "text": "WhatsApp",
+     "words": 1,
+     "lines": 1,
+     "size": 18,
+     "font": "Segoe UI"
+    },
+    "headings": [],
+    "headingSummary": {
+     "count": 0,
+     "maxLines": 0,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 0,
+     "medianWords": null,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Segoe UI",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      18
+     ],
+     "sizeCount": 6,
+     "notLoaded": [],
+     "body": null,
+     "measureChars": null,
+     "max": {
+      "size": 18,
+      "vw": 4.6,
+      "font": "Segoe UI",
+      "text": "WhatsApp"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.12,
+     "smallText": 1
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#111b21",
+     "bodyBgHsl": {
+      "h": 203,
+      "s": 0.32,
+      "l": 0.1
+     },
+     "dark": true,
+     "sectionBgs": [
+      {
+       "color": "#111b21",
+       "top": 0,
+       "hsl": {
+        "h": 203,
+        "s": 0.32,
+        "l": 0.1
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#f0f4f7",
+       "share": 0.5
+      },
+      {
+       "color": "#c5d0d6",
+       "share": 0.34
+      },
+      {
+       "color": "#00a884",
+       "share": 0.05
+      },
+      {
+       "color": "#f57c00",
+       "share": 0.04
+      },
+      {
+       "color": "#1e88e5",
+       "share": 0.03
+      }
+     ],
+     "button": {
+      "bg": "#111b21",
+      "hsl": {
+       "h": 203,
+       "s": 0.32,
+       "l": 0.1
+      },
+      "fg": "#c5d0d6"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 5,
+     "inHero": 5,
+     "radius": 16,
+     "height": 36,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Não lidas 4",
+      "Minhas",
+      "Na fila 3",
+      "Resolvidas",
+      "4 esperando resposta · a mais antiga há "
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 7,
+     "hairlineSamples": [
+      "nav.trilho 390px",
+      "div.item-corpo 320px",
+      "div.item-corpo 320px",
+      "div.item-corpo 320px",
+      "div.item-corpo 320px"
+     ],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 0,
+     "boxRadius": 0,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 0,
+     "fixed": false,
+     "height": 63,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": []
+   },
+   "layout": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "pageH": 844,
+    "margins": {
+     "left": 16,
+     "right": 16
+    },
+    "sections": [],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "WhatsApp",
+      "size": 18,
+      "top": 8,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 42,
+      "n": 1
+     }
+    ],
+    "leftBlocks": 1,
+    "bodySize": 13,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "dark": true,
+    "ground": "#111b21",
+    "sidebar": null,
+    "topbar": {
+     "h": 56
+    },
+    "canvas": {
+     "left": 0,
+     "right": 0
+    },
+    "hero": {
+     "text": "WhatsApp",
+     "words": 1,
+     "chars": 8,
+     "lines": 1,
+     "size": 18,
+     "vw": 4.6,
+     "font": "Segoe UI",
+     "weight": 600,
+     "tracking": 0,
+     "leading": 1.2,
+     "top": 8,
+     "tag": "h1",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "charts": 0,
+    "layout": {
+     "panels": 0,
+     "firstScreen": 0,
+     "ragged": [],
+     "voids": []
+    },
+    "tiles": 0,
+    "panels": {
+     "count": 0,
+     "radii": [],
+     "heavyBorders": 0,
+     "borderSamples": [],
+     "heavyShadows": 0,
+     "softShadows": 0,
+     "shadowSamples": [],
+     "glass": 0
+    },
+    "chips": {
+     "count": 1,
+     "hues": 1,
+     "samples": [
+      {
+       "hue": 171,
+       "size": 44,
+       "radius": "50%"
+      }
+     ]
+    },
+    "numbers": {
+     "cells": 0,
+     "leftAligned": 0,
+     "figures": 0,
+     "tabularShare": null,
+     "kpiMax": null
+    },
+    "rows": null,
+    "chartHues": 0,
+    "placeholders": [],
+    "type": {
+     "under13": 0.39,
+     "tiny": 0,
+     "tinySamples": [],
+     "sizes": [
+      12,
+      13,
+      14,
+      15,
+      18,
+      24
+     ]
+    },
+    "title": {
+     "text": "WhatsApp",
+     "size": 18,
+     "top": 8
+    },
+    "colourShare": 0.022
+   },
+   "consoleErrors": []
+  }
+ ],
+ "findings": [
+  {
+   "level": "FAIL",
+   "id": "emoji",
+   "width": 1440,
+   "message": "Emoji in the page: 🐶",
+   "fix": "Remove. Use words or real imagery.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  }
+ ],
+ "images": [
+  {
+   "viewport": "desktop",
+   "width": 1440,
+   "fold": "C:\\Users\\loopy\\Documents\\GitHub\\Emerdog_SFSC_SUPERTOOL\\zap-emerlab\\.taste-skill\\after\\desktop-fold.jpg",
+   "pages": [
+    "C:\\Users\\loopy\\Documents\\GitHub\\Emerdog_SFSC_SUPERTOOL\\zap-emerlab\\.taste-skill\\after\\desktop-page-01.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "tablet",
+   "width": 768,
+   "fold": "C:\\Users\\loopy\\Documents\\GitHub\\Emerdog_SFSC_SUPERTOOL\\zap-emerlab\\.taste-skill\\after\\tablet-fold.jpg",
+   "pages": [
+    "C:\\Users\\loopy\\Documents\\GitHub\\Emerdog_SFSC_SUPERTOOL\\zap-emerlab\\.taste-skill\\after\\tablet-page-01.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "mobile",
+   "width": 390,
+   "fold": "C:\\Users\\loopy\\Documents\\GitHub\\Emerdog_SFSC_SUPERTOOL\\zap-emerlab\\.taste-skill\\after\\mobile-fold.jpg",
+   "pages": [
+    "C:\\Users\\loopy\\Documents\\GitHub\\Emerdog_SFSC_SUPERTOOL\\zap-emerlab\\.taste-skill\\after\\mobile-page-01.jpg"
+   ],
+   "film": []
+  }
+ ]
+}
