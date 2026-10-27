@@ -454,6 +454,7 @@ function PipelinePanel({ workerDisponivel = false }) {
       es.close()
     })
     const poll = setInterval(() => {
+      if (document.hidden) return // aba oculta: o status atualiza na volta (próxima rodada em 4 s)
       pipelineStatus()
         .then(async (s) => {
           setSnap(s)
@@ -1926,6 +1927,7 @@ function ProspectPanel({ workerDisponivel = false }) {
     ].forEach((name) => es.addEventListener(name, onPayload))
 
     const poll = setInterval(() => {
+      if (document.hidden) return // aba oculta: o status atualiza na volta (próxima rodada em 4 s)
       scrapeStatus()
         .then(async (s) => {
           applySnap(s)

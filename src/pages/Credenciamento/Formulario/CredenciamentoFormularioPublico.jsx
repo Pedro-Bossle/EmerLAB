@@ -565,6 +565,16 @@ export default function CredenciamentoFormularioPublico() {
                     <p className="fcred_public_step">
                         Passo {passo + 1} de {totalPassos}
                     </p>
+                    <div
+                        className="fcred_public_progresso"
+                        role="progressbar"
+                        aria-label="Progresso do cadastro"
+                        aria-valuemin={1}
+                        aria-valuemax={totalPassos}
+                        aria-valuenow={passo + 1}
+                    >
+                        <span style={{ width: `${((passo + 1) / totalPassos) * 100}%` }} />
+                    </div>
                 </header>
 
                 {loading && !cargaDemorando && (
@@ -604,6 +614,7 @@ export default function CredenciamentoFormularioPublico() {
                                     key={t.id}
                                     type="button"
                                     className={`fcred_tipo_btn ${tipoPerfil === t.id ? 'is-on' : ''}`}
+                                    aria-pressed={tipoPerfil === t.id}
                                     onClick={() => {
                                         setErro('')
                                         setTipoPerfil(t.id)
@@ -724,7 +735,14 @@ export default function CredenciamentoFormularioPublico() {
 
                 {!loading && (
                     <footer className="fcred_public_nav">
-                        <button type="button" className="fcred_btn secondary" disabled={passo === 0} onClick={voltar}>
+                        {/* no passo 1 não há para onde voltar: o espaço fica, para "Continuar" não mudar de lugar */}
+                        <button
+                            type="button"
+                            className={`fcred_btn secondary ${passo === 0 ? 'is-oculto' : ''}`}
+                            disabled={passo === 0}
+                            aria-hidden={passo === 0 || undefined}
+                            onClick={voltar}
+                        >
                             Voltar
                         </button>
                         <button

@@ -81,7 +81,8 @@ export function observarThreadEmerzap({
     .subscribe()
 
   const poll = setInterval(() => {
-    if (cancelado) return
+    // aba oculta: pula a rodada (a próxima, 2 s depois de voltar, sincroniza)
+    if (cancelado || document.hidden) return
     if (precisaRetry) {
       void carregar({ silencioso: true })
       return

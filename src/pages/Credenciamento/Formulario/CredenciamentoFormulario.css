@@ -719,6 +719,58 @@ body.fcred-public-body,
     background: #eef6fc;
 }
 
+/* opções com cara de escolha: círculo que se preenche ao marcar (antes pareciam campos de texto) */
+.fcred_tipo_btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.fcred_tipo_btn::before {
+    content: '';
+    flex: none;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 50%;
+    border: 2px solid #9bb7ce;
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.fcred_tipo_btn:hover {
+    border-color: #8fb3d1;
+}
+.fcred_tipo_btn.is-on::before {
+    border-color: #2d6a9f;
+    box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 9px #2d6a9f;
+}
+.fcred_tipo_btn:focus-visible {
+    outline: 3px solid #2d6a9f;
+    outline-offset: 2px;
+}
+
+.fcred_public_progresso {
+    height: 6px;
+    margin: 0.5rem 0 1rem;
+    border-radius: 999px;
+    background: #e2ecf4;
+    overflow: hidden;
+}
+.fcred_public_progresso > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: #2d6a9f;
+    transition: width 0.25s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+    .fcred_public_progresso > span {
+        transition: none;
+    }
+}
+
+.fcred_btn.is-oculto {
+    visibility: hidden;
+}
+
 .fcred_passo_dados {
     display: flex;
     flex-direction: column;
@@ -1246,6 +1298,11 @@ body.fcred-public-body,
         box-shadow: 0 -6px 20px rgba(30, 49, 72, 0.06);
     }
 
+    /* empilhado no celular, o Voltar invisível deixaria uma linha em branco */
+    .fcred_public_nav .fcred_btn.is-oculto {
+        display: none;
+    }
+
     .fcred_public_nav .fcred_btn {
         width: 100%;
         min-height: 52px;
@@ -1486,6 +1543,24 @@ body.dark-mode .fcred_tipo_btn {
 body.dark-mode .fcred_tipo_btn.is-on {
     background: rgba(47, 135, 198, 0.2);
     border-color: #6eb6e0;
+}
+
+body.dark-mode .fcred_tipo_btn::before {
+    border-color: #5c7a99;
+    background: #0f1e2e;
+}
+
+body.dark-mode .fcred_tipo_btn.is-on::before {
+    border-color: #6eb6e0;
+    box-shadow: inset 0 0 0 3px #0f1e2e, inset 0 0 0 9px #6eb6e0;
+}
+
+body.dark-mode .fcred_public_progresso {
+    background: #1d2f42;
+}
+
+body.dark-mode .fcred_public_progresso > span {
+    background: #6eb6e0;
 }
 
 body.dark-mode .fcred_field input,
