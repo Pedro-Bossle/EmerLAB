@@ -457,26 +457,27 @@ async function listarConversas(usuario, query) {
 // as últimas mensagens de algumas conversas (nunca vistas primeiro, depois as ativas há mais tempo sem checar)
 // e grava prévia, horário e quantidade de não lidas, para o card mostrar como no WhatsApp.
 // Com o webhook configurado, a verificação só confirma o que já chegou por ele.
-const VERIFICAR_POR_VEZ = 6
-const INTERVALO_VERIFICACAO = 20000
-const ATIVA_MS = 48 * 3600 * 1000
+// com o webhook gravando, a conferência só corrige o que escapou: 3 por carga, ativa de novo após 60 s
+const VERIFICAR_POR_VEZ = 3
+const INTERVALO_VERIFICACAO = 60000
 const FOLGA_MS = 2000 // webhook grava em segundos; a WATI devolve com milissegundos
 const verificadas = new Map() // waId → quando foi checada (por instância do servidor)
 // datas da WATI ("…Z") e do Postgres ("…+00:00") não se comparam como texto
 const msData = (iso) => (iso ? new Date(iso).getTime() || 0 : 0)
 
-function escolherParaVerificar(lista, contatoEm) {
+// O que conferir decide pelo banco (igual em todas as instâncias da Vercel), não pela memória da instância:
+// conversa que o banco não conhece, ou contato que a WATI mudou depois do último registro (atualizado_em).
+// Cada conferência grava atualizado_em, então a mesma conversa não volta a ser conferida sem mudança nova.
+// O Map `verificadas` só evita repetir a mesma conversa dentro do intervalo nesta instância.
+function escolherParaVerificar(lista, metaPorId, contatoEm) {
     const agora = Date.now()
-    const nunca = lista.filter((c) => !verificadas.has(c.waId))
-    // contato mexido na WATI depois da última checagem: pode ter mensagem nova (sem webhook, é o único sinal)
-    const mexidas = lista.filter(
-        (c) => verificadas.has(c.waId) && agora - verificadas.get(c.waId) > INTERVALO_VERIFICACAO && msData(contatoEm.get(c.waId)) > verificadas.get(c.waId),
-    )
-    const ativas = lista
-        .filter((c) => verificadas.has(c.waId) && agora - verificadas.get(c.waId) > INTERVALO_VERIFICACAO)
-        .filter((c) => c.ultimaEm && agora - new Date(c.ultimaEm).getTime() < ATIVA_MS)
-        .sort((a, b) => verificadas.get(a.waId) - verificadas.get(b.waId))
-    return [...new Set([...nunca, ...mexidas, ...ativas])].slice(0, VERIFICAR_POR_VEZ)
+    const recente = (c) => verificadas.has(c.waId) && agora - verificadas.get(c.waId) < INTERVALO_VERIFICACAO
+    const desconhecidas = lista.filter((c) => !metaPorId.has(c.waId) && !recente(c))
+    const mexidas = lista
+        .filter((c) => metaPorId.has(c.waId) && !recente(c))
+        .filter((c) => msData(contatoEm.get(c.waId)) > msData(metaPorId.get(c.waId).atualizado_em) + FOLGA_MS)
+        .sort((a, b) => msData(contatoEm.get(b.waId)) - msData(contatoEm.get(a.waId)))
+    return [...mexidas, ...desconhecidas].slice(0, VERIFICAR_POR_VEZ)
 }
 
 // Quem atende segundo a WATI: o bot (round-robin) e o painel oficial atribuem lá, e o painel só ficava sabendo pelo
@@ -493,10 +494,13 @@ function atendenteDoHistorico(itens) {
 }
 
 async function verificarNaWati(lista, metaPorId, contatoEm) {
+    if (wati.watiEmPausa()) return
     await Promise.allSettled(
-        escolherParaVerificar(lista, contatoEm).map(async (c) => {
+        escolherParaVerificar(lista, metaPorId, contatoEm).map(async (c) => {
             verificadas.set(c.waId, Date.now())
             const { mensagens: itens } = await wati.listarMensagens(alvoWati(c.waId), { pagina: 1, tamanho: 20 })
+            // marca como conferida no banco (atualizado_em), mesmo que não haja nada novo
+            await salvarMeta(c.waId, {})
             const msgs = itens
                 .map(normalizarMensagem)
                 .filter((m) => (m.evento === 'message' || m.evento === 'broadcastMessage') && m.em)
@@ -1325,6 +1329,11 @@ export async function handle(req, res, rotaForcada) {
             const waId = lerIdConversa(decodeURIComponent(partes[1])).id
             const acao = partes[2]
             if (acao === 'mensagens' && metodo === 'GET') return responder(await mensagens(usuario, waId, query))
+            // só banco: o chat aberto pergunta isto e vai à WATI apenas quando mudou (webhook ou envio gravou algo)
+            if (acao === 'versao' && metodo === 'GET') {
+                const meta = await exigirConversa(usuario, waId)
+                return responder({ versao: meta ? `${meta.ultima_msg_em || ''}|${meta.atualizado_em || ''}` : null })
+            }
             if (acao === 'lida' && metodo === 'POST') {
                 await exigirConversa(usuario, waId)
                 await salvarMeta(waId, { nao_lidas: 0 })

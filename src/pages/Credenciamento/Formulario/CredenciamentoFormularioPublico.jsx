@@ -594,7 +594,8 @@ export default function CredenciamentoFormularioPublico() {
                 )}
                 {erro && <p className="fcred_public_erro">{erro}</p>}
 
-                {!loading && !falhaCarga && !erro && passo === 0 && (
+                {/* config só existe com o formulário disponível; erro de validação não pode esconder as opções */}
+                {!loading && !falhaCarga && config && passo === 0 && (
                     <section>
                         <p className="fcred_public_lead">Você é / possui:</p>
                         <div className="fcred_tipo_grid">
@@ -604,6 +605,7 @@ export default function CredenciamentoFormularioPublico() {
                                     type="button"
                                     className={`fcred_tipo_btn ${tipoPerfil === t.id ? 'is-on' : ''}`}
                                     onClick={() => {
+                                        setErro('')
                                         setTipoPerfil(t.id)
                                         setCrmv('')
                                         setCidadesAtende([])

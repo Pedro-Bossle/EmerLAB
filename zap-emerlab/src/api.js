@@ -19,6 +19,10 @@ export function registrarAoExpirar(fn) {
     aoExpirar = fn
 }
 
+// A WATI respondeu "limite": a aba toda espera antes de atualizar de novo (ver usarAtualizacao)
+let limiteAte = 0
+export const emLimiteWati = () => Date.now() < limiteAte
+
 export async function api(caminho, { method = 'GET', body } = {}) {
     let resp
     try {
@@ -39,6 +43,7 @@ export async function api(caminho, { method = 'GET', body } = {}) {
     const dados = await resp.json().catch(() => ({}))
     if (!resp.ok) {
         if (resp.status === 401 && !caminho.startsWith('auth/login')) aoExpirar()
+        if (resp.status === 429 || dados.codigo === 'limite') limiteAte = Date.now() + 30000
         throw new ApiError(dados.erro || `Erro ${resp.status}`, resp.status, dados.codigo)
     }
     return dados

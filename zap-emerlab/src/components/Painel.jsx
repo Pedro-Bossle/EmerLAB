@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { usarAtualizacao } from '../atualizacao.js'
 import { api, registrarAoConexao } from '../api.js'
 import { iniciais, corAvatar, nomeExibicao, CANAIS, ler, gravar, tempoDesde, calcularEspera, janelaDaConversa } from '../util.js'
 import Icone from './Icone.jsx'
@@ -155,20 +156,12 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         carregarApoio()
     }, [carregarApoio])
 
-    // busca com pequeno atraso; polling também com a aba oculta (senão o desktop notification nunca dispara)
+    // busca com pequeno atraso; depois, atualização periódica (mais espaçada com a aba oculta, ver atualizacao.js)
     useEffect(() => {
         const t = setTimeout(() => carregarConversas(busca), busca ? 400 : 0)
-        const id = setInterval(() => carregarConversas(busca), INTERVALO_LISTA)
-        const aoVisivel = () => {
-            if (!document.hidden) carregarConversas(busca)
-        }
-        document.addEventListener('visibilitychange', aoVisivel)
-        return () => {
-            clearTimeout(t)
-            clearInterval(id)
-            document.removeEventListener('visibilitychange', aoVisivel)
-        }
+        return () => clearTimeout(t)
     }, [busca, carregarConversas])
+    usarAtualizacao(() => carregarConversas(busca), { visivel: INTERVALO_LISTA })
 
     const trocarCanal = (novo) => {
         if (novo === canal) return

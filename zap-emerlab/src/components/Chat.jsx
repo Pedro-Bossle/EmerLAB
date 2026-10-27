@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
+import { usarAtualizacao } from '../atualizacao.js'
 import { nomeExibicao, formatarTelefone, rotuloDia, chaveDia, janela24h, canalDoId, CANAIS } from '../util.js'
 import Icone from './Icone.jsx'
 import IconeCanal from './IconeCanal.jsx'
@@ -15,6 +16,7 @@ import { transferir, itensDeAtendimento } from '../acoesConversa.js'
 import { codigosServicos } from '../regras.js'
 
 const INTERVALO_CHAT = 5000
+const BUSCA_COMPLETA_MS = 30000
 
 // a partir de 4h restantes o contador fica em destaque
 const RISCO_JANELA_MS = 4 * 3600 * 1000
@@ -89,8 +91,20 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
     aoAtualizarRef.current = aoAtualizar
     aoRecarregarListaRef.current = aoRecarregarLista
 
+    // versão da conversa no banco (última mensagem/atualização): igual à última vista = nada novo, não chama a WATI.
+    // A cada 30 s busca mesmo assim, para o caso de o webhook perder um evento.
+    const versaoVista = useRef(null)
+    const buscouEm = useRef(0)
     const carregar = useCallback(async () => {
         try {
+            if (versaoVista.current != null && Date.now() - buscouEm.current < BUSCA_COMPLETA_MS) {
+                const { versao } = await api(`${caminho}/versao`)
+                if (versao && versao === versaoVista.current) return
+                versaoVista.current = versao
+            } else {
+                versaoVista.current = (await api(`${caminho}/versao`).catch(() => ({ versao: '' }))).versao || ''
+            }
+            buscouEm.current = Date.now()
             const r = await api(`${caminho}/mensagens?pagina=1`)
             const msgs = r.mensagens || []
             setMensagens((atual) => {
@@ -145,10 +159,10 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
 
     useEffect(() => {
         idsVistos.current = null
+        versaoVista.current = null
         carregar()
-        const id = setInterval(() => carregar(), INTERVALO_CHAT)
-        return () => clearInterval(id)
     }, [carregar])
+    usarAtualizacao(carregar, { visivel: INTERVALO_CHAT })
 
     const carregarAntigas = async () => {
         const prox = pagina + 1

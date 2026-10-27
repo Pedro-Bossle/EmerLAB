@@ -69,7 +69,13 @@ function v3Url(caminho) {
     return new URL(`${watiBase}/api/ext/v3/${caminho}`)
 }
 
+// Depois de um 429 a WATI fica 30 s sem ser chamada por esta instância: insistir só prolonga o bloqueio
+const PAUSA_LIMITE_MS = 30000
+let pausaAte = 0
+export const watiEmPausa = () => Date.now() < pausaAte
+
 async function chamar(url, { method = 'GET', body, headers, raw = false } = {}) {
+    if (watiEmPausa()) throw new WatiError('A WATI limitou as requisições por alguns segundos. Tente de novo já já.', 429, null, 'limite')
     const { watiToken } = getEnv()
     const isForm = typeof FormData !== 'undefined' && body instanceof FormData
     let resp
@@ -100,6 +106,7 @@ async function chamar(url, { method = 'GET', body, headers, raw = false } = {}) 
     }
     if (resp.status === 401) throw new WatiError('O token da WATI é inválido ou expirou. Avise o administrador (WATI_API_TOKEN).', 502, null, 'token')
     if (resp.status === 403) throw new WatiError('O token da WATI não tem permissão para esta ação (escopo ou plano).', 502, null, 'permissao')
+    if (resp.status === 429) pausaAte = Date.now() + PAUSA_LIMITE_MS
     if (resp.status === 429) throw new WatiError('A WATI limitou as requisições por alguns segundos. Tente de novo já já.', 429, null, 'limite')
     if (resp.status >= 500) throw new WatiError('A WATI está instável no momento. Tente novamente em instantes.', 502, dados, 'wati_fora')
     if (!resp.ok) throw recusa(dados?.info || dados?.message || dados?.error?.message, 400, dados)
@@ -118,7 +125,7 @@ export async function listarContatos({ pagina = 1, tamanho = 100, nome, atributo
     if (hit) return hit
     const dados = await chamar(v1Url('getContacts', { pageSize: tamanho, pageNumber: pagina, name: nome, attribute: filtro }))
     const r = { contatos: dados?.contact_list || [], total: dados?.link?.total ?? null }
-    cacheSet(key, r, 8000)
+    cacheSet(key, r, 30000)
     return r
 }
 
