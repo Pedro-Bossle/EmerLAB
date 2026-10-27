@@ -11,9 +11,9 @@ export default {
           muted: '#5a7488',
         },
         brand: {
-          DEFAULT: '#1f7eb8',
+          DEFAULT: '#1a6fa3',
           deep: '#165f8c',
-          bright: '#2f87c6',
+          bright: '#1f78ad',
           pale: '#e7f4fc',
           mist: '#cfe8f8',
         },

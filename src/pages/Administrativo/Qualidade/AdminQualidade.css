@@ -21,7 +21,7 @@
 .admin_qualidade_painel_desc {
     margin: 0;
     max-width: 52rem;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: #547084;
     line-height: 1.45;
 }
@@ -44,7 +44,7 @@
     border-radius: 8px;
     padding: 6px 10px;
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     cursor: pointer;
 }
 
@@ -115,7 +115,7 @@ body.dark-mode .admin_qualidade_btn_ignorar {
     margin-bottom: 12px;
     padding: 10px 12px;
     border-radius: 10px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     background: #fdeeee;
     border: 1px solid #efc1c1;
     color: #8a2f2f;
@@ -149,14 +149,14 @@ body.dark-mode .admin_qualidade_btn_ignorar {
 }
 
 .admin_qualidade_card_n {
-    font-size: 1.5rem;
+    font-size: 1.375rem;
     font-weight: 800;
     color: #123e59;
     line-height: 1.1;
 }
 
 .admin_qualidade_card_label {
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #547084;
 }
@@ -194,7 +194,7 @@ body.dark-mode .admin_qualidade_btn_ignorar {
 
 .admin_qualidade_meta {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: #547084;
 }
 
@@ -207,7 +207,7 @@ body.dark-mode .admin_qualidade_btn_ignorar {
 .admin_qualidade_table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
 }
 
 .admin_qualidade_table th,
@@ -233,14 +233,14 @@ body.dark-mode .admin_qualidade_btn_ignorar {
 }
 
 .admin_qualidade_id {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #7a93a5;
     font-weight: 500;
 }
 
 .admin_qualidade_mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     word-break: break-all;
 }
 

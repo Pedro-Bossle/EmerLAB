@@ -1,10 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
-
 :root {
-    --fonte-principal: "Montserrat";
+    --fonte-principal: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --azul-escuro: #1E3148;
     --azul-claro: #E7F4FC;
-    --azul-destaque: #2F87C6;
+    --azul-destaque: #1f78ad;
     --cinza-medio: #7C736A;
     --cinza-claro: #EDE9E4;
     --cinza-escuro: #606E7E;
@@ -106,7 +104,7 @@ html:has(body.dark-mode)::-webkit-scrollbar-thumb {
 .table_main td {
     padding: 7px 10px;
     border-bottom: 1px solid #e8f1f7;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #556778;
 }
 
@@ -115,7 +113,7 @@ html:has(body.dark-mode)::-webkit-scrollbar-thumb {
     cursor: pointer;
     background: #edf5fb;
     font-weight: 700;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     color: #3c5367;
     border-bottom: 1px solid #d6e5ef;
     border-right: 1px solid #d6e5ef;
@@ -154,7 +152,7 @@ html:has(body.dark-mode)::-webkit-scrollbar-thumb {
     border: none;
     background: transparent;
     cursor: pointer;
-    font-size: 1.05rem;
+    font-size: 1rem;
     line-height: 1;
     padding: 4px 8px;
     border-radius: 6px;

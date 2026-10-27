@@ -52,3 +52,18 @@ export function ErrorState({ className, title = 'Algo deu errado', description, 
     </div>
   )
 }
+
+/** Formato do conteúdo enquanto a rota carrega; o menu continua visível ao redor. */
+export function SkeletonPagina({ className, label = 'Carregando a página' }) {
+  const bloco = 'rounded-xl bg-line/60 animate-pulse motion-reduce:animate-none dark:bg-white/10'
+  return (
+    <div className={cn('flex w-full flex-col gap-3 p-4 sm:p-6', className)} role="status" aria-live="polite">
+      <span className="sr-only">{label}</span>
+      <div className={cn(bloco, 'h-8 w-48')} />
+      <div className={cn(bloco, 'h-11 w-full max-w-xl')} />
+      <div className={cn(bloco, 'h-20 w-full')} />
+      <div className={cn(bloco, 'h-20 w-full')} />
+      <div className={cn(bloco, 'h-20 w-full')} />
+    </div>
+  )
+}

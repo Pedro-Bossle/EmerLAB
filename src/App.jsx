@@ -1,53 +1,60 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Home from './pages/Home/Home';
-import Login from './pages/Login/Login';
-import Layout2 from './components/Layout2/Layout2';
-import PrivateRoute from './components/PrivateRoute/PrivateRoute'
-import Supertabeladoc from './pages/Supertabela/Supertabela_doc/Supertabeladoc';
-import Supertabelamain from './pages/Supertabela/Supertabela_main/Supertabelamain';
-import Supertabelacidades from './pages/Supertabela/Supertabela_cidades/Supertabelacidades';
-import Supertabelaplanos from './pages/Supertabela/Supertabela_planos/Supertabelaplanos';
-import ImpressaoPlanos from './pages/Planos/ImpressaoPlanos/ImpressaoPlanos';
-import Supertabelaprocedimentos from './pages/Supertabela/Supertabela_procedimentos/Supertabelaprocedimentos';
-import Supertabelanegociacoes from './pages/Supertabela/Supertabela_negociacoes/Supertabelanegociacoes';
+import { DialogosHost } from './components/ui/DialogosHost';
+import { SkeletonPagina } from './components/ui/States';
+const Layout2 = lazy(() => import('./components/Layout2/Layout2'));
+import PrivateRoute from './components/PrivateRoute/PrivateRoute';
+
+// Cada página vira um arquivo próprio: o login e o formulário público não baixam o app inteiro.
+const Home = lazy(() => import('./pages/Home/Home'));
+const Login = lazy(() => import('./pages/Login/Login'));
+const Supertabeladoc = lazy(() => import('./pages/Supertabela/Supertabela_doc/Supertabeladoc'));
+const Supertabelamain = lazy(() => import('./pages/Supertabela/Supertabela_main/Supertabelamain'));
+const Supertabelacidades = lazy(() => import('./pages/Supertabela/Supertabela_cidades/Supertabelacidades'));
+const Supertabelaplanos = lazy(() => import('./pages/Supertabela/Supertabela_planos/Supertabelaplanos'));
+const ImpressaoPlanos = lazy(() => import('./pages/Planos/ImpressaoPlanos/ImpressaoPlanos'));
+const Supertabelaprocedimentos = lazy(() => import('./pages/Supertabela/Supertabela_procedimentos/Supertabelaprocedimentos'));
+const Supertabelanegociacoes = lazy(() => import('./pages/Supertabela/Supertabela_negociacoes/Supertabelanegociacoes'));
 /* Credenciamento documentação — inativo por hora
-import Credenciamento_doc from './pages/Credenciamento/Credenciamento_doc/Credenciamento_doc';
+const Credenciamento_doc = lazy(() => import('./pages/Credenciamento/Credenciamento_doc/Credenciamento_doc'));
 */
-import CredenciamentoKanban from './pages/Credenciamento/CredenciamentoKanban/CredenciamentoKanban';
+const CredenciamentoKanban = lazy(() => import('./pages/Credenciamento/CredenciamentoKanban/CredenciamentoKanban'));
 /* Credenciamento_main (Processos tabela) substituído pelo Kanban */
-import CredenciamentoCadastroLista from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroLista';
-import CredenciamentoCadastroForm from './pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroForm';
-import CredenciamentoMapa from './pages/Credenciamento/Credenciamento_mapa/CredenciamentoMapa';
-import CredenciamentoEmerRadar from './pages/Credenciamento/Credenciamento_emer_radar/CredenciamentoEmerRadar';
+const CredenciamentoCadastroLista = lazy(() => import('./pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroLista'));
+const CredenciamentoCadastroForm = lazy(() => import('./pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroForm'));
+const CredenciamentoMapa = lazy(() => import('./pages/Credenciamento/Credenciamento_mapa/CredenciamentoMapa'));
+const CredenciamentoEmerRadar = lazy(() => import('./pages/Credenciamento/Credenciamento_emer_radar/CredenciamentoEmerRadar'));
 /* Catálogo OSM legado — rota redireciona para Emer-Radar
-import CredenciamentoProspectosOsm from './pages/Credenciamento/Credenciamento_prospectos_osm/CredenciamentoProspectosOsm';
+const CredenciamentoProspectosOsm = lazy(() => import('./pages/Credenciamento/Credenciamento_prospectos_osm/CredenciamentoProspectosOsm'));
 */
-import CredenciamentoImportKmz from './pages/Credenciamento/Credenciamento_import_kmz/CredenciamentoImportKmz';
-import CredenciamentoQuemRealiza from './pages/Credenciamento/QuemRealiza/CredenciamentoQuemRealiza';
-import CredenciamentoEspecialidadesCidade from './pages/Credenciamento/EspecialidadesCidade/CredenciamentoEspecialidadesCidade';
-import CredenciamentoFormularioConfig from './pages/Credenciamento/Formulario/CredenciamentoFormularioConfig';
-import CredenciamentoFormularioInbox from './pages/Credenciamento/Formulario/CredenciamentoFormularioInbox';
-import CredenciamentoEspecialidadesRc from './pages/Credenciamento/EspecialidadesRc/CredenciamentoEspecialidadesRc';
-import CredenciamentoFormularioPublico from './pages/Credenciamento/Formulario/CredenciamentoFormularioPublico';
-import ConfigImportarCredenciados from './pages/Configuracoes/ImportarCredenciados/ConfigImportarCredenciados';
-import ConfigExportarCredenciados from './pages/Configuracoes/ExportarCredenciados/ConfigExportarCredenciados';
-import ConfigConferenciaLaboratorio from './pages/Configuracoes/ConferenciaLaboratorio/ConfigConferenciaLaboratorio';
-import ConfigObservacoesHonorarios from './pages/Configuracoes/ObservacoesHonorarios/ConfigObservacoesHonorarios';
-import ConfigObservacoesPlanos from './pages/Configuracoes/ObservacoesPlanos/ConfigObservacoesPlanos';
-import ConfigImpressaoEtiquetas from './pages/Configuracoes/ImpressaoEtiquetas/ConfigImpressaoEtiquetas';
-import GerenciamentoAcessos from './pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos';
-import AdminAuditoria from './pages/Administrativo/Auditoria/AdminAuditoria';
-import AlterarSenha from './pages/AlterarSenha/AlterarSenha';
-import ComprasValorVenda from './pages/Compras/ValorVenda/ComprasValorVenda';
-import ComprasOrcamento from './pages/Compras/Orcamento/ComprasOrcamento';
-import ContratosEmerdog from './pages/Contratos/ContratosEmerdog';
-import ClicksignEmerdog from './pages/Contratos/ClicksignEmerdog';
-import PagamentosRegistro from './pages/Pagamentos/PagamentosRegistro';
-import PagamentosResumo from './pages/Pagamentos/PagamentosResumo';
-import NotFound from './pages/NotFound/NotFound';
+const CredenciamentoImportKmz = lazy(() => import('./pages/Credenciamento/Credenciamento_import_kmz/CredenciamentoImportKmz'));
+const CredenciamentoQuemRealiza = lazy(() => import('./pages/Credenciamento/QuemRealiza/CredenciamentoQuemRealiza'));
+const CredenciamentoEspecialidadesCidade = lazy(() => import('./pages/Credenciamento/EspecialidadesCidade/CredenciamentoEspecialidadesCidade'));
+const CredenciamentoFormularioConfig = lazy(() => import('./pages/Credenciamento/Formulario/CredenciamentoFormularioConfig'));
+const CredenciamentoFormularioInbox = lazy(() => import('./pages/Credenciamento/Formulario/CredenciamentoFormularioInbox'));
+const CredenciamentoEspecialidadesRc = lazy(() => import('./pages/Credenciamento/EspecialidadesRc/CredenciamentoEspecialidadesRc'));
+const CredenciamentoFormularioPublico = lazy(() => import('./pages/Credenciamento/Formulario/CredenciamentoFormularioPublico'));
+const ConfigImportarCredenciados = lazy(() => import('./pages/Configuracoes/ImportarCredenciados/ConfigImportarCredenciados'));
+const ConfigExportarCredenciados = lazy(() => import('./pages/Configuracoes/ExportarCredenciados/ConfigExportarCredenciados'));
+const ConfigConferenciaLaboratorio = lazy(() => import('./pages/Configuracoes/ConferenciaLaboratorio/ConfigConferenciaLaboratorio'));
+const ConfigObservacoesHonorarios = lazy(() => import('./pages/Configuracoes/ObservacoesHonorarios/ConfigObservacoesHonorarios'));
+const ConfigObservacoesPlanos = lazy(() => import('./pages/Configuracoes/ObservacoesPlanos/ConfigObservacoesPlanos'));
+const ConfigImpressaoEtiquetas = lazy(() => import('./pages/Configuracoes/ImpressaoEtiquetas/ConfigImpressaoEtiquetas'));
+const GerenciamentoAcessos = lazy(() => import('./pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos'));
+const AdminAuditoria = lazy(() => import('./pages/Administrativo/Auditoria/AdminAuditoria'));
+const AlterarSenha = lazy(() => import('./pages/AlterarSenha/AlterarSenha'));
+const ComprasValorVenda = lazy(() => import('./pages/Compras/ValorVenda/ComprasValorVenda'));
+const ComprasOrcamento = lazy(() => import('./pages/Compras/Orcamento/ComprasOrcamento'));
+const ContratosEmerdog = lazy(() => import('./pages/Contratos/ContratosEmerdog'));
+const ClicksignEmerdog = lazy(() => import('./pages/Contratos/ClicksignEmerdog'));
+const PagamentosRegistro = lazy(() => import('./pages/Pagamentos/PagamentosRegistro'));
+const PagamentosResumo = lazy(() => import('./pages/Pagamentos/PagamentosResumo'));
+const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <DialogosHost />
+      <Suspense fallback={<SkeletonPagina className="mx-auto max-w-3xl" />}>
       <Routes>
         {/* Sem layout */}
         <Route path="/" element={<Login />} />
@@ -413,6 +420,7 @@ function App() {
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }

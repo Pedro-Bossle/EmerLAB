@@ -32,14 +32,14 @@
 
 .pag_exp_head h3 {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 1rem;
     color: #15364f;
 }
 
 .pag_exp_close {
     border: none;
     background: transparent;
-    font-size: 1.4rem;
+    font-size: 1.375rem;
     line-height: 1;
     cursor: pointer;
     color: #5a7388;
@@ -54,7 +54,7 @@
 .pag_exp_sub {
     margin: 0;
     color: #5a7388;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     line-height: 1.35;
 }
 
@@ -82,7 +82,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: #243b53;
     cursor: pointer;
 }
@@ -107,7 +107,7 @@
     border: 1px solid #c5d9e8;
     border-radius: 8px;
     font: inherit;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: #243b53;
     background: #fff;

@@ -13,6 +13,7 @@ import { cn } from "../../lib/cn";
 import { supabase } from "../../lib/supabase";
 import { logoutSessao } from "../../lib/authSession";
 import { lerDarkModeAtivo, salvarDarkModeAtivo } from "../../lib/sidebarPrefs";
+import { avisar } from '../../lib/dialogos.js'
 
 const SIDEBAR_ICONS = {
   inicio: (
@@ -239,7 +240,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
   const handleLogout = async () => {
     await logoutSessao({
       navigate,
-      onError: () => alert("Erro ao sair da sessão"),
+      onError: () => avisar({ titulo: 'Não foi possível sair', mensagem: 'Verifique a conexão e tente de novo.' }),
     });
   };
 
@@ -250,7 +251,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
       (await supabase.auth.getSession()).data?.session;
     const token = session?.access_token;
     if (!token) {
-      alert("Sessão expirada. Faça login novamente.");
+      avisar({ titulo: 'Sua sessão expirou', mensagem: 'Entre de novo para pedir a redefinição de senha.' });
       return;
     }
     try {
@@ -269,9 +270,9 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
       if (!resp.ok || json?.ok === false) {
         throw new Error(json?.error || "Erro ao enviar redefinição de senha");
       }
-      alert("E-mail de redefinição enviado com sucesso");
+      avisar({ titulo: 'E-mail de redefinição enviado', mensagem: 'Abra o link que chegou no seu e-mail para criar a nova senha. Confira também a caixa de spam.' });
     } catch (error) {
-      alert(error?.message || "Erro ao enviar redefinição de senha");
+      avisar({ titulo: 'Não foi possível enviar o e-mail', mensagem: error?.message || 'Tente de novo em alguns minutos.' });
     }
   };
 
@@ -346,7 +347,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
                 <Link
                   to={item.href}
                   className={cn(
-                    "flex min-h-11 items-center rounded-xl text-[0.92rem] font-semibold transition-colors duration-100 hover:bg-white/10",
+                    "flex min-h-11 items-center rounded-xl text-sm font-semibold transition-colors duration-100 hover:bg-white/10",
                     open ? "gap-3 px-3" : "justify-center px-0",
                     active && "bg-white/15",
                   )}
@@ -367,7 +368,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
                   <button
                     type="button"
                     className={cn(
-                      "flex min-h-11 w-full items-center rounded-xl text-[0.92rem] font-semibold transition-colors duration-100 hover:bg-white/10",
+                      "flex min-h-11 w-full items-center rounded-xl text-sm font-semibold transition-colors duration-100 hover:bg-white/10",
                       open ? "gap-3 px-3" : "justify-center px-0",
                       active && "bg-white/10",
                     )}
@@ -403,7 +404,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
                           <button
                             key={child.action || child.href || child.label}
                             type="button"
-                            className="min-h-10 whitespace-nowrap rounded-lg px-2.5 text-left text-[0.88rem] font-medium text-white/90 hover:bg-white/10 hover:text-white"
+                            className="min-h-10 whitespace-nowrap rounded-lg px-2.5 text-left text-sm font-medium text-white/90 hover:bg-white/10 hover:text-white"
                             onClick={() => handleAction(child)}
                           >
                             {child.label}
@@ -413,7 +414,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
                             key={child.href}
                             to={child.href}
                             className={cn(
-                              "min-h-10 whitespace-nowrap rounded-lg px-2.5 py-2 text-[0.88rem] font-medium text-white/90 hover:bg-white/10 hover:text-white",
+                              "min-h-10 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-white/90 hover:bg-white/10 hover:text-white",
                               pathname === child.href &&
                                 "bg-white/15 text-white",
                             )}
@@ -436,7 +437,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
         <button
           type="button"
           className={cn(
-            "flex min-h-11 items-center rounded-xl text-[0.88rem] font-semibold hover:bg-white/10",
+            "flex min-h-11 items-center rounded-xl text-sm font-semibold hover:bg-white/10",
             open ? "gap-2 px-3" : "justify-center px-0",
           )}
           onClick={onToggleManual}
@@ -457,7 +458,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
         <button
           type="button"
           className={cn(
-            "flex min-h-11 items-center rounded-xl text-[0.88rem] font-semibold hover:bg-white/10",
+            "flex min-h-11 items-center rounded-xl text-sm font-semibold hover:bg-white/10",
             open ? "gap-2 px-3" : "justify-center px-0",
           )}
           onClick={() => setDarkModeAtivo((v) => !v)}

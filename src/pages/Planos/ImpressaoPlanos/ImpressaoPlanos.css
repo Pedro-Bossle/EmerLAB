@@ -16,7 +16,7 @@
 }
 
 .planos_impressao_conteudo .categoria_titulo {
-    font-size: 1.25rem;
+    font-size: 1.375rem;
 }
 
 .planos_impressao_conteudo.supertabelaplanos .categoria_secao {
@@ -120,7 +120,7 @@
 }
 
 .planos_impressao_td_dif {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     white-space: nowrap;
 }
 
@@ -129,7 +129,7 @@
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     line-height: 1.2;
 }
 
@@ -142,20 +142,20 @@
     line-height: 1.25;
     padding: 6px 3px;
     border-left-width: 2px;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     max-width: 100%;
 }
 
 .planos_impressao_cidade_pointer_hint {
     display: block;
     margin-top: 0.2rem;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     color: #5a6d7d;
     line-height: 1.25;
 }
 
 .planos_impressao_td_realizadores {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     padding: 0.26rem 0.15rem;
     text-align: center;
     vertical-align: middle;
@@ -175,7 +175,7 @@
 
 .planos_impressao_th_check {
     cursor: pointer;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
 }
 
 .planos_impressao_realizadores {
@@ -203,7 +203,7 @@
     padding: 0.32rem 0.75rem;
     border-radius: 6px;
     font-family: inherit;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
     border: 1px solid transparent;
@@ -259,7 +259,7 @@
     border: none;
     color: var(--azul-destaque, #2d7ab8);
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     text-decoration: underline;
     padding: 0;
     font-family: inherit;
@@ -304,7 +304,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     min-width: 140px;
     flex: 1 1 140px;
     max-width: 200px;
@@ -324,7 +324,7 @@
 }
 
 .planos_impressao_switch_label {
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--azul-escuro, #1a3d5c);
     text-align: center;
@@ -337,7 +337,7 @@
     background: var(--azul-destaque, #2d7ab8);
     color: #fff;
     font-family: inherit;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     cursor: pointer;
     flex-shrink: 0;
 }
@@ -350,7 +350,7 @@
 .planos_impressao_hint {
     text-align: center;
     margin: 0 0 1rem;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: #666;
 }
 
@@ -383,7 +383,7 @@
     border: 1px solid #ccc;
     background: #f5f5f5;
     font-family: inherit;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     cursor: pointer;
 }
 
@@ -463,7 +463,7 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
     }
 
     .credenciamento_main.planos_impressao > h1 {
-        font-size: 1.2rem;
+        font-size: 1.125rem;
         padding-right: 2.75rem;
         text-align: left;
         margin: 0.2rem 0 0.55rem;
@@ -499,7 +499,7 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
     }
 
     .planos_impressao_filtros_center .pcad_field > span {
-        font-size: 0.82rem;
+        font-size: 0.875rem;
         line-height: 1.2;
     }
 
@@ -524,7 +524,7 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
 
     .planos_impressao_switch_label {
         text-align: left;
-        font-size: 0.82rem;
+        font-size: 0.875rem;
         flex: 1 1 auto;
         padding-right: 0.25rem;
     }
@@ -534,13 +534,13 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
         min-height: 44px;
         margin-top: 0.25rem;
         padding: 0.62rem 1rem;
-        font-size: 0.9rem;
+        font-size: 0.875rem;
         font-weight: 600;
     }
 
     .planos_impressao_hint {
         text-align: left;
-        font-size: 0.78rem;
+        font-size: 0.75rem;
         line-height: 1.4;
         margin: 0.7rem 0 0.8rem;
         padding: 0 0.15rem;
@@ -615,7 +615,7 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
     .planos_impressao_btn_secao {
         width: 100%;
         padding: 0.45rem 0.35rem;
-        font-size: 0.72rem;
+        font-size: 0.75rem;
         text-align: center;
         line-height: 1.2;
     }
@@ -677,7 +677,7 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
         margin-top: 0.22rem;
         padding: 0.1rem 0.45rem;
         border-radius: 999px;
-        font-size: 0.65rem;
+        font-size: 0.75rem;
         font-weight: 700;
         color: #1a5c3a;
         background: #e6f5ec;
@@ -688,12 +688,12 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
     .planos_impressao_table_main.is-layout-mobile .planos_impressao_td_dif,
     .planos_impressao_table_main.is-layout-mobile .planos_impressao_td_carencia {
         white-space: nowrap;
-        font-size: 0.72rem;
+        font-size: 0.75rem;
         text-align: center;
     }
 
     .planos_impressao_table_main.is-layout-mobile .planos_impressao_td_limite {
-        font-size: 0.72rem;
+        font-size: 0.75rem;
         line-height: 1.2;
         overflow-wrap: break-word;
         word-break: break-word;
@@ -766,14 +766,14 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
 
     .planos_impressao_td_limite,
     .planos_impressao_table_main .planos_impressao_td_limite_grupo {
-        font-size: 0.72rem;
+        font-size: 0.75rem;
         line-height: 1.2;
         overflow-wrap: break-word;
         word-break: break-word;
     }
 
     .planos_impressao_td_codigo {
-        font-size: 0.68rem;
+        font-size: 0.75rem;
         line-height: 1.2;
         vertical-align: top;
         padding-top: 7px;
@@ -791,7 +791,7 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
 
     .planos_impressao_table_main th,
     .planos_impressao_table_main td {
-        font-size: 0.76rem;
+        font-size: 0.75rem;
         padding: 5px 3px;
     }
 
@@ -883,25 +883,25 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
 }
 
 .planos_impressao_conteudo .table_text_proc_md {
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .planos_impressao_conteudo .table_text_proc_sm {
-    font-size: 0.84rem;
+    font-size: 0.875rem;
 }
 
 .planos_impressao_conteudo .table_text_proc_xs {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
 }
 
 @media (max-width: 992px) {
     .planos_impressao_table_main th,
     .planos_impressao_table_main td {
         padding: 5px 3px;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
     }
 
     .planos_impressao_th_check {
-        font-size: 0.65rem;
+        font-size: 0.75rem;
     }
 }

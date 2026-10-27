@@ -47,6 +47,7 @@ import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 import { PageHeader } from '../../../components/ui'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
+import { confirmarAcao } from '../../../lib/dialogos.js'
 
 const LISTA_UI_STORAGE_KEY = 'emerdog_credenciamento_cadastro_lista_ui'
 
@@ -132,11 +133,13 @@ const CredenciamentoCadastroLista = () => {
 
     const vincularLaboratoriosEmMassa = async () => {
         if (somenteLeitura || labsMassaBusy) return
-        const ok = window.confirm(
-            'Vincular em massa cada prestador (não laboratório) aos laboratórios da mesma cidade-tabela?\n\n' +
-                'Critério: endereço (UF + município) resolvido via cidades_municipios_vinculo → id em cidades.\n' +
-                'Vínculos já existentes são mantidos; só entram pares novos.',
-        )
+        const ok = await confirmarAcao({
+            titulo: 'Vincular laboratórios em massa?',
+            mensagem:
+                'Cada prestador (que não seja laboratório) passa a ter vínculo com os laboratórios da mesma cidade-tabela, definida pelo município do endereço.\n\n' +
+                'Vínculos que já existem continuam; só entram os novos.',
+            confirmar: 'Vincular laboratórios',
+        })
         if (!ok) return
         setLabsMassaBusy(true)
         setFeedbackLabsMassa('')

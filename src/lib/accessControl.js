@@ -4,7 +4,6 @@ import {
   syncLegacyFromAcl,
   completarAclFerramentasCredenciamento,
   hasAcl,
-  podeLerFerramenta,
 } from './permissionCatalog.js'
 
 export const ACCESS_PROFILE_STORAGE_KEY = 'emerlab-access-profile'

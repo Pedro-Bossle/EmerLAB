@@ -33,7 +33,7 @@
 
 ## Qualidade
 - [x] Build produção OK
-- [x] Vitest 47/47 OK
+- [x] Vitest 24/24 arquivos, 138 testes OK (out/2026)
 - [x] CSS legado de Layout2/Sidebar/Login/404 removido do bundle global
 - [x] Coexistência: CSS de páginas densas mantido até parity total
 

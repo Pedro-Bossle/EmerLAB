@@ -3,6 +3,7 @@ import {
     filtrarCodigosRemovendoCategoriasExame,
     limparProcedimentosPrestadorCategoriasExame,
 } from '../../../lib/prestadorProcedimentos.js'
+import { confirmarAcao } from '../../../lib/dialogos.js'
 
 const ACOES = [
     { escopo: 'simples', rotulo: 'Exames simples' },
@@ -22,9 +23,12 @@ export default function CredenciamentoDevToolsPerfil({
 
     const executar = async (escopo, rotulo) => {
         if (somenteLeitura) return
-        const ok = window.confirm(
-            `Limpar todos os procedimentos de «${rotulo}» deste credenciado? Não há desfazer automático.`,
-        )
+        const ok = await confirmarAcao({
+            titulo: `Limpar os procedimentos de «${rotulo}»?`,
+            mensagem: 'Todos os procedimentos dessa categoria saem deste credenciado. Não há como desfazer automaticamente.',
+            confirmar: 'Limpar procedimentos',
+            perigo: true,
+        })
         if (!ok) return
         setBusy(escopo)
         setFeedback('')
@@ -96,4 +100,4 @@ export default function CredenciamentoDevToolsPerfil({
         </div>
     )
 }
-
+

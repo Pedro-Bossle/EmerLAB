@@ -143,7 +143,7 @@
     .compras_vv h1,
     .pag_reg h1,
     .compras_orc h1 {
-        font-size: 1.15rem;
+        font-size: 1.125rem;
         line-height: 1.3;
         padding: 0 0.25rem;
     }
@@ -151,11 +151,11 @@
     .table_main th,
     .table_main td {
         padding: 6px 5px;
-        font-size: 0.82rem;
+        font-size: 0.875rem;
     }
 
     .table_main th {
-        font-size: 0.76rem;
+        font-size: 0.75rem;
     }
 }
 
@@ -173,6 +173,6 @@
     .supertabelanegociacoes .table_main,
     .credenciamento_main .table_main,
     .compras_vv .table_main {
-        font-size: 0.86rem;
+        font-size: 0.875rem;
     }
 }

@@ -29,7 +29,7 @@
     padding: 0.4rem 0.95rem;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-weight: 700;
     line-height: 1.2;
 }
@@ -103,7 +103,7 @@
 }
 
 .supertabela_beneficios_row_nova .supertabela_beneficios_grupo_fix {
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     color: #6a8499;
 }
 
@@ -111,7 +111,7 @@
     min-width: 2.35rem;
     height: 2.1rem;
     padding: 0;
-    font-size: 1.2rem;
+    font-size: 1.125rem;
     font-weight: 700;
     line-height: 1;
 }
@@ -148,7 +148,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
 }
 
 .supertabelaprocedimentos_header.is-compact h2 {
-    font-size: 1.3rem;
+    font-size: 1.375rem;
     margin: 0;
     opacity: 0.95;
 }
@@ -171,7 +171,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
 
 .supertabelaprocedimentos_filter_item p {
     margin: 0 0 4px 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .supertabelaprocedimentos_filter_busca {
@@ -188,7 +188,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
     min-width: 0;
     width: 100%;
     box-sizing: border-box;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-family: inherit;
 }
 
@@ -201,7 +201,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
     border-radius: 7px;
     border: 1px solid #b8d3e5;
     background: #fff;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     white-space: nowrap;
 }
@@ -257,7 +257,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
 }
 
 .supertabelaprocedimentos_massa_form label {
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #32566f;
 }
 
@@ -294,7 +294,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
 
 .supertabelaprocedimentos .categoria_titulo {
     text-align: left;
-    font-size: 1.5rem;
+    font-size: 1.375rem;
     color: var(--azul-escuro);
     margin: 0 0 4px 0;
 }
@@ -335,7 +335,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
     border-radius: 6px;
     border: 1px solid #8ab9d8;
     font-family: inherit;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
 }
 
 .supertabelaprocedimentos_cell_input {
@@ -345,7 +345,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
     border-radius: 6px;
     border: 1px solid #8ab9d8;
     font-family: inherit;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
 }
 
 .supertabelaprocedimentos_alert {
@@ -361,7 +361,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
     gap: 12px;
     padding: 12px 14px;
     border-radius: 8px;
-    border: 1px solid #2f87c6;
+    border: 1px solid #1f78ad;
     background: linear-gradient(180deg, #f1f8fc 0%, #e3f2fb 100%);
     box-shadow: 0 8px 22px rgba(30, 49, 72, 0.18);
 }
@@ -435,7 +435,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
 }
 
 .supertabelaprocedimentos_formulario_label {
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #35556d;
 }
@@ -480,7 +480,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
 }
 
 .supertabelaprocedimentos_form_switch_label {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #35556d;
     min-width: 1.8rem;
@@ -489,7 +489,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
 
 .supertabelaprocedimentos_filter_mode_label {
     margin: 0 0 4px 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--azul-escuro, #1e3148);
 }
@@ -533,7 +533,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
     padding: 6px 10px;
     border: none;
     background: transparent;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #4a6b85;
     cursor: pointer;
@@ -591,7 +591,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
     background: #f8fcff;
     color: #1e3148;
     font-family: inherit;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     font-weight: 500;
     line-height: 1.25;
     box-shadow: inset 0 1px 2px rgba(30, 49, 72, 0.06);
@@ -634,11 +634,11 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
 
 .supertabelaprocedimentos_limite_tipo_switch .supertabelaprocedimentos_form_switch_label {
     min-width: 4.6rem;
-    font-size: 0.74rem;
+    font-size: 0.75rem;
 }
 
 .supertabelaprocedimentos_tipo_limite_label {
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #35556d;
 }
@@ -741,7 +741,7 @@ body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabel
     }
 
     .supertabelaprocedimentos_filters p {
-        font-size: 0.72rem;
+        font-size: 0.75rem;
         margin-bottom: 2px;
     }
 
@@ -750,7 +750,7 @@ body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabel
         width: 100%;
         height: 34px;
         min-height: 34px;
-        font-size: 0.82rem;
+        font-size: 0.875rem;
         box-sizing: border-box;
     }
 
@@ -769,7 +769,7 @@ body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabel
         white-space: normal;
         min-height: 34px;
         grid-column: 1 / -1;
-        font-size: 0.78rem;
+        font-size: 0.75rem;
     }
 
     .supertabelaprocedimentos_catalogo_modo {
@@ -789,7 +789,7 @@ body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabel
         min-height: 34px;
         white-space: normal;
         justify-content: center;
-        font-size: 0.78rem;
+        font-size: 0.75rem;
         box-sizing: border-box;
     }
 
@@ -822,7 +822,7 @@ body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabel
     .supertabelaprocedimentos .categoria_secao .table_main,
     .supertabela_beneficios_table {
         min-width: 760px;
-        font-size: 0.84rem;
+        font-size: 0.875rem;
     }
 
     .supertabela_beneficios_table {
@@ -850,7 +850,7 @@ body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabel
     }
 
     .supertabelaprocedimentos.is-modo-categorias .supertabelaprocedimentos_categorias_table {
-        font-size: 0.86rem;
+        font-size: 0.875rem;
     }
 
     .supertabelaprocedimentos_categorias_secao {
@@ -861,7 +861,7 @@ body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabel
 
 @media (max-width: 640px) {
     .supertabelaprocedimentos h1 {
-        font-size: 1.2rem;
+        font-size: 1.125rem;
         margin: 0.35rem 0 0.15rem;
     }
 
@@ -872,15 +872,15 @@ body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabel
 
     .supertabelaprocedimentos_limite_tipo_switch .supertabelaprocedimentos_form_switch_label {
         min-width: 3.2rem;
-        font-size: 0.68rem;
+        font-size: 0.75rem;
     }
 
     .supertabelaprocedimentos_th_plan {
-        font-size: 0.68rem;
+        font-size: 0.75rem;
     }
 
     .supertabelaprocedimentos .categoria_secao .table_main,
     .supertabela_beneficios_table {
-        font-size: 0.82rem;
+        font-size: 0.875rem;
     }
 }

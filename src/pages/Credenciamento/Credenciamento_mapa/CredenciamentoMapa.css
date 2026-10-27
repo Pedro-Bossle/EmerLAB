@@ -13,7 +13,7 @@
 
 .credenciamento_mapa_page h1 {
     margin: 0 0 6px;
-    font-size: 1.35rem;
+    font-size: 1.375rem;
 }
 
 .credenciamento_mapa_page hr {
@@ -95,7 +95,7 @@
 
 .credenciamento_mapa_legenda h3 {
     margin: 0;
-    font-size: 16px;
+    font-size: 1rem;
 }
 
 .credenciamento_mapa_legenda_titulo {
@@ -165,7 +165,7 @@
 .credenciamento_mapa_sugestoes_tit {
     margin: 0;
     padding: 4px 10px 6px;
-    font-size: 11px;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -202,12 +202,12 @@
 }
 
 .credenciamento_mapa_sugestao_txt strong {
-    font-size: 13px;
+    font-size: 0.875rem;
     line-height: 1.25;
 }
 
 .credenciamento_mapa_sugestao_txt > span {
-    font-size: 11px;
+    font-size: 0.75rem;
     color: #5a7085;
     line-height: 1.3;
     overflow: hidden;
@@ -225,7 +225,7 @@
 }
 
 .credenciamento_mapa_busca_hint {
-    font-size: 12px;
+    font-size: 0.75rem;
     margin: 0 0 10px;
     line-height: 1.35;
 }
@@ -328,7 +328,7 @@
     border-radius: 999px;
     border: 2px solid #d8e1ec;
     background: #fff;
-    font-size: 14px;
+    font-size: 0.875rem;
     line-height: 1;
     flex-shrink: 0;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
@@ -337,7 +337,7 @@
 .credenciamento_mapa_legenda_emoji_mini {
     width: 22px;
     height: 22px;
-    font-size: 12px;
+    font-size: 0.75rem;
 }
 
 .credenciamento_mapa_legenda_nome {
@@ -357,7 +357,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: 0.75rem;
     padding: 4px 0;
     border-bottom: 1px solid #f0f4f9;
 }
@@ -378,7 +378,7 @@
 .credenciamento_mapa_match_exato_badge {
     flex-shrink: 0;
     margin-left: auto;
-    font-size: 10px;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.02em;
@@ -389,7 +389,7 @@
 }
 
 .credenciamento_mapa_tag_esp_secundaria {
-    font-size: 10px;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.02em;
     color: #5a7085;
@@ -409,7 +409,7 @@
     cursor: pointer;
     text-align: left;
     padding: 2px 0;
-    font-size: 12px;
+    font-size: 0.75rem;
     color: inherit;
 }
 
@@ -461,7 +461,7 @@ body.dark-mode .cred_mapa_pin_poi_busca {
 
 .credenciamento_mapa_busca_wrap .credenciamento_mapa_busca_hint {
     margin: 6px 0 0;
-    font-size: 11px;
+    font-size: 0.75rem;
     line-height: 1.35;
 }
 
@@ -486,7 +486,7 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
     border: 1px solid #d8e1ec;
     background: #fff;
     border-radius: 6px;
-    font-size: 11px;
+    font-size: 0.75rem;
     padding: 2px 8px;
     cursor: pointer;
 }
@@ -513,7 +513,7 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
 
 .credenciamento_mapa_proximos_tit {
     margin: 0 0 8px;
-    font-size: 12px;
+    font-size: 0.75rem;
 }
 
 .credenciamento_mapa_proximos_lista {
@@ -539,7 +539,7 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
 }
 
 .credenciamento_mapa_proximos_btn > span {
-    font-size: 12px;
+    font-size: 0.75rem;
     opacity: 0.85;
 }
 
@@ -576,7 +576,7 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
 }
 
 .credenciamento_mapa_pend_btn > span {
-    font-size: 12px;
+    font-size: 0.75rem;
     opacity: 0.8;
 }
 
@@ -654,17 +654,17 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
 
 .credenciamento_mapa_pois_legenda_head h3 {
     margin: 0;
-    font-size: 15px;
+    font-size: 1rem;
 }
 
 .credenciamento_mapa_pois_export_btn {
-    font-size: 12px;
+    font-size: 0.75rem;
     padding: 4px 10px;
 }
 
 .credenciamento_mapa_pois_legenda_hint {
     margin: 0 0 8px;
-    font-size: 11px;
+    font-size: 0.75rem;
     line-height: 1.35;
 }
 
@@ -695,12 +695,12 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
 }
 
 .credenciamento_mapa_pois_item_btn strong {
-    font-size: 13px;
+    font-size: 0.875rem;
     line-height: 1.25;
 }
 
 .credenciamento_mapa_pois_item_btn span {
-    font-size: 11px;
+    font-size: 0.75rem;
     color: #5a7085;
     line-height: 1.3;
 }
@@ -715,7 +715,7 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
 }
 
 .credenciamento_mapa_poi_switch_label {
-    font-size: 11px;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #4a6278;
     white-space: nowrap;
@@ -726,7 +726,7 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
 }
 
 .credenciamento_mapa_poi_switch .credenciamento_switch_label {
-    font-size: 11px;
+    font-size: 0.75rem;
     min-width: 1.5rem;
 }
 
@@ -768,7 +768,7 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
     }
 
     .credenciamento_mapa_page h1 {
-        font-size: 1.2rem;
+        font-size: 1.125rem;
         margin-bottom: 4px;
         padding-right: 2.25rem;
     }
@@ -786,7 +786,7 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
 
     .credenciamento_mapa_kpi {
         padding: 6px 8px;
-        font-size: 0.82rem;
+        font-size: 0.875rem;
         border-radius: 8px;
     }
 
@@ -796,7 +796,7 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
         flex-direction: column;
         align-items: stretch;
         gap: 4px;
-        font-size: 0.85rem;
+        font-size: 0.875rem;
         font-weight: 600;
     }
 
@@ -822,7 +822,7 @@ body.dark-mode .cred_mapa_pin_emoji_bubble {
         border: none;
         border-radius: 8px;
         padding: 8px 10px;
-        font-size: 0.88rem;
+        font-size: 0.875rem;
         font-weight: 700;
         cursor: pointer;
         background: transparent;

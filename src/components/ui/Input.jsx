@@ -20,7 +20,7 @@ export function Input({ className, label, hint, error, id, 'aria-describedby': a
   return (
     <label className={cn('flex w-full flex-col gap-1.5', className)}>
       {label ? (
-        <span className="text-xs font-bold uppercase tracking-wide text-ink-muted dark:text-[#9eb4c8]">
+        <span className="text-sm font-semibold text-ink-soft dark:text-[#b9cadb]">
           {label}
         </span>
       ) : null}
@@ -30,7 +30,7 @@ export function Input({ className, label, hint, error, id, 'aria-describedby': a
         aria-describedby={describedBy}
         aria-errormessage={error ? errorId : undefined}
         className={cn(
-          'min-h-touch w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-[1rem] font-medium leading-normal text-ink placeholder:text-ink-muted/65 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 dark:border-white/15 dark:bg-[#0f1e2e] dark:text-[#e8f1f8]',
+          'min-h-touch w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-base font-medium leading-normal text-ink placeholder:text-ink-muted/65 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 dark:border-white/15 dark:bg-[#0f1e2e] dark:text-[#e8f1f8]',
           error && 'border-status-erro focus:ring-status-erro/20',
         )}
         {...props}
@@ -72,7 +72,7 @@ export function Select({
   return (
     <label className={cn('flex w-full flex-col gap-1.5', className)}>
       {label ? (
-        <span className="text-xs font-bold uppercase tracking-wide text-ink-muted dark:text-[#9eb4c8]">
+        <span className="text-sm font-semibold text-ink-soft dark:text-[#b9cadb]">
           {label}
         </span>
       ) : null}
@@ -82,7 +82,7 @@ export function Select({
         aria-describedby={describedBy}
         aria-errormessage={error ? errorId : undefined}
         className={cn(
-          'min-h-touch w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-[1rem] font-medium leading-normal text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 dark:border-white/15 dark:bg-[#0f1e2e] dark:text-[#e8f1f8]',
+          'min-h-touch w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-base font-medium leading-normal text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 dark:border-white/15 dark:bg-[#0f1e2e] dark:text-[#e8f1f8]',
           error && 'border-status-erro',
         )}
         {...props}
@@ -125,7 +125,7 @@ export function Textarea({
   return (
     <label className={cn('flex w-full flex-col gap-1.5', className)}>
       {label ? (
-        <span className="text-xs font-bold uppercase tracking-wide text-ink-muted dark:text-[#9eb4c8]">
+        <span className="text-sm font-semibold text-ink-soft dark:text-[#b9cadb]">
           {label}
         </span>
       ) : null}

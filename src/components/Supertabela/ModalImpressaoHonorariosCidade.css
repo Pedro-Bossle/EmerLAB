@@ -32,14 +32,14 @@
 
 .sih_modal_head h3 {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 1rem;
     color: #15364f;
 }
 
 .sih_modal_close {
     border: none;
     background: transparent;
-    font-size: 1.4rem;
+    font-size: 1.375rem;
     line-height: 1;
     cursor: pointer;
     color: #5a7388;
@@ -50,7 +50,7 @@
     margin: 0;
     padding: 8px 18px 0;
     color: #5a7388;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .sih_avancados {
@@ -71,7 +71,7 @@
     background: transparent;
     cursor: pointer;
     padding: 0.65rem 0.85rem;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-weight: 700;
     color: #1e4d7a;
     user-select: none;
@@ -96,7 +96,7 @@
 
 .sih_avancados_hint {
     margin: 0.65rem 0 0.55rem;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #5a7388;
     line-height: 1.35;
 }
@@ -143,7 +143,7 @@
 .sih_reorder_handle {
     flex: 0 0 auto;
     color: #7a93a8;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     letter-spacing: -0.12em;
     line-height: 1;
     user-select: none;
@@ -155,7 +155,7 @@
     gap: 0.45rem;
     flex: 1 1 auto;
     min-width: 0;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     color: #15364f;
     cursor: pointer;
 }
@@ -168,7 +168,7 @@
 .sih_reorder_check em {
     font-style: normal;
     color: #7a93a8;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
 }
 
@@ -190,14 +190,14 @@
 
 .sih_honorarios_cat h4 {
     margin: 0 0 8px;
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: #1e4d7a;
 }
 
 .sih_honorarios_table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .sih_honorarios_table th,
@@ -227,7 +227,7 @@
 .sih_honorarios_link {
     border: none;
     background: transparent;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     color: #0a74bb;
     cursor: pointer;
     padding: 0 2px;
@@ -248,7 +248,7 @@
     padding: 0 14px;
     border-radius: 8px;
     font-weight: 700;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     cursor: pointer;
 }
 

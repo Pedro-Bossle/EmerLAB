@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from '../Sidebar/Sidebar'
 import DevToolsFloating from '../DevTools/DevToolsFloating'
@@ -8,6 +8,7 @@ import BottomNav from './BottomNav'
 import FloatingToolsDock from './FloatingToolsDock'
 import FloatingLayerPortal from './FloatingLayerPortal'
 import { cn } from '../../lib/cn'
+import { SkeletonPagina } from '../ui/States'
 import { lerSidebarFixada, salvarSidebarFixada } from '../../lib/sidebarPrefs'
 import {
   isDevToolsEnabled,
@@ -165,7 +166,9 @@ const Layout2 = () => {
               : 'lg:ml-sidebar-collapsed lg:w-[calc(100%-theme(spacing.sidebar-collapsed))]',
         )}
       >
-        <Outlet />
+        <Suspense fallback={<SkeletonPagina />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       {isCompact ? <BottomNav /> : null}

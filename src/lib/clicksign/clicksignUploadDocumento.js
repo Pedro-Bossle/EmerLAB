@@ -67,7 +67,7 @@ export async function anexarPdfEnvelopeViaStorage(envelopeId, file, opts = {}) {
     }
     const uid = String(sess.session?.user?.id || '').trim()
     if (!uid) {
-        return { ok: false, status: 401, data: { error: 'Sessão sem utilizador.' } }
+        return { ok: false, status: 401, data: { error: 'Sessão sem usuário.' } }
     }
 
     const { supabase } = await import('../supabase.js')

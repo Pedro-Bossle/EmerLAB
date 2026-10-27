@@ -7,7 +7,7 @@
     margin: 0 auto 1.1rem;
     line-height: 1.45;
     color: #4a657a;
-    font-size: 0.95rem;
+    font-size: 1rem;
 }
 
 .config_import_cred_drop {
@@ -62,12 +62,12 @@
 }
 
 .config_import_cred_drop_copy strong {
-    font-size: 1.05rem;
+    font-size: 1rem;
     color: var(--cinza-escuro);
 }
 
 .config_import_cred_drop_copy span {
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     color: #5a7a94;
     line-height: 1.4;
 }
@@ -87,7 +87,7 @@
 
 .config_import_cred_nome_arq {
     margin-top: 0.2rem;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--azul-escuro);
 }
@@ -105,7 +105,7 @@
     border: 1px solid #d5e0ea;
     border-radius: 8px;
     padding: 6px 10px;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 600;
 }
 
@@ -133,7 +133,7 @@
     border: 1px solid #f0dca0;
     color: #7a5b12;
     font: inherit;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 600;
 }
 
@@ -153,7 +153,7 @@
 .config_import_cred_table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .config_import_cred_table th,
@@ -283,7 +283,7 @@ body > .prestador_vinculo_busca_portal .row_add_suggest_item.is-active {
 }
 
 body > .prestador_vinculo_busca_portal .row_add_suggest_item span {
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 body > .prestador_vinculo_busca_portal .row_add_suggest_item small {
@@ -294,7 +294,7 @@ body > .prestador_vinculo_busca_portal .row_add_suggest_item small {
 body > .prestador_vinculo_busca_portal .row_add_suggest_empty {
     padding: 10px;
     color: #5a7a94;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .config_import_cred_sugestoes {
@@ -325,13 +325,13 @@ body > .prestador_vinculo_busca_portal .row_add_suggest_empty {
 
 .config_import_cred_orfaos h2 {
     margin: 0 0 0.35rem;
-    font-size: 1.1rem;
+    font-size: 1.125rem;
 }
 
 .config_import_cred_orfaos p {
     margin: 0 0 0.75rem;
     color: #5a7a94;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .config_import_cred_opcoes {
@@ -347,7 +347,7 @@ body > .prestador_vinculo_busca_portal .row_add_suggest_empty {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     cursor: pointer;
     user-select: none;
 }
@@ -365,7 +365,7 @@ body > .prestador_vinculo_busca_portal .row_add_suggest_empty {
     justify-content: space-between;
     gap: 0.65rem;
     margin: 0.5rem 0 0.75rem;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     color: #4a657a;
 }
 

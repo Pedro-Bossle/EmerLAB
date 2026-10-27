@@ -1025,11 +1025,11 @@ const Home = () => {
         <div className={`el-page home_dash${temNotificacoes ? ' home_dash--tem-notif' : ''}`}>
             {podeSyncOutlook ? <OutlookTarefaSyncBridge onBind={bindSyncOutlook} /> : null}
             <header className="home_dash_hero_wrap mb-4 border-b border-line/60 pb-3 text-center dark:border-white/10 sm:text-left xl:mb-6 xl:pb-5">
-                <p className="mb-1 text-[0.7rem] font-bold uppercase tracking-[0.12em] text-brand">Início</p>
+                <p className="mb-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">Início</p>
                 <h1 className="font-sans text-[1.55rem] font-extrabold leading-tight tracking-tight text-[#123e59] dark:text-[#e8f1f8] md:text-[1.75rem] xl:text-[2.1rem]">
                     Olá, {loading ? '…' : primeiroNome}
                 </h1>
-                <p className="mt-1.5 text-[0.92rem] font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8] xl:mt-2 xl:text-[0.98rem]">
+                <p className="mt-1.5 text-sm font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8] xl:mt-2 xl:text-[0.98rem]">
                     {soEmerMarketing
                         ? 'O seu acesso neste EmerLAB é ao EmerMarketing.'
                         : 'O que faremos hoje?'}

@@ -168,7 +168,7 @@ function escreverSecaoCategoria(worksheet, linhaInicio, categoriaNome, linhas, m
 function sanitizarNomeArquivo(nomeArquivoBase) {
     return (
         String(nomeArquivoBase || 'export')
-            .replace(/[^\w\s-áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ\[\]]/gi, '')
+            .replace(/[^\w\s-áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ[\]]/gi, '')
             .trim()
             .slice(0, 80) || 'export'
     )

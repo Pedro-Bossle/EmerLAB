@@ -106,7 +106,7 @@ body:has(.emerzap_web) {
 }
 
 .emerzap_web_brand_mark {
-  font-size: 1.35rem;
+  font-size: 1.375rem;
   line-height: 1;
 }
 
@@ -119,7 +119,7 @@ body:has(.emerzap_web) {
 
 .emerzap_web_brand_kicker {
   margin: 0;
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -128,7 +128,7 @@ body:has(.emerzap_web) {
 
 .emerzap_web_brand h1 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -148,7 +148,7 @@ body:has(.emerzap_web) {
   background: rgba(255, 255, 255, 0.12);
   color: #f4fbf8;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 1rem;
   line-height: 1;
 }
 
@@ -163,7 +163,7 @@ body:has(.emerzap_web) {
   color: #f4fbf8;
   border-radius: 999px;
   padding: 0.35rem 0.75rem;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -183,7 +183,7 @@ body:has(.emerzap_web) {
   border: none;
   border-radius: 10px;
   padding: 0.55rem 0.85rem;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   background: #fff;
   color: var(--ez-ink);
   outline: none;
@@ -204,7 +204,7 @@ body:has(.emerzap_web) {
 
 .emerzap_web_secao {
   margin: 0.75rem 1rem 0.35rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -242,14 +242,14 @@ body:has(.emerzap_web) {
   place-items: center;
   background: linear-gradient(145deg, #2a8f78, #0b5c4d);
   color: #f4fbf8;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
 .emerzap_web_avatar--sm {
   width: 2.25rem;
   height: 2.25rem;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 
 .emerzap_web_contato_body {
@@ -269,7 +269,7 @@ body:has(.emerzap_web) {
 
 .emerzap_web_contato_nome {
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 1rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -277,7 +277,7 @@ body:has(.emerzap_web) {
 
 .emerzap_web_contato_body small {
   color: var(--ez-muted);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -290,7 +290,7 @@ body:has(.emerzap_web) {
   border-radius: 999px;
   background: var(--ez-teal-mid);
   color: #fff;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-align: center;
 }
@@ -423,7 +423,7 @@ body:has(.emerzap_web) {
   display: none;
   border: none;
   background: transparent;
-  font-size: 1.25rem;
+  font-size: 1.375rem;
   line-height: 1;
   cursor: pointer;
   color: var(--ez-teal);
@@ -455,7 +455,7 @@ body:has(.emerzap_web) {
   padding: 0.25rem 0.7rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--ez-muted);
   box-shadow: 0 1px 2px rgba(11, 46, 40, 0.08);
@@ -480,7 +480,7 @@ body:has(.emerzap_web) {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: var(--ez-muted);
   margin-bottom: 0.15rem;
 }
@@ -489,7 +489,7 @@ body:has(.emerzap_web) {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 0.92rem;
+  font-size: 0.875rem;
   line-height: 1.4;
 }
 
@@ -596,7 +596,7 @@ body:has(.emerzap_web) {
 .emerzap_web_emoji_item {
   border: none;
   background: transparent;
-  font-size: 1.15rem;
+  font-size: 1.125rem;
   line-height: 1;
   padding: 0.15rem;
   cursor: pointer;
@@ -613,7 +613,7 @@ body:has(.emerzap_web) {
   border: none;
   border-radius: 14px;
   padding: 0.55rem 1rem;
-  font-size: 0.95rem;
+  font-size: 1rem;
   line-height: 1.375;
   background: #fff;
   box-shadow: inset 0 0 0 1px var(--ez-line);
@@ -719,7 +719,7 @@ body:has(.emerzap_web) {
 .emerzap_web_status,
 .emerzap_web_erro {
   margin: 0.75rem 1rem;
-  font-size: 0.88rem;
+  font-size: 0.875rem;
 }
 
 .emerzap_web_erro {

@@ -45,7 +45,7 @@ body.dark-mode .cred_prospectos_osm_page .cred_prospectos_osm_top {
 
 .cred_prospectos_osm_page h1 {
     margin: 0.35rem 0 0.5rem;
-    font-size: 1.35rem;
+    font-size: 1.375rem;
     text-align: left;
 }
 
@@ -94,7 +94,7 @@ body.dark-mode .cred_prospectos_osm_page .cred_prospectos_osm_top {
 }
 
 .cred_prospectos_osm_filtros_flutuantes .pcad_field > span {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--azul-escuro);
 }
@@ -214,7 +214,7 @@ body.dark-mode .cred_prospectos_osm_page .cred_prospectos_osm_top {
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     cursor: pointer;
     color: #1e3148;
     padding: 0.2rem 0.25rem;
@@ -283,7 +283,7 @@ body.dark-mode .cred_prospectos_osm_page .cred_prospectos_osm_top {
     justify-content: space-between;
     gap: 8px;
     margin-bottom: 6px;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #1a4a6e;
     line-height: 1.2;
@@ -375,7 +375,7 @@ body.dark-mode .cred_prospectos_osm_coleta_progress_fill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #40617a;
     cursor: pointer;
@@ -449,7 +449,7 @@ body.cred_prospectos_osm_arrastando_split .cred_prospectos_osm_split {
 .cred_prospectos_osm_lista_titulo,
 .cred_prospectos_osm_mapa_titulo {
     margin: 0 0 8px;
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--azul-escuro);
     flex: 0 0 auto;
@@ -508,7 +508,7 @@ body.cred_prospectos_osm_arrastando_split .cred_prospectos_osm_split {
 }
 
 .cred_prospectos_osm_status_sel {
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     min-width: 8.5rem;
     height: 28px;
 }
@@ -522,7 +522,7 @@ body.cred_prospectos_osm_arrastando_split .cred_prospectos_osm_split {
 .cred_prospectos_osm_vazio {
     padding: 1.25rem 0.75rem;
     text-align: center;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .cred_prospectos_osm_page .cred_prospectos_osm_mapa_box.credenciamento_mapa_container {
@@ -588,7 +588,7 @@ body.cred_prospectos_osm_arrastando_split {
     display: inline-block;
     padding: 1px 7px;
     border-radius: 999px;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 800;
     letter-spacing: 0.03em;
     text-transform: uppercase;
@@ -607,7 +607,7 @@ body.cred_prospectos_osm_arrastando_split {
     height: 1.25rem;
     padding: 0 5px;
     border-radius: 999px;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     line-height: 1;
     color: #7a2e12;
     background: #ffe4d6;
@@ -709,7 +709,7 @@ body.cred_prospectos_osm_arrastando_split {
 
     .cred_prospectos_osm_header .credenciamento_mapa_kpi {
         padding: 6px 8px;
-        font-size: 0.82rem;
+        font-size: 0.875rem;
     }
 
     .cred_prospectos_osm_toggle_mapa {
@@ -734,7 +734,7 @@ body.cred_prospectos_osm_arrastando_split {
         border: none;
         border-radius: 8px;
         padding: 8px 10px;
-        font-size: 0.88rem;
+        font-size: 0.875rem;
         font-weight: 700;
         cursor: pointer;
         background: transparent;
@@ -796,7 +796,7 @@ body.cred_prospectos_osm_arrastando_split {
 
     .cred_prospectos_osm_table.table_main {
         min-width: 640px;
-        font-size: 0.84rem;
+        font-size: 0.875rem;
     }
 
     .cred_prospectos_osm_status_sel {
@@ -910,7 +910,7 @@ body.dark-mode .cred_prospectos_osm_badge_cred {
 
 .cred_prospectos_osm_btn_edit {
     white-space: nowrap;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     padding: 0.28rem 0.55rem;
 }
 

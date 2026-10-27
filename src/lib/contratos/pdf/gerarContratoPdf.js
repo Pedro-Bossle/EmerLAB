@@ -4,7 +4,6 @@ import autoTable from 'jspdf-autotable'
 import logoAzulUrl from '../../../assets/logo_azul_escuro.png'
 import { nomeContratadaVolante } from '../nomeContrato.js'
 import { getLinhas } from './linhasIndex.js'
-import { textoLinha } from './linhasUtil.js'
 
 const MM_MARGIN = 20
 const PAGE_W = 210

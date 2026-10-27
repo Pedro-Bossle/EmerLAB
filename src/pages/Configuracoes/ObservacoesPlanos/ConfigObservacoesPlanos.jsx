@@ -18,6 +18,7 @@ import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMai
 import { PageHeader } from '../../../components/ui'
 import '../../Credenciamento/Credenciamento_main/Credenciamento_main.css'
 import './ConfigObservacoesPlanos.css'
+import { confirmarAcao } from '../../../lib/dialogos.js'
 
 const FORM_VAZIO = {
     id: null,
@@ -356,7 +357,12 @@ const ConfigObservacoesPlanos = () => {
 
     const excluir = async (item) => {
         if (somenteLeitura) return
-        const ok = window.confirm('Excluir esta observação?')
+        const ok = await confirmarAcao({
+            titulo: 'Excluir esta observação?',
+            mensagem: 'Ela deixa de aparecer nos PDFs gerados a partir de agora.',
+            confirmar: 'Excluir observação',
+            perigo: true,
+        })
         if (!ok) return
         setSalvando(true)
         setErro('')

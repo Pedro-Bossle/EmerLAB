@@ -42,7 +42,7 @@
   margin-bottom: 12px;
   padding: 10px 12px;
   border-radius: 10px;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 
 .cred_kanban_aviso {
@@ -65,7 +65,7 @@
   display: none;
   width: 100%;
   margin-bottom: 8px;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
 }
 
 .cred_kanban_filtros {
@@ -121,7 +121,7 @@
   padding: 0.45rem 0.55rem 0.45rem 0.7rem;
   min-height: 2.45rem;
   height: auto;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #1e3148;
   background: #fff;
@@ -167,7 +167,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #547084;
   text-transform: uppercase;
@@ -266,7 +266,7 @@
   padding: 10px 10px;
   border-bottom: 1px solid #d7e8f2;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: #123e59;
 }
 
@@ -301,7 +301,7 @@
   height: 30px;
   padding: 0;
   border-radius: 8px;
-  font-size: 1.15rem;
+  font-size: 1.125rem;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -357,7 +357,7 @@
   min-width: 2.1rem;
   padding: 2px 7px;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.35;
@@ -413,7 +413,7 @@ body.dark-mode .cred_kanban_card_chk_count.is-done {
 
 .cred_kanban_card p {
   margin: 0 0 4px;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   color: #547084;
 }
 
@@ -423,7 +423,7 @@ body.dark-mode .cred_kanban_card_chk_count.is-done {
   margin: 2px 4px 2px 0;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   background: #eaf5fc;
   color: #0f74b9;
@@ -440,7 +440,7 @@ body.dark-mode .cred_kanban_card_chk_count.is-done {
   justify-content: space-between;
   gap: 6px;
   margin-top: 8px;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: #7a93a5;
 }
 
@@ -462,7 +462,7 @@ body.dark-mode .cred_kanban_card_chk_count.is-done {
 
 .cred_kanban_bulk_count {
   font-weight: 800;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: #123e59;
 }
 
@@ -511,7 +511,7 @@ body.dark-mode .cred_kanban_card_chk_count.is-done {
 
 .cred_kanban_outlook h3 {
   margin: 0 0 8px;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -522,7 +522,7 @@ body.dark-mode .cred_kanban_card_chk_count.is-done {
 .cred_kanban_outlook_user,
 .cred_kanban_outlook_meta {
   margin: 0 0 8px;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   color: #547084;
 }
 
@@ -537,7 +537,7 @@ body.dark-mode .cred_kanban_card_chk_count.is-done {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #547084;
   text-transform: uppercase;
@@ -555,14 +555,14 @@ body.dark-mode .cred_kanban_card_chk_count.is-done {
   gap: 8px !important;
   text-transform: none !important;
   font-weight: 600 !important;
-  font-size: 0.85rem !important;
+  font-size: 0.875rem !important;
   color: #1f3a4f !important;
 }
 
 .cred_kanban_outlook_label {
   display: block;
   margin-bottom: 4px;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #547084;
   text-transform: uppercase;
@@ -584,7 +584,7 @@ body.dark-mode .cred_kanban_card_chk_count.is-done {
   gap: 8px;
   text-transform: none;
   font-weight: 600;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   color: #1f3a4f;
 }
 
@@ -618,7 +618,7 @@ body.dark-mode .cred_kanban_card_chk_count.is-done {
   border-radius: 8px;
   background: #e8f7ee;
   border: 1px solid #b7e0c5;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: #1f5a38;
 }
 
@@ -630,13 +630,13 @@ body.dark-mode .cred_kanban_card_chk_count.is-done {
 .cred_kanban_outlook_erro {
   margin: 8px 0 0;
   color: #8a2f2f;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
 }
 
 .cred_kanban_outlook_sucesso {
   margin: 8px 0 0;
   color: #1f5a38;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
 }
 
 body.dark-mode .cred_kanban_outlook {
@@ -692,7 +692,7 @@ body.dark-mode .cred_kanban_outlook_ok {
 
 .cred_kanban_modal_kicker {
   margin: 0 0 2px;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -701,7 +701,7 @@ body.dark-mode .cred_kanban_outlook_ok {
 
 .cred_kanban_modal_cabecalho h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.125rem;
   color: #123e59;
   line-height: 1.25;
   max-width: 36rem;
@@ -735,7 +735,7 @@ body.dark-mode .cred_kanban_outlook_ok {
   gap: 4px;
   flex: 1 1 220px;
   min-width: 0;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #547084;
 }
@@ -749,7 +749,7 @@ body.dark-mode .cred_kanban_outlook_ok {
   border-radius: 8px;
   background: #fff;
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 500;
   color: #1f3a4f;
 }
@@ -763,7 +763,7 @@ body.dark-mode .cred_kanban_outlook_ok {
   background: #0f74b9;
   color: #fff;
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -801,7 +801,7 @@ body.dark-mode .cred_kanban_modal_mover_campo select {
   background: transparent;
   padding: 4px 2px;
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #0969da;
   cursor: pointer;
@@ -855,7 +855,7 @@ body.dark-mode .cred_kanban_modal_mover_campo select {
   background: transparent;
   padding: 6px 10px;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   cursor: pointer;
   color: inherit;
   text-align: left;
@@ -887,7 +887,7 @@ body.dark-mode .cred_kanban_modal_mover_campo select {
   background: transparent;
   width: 32px;
   height: 32px;
-  font-size: 1.2rem;
+  font-size: 1.125rem;
   line-height: 1;
   cursor: pointer;
   color: #656d76;
@@ -900,7 +900,7 @@ body.dark-mode .cred_kanban_modal_mover_campo select {
 
 .cred_kanban_modal_abas_tip {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: #656d76;
   line-height: 1.35;
 }
@@ -914,7 +914,7 @@ body.dark-mode .cred_kanban_modal_mover_campo select {
   border-radius: 8px;
   padding: 8px 10px;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   background: #f6f8fa;
   color: inherit;
 }
@@ -950,7 +950,7 @@ body.dark-mode .cred_kanban_modal_colagem {
 .cred_kanban_modal_secao > h3,
 .cred_kanban_modal_full > h3 {
   margin: 0 0 8px;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -960,7 +960,7 @@ body.dark-mode .cred_kanban_modal_colagem {
 .cred_kanban_modal_hint {
   display: block;
   margin: -4px 0 6px;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: none;
   color: #7a93a5;
@@ -985,7 +985,7 @@ body.dark-mode .cred_kanban_modal_colagem {
   border-radius: 8px;
   padding: 4px 10px;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   cursor: pointer;
 }
 
@@ -995,7 +995,7 @@ body.dark-mode .cred_kanban_modal_colagem {
   border-radius: 8px;
   background: #eef6fc;
   border: 1px solid #cfe3f2;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 500;
   text-transform: none;
   color: #3a5a6e;
@@ -1004,7 +1004,7 @@ body.dark-mode .cred_kanban_modal_colagem {
 
 .cred_kanban_modal_tip code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.76rem;
+  font-size: 0.75rem;
   background: rgba(15, 116, 185, 0.1);
   padding: 1px 5px;
   border-radius: 4px;
@@ -1071,7 +1071,7 @@ body.dark-mode .cred_kanban_desc_chk_btn {
   background: transparent;
   padding: 9px 12px;
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #1f3a4f;
   cursor: pointer;
@@ -1135,7 +1135,7 @@ body.dark-mode .cred_kanban_esp_sugestoes button:focus {
   background: transparent;
   padding: 8px 10px;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #1f3a4f;
   cursor: pointer;
@@ -1209,7 +1209,7 @@ body.dark-mode .cred_kanban_nome_sugestoes button:hover {
   cursor: pointer;
   text-transform: none;
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   color: #1f2328;
 }
 
@@ -1298,7 +1298,7 @@ body.dark-mode .cred_kanban_gh_check:focus-visible + .cred_kanban_gh_box {
   text-align: left;
   cursor: pointer;
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   color: #1f2328;
 }
 
@@ -1317,7 +1317,7 @@ body.dark-mode .cred_kanban_gh_check:focus-visible + .cred_kanban_gh_box {
 }
 
 .cred_kanban_md_ac_item kbd {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   border: 1px solid #d0d7de;
   border-radius: 4px;
   padding: 1px 5px;
@@ -1411,7 +1411,7 @@ body.dark-mode .cred_kanban_md_ac_item kbd {
 .cred_kanban_vinculo_hint {
   font-weight: 500;
   color: #7a93a5;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
 }
 
 .cred_kanban_btn_abrir_perfil {
@@ -1423,7 +1423,7 @@ body.dark-mode .cred_kanban_md_ac_item kbd {
   border: 1px solid #8ec9a8;
   background: #e6f6ee;
   color: #1a7a4c;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   font-weight: 700;
   text-decoration: none;
   text-transform: none;
@@ -1472,7 +1472,7 @@ body.dark-mode .cred_kanban_md_ac_item kbd {
 .cred_kanban_checklist h3,
 .cred_kanban_mencao h3 {
   margin: 0 0 8px;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -1509,7 +1509,7 @@ body.dark-mode .cred_kanban_md_ac_item kbd {
 
 .cred_kanban_vinculo {
   margin: 0 0 8px;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   text-transform: none;
   font-weight: 600;
   color: #1f3a4f;
@@ -1523,7 +1523,7 @@ body.dark-mode .cred_kanban_md_ac_item kbd {
 .cred_kanban_mencao ul button {
   width: 100%;
   text-align: left;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
 }
 
 .cred_kanban_modal_footer {
@@ -1560,7 +1560,7 @@ body.dark-mode .cred_kanban_md_ac_item kbd {
   background: #fff8e8;
   border: 1px solid #f0dca0;
   color: #7a5b12;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-align: center;
 }
@@ -1588,13 +1588,13 @@ body.dark-mode .cred_kanban_md_ac_item kbd {
 
 .cred_kanban_confirm h3 {
   margin: 0 0 8px;
-  font-size: 1.05rem;
+  font-size: 1rem;
   color: #123e59;
 }
 
 .cred_kanban_confirm p {
   margin: 0 0 14px;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   line-height: 1.4;
   color: #547084;
 }
@@ -1656,7 +1656,7 @@ body.dark-mode .cred_kanban_confirm_acoes .is-danger {
 
 .cred_kanban_modal_meta {
   margin: 10px 0 0;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: #7a93a5;
 }
 
@@ -1664,7 +1664,7 @@ body.dark-mode .cred_kanban_confirm_acoes .is-danger {
   width: 100%;
   border-collapse: collapse;
   margin: 12px 0;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 
 .cred_kanban_relatorio_table th,
@@ -1845,7 +1845,7 @@ body.dark-mode .cred_kanban_erro {
     color: #174964;
     border-radius: 999px;
     padding: 8px 12px;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 700;
     white-space: nowrap;
     cursor: pointer;
@@ -1857,7 +1857,7 @@ body.dark-mode .cred_kanban_erro {
     color: #0f74b9;
     border-radius: 999px;
     padding: 1px 7px;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
   }
 
   .cred_kanban_mobile_chip.is-active {
@@ -1896,7 +1896,7 @@ body.dark-mode .cred_kanban_erro {
 
   .cred_kanban_mobile_coluna_titulo h2 {
     margin: 0;
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: #123e59;
     text-align: left;
     overflow: hidden;
@@ -1915,7 +1915,7 @@ body.dark-mode .cred_kanban_erro {
     margin: 24px 8px;
     text-align: center;
     color: #7a93a5;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
   }
 
   .cred_kanban_card.is-compact {
@@ -1932,7 +1932,7 @@ body.dark-mode .cred_kanban_erro {
     flex-direction: column;
     gap: 4px;
     margin: 0;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.02em;
@@ -1948,7 +1948,7 @@ body.dark-mode .cred_kanban_erro {
     border-radius: 8px;
     background: #f8fbfd;
     color: #1f3a4f;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 600;
     box-sizing: border-box;
   }
@@ -2008,7 +2008,7 @@ body.dark-mode .cred_kanban_erro {
   }
 
   .cred_kanban_modal_cabecalho h2 {
-    font-size: 1.05rem;
+    font-size: 1rem;
     max-width: calc(100vw - 7rem);
     white-space: normal;
   }
@@ -2059,7 +2059,7 @@ body.dark-mode .cred_kanban_erro {
   }
 
   .cred_kanban_modal_tip {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     line-height: 1.35;
     padding: 8px;
     margin-bottom: 8px;

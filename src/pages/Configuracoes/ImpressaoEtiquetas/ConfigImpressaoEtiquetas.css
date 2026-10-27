@@ -8,7 +8,7 @@
 
 .config_etiquetas_h2 {
     margin: 0 0 0.45rem;
-    font-size: 1.05rem;
+    font-size: 1rem;
     color: #123e59;
 }
 
@@ -16,7 +16,7 @@
 .config_etiquetas_meta,
 .config_etiquetas_arquivo {
     margin: 0.35rem 0 0;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #5a6f7e;
 }
 
@@ -43,7 +43,7 @@
     background: #eef7fd;
     color: #0a5d96;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     cursor: pointer;
 }
 
@@ -87,7 +87,7 @@
 .config_etiquetas_item_excluir {
     min-height: 1.65rem !important;
     padding: 0.15rem 0.55rem !important;
-    font-size: 0.72rem !important;
+    font-size: 0.75rem !important;
     border-radius: 6px !important;
     letter-spacing: 0;
     font-weight: 600;
@@ -108,7 +108,7 @@
     border: 1px solid #c9dae6;
     border-radius: 6px;
     background: #fff;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 400;
     color: #1e3148;
 }

@@ -90,14 +90,14 @@
 }
 
 .dev_tools_float_btn_ico {
-    font-size: 1.35rem;
+    font-size: 1.375rem;
     line-height: 1;
     pointer-events: none;
 }
 
 .dev_tools_float_btn_tab {
     color: #2d6a9f;
-    font-size: 1.25rem;
+    font-size: 1.375rem;
     font-weight: 800;
     line-height: 1;
     pointer-events: none;
@@ -204,7 +204,7 @@
 
 .dev_tools_float_titulo {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -218,7 +218,7 @@
     border-radius: 8px;
     background: #eef5fb;
     color: #40617a;
-    font-size: 1.2rem;
+    font-size: 1.125rem;
     line-height: 1;
     cursor: pointer;
 }
@@ -229,7 +229,7 @@
     border-radius: 999px;
     background: #f4f9fd;
     color: #40617a;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     cursor: pointer;
     padding: 0 0.65rem;
@@ -245,7 +245,7 @@
 
 .dev_tools_float_subtitulo {
     margin: 12px 0 8px;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -267,7 +267,7 @@
     align-items: flex-start;
     width: 100%;
     cursor: pointer;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #1e3148;
     user-select: none;
 }
@@ -301,7 +301,7 @@
 }
 
 .dev_tools_float_item_texto small {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #5a7288;
     line-height: 1.35;
 }

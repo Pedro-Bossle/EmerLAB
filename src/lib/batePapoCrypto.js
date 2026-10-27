@@ -75,6 +75,106 @@ export function limparPrivJwkLocal() {
   }
 }
 
+/*
+ * Identidade local protegida (S-09): depois que a cópia cifrada existe na cloud, a privada fica
+ * em IndexedDB como CryptoKey NÃO exportável — um XSS consegue usá-la enquanto a página está
+ * aberta, mas não consegue extraí-la. O JWK em localStorage só existe enquanto a sincronização
+ * ainda não foi ativada (é preciso o `d` para cifrar a cópia da cloud).
+ */
+const IDB_NOME = 'emerlab-bate-papo'
+const IDB_STORE = 'chaves'
+const IDB_CHAVE = 'identidade-v2'
+
+function abrirIdb() {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('IndexedDB indisponível'))
+      return
+    }
+    const req = indexedDB.open(IDB_NOME, 1)
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(IDB_STORE)) req.result.createObjectStore(IDB_STORE)
+    }
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+async function idbOperacao(modo, fn) {
+  const db = await abrirIdb()
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, modo)
+      const req = fn(tx.objectStore(IDB_STORE))
+      tx.oncomplete = () => resolve(req?.result)
+      tx.onerror = () => reject(tx.error)
+      tx.onabort = () => reject(tx.error)
+    })
+  } finally {
+    db.close()
+  }
+}
+
+/**
+ * @returns {Promise<{ privateKey: CryptoKey, publicJwk: object } | { privJwk: object } | null>}
+ *   `privateKey` = identidade protegida; `privJwk` = chave legada ainda sem sincronização.
+ */
+export async function lerIdentidadeLocal() {
+  try {
+    const salvo = await idbOperacao('readonly', (store) => store.get(IDB_CHAVE))
+    if (salvo?.privateKey && salvo?.publicJwk?.n) {
+      return { privateKey: salvo.privateKey, publicJwk: salvo.publicJwk }
+    }
+  } catch {
+    /* sem IndexedDB: segue para o legado */
+  }
+  const legado = lerPrivJwkLocal()
+  return legado ? { privJwk: legado } : null
+}
+
+/** Grava a privada como não exportável e apaga o JWK de localStorage. */
+export async function salvarIdentidadeProtegida(privJwk) {
+  const privateKey = await crypto.subtle.importKey(
+    'jwk',
+    privJwk,
+    { name: 'RSA-OAEP', hash: 'SHA-256' },
+    false,
+    ['decrypt'],
+  )
+  const publicJwk = publicaDePrivJwk(privJwk)
+  try {
+    await idbOperacao('readwrite', (store) => store.put({ privateKey, publicJwk }, IDB_CHAVE))
+    limparPrivJwkLocal()
+  } catch {
+    // Navegador sem IndexedDB (raro): mantém o comportamento anterior para não travar o chat.
+    salvarPrivJwkLocal(privJwk)
+  }
+}
+
+export async function limparIdentidadeLocal() {
+  limparPrivJwkLocal()
+  try {
+    await idbOperacao('readwrite', (store) => store.delete(IDB_CHAVE))
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Chave pública (n/e) da identidade local, para comparar com a da conta. */
+export function publicaDaIdentidade(identidade) {
+  if (!identidade) return null
+  return identidade.publicJwk || (identidade.privJwk ? publicaDePrivJwk(identidade.privJwk) : null)
+}
+
+/** Par utilizável (privateKey/publicKey/publicJwk) a partir da identidade local. */
+export async function parDaIdentidade(identidade) {
+  if (identidade?.privateKey) {
+    const publicKey = await importarPublicaJwk(identidade.publicJwk)
+    return { privateKey: identidade.privateKey, publicKey, publicJwk: identidade.publicJwk, privJwk: null }
+  }
+  return importarParDePrivJwk(identidade.privJwk)
+}
+
 export function publicaDePrivJwk(privJwk) {
   return {
     kty: privJwk.kty,

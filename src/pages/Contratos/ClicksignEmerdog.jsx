@@ -33,7 +33,6 @@ import {
     normalizarPapelQualificacao,
     normalizarTelefoneBr,
     formatarTelefoneBrExibicao,
-    pathFromClicksignLink,
     rotuloEstadoEnvelope,
     rotuloPapelQualificacao,
     payloadAtivarEnvelope,
@@ -191,9 +190,9 @@ export default function ClicksignEmerdog() {
     const [toast, setToast] = useState(null)
     const [loading, setLoading] = useState(false)
     const [rows, setRows] = useState([])
-    const [links, setLinks] = useState({})
-    const [meta, setMeta] = useState({})
-    const [listPath, setListPath] = useState(() => montarPathListagemEnvelopes({ pageNumber: 1, pageSize: 20 }))
+    const [, setLinks] = useState({})
+    const [, setMeta] = useState({})
+    const [, setListPath] = useState(() => montarPathListagemEnvelopes({ pageNumber: 1, pageSize: 20 }))
     const [statusFilter, setStatusFilter] = useState('')
     const [vistaPainel, setVistaPainel] = useState('hub')
     const [subTabLista, setSubTabLista] = useState('envelopes')
@@ -206,7 +205,7 @@ export default function ClicksignEmerdog() {
     const notifSyncApiRef = useRef(false)
 
     const [mesLoading, setMesLoading] = useState(false)
-    const [mesMeta, setMesMeta] = useState({})
+    const [, setMesMeta] = useState({})
     const [mesCount, setMesCount] = useState(null)
 
     const [filtroNomeEnvelope, setFiltroNomeEnvelope] = useState('')
@@ -279,12 +278,12 @@ export default function ClicksignEmerdog() {
     const [detailId, setDetailId] = useState('')
     const [detailJson, setDetailJson] = useState(null)
     const [detailLoading, setDetailLoading] = useState(false)
-    const [detailCancelando, setDetailCancelando] = useState(false)
+    const [, setDetailCancelando] = useState(false)
     const [detailDocs, setDetailDocs] = useState([])
     const [detailSigs, setDetailSigs] = useState([])
     const [detailSignersRaw, setDetailSignersRaw] = useState({})
     const [detailSigBusyId, setDetailSigBusyId] = useState('')
-    const [detailReqs, setDetailReqs] = useState([])
+    const [, setDetailReqs] = useState([])
     const [envelopeMenuId, setEnvelopeMenuId] = useState('')
     const [docMenuId, setDocMenuId] = useState('')
 
@@ -1074,21 +1073,6 @@ export default function ClicksignEmerdog() {
         }
     }
 
-    const abrirMontarEdicaoDesdeDetalhe = useCallback(() => {
-        const id = String(detailId || '').trim()
-        const st = String(detailJson?.data?.attributes?.status ?? detailJson?.data?.attributes?.state ?? '')
-            .trim()
-            .toLowerCase()
-        if (!id) return
-        if (st !== 'draft') {
-            pushToast('error', 'Edição', 'Só envelopes em rascunho (draft) podem ser editados nesta ferramenta.')
-            return
-        }
-        montarEdicaoEnvelopeIdRef.current = id
-        setDetailOpen(false)
-        setTab('montar')
-    }, [detailId, detailJson, pushToast])
-
     const persistirEnvelopeSessao = (id) => {
         const v = String(id || '').trim()
         if (!v) return
@@ -1748,11 +1732,6 @@ export default function ClicksignEmerdog() {
         } finally {
             setFluxoBusy(false)
         }
-    }
-
-    const pagina = (linkUrl) => {
-        const local = pathFromClicksignLink(linkUrl)
-        if (local) carregarLista(local)
     }
 
     const alternarOrdenacaoLista = (coluna) => {

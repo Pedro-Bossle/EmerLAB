@@ -1,7 +1,7 @@
 /* Lista: filtros em duas linhas — Busca 1 | Busca 2 | Situação | Mais ; ações */
 .credenciamento_cadastro_lista .credenciamento_cadastro_filters_title {
     margin: 0 0 0.35rem;
-    font-size: 1.05rem;
+    font-size: 1rem;
 }
 
 .credenciamento_cadastro_lista .credenciamento_cadastro_filters.credenciamento_main_filters {
@@ -60,7 +60,7 @@
 }
 
 .credenciamento_cadastro_mais_chevron {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     line-height: 1;
     opacity: 0.85;
 }
@@ -84,7 +84,7 @@
 .credenciamento_cadastro_dev_labs_feedback {
     flex: 1 1 100%;
     margin: 0.15rem 0 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .credenciamento_cadastro_lista .credenciamento_cadastro_btn_novo {
@@ -123,7 +123,7 @@
     box-sizing: border-box;
     padding: 0 10px;
     line-height: 36px;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     border-radius: 8px;
     border: 1px solid #9fc5de;
     background: #fff;
@@ -172,7 +172,7 @@
 }
 
 .pcad_card_head_switch_lbl {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #40617a;
 }
@@ -315,7 +315,7 @@
 }
 
 .credenciamento_cadastro_card_nome {
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 800;
     color: #123e59;
     line-height: 1.25;
@@ -329,13 +329,13 @@
     grid-template-columns: 5.75rem minmax(0, 1fr);
     gap: 0.1rem 0.45rem;
     align-items: baseline;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     line-height: 1.25;
     color: #35556d;
 }
 
 .credenciamento_cadastro_card_label {
-    font-size: 0.62rem;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -404,7 +404,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 
 .credenciamento_cadastro_copiar_codigos_btn {
     padding: 0.35rem 0.65rem;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     line-height: 1.2;
 }
 
@@ -453,7 +453,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 }
 
 .credenciamento_cadastro_perfil_pct_num {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #2c3e50;
     min-width: 2.25rem;
@@ -484,7 +484,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 }
 
 .credenciamento_cadastro_th_sort_btn:hover {
-    color: #2f87c6;
+    color: #1f78ad;
 }
 
 .pcad_page {
@@ -506,7 +506,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 .credenciamento_main.pcad_form_page .credenciamento_main_input,
 .credenciamento_main.pcad_form_page .credenciamento_main_select {
     height: 34px;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .pcad_intro {
@@ -517,7 +517,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 
 .pcad_muted {
     color: #666;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .pcad_erro {
@@ -534,7 +534,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 }
 
 .pcad_link_back {
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: #0b5cab;
 }
 
@@ -545,7 +545,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 }
 
 .pcad_section h2 {
-    font-size: 1.1rem;
+    font-size: 1.125rem;
     margin: 0 0 0.75rem;
 }
 
@@ -559,7 +559,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .pcad_field_wide {
@@ -579,7 +579,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
     padding: 0.35rem 0.6rem;
     border: 1px solid #ccc;
     border-radius: 6px;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     cursor: pointer;
 }
 
@@ -634,7 +634,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
     gap: 0.75rem;
     padding: 0.5rem 0.75rem;
     border-bottom: 1px solid #eef2f6;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .pcad_vet_vinculados_vazio {
@@ -666,7 +666,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
     border: 1px solid #ccc;
     border-radius: 6px;
     background: #fff;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     cursor: pointer;
 }
 
@@ -773,7 +773,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 }
 
 .pcad_servicos_sort_lbl {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #5d7b92;
 }
@@ -781,7 +781,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 .pcad_servicos_sort_btn {
     border: none;
     background: transparent;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #32566f;
     cursor: pointer;
@@ -798,7 +798,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
     column-gap: 0.65rem;
     row-gap: 0.35rem;
     padding: 0.55rem 0;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     align-items: start;
     border-bottom: 1px solid #eef3f7;
 }
@@ -832,19 +832,19 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 .pcad_servicos_item_titulo strong {
     color: #123e59;
     font-weight: 800;
-    font-size: 0.98rem;
+    font-size: 1rem;
 }
 
 .pcad_servicos_item_nome {
     color: #3d5168;
     font-weight: 500;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .pcad_servicos_nome_alt {
     width: 100%;
     min-width: 0;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 500;
     justify-self: stretch;
     position: relative;
@@ -870,7 +870,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 600;
 }
 
@@ -891,7 +891,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 .pcad_servicos_massa_feedback {
     margin: 0;
     flex: 1 1 12rem;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .pcad_servicos_labs {
@@ -915,7 +915,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 }
 
 .pcad_servicos_labs_auto_hint {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     max-width: 36rem;
     line-height: 1.35;
 }
@@ -973,7 +973,7 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 }
 
 .pcad_card h2 {
-    font-size: 1.05rem;
+    font-size: 1rem;
     margin: 0 0 0.75rem;
     color: #1a3a5c;
     text-align: left;
@@ -1102,13 +1102,13 @@ body.dark-mode .credenciamento_cadastro_card_situacao {
 }
 
 .pcad_field_label {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 500;
 }
 
 .pcad_field_tip {
     margin: 0;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 500;
     line-height: 1.35;
     color: #5a6f86;
@@ -1165,7 +1165,7 @@ body.dark-mode .pcad_field_tip {
     padding: 0.2rem 0.5rem;
     background: #e8f1fa;
     border-radius: 4px;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .pcad_multi_esp_tag_label {
@@ -1223,7 +1223,7 @@ body.dark-mode .pcad_field_tip {
     border: none;
     background: transparent;
     cursor: pointer;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .pcad_sugestoes li button:hover {
@@ -1235,7 +1235,7 @@ body.dark-mode .pcad_field_tip {
     background: none;
     color: #0b5cab;
     cursor: pointer;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     text-decoration: underline;
 }
 
@@ -1286,7 +1286,7 @@ body.dark-mode .pcad_field_tip {
     width: 128px;
     height: 38px;
     padding: 0 12px !important;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     font-weight: 600;
     justify-content: center;
 }
@@ -1310,7 +1310,7 @@ body.dark-mode .pcad_field_tip {
     color: #b3261e !important;
     border-color: #e8b4b0 !important;
     background: #fff8f7 !important;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 600;
 }
 
@@ -1372,7 +1372,7 @@ body.dark-mode .pcad_btn_apagar_bd:hover:not(:disabled) {
     gap: 0.75rem;
     padding: 0 0.85rem;
     border-bottom: 1px solid #eef2f6;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     box-sizing: border-box;
     background: #fff;
 }
@@ -1549,7 +1549,7 @@ body.dark-mode .pcad_btn_apagar_bd:hover:not(:disabled) {
         max-width: 9.5rem;
         height: 2.15rem;
         padding: 0 0.65rem !important;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
     }
 }
 
@@ -1734,7 +1734,7 @@ body.dark-mode .credenciamento_cadastro_perfil_bar--full .credenciamento_cadastr
 
 .pcad_dev_tools_perfil_desc {
     margin: 0 0 0.65rem;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     color: #5a7288;
     line-height: 1.4;
 }
@@ -1827,7 +1827,7 @@ body.dark-mode .pcad_dev_tools_perfil_acao {
     border: none;
     background: transparent;
     text-align: left;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     cursor: pointer;
     color: #1a3a52;
 }
@@ -1873,13 +1873,13 @@ body.dark-mode .pcad_dev_tools_perfil_acao {
 
 .pcad_modal_head h3 {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 1rem;
 }
 
 .pcad_modal_close {
     border: none;
     background: transparent;
-    font-size: 1.5rem;
+    font-size: 1.375rem;
     line-height: 1;
     cursor: pointer;
     color: #5a7085;
@@ -1902,14 +1902,14 @@ body.dark-mode .pcad_dev_tools_perfil_acao {
 
 .pcad_honorarios_cat h4 {
     margin: 0 0 8px;
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: #1e4d7a;
 }
 
 .pcad_honorarios_table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .pcad_honorarios_table th,
@@ -1935,7 +1935,7 @@ body.dark-mode .pcad_dev_tools_perfil_acao {
 .pcad_honorarios_link {
     border: none;
     background: transparent;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     color: #1e6bb8;
     cursor: pointer;
     padding: 0 2px;

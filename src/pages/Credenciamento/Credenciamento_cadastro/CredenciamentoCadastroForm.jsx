@@ -76,7 +76,6 @@ import {
     montarEnderecoGeocodeFromPrestador,
     parseCoordenadaEntrada,
 } from '../../../lib/credenciamento/prestadorEnderecoGeocode'
-import { apenasDigitos } from '../../../lib/contratos/validarDocumentos.js'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 
@@ -1623,7 +1622,7 @@ const CredenciamentoCadastroForm = () => {
                     />
                 </label>
                 <p className="pcad_muted pcad_hint">
-                    Campo automático e inalterável — preenchido com o nome do utilizador EmerLAB no momento do
+                    Campo automático e inalterável — preenchido com o nome do usuário EmerLAB no momento do
                     cadastro (formulário ou criação manual).
                 </p>
             </section>

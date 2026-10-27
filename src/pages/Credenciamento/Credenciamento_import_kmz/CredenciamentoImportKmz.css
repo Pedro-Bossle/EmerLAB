@@ -41,7 +41,7 @@
     border: 1px solid #d8e1ec;
     border-radius: 8px;
     padding: 6px 10px;
-    font-size: 14px;
+    font-size: 0.875rem;
 }
 
 .cred_import_kmz_kpi_ok {
@@ -64,7 +64,7 @@
 .cred_import_kmz_table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
+    font-size: 0.875rem;
 }
 
 .cred_import_kmz_table th,
@@ -90,7 +90,7 @@
     height: 28px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 18px;
+    font-size: 1.125rem;
     line-height: 1;
     padding: 0;
 }
@@ -121,7 +121,7 @@
 
 .cred_import_kmz_badge {
     display: inline-block;
-    font-size: 12px;
+    font-size: 0.75rem;
     font-weight: 600;
     padding: 2px 8px;
     border-radius: 6px;
@@ -145,7 +145,7 @@
 
 .cred_import_kmz_motivo {
     display: block;
-    font-size: 12px;
+    font-size: 0.75rem;
     margin-top: 4px;
 }
 

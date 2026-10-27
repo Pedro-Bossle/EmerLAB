@@ -26,7 +26,7 @@
 
 .config_obs_planos_muted {
     color: #5a7a94;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     margin: 0.5rem auto;
     max-width: 980px;
     width: calc(100% - 1.5em);
@@ -54,7 +54,7 @@
 
 .config_obs_planos_form_head h2 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1.125rem;
     color: var(--azul-escuro);
 }
 
@@ -66,7 +66,7 @@
 }
 
 .config_obs_planos_campo span {
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 700;
     color: var(--azul-escuro);
 }
@@ -79,7 +79,7 @@
 
 .config_obs_planos_preview_label {
     margin: 0 0 0.35rem;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 700;
     color: var(--azul-escuro);
 }
@@ -91,7 +91,7 @@
     border-radius: 10px;
     background: #fff;
     color: #5a606c;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     line-height: 1.45;
 }
 
@@ -121,7 +121,7 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: var(--cinza-escuro);
     cursor: pointer;
     padding-bottom: 0.35rem;
@@ -144,12 +144,12 @@
 
 .config_obs_planos_procs_head h3 {
     margin: 0;
-    font-size: 0.98rem;
+    font-size: 1rem;
     color: var(--azul-escuro);
 }
 
 .config_obs_planos_procs_head span {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: #5a7a94;
     font-weight: 600;
 }
@@ -169,7 +169,7 @@
     border: none;
     background: transparent;
     color: #0a74bb;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 700;
     cursor: pointer;
     padding: 0.25rem 0;
@@ -182,7 +182,7 @@
     color: var(--azul-escuro);
     border-radius: 999px;
     padding: 0.25rem 0.65rem;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     line-height: 1.2;
     cursor: pointer;
 }
@@ -222,7 +222,7 @@
 
 .config_obs_planos_cat_head h4 {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: var(--azul-escuro);
 }
 
@@ -230,14 +230,14 @@
     font-style: normal;
     font-weight: 600;
     color: #5a7a94;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .config_obs_planos_cat_acoes {
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #5a7a94;
 }
 
@@ -245,7 +245,7 @@
     border: none;
     background: transparent;
     color: #0a74bb;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 700;
     cursor: pointer;
     padding: 0 2px;
@@ -261,7 +261,7 @@
     align-items: flex-start;
     gap: 0.45rem;
     padding: 0.35rem 0.2rem;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: var(--cinza-escuro);
     cursor: pointer;
 }
@@ -318,7 +318,7 @@
 }
 
 .config_obs_planos_badge {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -338,7 +338,7 @@
     white-space: pre-wrap;
     line-height: 1.4;
     color: var(--cinza-escuro);
-    font-size: 0.95rem;
+    font-size: 1rem;
 }
 
 .config_obs_planos_card_acoes {
@@ -494,7 +494,7 @@ body.dark-mode .config_obs_planos_chip {
 
     .config_obs_planos_proc_item {
         padding: 0.55rem 0.15rem;
-        font-size: 0.92rem;
+        font-size: 0.875rem;
         gap: 0.55rem;
     }
 

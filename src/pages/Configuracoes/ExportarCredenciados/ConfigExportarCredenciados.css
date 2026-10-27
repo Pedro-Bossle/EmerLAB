@@ -7,7 +7,7 @@
     margin: 0 auto 1.1rem;
     line-height: 1.45;
     color: #4a657a;
-    font-size: 0.95rem;
+    font-size: 1rem;
 }
 
 .config_export_cred_painel {
@@ -39,7 +39,7 @@
 }
 
 .config_export_cred_painel_kicker {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -83,11 +83,11 @@
 .config_export_cred_campos_head h2 {
     margin: 0;
     color: var(--azul-escuro);
-    font-size: 1.1rem;
+    font-size: 1.125rem;
 }
 
 .config_export_cred_campos_head span {
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: #5a7a94;
     font-weight: 600;
 }
@@ -109,7 +109,7 @@
 .config_export_cred_grupo legend {
     padding: 0 0.3rem;
     color: var(--azul-escuro);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 700;
 }
 
@@ -124,7 +124,7 @@
     align-items: center;
     gap: 0.45rem;
     color: var(--cinza-escuro);
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     line-height: 1.25;
     cursor: pointer;
 }

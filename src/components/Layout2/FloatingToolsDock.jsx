@@ -13,6 +13,7 @@ export default function FloatingToolsDock({
   onSelectTool,
 }) {
   if (!tools.length) return null
+  const totalAvisos = tools.reduce((soma, t) => soma + (Number(t.badge) || 0), 0)
 
   return (
     <div className={`floating_tools_dock${expanded ? ' is-expanded' : ''}${activeToolId ? ' has-open-tool' : ''}`}>
@@ -20,10 +21,22 @@ export default function FloatingToolsDock({
         type="button"
         className="floating_tools_dock_toggle"
         aria-expanded={expanded}
-        aria-label={expanded ? 'Recolher ferramentas' : 'Expandir ferramentas'}
+        aria-label={
+          expanded
+            ? 'Fechar ferramentas'
+            : totalAvisos > 0
+              ? `Abrir ferramentas, ${totalAvisos} aviso(s)`
+              : 'Abrir ferramentas'
+        }
         onClick={() => onExpandedChange?.(!expanded)}
       >
-        <span aria-hidden="true">{expanded ? '▾' : '▴'}</span>
+        <span aria-hidden="true">{expanded ? '✕' : '☰'}</span>
+        <span className="floating_tools_dock_toggle_label">{expanded ? 'Fechar' : 'Ferramentas'}</span>
+        {!expanded && totalAvisos > 0 ? (
+          <span className="floating_tools_dock_chip_badge" aria-hidden="true">
+            {totalAvisos > 99 ? '99+' : totalAvisos}
+          </span>
+        ) : null}
       </button>
 
       {expanded ? (

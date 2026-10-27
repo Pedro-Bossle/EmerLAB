@@ -185,11 +185,6 @@ export default function PrestadorServicosAbas({
 
     const modoDescontos = abaAtiva === ABA_SERVICOS_DESCONTOS
 
-    const categoriaAtiva = useMemo(
-        () => categorias.find((c) => Number(c.id) === Number(abaAtiva)),
-        [categorias, abaAtiva],
-    )
-
     const procedimentosOrdenados = useMemo(() => {
         const list = [...procedimentosAba]
         const fator = ordenDir === 'asc' ? 1 : -1

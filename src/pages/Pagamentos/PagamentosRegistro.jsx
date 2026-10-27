@@ -304,7 +304,7 @@ export default function PagamentosRegistro() {
     const colSpanTabelaVazia = (podeEditar ? 10 : 9) - (ocultarColunaMes ? 1 : 0)
 
     const competenciaNovaLinha = useMemo(() => {
-        const { de, ate } = intervaloFiltroCompetencia
+        const { ate } = intervaloFiltroCompetencia
         if (registroNoIntervaloCompetencia({ mes: MES_ATUAL, ano: ANO_ATUAL }, intervaloFiltroCompetencia)) {
             return { mes: MES_ATUAL, ano: ANO_ATUAL }
         }
@@ -1398,6 +1398,7 @@ export default function PagamentosRegistro() {
                         <table
                             className={[
                                 'pag_reg_table',
+                                'tabela-cartoes',
                                 ocultarColunaMes ? 'pag_reg_table--sem_mes' : '',
                             ]
                                 .filter(Boolean)

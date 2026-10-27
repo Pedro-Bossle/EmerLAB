@@ -30,7 +30,7 @@ export function PageHeader({
     >
       <div className="el-page-header__text min-w-0 flex-1 text-left">
         {kicker ? (
-          <p className="el-page-header__kicker mb-1.5 text-[0.7rem] font-bold uppercase tracking-[0.12em] text-brand">
+          <p className="el-page-header__kicker mb-1.5 text-xs font-bold uppercase tracking-[0.12em] text-brand">
             {kicker}
           </p>
         ) : null}
@@ -38,7 +38,7 @@ export function PageHeader({
           {title}
         </h1>
         {description ? (
-          <p className="el-page-header__desc mt-2 max-w-2xl text-[0.95rem] font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
+          <p className="el-page-header__desc mt-2 max-w-2xl text-base font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
             {description}
           </p>
         ) : null}

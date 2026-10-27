@@ -17,7 +17,6 @@ import {
 } from '../../../lib/formularioCredenciamento'
 import {
     formatarCpfCnpjEntrada,
-    normalizarCpfCnpjParaSalvar,
     normalizarChavePixParaSalvar,
     normalizarCrmvParaSalvar,
     normalizarEmailParaSalvar,
@@ -208,12 +207,27 @@ export default function CredenciamentoFormularioPublico() {
 
     const perfilComCertificadosResponsaveis = Boolean(tipoPerfil)
 
+    // Tentativa de carga atual (botão «Tentar de novo») e aviso quando passa de 8 s.
+    const [tentativaCarga, setTentativaCarga] = useState(0)
+    const [cargaDemorando, setCargaDemorando] = useState(false)
+    const [falhaCarga, setFalhaCarga] = useState(false)
+
     useEffect(() => {
+        if (!loading) return undefined
+        const t = setTimeout(() => setCargaDemorando(true), 8000)
+        return () => clearTimeout(t)
+    }, [loading, tentativaCarga])
+
+    useEffect(() => {
+        let ativo = true
         const run = async () => {
             setLoading(true)
+            setCargaDemorando(false)
+            setFalhaCarga(false)
             setErro('')
             try {
                 const pack = await carregarConfigFormularioCredenciamento()
+                if (!ativo) return
                 if (!pack.config?.ativo) {
                     setErro('Este formulário não está disponível no momento.')
                     return
@@ -233,7 +247,7 @@ export default function CredenciamentoFormularioPublico() {
                     setErro(
                         (prev) =>
                             prev ||
-                            'Não foi possível carregar a lista de especialidades. Confirme o script SQL credenciamento_listar_especialidades no Supabase.',
+                            'Não foi possível carregar a lista de especialidades. Recarregue a página em alguns instantes.',
                     )
                 }
 
@@ -246,15 +260,21 @@ export default function CredenciamentoFormularioPublico() {
                     }
                     mapa[p.id] = await carregarProcedimentosPublicadosFormulario(ids)
                 }
+                if (!ativo) return
                 setProcsPorPagina(mapa)
             } catch (e) {
-                setErro(e?.message || String(e))
+                if (!ativo) return
+                console.error(e)
+                setFalhaCarga(true)
             } finally {
-                setLoading(false)
+                if (ativo) setLoading(false)
             }
         }
         void run()
-    }, [slug])
+        return () => {
+            ativo = false
+        }
+    }, [slug, tentativaCarga])
 
     const verificarDoc = async () => {
         if (!documentoCpfCnpjEstaCompleto(cpfCnpj)) {
@@ -547,10 +567,34 @@ export default function CredenciamentoFormularioPublico() {
                     </p>
                 </header>
 
-                {loading && <p>Carregando formulário…</p>}
+                {loading && !cargaDemorando && (
+                    <div className="fcred_public_skeleton" role="status" aria-live="polite">
+                        <span className="sr-only">Carregando o formulário</span>
+                        <div className="fcred_sk fcred_sk--rotulo" />
+                        <div className="fcred_sk fcred_sk--campo" />
+                        <div className="fcred_sk fcred_sk--rotulo fcred_sk--curto" />
+                        <div className="fcred_sk fcred_sk--campo" />
+                        <div className="fcred_sk fcred_sk--rotulo" />
+                        <div className="fcred_sk fcred_sk--campo" />
+                        <div className="fcred_sk fcred_sk--botao" />
+                    </div>
+                )}
+                {((loading && cargaDemorando) || falhaCarga) && (
+                    <div className="fcred_public_falha" role="alert">
+                        <h2>Não conseguimos carregar o formulário</h2>
+                        <p>Verifique sua conexão com a internet e tente de novo.</p>
+                        <button
+                            type="button"
+                            className="fcred_public_falha_btn"
+                            onClick={() => setTentativaCarga((n) => n + 1)}
+                        >
+                            Tentar de novo
+                        </button>
+                    </div>
+                )}
                 {erro && <p className="fcred_public_erro">{erro}</p>}
 
-                {!loading && !erro && passo === 0 && (
+                {!loading && !falhaCarga && !erro && passo === 0 && (
                     <section>
                         <p className="fcred_public_lead">Você é / possui:</p>
                         <div className="fcred_tipo_grid">

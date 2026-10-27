@@ -8,14 +8,14 @@
 
 .contratos_emerdog h1 {
     text-align: left;
-    font-size: 1.45rem;
+    font-size: 1.375rem;
     margin: 0.5rem 0 0.25rem;
     font-weight: 700;
 }
 
 .contratos_emerdog_sub {
     text-align: left;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #5e7188;
     margin: 0 0 1.25rem;
 }
@@ -27,7 +27,7 @@
     border: 1px solid #c5d9e8;
     background: #f0f7fc;
     color: #1e4d7a;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     text-align: center;
 }
 
@@ -51,13 +51,13 @@ body.dark-mode .contratos_readonly_banner {
     color: #1e3148;
     padding: 0.55rem 1rem;
     border-radius: 10px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     cursor: pointer;
     transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .contratos_tab:hover {
-    border-color: #2f87c6;
+    border-color: #1f78ad;
     background: #f8fbfd;
 }
 
@@ -84,7 +84,7 @@ body.dark-mode .contratos_readonly_banner {
 
 .contratos_field label {
     display: block;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     margin-bottom: 0.35rem;
     color: #3d5266;
@@ -103,7 +103,7 @@ body.dark-mode .contratos_readonly_banner {
     padding: 0.5rem 0.65rem;
     border: 1px solid #b8d3e5;
     border-radius: 8px;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     font-family: inherit;
     color: #1e3148;
     background: #fff;
@@ -113,7 +113,7 @@ body.dark-mode .contratos_readonly_banner {
 .contratos_select:focus,
 .contratos_textarea:focus {
     outline: none;
-    border-color: #2f87c6;
+    border-color: #1f78ad;
     box-shadow: 0 0 0 2px rgba(47, 135, 198, 0.2);
 }
 
@@ -152,7 +152,7 @@ body.dark-mode .contratos_readonly_banner {
     border: none;
     border-radius: 10px;
     padding: 0.65rem 1.25rem;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     font-weight: 600;
     cursor: pointer;
     font-family: inherit;
@@ -175,7 +175,7 @@ body.dark-mode .contratos_readonly_banner {
 }
 
 .contratos_btn_primary {
-    background: #2f87c6;
+    background: #1f78ad;
     color: #fff;
 }
 
@@ -209,11 +209,11 @@ body.dark-mode .contratos_readonly_banner {
 }
 
 .contratos_toast_text strong {
-    font-size: 0.92rem;
+    font-size: 0.875rem;
 }
 
 .contratos_toast_body {
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     line-height: 1.35;
     white-space: pre-wrap;
     word-break: break-word;
@@ -232,7 +232,7 @@ body.dark-mode .contratos_readonly_banner {
 }
 
 .contratos_toast--info {
-    border: 1px solid #2f87c6;
+    border: 1px solid #1f78ad;
     background: linear-gradient(180deg, #f1f8fc 0%, #e3f2fb 100%);
 }
 
@@ -308,7 +308,7 @@ body.dark-mode .contratos_readonly_banner {
     color: #1e3148;
     border-radius: 6px;
     padding: 0.35rem 0.75rem;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     cursor: pointer;
     font-family: inherit;
@@ -408,7 +408,7 @@ body.dark-mode .contratos_toast_btn--danger {
     width: 18px;
     height: 18px;
     border: 2px solid #b8d3e5;
-    border-top-color: #2f87c6;
+    border-top-color: #1f78ad;
     border-radius: 50%;
     animation: contratos_spin 0.7s linear infinite;
 }
@@ -446,7 +446,7 @@ body.dark-mode .contratos_toast_btn--danger {
     padding: 1rem 1.25rem;
     border-bottom: 1px solid #e8f1f7;
     font-weight: 700;
-    font-size: 1.05rem;
+    font-size: 1rem;
 }
 
 .contratos_modal_body {
@@ -459,7 +459,7 @@ body.dark-mode .contratos_toast_btn--danger {
     white-space: pre-wrap;
     word-break: break-word;
     font-family: 'Times New Roman', Times, serif;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     line-height: 1.45;
     color: #2c3e50;
     margin: 0;
@@ -475,13 +475,13 @@ body.dark-mode .contratos_toast_btn--danger {
 }
 
 .contratos_hint {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #5e7188;
     margin-top: 0.25rem;
 }
 
 .contratos_assets_note {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #5e7188;
     text-align: center;
     margin-top: 1rem;
@@ -518,8 +518,8 @@ body.dark-mode .contratos_tab:hover {
 }
 
 body.dark-mode .contratos_tab.is-active {
-    background: #2f87c6;
-    border-color: #2f87c6;
+    background: #1f78ad;
+    border-color: #1f78ad;
     color: #fff;
 }
 

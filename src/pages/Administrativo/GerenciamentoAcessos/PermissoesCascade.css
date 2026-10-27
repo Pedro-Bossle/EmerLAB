@@ -39,7 +39,7 @@
     background: #eef5fb;
     color: #123e59;
     padding: 0.4rem 0.7rem;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
 }
@@ -54,7 +54,7 @@
     border-radius: 10px;
     border: 1px dashed #c5d8e6;
     color: #6a8496;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .permissoes_cascade_grupo_count {
@@ -63,7 +63,7 @@
     padding: 0.05rem 0.4rem;
     border-radius: 999px;
     background: rgba(47, 135, 198, 0.12);
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 700;
     vertical-align: middle;
 }
@@ -80,7 +80,7 @@
 }
 
 .permissoes_cascade_legenda {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.02em;
@@ -138,14 +138,14 @@
 
 .permissoes_cascade_tool_col strong {
     display: block;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     color: #174964;
 }
 
 .permissoes_cascade_tool_col small {
     display: block;
     margin-top: 2px;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #6a8496;
     line-height: 1.35;
 }
@@ -159,7 +159,7 @@
 .permissoes_cascade_acao_col.is-na,
 .permissoes_cascade_acao_col.is-empty {
     color: #c5d5e0;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .permissoes_cascade_acao_col input {
@@ -170,7 +170,7 @@
 
 .permissoes_cascade_acao_label {
     display: none;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #31566f;
 }
@@ -181,7 +181,7 @@ body.dark-mode .permissoes_cascade_acao_label {
 
 .permissoes_cascade_nota {
     margin: 8px 0 0;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #6a8496;
 }
 

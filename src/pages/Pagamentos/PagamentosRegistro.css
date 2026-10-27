@@ -13,7 +13,7 @@
 }
 
 .pag_reg_filtros_titulo {
-    font-size: 1.5rem;
+    font-size: 1.375rem;
     margin: 0 0 8px;
     color: var(--cinza-escuro);
     font-weight: 600;
@@ -65,7 +65,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--azul-escuro);
     min-width: 88px;
@@ -85,7 +85,7 @@
 .pag_reg_filtro input:not([type='month']),
 .pag_reg_input_month {
     font: inherit;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     padding: 7px 10px;
     border: 1px solid #c5d9e8;
     border-radius: 8px;
@@ -126,14 +126,14 @@
 }
 
 .pag_reg_competencia_de_ate_label {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--azul-escuro);
 }
 
 .pag_reg_competencia_sep {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #6a8499;
     padding: 0 2px;
@@ -157,7 +157,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--azul-escuro);
     text-transform: none;
@@ -200,7 +200,7 @@
 
 .pag_reg_btn {
     font: inherit;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 600;
     padding: 8px 14px;
     border-radius: 8px;
@@ -233,7 +233,7 @@
     display: block;
     box-sizing: border-box;
     width: 100%;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #4a6278;
     line-height: 1.55;
     margin: 0 0 12px;
@@ -245,7 +245,7 @@
 }
 
 .pag_reg_massa_tip code {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     word-break: break-word;
 }
 
@@ -267,7 +267,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--azul-escuro);
     text-align: left;
@@ -276,7 +276,7 @@
 
 .pag_reg_massa_area textarea {
     font: inherit;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     padding: 8px;
     border: 1px solid #c5d9e8;
     border-radius: 8px;
@@ -294,7 +294,7 @@
 }
 
 .pag_reg_massa_sem_edit {
-    font-size: 0.76rem;
+    font-size: 0.75rem;
     color: #8a2a2a;
     margin: 8px 0 0;
     max-width: 420px;
@@ -308,7 +308,7 @@
     border-radius: 10px;
     border: 1px solid #b8d4e8;
     background: #f8fbfd;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     text-align: left;
 }
 
@@ -332,7 +332,7 @@
 }
 
 .pag_reg_resumo_massa_periodo {
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #5a7a94;
     padding: 2px 8px;
@@ -348,7 +348,7 @@
 }
 
 .pag_reg_resumo_stat {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     padding: 4px 10px;
     border-radius: 999px;
@@ -371,7 +371,7 @@
 
 .pag_reg_resumo_massa_head button {
     font: inherit;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     padding: 6px 12px;
     border-radius: 6px;
     border: 1px solid #b8d4e8;
@@ -389,7 +389,7 @@
 }
 
 .pag_reg_resumo_massa_sec h3 {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--azul-escuro);
@@ -407,7 +407,7 @@
 .pag_reg_resumo_tabela {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
 }
 
 .pag_reg_resumo_tabela thead th {
@@ -415,7 +415,7 @@
     top: 0;
     z-index: 1;
     text-align: left;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -455,7 +455,7 @@
     white-space: nowrap;
     color: #5a7a94;
     font-weight: 600;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .pag_reg_resumo_col_valor {
@@ -519,7 +519,7 @@
 .pag_reg_resumo_select {
     width: 100%;
     font: inherit;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     padding: 6px 8px;
     border-radius: 6px;
     border: 1px solid #c5d9e8;
@@ -528,7 +528,7 @@
 }
 
 .pag_reg_resumo_sem_sug {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #6a8499;
     font-style: italic;
 }
@@ -541,7 +541,7 @@
 
 .pag_reg_resumo_btn {
     font: inherit;
-    font-size: 0.76rem;
+    font-size: 0.75rem;
     font-weight: 600;
     padding: 5px 10px;
     border-radius: 6px;
@@ -575,7 +575,7 @@
 
 .pag_reg_resumo_badge {
     display: inline-block;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 600;
     padding: 2px 8px;
     border-radius: 999px;
@@ -612,13 +612,13 @@
     margin: 0 0 12px;
     width: 100%;
     max-width: none;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .pag_reg_banner button {
     border: none;
     background: transparent;
-    font-size: 1.2rem;
+    font-size: 1.125rem;
     cursor: pointer;
     line-height: 1;
 }
@@ -644,7 +644,7 @@
     width: 100%;
     max-width: none;
     margin: 0 0 10px;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #556778;
 }
 
@@ -701,7 +701,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     width: 4.25rem;
     text-align: center;
     white-space: nowrap;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .pag_reg_col_prestador {
@@ -719,7 +719,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     width: 4.25rem;
     text-align: center;
     white-space: nowrap;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .pag_reg_col_pix {
@@ -751,7 +751,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     text-align: center;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     color: #556677;
 }
 
@@ -763,7 +763,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
 .pag_reg_table thead th {
     background: var(--azul-escuro);
     color: #fff;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 700;
     padding: 10px 6px;
     text-align: center;
@@ -808,7 +808,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
 .pag_reg_table td {
     padding: 6px 8px;
     border-bottom: 1px solid #e8f1f7;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     vertical-align: middle;
 }
 
@@ -823,7 +823,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .pag_reg_chk {
@@ -876,7 +876,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     max-width: 100%;
     min-width: 0;
     font: inherit;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     padding: 6px 8px;
     border: 1px solid #b8d4c8;
     border-radius: 6px;
@@ -886,7 +886,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
 
 .pag_reg_input_valor {
     text-align: right;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     padding: 5px 6px;
 }
 
@@ -921,7 +921,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     padding: 5px 7px;
 }
 
@@ -967,19 +967,19 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: var(--azul-escuro);
 }
 
 .pag_reg_card_meta {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #556778;
 }
 
 .pag_reg_card_checks {
     display: flex;
     gap: 16px;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .pag_reg_card_checks label {
@@ -1051,7 +1051,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
         flex: none;
         width: 100%;
         gap: 2px;
-        font-size: 0.62rem;
+        font-size: 0.75rem;
     }
 
     .pag_reg_filtro span {
@@ -1092,13 +1092,13 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     }
 
     .pag_reg_competencia_de_ate_label {
-        font-size: 0.6rem;
+        font-size: 0.75rem;
         letter-spacing: 0.03em;
     }
 
     .pag_reg_competencia_sep {
         margin-bottom: 0.4rem;
-        font-size: 0.65rem;
+        font-size: 0.75rem;
         padding: 0;
         flex-shrink: 0;
         line-height: 1;
@@ -1112,7 +1112,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
         height: 30px;
         min-height: 30px;
         padding: 2px 6px;
-        font-size: 0.78rem;
+        font-size: 0.75rem;
         border-radius: 6px;
         box-sizing: border-box;
     }
@@ -1133,7 +1133,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
         width: 100%;
         min-height: 32px;
         padding: 0.28rem 0.4rem;
-        font-size: 0.72rem;
+        font-size: 0.75rem;
         border-radius: 6px;
         box-sizing: border-box;
         white-space: normal;
@@ -1146,7 +1146,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     }
 
     .pag_reg_massa_tip {
-        font-size: 0.74rem;
+        font-size: 0.75rem;
         padding: 8px 10px;
         margin-bottom: 10px;
         line-height: 1.45;
@@ -1168,7 +1168,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
 
     .pag_reg_banner {
         flex-wrap: wrap;
-        font-size: 0.82rem;
+        font-size: 0.875rem;
         padding: 9px 12px;
         margin-bottom: 10px;
     }
@@ -1177,14 +1177,14 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
         flex-direction: column;
         align-items: flex-start;
         gap: 4px;
-        font-size: 0.82rem;
+        font-size: 0.875rem;
         margin-bottom: 8px;
     }
 
     .pag_reg_resumo_massa {
         padding: 10px 12px;
         margin-bottom: 12px;
-        font-size: 0.82rem;
+        font-size: 0.875rem;
     }
 
     .pag_reg_resumo_massa_head {
@@ -1213,7 +1213,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
 
     .pag_reg_resumo_tabela {
         min-width: 640px;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
     }
 
     .pag_reg_table_wrap {
@@ -1241,7 +1241,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
         text-align: center;
         color: #556778;
         padding: 1.5rem 1rem;
-        font-size: 0.88rem;
+        font-size: 0.875rem;
     }
 
     .pag_reg_card_head {
@@ -1259,7 +1259,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     }
 
     .pag_reg_card_tipo {
-        font-size: 0.78rem;
+        font-size: 0.75rem;
         font-weight: 600;
         color: #5a7a94;
         padding: 2px 8px;
@@ -1278,7 +1278,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
         flex-direction: column;
         gap: 4px;
         text-align: left;
-        font-size: 0.72rem;
+        font-size: 0.75rem;
         font-weight: 600;
         color: var(--azul-escuro);
         text-transform: uppercase;
@@ -1293,7 +1293,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
         font-weight: 500;
         height: 38px;
         min-height: 38px;
-        font-size: 0.9rem;
+        font-size: 0.875rem;
     }
 
     .pag_reg_card_field .pag_reg_input_valor {
@@ -1321,7 +1321,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     .pag_reg_card_field .prestador_vinculo_busca .prestador_vinculo_busca_input {
         height: 38px;
         min-height: 38px;
-        font-size: 0.88rem;
+        font-size: 0.875rem;
         text-transform: none;
         letter-spacing: 0;
         font-weight: 500;
@@ -1333,7 +1333,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
         border-radius: 8px;
         background: #f4f8fb;
         border: 1px solid #e0ebf3;
-        font-size: 0.82rem;
+        font-size: 0.875rem;
         color: #445566;
         overflow-wrap: anywhere;
         word-break: break-word;
@@ -1342,7 +1342,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
 
     .pag_reg_card_field_label {
         display: block;
-        font-size: 0.68rem;
+        font-size: 0.75rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
@@ -1354,7 +1354,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 0.45rem;
-        font-size: 0.86rem;
+        font-size: 0.875rem;
         font-weight: 600;
     }
 
@@ -1401,7 +1401,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     .pag_reg_filtro--competencia,
     .pag_reg_filtro--intervalo,
     .pag_reg_filtro--mes {
-        font-size: 0.58rem;
+        font-size: 0.75rem;
     }
 
     .pag_reg_filtro select,
@@ -1410,13 +1410,13 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
         height: 28px;
         min-height: 28px;
         padding: 1px 5px;
-        font-size: 0.74rem;
+        font-size: 0.75rem;
         border-radius: 5px;
     }
 
     .pag_reg_competencia_sep {
         margin-bottom: 0.35rem;
-        font-size: 0.6rem;
+        font-size: 0.75rem;
     }
 
     .pag_reg_filtros_acoes {
@@ -1427,7 +1427,7 @@ body > .prestador_vinculo_busca_portal.row_add_suggest_list.is-portal {
     .pag_reg_filtros_acoes .pag_reg_btn {
         min-height: 30px;
         padding: 0.22rem 0.3rem;
-        font-size: 0.68rem;
+        font-size: 0.75rem;
     }
 
     .pag_reg_card {

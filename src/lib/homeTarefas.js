@@ -173,7 +173,8 @@ export function mapRowTarefa(row, nomesPorId = new Map()) {
 function nomeArquivoExibicaoAnexo(nome) {
     return (
         String(nome || 'arquivo')
-            .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+            // eslint-disable-next-line no-control-regex -- remove caracteres de controle de nomes de arquivo
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
             .replace(/\s+/g, ' ')
             .trim()
             .slice(0, 180) || 'arquivo'

@@ -17,8 +17,10 @@ import { calcularJanelaVirtualTabela, criarHandlerScrollVirtualTabela } from '..
 import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planosHierarquia.js'
 import { PageHeader } from '../../../components/ui'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
+import { useTelaPequena } from '../../../hooks/useTelaPequena.js'
 
 const Supertabelamain = () => {
+    const telaPequena = useTelaPequena()
     const ALTURA_LINHA_TABELA = 42
     const MAX_LINHAS_VISIVEIS = 10
     const LINHAS_OVERSCAN = 6
@@ -960,7 +962,8 @@ const Supertabelamain = () => {
                 ) : (
                     secoesPorCategoria.map((secao) => {
                         const totalLinhasSecao = secao.linhas.length
-                        const usarVirtualizacao = totalLinhasSecao > MAX_LINHAS_VISIVEIS
+                        // No celular as linhas viram cartões de altura variável: sem virtualização.
+                        const usarVirtualizacao = !telaPequena && totalLinhasSecao > MAX_LINHAS_VISIVEIS
                         const alturaVisivelCorpo = Math.min(totalLinhasSecao, MAX_LINHAS_VISIVEIS) * ALTURA_LINHA_TABELA
                         const janelaVirtual = calcularJanelaVirtualTabela({
                             scrollTop: scrollTopoPorCategoria[secao.categoriaId] ?? 0,
@@ -1109,7 +1112,7 @@ const Supertabelamain = () => {
                                         </div>
                                     </>
                                 ) : (
-                                    <table className='table_main'>
+                                    <table className='table_main tabela-cartoes'>
                                         <colgroup>
                                             <col className='supertabelamain_col_codigo' style={{ width: '11%' }} />
                                             <col className='supertabelamain_col_nome' style={{ width: '33%' }} />

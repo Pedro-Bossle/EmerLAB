@@ -46,7 +46,7 @@ export function coletarCidadeTabelaIdsPrestador(prestador, ctx) {
     return ids
 }
 
-function mapaLaboratoriosPorCidadeTabela(prestadores, ctx, idsEspLab) {
+function mapaLaboratoriosPorCidadeTabela(prestadores, ctx, _idsEspLab) {
     const mapa = new Map()
     ;(prestadores || []).forEach((p) => {
         if (!prestadorEhLaboratorio(p.especialidade_id, ctx.especialidades)) return

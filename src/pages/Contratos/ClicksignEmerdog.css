@@ -28,7 +28,7 @@
     --cs-border: #d7e8f2;
     --cs-border-strong: #b8d3e5;
     --cs-surface: #fafcfe;
-    --cs-primary: #2f87c6;
+    --cs-primary: #1f78ad;
     --cs-primary-soft: #f0f7fc;
     --cs-status-running: #1e6b3a;
     --cs-status-running-bg: #e3f4e8;
@@ -56,7 +56,7 @@
 
 .cs_dash_doc_title {
     margin: 0;
-    font-size: 1.35rem;
+    font-size: 1.375rem;
     font-weight: 700;
     color: var(--cs-text);
 }
@@ -66,7 +66,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 12px;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .cs_dash_link {
@@ -90,7 +90,7 @@
 
 .cs_dash_link_muted {
     color: var(--cs-muted);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .cs_dash_notify {
@@ -118,13 +118,13 @@
 }
 
 .cs_dash_notify_clear {
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     padding: 0.35rem 0.65rem;
 }
 
 .cs_dash_notify_empty {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: var(--cs-muted, #5a7085);
 }
 
@@ -157,7 +157,7 @@
 
 .cs_dash_notify_texto {
     display: block;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--cs-text, #1e3148);
 }
@@ -165,7 +165,7 @@
 .cs_dash_notify_quando {
     display: block;
     margin-top: 0.2rem;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 400;
     color: var(--cs-muted, #5a7085);
 }
@@ -205,7 +205,7 @@ body.dark-mode .cs_dash_notify_texto {
 
 .cs_dash_continue_empty {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: var(--cs-muted, #5a7085);
 }
 
@@ -225,7 +225,7 @@ body.dark-mode .cs_dash_notify_texto {
     border-radius: 8px;
     background: #fff;
     padding: 0.55rem 0.75rem;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: var(--cs-text, #1e3148);
     cursor: pointer;
     transition: background 0.15s ease, border-color 0.15s ease;
@@ -317,7 +317,7 @@ body.dark-mode .cs_dash_continue_row:hover {
 }
 
 .cs_dash_upload_hint {
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     color: var(--cs-muted);
 }
 
@@ -336,7 +336,7 @@ body.dark-mode .cs_dash_continue_row:hover {
 
 .cs_dash_card_title {
     margin: 0 0 0.75rem;
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--cs-text);
 }
@@ -378,7 +378,7 @@ button.cs_dash_metric_box:hover {
 }
 
 .cs_dash_metric_label {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--cs-muted);
 }
@@ -401,7 +401,7 @@ button.cs_dash_metric_box:hover {
 
 .cs_dash_period_hint {
     margin: 0.65rem 0 0;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
 }
 
 .cs_dash_back {
@@ -411,7 +411,7 @@ button.cs_dash_metric_box:hover {
     color: var(--cs-primary);
     font-weight: 600;
     cursor: pointer;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .cs_dash_back:hover {
@@ -427,7 +427,7 @@ button.cs_dash_metric_box:hover {
 
 .cs_dash_section_title {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1.375rem;
     font-weight: 700;
     color: var(--cs-text);
 }
@@ -474,7 +474,7 @@ button.cs_dash_metric_box:hover {
     background: none;
     padding: 0.5rem 0 0.65rem;
     margin-bottom: -1px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--cs-muted);
     cursor: pointer;
@@ -534,7 +534,7 @@ button.cs_dash_metric_box:hover {
 
 .clicksign_stat_label {
     display: block;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #5e7188;
     text-transform: uppercase;
@@ -543,14 +543,14 @@ button.cs_dash_metric_box:hover {
 
 .clicksign_stat_value {
     display: block;
-    font-size: 1.35rem;
+    font-size: 1.375rem;
     line-height: 1.2;
     color: #1e3148;
     margin: 0.2rem 0;
 }
 
 .clicksign_stat_hint {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     color: #6b7f95;
     line-height: 1.35;
 }
@@ -571,7 +571,7 @@ button.cs_dash_metric_box:hover {
 }
 
 .clicksign_field_inline label {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
 }
 
 .clicksign_field_grow {
@@ -591,7 +591,7 @@ button.cs_dash_metric_box:hover {
 }
 
 .clicksign_btn_icon_label {
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .clicksign_icon_eye {
@@ -658,7 +658,7 @@ button.cs_dash_metric_box:hover {
 .clicksign_detail_table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .clicksign_detail_table th,
@@ -698,7 +698,7 @@ button.cs_dash_metric_box:hover {
 }
 
 .clicksign_subtitle {
-    font-size: 0.95rem;
+    font-size: 1rem;
     margin: 0 0 0.5rem;
     color: #1e3148;
 }
@@ -719,7 +719,7 @@ button.cs_dash_metric_box:hover {
 .clicksign_mini_list {
     margin: 0;
     padding-left: 1.1rem;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     line-height: 1.55;
     color: #30495f;
 }
@@ -738,7 +738,7 @@ button.cs_dash_metric_box:hover {
 
 .clicksign_detail_attrs {
     margin-bottom: 0.75rem;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .clicksign_detail_attrs p {
@@ -747,13 +747,13 @@ button.cs_dash_metric_box:hover {
 
 .clicksign_details {
     margin-top: 0.75rem;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .clicksign_details summary {
     cursor: pointer;
     font-weight: 600;
-    color: #2f87c6;
+    color: #1f78ad;
 }
 
 .clicksign_toolbar {
@@ -786,7 +786,7 @@ button.cs_dash_metric_box:hover {
 }
 
 .clicksign_meta {
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     color: #5e7188;
 }
 
@@ -811,7 +811,7 @@ button.cs_dash_metric_box:hover {
 .clicksign_table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     box-sizing: border-box;
 }
 
@@ -853,7 +853,7 @@ button.cs_dash_metric_box:hover {
 }
 
 .clicksign_th_sort_btn:hover {
-    color: #2f87c6;
+    color: #1f78ad;
 }
 
 .clicksign_table_envelopes {
@@ -907,7 +907,7 @@ button.cs_dash_metric_box:hover {
 .clicksign_col_data {
     width: 12%;
     min-width: 118px;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     line-height: 1.35;
 }
 
@@ -956,8 +956,8 @@ button.cs_dash_metric_box:hover {
 
 .clicksign_menu_trigger:hover {
     background: #f0f7fc;
-    border-color: #2f87c6;
-    color: #2f87c6;
+    border-color: #1f78ad;
+    color: #1f78ad;
 }
 
 .clicksign_dropdown {
@@ -994,7 +994,7 @@ button.cs_dash_metric_box:hover {
     border: none;
     background: transparent;
     text-align: left;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: #2a4055;
     cursor: pointer;
     text-decoration: none;
@@ -1026,7 +1026,7 @@ button.cs_dash_metric_box:hover {
     border: 1px solid #d18c8c;
     background: #ffe5e5;
     color: #6b1f1f;
-    font-size: 15px;
+    font-size: 1rem;
     line-height: 1;
     box-sizing: border-box;
 }
@@ -1049,12 +1049,12 @@ button.cs_dash_metric_box:hover {
 
 .clicksign_btn_sm {
     padding: 0.4rem 0.75rem;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .clicksign_mono {
     font-family: ui-monospace, monospace;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     word-break: break-all;
 }
 
@@ -1062,7 +1062,7 @@ button.cs_dash_metric_box:hover {
     display: inline-block;
     padding: 0.15rem 0.45rem;
     border-radius: 6px;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     text-transform: lowercase;
 }
@@ -1095,7 +1095,7 @@ button.cs_dash_metric_box:hover {
 
 .clicksign_pagination_info {
     margin-right: auto;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: #5a7085;
     font-weight: 600;
 }
@@ -1114,7 +1114,7 @@ button.cs_dash_metric_box:hover {
 }
 
 .clicksign_lista_paginacao_info {
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     color: #35556d;
 }
 
@@ -1130,7 +1130,7 @@ button.cs_dash_metric_box:hover {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #1e4d7a;
 }
@@ -1142,7 +1142,7 @@ button.cs_dash_metric_box:hover {
 .clicksign_lista_paginacao_page {
     min-width: 110px;
     text-align: center;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #35556d;
 }
@@ -1166,7 +1166,7 @@ button.cs_dash_metric_box:hover {
 .clicksign_textarea_tall {
     min-height: 180px;
     font-family: ui-monospace, monospace;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .clicksign_pre {
@@ -1175,7 +1175,7 @@ button.cs_dash_metric_box:hover {
     background: #f8fbfd;
     border: 1px solid #d7e8f2;
     border-radius: 8px;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     line-height: 1.4;
     overflow: auto;
     max-height: 360px;
@@ -1188,7 +1188,7 @@ button.cs_dash_metric_box:hover {
 }
 
 .clicksign_links a {
-    color: #2f87c6;
+    color: #1f78ad;
     font-weight: 500;
 }
 
@@ -1238,7 +1238,7 @@ button.cs_dash_metric_box:hover {
     .clicksign_table td::before {
         content: attr(data-label);
         display: block;
-        font-size: 0.72rem;
+        font-size: 0.75rem;
         font-weight: 700;
         color: #5e7188;
         margin-bottom: 0.2rem;
@@ -1504,11 +1504,11 @@ body.dark-mode .clicksign_details summary {
     flex-direction: column;
     gap: 4px;
     color: #4b2b2b;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .clicksign_confirm_exclusao_text strong {
-    font-size: 0.95rem;
+    font-size: 1rem;
 }
 
 .clicksign_confirm_exclusao_actions {
@@ -1564,7 +1564,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
     --cs-border-strong: #b8d3e5;
     --cs-surface: #fafcfe;
     --cs-surface-head: #f8fbfd;
-    --cs-primary: #2f87c6;
+    --cs-primary: #1f78ad;
     --cs-primary-soft: #f0f7fc;
     width: 100%;
     max-width: none;
@@ -1588,7 +1588,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 }
 
 .cs_env_badge {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -1609,7 +1609,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 .cs_env_id {
     flex: 1;
     min-width: 0;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     word-break: break-all;
     color: var(--cs-text);
 }
@@ -1657,7 +1657,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 }
 
 .cs_card_tag {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     padding: 0.2rem 0.5rem;
     border-radius: 999px;
     background: #eef2f6;
@@ -1672,7 +1672,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 
 .cs_dropzone_hint_top {
     margin: 0 0 0.65rem;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .cs_lock_msg {
@@ -1684,7 +1684,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
     text-align: center;
     padding: 1rem;
     background: rgba(255, 255, 255, 0.88);
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--cs-muted);
     z-index: 2;
@@ -1718,7 +1718,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 
 .cs_details {
     margin-top: 0.75rem;
-    font-size: 0.84rem;
+    font-size: 0.875rem;
     color: var(--cs-muted);
 }
 
@@ -1758,13 +1758,13 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 .cs_dropzone_title {
     margin: 0;
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: var(--cs-text);
 }
 
 .cs_dropzone_sub {
     margin: 0.35rem 0 1rem;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--cs-muted);
 }
 
@@ -1799,7 +1799,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
     border: 1px solid var(--cs-border-strong);
     background: #fff;
     font-weight: 600;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     color: var(--cs-muted);
     cursor: pointer;
     transition:
@@ -1821,7 +1821,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 }
 
 .cs_fineprint {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: var(--cs-muted);
     line-height: 1.45;
     margin: 0 0 0.75rem;
@@ -1849,7 +1849,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 
 .cs_summary_title {
     margin: 0 0 0.5rem;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 700;
     color: var(--cs-text);
 }
@@ -1863,7 +1863,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 .cs_summary_item {
     padding: 0.45rem 0;
     border-bottom: 1px solid #e8f1f7;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .cs_summary_item:last-child {
@@ -1903,7 +1903,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
     border-radius: 6px;
     background: #fff;
     color: #b42318;
-    font-size: 1.15rem;
+    font-size: 1.125rem;
     font-weight: 600;
     line-height: 1;
     cursor: pointer;
@@ -1921,7 +1921,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 
 .cs_summary_empty {
     color: var(--cs-muted);
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .cs_select_full {
@@ -1932,7 +1932,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 .cs_field_hint {
     display: block;
     margin-top: 0.35rem;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     line-height: 1.35;
 }
 
@@ -1946,14 +1946,14 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 
 .cs_agenda_title {
     margin: 0 0 0.25rem;
-    font-size: 0.92rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--cs-text);
 }
 
 .cs_agenda_hint {
     margin: 0 0 0.6rem;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: var(--cs-muted);
     line-height: 1.35;
 }
@@ -1985,7 +1985,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
     border-radius: 6px;
     background: transparent;
     cursor: pointer;
-    font-size: 1.1rem;
+    font-size: 1.125rem;
     line-height: 1;
     color: var(--cs-muted);
 }
@@ -2009,7 +2009,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 
 .cs_agenda_name {
     font-weight: 500;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: var(--cs-text);
     white-space: nowrap;
     overflow: hidden;
@@ -2017,7 +2017,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 }
 
 .cs_agenda_meta {
-    font-size: 0.76rem;
+    font-size: 0.75rem;
     color: var(--cs-muted);
     white-space: nowrap;
     overflow: hidden;
@@ -2078,7 +2078,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 
 .cs_signer_doc_hint {
     margin: 0.15rem 0 0;
-    font-size: 0.76rem;
+    font-size: 0.75rem;
     line-height: 1.35;
 }
 
@@ -2208,8 +2208,8 @@ body.dark-mode .cs_channel_btn {
 }
 
 body.dark-mode .cs_channel_btn.is-active {
-    background: #2f87c6;
-    border-color: #2f87c6;
+    background: #1f78ad;
+    border-color: #1f78ad;
     color: #fff;
 }
 
@@ -2265,7 +2265,7 @@ body.dark-mode .cs_details summary {
     --cs-muted: #5e7188;
     --cs-border: #d7e8f2;
     --cs-border-strong: #b8d3e5;
-    --cs-primary: #2f87c6;
+    --cs-primary: #1f78ad;
     --cs-primary-soft: #f0f7fc;
 }
 
@@ -2276,7 +2276,7 @@ body.dark-mode .cs_details summary {
 
 .cs_sig_agenda_count {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     color: var(--cs-muted);
 }
 
@@ -2297,7 +2297,7 @@ body.dark-mode .cs_details summary {
     background: #fff;
     color: var(--cs-primary);
     font-weight: 600;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     cursor: pointer;
     font-family: inherit;
     transition:
@@ -2338,7 +2338,7 @@ body.dark-mode .cs_details summary {
     background: #fff8e8;
     border: 1px solid #f0dca0;
     color: #7a5b12;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     text-align: center;
 }
@@ -2367,7 +2367,7 @@ body.dark-mode .cs_sign_fechar_dica {
 
 .cs_sign_kanban_hint {
     margin: 0 0 0.5rem;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .cs_sign_kanban_busca {
@@ -2406,7 +2406,7 @@ body.dark-mode .cs_sign_fechar_dica {
 
 .cs_sign_kanban_item_nome {
     font-weight: 700;
-    font-size: 0.86rem;
+    font-size: 0.875rem;
     color: #123e59;
 }
 
@@ -2437,7 +2437,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
 
 .cs_sign_wpp_hint {
     margin: 0 0 0.35rem;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
 }
 
 .cs_sign_save_agenda {
@@ -2445,7 +2445,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
     align-items: center;
     gap: 0.5rem;
     margin-top: 0.75rem;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: var(--cs-text, #1e3148);
     cursor: pointer;
     user-select: none;
@@ -2457,7 +2457,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
 
 .cs_sign_modal_title {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1.125rem;
 }
 
 .cs_sign_modal_body {
@@ -2474,7 +2474,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
 
 .cs_sign_section_label {
     margin: 0 0 0.5rem;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: #6b5a54;
@@ -2490,7 +2490,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
 
 .cs_sign_link {
     color: #c45c1a;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
     text-decoration: none;
 }
@@ -2522,7 +2522,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
     background: #fff5f0;
     border: 1px solid #e8c4b8;
     color: #8b3a2a;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
     font-weight: 600;
 }
 
@@ -2543,7 +2543,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
     align-items: center;
     gap: 0.45rem;
     margin-top: 0.55rem;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: var(--cs-text, #1e3148);
     cursor: pointer;
 }
@@ -2552,7 +2552,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
     display: inline-flex;
     width: 1rem;
     height: 1rem;
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
@@ -2562,7 +2562,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
 
 .cs_sign_fine {
     margin: 0.35rem 0 0;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
 }
 
 .cs_sign_modal_foot {
@@ -2574,9 +2574,9 @@ body.dark-mode .cs_sign_kanban_item_nome {
 }
 
 .cs_sign_btn_outline {
-    border: 1px solid var(--cs-primary, #2f87c6) !important;
+    border: 1px solid var(--cs-primary, #1f78ad) !important;
     background: #fff !important;
-    color: var(--cs-primary, #2f87c6) !important;
+    color: var(--cs-primary, #1f78ad) !important;
 }
 
 .cs_sign_btn_outline:hover:not(:disabled) {
@@ -2630,8 +2630,8 @@ body.dark-mode .cs_sign_kanban_item_nome {
 }
 
 .cs_sign_tab.is-active {
-    color: var(--cs-primary, #2f87c6);
-    border-bottom-color: var(--cs-primary, #2f87c6);
+    color: var(--cs-primary, #1f78ad);
+    border-bottom-color: var(--cs-primary, #1f78ad);
 }
 
 .cs_sign_table_wrap {
@@ -2644,7 +2644,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
 .cs_sign_table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
 }
 
 .cs_sign_table th,
@@ -2656,7 +2656,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
 
 .cs_sign_table thead th {
     background: var(--cs-primary-soft, #f0f7fc);
-    font-size: 0.76rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--cs-muted, #5e7188);
@@ -2694,7 +2694,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
     height: 1rem;
     flex-shrink: 0;
     margin: 0;
-    accent-color: var(--cs-primary, #2f87c6);
+    accent-color: var(--cs-primary, #1f78ad);
 }
 
 .cs_sign_qual_select_inline {
@@ -2706,7 +2706,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
 
 .cs_sign_subcap {
     margin: 0.15rem 0 0;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--cs-muted, #5e7188);
@@ -2720,14 +2720,14 @@ body.dark-mode .cs_sign_kanban_item_nome {
 
 .cs_sign_qual_name {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--cs-text, #1e3148);
 }
 
 .cs_sign_qual_email {
     margin: 0.2rem 0 0;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
     color: var(--cs-muted, #5e7188);
     word-break: break-word;
 }
@@ -2737,7 +2737,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
     max-width: 100%;
     box-sizing: border-box;
     font-family: inherit;
-    font-size: 0.95rem;
+    font-size: 1rem;
     padding: 0.55rem 0.75rem;
     border-radius: 8px;
     border: 1px solid var(--cs-border-strong, #b8d3e5);
@@ -2747,7 +2747,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
 
 .cs_sign_qual_select_proj:focus {
     outline: none;
-    border-color: var(--cs-primary, #2f87c6);
+    border-color: var(--cs-primary, #1f78ad);
     box-shadow: 0 0 0 2px rgba(47, 135, 198, 0.2);
 }
 
@@ -2780,11 +2780,11 @@ body.dark-mode .cs_sign_kanban_item_nome {
     width: 1.65rem;
     height: 1.65rem;
     padding: 0;
-    border: 1px solid var(--cs-primary, #2f87c6);
+    border: 1px solid var(--cs-primary, #1f78ad);
     border-radius: 6px;
     background: #fff;
-    color: var(--cs-primary, #2f87c6);
-    font-size: 0.95rem;
+    color: var(--cs-primary, #1f78ad);
+    font-size: 1rem;
     line-height: 1;
     cursor: pointer;
 }
@@ -2801,8 +2801,8 @@ body.dark-mode .cs_sign_kanban_item_nome {
 .cs_sign_table_edit {
     border: none;
     background: transparent;
-    color: var(--cs-primary, #2f87c6);
-    font-size: 1.05rem;
+    color: var(--cs-primary, #1f78ad);
+    font-size: 1rem;
     cursor: pointer;
     padding: 0.15rem 0.35rem;
     border-radius: 6px;
@@ -2817,7 +2817,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
     border: none;
     background: transparent;
     color: #c0392b;
-    font-size: 1.15rem;
+    font-size: 1.125rem;
     font-weight: 700;
     cursor: pointer;
     padding: 0.15rem 0.35rem;
