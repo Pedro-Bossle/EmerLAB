@@ -297,20 +297,22 @@ function Usuarios({ departamentos, avisar }) {
 
     return (
         <>
-            <button className="botao botao-pequeno" onClick={() => setForm({ ...USUARIO_VAZIO })}>
-                <Icone nome="mais" tamanho={18} /> Novo usuário
-            </button>{' '}
-            <button className="botao botao-pequeno botao-secundario" onClick={() => setImportando(true)}>
-                <Icone nome="baixar" tamanho={18} /> Importar da WATI
-            </button>{' '}
-            <button
-                className="botao botao-pequeno botao-secundario"
-                onClick={sincronizar}
-                disabled={Boolean(sincronia)}
-                data-dica="Busca na WATI o atendente das conversas dos últimos 7 dias que ainda estão sem atendente no painel"
-            >
-                <Icone nome="tentar" tamanho={18} /> {sincronia ? 'Sincronizando…' : 'Sincronizar atendimentos'}
-            </button>
+            <div className="admin-acoes">
+                <button className="botao botao-pequeno" onClick={() => setForm({ ...USUARIO_VAZIO })}>
+                    <Icone nome="mais" tamanho={18} /> Novo usuário
+                </button>
+                <button className="botao botao-pequeno botao-secundario" onClick={() => setImportando(true)}>
+                    <Icone nome="baixar" tamanho={18} /> Importar da WATI
+                </button>
+                <button
+                    className="botao botao-pequeno botao-secundario"
+                    onClick={sincronizar}
+                    disabled={Boolean(sincronia)}
+                    data-dica="Busca na WATI o atendente das conversas dos últimos 7 dias que ainda estão sem atendente no painel"
+                >
+                    <Icone nome="tentar" tamanho={18} /> {sincronia ? 'Sincronizando…' : 'Sincronizar atendimentos'}
+                </button>
+            </div>
             {sincronia ? (
                 <p className="ajuda" role="status">
                     {sincronia.verificadas} conversa(s) verificada(s), {sincronia.atribuidas} com atendente. Mantenha esta janela aberta.
@@ -431,9 +433,11 @@ function Departamentos({ departamentos, aoMudar, avisar }) {
 
     return (
         <>
-            <button className="botao botao-pequeno" onClick={() => setForm({ ...DEPTO_VAZIO })}>
-                <Icone nome="mais" tamanho={18} /> Novo departamento
-            </button>
+            <div className="admin-acoes">
+                <button className="botao botao-pequeno" onClick={() => setForm({ ...DEPTO_VAZIO })}>
+                    <Icone nome="mais" tamanho={18} /> Novo departamento
+                </button>
+            </div>
             <ul className="tabela">
                 {departamentos.length === 0 ? <p className="lista-vazia">Nenhum departamento ainda.</p> : null}
                 {departamentos.map((d) => (
@@ -769,12 +773,14 @@ function Respostas({ departamentos, aoMudar, avisar }) {
 
     return (
         <>
-            <button className="botao botao-pequeno" onClick={() => setForm({ ...RESPOSTA_VAZIA })}>
-                <Icone nome="mais" tamanho={18} /> Nova resposta rápida
-            </button>{' '}
-            <button className="botao botao-pequeno botao-secundario" onClick={() => setImportando(true)}>
-                Importar planilha
-            </button>
+            <div className="admin-acoes">
+                <button className="botao botao-pequeno" onClick={() => setForm({ ...RESPOSTA_VAZIA })}>
+                    <Icone nome="mais" tamanho={18} /> Nova resposta rápida
+                </button>
+                <button className="botao botao-pequeno botao-secundario" onClick={() => setImportando(true)}>
+                    Importar planilha
+                </button>
+            </div>
             {lista?.length ? (
                 <div className="respostas-ferramentas">
                     <label className="busca-caixa respostas-busca">

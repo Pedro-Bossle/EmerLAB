@@ -27,6 +27,36 @@ function tempoRestante(ms) {
     return h ? `${h}h ${String(min % 60).padStart(2, '0')}min restantes` : `${min} min restantes`
 }
 
+function previewDe(m) {
+    if (!m) return null
+    return {
+        wamid: m.wamid || null,
+        texto: m.texto || '',
+        tipo: m.tipo || 'text',
+        minha: !!m.minha,
+        operador: m.operador || null,
+        nomeArquivo: m.nomeArquivo || null,
+    }
+}
+
+/** Anexa respostaA a partir do wamid citado na própria lista (e de um mapa local de envios). */
+function comCitacoes(lista, locais = null) {
+    const porWamid = new Map()
+    for (const m of lista) {
+        if (m.wamid) porWamid.set(m.wamid, m)
+    }
+    return lista.map((m) => {
+        if (m.respostaA?.texto || m.respostaA?.tipo) return m
+        const ctx = m.replyContextId
+        if (!ctx) return m
+        const alvo = porWamid.get(ctx)
+        if (alvo) return { ...m, respostaA: previewDe(alvo) }
+        const local = locais?.get(ctx)
+        if (local) return { ...m, respostaA: local }
+        return m
+    })
+}
+
 export default function Chat({ conversa, usuario, config, prefs, departamentos, deptoPorId, respostas, equipe, tagsConhecidas, perfilAberto = false, aoPerfil, aoVoltar, aoAtualizar, aoRecarregarLista, avisar }) {
     const { waId } = conversa
     const caminho = `conversas/${encodeURIComponent(waId)}`
@@ -39,6 +69,9 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
     const [pagina, setPagina] = useState(1)
     const [temMais, setTemMais] = useState(false)
     const [respondendo, setRespondendo] = useState(null)
+    // preview local das respostas enviadas (a WATI às vezes não devolve replyContextId no histórico)
+    const citacoesLocais = useRef(new Map())
+    const pendentesRef = useRef([])
     const [modal, setModal] = useState(null)
     const [noFim, setNoFim] = useState(true)
     // data flutuante no topo enquanto o usuário rola (some 5 s depois de parar), como no WhatsApp
@@ -111,7 +144,26 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                 // mantém páginas antigas já carregadas e substitui as recentes
                 const ids = new Set(msgs.map((m) => m.id))
                 const antigas = atual.filter((m) => !ids.has(m.id) && msgs.length && m.em < msgs[0].em)
-                return [...antigas, ...msgs]
+                // se a WATI não trouxe replyContextId, herda do estado local (pendente ou mensagem já enriquecida)
+                const locais = [...atual, ...pendentesRef.current]
+                const enriquecidas = msgs.map((m) => {
+                    if (m.respostaA?.texto || m.respostaA?.tipo) return m
+                    const irma = locais.find(
+                        (x) =>
+                            x.minha &&
+                            m.minha &&
+                            x.texto === m.texto &&
+                            (x.respostaA || x.replyContextId) &&
+                            Math.abs(new Date(x.em) - new Date(m.em)) < 120000,
+                    )
+                    if (!irma) return m
+                    return {
+                        ...m,
+                        replyContextId: m.replyContextId || irma.replyContextId || null,
+                        respostaA: m.respostaA || irma.respostaA || null,
+                    }
+                })
+                return [...antigas, ...enriquecidas]
             })
             // pendente que já apareceu no histórico da WATI some da fila local
             setPendentes((p) => p.filter((x) => x.status === 'erro' || !msgs.some((m) => m.minha && m.texto === x.texto)))
@@ -160,6 +212,7 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
     useEffect(() => {
         idsVistos.current = null
         versaoVista.current = null
+        citacoesLocais.current = new Map()
         carregar()
     }, [carregar])
     usarAtualizacao(carregar, { visivel: INTERVALO_CHAT })
@@ -171,7 +224,8 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
             const r = await api(`${caminho}/mensagens?pagina=${prox}`)
             setMensagens((atual) => {
                 const ids = new Set(atual.map((m) => m.id))
-                return [...r.mensagens.filter((m) => !ids.has(m.id)), ...atual]
+                const novas = r.mensagens.filter((m) => !ids.has(m.id))
+                return comCitacoes([...novas, ...atual], citacoesLocais.current)
             })
             setTemMais(r.temMais)
             setPagina(prox)
@@ -181,7 +235,11 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
         }
     }
 
-    const todas = [...mensagens, ...pendentes]
+    pendentesRef.current = pendentes
+    const todas = useMemo(
+        () => comCitacoes([...mensagens, ...pendentes], citacoesLocais.current),
+        [mensagens, pendentes],
+    )
 
     // rolagem: mantém no fim quando chegam mensagens; preserva posição ao carregar antigas
     useLayoutEffect(() => {
@@ -235,12 +293,25 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
             abrirTemplate()
             return
         }
+        const ctx = existente ? existente.replyContextId : respondendo?.wamid
+        const citacao = existente?.respostaA || (respondendo ? previewDe(respondendo) : null)
+        if (ctx && citacao) citacoesLocais.current.set(ctx, citacao)
         const temp = existente
-            ? { ...existente, status: 'pendente', erro: null }
-            : { id: `tmp-${Date.now()}`, tipo: 'text', texto, em: new Date().toISOString(), minha: true, status: 'pendente', evento: 'message', operador: usuario.nome }
+            ? { ...existente, status: 'pendente', erro: null, replyContextId: ctx || existente.replyContextId, respostaA: citacao || existente.respostaA }
+            : {
+                  id: `tmp-${Date.now()}`,
+                  tipo: 'text',
+                  texto,
+                  em: new Date().toISOString(),
+                  minha: true,
+                  status: 'pendente',
+                  evento: 'message',
+                  operador: usuario.nome,
+                  replyContextId: ctx || null,
+                  respostaA: citacao,
+              }
         setPendentes((p) => (existente ? p.map((x) => (x.id === temp.id ? temp : x)) : [...p, temp]))
         setNoFim(true)
-        const ctx = existente ? existente.replyContextId : respondendo?.wamid
         if (!existente) setRespondendo(null)
         try {
             await api(`${caminho}/texto`, { method: 'POST', body: { texto, replyContextId: ctx } })
@@ -402,16 +473,16 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                     </div>
                     <div className="barra-acoes">
                         {!minha ? (
-                            <button className="botao botao-pequeno botao-assumir" onClick={assumir} aria-label="Assumir conversa" data-dica="Atribuir esta conversa a você">
+                            <button className="botao botao-pequeno botao-assumir" onClick={assumir} aria-label="Assumir conversa" data-dica="Atribuir esta conversa a você" data-dica-lado="esquerda">
                                 <Icone nome="pessoaMais" tamanho={18} />
                                 <span>Assumir</span>
                             </button>
                         ) : null}
-                        <button className="icone-botao some-estreito" aria-label="Transferir" data-dica="Transferir" onClick={() => setModal('transferir')}>
+                        <button className="icone-botao some-estreito" aria-label="Transferir" data-dica="Transferir" data-dica-lado="esquerda" onClick={() => setModal('transferir')}>
                             <Icone nome="transferir" />
                         </button>
                         {conversa.status !== 'resolvida' ? (
-                            <button className="icone-botao some-estreito" aria-label="Marcar como resolvida" data-dica="Marcar como resolvida" onClick={() => mudarStatus('resolvida', 'Conversa resolvida.')}>
+                            <button className="icone-botao some-estreito" aria-label="Marcar como resolvida" data-dica="Marcar como resolvida" data-dica-lado="esquerda" onClick={() => mudarStatus('resolvida', 'Conversa resolvida.')}>
                                 <Icone nome="concluir" />
                             </button>
                         ) : null}

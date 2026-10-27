@@ -11,13 +11,17 @@ export class WatiError extends Error {
     }
 }
 
-// Traduz recusas comuns da WATI/WhatsApp para um código e uma explicação acionável
+// Traduz recusas comuns da WATI/WhatsApp para um código e uma explicação acionável.
+// Não usar padrões largos demais (ex.: só "assign") — mascaravam o erro real.
 const RECUSAS = [
     [/24s*h|24-hour|session.*(expir|clos|not.*open)|ticket.*expir|window|outside.*time/i, 'janela_24h',
         'A janela de 24h está fechada: o cliente não escreve há mais de 24 horas. Envie um template aprovado para retomar.'],
-    [/invalid.*(whatsapp|number|phone)|not.*valid.*number|validWhatsAppNumber|not.*whatsapp user|does not exist/i, 'numero_invalido',
+    [/invalid.*(whatsapp|number|phone)|not.*valid.*number|validWhatsAppNumber|not.*whatsapp user/i, 'numero_invalido',
         'Número inválido ou sem WhatsApp. Confira o DDI e o DDD.'],
-    [/operator|user.*not.*found|assign/i, 'operador',
+    // antes de "operador": "Could not assign operator because the ticket is Solved" batia em no.*operator
+    [/\bticket\s+is\s+solved\b|because\s+the\s+ticket\s+is\s+solved|assign\s+operator.*\bsolved\b|\bsolved\b.*assign/i, 'ticket_resolvido',
+        'Na WATI este ticket ainda está como Solved (resolvido). O painel pode já ter reaberto — a atribuição ficou só no painel.'],
+    [/operator.*(not|no).*(found|exist)|user.*(not|no).*found|\bno\s+such\s+operator\b|email.*(not|no).*(found|exist|operator)|not\s+a\s+valid\s+operator|operator\s+does\s+not\s+exist/i, 'operador',
         'Esse e-mail não existe como operador na WATI. A atribuição ficou só no painel.'],
     [/template.*(not.*found|not.*approved|paused|disabled)|parameter/i, 'template',
         'O template foi recusado: verifique se está aprovado e se todas as variáveis foram preenchidas.'],
@@ -179,11 +183,44 @@ export async function baixarMidia(nomeArquivo) {
     return chamar(v1Url('getMedia', { fileName: nomeArquivo }), { raw: true })
 }
 
+/** Resolve o e-mail exato do operador na WATI (a API é sensível a casing / espaços). */
+async function emailOperadorWati(email) {
+    const desejado = String(email || '').trim().toLowerCase()
+    if (!desejado) return null
+    try {
+        const ops = await listarOperadores()
+        // lista vazia/indisponível: não bloqueia — tenta o assign com o e-mail informado
+        if (!ops.length) return desejado
+        const match = ops.find((o) => String(o.email || '').trim().toLowerCase() === desejado)
+        if (!match) {
+            throw new WatiError(
+                'Esse e-mail não existe como operador na WATI. A atribuição ficou só no painel.',
+                400,
+                { email: desejado },
+                'operador',
+            )
+        }
+        return String(match.email).trim()
+    } catch (e) {
+        if (e instanceof WatiError && e.codigo === 'operador') throw e
+        return desejado
+    }
+}
+
 export async function atribuirAtendente(waId, email) {
     const { watiChannel } = getEnv()
-    return chamar(v1Url('assignOperator', { target: waId, email: email || undefined, channelPhoneNumber: canalWa(waId, watiChannel) }), {
-        method: 'POST',
-    })
+    // sem e-mail = soltar para o Bot (comportamento documentado da WATI)
+    const emailFinal = email ? await emailOperadorWati(email) : undefined
+    const url = v1Url('assignOperator', { target: waId, email: emailFinal, channelPhoneNumber: canalWa(waId, watiChannel) })
+    try {
+        return await chamar(url, { method: 'POST' })
+    } catch (e) {
+        // Painel reabre localmente quando o cliente escreve, mas a WATI pode continuar Solved —
+        // nesse caso reabre o ticket e tenta atribuir de novo.
+        if (!(e instanceof WatiError) || e.codigo !== 'ticket_resolvido') throw e
+        await atualizarStatus(waId, 'aberta')
+        return chamar(url, { method: 'POST' })
+    }
 }
 
 // Equipe da conversa pela v3 (PUT contacts/teams): o v1 assignTeam responde 403 para este token (só no plano Pro).

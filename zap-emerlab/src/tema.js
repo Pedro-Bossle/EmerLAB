@@ -11,6 +11,8 @@ export const PADRAO = {
     som: true,
     identificarAtendente: true, // "*Atendente <nome>*" + quebra de linha no início de cada mensagem
     notificacoes: false,
+    // só o admin do .env: 'admin' vê tudo; 'atendente' só conversas atribuídas a ele
+    visao: 'admin',
 }
 
 export const DESTAQUES = {

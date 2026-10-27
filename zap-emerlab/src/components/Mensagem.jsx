@@ -76,6 +76,26 @@ function Status({ status }) {
     )
 }
 
+const ROTULO_CITA = { image: 'Foto', sticker: 'Figurinha', video: 'Vídeo', audio: 'Áudio', voice: 'Áudio', document: 'Documento', location: 'Localização', contacts: 'Contato' }
+
+function textoCitacao(c) {
+    const t = String(c?.texto || '').trim()
+    if (t) return t
+    if (c?.nomeArquivo) return c.nomeArquivo
+    return ROTULO_CITA[c?.tipo] || (c?.tipo && c.tipo !== 'text' ? String(c.tipo) : 'Mensagem')
+}
+
+function Citacao({ c }) {
+    if (!c) return null
+    const autor = c.minha ? c.operador || 'Você' : 'Cliente'
+    return (
+        <div className="msg-citacao" aria-label={`Respondendo a ${autor}`}>
+            <strong className="msg-citacao-autor">{autor}</strong>
+            <span className="msg-citacao-texto">{textoCitacao(c)}</span>
+        </div>
+    )
+}
+
 // A WATI guarda os arquivos com nome aleatório (UUID). Sem o nome original, mostra e baixa com um nome legível:
 // "Documento 27-10-2026 09h22.pdf"
 const ROTULO_ARQUIVO = { image: 'Imagem', sticker: 'Figurinha', video: 'Vídeo', audio: 'Áudio', voice: 'Áudio', document: 'Documento' }
@@ -189,10 +209,22 @@ export default function Mensagem({ m, waId, aoResponder, primeiraDoGrupo, aoTent
         )
     }
 
-    const temMidia = m.tipo !== 'text' && m.tipo !== 'interactive' && m.tipo !== 'button'
-    const ehImagem = m.tipo === 'image' || m.tipo === 'sticker'
+    const tipo = String(m.tipo || 'text').toLowerCase()
+    // contato compartilhado / lista interativa: não tratar como mídia binária
+    const ehContato = tipo === 'contacts' || tipo === 'contact'
+    const ehInterativo = tipo === 'interactive' || tipo === 'button' || tipo === 'list' || tipo === 'buttons'
+    const temMidia = tipo !== 'text' && !ehInterativo && !ehContato
+    const ehImagem = tipo === 'image' || tipo === 'sticker'
     // em mídia o texto costuma ser a legenda; evita repetir o caminho ou o nome do arquivo
-    const texto = temMidia && (m.texto === m.arquivo || (m.nomeArquivo && m.texto?.trim() === m.nomeArquivo)) ? '' : m.texto
+    // contato: o texto da WATI às vezes vem concatenado (nomes, telefone, atributos) — mostra resumido
+    let texto = temMidia && (m.texto === m.arquivo || (m.nomeArquivo && m.texto?.trim() === m.nomeArquivo)) ? '' : m.texto
+    if (ehContato) {
+        const linhas = String(m.texto || '')
+            .split(/[\n\r|;]+/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+        texto = linhas[0] ? `👤 Contato: ${linhas[0]}` : '👤 Contato compartilhado'
+    }
     const falhou = m.minha && (m.status === 'erro' || m.status === 'failed')
     const podeResponder = Boolean(m.wamid && aoResponder)
     // WATI grava "API Token <tenant>" quando o envio foi pela API — não mostrar como autor
@@ -240,6 +272,7 @@ export default function Mensagem({ m, waId, aoResponder, primeiraDoGrupo, aoTent
                             {autorVisivel ? ` · ${autorVisivel}` : ''}
                         </span>
                     ) : null}
+                    {m.respostaA ? <Citacao c={m.respostaA} /> : null}
                     {temMidia ? <Midia m={m} waId={waId} aoVerImagem={setVisao} /> : null}
                     <TextoFormatado texto={texto} />
                     <span className="msg-meta">

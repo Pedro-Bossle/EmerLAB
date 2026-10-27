@@ -129,6 +129,27 @@ export default function Configuracoes({ usuario, prefs, setPrefs, aoFechar, avis
 
             {aba === 'conversas' ? (
                 <div className="config-secao">
+                    {usuario.fixo ? (
+                        <>
+                            <h3>Visão do painel</h3>
+                            <Segmentado
+                                rotulo="Visão do painel"
+                                valor={prefs.visao === 'atendente' ? 'atendente' : 'admin'}
+                                aoMudar={(visao) => setPrefs({ visao })}
+                                opcoes={[
+                                    ['admin', 'Administrador'],
+                                    ['atendente', 'Atendente'],
+                                ]}
+                            />
+                            <p className="conta-info" style={{ marginTop: 4 }}>
+                                <span>
+                                    {prefs.visao === 'atendente'
+                                        ? 'Inbox, notificações e contagens: só as suas ou do seu setor. A busca cobre toda a base WATI.'
+                                        : 'Lista, notificações e contagens de todas as conversas (visão total de administrador).'}
+                                </span>
+                            </p>
+                        </>
+                    ) : null}
                     <Alternar
                         rotulo="Enter envia a mensagem"
                         descricao="Desligado: use Ctrl+Enter para enviar e Enter para quebrar linha."

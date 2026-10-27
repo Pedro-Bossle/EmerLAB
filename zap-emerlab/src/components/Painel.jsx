@@ -95,6 +95,44 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     }
     const teclado = useRef(null)
 
+    // atendente de verdade = sempre; admin/fixo só quando prefs.visao === 'atendente'
+    const visaoAtendente =
+        usuario.papel !== 'admin' || Boolean((usuario.fixo || usuario.admin) && prefs.visao === 'atendente')
+
+    // setores do usuário; admin sem vínculo usa todos (para ver a fila de cada departamento)
+    const meusDeptoIds = useMemo(() => {
+        const vinculados = usuario.departamentos || []
+        if (vinculados.length) return new Set(vinculados)
+        if (usuario.papel === 'admin' || usuario.fixo) return new Set(departamentos.map((d) => d.id))
+        return new Set()
+    }, [usuario.departamentos, usuario.papel, usuario.fixo, departamentos])
+
+    // inbox / notificações / Na fila: minhas OU do meu departamento (com ou sem atendente)
+    const noEscopoNotificacao = useCallback(
+        (c) => {
+            if (!visaoAtendente) return true
+            if (c.atendenteEmail === usuario.email) return true
+            // conversa do departamento → membro do setor vê (fila para Assumir ou chat do colega)
+            if (c.departamentoId && meusDeptoIds.has(c.departamentoId)) return true
+            if (c.atendenteEmail && meusDeptoIds.size) {
+                const colega = equipe.find((u) => u.email === c.atendenteEmail)
+                if (colega?.departamentos?.some((id) => meusDeptoIds.has(id))) return true
+            }
+            return false
+        },
+        [visaoAtendente, usuario.email, meusDeptoIds, equipe],
+    )
+
+    // Na fila do setor: sem atendente, aberta, e departamento do qual faço parte
+    const naFilaDoSetor = useCallback(
+        (c) => {
+            if (c.atendenteEmail || c.status === 'resolvida') return false
+            if (!visaoAtendente) return true
+            return Boolean(c.departamentoId && meusDeptoIds.has(c.departamentoId))
+        },
+        [visaoAtendente, meusDeptoIds],
+    )
+
     const avisar = useCallback((texto, tipo = 'info') => {
         setToast({ texto, tipo, id: Date.now() })
     }, [])
@@ -125,11 +163,12 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                 const { conversas: lista } = await api(`conversas?${params}`)
                 setConversas(lista)
                 setErroLista('')
-                const total = lista.reduce((s, c) => s + c.naoLidas, 0)
+                const relevantes = lista.filter(noEscopoNotificacao)
+                const total = relevantes.reduce((s, c) => s + c.naoLidas, 0)
                 if (naoLidasAntes.current != null && total > naoLidasAntes.current) {
                     if (prefs.som) tocarBip()
                     if (prefs.notificacoes && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-                        const c = lista.find((x) => x.naoLidas > 0)
+                        const c = relevantes.find((x) => x.naoLidas > 0)
                         new Notification(c ? nomeExibicao(c) : 'Nova mensagem', { body: c?.ultimaMsg || '', icon: '/favicon.svg' })
                     }
                 }
@@ -141,8 +180,16 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                 setCarregando(false)
             }
         },
-        [busca, canal, prefs.som, prefs.notificacoes],
+        [busca, canal, prefs.som, prefs.notificacoes, noEscopoNotificacao],
     )
+
+    // ao trocar visão admin ↔ atendente, recalcula o título sem disparar bip/notificação
+    useEffect(() => {
+        naoLidasAntes.current = null
+        const total = conversas.filter(noEscopoNotificacao).reduce((s, c) => s + c.naoLidas, 0)
+        naoLidasAntes.current = total
+        document.title = total ? `(${total}) Emerzap` : 'Emerzap'
+    }, [visaoAtendente]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const carregarApoio = useCallback(async () => {
         const [r, eq, me, tg] = await Promise.allSettled([api('respostas'), api('equipe'), api('auth/me'), api('tags')])
@@ -196,24 +243,40 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         [deptosPorAtendente],
     )
 
+
+    const buscando = Boolean(busca.trim())
+
     const passaFiltro = useCallback(
         (c) => {
+            // visão atendente sem busca: só eu + meu setor. Com busca: toda a base (API WATI).
+            if (visaoAtendente && !buscando && !noEscopoNotificacao(c)) return false
+            if (buscando) {
+                if (filtro === 'nao-lidas') return c.naoLidas > 0
+                if (filtro === 'resolvidas') return c.status === 'resolvida'
+                return true
+            }
             if (filtro === 'nao-lidas') return c.naoLidas > 0
             if (filtro === 'minhas') return c.atendenteEmail === usuario.email && c.status !== 'resolvida'
-            if (filtro === 'fila') return !c.atendenteEmail && c.status !== 'resolvida'
+            if (filtro === 'fila') return naFilaDoSetor(c)
             if (filtro === 'resolvidas') return c.status === 'resolvida'
             return true
         },
-        [filtro, usuario.email],
+        [filtro, usuario.email, visaoAtendente, buscando, noEscopoNotificacao, naFilaDoSetor],
     )
 
-    // setores em que a conversa conta; vazio = "sem setor". Concluída ou com a janela de 24h fechada sai do setor
-    // do atendente e volta para "sem setor", mesmo com atendente
+    const conversasVisao = useMemo(() => conversas.filter(noEscopoNotificacao), [conversas, noEscopoNotificacao])
+
+    // setores em que a conversa conta; vazio = "sem setor".
+    // Fila (sem atendente + departamento): conta no setor mesmo com janela 24h fechada — precisa Assumir.
+    // Com atendente: janela fechada ou resolvida → sai do setor ("sem setor").
     const setoresDaConversa = useCallback(
         (c) => {
-            if (c.status === 'resolvida' || janelaDaConversa(c)?.fechada) return null
+            if (c.status === 'resolvida') return null
+            if (!c.atendenteEmail && c.departamentoId) return new Set([c.departamentoId])
+            if (janelaDaConversa(c)?.fechada) return null
             const setores = setoresDoAtendente(c.atendenteEmail)
-            return setores?.size ? setores : null
+            if (setores?.size) return setores
+            return null
         },
         [setoresDoAtendente],
     )
@@ -401,7 +464,7 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         abrir(filtradas[alvo])
     }
 
-    const esperando = calcularEspera(conversas)
+    const esperando = calcularEspera(conversasVisao)
     const listaVazia = busca ? `Nada encontrado para "${busca}".` : VAZIO[filtro]
 
     return (
@@ -437,6 +500,34 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                             <Icone nome="escudo" />
                         </button>
                     ) : null}
+                    {usuario.fixo ? (
+                        <button
+                            className={`trilho-botao ${visaoAtendente ? 'ativo' : ''}`}
+                            aria-label={visaoAtendente ? 'Visão atendente (clique para ver tudo)' : 'Visão administrador (clique para só os seus)'}
+                            data-dica={
+                                visaoAtendente
+                                    ? 'Visão: Atendente — inbox seu/setor; busca na base toda'
+                                    : 'Visão: Administrador — tudo'
+                            }
+                            data-dica-lado="direita"
+                            aria-pressed={visaoAtendente}
+                            onClick={() => {
+                                const prox = visaoAtendente ? 'admin' : 'atendente'
+                                setPrefs({ visao: prox })
+                                if (prox === 'atendente') {
+                                    setFiltro('tudo')
+                                    setSelecionada((s) => {
+                                        if (!s) return null
+                                        if (s.atendenteEmail === usuario.email) return s
+                                        if (s.departamentoId && (usuario.departamentos || []).includes(s.departamentoId)) return s
+                                        return null
+                                    })
+                                }
+                            }}
+                        >
+                            <Icone nome={visaoAtendente ? 'usuario' : 'equipe'} />
+                        </button>
+                    ) : null}
                     <button className="trilho-botao" aria-label="Configurações" data-dica="Configurações" data-dica-lado="direita" onClick={() => setModal('config')}>
                         <Icone nome="engrenagem" />
                     </button>
@@ -456,7 +547,12 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                             <IconeCanal canal={canal} tamanho={18} cor={infoCanal.cor} /> {infoCanal.rotulo}
                         </h1>
                         <small>
-                            Conta WATI {config.tenantId} · {usuario.papel === 'admin' ? 'Administrador' : meusDeptos.map((d) => d.nome).join(', ') || 'Atendente'}
+                            Conta WATI {config.tenantId} ·{' '}
+                            {visaoAtendente
+                                ? 'Atendente · busca na base toda'
+                                : usuario.papel === 'admin'
+                                  ? 'Administrador'
+                                  : meusDeptos.map((d) => d.nome).join(', ') || 'Atendente'}
                         </small>
                     </div>
                     <div className="barra-acoes">
@@ -484,7 +580,15 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                             ref={campoBusca}
                             value={busca}
                             onChange={(e) => setBusca(e.target.value)}
-                            placeholder={canal === 'whatsapp' ? 'Nome, telefone, cidade, UF, tipo ou etiqueta' : 'Pesquisar nome ou etiqueta'}
+                            placeholder={
+                                visaoAtendente
+                                    ? canal === 'whatsapp'
+                                        ? 'Buscar em todos os contatos WATI (nome, telefone…)'
+                                        : 'Buscar em todos os contatos'
+                                    : canal === 'whatsapp'
+                                      ? 'Nome, telefone, cidade, UF, tipo ou etiqueta'
+                                      : 'Pesquisar nome ou etiqueta'
+                            }
                             aria-label="Pesquisar conversas"
                         />
                         {busca ? (
@@ -498,8 +602,8 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                 <div className="filtros" role="tablist" aria-label="Filtros" ref={faixaFiltros}>
                     {FILTROS.map(([k, r]) => {
                         let qtd = 0
-                        if (k === 'nao-lidas') qtd = conversas.filter((c) => c.naoLidas > 0).length
-                        else if (k === 'fila') qtd = conversas.filter((c) => !c.atendenteEmail && c.status !== 'resolvida').length
+                        if (k === 'nao-lidas') qtd = conversasVisao.filter((c) => c.naoLidas > 0).length
+                        else if (k === 'fila') qtd = conversas.filter(naFilaDoSetor).length
                         return (
                             <button key={k} role="tab" aria-selected={filtro === k} className={`chip ${filtro === k ? 'ativo' : ''}`} onClick={() => setFiltro(k)}>
                                 {r}
@@ -565,7 +669,7 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                         avisar={avisar}
                     />
                 ) : (
-                    <FilaEspera conversas={conversas} canal={canal} usuarioEmail={usuario.email} aoAbrir={abrir} />
+                    <FilaEspera conversas={conversasVisao} canal={canal} usuarioEmail={usuario.email} aoAbrir={abrir} />
                 )}
             </main>
 

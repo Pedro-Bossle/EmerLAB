@@ -126,7 +126,7 @@ async function usuarioDaSessao(req) {
     if (!payload) throw new HttpError(401, 'Sessão expirada. Entre novamente.')
     if (payload.uid === ADMIN_ENV_ID) {
         if (!env.adminEmail || payload.email !== env.adminEmail) throw new HttpError(401, 'Sessão inválida.')
-        return { id: ADMIN_ENV_ID, nome: env.adminNome, email: env.adminEmail, papel: 'admin', departamentos: [] }
+        return { id: ADMIN_ENV_ID, nome: env.adminNome, email: env.adminEmail, papel: 'admin', departamentos: [], fixo: true, admin: true }
     }
     const u = await buscarUsuarioPorId(payload.uid)
     if (!u || !u.ativo) throw new HttpError(401, 'Usuário desativado.')
@@ -142,7 +142,12 @@ function exigirAdmin(usuario) {
 function podeVerConversa(usuario, meta) {
     if (usuario.papel === 'admin') return true
     if (meta?.atendente_email && meta.atendente_email === usuario.email) return true
+    // fila do setor: sem atendente + departamento do qual o usuário faz parte
+    if (!meta?.atendente_email && meta?.departamento_id) {
+        return usuario.departamentos.includes(meta.departamento_id)
+    }
     if (!meta?.departamento_id) return getEnv().atendenteVeSemDepto
+    // atribuída a outro, mas no meu departamento
     return usuario.departamentos.includes(meta.departamento_id)
 }
 
@@ -152,8 +157,10 @@ async function metaConversa(waId) {
 
 async function exigirConversa(usuario, waId) {
     const meta = await metaConversa(waId)
-    if (!podeVerConversa(usuario, meta)) throw new HttpError(403, 'Esta conversa foi transferida para outro departamento e saiu da sua fila.', 'outro_departamento')
-    return meta
+    if (podeVerConversa(usuario, meta)) return meta
+    // sem atendente (ou ainda sem registro): qualquer um pode abrir para Assumir / iniciar contato
+    if (!meta?.atendente_email) return meta
+    throw new HttpError(403, 'Esta conversa foi transferida para outro departamento e saiu da sua fila.', 'outro_departamento')
 }
 
 async function salvarMeta(waId, campos) {
@@ -221,6 +228,9 @@ function normalizarMensagem(m) {
     const tipo = String(m.type || 'text').toLowerCase()
     const minha =
         Boolean(m.owner) || EVENTOS_ENVIADOS.has(evento) || tipo === 'template' || /^templateMessage/i.test(evento)
+    // replyContextId = wamid da mensagem citada (webhook e, às vezes, getMessages)
+    const replyContextId =
+        m.replyContextId || m.replySourceId || m.reply_context_id || m.context?.id || m.context?.message_id || null
     return {
         id: m.id || m.whatsappMessageId || `${m.created}-${Math.random()}`,
         wamid: m.whatsappMessageId || m.messageId || null,
@@ -237,6 +247,30 @@ function normalizarMensagem(m) {
         falha: m.failedDetail || m.failedReason || m.errorMessage || null,
         evento,
         descricao,
+        replyContextId: replyContextId ? String(replyContextId) : null,
+        respostaA: null,
+    }
+}
+
+/** Liga replyContextId ao preview da mensagem citada (quando ela está no lote carregado). */
+function anexarRespostasCitadas(lista) {
+    const porWamid = new Map()
+    for (const m of lista) if (m.wamid) porWamid.set(String(m.wamid), m)
+    for (const m of lista) {
+        if (!m.replyContextId) continue
+        const alvo = porWamid.get(String(m.replyContextId))
+        if (alvo) {
+            m.respostaA = {
+                wamid: alvo.wamid,
+                texto: alvo.texto,
+                tipo: alvo.tipo,
+                minha: alvo.minha,
+                operador: alvo.operador,
+                nomeArquivo: alvo.nomeArquivo,
+            }
+        } else {
+            m.respostaA = { wamid: m.replyContextId, texto: '', tipo: 'text', minha: null, operador: null }
+        }
     }
 }
 
@@ -423,7 +457,8 @@ async function listarConversas(usuario, query) {
         // nome da ficha (WATI) > nome já gravado no painel > vazio
         porId.set(m.wa_id, { ...atual, nome: atual.nome || m.nome || null, meta: m })
     }
-    const brutos = [...porId.values()].filter((c) => podeVerConversa(usuario, c.meta))
+    // com busca: toda a base WATI (mesmo sem atribuição). sem busca: só o que o atendente pode ver
+    const brutos = [...porId.values()].filter((c) => Boolean(busca) || podeVerConversa(usuario, c.meta))
     // espelha nomes da ficha WATI no painel (só quando a meta ainda não tem nome)
     const espelhar = brutos
         .filter((c) => (c.nome || c.atributos?.name) && !c.meta?.nome)
@@ -560,7 +595,11 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
             const texto = textoPrevia(ultima.tipo, ultima.texto).slice(0, 500)
             const campos = { ultima_msg: texto, ultima_msg_em: ultima.em, ultima_msg_minha: ultima.minha, nao_lidas: naoLidas }
             // cliente escreveu numa conversa resolvida → reabre (igual ao webhook)
-            if (!ultima.minha && meta?.status === 'resolvida') campos.status = 'aberta'
+            // espelha na WATI: senão o ticket fica Solved lá e o Assumir falha
+            if (!ultima.minha && meta?.status === 'resolvida') {
+                campos.status = 'aberta'
+                await wati.atualizarStatus(alvoWati(c.waId), 'aberta').catch(() => {})
+            }
             await salvarMeta(c.waId, campos)
             Object.assign(c, {
                 ultimaMsg: texto,
@@ -575,10 +614,24 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
 async function mensagens(usuario, waId, query) {
     const meta = await exigirConversa(usuario, waId)
     const pagina = Math.max(1, Number(query.get('pagina')) || 1)
-    const { mensagens: itens, temMais } = await wati.listarMensagens(alvoWati(waId), { pagina, tamanho: 50 })
+    let itens = []
+    let temMais = false
+    try {
+        const r = await wati.listarMensagens(alvoWati(waId), { pagina, tamanho: 50 })
+        itens = r.mensagens || []
+        temMais = Boolean(r.temMais)
+    } catch (e) {
+        // conversa nova / número ainda sem histórico na WATI: getMessages costuma vir 400 —
+        // abre o chat vazio para o atendente enviar o template
+        if (e instanceof wati.WatiError && (e.status === 400 || e.status === 404 || e.codigo === 'numero_invalido')) {
+            return { mensagens: [], temMais: false }
+        }
+        throw e
+    }
     await registrarAnuncio(waId, anuncioDe(itens), meta?.anuncio)
     const lista = itens.map(normalizarMensagem).sort((a, b) => msData(a.em) - msData(b.em))
     await Promise.all([nomesArquivosEnviados(waId, lista), wamidsDoWebhook(waId, lista)])
+    anexarRespostasCitadas(lista)
     return { mensagens: lista, temMais }
 }
 
@@ -736,10 +789,14 @@ async function atribuirHandler(req, usuario, waId) {
     try {
         await wati.atribuirAtendente(alvoWati(waId), alvo)
     } catch (e) {
-        // e-mail pode não existir como operador na WATI; mantém a atribuição local
-        avisoWati = e.message
+        // mantém a atribuição local; inclui o texto original da WATI quando o mapeamento for genérico
+        const original = e?.detalhe?.original || e?.detalhe?.info || e?.detalhe?.message
+        avisoWati = original && original !== e.message ? `${e.message} — detalhe: ${original}` : e.message
     }
-    await salvarMeta(waId, { atendente_email: alvo })
+    // Assumir implica conversa aberta; se a WATI reabriu um Solved no assign, alinha o painel
+    const campos = { atendente_email: alvo }
+    if (meta?.status === 'resolvida') campos.status = 'aberta'
+    await salvarMeta(waId, campos)
     return { ok: true, avisoWati }
 }
 
@@ -1267,6 +1324,8 @@ async function webhook(req, res, query) {
         const minha = Boolean(b.owner) || EVENTOS_ENVIADOS.has(evento) || /^templateMessage/i.test(evento) || String(b.type || '').toLowerCase() === 'template'
         const texto = textoPrevia(b.type, b.text || b.finalText)
         const em = b.timestamp ? new Date(Number(b.timestamp) * 1000).toISOString() : b.created || new Date().toISOString()
+        // status antes do RPC: cliente em resolvida → painel reabre; precisa reabrir na WATI também
+        const metaAntes = !minha ? await metaConversa(waId).catch(() => null) : null
         ok(
             await db().rpc('zap_registrar_mensagem', {
                 p_wa_id: waId,
@@ -1276,6 +1335,9 @@ async function webhook(req, res, query) {
                 p_minha: minha,
             }),
         )
+        if (!minha && metaAntes?.status === 'resolvida') {
+            await wati.atualizarStatus(waId, 'aberta').catch(() => {})
+        }
         if (!minha && b.messageReferral) await registrarAnuncio(waId, anuncioDe([{ ...b, created: em }]), null)
         if (b.whatsappMessageId) {
             // guarda o wamid para o "Responder"; sem a tabela, o webhook segue normal

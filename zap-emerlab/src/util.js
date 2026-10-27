@@ -245,11 +245,15 @@ export const normalizarTextoBusca = (texto) =>
 export function pareceEventoSistemaWati(texto) {
     const t = String(texto || '').replace(/\s+/g, ' ').trim()
     if (!t) return false
-    return /^(the\s+)?chat\s+(has\s+been|was)\s+(assigned|unassigned)\b/i.test(t)
-        || /^(ended|opened|closed|started|resolved)\s*:/i.test(t)
+    return /^(the\s+)?chat\s+(has\s+been|was|is\s+now)\s+(assigned|unassigned|opened|closed)\b/i.test(t)
+        || /^(the\s+)?ticket\s+(has\s+been|was|is\s+now)\s+(assigned|unassigned|opened|closed)\b/i.test(t)
+        || /^(the\s+)?chat\s+has\s+been\s+(opened|closed)\b/i.test(t)
+        || /\b(ticket|chat)\s+status\s+has\s+been\s+set\b/i.test(t)
+        || /\bstatus\s+has\s+been\s+set\s+as\b/i.test(t)
+        || /^(ended|opened|closed|started|resolved|expired)\s*:/i.test(t)
         || /\bvia\s+round[-\s]?robin\b/i.test(t)
-        || /\bby\s+(bot|rule|operator|team)\b/i.test(t)
-        || /\bmarked as (resolved|pending|open)\b/i.test(t)
+        || /\bby\s+(bot|rule|operator|team|agent)\b/i.test(t)
+        || /\bmarked as (resolved|pending|open|solved)\b/i.test(t)
         || /\bstatus (was )?changed to\b/i.test(t)
 }
 
@@ -267,15 +271,30 @@ export function traduzirEventoSistema(texto) {
     t = t
         .replace(/^(?:the\s+)?chat\s+has\s+been\s+assigned\s+to\s+/i, 'Conversa atribuída a ')
         .replace(/^(?:the\s+)?chat\s+was\s+assigned\s+to\s+/i, 'Conversa atribuída a ')
+        .replace(/^(?:the\s+)?chat\s+is\s+now\s+assigned\s+to\s+/i, 'Conversa atribuída a ')
         .replace(/^chat\s+assigned\s+to\s+/i, 'Conversa atribuída a ')
+        .replace(/^(?:the\s+)?ticket\s+has\s+been\s+assigned\s+to\s+/i, 'Ticket atribuído a ')
+        .replace(/^(?:the\s+)?ticket\s+was\s+assigned\s+to\s+/i, 'Ticket atribuído a ')
+        .replace(/^(?:the\s+)?ticket\s+is\s+now\s+assigned\s+to\s+/i, 'Ticket atribuído a ')
+        .replace(/^(?:the\s+)?ticket\s+status\s+has\s+been\s+set\s+as\s+/i, 'Status do ticket definido como ')
+        .replace(/^(?:the\s+)?chat\s+status\s+has\s+been\s+set\s+as\s+/i, 'Status da conversa definido como ')
+        .replace(/^(?:the\s+)?ticket\s+status\s+(?:was\s+)?(?:set|changed)\s+to\s+/i, 'Status do ticket alterado para ')
+        .replace(/^(?:the\s+)?chat\s+status\s+(?:was\s+)?(?:set|changed)\s+to\s+/i, 'Status da conversa alterado para ')
+        .replace(/^(?:the\s+)?chat\s+has\s+been\s+closed\b/i, 'Conversa fechada')
+        .replace(/^(?:the\s+)?chat\s+has\s+been\s+opened\b/i, 'Conversa reaberta')
+        .replace(/^(?:the\s+)?chat\s+was\s+closed\b/i, 'Conversa fechada')
+        .replace(/^(?:the\s+)?chat\s+was\s+opened\b/i, 'Conversa reaberta')
         .replace(/^(?:the\s+)?chat\s+has\s+been\s+unassigned(?:\s+from\s+(.+))?$/i, (_, de) =>
             de ? `Conversa desatribuída de ${de}` : 'Conversa desatribuída',
         )
         .replace(/^(?:the\s+)?chat\s+was\s+unassigned(?:\s+from\s+(.+))?$/i, (_, de) =>
             de ? `Conversa desatribuída de ${de}` : 'Conversa desatribuída',
         )
+        // "by agent Bot" (nome do bot) → "pelo Bot"; demais agentes ficam "pelo atendente X"
+        .replace(/\bby\s+agent\s+Bot\b/gi, 'pelo Bot')
         .replace(/\bby\s+Bot\b/gi, 'pelo Bot')
         .replace(/\bby\s+Operator\b/gi, 'pelo operador')
+        .replace(/\bby\s+agent\b/gi, 'pelo atendente')
         .replace(/\bby\s+Rule\b/gi, 'pela regra')
         .replace(/\bby\s+Team\b/gi, 'pela equipe')
         .replace(/\bvia\s+round[-\s]?robin(?:\s+assignment)?\b/gi, 'via distribuição em rodízio')
@@ -286,10 +305,22 @@ export function traduzirEventoSistema(texto) {
         .replace(/^Closed\s*:\s*/i, 'Fechado: ')
         .replace(/^Started\s*:\s*/i, 'Iniciado: ')
         .replace(/^Resolved\s*:\s*/i, 'Resolvido: ')
+        .replace(/^Expired\s*:\s*/i, 'Expirado: ')
         .replace(/\bstatus\s+(?:was\s+)?changed\s+to\b/gi, 'status alterado para')
+        .replace(/^(?:the\s+)?(?:chat|ticket)\s+marked\s+as\s+resolved\b/gi, 'Conversa marcada como resolvida')
+        .replace(/^(?:the\s+)?(?:chat|ticket)\s+marked\s+as\s+solved\b/gi, 'Conversa marcada como resolvida')
+        .replace(/^(?:the\s+)?(?:chat|ticket)\s+marked\s+as\s+pending\b/gi, 'Conversa marcada como pendente')
+        .replace(/^(?:the\s+)?(?:chat|ticket)\s+marked\s+as\s+open\b/gi, 'Conversa marcada como aberta')
         .replace(/\bmarked\s+as\s+resolved\b/gi, 'marcada como resolvida')
+        .replace(/\bmarked\s+as\s+solved\b/gi, 'marcada como resolvida')
         .replace(/\bmarked\s+as\s+pending\b/gi, 'marcada como pendente')
         .replace(/\bmarked\s+as\s+open\b/gi, 'marcada como aberta')
+        // valores de status que sobram após o prefixo ("… definido como Pending pelo Bot")
+        .replace(/\bPending\b/g, 'Pendente')
+        .replace(/\bSolved\b/g, 'Resolvido')
+        .replace(/\bResolved\b/g, 'Resolvido')
+        .replace(/\bOpen\b/g, 'Aberto')
+        .replace(/\bClosed\b/g, 'Fechado')
 
     return t.replace(/\s{2,}/g, ' ').trim()
 }

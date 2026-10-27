@@ -3,7 +3,9 @@ import process from 'node:process'
 
 function str(name, fallback = '') {
     const v = process.env[name]
-    return v == null || v === '' ? fallback : String(v).trim()
+    if (v == null || v === '') return fallback
+    // remove aspas que às vezes vêm coladas do .env (ex.: ZAP_ADMIN_EMAIL="a@b.com")
+    return String(v).trim().replace(/^['"]+|['"]+$/g, '').trim()
 }
 
 /** Remove BOM, aspas e "Bearer " — evita "API key is invalid" com chave certa no painel. */

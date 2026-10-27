@@ -54,6 +54,9 @@ export default function FilaEspera({ conversas, canal, usuarioEmail, aoAbrir }) 
         minhas: minhas.length,
     }
 
+    // lista já vem filtrada ao escopo (eu/setor); "Sem atendente" = fila do setor
+    const categorias = CATEGORIAS
+
     const maisAntiga = esperando[0]
     const emRisco = esperando.filter((c) => (janelaDaConversa(c, agora)?.restanteMs ?? 0) <= RISCO_MS).length
     const lista = listas[categoria] || []
@@ -80,7 +83,7 @@ export default function FilaEspera({ conversas, canal, usuarioEmail, aoAbrir }) 
             </header>
 
             <div className="fila-numeros" role="tablist" aria-label="Classificação das conversas">
-                {CATEGORIAS.map((cat) => {
+                {categorias.map((cat) => {
                     const ativa = categoria === cat.id
                     const qtd = contagens[cat.id]
                     return (

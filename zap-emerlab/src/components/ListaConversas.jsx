@@ -89,11 +89,13 @@ export default function ListaConversas({ conversas, carregando, erro, textoVazio
             ) : null}
             {conversas.map((c) => {
                 const depto = c.departamentoId ? deptoPorId[c.departamentoId] : null
+                // sem atendente e não resolvida = fila (mesmo sem janela 24h / sem mensagem do cliente ainda)
+                const naFila = !c.atendenteEmail && c.status !== 'resolvida'
                 return (
                     <button
                         key={c.waId}
                         role="listitem"
-                        className={`item ${selecionada === c.waId ? 'selecionado' : ''} ${c.naoLidas ? 'nao-lida' : ''} ${!c.atendenteEmail && c.status !== 'resolvida' ? 'na-fila' : ''}`}
+                        className={`item ${selecionada === c.waId ? 'selecionado' : ''} ${c.naoLidas ? 'nao-lida' : ''} ${naFila ? 'na-fila' : ''}`}
                         // a prévia corta em uma linha: o tooltip nativo mostra a última mensagem inteira
                         title={c.ultimaMsg || undefined}
                         onClick={() => aoAbrir(c)}
@@ -128,7 +130,7 @@ export default function ListaConversas({ conversas, carregando, erro, textoVazio
                                     </span>
                                 ) : null}
                             </div>
-                            {depto || c.atendenteEmail || c.tags?.length || c.status !== 'resolvida' ? (
+                            {depto || c.atendenteEmail || c.tags?.length || naFila || c.status === 'pendente' || c.status === 'resolvida' ? (
                                 <div className="item-tags">
                                     {depto ? (
                                         <span className="tag" style={{ '--tag': depto.cor }}>
@@ -139,8 +141,8 @@ export default function ListaConversas({ conversas, carregando, erro, textoVazio
                                         <span className="item-atendente">
                                             <Icone nome="usuario" tamanho={12} traco={2.25} /> {nomeAtendente(c.atendenteEmail)}
                                         </span>
-                                    ) : c.status !== 'resolvida' ? (
-                                        <span className="item-atendente">
+                                    ) : naFila ? (
+                                        <span className="tag tag-fila" title="Nenhum atendente atribuído">
                                             <Icone nome="pendente" tamanho={12} traco={2.25} /> Na fila
                                         </span>
                                     ) : null}
