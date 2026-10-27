@@ -181,7 +181,7 @@ export function janelaDaConversa(c, agora = Date.now()) {
 
 export function restanteEmPalavras(ms) {
     if (ms <= 0) return 'janela fechada'
-    const min = Math.ceil(ms / 60000)
+    const min = Math.max(1, Math.floor(ms / 60000))
     if (min < 60) return `fecha em ${min} min`
     return `fecha em ${Math.floor(min / 60)} h`
 }

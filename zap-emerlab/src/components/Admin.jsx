@@ -642,6 +642,12 @@ function CampoRegras({ valor, texto, aoMudar, departamentos, procedimentos }) {
                         contato, um prestador por linha (quem faz mais dos procedimentos primeiro, depois A–Z).
                     </li>
                     <li>
+                        <code>{'{credenciados.clinicas}'}</code>, <code>{'{credenciados.veterinarios}'}</code>, <code>{'{credenciados.laboratorio}'}</code> e{' '}
+                        <code>{'{credenciados.descontos}'}</code> viram os credenciados que atendem a cidade (endereço nela ou cidade adicional
+                        no perfil), um por linha, A–Z, como &quot;➡️ Nome - Telefone&quot;. Em veterinários entram só os volantes (sem vínculo com clínica), como &quot;➡️ Nome - Especialidade - Telefone&quot;. A cidade é a da regra <code>locais {'{…}'}</code> quando ela tem uma só cidade; senão, a do contato.
+                        Grupo sem ninguém na cidade vira &quot;Nenhum no momento.&quot;
+                    </li>
+                    <li>
                         Qualquer atributo da WATI: <code>tipo {'{'}clinica{'}'}</code>, <code>situacao {'{'}ativo, credenciada{'}'}</code>.
                     </li>
                     <li>

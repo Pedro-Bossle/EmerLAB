@@ -7,8 +7,8 @@ import { db, ok, DbError, buscarUsuarioPorEmail, buscarUsuarioPorId, idsDepartam
 import * as wati from './wati.js'
 import { emailConfigurado, enviarEmail, montarEmailConvite } from './email.js'
 import { municipiosPorUf } from './ibge.js'
-import { lerRegras, codigosServicos, erroMarcaServicos, temMarcaServicos, MARCA_SERVICOS } from '../src/regras.js'
-import { catalogoProcedimentos, servicosNaCidade } from './quemRealiza.js'
+import { lerRegras, codigosServicos, erroMarcaServicos, temMarcaServicos, MARCA_SERVICOS, temMarcaCredenciados } from '../src/regras.js'
+import { catalogoProcedimentos, credenciadosNaCidade, servicosNaCidade } from './quemRealiza.js'
 import { preencherVariaveis } from '../src/variaveis.js'
 import { normalizarWaId, variantesWaId } from '../src/util.js'
 
@@ -222,7 +222,7 @@ async function salvarMeta(waId, campos) {
 function anuncioDe(itens) {
     const r = [...itens]
         .filter((m) => !m.owner && (m.messageReferral?.ctwaClid || m.messageReferral?.sourceId))
-        .sort((a, b) => msData(b.created) - msData(a.created))[0]
+        .sort((a, b) => msData(emDaMensagemWati(b)) - msData(emDaMensagemWati(a)))[0]
     if (!r) return null
     const ref = r.messageReferral
     return {
@@ -230,7 +230,7 @@ function anuncioDe(itens) {
         texto: String(ref.body || '').slice(0, 200) || null,
         url: ref.url || ref.sourceUrl || null,
         id: ref.sourceId || null,
-        em: r.created || null,
+        em: emDaMensagemWati(r),
     }
 }
 
@@ -286,7 +286,7 @@ function normalizarMensagem(m) {
         // nome original quando se sabe (recebido: no texto; enviado pelo painel: ver nomesArquivosEnviados)
         nomeArquivo:
             String(m.type).toLowerCase() === 'document' && !m.owner && PARECE_NOME_ARQUIVO.test(String(textoBruto).trim()) ? String(textoBruto).trim() : null,
-        em: m.created || (m.timestamp ? new Date(Number(m.timestamp) * 1000).toISOString() : null),
+        em: emDaMensagemWati(m),
         minha,
         status: String(m.statusString || m.status || '').toLowerCase(),
         operador: nomeOperadorUtil(m.operatorName, m.operatorEmail),
@@ -595,6 +595,41 @@ const verificadas = new Map() // waId → quando foi checada (por instância do 
 // datas da WATI ("…Z") e do Postgres ("…+00:00") não se comparam como texto
 const msData = (iso) => (iso ? new Date(iso).getTime() || 0 : 0)
 
+// WATI documenta horários em UTC; `created` às vezes vem sem Z ("2022-11-27 10:26:58") e o JS
+// interpretava como horário local — o relógio da janela de 24h ficava horas fora do painel WATI.
+// `timestamp` (unix) é a fonte mais estável quando existe.
+function isoDaWati(bruto) {
+    if (bruto == null || bruto === '') return null
+    if (typeof bruto === 'number' && Number.isFinite(bruto)) {
+        const ms = bruto < 1e12 ? bruto * 1000 : bruto
+        return new Date(ms).toISOString()
+    }
+    const s = String(bruto).trim()
+    if (/^\d{10,13}$/.test(s)) {
+        const n = Number(s)
+        const ms = n < 1e12 ? n * 1000 : n
+        return new Date(ms).toISOString()
+    }
+    // "YYYY-MM-DD HH:mm:ss(.sss)?" ou com T, sem fuso → UTC
+    const naive = s.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2}(?:\.\d+)?)(Z|[+-]\d{2}:?\d{2})?$/i)
+    if (naive) {
+        const iso = naive[3] ? `${naive[1]}T${naive[2]}${naive[3]}` : `${naive[1]}T${naive[2]}Z`
+        const t = new Date(iso).getTime()
+        return Number.isFinite(t) ? new Date(t).toISOString() : null
+    }
+    const t = new Date(s).getTime()
+    return Number.isFinite(t) ? new Date(t).toISOString() : null
+}
+
+function emDaMensagemWati(m) {
+    if (!m) return null
+    if (m.timestamp != null && m.timestamp !== '') {
+        const viaTs = isoDaWati(m.timestamp)
+        if (viaTs) return viaTs
+    }
+    return isoDaWati(m.created) || isoDaWati(m.em) || null
+}
+
 // O que conferir decide pelo banco (igual em todas as instâncias da Vercel), não pela memória da instância:
 // conversa que o banco não conhece, ou contato que a WATI mudou depois do último registro (atualizado_em).
 // Cada conferência grava atualizado_em, então a mesma conversa não volta a ser conferida sem mudança nova.
@@ -649,26 +684,36 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
             c.ultimaEm = ultima.em
             // última do cliente entre as lidas: corrige a janela de 24h mesmo sem mensagem nova
             const doCliente = msgs.find((m) => !m.minha)?.em
-            if (doCliente && msData(doCliente) > msData(meta?.ultima_cliente_em) + FOLGA_MS) {
+            // espelha o horário da WATI mesmo se a meta local estava adiantada/atrasada (fuso errado)
+            if (doCliente && Math.abs(msData(doCliente) - msData(meta?.ultima_cliente_em)) > FOLGA_MS) {
                 await salvarMeta(c.waId, { ultima_cliente_em: doCliente })
                 c.ultimaClienteEm = doCliente
             }
             const conhecidaMs = meta?.ultima_msg_em ? new Date(meta.ultima_msg_em).getTime() : null
             const nova = (m) => conhecidaMs === null || new Date(m.em).getTime() > conhecidaMs + FOLGA_MS
-            if (conhecidaMs !== null && !nova(ultima)) return
+            const texto = textoPrevia(ultima.tipo, ultima.texto).slice(0, 500)
+            const previaDesatualizada =
+                texto !== (meta?.ultima_msg || '') || Boolean(ultima.minha) !== Boolean(meta?.ultima_msg_minha)
             // mensagens do cliente depois da última resposta nossa
             const corte = msgs.findIndex((m) => m.minha)
             const semResposta = corte < 0 ? msgs : msgs.slice(0, corte)
-            let naoLidas
-            if (conhecidaMs === null) {
-                // primeira vez: só conta como nova se ainda dá para responder (janela de 24h)
-                naoLidas = Date.now() - new Date(ultima.em).getTime() < 24 * 3600 * 1000 ? semResposta.length : 0
-            } else if (msgs.some((m) => m.minha && nova(m))) {
-                naoLidas = semResposta.length // alguém respondeu (pela WATI): conta só o que veio depois
-            } else {
-                naoLidas = (meta?.nao_lidas || 0) + semResposta.filter(nova).length
+            let naoLidas = meta?.nao_lidas || 0
+            if (conhecidaMs === null || nova(ultima)) {
+                if (conhecidaMs === null) {
+                    // primeira vez: só conta como nova se ainda dá para responder (janela de 24h)
+                    naoLidas = Date.now() - new Date(ultima.em).getTime() < 24 * 3600 * 1000 ? semResposta.length : 0
+                } else if (msgs.some((m) => m.minha && nova(m))) {
+                    naoLidas = semResposta.length // alguém respondeu (pela WATI): conta só o que veio depois
+                } else {
+                    naoLidas = (meta?.nao_lidas || 0) + semResposta.filter(nova).length
+                }
             }
-            const texto = textoPrevia(ultima.tipo, ultima.texto).slice(0, 500)
+            // sempre corrige a prévia do card se o texto/lado divergir (ex.: resposta feita só na WATI)
+            if (conhecidaMs !== null && !nova(ultima) && !previaDesatualizada) {
+                c.ultimaMsg = texto
+                c.ultimaMinha = ultima.minha
+                return
+            }
             const campos = { ultima_msg: texto, ultima_msg_em: ultima.em, ultima_msg_minha: ultima.minha, nao_lidas: naoLidas }
             // cliente escreveu numa conversa resolvida → reabre (igual ao webhook)
             // espelha na WATI: senão o ticket fica Solved lá e o Assumir falha
@@ -708,10 +753,25 @@ async function mensagens(usuario, waId, query) {
     const lista = itens.map(normalizarMensagem).sort((a, b) => msData(a.em) - msData(b.em))
     await Promise.all([nomesArquivosEnviados(waId, lista), wamidsDoWebhook(waId, lista)])
     anexarRespostasCitadas(lista)
-    // se achou histórico do cliente, libera a janela mesmo quando a meta ainda não tinha ultima_cliente_em
-    if (lista.some((m) => !m.minha && m.evento === 'message' && m.em) && !meta?.ultima_cliente_em) {
-        const doCliente = [...lista].reverse().find((m) => !m.minha && m.evento === 'message' && m.em)
-        if (doCliente?.em) await salvarMeta(waId, { ultima_cliente_em: doCliente.em }).catch(() => {})
+
+    // espelha a prévia da lista no banco (respostas feitas na WATI não passam pelo webhook às vezes)
+    const chat = lista.filter((m) => (m.evento === 'message' || m.evento === 'broadcastMessage') && m.em)
+    const ultima = chat.at(-1)
+    const doCliente = [...chat].reverse().find((m) => !m.minha)
+    if (ultima) {
+        const texto = textoPrevia(ultima.tipo, ultima.texto).slice(0, 500)
+        const campos = {}
+        if (texto !== (meta?.ultima_msg || '') || msData(ultima.em) > msData(meta?.ultima_msg_em) + FOLGA_MS || Boolean(ultima.minha) !== Boolean(meta?.ultima_msg_minha)) {
+            campos.ultima_msg = texto
+            campos.ultima_msg_em = ultima.em
+            campos.ultima_msg_minha = ultima.minha
+        }
+        if (doCliente?.em && Math.abs(msData(doCliente.em) - msData(meta?.ultima_cliente_em)) > FOLGA_MS) {
+            campos.ultima_cliente_em = doCliente.em
+        }
+        const atendente = atendenteDoHistorico(itens)
+        if (atendente && atendente !== meta?.atendente_email) campos.atendente_email = atendente
+        if (Object.keys(campos).length) await salvarMeta(waId, campos).catch(() => {})
     }
     return { mensagens: lista, temMais }
 }
@@ -816,6 +876,7 @@ async function enviarTextoHandler(req, usuario, waId) {
     if (limpo.length > 4096) throw new HttpError(400, `Mensagem muito longa: ${limpo.length} de 4096 caracteres. Divida em duas.`, 'longa')
     // a lista de quem realiza é montada no navegador; a marca crua não pode chegar ao cliente
     if (temMarcaServicos(limpo)) throw new HttpError(400, `A mensagem ainda tem ${MARCA_SERVICOS}: a lista de quem realiza não foi preenchida. Confira a UF e a cidade do contato.`)
+    if (temMarcaCredenciados(limpo)) throw new HttpError(400, 'A mensagem ainda tem uma marca {credenciados.…}: a lista de credenciados não foi preenchida. Confira a UF e a cidade do contato.')
     const final = preencherVariaveis(limpo, { nome: meta?.nome || '', atendente: usuario.nome, telefone: canalDe(waId) === 'whatsapp' ? waId : '' })
     const msg = await comAlvoWati(waId, (alvo) => wati.enviarTexto(alvo, final, replyContextId))
     await salvarMeta(waId, {
@@ -1406,7 +1467,7 @@ async function webhook(req, res, query) {
     if (waId && (evento === 'message' || EVENTOS_ENVIADOS.has(evento) || /^templateMessage/i.test(evento) || b.text !== undefined)) {
         const minha = Boolean(b.owner) || EVENTOS_ENVIADOS.has(evento) || /^templateMessage/i.test(evento) || String(b.type || '').toLowerCase() === 'template'
         const texto = textoPrevia(b.type, b.text || b.finalText)
-        const em = b.timestamp ? new Date(Number(b.timestamp) * 1000).toISOString() : b.created || new Date().toISOString()
+        const em = emDaMensagemWati(b) || new Date().toISOString()
         // status antes do RPC: cliente em resolvida → painel reabre; precisa reabrir na WATI também
         const metaAntes = !minha ? await metaConversa(waId).catch(() => null) : null
         ok(
@@ -1484,7 +1545,13 @@ export async function handle(req, res, rotaForcada) {
         // regra services {…}: códigos que a rede realiza na cidade do contato (Credenciamento > Quem realiza)
         if (rota === 'servicos' && metodo === 'GET') {
             const codigos = String(query.get('codigos') || '').split(',').filter(Boolean).slice(0, 100)
-            return responder(await servicosNaCidade({ uf: query.get('uf'), cidade: query.get('cidade'), codigos }))
+            const alvo = { uf: query.get('uf'), cidade: query.get('cidade') }
+            const [servicos, credenciados] = await Promise.all([
+                servicosNaCidade({ ...alvo, codigos }),
+                // marcas {credenciados.*}: mesma rota, mesma base em cache
+                query.get('credenciados') === '1' ? credenciadosNaCidade(alvo) : null,
+            ])
+            return responder({ ...servicos, ...(credenciados ? { credenciados } : {}) })
         }
         if (rota === 'procedimentos' && metodo === 'GET') {
             const catalogo = await catalogoProcedimentos()

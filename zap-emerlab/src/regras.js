@@ -80,6 +80,46 @@ export function preencherServicos(texto, codigos, prestadores) {
     return String(texto).replace(RE_MARCA_SERVICOS, () => listaQuemRealiza(codigos, prestadores))
 }
 
+// {credenciados.clinicas|veterinarios|laboratorio|descontos}: credenciados que atendem a cidade (endereço nela ou
+// cidade adicional no perfil), um por linha, A–Z: "➡️ Nome - Tel". Em veterinários, só os volantes (sem vínculo com
+// clínica), como "➡️ Nome - Especialidade - Tel".
+// Mesma busca do servidor que o {services.content}; as linhas já chegam prontas de lá.
+export const MARCAS_CREDENCIADOS = {
+    clinicas: ['{credenciados.clinicas}', 'Clínicas e consultórios credenciados'],
+    veterinarios: ['{credenciados.veterinarios}', 'Veterinários credenciados'],
+    laboratorio: ['{credenciados.laboratorio}', 'Laboratórios credenciados'],
+    descontos: ['{credenciados.descontos}', 'Credenciados com descontos'],
+}
+// aceita "laboratorios" e ponto repetido ({credenciados..laboratorio}) para não sair a marca crua por um detalhe
+const RE_MARCA_CREDENCIADOS = /\{\s*credenciados\.+(clinicas|veterinarios|laboratorios?|descontos)\s*\}/gi
+export const temMarcaCredenciados = (texto) => new RegExp(RE_MARCA_CREDENCIADOS.source, 'i').test(String(texto || ''))
+
+// grupo sem ninguém na cidade: um aviso curto no lugar, para o título do grupo não ficar solto na mensagem
+export const NENHUM_CREDENCIADO = 'Nenhum no momento.'
+
+export function preencherCredenciados(texto, listas) {
+    return String(texto).replace(RE_MARCA_CREDENCIADOS, (_, k) => {
+        const nomes = listas?.[k.toLowerCase().startsWith('laborat') ? 'laboratorio' : k.toLowerCase()] || []
+        return nomes.length ? nomes.join('\n') : NENHUM_CREDENCIADO
+    })
+}
+
+/**
+ * Cidade das marcas {credenciados.*}: a da regra locais {…} quando ela tem uma única cidade (UF+Cidade ou só a
+ * cidade); senão (sem regra, só UF, várias cidades), null e vale a cidade do contato.
+ */
+export function cidadeDaRegra(texto) {
+    const locais = lerRegras(texto).regras.filter((r) => r.chave === 'locais')
+    if (locais.length !== 1 || locais[0].incluir.length !== 1) return null
+    const [primeiro, ...resto] = locais[0].incluir[0].split('+')
+    if (resto.length) return { uf: primeiro.trim().toUpperCase(), cidade: resto.join('+').trim() }
+    const v = primeiro.trim()
+    if (v.length === 2 && UFS_BRASIL.includes(v.toUpperCase())) return null
+    return { uf: '', cidade: v }
+}
+
+export const chaveCidade = (alvo) => `${String(alvo?.uf || '').toUpperCase()}|${norm(alvo?.cidade)}`
+
 /**
  * Lê o texto das regras. `procedimentos` (Map código → nome) confere os códigos de services {…};
  * sem ele, os códigos não são conferidos.

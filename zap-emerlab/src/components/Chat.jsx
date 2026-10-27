@@ -13,7 +13,7 @@ import Transferir from './Transferir.jsx'
 import EnviarTemplate from './EnviarTemplate.jsx'
 import { comMod, teclaDe, emCampo, haSobreposicao } from '../atalhos.js'
 import { transferir, itensDeAtendimento } from '../acoesConversa.js'
-import { codigosServicos } from '../regras.js'
+import { codigosServicos, temMarcaCredenciados, cidadeDaRegra, chaveCidade } from '../regras.js'
 
 const INTERVALO_CHAT = 5000
 const BUSCA_COMPLETA_MS = 30000
@@ -21,10 +21,14 @@ const BUSCA_COMPLETA_MS = 30000
 // a partir de 4h restantes o contador fica em destaque
 const RISCO_JANELA_MS = 4 * 3600 * 1000
 
+// Mesmo critério da WATI: minutos inteiros para baixo (ceil deixava o Emerzap 1 min à frente).
 function tempoRestante(ms) {
-    const min = Math.max(1, Math.ceil(ms / 60000))
-    const h = Math.floor(min / 60)
-    return h ? `${h}h ${String(min % 60).padStart(2, '0')}min restantes` : `${min} min restantes`
+    if (ms <= 0) return '0 min restantes'
+    const totalMin = Math.floor(ms / 60000)
+    const h = Math.floor(totalMin / 60)
+    const min = totalMin % 60
+    if (h) return `${h}h ${String(min).padStart(2, '0')}min restantes`
+    return `${Math.max(1, min)} min restantes`
 }
 
 function previewDe(m) {
@@ -111,6 +115,34 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
             vivo = false
         }
     }, [codigosRespostas, ufContato, cidadeContato])
+    // marcas {credenciados.*}: cidades que as respostas pedem (a da regra locais com uma cidade, ou a do contato).
+    // Mesma rota /servicos (credenciados=1), uma chamada por cidade; o resultado fica por chave de cidade.
+    const cidadesCredenciados = useMemo(() => {
+        const porChave = new Map()
+        for (const r of respostas || []) {
+            if (!temMarcaCredenciados(r.texto)) continue
+            const alvo = cidadeDaRegra(r.regras) || (cidadeContato ? { uf: ufContato, cidade: cidadeContato } : null)
+            if (alvo) porChave.set(chaveCidade(alvo), alvo)
+        }
+        return porChave
+    }, [respostas, ufContato, cidadeContato])
+    const chavesCredenciados = [...cidadesCredenciados.keys()].sort().join(';')
+    const [credenciadosPorCidade, setCredenciadosPorCidade] = useState({})
+    useEffect(() => {
+        let vivo = true
+        setCredenciadosPorCidade({})
+        for (const [chave, alvo] of cidadesCredenciados) {
+            const q = new URLSearchParams({ uf: alvo.uf || '', cidade: alvo.cidade, credenciados: '1' })
+            api(`servicos?${q}`)
+                .then((r) => vivo && setCredenciadosPorCidade((m) => ({ ...m, [chave]: { estado: 'pronto', listas: r.credenciados } })))
+                .catch(() => vivo && setCredenciadosPorCidade((m) => ({ ...m, [chave]: { estado: 'erro' } })))
+        }
+        return () => {
+            vivo = false
+        }
+        // as cidades mudam só quando muda a chave (evita refazer a busca a cada render)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chavesCredenciados])
     const fecharPerfil = useCallback(() => setPerfilAberto(false), [setPerfilAberto])
     const area = useRef(null)
     const alturaAntes = useRef(null)
@@ -180,27 +212,20 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                 return ''
             }
 
+            if (ultima && aoAtualizarRef.current) {
+                aoAtualizarRef.current(waId, {
+                    ultimaMsg: previaDe(ultima),
+                    ultimaMinha: Boolean(ultima.minha),
+                    ultimaEm: ultima.em,
+                })
+            }
             if (idsVistos.current == null) {
                 idsVistos.current = new Set(msgs.map((m) => m.id).filter(Boolean))
-                if (ultima && aoAtualizarRef.current) {
-                    aoAtualizarRef.current(waId, {
-                        ultimaMsg: previaDe(ultima),
-                        ultimaMinha: Boolean(ultima.minha),
-                        ultimaEm: ultima.em,
-                    })
-                }
             } else {
                 const novas = msgs.filter((m) => m.id && !idsVistos.current.has(m.id))
                 for (const m of msgs) if (m.id) idsVistos.current.add(m.id)
-                if (novas.length && ultima && aoAtualizarRef.current) {
-                    aoAtualizarRef.current(waId, {
-                        ultimaMsg: previaDe(ultima),
-                        ultimaMinha: Boolean(ultima.minha),
-                        ultimaEm: ultima.em,
-                    })
-                    // cliente escreveu: recarrega a lista para bip / badge / meta do banco
-                    if (novas.some((m) => !m.minha) && aoRecarregarListaRef.current) aoRecarregarListaRef.current()
-                }
+                // cliente escreveu: recarrega a lista para bip / badge / meta do banco
+                if (novas.some((m) => !m.minha) && aoRecarregarListaRef.current) aoRecarregarListaRef.current()
             }
         } catch (e) {
             setErro(e.message)
@@ -278,7 +303,7 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
     // Sem mensagem do cliente (número novo / abertura nossa) = janela fechada → só template.
     const [agora, setAgora] = useState(() => Date.now())
     useEffect(() => {
-        const id = setInterval(() => setAgora(Date.now()), 30000)
+        const id = setInterval(() => setAgora(Date.now()), 15000)
         return () => clearInterval(id)
     }, [])
     const ultimaDoCliente = [...mensagens].reverse().find((m) => !m.minha && m.evento === 'message' && m.em)
@@ -288,6 +313,7 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
     const inicioNosso = !isoCliente
 
     const enviarTexto = async (texto, existente) => {
+        if (conversa.status === 'resolvida') return
         // abertura nossa / janela fechada: não dispara texto livre (WATI/API ban)
         if (!aberta) {
             abrirTemplate()
@@ -328,6 +354,7 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
 
     // erros de arquivo voltam para o modal do Composer, que mantém o arquivo para nova tentativa
     const enviarArquivo = async (dados) => {
+        if (conversa.status === 'resolvida') throw new Error('Conversa resolvida: reabra para enviar arquivos.')
         if (!aberta) {
             abrirTemplate()
             throw new Error('Janela fechada: envie um template antes de anexar arquivos.')
@@ -350,7 +377,14 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
     }
 
     const assumir = () => acao('atribuir', {}, 'Conversa atribuída a você.', { atendenteEmail: usuario.email })
-    const mudarStatus = (status, txt) => acao('status', { status }, txt, { status })
+    const mudarStatus = (status, txt) => {
+        if (status === 'resolvida') setRespondendo(null)
+        return acao('status', { status }, txt, { status })
+    }
+
+    useEffect(() => {
+        if (conversa.status === 'resolvida') setRespondendo(null)
+    }, [conversa.status])
 
     const depto = conversa.departamentoId ? deptoPorId[conversa.departamentoId] : null
     const atendente = conversa.atendenteEmail ? equipe.find((u) => u.email === conversa.atendenteEmail)?.nome || conversa.atendenteEmail : null
@@ -542,7 +576,7 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                                         m={m}
                                         waId={waId}
                                         primeiraDoGrupo={primeira}
-                                        aoResponder={aberta ? setRespondendo : null}
+                                        aoResponder={aberta && conversa.status !== 'resolvida' ? setRespondendo : null}
                                         aoTentar={tentarDeNovo}
                                         aoDescartar={descartar}
                                         aoTemplate={abrirTemplate}
@@ -559,64 +593,83 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                     </button>
                 ) : null}
 
-                {!aberta ? (
-                    <div className="janela-fechada" role="status">
-                        <span>
-                            <Icone nome="cadeado" tamanho={18} />
-                            {temTemplates
-                                ? inicioNosso
-                                    ? 'Abertura nossa: o WhatsApp exige um template aprovado para iniciar contato com este número. Mensagem livre só depois que o cliente responder.'
-                                    : 'Janela de 24h fechada: o cliente não escreve há mais de 24 horas. Só templates aprovados podem ser enviados.'
-                                : inicioNosso
-                                  ? `Aguarde o cliente escrever no ${CANAIS[canal].rotulo} para liberar a resposta.`
-                                  : `Janela de 24h fechada: o ${CANAIS[canal].rotulo} só permite responder até 24 horas depois da última mensagem do cliente.`}
-                        </span>
-                        {temTemplates ? (
-                            <button className="botao botao-pequeno" onClick={() => setModal('template')}>
-                                Enviar template
-                            </button>
+                {conversa.status === 'resolvida' ? (
+                    <footer className="chat-resolvido" role="status">
+                        <div className="chat-resolvido-texto">
+                            <strong>Este bate-papo foi resolvido</strong>
+                            <p>Você pode reabrir o chat para acompanhar o cliente.</p>
+                        </div>
+                        <button
+                            type="button"
+                            className="botao botao-primario"
+                            onClick={() => mudarStatus('aberta', 'Conversa reaberta.')}
+                        >
+                            Reabrir bate-papo
+                        </button>
+                    </footer>
+                ) : (
+                    <>
+                        {!aberta ? (
+                            <div className="janela-fechada" role="status">
+                                <span>
+                                    <Icone nome="cadeado" tamanho={18} />
+                                    {temTemplates
+                                        ? inicioNosso
+                                            ? 'Abertura nossa: o WhatsApp exige um template aprovado para iniciar contato com este número. Mensagem livre só depois que o cliente responder.'
+                                            : 'Janela de 24h fechada: o cliente não escreve há mais de 24 horas. Só templates aprovados podem ser enviados.'
+                                        : inicioNosso
+                                          ? `Aguarde o cliente escrever no ${CANAIS[canal].rotulo} para liberar a resposta.`
+                                          : `Janela de 24h fechada: o ${CANAIS[canal].rotulo} só permite responder até 24 horas depois da última mensagem do cliente.`}
+                                </span>
+                                {temTemplates ? (
+                                    <button className="botao botao-pequeno" onClick={() => setModal('template')}>
+                                        Enviar template
+                                    </button>
+                                ) : null}
+                            </div>
                         ) : null}
-                    </div>
-                ) : null}
 
-                <Composer
-                    // trava sempre que não há janela aberta (inclui carregando / número novo) — nunca liberar texto livre na abertura nossa
-                    desabilitado={!aberta}
-                    inicioNosso={inicioNosso}
-                    temTemplates={temTemplates}
-                    prefs={prefs}
-                    respostas={respostas}
-                    respondendo={respondendo}
-                    aoCancelarResposta={() => setRespondendo(null)}
-                    aoEnviarTexto={enviarTexto}
-                    aoEnviarArquivo={enviarArquivo}
-                    controle={composer}
-                    chave={waId}
-                    aoAbrirTemplate={abrirTemplate}
-                    contexto={{
-                        nome: conversa.nome || '',
-                        atendente: usuario.nome,
-                        telefone: formatarTelefone(waId),
-                        tipo: atributosContato.tipo || '',
-                        uf: atributosContato.uf || '',
-                        cidade: atributosContato.cidade || '',
-                    }}
-                    quemRealiza={
-                        !cidadeContato
-                            ? { estado: 'sem-cidade' }
-                            : !servicosCidade
-                              ? { estado: 'carregando' }
-                              : servicosCidade.erro
-                                ? { estado: 'erro' }
-                                : { estado: 'pronto', prestadores: servicosCidade.prestadores }
-                    }
-                    contextoRegras={{
-                        uf: atributosContato.uf || '',
-                        cidade: atributosContato.cidade || '',
-                        departamento: depto?.nome || '',
-                        atributos: atributosContato,
-                    }}
-                />
+                        <Composer
+                            // trava sempre que não há janela aberta (inclui carregando / número novo) — nunca liberar texto livre na abertura nossa
+                            desabilitado={!aberta}
+                            inicioNosso={inicioNosso}
+                            temTemplates={temTemplates}
+                            prefs={prefs}
+                            respostas={respostas}
+                            respondendo={respondendo}
+                            aoCancelarResposta={() => setRespondendo(null)}
+                            aoEnviarTexto={enviarTexto}
+                            aoEnviarArquivo={enviarArquivo}
+                            controle={composer}
+                            chave={waId}
+                            aoAbrirTemplate={abrirTemplate}
+                            contexto={{
+                                nome: conversa.nome || '',
+                                atendente: usuario.nome,
+                                telefone: formatarTelefone(waId),
+                                tipo: atributosContato.tipo || '',
+                                uf: atributosContato.uf || '',
+                                cidade: atributosContato.cidade || '',
+                            }}
+                            credenciados={{ porCidade: credenciadosPorCidade, contato: cidadeContato ? { uf: ufContato, cidade: cidadeContato } : null }}
+                            quemRealiza={
+                                !cidadeContato
+                                    ? { estado: 'sem-cidade' }
+                                    : !servicosCidade
+                                      ? { estado: 'carregando' }
+                                      : servicosCidade.erro
+                                        ? { estado: 'erro' }
+                                        : { estado: 'pronto', prestadores: servicosCidade.prestadores }
+                            }
+                            contextoRegras={{
+                                uf: atributosContato.uf || '',
+                                cidade: atributosContato.cidade || '',
+                                departamento: depto?.nome || '',
+                                atributos: atributosContato,
+                            }}
+                        />
+                    </>
+                )}
 
                 {modal === 'transferir' ? (
                     <Transferir

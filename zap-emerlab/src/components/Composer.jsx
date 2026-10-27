@@ -2,7 +2,18 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { arquivoParaBase64 } from '../api.js'
 import Icone from './Icone.jsx'
 import Modal from './Modal.jsx'
-import { avaliarRegras, codigosServicos, listaQuemRealiza, preencherServicos, temMarcaServicos, MARCA_SERVICOS } from '../regras.js'
+import {
+    avaliarRegras,
+    codigosServicos,
+    listaQuemRealiza,
+    preencherServicos,
+    temMarcaServicos,
+    MARCA_SERVICOS,
+    temMarcaCredenciados,
+    preencherCredenciados,
+    cidadeDaRegra,
+    chaveCidade,
+} from '../regras.js'
 import { preencherVariaveis } from '../variaveis.js'
 
 // seletor de emoji do campo de mensagem: recurso do produto (o cliente usa emoji), não enfeite da interface
@@ -20,6 +31,14 @@ const MOTIVO_SERVICOS = {
     erro: 'Não foi possível buscar quem realiza agora',
     vazio: 'Ninguém da rede realiza esses procedimentos na cidade do contato',
     'sem-regra': `${MARCA_SERVICOS} só é preenchido por uma resposta rápida com regra services {…}`,
+}
+
+// por que {credenciados.*} ainda não virou a lista de nomes
+const MOTIVO_CREDENCIADOS = {
+    'sem-cidade': 'Preencha a UF e a cidade do contato (ou use uma regra locais com uma cidade) para listar os credenciados',
+    carregando: 'Buscando os credenciados da cidade…',
+    erro: 'Não foi possível buscar os credenciados agora',
+    'sem-resposta': 'As marcas {credenciados.*} só são preenchidas por uma resposta rápida',
 }
 
 
@@ -45,7 +64,7 @@ function SeloIndicada() {
     )
 }
 
-export default function Composer({ desabilitado, inicioNosso = false, temTemplates, prefs, respostas, respondendo, aoCancelarResposta, aoEnviarTexto, aoEnviarArquivo, aoAbrirTemplate, contexto, contextoRegras, quemRealiza, controle, chave }) {
+export default function Composer({ desabilitado, inicioNosso = false, temTemplates, prefs, respostas, respondendo, aoCancelarResposta, aoEnviarTexto, aoEnviarArquivo, aoAbrirTemplate, contexto, contextoRegras, quemRealiza, credenciados, controle, chave }) {
     const [texto, setTexto] = useState(() => rascunhos.get(chave) || '')
     const [indice, setIndice] = useState(0)
     const [painel, setPainel] = useState(null) // 'emoji' | 'respostas'
@@ -58,6 +77,8 @@ export default function Composer({ desabilitado, inicioNosso = false, temTemplat
     const inputArquivo = useRef(null)
     // códigos da regra services {…} da última resposta inserida com {services.content} (para preencher quando a busca voltar)
     const codigosMarca = useRef([])
+    // cidade (chave) das marcas {credenciados.*} da última resposta inserida, para preencher quando a busca voltar
+    const cidadeMarcaCred = useRef(null)
 
     // posição do cursor no campo: as respostas rápidas entram ali, sem apagar o que já foi digitado
     const [cursor, setCursor] = useState(() => texto.length)
@@ -94,6 +115,7 @@ export default function Composer({ desabilitado, inicioNosso = false, temTemplat
     useEffect(() => setIndice(0), [termoAtalho])
     useEffect(() => {
         codigosMarca.current = []
+        cidadeMarcaCred.current = null
     }, [chave])
 
     // apagou a barra que tinha sido dispensada: a próxima volta a abrir sugestões
@@ -133,6 +155,12 @@ export default function Composer({ desabilitado, inicioNosso = false, temTemplat
                 conteudo = preencherServicos(conteudo, codigosMarca.current, quemRealiza.prestadores)
             }
         }
+        if (temMarcaCredenciados(conteudo)) {
+            const alvo = cidadeDaRegra(r.regras) || credenciados?.contato
+            cidadeMarcaCred.current = alvo ? chaveCidade(alvo) : 'sem-cidade'
+            const pronto = credenciados?.porCidade?.[cidadeMarcaCred.current]
+            if (pronto?.estado === 'pronto') conteudo = preencherCredenciados(conteudo, pronto.listas)
+        }
         let novo
         let pos
         if (gatilho) {
@@ -162,6 +190,14 @@ export default function Composer({ desabilitado, inicioNosso = false, temTemplat
         setTexto((t) => (temMarcaServicos(t) ? preencherServicos(t, codigosMarca.current, prestadoresProntos) : t))
     }, [prestadoresProntos])
 
+    // a lista de credenciados chegou depois de a resposta entrar no campo: preenche ali mesmo
+    const credProntos = cidadeMarcaCred.current ? credenciados?.porCidade?.[cidadeMarcaCred.current] : null
+    const listasCred = credProntos?.estado === 'pronto' ? credProntos.listas : null
+    useEffect(() => {
+        if (!listasCred) return
+        setTexto((t) => (temMarcaCredenciados(t) ? preencherCredenciados(t, listasCred) : t))
+    }, [listasCred])
+
     const limpo = texto.trim()
     const longo = limpo.length > MAX_CARACTERES
     const motivoServicos = !temMarcaServicos(limpo)
@@ -169,7 +205,18 @@ export default function Composer({ desabilitado, inicioNosso = false, temTemplat
         : !codigosMarca.current.length
           ? MOTIVO_SERVICOS['sem-regra']
           : MOTIVO_SERVICOS[quemRealiza?.estado === 'pronto' ? 'vazio' : quemRealiza?.estado || 'carregando']
-    const motivoBloqueioEnvio = !limpo ? 'Digite uma mensagem' : longo ? `Passou de ${MAX_CARACTERES} caracteres` : motivoServicos
+    const motivoCredenciados = !temMarcaCredenciados(limpo)
+        ? null
+        : !cidadeMarcaCred.current
+          ? MOTIVO_CREDENCIADOS['sem-resposta']
+          : cidadeMarcaCred.current === 'sem-cidade'
+            ? MOTIVO_CREDENCIADOS['sem-cidade']
+            : MOTIVO_CREDENCIADOS[credProntos?.estado === 'erro' ? 'erro' : 'carregando']
+    const motivoBloqueioEnvio = !limpo
+        ? 'Digite uma mensagem'
+        : longo
+          ? `Passou de ${MAX_CARACTERES} caracteres`
+          : motivoServicos || motivoCredenciados
 
     const enviar = () => {
         if (motivoBloqueioEnvio || desabilitado) return
@@ -391,6 +438,11 @@ export default function Composer({ desabilitado, inicioNosso = false, temTemplat
             {motivoServicos ? (
                 <div className="composer-alerta" role="status">
                     <Icone nome="erro" tamanho={16} /> {motivoServicos}. Até lá, {MARCA_SERVICOS} fica no texto e a mensagem não é enviada.
+                </div>
+            ) : null}
+            {motivoCredenciados ? (
+                <div className="composer-alerta" role="status">
+                    <Icone nome="erro" tamanho={16} /> {motivoCredenciados}. Até lá, a marca fica no texto e a mensagem não é enviada.
                 </div>
             ) : null}
 

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { VARIAVEIS } from '../variaveis.js'
-import { MARCA_SERVICOS } from '../regras.js'
+import { MARCA_SERVICOS, MARCAS_CREDENCIADOS } from '../regras.js'
 
 // Formatação do WhatsApp: a marca envolve o texto
 const FORMATOS = [
@@ -33,7 +33,8 @@ function opcoesPara(g) {
         }))
         // lista de quem realiza (regra services {…}); marca com chave simples, não é variável {{…}}
         const servicos = { chave: 'services', rotulo: MARCA_SERVICOS, descricao: 'Quem realiza, um por linha', inserir: MARCA_SERVICOS, cursor: 0 }
-        return 'services.content'.includes(g.termo) || servicos.descricao.toLowerCase().includes(g.termo) ? [...vars, servicos] : vars
+        const marcas = [servicos, ...Object.entries(MARCAS_CREDENCIADOS).map(([k, [rotulo, descricao]]) => ({ chave: `credenciados.${k}`, rotulo, descricao, inserir: rotulo, cursor: 0 }))]
+        return [...vars, ...marcas.filter((m) => m.rotulo.slice(1, -1).toLowerCase().includes(g.termo) || m.descricao.toLowerCase().includes(g.termo))]
     }
     // a marca digitada vem primeiro; as outras continuam disponíveis
     const marca = g.marca.startsWith('`') ? '```' : g.marca

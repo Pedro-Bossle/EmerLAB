@@ -9,7 +9,7 @@ const SECOES = [
         itens: [
             ['E-mail e notas internas do contato', 'Ficam no banco do painel e não aparecem na WATI. Para dados que precisam estar na WATI (nome, cidade, situação…), use os atributos da WATI no perfil.'],
             ['Respostas rápidas', 'As respostas rápidas da WATI não vêm para o painel (a API não as disponibiliza). Cadastre em Administração → Respostas rápidas, ou use "Importar planilha" para trazer várias de uma vez.'],
-            ['Regras das respostas rápidas', 'Respostas com regras (locais, departamentos, clientes, atributos) aparecem no topo, marcadas como "indicada", quando batem com o contato aberto; as que não batem vão para o fim, depois da divisória "Não se aplicam a este contato". As regras usam a UF, a cidade e os atributos do contato na WATI: contato sem esses dados preenchidos não bate com regra de local. A regra services {código, código} não muda a ordem: só diz de quais procedimentos o {services.content} do texto lista quem realiza na cidade do contato (mesma busca do Credenciamento > Quem realiza), um prestador por linha; sem UF e cidade no contato a lista não é preenchida e a mensagem não sai.'],
+            ['Regras das respostas rápidas', 'Respostas com regras (locais, departamentos, clientes, atributos) aparecem no topo, marcadas como "indicada", quando batem com o contato aberto; as que não batem vão para o fim, depois da divisória "Não se aplicam a este contato". As regras usam a UF, a cidade e os atributos do contato na WATI: contato sem esses dados preenchidos não bate com regra de local. A regra services {código, código} não muda a ordem: só diz de quais procedimentos o {services.content} do texto lista quem realiza na cidade do contato (mesma busca do Credenciamento > Quem realiza), um prestador por linha; sem UF e cidade no contato a lista não é preenchida e a mensagem não sai. As marcas {credenciados.clinicas}, {credenciados.veterinarios}, {credenciados.laboratorio} e {credenciados.descontos} viram os credenciados que atendem a cidade da regra locais (uma cidade) ou do contato, incluindo quem tem a cidade como cidade adicional no perfil, um por linha, com uma seta no início: ➡️ Nome - Telefone. Em veterinários entram só os volantes (sem vínculo com clínica), como ➡️ Nome - Especialidade - Telefone.'],
             ['Rascunhos', 'O texto digitado e não enviado fica guardado por conversa enquanto a página está aberta. Recarregar a página apaga os rascunhos.'],
         ],
     },
@@ -18,7 +18,7 @@ const SECOES = [
         itens: [
             ['Atributos da WATI (no perfil do contato)', 'Editar e salvar atualiza o contato na WATI de verdade: vale para broadcasts, templates e automações de lá.'],
             ['Etiquetas: sugestões e sync com a WATI', 'No perfil, as sugestões vêm do catálogo da WATI (quando a API expõe) e das etiquetas já usadas nas conversas do painel. Digite para filtrar. Adicionar/remover aplica na conversa da WATI se a tag já existir lá com o mesmo nome (a API não cria tags novas); se não existir, fica só no painel e aparece um aviso.'],
-            ['Assumir, transferir e status', 'Atribuir atendente, mudar status (aberta/pendente/resolvida) e trocar de departamento com equipe WATI configurada também são enviados à WATI.'],
+            ['Assumir, transferir e status', 'Atribuir atendente, mudar status (aberta/pendente/resolvida) e trocar de departamento com equipe WATI configurada também são enviados à WATI. Conversa resolvida esconde o campo de mensagem e mostra Reabrir bate-papo.'],
         ],
     },
     {

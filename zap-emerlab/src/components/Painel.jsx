@@ -163,7 +163,22 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                 const params = new URLSearchParams({ canal })
                 if (q) params.set('q', q)
                 const { conversas: lista } = await api(`conversas?${params}`)
-                setConversas(lista)
+                // não deixa o poll apagar a prévia que o chat acabou de espelhar (meta no banco ainda atrasada)
+                setConversas((antes) => {
+                    if (!antes.length) return lista
+                    const local = new Map(antes.map((c) => [normalizarWaId(c.waId), c]))
+                    return lista.map((c) => {
+                        const velha = local.get(normalizarWaId(c.waId))
+                        if (!velha?.ultimaEm || !c.ultimaEm) return c
+                        if (new Date(velha.ultimaEm).getTime() <= new Date(c.ultimaEm).getTime() + 2000) return c
+                        return {
+                            ...c,
+                            ultimaMsg: velha.ultimaMsg,
+                            ultimaMinha: velha.ultimaMinha,
+                            ultimaEm: velha.ultimaEm,
+                        }
+                    })
+                })
                 setErroLista('')
                 const relevantes = lista.filter(noEscopoNotificacao)
                 const total = relevantes.reduce((s, c) => s + c.naoLidas, 0)
@@ -364,8 +379,9 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     }, [naoLidasAberta]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const atualizarConversa = (waId, campos) => {
-        setConversas((lista) => lista.map((x) => (x.waId === waId ? { ...x, ...campos } : x)))
-        setSelecionada((s) => (s?.waId === waId ? { ...s, ...campos } : s))
+        const id = normalizarWaId(waId)
+        setConversas((lista) => lista.map((x) => (normalizarWaId(x.waId) === id ? { ...x, ...campos } : x)))
+        setSelecionada((s) => (s && normalizarWaId(s.waId) === id ? { ...s, ...campos } : s))
     }
 
     // menu de botão direito nos cards da lista

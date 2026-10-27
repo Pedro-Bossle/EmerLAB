@@ -6,6 +6,11 @@
 //     a lista "Cidades que atende" fica de fora, como na tela com "cidades paralelas" desmarcado;
 //   - procedimento no perfil do prestador (prestador_procedimentos, pelo código ou pelo id do procedimento).
 // O app principal não entra no bundle deste painel, por isso a regra está copiada aqui. Mudou lá, mude aqui.
+//
+// Marcas {credenciados.clinicas|veterinarios|laboratorio|descontos}: a mesma base, com a lista "Cidades que
+// atende" ligada (como Credenciamento > Especialidades por cidade / Quem realiza com "cidades paralelas"):
+// atende a cidade quem tem o endereço nela OU a tem como cidade adicional no perfil (prestador_cidades).
+// Vet vinculado a clínica usa as cidades adicionais da clínica (idsPrestadorCidadesParaFiltro).
 import { db, ok } from './db.js'
 import { normCodigo } from '../src/regras.js'
 
@@ -13,6 +18,17 @@ const PAGINA = 1000
 const VALIDADE_MS = 10 * 60 * 1000
 // ver ESPECIALIDADES_ESTABELECIMENTO_IDS no projeto principal (clínica, hospital, equipe, laboratório)
 const ESPECIALIDADES_ESTABELECIMENTO = new Set([1, 2, 3, 5])
+// classificação das marcas {credenciados.*}: 1 Clínica 24h, 2 Clínica, 3 Consultório (e Hospital, pelo nome) · 5 Laboratório.
+// Veterinário = prestador do tipo "Especialidade" (tipoEspecialidadePrestador no projeto principal); os demais do tipo
+// "Local" (hotel, banho e tosa, petshop, farmácia, comércio…) só entram em descontos.
+const CLINICAS = new Set([1, 2, 3])
+const ESPECIALIDADE_LABORATORIO = 5
+
+const primeiroTelefone = (p) => (p ? [p.celular, p.telefone].map((t) => String(t || '').trim()).find(Boolean) || '' : '')
+
+// linha de cada credenciado nas marcas {credenciados.*}: seta no início (no celular a quebra de linha confunde onde
+// começa cada um), "Nome - Tel" e, para volantes, "Nome - Especialidade - Tel"
+const linhaCredenciado = (p) => `➡️ ${[p.nome, ...(p.volante && p.especialidade ? [p.especialidade] : []), p.telefone].join(' - ')}`
 
 const norm = (t) =>
     String(t || '')
@@ -61,16 +77,34 @@ let cache = null
 
 async function carregarBase() {
     if (cache && Date.now() - cache.em < VALIDADE_MS) return cache.dados
-    const [prestadores, situacoes, vinculos, procedimentos] = await Promise.all([
+    const [prestadores, situacoes, vinculos, procedimentos, adicionais, cidadesCred, especialidades, beneficios] = await Promise.all([
         todas(() =>
-            db().from('prestadores').select('id, nome, especialidade_id, endereco_uf, endereco_cidade, situacao_id').eq('ativo', true).order('id'),
+            db().from('prestadores').select('id, nome, especialidade_id, endereco_uf, endereco_cidade, situacao_id, telefone, celular, tipo').eq('ativo', true).order('id'),
         ),
         todas(() => db().from('situacoes').select('id, descricao').order('id')),
         todas(() =>
             db().from('prestador_estabelecimentos').select('veterinario_id, estabelecimento_id, principal').order('veterinario_id').order('estabelecimento_id'),
         ),
         todas(() => db().from('procedimentos').select('id, codigo, nome').order('id')),
+        todas(() => db().from('prestador_cidades').select('prestador_id, cidade_id').order('prestador_id').order('cidade_id')),
+        todas(() => db().from('cidades_credenciamento').select('id, nome').order('id')),
+        todas(() => db().from('especialidades').select('id, nome').order('id')),
+        todas(() => db().from('prestador_beneficios').select('prestador_id').eq('incluir', true).order('prestador_id')),
     ])
+    const nomeCidadeCred = new Map(cidadesCred.map((c) => [Number(c.id), String(c.nome || '')]))
+    const cidadesDe = new Map() // prestador_id → nomes das cidades adicionais
+    for (const r of adicionais) {
+        const nome = nomeCidadeCred.get(Number(r.cidade_id))
+        if (!nome) continue
+        const pid = Number(r.prestador_id)
+        if (!cidadesDe.has(pid)) cidadesDe.set(pid, [])
+        cidadesDe.get(pid).push(nome)
+    }
+    // laboratório: id canônico ou especialidade com "laborat" no nome (prestadorEhLaboratorio)
+    const laboratorio = new Set(especialidades.filter((e) => Number(e.id) === ESPECIALIDADE_LABORATORIO || norm(e.nome).includes('laborat')).map((e) => Number(e.id)))
+    const clinicas = new Set([...CLINICAS, ...especialidades.filter((e) => norm(e.nome).includes('hospital')).map((e) => Number(e.id))])
+    const comDesconto = new Set(beneficios.map((b) => Number(b.prestador_id)))
+    const nomeEspecialidade = new Map(especialidades.map((e) => [Number(e.id), String(e.nome || '').trim()]))
 
     const credenciado = new Set(situacoes.filter((s) => norm(s.descricao).toUpperCase().includes('CREDENCIAD')).map((s) => Number(s.id)))
     const porId = new Map(prestadores.map((p) => [Number(p.id), p]))
@@ -86,11 +120,26 @@ async function carregarBase() {
         .filter((p) => credenciado.has(Number(p.situacao_id)))
         .map((p) => {
             const est = ESPECIALIDADES_ESTABELECIMENTO.has(Number(p.especialidade_id)) ? null : clinicaDoVet.get(Number(p.id))
+            const esp = Number(p.especialidade_id)
             return {
                 id: Number(p.id),
                 nome: String(p.nome || '').trim(),
                 endereco_cidade: est ? (est.endereco_cidade ?? p.endereco_cidade) : p.endereco_cidade,
                 endereco_uf: est ? (est.endereco_uf ?? p.endereco_uf) : p.endereco_uf,
+                tipo: laboratorio.has(esp)
+                    ? 'laboratorio'
+                    : clinicas.has(esp)
+                      ? 'clinica'
+                      : norm(p.tipo).includes('local') || ESPECIALIDADES_ESTABELECIMENTO.has(esp)
+                        ? 'outro'
+                        : 'veterinario',
+                cidadesAdicionais: cidadesDe.get(est ? Number(est.id) : Number(p.id)) || [],
+                desconto: comDesconto.has(Number(p.id)),
+                // telefone como em Especialidades por cidade: vet vinculado usa o da clínica; celular antes do fixo
+                telefone: primeiroTelefone(est) || primeiroTelefone(p) || '—',
+                // volante: veterinário sem vínculo com clínica (prestador_estabelecimentos); o vinculado sai com o telefone da clínica
+                volante: !norm(p.tipo).includes('local') && !ESPECIALIDADES_ESTABELECIMENTO.has(esp) && !est,
+                especialidade: nomeEspecialidade.get(esp) || '',
             }
         })
 
@@ -149,4 +198,29 @@ export async function servicosNaCidade({ uf, cidade, codigos }) {
         realizadores: Object.fromEntries([...quem].map(([cod, s]) => [cod, s.size])),
         prestadores: [...codigosPorPrestador].map(([pid, cods]) => ({ nome: naCidade.get(pid).nome, codigos: cods.sort() })),
     }
+}
+
+/**
+ * Credenciados que atendem a cidade (endereço nela ou cidade adicional no perfil), por grupo, A–Z pelo nome.
+ * Cada item já é a linha da mensagem: "Nome - Tel" ou, para volantes, "Nome - Tel - Especialidade".
+ * @returns {Promise<{ clinicas: string[], veterinarios: string[], laboratorio: string[], descontos: string[] }>}
+ */
+export async function credenciadosNaCidade({ uf, cidade }) {
+    const vazio = { clinicas: [], veterinarios: [], laboratorio: [], descontos: [] }
+    if (!String(cidade || '').trim()) return vazio
+    const sigla = String(uf || '').trim().toUpperCase()
+    const { rede } = await carregarBase()
+    const grupos = { clinicas: new Set(), veterinarios: new Set(), laboratorio: new Set(), descontos: new Set() }
+    const grupoDoTipo = { clinica: 'clinicas', veterinario: 'veterinarios', laboratorio: 'laboratorio' }
+    for (const p of rede) {
+        if (!p.nome) continue
+        const atende = enderecoNaCidade(p, sigla, cidade) || p.cidadesAdicionais.some((nome) => cidadeCompativel(nome, cidade))
+        if (!atende) continue
+        // veterinário vinculado a clínica não entra em {credenciados.veterinarios}: a clínica dele já está em clínicas
+        const vinculado = p.tipo === 'veterinario' && !p.volante
+        if (grupoDoTipo[p.tipo] && !vinculado) grupos[grupoDoTipo[p.tipo]].add(linhaCredenciado(p))
+        if (p.desconto) grupos.descontos.add(linhaCredenciado(p))
+    }
+    const az = (set) => [...set].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }))
+    return { clinicas: az(grupos.clinicas), veterinarios: az(grupos.veterinarios), laboratorio: az(grupos.laboratorio), descontos: az(grupos.descontos) }
 }
