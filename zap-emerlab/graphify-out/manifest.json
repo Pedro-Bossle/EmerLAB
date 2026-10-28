@@ -66,9 +66,9 @@
     "semantic_hash": ""
   },
   "server/router.js": {
-    "mtime": 1793195828.9733977,
-    "seen": 1793195892.1113884,
-    "ast_hash": "d6cdbaf60e55a21297d8d42d3c024f31",
+    "mtime": 1793196430.1177468,
+    "seen": 1793196475.0043435,
+    "ast_hash": "1ca6665ca816022c76327d75e76c153e",
     "semantic_hash": ""
   },
   "server/wati.js": {
@@ -108,9 +108,9 @@
     "semantic_hash": ""
   },
   "src/components/Chat.jsx": {
-    "mtime": 1793190160.8110423,
-    "seen": 1793190333.145132,
-    "ast_hash": "9c5f2bfd8ee7d67a5c7178d8246e8669",
+    "mtime": 1793196430.1132238,
+    "seen": 1793196475.0050652,
+    "ast_hash": "fefac9a1b114c689bff95bb122a93476",
     "semantic_hash": ""
   },
   "src/components/Composer.jsx": {
