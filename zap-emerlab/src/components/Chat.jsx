@@ -396,7 +396,8 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
 
     const itensMenu = [
         { rotulo: 'Dados do contato', acao: () => setPerfilAberto(true) },
-        temTemplates && { rotulo: 'Enviar template…', acao: () => setModal('template') },
+        // template também é resposta: só para quem está com a conversa (ou se ela está sem atendente)
+        temTemplates && (minha || !conversa.atendenteEmail) && { rotulo: 'Enviar template…', acao: () => setModal('template') },
         ...itensDeAtendimento(conversa, usuario.email, { acao, aoTransferir: () => setModal('transferir'), admin: usuario.papel === 'admin' }),
     ]
 
@@ -619,6 +620,17 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                             onClick={() => mudarStatus('aberta', 'Conversa reaberta.')}
                         >
                             Reabrir bate-papo
+                        </button>
+                    </footer>
+                ) : conversa.atendenteEmail && !minha ? (
+                    // com outra pessoa: só quem está com a conversa responde (assumir troca o atendente, também na WATI)
+                    <footer className="chat-resolvido" role="status">
+                        <div className="chat-resolvido-texto">
+                            <strong>Esta conversa está com {atendente}</strong>
+                            <p>Para responder, assuma a conversa. Ela passa a ser sua, aqui e na WATI.</p>
+                        </div>
+                        <button type="button" className="botao botao-primario" onClick={assumir}>
+                            Assumir
                         </button>
                     </footer>
                 ) : (

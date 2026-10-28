@@ -1093,6 +1093,13 @@ async function nomesArquivosEnviados(waId, lista) {
 }
 
 /** Sessão livre (texto/arquivo) só com mensagem do cliente nas últimas 24h — abertura nossa exige template. */
+// Só quem está com a conversa responde (texto, arquivo, template). Sem atendente, qualquer um do setor responde
+// e passa a ser o atendente. A WATI não trava isso pela API: a regra é do painel, para a atribuição valer.
+function exigirSerAtendente(meta, usuario) {
+    if (!meta?.atendente_email || mesmoEmail(meta.atendente_email, usuario.email)) return
+    throw new HttpError(403, `Esta conversa está com ${meta.atendente_email}. Assuma a conversa para responder.`, 'outro_atendente')
+}
+
 async function exigirSessaoLivre(waId, meta) {
     const iso = meta?.ultima_cliente_em || null
     if (iso) {
@@ -1135,6 +1142,7 @@ async function exigirSessaoLivre(waId, meta) {
 
 async function enviarTextoHandler(req, usuario, waId) {
     const meta = await exigirConversa(usuario, waId)
+    exigirSerAtendente(meta, usuario)
     await exigirSessaoLivre(waId, meta)
     const { texto, replyContextId } = await lerCorpo(req)
     const limpo = String(texto || '').trim()
@@ -1158,6 +1166,7 @@ async function enviarTextoHandler(req, usuario, waId) {
 
 async function enviarArquivoHandler(req, usuario, waId) {
     const meta = await exigirConversa(usuario, waId)
+    exigirSerAtendente(meta, usuario)
     await exigirSessaoLivre(waId, meta)
     const { nome, mime, base64, legenda } = await lerCorpo(req)
     if (!base64) throw new HttpError(400, 'Arquivo vazio.')
@@ -1177,7 +1186,7 @@ const TEMPLATE_REPETIDO_MS = 30000
 const templatesRecentes = new Map()
 
 async function enviarTemplateHandler(req, usuario, waId) {
-    await exigirConversa(usuario, waId)
+    exigirSerAtendente(await exigirConversa(usuario, waId), usuario)
     if (canalDe(waId) !== 'whatsapp') throw new HttpError(400, 'Templates existem só no WhatsApp. No Instagram e no Messenger, aguarde o cliente escrever.', 'canal')
     const { nome, parametros } = await lerCorpo(req)
     if (!nome) throw new HttpError(400, 'Escolha um template.')
