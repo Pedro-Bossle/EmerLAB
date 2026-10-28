@@ -1,17 +1,17 @@
 # Graph Report - zap-emerlab  (2026-10-28)
 
 ## Corpus Check
-- 71 files · ~73,407 words
+- 71 files · ~73,468 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: .example 1, (none) 1, .css 1)
 
 ## Summary
-- 586 nodes · 1836 edges · 17 communities (16 shown, 1 thin omitted)
+- 585 nodes · 1834 edges · 18 communities (17 shown, 1 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 13 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `cc77023b`
+- Built from commit: `34066c07`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -25,6 +25,7 @@
 - handle
 - Painel.jsx
 - aceitarConvite
+- Mensagem.jsx
 - Perfil.jsx
 - quemRealiza.js
 - zap.emerlab
@@ -60,7 +61,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (17 total, 1 thin omitted)
+## Communities (18 total, 1 thin omitted)
 
 ### Community 0 - "getEnv"
 Cohesion: 0.31
@@ -72,15 +73,15 @@ Nodes (34): dependencies, lucide-react@^1.61.0, react@^19.2.4, react-dom@^19.2.4
 
 ### Community 2 - "Chat.jsx"
 Cohesion: 0.07
-Nodes (58): arquivoParaBase64(), Admin(), CampoRegras(), comAtalhosUnicos(), Departamentos(), DEPTO_VAZIO, ImportarRespostas(), ImportarWati() (+50 more)
+Nodes (64): aoConexao(), aoExpirar(), api(), ApiError, arquivoParaBase64(), registrarAoExpirar(), App(), Admin() (+56 more)
 
 ### Community 3 - "wati.js"
 Cohesion: 0.14
 Nodes (39): adicionarTag(), atribuirAtendente(), atribuirAtendenteV3(), atribuirEquipe(), atualizarAtributos(), atualizarStatus(), baixarMidia(), cache (+31 more)
 
 ### Community 4 - "api"
-Cohesion: 0.10
-Nodes (27): aoConexao(), aoExpirar(), api(), ApiError, registrarAoExpirar(), App(), Alternar(), Configuracoes() (+19 more)
+Cohesion: 0.11
+Nodes (17): Alternar(), Configuracoes(), Segmentado(), Instrucoes(), mod, SECOES, criar(), esconder() (+9 more)
 
 ### Community 5 - "router.js"
 Cohesion: 0.06
@@ -91,12 +92,16 @@ Cohesion: 0.19
 Nodes (30): alvoWati(), atribuirHandler(), atributoDaFicha(), canalDe(), chaveAtributo(), comAlvoWati(), comConversaWati(), contextoHandler() (+22 more)
 
 ### Community 7 - "Painel.jsx"
-Cohesion: 0.06
-Nodes (87): react, itensDeAtendimento(), transferir(), emLimiteWati(), registrarAoConexao(), urlMidia(), ATALHOS, comMod() (+79 more)
+Cohesion: 0.08
+Nodes (58): itensDeAtendimento(), transferir(), emLimiteWati(), registrarAoConexao(), ATALHOS, comMod(), emCampo(), haSobreposicao() (+50 more)
 
 ### Community 8 - "aceitarConvite"
 Cohesion: 0.21
 Nodes (16): assinar(), compararSeguro(), conferirSenha(), criarToken(), hashSenha(), impressao(), lerToken(), aceitarConvite() (+8 more)
+
+### Community 9 - "Mensagem.jsx"
+Cohesion: 0.22
+Nodes (16): urlMidia(), Citacao(), Falha(), Mensagem(), Midia(), nomeDoArquivo(), ROTULO_ARQUIVO, ROTULO_CITA (+8 more)
 
 ### Community 10 - "Perfil.jsx"
 Cohesion: 0.16
@@ -115,8 +120,8 @@ Cohesion: 0.22
 Nodes (8): maxDuration, buildCommand, framework, functions, api/zap.js, headers, outputDirectory, rewrites
 
 ### Community 14 - "Icone"
-Cohesion: 0.07
-Nodes (53): EditorEmail(), FORMATOS, tamanhoLegivel(), IconeMicrosoft(), LogoMicrosoft(), MolduraMicrosoft(), Arquivo(), Avatar() (+45 more)
+Cohesion: 0.06
+Nodes (69): react, EditorEmail(), FORMATOS, tamanhoLegivel(), EnviarTemplate(), nomesEm(), ondeAparece(), substituir() (+61 more)
 
 ### Community 15 - "db"
 Cohesion: 0.17
@@ -132,17 +137,17 @@ Nodes (8): BRAND, envelopeHtml(), escapeHtml(), host(), montarEmailConvite(), pr
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `Painel.jsx` to `package.json`, `Chat.jsx`, `api`, `Perfil.jsx`, `Icone`?**
+- **Why does `react` connect `Icone` to `package.json`, `Chat.jsx`, `api`, `Painel.jsx`, `Mensagem.jsx`, `Perfil.jsx`?**
   _High betweenness centrality (0.082) - this node is a cross-community bridge._
 - **Should `package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.06153846153846154 - nodes in this community are weakly interconnected._
-- **Why does `normalizarWaId()` connect `handle` to `Painel.jsx`, `router.js`, `db`?**
+- **Why does `normalizarWaId()` connect `handle` to `Painel.jsx`, `router.js`, `Icone`, `db`?**
   _High betweenness centrality (0.048) - this node is a cross-community bridge._
 - **Should `Chat.jsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.07373271889400922 - nodes in this community are weakly interconnected._
-- **Why does `Icone()` connect `Painel.jsx` to `Chat.jsx`, `Perfil.jsx`, `api`, `Icone`?**
+  _Cohesion score 0.06582952815829528 - nodes in this community are weakly interconnected._
+- **Why does `Icone()` connect `Icone` to `Mensagem.jsx`, `Chat.jsx`, `Perfil.jsx`, `Painel.jsx`?**
   _High betweenness centrality (0.040) - this node is a cross-community bridge._
 - **Should `wati.js` be split into smaller, more focused modules?**
   _Cohesion score 0.14268292682926828 - nodes in this community are weakly interconnected._
 - **Should `api` be split into smaller, more focused modules?**
-  _Cohesion score 0.09966777408637874 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.1111111111111111 - nodes in this community are weakly interconnected._

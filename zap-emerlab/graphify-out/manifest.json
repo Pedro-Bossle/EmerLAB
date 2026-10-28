@@ -72,9 +72,9 @@
     "semantic_hash": ""
   },
   "server/wati.js": {
-    "mtime": 1793192829.963763,
-    "seen": 1793192908.251494,
-    "ast_hash": "db34d4561400b1c580e863ac913cfedc",
+    "mtime": 1793212116.8157246,
+    "seen": 1793212144.6149998,
+    "ast_hash": "365053267b9e10c610f31d292beec993",
     "semantic_hash": ""
   },
   "src/App.jsx": {
@@ -132,9 +132,9 @@
     "semantic_hash": ""
   },
   "src/components/EnviarTemplate.jsx": {
-    "mtime": 1793192836.3278365,
-    "seen": 1793192908.2524817,
-    "ast_hash": "eb169efc460195503150b638eaad5ade",
+    "mtime": 1793212116.8107245,
+    "seen": 1793212144.6160617,
+    "ast_hash": "ed99452ed3beee671cee65b51e0c9572",
     "semantic_hash": ""
   },
   "src/components/FilaEspera.jsx": {
