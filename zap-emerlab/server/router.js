@@ -540,7 +540,13 @@ async function me(usuario) {
         usuario,
         departamentos,
         canais,
-        config: { tenantId: env.watiTenantId, canalConfigurado: Boolean(env.watiChannel), webhook: Boolean(env.webhookSecret) },
+        config: {
+            tenantId: env.watiTenantId,
+            canalConfigurado: Boolean(env.watiChannel),
+            webhook: Boolean(env.webhookSecret),
+            // como a "Default Team" da WATI: conversa sem atendente e sem setor fica visível para todos os atendentes
+            atendenteVeSemDepto: env.atendenteVeSemDepto,
+        },
     }
 }
 
@@ -753,9 +759,13 @@ function statusDoHistorico(itens) {
     const eventos = [...itens].filter((m) => m.eventType === 'ticket').sort((a, b) => msData(b.created) - msData(a.created))
     for (const e of eventos) {
         const t = String(e.eventDescription || e.text || e.finalText || '')
-        if (!/\bstatus\b/i.test(t) && !/\bmarked as\b/i.test(t)) continue
         let status = null
-        if (/\b(solved|resolved)\b/i.test(t)) status = 'resolvida'
+        // "The chat has been closed by Bot / by agent X" = resolvido na WATI;
+        // "opened by agent" / "initialized by contact" = aberto de novo. "Expired" não muda o status.
+        if (/\b(chat|ticket)\s+has\s+been\s+(closed|solved|resolved)\b/i.test(t)) status = 'resolvida'
+        else if (/\b(chat|ticket)\s+has\s+been\s+(opened|reopened|initialized)\b/i.test(t)) status = 'aberta'
+        else if (!/\bstatus\b/i.test(t) && !/\bmarked as\b/i.test(t)) continue
+        else if (/\b(solved|resolved|closed)\b/i.test(t)) status = 'resolvida'
         else if (/\bpending\b/i.test(t)) status = 'pendente'
         else if (/\bopen\b/i.test(t)) status = 'aberta'
         if (status) return { status, em: e.created || e.timestamp || null }
@@ -768,8 +778,28 @@ function aplicarStatusDoHistorico(meta, itens) {
     if (!ev || ev.status === (meta?.status || 'aberta')) return null
     // evento sem data: só aceita "resolvida" (não reabre por Open antigo sem timestamp)
     if (!ev.em) return ev.status === 'resolvida' ? ev.status : null
-    if (msData(ev.em) <= msData(meta?.atualizado_em) + FOLGA_MS) return null
-    return ev.status
+    if (msData(ev.em) > msData(meta?.atualizado_em) + FOLGA_MS) return ev.status
+    // fechamento pelo bot que a conferência antiga não reconhecia: o último evento da WATI ainda é o fechamento
+    // e o cliente não escreveu depois dele, então lá a conversa continua encerrada
+    if (ev.status === 'resolvida' && msData(ev.em) > msData(meta?.ultima_cliente_em) + FOLGA_MS) return ev.status
+    return null
+}
+
+// Departamento pela equipe da WATI (o bot distribui por equipe e o painel não ficava sabendo): mantém o atual
+// se a equipe dele está na conversa; senão o primeiro departamento cuja equipe_wati bate. Sem equipe mapeada, nada.
+async function departamentoDaWati(waId, meta, departamentos) {
+    const comEquipe = departamentos.filter((d) => d.equipe_wati)
+    if (!comEquipe.length) return undefined
+    const c = await comAlvoWati(waId, (alvo) => wati.detalheContato(alvo))
+    const equipes = (c?.teams || []).map((t) => String(t?.name ?? t).trim().toLowerCase())
+    const daEquipe = (d) => equipes.includes(d.equipe_wati.trim().toLowerCase())
+    const atual = comEquipe.find((d) => d.id === meta?.departamento_id)
+    if (atual && daEquipe(atual)) return undefined
+    for (const nome of equipes) {
+        const d = comEquipe.find((x) => x.equipe_wati.trim().toLowerCase() === nome)
+        if (d) return d.id
+    }
+    return undefined
 }
 
 /** Frases de sistema/Ask mode que a WATI manda como “mensagem” — não reabrem ticket resolvido. */
@@ -785,8 +815,11 @@ function textoPareceSistemaWati(texto) {
 
 async function verificarNaWati(lista, metaPorId, contatoEm) {
     if (wati.watiEmPausa()) return
+    const escolhidas = escolherParaVerificar(lista, metaPorId, contatoEm)
+    if (!escolhidas.length) return
+    const departamentos = await db().from('zap_departamentos').select('id, equipe_wati').then(ok).catch(() => [])
     await Promise.allSettled(
-        escolherParaVerificar(lista, metaPorId, contatoEm).map(async (c) => {
+        escolhidas.map(async (c) => {
             verificadas.set(c.waId, Date.now())
             const { mensagens: itens } = await listarMensagensWati(c.waId, { pagina: 1, tamanho: 20 })
             // marca como conferida no banco (atualizado_em), mesmo que não haja nada novo
@@ -808,6 +841,15 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
                 await salvarMeta(c.waId, { status: statusWati })
                 c.status = statusWati
                 if (meta) meta.status = statusWati
+            }
+            // sem atendente, a conversa fica com a equipe (como na WATI): traz a equipe para o setor do painel
+            if (!c.atendenteEmail && (meta?.status || c.status) !== 'resolvida') {
+                const depto = await departamentoDaWati(c.waId, meta, departamentos).catch(() => undefined)
+                if (depto) {
+                    await salvarMeta(c.waId, { departamento_id: depto })
+                    c.departamentoId = depto
+                    if (meta) meta.departamento_id = depto
+                }
             }
             const ultima = msgs[0]
             if (!ultima) return
@@ -1286,9 +1328,11 @@ async function statusHandler(req, usuario, waId) {
     try {
         await comAlvoWati(waId, (alvo) => wati.atualizarStatus(alvo, status))
     } catch (e) {
+        // bot/atendente já fechou na WATI (ou expirou): lá não há conversa aberta, então resolver é só espelhar
+        const fechadaNaWati = e instanceof wati.WatiError && e.codigo === 'conversa_fechada'
         // resolvida só no painel some da lista e a WATI reabre/recusa — o atendente acha que “não encerra”
-        if (status === 'resolvida') throw e
-        avisoWati = e.message
+        if (status === 'resolvida' && !fechadaNaWati) throw e
+        if (!(status === 'resolvida' && fechadaNaWati)) avisoWati = e.message
     }
     await salvarMeta(waId, { status })
     return { ok: true, avisoWati }

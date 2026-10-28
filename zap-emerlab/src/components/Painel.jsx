@@ -133,26 +133,32 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         return new Set()
     }, [usuario.departamentos, usuario.papel, usuario.fixo, departamentos])
 
+    // Fila (sem atendente) que é minha, como na WATI: do meu setor (equipe) ou sem setor nenhum
+    // (a "Default Team" da WATI, visível a todos quando ZAP_ATENDENTE_VE_SEM_DEPARTAMENTO=true)
+    const filaVisivel = useCallback(
+        (c) => (c.departamentoId ? meusDeptoIds.has(c.departamentoId) : config.atendenteVeSemDepto !== false),
+        [meusDeptoIds, config.atendenteVeSemDepto],
+    )
+
     // visão atendente: só as minhas + fila do meu setor (sem atendente).
     // chats já atribuídos a colegas NÃO entram — senão parece que a conversa da Ju “está nas minhas”.
     const noEscopoNotificacao = useCallback(
         (c) => {
             if (!visaoAtendente) return true
             if (mesmoEmail(c.atendenteEmail, usuario.email)) return true
-            if (!c.atendenteEmail && c.departamentoId && meusDeptoIds.has(c.departamentoId)) return true
-            return false
+            return !c.atendenteEmail && filaVisivel(c)
         },
-        [visaoAtendente, usuario.email, meusDeptoIds],
+        [visaoAtendente, usuario.email, filaVisivel],
     )
 
-    // Na fila do setor: sem atendente, aberta, e departamento do qual faço parte
+    // Na fila: sem atendente, não resolvida, do meu setor ou sem setor
     const naFilaDoSetor = useCallback(
         (c) => {
             if (c.atendenteEmail || c.status === 'resolvida') return false
             if (!visaoAtendente) return true
-            return Boolean(c.departamentoId && meusDeptoIds.has(c.departamentoId))
+            return filaVisivel(c)
         },
-        [visaoAtendente, meusDeptoIds],
+        [visaoAtendente, filaVisivel],
     )
 
     const avisar = useCallback((texto, tipo = 'info') => {

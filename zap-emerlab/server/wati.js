@@ -21,6 +21,9 @@ const RECUSAS = [
     // antes de "operador": "Could not assign operator because the ticket is Solved" batia em no.*operator
     [/\bticket\s+is\s+solved\b|because\s+the\s+ticket\s+is\s+solved|assign\s+operator.*\bsolved\b|\bsolved\b.*assign/i, 'ticket_resolvido',
         'Na WATI este ticket ainda está como Solved (resolvido). O painel pode já ter reaberto — a atribuição ficou só no painel.'],
+    // v3 conversations/{target}/status sem conversa aberta: o bot/atendente fechou ou a janela expirou
+    [/conversation\s+with\s+.*\bnot\s+found\b/i, 'conversa_fechada',
+        'Na WATI esta conversa já está encerrada (fechada pelo bot, por um atendente ou expirada).'],
     [/operator.*(not|no).*(found|exist)|user.*(not|no).*found|\bno\s+such\s+operator\b|email.*(not|no).*(found|exist|operator)|not\s+a\s+valid\s+operator|operator\s+does\s+not\s+exist/i, 'operador',
         'Esse e-mail não existe como operador na WATI. A atribuição ficou só no painel.'],
     [/template.*(not.*found|not.*approved|paused|disabled)|parameter/i, 'template',
@@ -226,12 +229,18 @@ export async function atribuirAtendente(waId, email) {
 // Equipe da conversa pela v3 (PUT contacts/teams): o v1 assignTeam responde 403 para este token (só no plano Pro).
 // target aceita telefone ou ContactId; substitui as equipes que o contato já tinha.
 export async function atribuirEquipe(waId, equipes) {
+    invalidarCache(`contatos:detalhe:${waId}`)
     return chamar(v3Url('contacts/teams'), { method: 'PUT', body: { target: String(waId), teams: equipes } })
 }
 
 // Ficha do contato na WATI (v3): atributos personalizados, segmentos, opt-in…
 export async function detalheContato(alvo) {
-    return chamar(v3Url(`contacts/${encodeURIComponent(alvo)}`))
+    const key = `contatos:detalhe:${alvo}`
+    const hit = cacheGet(key)
+    if (hit) return hit
+    const dados = await chamar(v3Url(`contacts/${encodeURIComponent(alvo)}`))
+    cacheSet(key, dados, 30000)
+    return dados
 }
 
 // A API não permite mudar o nome do contato, só os atributos personalizados
