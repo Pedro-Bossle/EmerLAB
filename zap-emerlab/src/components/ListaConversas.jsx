@@ -93,7 +93,7 @@ export default function ListaConversas({ conversas, carregando, erro, textoVazio
             {conversas.map((c) => {
                 const depto = c.departamentoId ? deptoPorId[c.departamentoId] : null
                 // sem atendente e não resolvida = fila (mesmo sem janela 24h / sem mensagem do cliente ainda)
-                const naFila = !c.atendenteEmail && c.status !== 'resolvida'
+                const naFila = !c.atendenteEmail && c.status !== 'resolvida' && !c.semHistorico
                 return (
                     <button
                         key={c.waId}

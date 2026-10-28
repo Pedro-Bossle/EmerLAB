@@ -286,6 +286,9 @@ html[data-tema='escuro'] .avatar { background: color-mix(in srgb, var(--av) 26%,
     background: color-mix(in srgb, var(--destaque) 16%, transparent); color: var(--destaque);
 }
 .trilho-rotulo { display: none; font-size: 12px; font-weight: 500; line-height: 1; }
+/* traço entre os canais da WATI e os apps da Microsoft (prévia) */
+.trilho-divisor { width: 26px; height: 1px; margin: 6px 0; background: var(--folha-borda); flex: none; }
+.trilho-ms:not(.ativo) .icone { filter: saturate(0.85); }
 .trilho-avatar { border: 0; background: none; padding: 0; border-radius: 50%; margin-top: 4px; }
 .trilho-avatar .avatar { width: 36px; height: 36px; font-size: 0.8rem; }
 
@@ -863,6 +866,262 @@ html[data-tema='escuro'] .sugestoes strong, html[data-tema='escuro'] .resposta-i
 
 /* ---------- toast ---------- */
 
+/* ---------- prévia Teams / Outlook (PreviaMicrosoft.jsx) ---------- */
+
+.ms-faixa {
+    display: flex; align-items: center; gap: 6px; margin: 0 12px 8px; padding: 7px 10px; border-radius: 8px; flex-shrink: 0;
+    background: color-mix(in srgb, var(--ms) 10%, transparent); color: var(--texto-2); font-size: 0.78rem; line-height: 1.35;
+}
+.ms-faixa .icone { flex: none; color: var(--ms); }
+.ms-login {
+    margin: auto; max-width: 400px; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
+}
+.ms-login h2 { margin: 4px 0 0; font-size: 1.25rem; font-weight: 600; color: var(--texto); }
+.ms-login p { margin: 0; color: var(--texto-2); font-size: 0.92rem; line-height: 1.5; }
+.ms-login small { color: var(--texto-3); font-size: 0.78rem; }
+.ms-entrar {
+    display: inline-flex; align-items: center; gap: 12px; height: 42px; padding: 0 18px; margin-top: 6px;
+    border: 1px solid var(--entrada-borda); border-radius: 6px; background: var(--painel); color: var(--texto); font: inherit; font-weight: 600;
+}
+.ms-entrar:hover { background: var(--hover); }
+.ms-vazio { margin: auto; }
+.ms-assunto { display: flex; align-items: center; gap: 5px; font-size: 0.88rem; color: var(--texto); min-width: 0; }
+.ms-assunto-txt { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nao-lida .ms-assunto-txt { font-weight: 600; }
+.ms-importante { flex: none; color: var(--erro); font-weight: 800; }
+.ms-qtd { flex: none; font-size: 11px; color: var(--texto-3); border: 1px solid var(--borda); border-radius: 8px; padding: 0 5px; }
+.ms-icone-lista { flex: none; color: var(--texto-3); }
+.ms-sinal, .icone-botao.ms-sinal { color: #D13438; }
+.ms-secao { margin: 0; padding: 10px 16px 4px; font-size: 0.72rem; font-weight: 600; color: var(--texto-3); letter-spacing: 0.03em; text-transform: uppercase; }
+.ms-arroba { flex: none; color: var(--ms); font-weight: 800; font-size: 0.95rem; }
+.ms-titulo { font-size: 1rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* avatar com presença (bolinha do Teams) */
+.ms-avatar { position: relative; display: inline-flex; flex: none; }
+.ms-avatar .avatar { font-size: 0.85rem; }
+.ms-presenca { position: absolute; right: -1px; bottom: -1px; width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--moldura); }
+.barra .ms-presenca { border-color: var(--barra); }
+
+/* mensagens do Teams */
+.ms-autor { font-size: 0.8rem; color: var(--ms); }
+.ms-mencao { background: color-mix(in srgb, var(--ms) 16%, transparent); color: var(--ms); font-weight: 600; border-radius: 4px; padding: 0 2px; }
+.ms-msg-mencao { box-shadow: inset 3px 0 0 var(--ms), var(--sombra); }
+.ms-rodape-msg { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.ms-hora { font-size: 11px; color: var(--texto-3); }
+.ms-reacoes { display: inline-flex; gap: 4px; margin-right: auto; }
+.ms-reacoes span { font-size: 12px; padding: 1px 6px; border-radius: 10px; background: var(--selecionado); color: var(--texto-2); }
+.ms-arquivo {
+    display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 320px; padding: 8px 10px;
+    border: 1px solid var(--borda); border-radius: 8px; background: var(--painel);
+}
+.ms-arquivo-ico { width: 32px; height: 32px; flex: none; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; color: #fff; background: #5B5FC7; }
+.ms-arquivo-ico.pdf { background: #C4314B; }
+.ms-arquivo-ico.planilha { background: #107C41; }
+.ms-arquivo-txt { display: flex; flex-direction: column; min-width: 0; }
+.ms-arquivo-txt strong { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-arquivo-txt small { font-size: 0.75rem; color: var(--texto-3); }
+.ms-reuniao {
+    display: flex; align-items: center; gap: 12px; margin: 6px auto 10px; padding: 10px 14px; max-width: 420px;
+    border: 1px solid var(--borda); border-left: 3px solid var(--ms); border-radius: 10px; background: var(--painel); color: var(--ms);
+}
+.ms-reuniao div { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.ms-reuniao strong { color: var(--texto); font-size: 0.92rem; }
+.ms-reuniao small { color: var(--texto-2); font-size: 0.8rem; }
+.ms-reuniao .botao { background: var(--ms); }
+.ms-campo { display: flex; align-items: center; gap: 6px; }
+.ms-campo .entrada { flex: 1; min-height: 40px; }
+
+/* e-mail do Outlook */
+.ms-email { flex: 1; overflow-y: auto; min-height: 0; padding: 20px 24px; background: var(--painel); color: var(--texto); line-height: 1.6; }
+.ms-email > p { margin: 0 0 14px; white-space: pre-line; }
+.ms-email-cab { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--borda); }
+.ms-email-cab > div { display: flex; flex-direction: column; min-width: 0; line-height: 1.4; }
+.ms-email-cab small { color: var(--texto-2); font-size: 0.82rem; }
+.ms-email-end { color: var(--texto-3); font-size: 0.85rem; }
+.ms-anexos { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
+.ms-convite {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 16px; padding: 12px 14px;
+    border: 1px solid var(--borda); border-left: 3px solid var(--ms); border-radius: 10px; color: var(--ms);
+}
+.ms-convite-txt { flex: 1 1 200px; display: flex; flex-direction: column; min-width: 0; }
+.ms-convite-txt strong { color: var(--texto); }
+.ms-convite-txt small { color: var(--texto-2); font-size: 0.82rem; }
+.ms-convite-acoes { display: flex; gap: 6px; }
+.ms-respondido { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; color: var(--texto-2); font-size: 0.85rem; }
+.ms-composer { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; }
+.ms-composer small { color: var(--texto-3); font-size: 0.75rem; }
+.ms-composer textarea { resize: vertical; min-height: 90px; font: inherit; }
+.ms-resposta-para { font-weight: 600; color: var(--texto-2) !important; }
+.ms-acoes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* botão principal (Enviar, Salvar) na cor do app da Microsoft, como o "Novo e-mail" */
+.ms-acoes .botao:not(.botao-secundario) { background: var(--ms); }
+
+/* Outlook: E-mail | Agenda e o botão de novo item */
+.ms-ferramentas { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px 8px; flex-shrink: 0; }
+.ms-segmento { display: inline-flex; padding: 3px; border-radius: 9px; background: var(--selecionado); }
+.ms-segmento button {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: 0; border-radius: 7px;
+    background: transparent; color: var(--texto-2); font: inherit; font-size: 0.82rem; font-weight: 500;
+}
+.ms-segmento button.ativo { background: var(--painel); color: var(--ms); font-weight: 600; box-shadow: var(--sombra); }
+.ms-novo { background: var(--ms); }
+.ms-link { border: 0; background: none; padding: 2px 4px; color: var(--ms); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+
+/* editor de e-mail */
+.ms-editor { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; padding: 14px 16px; background: var(--painel); overflow-y: auto; }
+.ms-editor-resposta { flex: none; padding: 0; background: transparent; overflow: visible; }
+.ms-editor-titulo { font-size: 0.85rem; color: var(--texto-2); }
+.ms-editor-campos { display: flex; flex-direction: column; border: 1px solid var(--entrada-borda); border-radius: 8px; background: var(--entrada); }
+.ms-editor-campos label { display: flex; align-items: center; gap: 10px; padding: 0 10px; min-height: 40px; }
+.ms-editor-campos label + label { border-top: 1px solid var(--borda); }
+.ms-editor-campos span { width: 56px; flex: none; font-size: 0.82rem; color: var(--texto-3); }
+.ms-editor-campos input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; color: var(--texto); font: inherit; }
+.ms-editor-barra { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--entrada-borda); border-radius: 8px; background: var(--entrada); width: fit-content; }
+.ms-editor-barra button {
+    min-width: 32px; height: 30px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--texto-2);
+    font: inherit; font-size: 0.85rem; cursor: pointer;
+}
+.ms-editor-barra button:hover { background: var(--hover); color: var(--texto); }
+.ms-editor-corpo { min-height: 160px; flex: 1; overflow-y: auto; line-height: 1.55; outline: none; cursor: text; }
+.ms-editor-resposta .ms-editor-corpo { min-height: 110px; max-height: 260px; flex: none; }
+.ms-editor-corpo[data-vazio]::before { content: attr(data-vazio); color: var(--texto-3); pointer-events: none; }
+.ms-editor-corpo ul, .ms-editor-corpo ol, .ms-email-html ul, .ms-email-html ol { margin: 4px 0; padding-left: 24px; }
+.ms-editor-corpo a, .ms-email-html a { color: var(--ms); }
+.ms-email-html { margin-bottom: 14px; white-space: normal; }
+.ms-email-html p, .ms-email-html div { margin: 0 0 8px; }
+
+/* agenda */
+.ms-semana { padding: 0 12px 6px; flex-shrink: 0; }
+.ms-semana-topo { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.ms-semana-topo strong { flex: 1; text-align: center; font-size: 0.9rem; font-weight: 600; }
+.ms-avancar .icone { transform: rotate(180deg); }
+.ms-semana-dias { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.ms-dia {
+    display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 0 5px; border: 0; border-radius: 10px;
+    background: transparent; color: var(--texto-2); font: inherit; cursor: pointer;
+}
+.ms-dia small { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.ms-dia strong { font-size: 1rem; font-weight: 600; color: var(--texto); }
+.ms-dia:hover { background: var(--moldura-hover); }
+.ms-dia.hoje strong { color: var(--ms); }
+.ms-dia.ativo { background: var(--ms); }
+.ms-dia.ativo small, .ms-dia.ativo strong { color: #fff; }
+.ms-dia-ponto { width: 5px; height: 5px; border-radius: 50%; }
+.ms-dia-ponto.tem { background: var(--ms); }
+.ms-dia.ativo .ms-dia-ponto.tem { background: #fff; }
+.ms-evento { min-height: 64px; }
+.ms-evento-hora {
+    display: flex; flex-direction: column; align-items: flex-end; width: 44px; flex: none; padding-right: 10px;
+    border-right: 3px solid var(--ms); font-variant-numeric: tabular-nums;
+}
+.ms-evento-hora strong { font-size: 0.88rem; }
+.ms-evento-hora small { font-size: 0.75rem; color: var(--texto-3); }
+.ms-evento .item-previa .icone { flex: none; color: var(--ms); }
+.ms-evento-detalhe > p { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+.ms-evento-detalhe > p .icone { flex: none; color: var(--texto-3); }
+.ms-entrar-reuniao { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 16px 26px; background: var(--ms); }
+.ms-participantes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px 26px; }
+.ms-evento-descricao { padding: 12px 14px; border-radius: 8px; background: var(--selecionado); color: var(--texto-2); }
+.ms-evento-form { flex: 1; overflow-y: auto; min-height: 0; padding: 18px 20px; background: var(--painel); display: flex; flex-direction: column; gap: 4px; }
+.ms-evento-form h2 { margin: 0 0 8px; font-size: 1.1rem; }
+.ms-evento-horario { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; }
+.ms-erro { color: var(--erro); }
+
+/* caixa de e-mail do Outlook (PreviaEmail.jsx): busca, pasta/filtro, seleção em lote, 20 por vez */
+.ms-busca { padding: 0 12px 8px; flex-shrink: 0; }
+.ms-busca .busca-caixa:focus-within { outline-color: var(--ms); }
+.ms-todas-pastas { margin: 6px 0 0 2px; font-size: 0.8rem; color: var(--texto-2); }
+.ms-filtros-email { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 0 12px 6px; flex-shrink: 0; }
+.ms-ordem[aria-pressed='true'] { color: var(--ms); background: color-mix(in srgb, var(--ms) 12%, transparent); }
+.ms-lote {
+    display: flex; align-items: center; gap: 2px; margin: 0 12px 6px; padding: 2px 6px 2px 10px; min-height: 38px; flex-shrink: 0;
+    border-radius: 8px; background: color-mix(in srgb, var(--ms) 12%, var(--painel));
+}
+.ms-lote strong { flex: 1; font-size: 0.82rem; color: var(--ms); }
+.ms-contagem { display: flex; align-items: center; gap: 8px; padding: 2px 14px 6px; font-size: 0.78rem; color: var(--texto-3); flex-shrink: 0; }
+.ms-contagem .check { margin: 0; }
+.ms-item-email { cursor: pointer; outline: none; }
+.ms-item-email:focus-visible { box-shadow: inset 0 0 0 2px var(--ms); }
+.ms-item-email.marcado { background: color-mix(in srgb, var(--ms) 10%, transparent); }
+.ms-item-esq { position: relative; display: inline-flex; flex: none; }
+.ms-item-marcar {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center; border-radius: 50%;
+    background: var(--painel); cursor: pointer;
+}
+.ms-item-marcar input { width: 18px; height: 18px; accent-color: var(--ms); cursor: pointer; }
+.ms-item-email:hover .ms-item-marcar, .selecionando .ms-item-marcar, .ms-item-email.marcado .ms-item-marcar { display: flex; }
+.ms-item-acoes { display: none; align-items: center; gap: 0; flex: none; margin: -6px -4px -6px 0; }
+.ms-item-email:hover .ms-item-acoes, .ms-item-email:focus-within .ms-item-acoes { display: inline-flex; }
+.ms-item-email:hover .item-hora, .ms-item-email:focus-within .item-hora { display: none; }
+.ms-rascunho { flex: none; color: var(--erro); font-weight: 600; }
+.ms-carregar-mais {
+    display: flex; align-items: center; justify-content: center; gap: 6px; width: calc(100% - 24px); margin: 10px 12px 14px; height: 38px;
+    border: 1px dashed var(--entrada-borda); border-radius: 8px; background: transparent; color: var(--ms); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+}
+.ms-carregar-mais:hover { background: color-mix(in srgb, var(--ms) 8%, transparent); border-style: solid; }
+.ms-carregar-mais small { color: var(--texto-3); font-weight: 400; }
+.ms-aviso {
+    display: flex; align-items: center; gap: 8px; margin: 6px 12px 10px; padding: 6px 6px 6px 12px; flex-shrink: 0;
+    border-radius: 8px; background: var(--dica-fundo); color: var(--painel); font-size: 0.82rem; animation: surgir 0.15s ease-out;
+}
+.ms-aviso span { flex: 1; }
+.ms-aviso .ms-link { color: inherit; text-decoration: underline; }
+.ms-aviso .icone-botao { color: inherit; }
+.ms-editor-sep { width: 1px; margin: 4px 3px; background: var(--borda); }
+.ms-editor-anexos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ms-editor-anexo {
+    display: inline-flex; align-items: center; gap: 5px; max-width: 260px; padding: 3px 4px 3px 8px; border-radius: 6px;
+    border: 1px solid var(--borda); background: var(--selecionado); font-size: 0.8rem;
+}
+.ms-editor-anexo span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-editor-anexo small { color: var(--texto-3); flex: none; }
+.ms-editor-anexo button { border: 0; background: none; padding: 2px; display: inline-flex; color: var(--texto-3); cursor: pointer; border-radius: 4px; }
+.ms-editor-anexo button:hover { color: var(--erro); background: var(--hover); }
+
+/* calendário do mês (área da direita da agenda): uma linha por semana, a semana aberta mostra tudo com horário */
+.ms-mes { flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--painel); }
+.ms-mes-topo { display: flex; align-items: center; gap: 4px; padding: 10px 12px 6px; flex-shrink: 0; }
+.ms-mes-topo strong { min-width: 150px; text-align: center; font-size: 1.05rem; font-weight: 600; }
+.ms-mes-cab, .ms-mes-semana { display: grid; grid-template-columns: 44px repeat(7, minmax(0, 1fr)); }
+.ms-mes-cab { padding: 0 12px 6px 0; flex-shrink: 0; }
+.ms-mes-cab span { text-align: center; font-size: 0.72rem; font-weight: 600; color: var(--texto-3); text-transform: uppercase; letter-spacing: 0.03em; }
+.ms-mes-corpo { flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px 12px 0; }
+.ms-mes-semana { border-top: 1px solid var(--borda); min-height: 88px; }
+.ms-mes-semana.aberta { background: color-mix(in srgb, var(--ms) 4%, transparent); min-height: 150px; }
+.ms-mes-num {
+    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0; border: 0; background: transparent;
+    color: var(--texto-3); font: inherit; cursor: pointer; border-radius: 8px;
+}
+.ms-mes-num small { font-size: 0.7rem; font-weight: 600; }
+.ms-mes-num:hover { color: var(--ms); background: var(--hover); }
+.ms-mes-seta { transform: rotate(-90deg); transition: transform 0.15s ease; }
+.aberta .ms-mes-num { color: var(--ms); }
+.aberta .ms-mes-seta { transform: none; }
+.ms-mes-dia {
+    display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 5px 5px 6px; border-left: 1px solid var(--borda);
+    cursor: pointer; outline: none;
+}
+.ms-mes-dia:hover { background: var(--hover); }
+.ms-mes-dia:focus-visible { box-shadow: inset 0 0 0 2px var(--ms); }
+.ms-mes-dia.fora .ms-mes-data { color: var(--texto-3); opacity: 0.6; }
+.ms-mes-data {
+    align-self: flex-start; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; font-weight: 600; color: var(--texto);
+}
+.ms-mes-dia.hoje .ms-mes-data { color: var(--ms); }
+.ms-mes-dia.ativo .ms-mes-data { background: var(--ms); color: #fff; }
+.ms-mes-evento {
+    display: flex; flex-direction: column; gap: 0; min-width: 0; padding: 2px 6px; border: 0; border-left: 3px solid var(--ms); border-radius: 4px;
+    background: color-mix(in srgb, var(--ms) 14%, var(--painel)); color: var(--texto); text-align: left; font: inherit; cursor: pointer;
+}
+.ms-mes-evento:hover { background: color-mix(in srgb, var(--ms) 24%, var(--painel)); }
+.ms-mes-evento span { font-size: 0.74rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-mes-evento small { font-size: 0.68rem; color: var(--texto-2); font-variant-numeric: tabular-nums; }
+.aberta .ms-mes-evento { padding: 4px 6px; }
+.aberta .ms-mes-evento span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.ms-mes-mais { font-size: 0.72rem; font-weight: 600; color: var(--texto-2); padding-left: 4px; }
+.ms-mes-livre { font-size: 0.72rem; color: var(--texto-3); padding-left: 4px; }
+
 .toast {
     position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 100; width: max-content; max-width: min(560px, calc(100% - 32px));
     display: flex; align-items: flex-start; gap: 10px;
@@ -966,6 +1225,7 @@ html[data-tema='escuro'] .fila-numero.lider .fila-numero-valor { color: var(--de
     .trilho-botao { width: auto; min-width: 84px; height: 54px; border-radius: 14px; padding: 0 10px; }
     .trilho-rotulo { display: block; }
     .trilho-canais .trilho-botao.ativo::before { left: 22px; right: 22px; top: -5px; bottom: auto; width: auto; height: 3px; border-radius: 0 0 3px 3px; }
+    .trilho-divisor { width: 1px; height: 32px; margin: 0 2px; align-self: center; }
 
     .so-mobile { display: inline-flex; }
     /* margem de 16px no celular em todo o cromo */

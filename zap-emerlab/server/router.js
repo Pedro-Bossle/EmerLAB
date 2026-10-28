@@ -675,6 +675,9 @@ async function listarConversas(usuario, query) {
             foto: c.foto,
             ultimaMsg: c.meta?.ultima_msg || null,
             ultimaMinha: c.meta?.ultima_msg_minha ?? null,
+            // contato da WATI sem nenhuma mensagem (ainda não é conversa): na WATI ele só aparece em Contatos, não na
+            // caixa de entrada; o painel guarda a linha só para não reconferir o contato a cada carga
+            semHistorico: !c.meta?.ultima_msg_em,
             ultimaEm,
             // a janela de 24h do WhatsApp conta da última mensagem do cliente (null = ainda não se sabe)
             ultimaClienteEm: c.meta?.ultima_cliente_em || (c.meta?.ultima_msg_minha === false ? ultimaEm : null),

@@ -6,6 +6,19 @@ export const CANAIS = {
     messenger: { rotulo: 'Messenger', cor: '#0866FF', semNome: 'Contato do Messenger' },
 }
 
+// Teams e Outlook (prévia da integração com a Microsoft, PreviaMicrosoft.jsx)
+export const APPS_MS = {
+    teams: { rotulo: 'Teams', nome: 'Microsoft Teams', cor: '#5B5FC7' },
+    outlook: { rotulo: 'Outlook', nome: 'Outlook', cor: '#0F6CBD' },
+}
+
+// presença no Teams (bolinha no avatar da prévia)
+export const PRESENCA = {
+    disponivel: { rotulo: 'Disponível', cor: '#13A10E' },
+    ausente: { rotulo: 'Ausente', cor: '#FFAA44' },
+    ocupado: { rotulo: 'Ocupado', cor: '#D13438' },
+}
+
 export function canalDoId(id) {
     const p = String(id || '').split(':')[0]
     return p === 'ig' ? 'instagram' : p === 'ms' ? 'messenger' : 'whatsapp'
@@ -386,3 +399,18 @@ export function traduzirEventoSistema(texto) {
 
     return t.replace(/\s{2,}/g, ' ').trim()
 }
+
+/** yyyy-mm-dd no fuso local (toISOString usaria UTC e trocaria o dia à noite) */
+export function dataLocal(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** id de item criado na prévia de Teams/Outlook (só vive na tela) */
+let seqPrevia = 0
+export function novoIdPrevia(prefixo) {
+    seqPrevia += 1
+    return `${prefixo}-${Date.now()}-${seqPrevia}`
+}
+
+/** hora atual "hh:mm" (itens criados na prévia) */
+export const horaAgora = () => new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })

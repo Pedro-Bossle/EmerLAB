@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usarAtualizacao } from '../atualizacao.js'
 import { api, registrarAoConexao } from '../api.js'
-import { iniciais, corAvatar, nomeExibicao, CANAIS, ler, gravar, tempoDesde, calcularEspera, janelaDaConversa, normalizarWaId, mesmoEmail } from '../util.js'
+import { iniciais, corAvatar, nomeExibicao, CANAIS, APPS_MS, ler, gravar, tempoDesde, calcularEspera, janelaDaConversa, normalizarWaId, mesmoEmail } from '../util.js'
 import Icone from './Icone.jsx'
 import IconeCanal from './IconeCanal.jsx'
 import ListaConversas from './ListaConversas.jsx'
@@ -18,10 +18,15 @@ import MenuContexto from './MenuContexto.jsx'
 import Transferir from './Transferir.jsx'
 import SeletorDepartamento from './SeletorDepartamento.jsx'
 import Seletor from './Seletor.jsx'
+import PreviaMicrosoft from './PreviaMicrosoft.jsx'
+import IconeMicrosoft from './IconeMicrosoft.jsx'
 import { transferir, itensDeAtendimento } from '../acoesConversa.js'
 import { ATALHOS, MOD, comMod, teclaDe, haSobreposicao } from '../atalhos.js'
 
 const INTERVALO_LISTA = 10000
+
+// Prévia de Teams e Outlook (sem integração com o Azure ainda): só para estes e-mails, para avaliar o desenho
+const PREVIA_MICROSOFT = ['pedro@emerdog.com.br']
 
 // Filtros como na Team Inbox da WATI (support.wati.io, "How to search or filter conversations"):
 //   Todos = tudo; Ativos = novas/abertas/pendentes com a janela de 24h aberta (expirada não é ativa);
@@ -183,10 +188,10 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         [visaoAtendente, usuario.email, filaVisivel],
     )
 
-    // Na fila: sem atendente, não resolvida, do meu setor ou sem setor
+    // Na fila: sem atendente, não resolvida, com alguma mensagem, do meu setor ou sem setor
     const naFilaDoSetor = useCallback(
         (c) => {
-            if (c.atendenteEmail || c.status === 'resolvida') return false
+            if (c.atendenteEmail || c.status === 'resolvida' || c.semHistorico) return false
             if (!visaoAtendente) return true
             return filaVisivel(c)
         },
@@ -285,7 +290,18 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     }, [busca, carregarConversas])
     usarAtualizacao(() => carregarConversas(busca), { visivel: INTERVALO_LISTA })
 
+    // Teams/Outlook (prévia): ocupa a lista e a área do chat no lugar do canal
+    const [appMs, setAppMs] = useState(null)
+    const [msComItem, setMsComItem] = useState(false)
+    const vePreviaMs = PREVIA_MICROSOFT.includes(String(usuario.email || '').toLowerCase())
+    const abrirAppMs = (app) => {
+        setAppMs(app)
+        setMsComItem(false)
+        setSelecionada(null)
+    }
+
     const trocarCanal = (novo) => {
+        setAppMs(null)
         if (novo === canal) return
         setCanal(novo)
         gravar('zap.canal', novo)
@@ -349,6 +365,8 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
 
     const passaFiltro = useCallback(
         (c) => {
+            // contato sem nenhuma mensagem só aparece na busca (ou se estiver aberto), como na WATI
+            if (c.semHistorico && !buscando && c.waId !== selecionada?.waId) return false
             // visão atendente sem busca: só eu + meu setor. Com busca: toda a base (API WATI).
             if (visaoAtendente && !buscando && !noEscopoNotificacao(c)) return false
             // status e atendente escolhidos valem também na busca
@@ -360,7 +378,7 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
             if (buscando) return filtro === 'todos' || passaFiltroWati(c, st)
             return passaFiltroWati(c, st)
         },
-        [visaoAtendente, buscando, noEscopoNotificacao, filtroStatus, filtroAtendente, filtroTag, filtroPeriodo, filtro, passaFiltroWati],
+        [visaoAtendente, buscando, selecionada?.waId, noEscopoNotificacao, filtroStatus, filtroAtendente, filtroTag, filtroPeriodo, filtro, passaFiltroWati],
     )
 
     // tags das conversas carregadas, para o filtro de tag (só aparece se houver alguma)
@@ -370,7 +388,8 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         return [...vistas.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'))
     }, [conversas])
 
-    const conversasVisao = useMemo(() => conversas.filter(noEscopoNotificacao), [conversas, noEscopoNotificacao])
+    // base dos contadores, da fila de espera e dos avisos: só conversas de verdade (com alguma mensagem)
+    const conversasVisao = useMemo(() => conversas.filter((c) => !c.semHistorico && noEscopoNotificacao(c)), [conversas, noEscopoNotificacao])
 
     // setores em que a conversa conta; vazio = "sem setor".
     // Fila (sem atendente + departamento): conta no setor mesmo com janela 24h fechada — precisa Assumir.
@@ -610,7 +629,7 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     const listaVazia = busca ? `Nada encontrado para "${busca}".` : VAZIO[filtro]
 
     return (
-        <div ref={raiz} className={`app ${conversaAtual ? 'com-chat' : ''}`} style={larguraLista ? { '--largura-lateral': `${larguraLista}px` } : undefined}>
+        <div ref={raiz} className={`app ${(appMs ? msComItem : conversaAtual) ? 'com-chat' : ''}`} style={larguraLista ? { '--largura-lateral': `${larguraLista}px` } : undefined}>
             <nav className="trilho" aria-label="Canais">
                 <span className="trilho-marca" aria-label="zap.emerlab" role="img" data-dica="zap.emerlab" data-dica-lado="direita">
                     <Marca tamanho={30} />
@@ -619,9 +638,9 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                     {canais.map(({ tipo, conectado }) => (
                         <button
                             key={tipo}
-                            className={`trilho-botao ${canal === tipo ? 'ativo' : ''}`}
+                            className={`trilho-botao ${canal === tipo && !appMs ? 'ativo' : ''}`}
                             style={{ '--canal': CANAIS[tipo].cor }}
-                            aria-pressed={canal === tipo}
+                            aria-pressed={canal === tipo && !appMs}
                             aria-label={CANAIS[tipo].rotulo}
                             data-dica={conectado ? CANAIS[tipo].rotulo : `${CANAIS[tipo].rotulo}: não conectado na WATI`}
                             data-dica-lado="direita"
@@ -632,6 +651,26 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                             <span className="trilho-rotulo">{CANAIS[tipo].rotulo}</span>
                         </button>
                     ))}
+                    {vePreviaMs ? (
+                        <>
+                            <span className="trilho-divisor" role="separator" />
+                            {Object.entries(APPS_MS).map(([app, info]) => (
+                                <button
+                                    key={app}
+                                    className={`trilho-botao trilho-ms ${appMs === app ? 'ativo' : ''}`}
+                                    style={{ '--canal': info.cor }}
+                                    aria-pressed={appMs === app}
+                                    aria-label={`${info.nome} (prévia)`}
+                                    data-dica={`${info.nome} (prévia)`}
+                                    data-dica-lado="direita"
+                                    onClick={() => abrirAppMs(app)}
+                                >
+                                    <IconeMicrosoft app={app} tamanho={24} />
+                                    <span className="trilho-rotulo">{info.rotulo}</span>
+                                </button>
+                            ))}
+                        </>
+                    ) : null}
                 </div>
                 <div className="trilho-rodape">
                     <button className="trilho-botao" aria-label={escuro ? 'Modo claro' : 'Modo escuro'} data-dica={escuro ? 'Modo claro' : 'Modo escuro'} data-dica-lado="direita" onClick={() => setPrefs({ modo: escuro ? 'claro' : 'escuro' })}>
@@ -683,6 +722,9 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                 </div>
             </nav>
 
+            {appMs ? <PreviaMicrosoft key={appMs} app={appMs} usuario={usuario} aoSelecionar={setMsComItem} /> : null}
+            {!appMs ? (
+            <>
             <aside className="lateral">
                 <Redimensionar alvo={raiz} largura={larguraLista} aoMudar={mudarLarguraLista} />
                 <header className="barra barra-lateral">
@@ -957,6 +999,8 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                     <FilaEspera conversas={conversasVisao} canal={canal} usuarioEmail={usuario.email} aoAbrir={abrir} />
                 )}
             </main>
+            </>
+            ) : null}
 
             {menuConversa ? (
                 <MenuContexto
