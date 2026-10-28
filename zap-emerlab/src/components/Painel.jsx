@@ -157,13 +157,13 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     const visaoAtendente =
         usuario.papel !== 'admin' || Boolean((usuario.fixo || usuario.admin) && prefs.visao === 'atendente')
 
-    // setores do usuário; admin sem vínculo usa todos (para ver a fila de cada departamento)
+    // setores do usuário. Na visão de atendente valem só os vinculados, como para qualquer atendente (o admin
+    // do .env não tem vínculo: vê as suas e a fila sem setor). Na visão de administrador, todos.
     const meusDeptoIds = useMemo(() => {
         const vinculados = usuario.departamentos || []
-        if (vinculados.length) return new Set(vinculados)
-        if (usuario.papel === 'admin' || usuario.fixo) return new Set(departamentos.map((d) => d.id))
-        return new Set()
-    }, [usuario.departamentos, usuario.papel, usuario.fixo, departamentos])
+        if (!visaoAtendente && (usuario.papel === 'admin' || usuario.fixo)) return new Set(departamentos.map((d) => d.id))
+        return new Set(vinculados)
+    }, [visaoAtendente, usuario.departamentos, usuario.papel, usuario.fixo, departamentos])
 
     // Fila (sem atendente) que é minha, como na WATI: do meu setor (equipe) ou sem setor nenhum
     // (a "Default Team" da WATI, visível a todos quando ZAP_ATENDENTE_VE_SEM_DEPARTAMENTO=true)
@@ -297,9 +297,10 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
 
     const deptoPorId = useMemo(() => Object.fromEntries(departamentos.map((d) => [d.id, d])), [departamentos])
 
+    // setores do filtro "Setor": todos na visão de administrador; os do usuário na de atendente
     const meusDeptos = useMemo(
-        () => (usuario.papel === 'admin' ? departamentos : departamentos.filter((d) => usuario.departamentos.includes(d.id))),
-        [departamentos, usuario],
+        () => (usuario.papel === 'admin' && !visaoAtendente ? departamentos : departamentos.filter((d) => (usuario.departamentos || []).includes(d.id))),
+        [departamentos, usuario, visaoAtendente],
     )
 
     // setores do filtro = departamentos do atendente atribuído (não o departamento_id da conversa)
@@ -660,8 +661,9 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                                     setSelecionada((s) => {
                                         if (!s) return null
                                         if (mesmoEmail(s.atendenteEmail, usuario.email)) return s
-                                        // fila do setor ainda pode ficar aberta para Assumir
-                                        if (!s.atendenteEmail && s.departamentoId && (usuario.departamentos || []).includes(s.departamentoId)) return s
+                                        // fila do setor (ou sem setor) ainda pode ficar aberta para Assumir
+                                        const daFila = s.departamentoId ? (usuario.departamentos || []).includes(s.departamentoId) : config.atendenteVeSemDepto !== false
+                                        if (!s.atendenteEmail && daFila) return s
                                         return null
                                     })
                                 }
@@ -691,7 +693,7 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                         <small>
                             Conta WATI {config.tenantId} ·{' '}
                             {visaoAtendente
-                                ? 'Atendente · busca na base toda'
+                                ? `Atendente · ${meusDeptos.map((d) => d.nome).join(', ') || 'sem setor'}`
                                 : usuario.papel === 'admin'
                                   ? 'Administrador'
                                   : meusDeptos.map((d) => d.nome).join(', ') || 'Atendente'}

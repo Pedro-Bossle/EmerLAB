@@ -219,7 +219,9 @@ async function usuarioDaSessao(req) {
     if (!payload) throw new HttpError(401, 'Sessão expirada. Entre novamente.')
     if (payload.uid === ADMIN_ENV_ID) {
         if (!env.adminEmail || payload.email !== env.adminEmail) throw new HttpError(401, 'Sessão inválida.')
-        return { id: ADMIN_ENV_ID, nome: env.adminNome, email: env.adminEmail, papel: 'admin', departamentos: [], fixo: true, admin: true }
+        // setores do admin do .env: guardados numa linha de zap_usuarios com o mesmo e-mail (ver linhaDoAdminEnv)
+        const linha = await buscarUsuarioPorEmail(env.adminEmail).catch(() => null)
+        return { id: ADMIN_ENV_ID, nome: env.adminNome, email: env.adminEmail, papel: 'admin', departamentos: idsDepartamentos(linha), fixo: true, admin: true }
     }
     const u = await buscarUsuarioPorId(payload.uid)
     if (!u || !u.ativo) throw new HttpError(401, 'Usuário desativado.')
@@ -1585,7 +1587,9 @@ async function listarUsuarios() {
     const lista = ok(
         await db().from('zap_usuarios').select('id, nome, email, senha_hash, papel, ativo, criado_em, zap_usuario_departamentos(departamento_id)').order('nome'),
     )
-    const usuarios = lista.map((u) => ({
+    // a linha com o e-mail do admin do .env só guarda os setores dele: aparece como o admin fixo, não como outro usuário
+    const doEnv = adminEmail ? lista.find((u) => u.email === adminEmail) : null
+    const usuarios = lista.filter((u) => u !== doEnv).map((u) => ({
         id: u.id,
         nome: u.nome,
         email: u.email,
@@ -1594,8 +1598,8 @@ async function listarUsuarios() {
         departamentos: idsDepartamentos(u),
         convitePendente: u.senha_hash.startsWith(PREFIXO_CONVITE),
     }))
-    if (adminEmail && !usuarios.some((u) => u.email === adminEmail)) {
-        usuarios.unshift({ id: ADMIN_ENV_ID, nome: adminNome, email: adminEmail, papel: 'admin', ativo: true, departamentos: [], fixo: true })
+    if (adminEmail) {
+        usuarios.unshift({ id: ADMIN_ENV_ID, nome: adminNome, email: adminEmail, papel: 'admin', ativo: true, departamentos: idsDepartamentos(doEnv), fixo: true })
     }
     return { usuarios }
 }
@@ -1627,9 +1631,28 @@ async function reenviarConvite(id) {
     return { ok: true, ...(await enviarConvite(u)) }
 }
 
+// Admin do .env: nome, papel e senha vêm do .env; os setores ficam numa linha de zap_usuarios com o mesmo e-mail,
+// criada na primeira edição. A senha dela é um convite que nunca é enviado: o login continua sendo só o do .env.
+async function linhaDoAdminEnv() {
+    const { adminEmail, adminNome } = getEnv()
+    const existente = await buscarUsuarioPorEmail(adminEmail)
+    if (existente) return existente
+    return ok(
+        await db()
+            .from('zap_usuarios')
+            .insert({ nome: adminNome || adminEmail, email: adminEmail, papel: 'admin', ativo: true, senha_hash: PREFIXO_CONVITE + segredoAleatorio() })
+            .select('id')
+            .single(),
+    )
+}
+
 async function editarUsuario(req, id) {
-    if (id === ADMIN_ENV_ID) throw new HttpError(400, 'O administrador inicial é configurado no .env.')
     const b = await lerCorpo(req)
+    if (id === ADMIN_ENV_ID) {
+        if (!Array.isArray(b.departamentos)) throw new HttpError(400, 'Do administrador inicial só os setores podem ser editados aqui.')
+        await salvarDepartamentosDoUsuario((await linhaDoAdminEnv()).id, b.departamentos)
+        return { ok: true }
+    }
     const campos = { atualizado_em: new Date().toISOString() }
     if (b.nome !== undefined) campos.nome = String(b.nome).trim()
     if (b.papel !== undefined) campos.papel = b.papel === 'admin' ? 'admin' : 'atendente'
@@ -1757,13 +1780,59 @@ function tokenWebhookValido(recebido, esperado) {
     return false
 }
 
+// O webhook responde 200 a toda chamada com o token certo, mesmo quando o processamento falha (o erro vai para o
+// log da Vercel): a WATI marca como "defeituoso" o endereço que devolve erro ou demora, e para de entregar.
 async function webhook(req, res, query) {
     const { webhookSecret } = getEnv()
     if (!webhookSecret || !tokenWebhookValido(tokenWebhookRecebido(req, query), webhookSecret)) {
         throw new HttpError(401, 'Token inválido.')
     }
-    const b = await lerCorpo(req)
-    const waId = normalizarWaId(b.waId || b.whatsappNumber)
+    let b = null
+    try {
+        b = await lerCorpo(req)
+        await processarWebhook(b)
+    } catch (e) {
+        console.error('[zap] webhook', b?.eventType || '(sem corpo)', e?.message || e)
+    }
+    enviar(res, 200, { ok: true })
+}
+
+// A mesma mensagem chega em vários eventos ("Mensagem Recebida", "Nova mensagem de contato", as versões v2 e BSUID):
+// conta uma vez só, senão o contador de não lidas sobe a cada cópia. Memória (rápido) + banco (entre instâncias).
+const webhookVistos = new Map()
+const WEBHOOK_VISTO_MS = 10 * 60 * 1000
+async function jaRegistrada(b, minha) {
+    const chave = `${b.whatsappMessageId || b.id || ''}|${minha}`
+    if (chave.startsWith('|')) return false
+    const agora = Date.now()
+    for (const [k, t] of webhookVistos) if (agora - t > WEBHOOK_VISTO_MS) webhookVistos.delete(k)
+    if (webhookVistos.has(chave)) return true
+    webhookVistos.set(chave, agora)
+    if (!b.whatsappMessageId) return false
+    const r = await db().from('zap_mensagens_wamid').select('id').eq('wamid', String(b.whatsappMessageId)).eq('minha', minha).limit(1)
+    return Boolean(r.data?.length)
+}
+
+// eventos que o painel não usa (chamada, pagamento, CTA, CSAT, digitando, chatbot…): registra o formato uma vez por
+// tipo e instância, para diagnóstico sem o conteúdo da mensagem
+const webhookIgnorados = new Set()
+function registrarIgnorado(evento, b) {
+    if (webhookIgnorados.has(evento)) return
+    webhookIgnorados.add(evento)
+    console.info('[zap] webhook sem uso:', evento || '(sem eventType)', 'campos:', Object.keys(b || {}).join(','))
+}
+
+// só telefone vira conversa: as versões BSUID trazem um identificador que não é número
+function telefoneDoWebhook(b) {
+    for (const v of [b.waId, b.whatsappNumber]) {
+        const s = String(v ?? '').trim()
+        if (/^\+?\d{10,15}$/.test(s)) return normalizarWaId(s)
+    }
+    return ''
+}
+
+async function processarWebhook(b) {
+    const waId = telefoneDoWebhook(b)
     const evento = b.eventType || ''
     if (waId && b.conversationId) lembrarConversaWati(waId, b.conversationId)
     // Entregue / lida / respondida (sentMessageDELIVERED_v2, sentMessageREAD_v2, sentMessageREPLIED_v2…): não é
@@ -1773,40 +1842,46 @@ async function webhook(req, res, query) {
             await db().from('zap_conversas').update({ ticks_em: new Date().toISOString() }).in('wa_id', variantesWaId(waId)).then(() => {}, () => {})
             wati.invalidarCache(`msgs:${waId}:`)
         }
-        return enviar(res, 200, { ok: true })
+        return
     }
-    if (waId && (evento === 'message' || EVENTOS_ENVIADOS.has(evento) || /^templateMessage/i.test(evento) || b.text !== undefined)) {
-        const minha = Boolean(b.owner) || EVENTOS_ENVIADOS.has(evento) || /^templateMessage/i.test(evento) || String(b.type || '').toLowerCase() === 'template'
-        const texto = textoPrevia(b.type, b.text || b.finalText)
-        const em = emDaMensagemWati(b) || new Date().toISOString()
-        // status antes do RPC: cliente em resolvida → painel reabre; precisa reabrir na WATI também
-        const metaAntes = !minha ? await metaConversa(waId).catch(() => null) : null
-        ok(
-            await db().rpc('zap_registrar_mensagem', {
-                p_wa_id: waId,
-                p_nome: minha ? null : b.senderName || null,
-                p_texto: String(texto).slice(0, 500),
-                p_em: em,
-                p_minha: minha,
-            }),
-        )
-        // resposta de atendente (na WATI ou no painel) zera o "Não respondidas"; mensagem do bot não conta
-        if (minha && respostaHumanaWati(b.operatorName, b.operatorEmail)) {
-            await db().from('zap_conversas').update({ ultima_humana_em: em }).eq('wa_id', waId).or(`ultima_humana_em.is.null,ultima_humana_em.lt.${em}`)
-        }
-        if (!minha && metaAntes?.status === 'resolvida') {
-            await comConversaWati(waId, (alvo) => wati.atualizarStatus(alvo, 'aberta'), metaAntes).catch(() => {})
-        }
-        if (!minha && b.messageReferral) await registrarAnuncio(waId, anuncioDe([{ ...b, created: em }]), null)
-        if (b.whatsappMessageId) {
-            // guarda o wamid para o "Responder"; sem a tabela, o webhook segue normal
-            await db()
-                .from('zap_mensagens_wamid')
-                .upsert({ id: String(b.id || `${waId}:${b.whatsappMessageId}`), wa_id: waId, wamid: String(b.whatsappMessageId), em, minha })
-        }
-        wati.invalidarCache(`msgs:${waId}:`)
+    if (!waId || !(evento === 'message' || EVENTOS_ENVIADOS.has(evento) || /^templateMessage/i.test(evento) || b.text !== undefined)) {
+        registrarIgnorado(evento, b)
+        return
     }
-    enviar(res, 200, { ok: true })
+    const minha = Boolean(b.owner) || EVENTOS_ENVIADOS.has(evento) || /^templateMessage/i.test(evento) || String(b.type || '').toLowerCase() === 'template'
+    if (await jaRegistrada(b, minha)) return
+    const texto = textoPrevia(b.type, b.text || b.finalText)
+    const em = emDaMensagemWati(b) || new Date().toISOString()
+    // guarda o wamid primeiro (é o que o "Responder" precisa e o que barra as cópias); sem a tabela, segue normal
+    if (b.whatsappMessageId) {
+        await db()
+            .from('zap_mensagens_wamid')
+            .upsert({ id: String(b.id || `${waId}:${b.whatsappMessageId}`), wa_id: waId, wamid: String(b.whatsappMessageId), em, minha })
+            .then(() => {}, () => {})
+    }
+    // status antes do RPC: cliente em resolvida → painel reabre; precisa reabrir na WATI também
+    const metaAntes = !minha ? await metaConversa(waId).catch(() => null) : null
+    ok(
+        await db().rpc('zap_registrar_mensagem', {
+            p_wa_id: waId,
+            p_nome: minha ? null : b.senderName || null,
+            p_texto: String(texto).slice(0, 500),
+            p_em: em,
+            p_minha: minha,
+        }),
+    )
+    // resposta de atendente (na WATI ou no painel) zera o "Não respondidas"; mensagem do bot não conta
+    if (minha && respostaHumanaWati(b.operatorName, b.operatorEmail)) {
+        await db().from('zap_conversas').update({ ultima_humana_em: em }).eq('wa_id', waId).or(`ultima_humana_em.is.null,ultima_humana_em.lt.${em}`)
+    }
+    // a própria WATI reabre o ticket quando o cliente escreve; aqui é reforço, com teto de 1,5 s para a resposta
+    // à WATI não demorar (a conferência da lista repete depois, se precisar)
+    if (!minha && metaAntes?.status === 'resolvida') {
+        const reabrir = comConversaWati(waId, (alvo) => wati.atualizarStatus(alvo, 'aberta'), metaAntes).catch(() => {})
+        await Promise.race([reabrir, new Promise((ok) => setTimeout(ok, 1500))])
+    }
+    if (!minha && b.messageReferral) await registrarAnuncio(waId, anuncioDe([{ ...b, created: em }]), null)
+    wati.invalidarCache(`msgs:${waId}:`)
 }
 
 // ---------- roteamento ----------

@@ -172,7 +172,11 @@ function Usuarios({ departamentos, avisar }) {
         e.preventDefault()
         try {
             const { id, ...corpo } = form
-            if (id) {
+            if (form.fixo) {
+                // admin do .env: só os setores
+                await api(`usuarios/${id}`, { method: 'PUT', body: { departamentos: corpo.departamentos } })
+                avisar('Setores salvos. Recarregue o painel (F5) para a visão de atendente usar os novos setores.')
+            } else if (id) {
                 await api(`usuarios/${id}`, { method: 'PUT', body: { ...corpo, senha: corpo.senha || undefined } })
                 avisar('Usuário salvo.')
             } else {
@@ -242,6 +246,37 @@ function Usuarios({ departamentos, avisar }) {
     )
 
     if (importando) return <ImportarWati avisar={avisar} aoFechar={fecharImportacao} />
+
+    if (form?.fixo) {
+        return (
+            <form onSubmit={salvar}>
+                <p className="ajuda">
+                    <strong>{form.nome}</strong> ({form.email}) é o administrador definido no .env: nome, papel e senha ficam lá. Aqui você escolhe os
+                    setores dele, que valem na visão de atendente e nas transferências.
+                </p>
+                <fieldset className="campo">
+                    <span>Departamentos</span>
+                    {departamentos.length === 0 ? <small className="ajuda">Cadastre departamentos na aba Departamentos.</small> : null}
+                    <div className="checks">
+                        {departamentos.map((d) => (
+                            <label key={d.id} className="check">
+                                <input type="checkbox" checked={form.departamentos.includes(d.id)} onChange={() => alternarDepto(d.id)} />
+                                <span className="tag" style={{ '--tag': d.cor }}>
+                                    {d.nome}
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                </fieldset>
+                <div className="modal-acoes">
+                    <button type="button" className="botao botao-secundario" onClick={() => setForm(null)}>
+                        Cancelar
+                    </button>
+                    <button className="botao">Salvar</button>
+                </div>
+            </form>
+        )
+    }
 
     if (form) {
         return (
@@ -363,7 +398,13 @@ function Usuarios({ departamentos, avisar }) {
                                 })}
                             </div>
                         </div>
-                        {!u.fixo ? (
+                        {u.fixo ? (
+                            <div className="tabela-acoes">
+                                <button className="icone-botao" aria-label="Editar setores" data-dica="Editar setores" onClick={() => setForm({ ...u })}>
+                                    <Icone nome="editar" tamanho={20} />
+                                </button>
+                            </div>
+                        ) : (
                             <div className="tabela-acoes">
                                 {u.convitePendente ? (
                                     <button className="icone-botao" aria-label="Reenviar convite" data-dica="Reenviar convite" onClick={() => reenviar(u)}>
@@ -377,7 +418,7 @@ function Usuarios({ departamentos, avisar }) {
                                     <Icone nome="lixo" tamanho={20} />
                                 </button>
                             </div>
-                        ) : null}
+                        )}
                     </li>
                 ))}
             </ul>
