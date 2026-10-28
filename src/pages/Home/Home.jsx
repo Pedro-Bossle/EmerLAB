@@ -73,6 +73,9 @@ import { formatarCpfCnpjEntrada } from '../../lib/prestadorCadastroHelpers'
 import { supabase } from '../../lib/supabase'
 import './Home.css'
 
+// Emerzap: painel de atendimento WhatsApp (app separado, com login próprio). Override com VITE_EMERZAP_URL.
+const EMERZAP_URL = String(import.meta.env?.VITE_EMERZAP_URL || 'https://zap.emerlab.com.br').replace(/\/+$/, '')
+
 const FILTRO_TAREFAS = [
     { id: 'abertas', label: 'Abertas', labelCurto: 'Abertas' },
     { id: 'em_andamento', label: 'Em andamento', labelCurto: 'Andamento' },
@@ -1064,8 +1067,8 @@ const Home = () => {
             {/* Contas só-marketing: sem favoritos, tarefas nem resto do dashboard EmerLAB */}
             {!soEmerMarketing ? (
             <>
-            {usuarioPodeAbrirEmerMarketing(permissions) ? (
-                <section className="home_dash_bookmarks home_dash_apps" aria-label="Apps">
+            {/* Apps externos: EmerMarketing (com permissão) e Emerzap (login próprio, para toda conta EmerLAB) */}
+            <section className="home_dash_bookmarks home_dash_apps" aria-label="Apps">
                     <div className="home_dash_bookmarks_bar">
                         <div className="home_dash_bookmarks_top">
                             <span className="home_dash_bookmarks_label" title="Apps">
@@ -1074,22 +1077,35 @@ const Home = () => {
                             </span>
                         </div>
                         <div className="home_dash_bookmarks_track">
+                            {usuarioPodeAbrirEmerMarketing(permissions) ? (
+                                <a
+                                    className="home_dash_bookmark home_dash_bookmark_ext"
+                                    href={linkMarketing}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title="Abrir EmerMarketing (marketing.emerlab.com.br)"
+                                >
+                                    <span className="home_dash_bookmark_ico" aria-hidden="true">
+                                        M
+                                    </span>
+                                    <span className="home_dash_bookmark_txt">EmerMarketing</span>
+                                </a>
+                            ) : null}
                             <a
                                 className="home_dash_bookmark home_dash_bookmark_ext"
-                                href={linkMarketing}
+                                href={EMERZAP_URL}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                title="Abrir EmerMarketing (marketing.emerlab.com.br)"
+                                title={`Abrir Emerzap, atendimento WhatsApp (${EMERZAP_URL.replace(/^https?:\/\//, '')})`}
                             >
                                 <span className="home_dash_bookmark_ico" aria-hidden="true">
-                                    M
+                                    Z
                                 </span>
-                                <span className="home_dash_bookmark_txt">EmerMarketing</span>
+                                <span className="home_dash_bookmark_txt">Emerzap</span>
                             </a>
                         </div>
                     </div>
                 </section>
-            ) : null}
 
             <section className="home_dash_bookmarks" aria-label="Favoritos">
                 <div className="home_dash_bookmarks_bar">
