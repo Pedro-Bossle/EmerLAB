@@ -66,15 +66,15 @@
     "semantic_hash": ""
   },
   "server/router.js": {
-    "mtime": 1793188041.8358498,
-    "seen": 1793188524.2479284,
-    "ast_hash": "f9497b2ae798534d8ecdb92372d376ee",
+    "mtime": 1793192829.9677608,
+    "seen": 1793192908.251491,
+    "ast_hash": "2a72c59fa051a7b9ddcec5b4f9fbe853",
     "semantic_hash": ""
   },
   "server/wati.js": {
-    "mtime": 1793188040.8751202,
-    "seen": 1793188524.2479298,
-    "ast_hash": "81a2d9dd9fde23fe91bedfa567644d34",
+    "mtime": 1793192829.963763,
+    "seen": 1793192908.251494,
+    "ast_hash": "db34d4561400b1c580e863ac913cfedc",
     "semantic_hash": ""
   },
   "src/App.jsx": {
@@ -84,9 +84,9 @@
     "semantic_hash": ""
   },
   "src/acoesConversa.js": {
-    "mtime": 1793130822.146221,
-    "seen": 1793188524.247934,
-    "ast_hash": "6cf35239d111695cd2943bb6977607c1",
+    "mtime": 1793190160.809044,
+    "seen": 1793190333.144745,
+    "ast_hash": "b96174d0677ed9ec7e64fb70065c740b",
     "semantic_hash": ""
   },
   "src/api.js": {
@@ -102,15 +102,15 @@
     "semantic_hash": ""
   },
   "src/components/Admin.jsx": {
-    "mtime": 1793128166.3396227,
-    "seen": 1793188524.2479398,
-    "ast_hash": "d38ad2669760b3304d1aba1b22de964f",
+    "mtime": 1793191098.010975,
+    "seen": 1793191616.8214781,
+    "ast_hash": "3f91c2f7183cdff976e2360f73b02df8",
     "semantic_hash": ""
   },
   "src/components/Chat.jsx": {
-    "mtime": 1793130821.199946,
-    "seen": 1793188524.2479415,
-    "ast_hash": "ff3cbb30cb8cf81883879f3427e2308f",
+    "mtime": 1793190160.8110423,
+    "seen": 1793190333.145132,
+    "ast_hash": "9c5f2bfd8ee7d67a5c7178d8246e8669",
     "semantic_hash": ""
   },
   "src/components/Composer.jsx": {
@@ -132,9 +132,9 @@
     "semantic_hash": ""
   },
   "src/components/EnviarTemplate.jsx": {
-    "mtime": 1793130333.093497,
-    "seen": 1793188524.2479494,
-    "ast_hash": "a66090bf897e56284c65cc9e01c411a4",
+    "mtime": 1793192836.3278365,
+    "seen": 1793192908.2524817,
+    "ast_hash": "eb169efc460195503150b638eaad5ade",
     "semantic_hash": ""
   },
   "src/components/FilaEspera.jsx": {
@@ -144,9 +144,9 @@
     "semantic_hash": ""
   },
   "src/components/Icone.jsx": {
-    "mtime": 1793102824.3265042,
-    "seen": 1793188524.247954,
-    "ast_hash": "956efb007aa9bb8266895ebf41c03f5a",
+    "mtime": 1793190160.8120418,
+    "seen": 1793190333.1455884,
+    "ast_hash": "de6baac924823fe58ac1729c0d331063",
     "semantic_hash": ""
   },
   "src/components/IconeCanal.jsx": {
@@ -162,9 +162,9 @@
     "semantic_hash": ""
   },
   "src/components/ListaConversas.jsx": {
-    "mtime": 1793130823.699808,
-    "seen": 1793188524.2479577,
-    "ast_hash": "38dc140e3580e3c82186acc0a91f0a3a",
+    "mtime": 1793190160.8130417,
+    "seen": 1793190333.1457639,
+    "ast_hash": "e108026316d7f054e8156b1c4cf2da52",
     "semantic_hash": ""
   },
   "src/components/Login.jsx": {
@@ -210,9 +210,9 @@
     "semantic_hash": ""
   },
   "src/components/Painel.jsx": {
-    "mtime": 1793188051.5400136,
-    "seen": 1793188524.2479694,
-    "ast_hash": "37efa16a2dc466f80bd8b2119de8c575",
+    "mtime": 1793191082.012977,
+    "seen": 1793191616.8258145,
+    "ast_hash": "486e9e4c95bb2033560232dbeb50e154",
     "semantic_hash": ""
   },
   "src/components/Perfil.jsx": {
@@ -246,9 +246,9 @@
     "semantic_hash": ""
   },
   "src/components/Transferir.jsx": {
-    "mtime": 1793102824.3455088,
-    "seen": 1793188524.2479804,
-    "ast_hash": "4e2b8c0cc9a8714d86b0cd8b9733c11b",
+    "mtime": 1793191098.008975,
+    "seen": 1793191616.8275557,
+    "ast_hash": "540e8303b317cd6e4d3ec37a867b8a32",
     "semantic_hash": ""
   },
   "src/main.jsx": {
@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793112514.8058872,
-    "seen": 1793188524.2480035,
-    "ast_hash": "73f92fc23df36531c9e33c9cd7172e28",
+    "mtime": 1793190160.7914836,
+    "seen": 1793190333.1478345,
+    "ast_hash": "b7a38b220b15018741f11d334059335d",
     "semantic_hash": ""
   },
   "index.html": {
@@ -312,15 +312,9 @@
     "semantic_hash": ""
   },
   "src/components/SeletorDepartamento.jsx": {
-    "mtime": 1793110017.9226282,
-    "seen": 1793188524.2479763,
-    "ast_hash": "781032fdaf490826421e1b2b7092360e",
-    "semantic_hash": ""
-  },
-  "src/rolagemHorizontal.js": {
-    "mtime": 1793102824.3475127,
-    "seen": 1793188524.2479887,
-    "ast_hash": "66f517ecb1a1faa00e82cffb8b3b518d",
+    "mtime": 1793190532.564612,
+    "seen": 1793190599.5285645,
+    "ast_hash": "e9cc0a65473752ac4983a93717c4d7c0",
     "semantic_hash": ""
   },
   "src/components/SeletorDepartamentos.jsx": {
@@ -423,6 +417,12 @@
     "mtime": 1793102822.9363532,
     "seen": 1793188524.248022,
     "ast_hash": "4882ac53efaed9c2a4c82b09ee93ff8f",
+    "semantic_hash": ""
+  },
+  "src/components/Seletor.jsx": {
+    "mtime": 1793191552.5772152,
+    "seen": 1793191616.8267844,
+    "ast_hash": "2e8472f53ed87bfb272e6e2147ad8c4f",
     "semantic_hash": ""
   },
   "package-lock.json": {
