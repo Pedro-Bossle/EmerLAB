@@ -1,19 +1,19 @@
 {
-  "0": "normalizarWaId",
+  "0": "getEnv",
   "1": "package.json",
   "2": "Chat.jsx",
   "3": "wati.js",
-  "4": "react",
+  "4": "api",
   "5": "router.js",
-  "6": "lerCorpo",
+  "6": "handle",
   "7": "Painel.jsx",
   "8": "aceitarConvite",
-  "9": "Mensagem.jsx",
-  "10": "ibge.js",
+  "10": "Perfil.jsx",
   "11": "quemRealiza.js",
   "12": "zap.emerlab",
   "13": "vercel.json",
-  "14": "salvarPerfilHandler",
+  "14": "Icone",
   "15": "db",
-  "16": "postcss.config.js"
+  "16": "postcss.config.js",
+  "17": "email.js"
 }

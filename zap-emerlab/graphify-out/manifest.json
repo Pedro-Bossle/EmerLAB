@@ -66,9 +66,9 @@
     "semantic_hash": ""
   },
   "server/router.js": {
-    "mtime": 1793196430.1177468,
-    "seen": 1793196475.0043435,
-    "ast_hash": "1ca6665ca816022c76327d75e76c153e",
+    "mtime": 1793211438.867608,
+    "seen": 1793211583.8572233,
+    "ast_hash": "eb7b2fcde363701d8c94682abcacc155",
     "semantic_hash": ""
   },
   "server/wati.js": {
@@ -144,9 +144,9 @@
     "semantic_hash": ""
   },
   "src/components/Icone.jsx": {
-    "mtime": 1793190160.8120418,
-    "seen": 1793190333.1455884,
-    "ast_hash": "de6baac924823fe58ac1729c0d331063",
+    "mtime": 1793198595.0471213,
+    "seen": 1793198905.308683,
+    "ast_hash": "82d5aeac6fd894f6b96b11f6d607bc50",
     "semantic_hash": ""
   },
   "src/components/IconeCanal.jsx": {
@@ -162,9 +162,9 @@
     "semantic_hash": ""
   },
   "src/components/ListaConversas.jsx": {
-    "mtime": 1793190160.8130417,
-    "seen": 1793190333.1457639,
-    "ast_hash": "e108026316d7f054e8156b1c4cf2da52",
+    "mtime": 1793211438.8736048,
+    "seen": 1793211583.8689234,
+    "ast_hash": "aee8316e69316ae7a9f1761bf0f6ef6c",
     "semantic_hash": ""
   },
   "src/components/Login.jsx": {
@@ -210,9 +210,9 @@
     "semantic_hash": ""
   },
   "src/components/Painel.jsx": {
-    "mtime": 1793194901.2421439,
-    "seen": 1793195013.726542,
-    "ast_hash": "081da2f928b624728457adb03f8e57ee",
+    "mtime": 1793211444.6846018,
+    "seen": 1793211583.8715494,
+    "ast_hash": "bb5759f3f3226d1cac552195d295054c",
     "semantic_hash": ""
   },
   "src/components/Perfil.jsx": {
@@ -270,9 +270,9 @@
     "semantic_hash": ""
   },
   "src/util.js": {
-    "mtime": 1793130793.5630722,
-    "seen": 1793188524.247993,
-    "ast_hash": "010c046f00fd3ce3434765fb86538a6d",
+    "mtime": 1793206089.90229,
+    "seen": 1793206562.3855164,
+    "ast_hash": "9a28cc629f23b1382490ada6b455ca8b",
     "semantic_hash": ""
   },
   "vercel.json": {
@@ -429,6 +429,60 @@
     "mtime": 1793194406.6303568,
     "seen": 1793194503.2119544,
     "ast_hash": "cd93fa9a756b22caa02e0deaeb9b5f6d",
+    "semantic_hash": ""
+  },
+  "src/components/IconeMicrosoft.jsx": {
+    "mtime": 1793199754.4921043,
+    "seen": 1793199962.7954383,
+    "ast_hash": "6ec9d104ac85f3600b1771bf9b6a99a6",
+    "semantic_hash": ""
+  },
+  "src/components/PreviaMicrosoft.jsx": {
+    "mtime": 1793206335.036623,
+    "seen": 1793206562.3842945,
+    "ast_hash": "65d8ac87b1b6ab170d3c59a7526160ad",
+    "semantic_hash": ""
+  },
+  "src/previaMicrosoftDados.js": {
+    "mtime": 1793206503.3652065,
+    "seen": 1793206562.3853412,
+    "ast_hash": "3a6164349ccb9368dd8fb88fb6ba4d0c",
+    "semantic_hash": ""
+  },
+  "src/components/EditorEmail.jsx": {
+    "mtime": 1793206180.8536322,
+    "seen": 1793206562.3827236,
+    "ast_hash": "24783fb58f958699de6abdb54010f613",
+    "semantic_hash": ""
+  },
+  "src/components/MolduraMicrosoft.jsx": {
+    "mtime": 1793199754.4981046,
+    "seen": 1793199962.7965457,
+    "ast_hash": "5c0e4892b530d93aa6669e4322237f77",
+    "semantic_hash": ""
+  },
+  "src/components/PreviaAgenda.jsx": {
+    "mtime": 1793205399.446757,
+    "seen": 1793205507.516385,
+    "ast_hash": "0527d9526c5ccd807be1f9db66aae92b",
+    "semantic_hash": ""
+  },
+  "src/htmlSeguro.js": {
+    "mtime": 1793199542.871831,
+    "seen": 1793199962.7987058,
+    "ast_hash": "aea651bb310c3b71b56ea43208e6d6ed",
+    "semantic_hash": ""
+  },
+  "src/components/MsComum.jsx": {
+    "mtime": 1793206089.899291,
+    "seen": 1793206562.3839412,
+    "ast_hash": "66720c19abef366c1a825f1aef336438",
+    "semantic_hash": ""
+  },
+  "src/components/PreviaEmail.jsx": {
+    "mtime": 1793206465.068952,
+    "seen": 1793206562.384292,
+    "ast_hash": "88f57e2d89fa021055230da5c1c4920a",
     "semantic_hash": ""
   },
   "package-lock.json": {
