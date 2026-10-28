@@ -9,17 +9,11 @@ function nomesEm(texto) {
     return [...String(texto || '').matchAll(RE_VAR)].map((m) => m[1])
 }
 
-function ordenarVars(nomes) {
-    return [...nomes].sort((a, b) => {
-        const na = /^\d+$/.test(a)
-        const nb = /^\d+$/.test(b)
-        if (na && nb) return Number(a) - Number(b)
-        if (na !== nb) return na ? -1 : 1
-        return a.localeCompare(b, 'pt')
-    })
-}
-
-/** Variáveis do cabeçalho, corpo, rodapé e botões (a WATI manda cada trecho separado). */
+/**
+ * Variáveis na ordem em que aparecem na mensagem (cabeçalho, corpo, rodapé e botões; a WATI manda cada trecho
+ * separado), para o formulário seguir a leitura do texto. O envio reordena pela numeração ({{1}}, {{2}}…), que é o
+ * que a WATI exige (ver enviarTemplate em server/wati.js).
+ */
 function variaveisDoTemplate(t) {
     if (!t) return []
     const ordem = []
@@ -31,7 +25,7 @@ function variaveisDoTemplate(t) {
             ordem.push(v)
         }
     }
-    return ordenarVars(ordem)
+    return ordem
 }
 
 function ondeAparece(t, nome) {

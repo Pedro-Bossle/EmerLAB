@@ -382,7 +382,17 @@ export async function enviarTemplate(waId, nomeTemplate, parametros) {
             template_name: nomeTemplate,
             broadcast_name: `zap_emerlab_${Date.now()}`,
             channel_number: watiChannel,
-            parameters: Object.entries(parametros || {}).map(([name, value]) => ({ name, value: String(value ?? '') })),
+            // a WATI exige a ordem da numeração do template ({{1}}, {{2}}…); nomeados vêm depois, na ordem recebida
+            parameters: Object.entries(parametros || {})
+                .map(([name, value], i) => ({ name, value: String(value ?? ''), i }))
+                .sort((a, b) => {
+                    const na = /^\d+$/.test(a.name)
+                    const nb = /^\d+$/.test(b.name)
+                    if (na && nb) return Number(a.name) - Number(b.name)
+                    if (na !== nb) return na ? -1 : 1
+                    return a.i - b.i
+                })
+                .map(({ name, value }) => ({ name, value })),
         },
     })
     invalidarCache(`msgs:${waId}:`)
