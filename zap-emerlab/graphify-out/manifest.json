@@ -66,9 +66,9 @@
     "semantic_hash": ""
   },
   "server/router.js": {
-    "mtime": 1793192829.9677608,
-    "seen": 1793192908.251491,
-    "ast_hash": "2a72c59fa051a7b9ddcec5b4f9fbe853",
+    "mtime": 1793195828.9733977,
+    "seen": 1793195892.1113884,
+    "ast_hash": "d6cdbaf60e55a21297d8d42d3c024f31",
     "semantic_hash": ""
   },
   "server/wati.js": {
@@ -102,9 +102,9 @@
     "semantic_hash": ""
   },
   "src/components/Admin.jsx": {
-    "mtime": 1793191098.010975,
-    "seen": 1793191616.8214781,
-    "ast_hash": "3f91c2f7183cdff976e2360f73b02df8",
+    "mtime": 1793195281.5124433,
+    "seen": 1793195420.5764158,
+    "ast_hash": "a3fd988ce58ef14e7279e64648f25046",
     "semantic_hash": ""
   },
   "src/components/Chat.jsx": {
@@ -210,9 +210,9 @@
     "semantic_hash": ""
   },
   "src/components/Painel.jsx": {
-    "mtime": 1793191082.012977,
-    "seen": 1793191616.8258145,
-    "ast_hash": "486e9e4c95bb2033560232dbeb50e154",
+    "mtime": 1793194901.2421439,
+    "seen": 1793195013.726542,
+    "ast_hash": "081da2f928b624728457adb03f8e57ee",
     "semantic_hash": ""
   },
   "src/components/Perfil.jsx": {
