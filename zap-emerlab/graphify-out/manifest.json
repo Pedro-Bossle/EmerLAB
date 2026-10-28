@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "src/main.jsx": {
-    "mtime": 1793122106.1371238,
-    "seen": 1793188524.2479823,
-    "ast_hash": "27213e7d67a6e953a56bdac4ade44951",
+    "mtime": 1793193962.9610002,
+    "seen": 1793194503.2119577,
+    "ast_hash": "09f25f8c1e66725f87dfdb7f6976638b",
     "semantic_hash": ""
   },
   "src/regras.js": {
@@ -423,6 +423,12 @@
     "mtime": 1793191552.5772152,
     "seen": 1793191616.8267844,
     "ast_hash": "2e8472f53ed87bfb272e6e2147ad8c4f",
+    "semantic_hash": ""
+  },
+  "src/dicas.js": {
+    "mtime": 1793194406.6303568,
+    "seen": 1793194503.2119544,
+    "ast_hash": "cd93fa9a756b22caa02e0deaeb9b5f6d",
     "semantic_hash": ""
   },
   "package-lock.json": {
