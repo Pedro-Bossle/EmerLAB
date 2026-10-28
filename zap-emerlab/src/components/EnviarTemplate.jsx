@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
 import Modal from './Modal.jsx'
 import Icone from './Icone.jsx'
@@ -58,6 +58,7 @@ export default function EnviarTemplate({ conversa, config, aoFechar, aoEnviado, 
     const [escolhido, setEscolhido] = useState(null)
     const [valores, setValores] = useState({})
     const [enviando, setEnviando] = useState(false)
+    const enviandoRef = useRef(false)
 
     useEffect(() => {
         api('templates')
@@ -85,12 +86,16 @@ export default function EnviarTemplate({ conversa, config, aoFechar, aoEnviado, 
     const previaCorpo = escolhido ? substituir(escolhido.corpo, valores) : ''
 
     const enviar = async () => {
+        // o estado `enviando` só desabilita o botão no próximo render: o ref barra o segundo clique na hora
+        if (enviandoRef.current) return
+        enviandoRef.current = true
         setEnviando(true)
         try {
             await api(`conversas/${encodeURIComponent(conversa.waId)}/template`, { method: 'POST', body: { nome: escolhido.nome, parametros: valores } })
             aoEnviado()
         } catch (e) {
             avisar(e.message, 'erro')
+            enviandoRef.current = false
             setEnviando(false)
         }
     }

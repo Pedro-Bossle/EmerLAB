@@ -3,7 +3,8 @@ import Icone from './Icone.jsx'
 
 // Filtro de departamento da lista: pill que abre um menu com a cor e a contagem de cada departamento.
 // O menu fica em position: fixed porque a faixa de pills rola para o lado (overflow) e cortaria um menu absoluto.
-export default function SeletorDepartamento({ departamentos, valor, aoMudar, contagem }) {
+// `campo`: versão de campo de formulário (painel de filtros), largura total e com o nome do setor sempre visível
+export default function SeletorDepartamento({ departamentos, valor, aoMudar, contagem, campo = false }) {
     const [aberto, setAberto] = useState(false)
     const [pos, setPos] = useState(null)
     const botao = useRef(null)
@@ -20,7 +21,7 @@ export default function SeletorDepartamento({ departamentos, valor, aoMudar, con
     useLayoutEffect(() => {
         if (!aberto) return
         const r = botao.current.getBoundingClientRect()
-        const largura = 260
+        const largura = Math.max(260, r.width)
         setPos({ top: r.bottom + 6, left: Math.max(8, Math.min(r.left, innerWidth - largura - 8)), width: largura })
     }, [aberto])
 
@@ -31,6 +32,8 @@ export default function SeletorDepartamento({ departamentos, valor, aoMudar, con
         }
         const tecla = (e) => {
             if (e.key === 'Escape') {
+                // este Esc é só do menu: não chega ao atalho do painel (que fecharia os filtros ou a conversa)
+                e.stopPropagation()
                 setAberto(false)
                 botao.current?.focus()
             }
@@ -71,14 +74,14 @@ export default function SeletorDepartamento({ departamentos, valor, aoMudar, con
             <button
                 ref={botao}
                 type="button"
-                className={`chip seletor-depto ${valor ? 'ativo' : ''}`}
+                className={`${campo ? 'filtro-select' : 'chip'} seletor-depto ${valor ? 'ativo' : ''}`}
                 aria-haspopup="menu"
                 aria-expanded={aberto}
                 aria-label={`Filtrar por setor do atendente: ${atual.nome}`}
                 onClick={() => setAberto((v) => !v)}
             >
                 {atual.cor ? <span className="depto-ponto" style={{ '--tag': atual.cor }} /> : <Icone nome="filtro" tamanho={14} />}
-                {valor ? atual.nome : 'Setores'}
+                <span className="seletor-depto-nome">{valor || campo ? atual.nome : 'Setores'}</span>
                 <Icone nome="baixo" tamanho={14} className={`seletor-depto-seta ${aberto ? 'aberto' : ''}`} />
             </button>
             {aberto && pos ? (

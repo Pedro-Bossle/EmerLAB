@@ -123,8 +123,10 @@ export default function ListaConversas({ conversas, carregando, erro, textoVazio
                             <div className="item-linha">
                                 <span className="item-previa">
                                     {c.ultimaMinha ? <Icone nome="checkDuplo" tamanho={16} className="previa-check" /> : null}
-                                    {c.status === 'resolvida' ? <em className="previa-status">Resolvida · </em> : null}
+                                    {c.status === 'resolvida' ? <em className="previa-status">{c.bloqueada ? 'Bloqueada · ' : 'Resolvida · '}</em> : null}
                                     {c.status === 'pendente' ? <em className="previa-status pendente">Pendente · </em> : null}
+                                    {/* Nova (como na WATI): aberta, sem atendente, cliente esperando a primeira resposta */}
+                                    {c.status === 'aberta' && naFila && c.aguardandoHumano ? <em className="previa-status pendente">Nova · </em> : null}
                                     <span className="item-previa-texto">{c.ultimaMsg || (c.nome ? '' : 'Toque para abrir')}</span>
                                 </span>
                                 {c.naoLidas ? (

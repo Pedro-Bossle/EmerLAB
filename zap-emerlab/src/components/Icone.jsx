@@ -1,5 +1,6 @@
 // Ícones do Lucide (traço uniforme em grade 24×24), com nomes em português
 import {
+    ArrowDownUp,
     ArrowLeft,
     ArrowLeftRight,
     Check,
@@ -77,6 +78,7 @@ const ICONES = {
     lixo: Trash2,
     mais: Plus,
     filtro: ListFilter,
+    ordenar: ArrowDownUp,
     responder: Reply,
     baixo: ChevronDown,
     tentar: RotateCcw,

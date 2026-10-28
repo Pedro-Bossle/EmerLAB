@@ -17,25 +17,48 @@ import Modal from './Modal.jsx'
 import MenuContexto from './MenuContexto.jsx'
 import Transferir from './Transferir.jsx'
 import SeletorDepartamento from './SeletorDepartamento.jsx'
-import { useRolagemHorizontal } from '../rolagemHorizontal.js'
+import Seletor from './Seletor.jsx'
 import { transferir, itensDeAtendimento } from '../acoesConversa.js'
 import { ATALHOS, MOD, comMod, teclaDe, haSobreposicao } from '../atalhos.js'
 
 const INTERVALO_LISTA = 10000
 
 // Filtros como na Team Inbox da WATI (support.wati.io, "How to search or filter conversations"):
-//   Todos = tudo; Ativos = abertas/pendentes com a janela de 24h aberta (expirada não é ativa);
-//   Atribuídos a mim; Não atribuídos = sem atendente; Não respondidas = cliente esperando resposta de pessoa
-//   (bot não conta, template enviado por atendente conta); Menções = citado com @ nas notas.
-// Combinam com setor, atendente e status (como os filtros de equipe, responsável e status da WATI).
+//   Todos = tudo; Ativos = novas/abertas/pendentes com a janela de 24h aberta (expirada não é ativa);
+//   Atribuídos a mim; Não atribuídos = sem atendente; Não lidas = com mensagem não lida; Últimas 24h = movimento
+//   no último dia; Sem resposta ("Unreplied" da WATI) = cliente esperando resposta de pessoa (bot não conta, template enviado por
+//   atendente conta); Menções = citado com @ nas notas.
+// Combinam com setor, atendente, status, tag e período (como os filtros avançados da WATI).
+// Duas linhas fixas de quatro: a faixa não cresce nem rola quando aparece um contador.
+// Terceiro item = rótulo curto, usado quando a lista fica estreita (celular, coluna redimensionada).
 const FILTROS = [
     ['todos', 'Todos'],
     ['ativos', 'Ativos'],
-    ['atribuidos', 'Atribuídos a mim'],
-    ['nao-atribuidos', 'Não atribuídos'],
-    ['nao-respondidas', 'Não respondidas'],
+    ['atribuidos', 'Atribuídos a mim', 'Meus'],
+    ['nao-atribuidos', 'Não atribuídos', 'Na fila'],
+    ['nao-lidas', 'Não lidas'],
+    ['ultimas-24h', 'Últimas 24h', '24h'],
+    ['nao-respondidas', 'Sem resposta'],
     ['mencoes', 'Menções'],
 ]
+const LINHAS_FILTROS = [FILTROS.slice(0, 4), FILTROS.slice(4)]
+
+const PERIODOS = [
+    ['', 'Qualquer data'],
+    ['hoje', 'Hoje'],
+    ['7d', 'Últimos 7 dias'],
+    ['30d', 'Últimos 30 dias'],
+]
+
+const DIA_MS = 24 * 3600 * 1000
+
+function dentroDoPeriodo(iso, periodo, agora = Date.now()) {
+    if (!periodo) return true
+    const t = iso ? new Date(iso).getTime() : 0
+    if (!t) return false
+    if (periodo === 'hoje') return t >= new Date(agora).setHours(0, 0, 0, 0)
+    return agora - t <= ({ '1d': 1, '7d': 7 }[periodo] || 30) * DIA_MS
+}
 
 // Texto da lista vazia conforme o filtro, para o atendente entender o porquê
 const VAZIO = {
@@ -43,23 +66,29 @@ const VAZIO = {
     ativos: 'Nenhuma conversa aberta ou pendente com a janela de 24h ativa.',
     atribuidos: 'Nenhuma conversa aberta atribuída a você. Use "Assumir" numa conversa de Não atribuídos.',
     'nao-atribuidos': 'Todas as conversas abertas têm atendente.',
+    'nao-lidas': 'Nenhuma conversa com mensagem não lida.',
+    'ultimas-24h': 'Nenhuma conversa com movimento nas últimas 24 horas.',
     'nao-respondidas': 'Nenhum cliente esperando resposta de um atendente.',
     mencoes: 'Ninguém citou você nas notas de uma conversa. Para citar, escreva @nome nas notas do contato.',
 }
 
 const STATUS_FILTRO = [
     ['', 'Qualquer status'],
+    ['nova', 'Nova'],
     ['aberta', 'Aberta'],
     ['pendente', 'Pendente'],
     ['resolvida', 'Resolvida'],
     ['expirada', 'Expirada'],
+    ['bloqueada', 'Bloqueada'],
 ]
 
-// status como a WATI mostra: aberta/pendente com a janela de 24h fechada = expirada
+// status como a WATI mostra: aberta/pendente com a janela de 24h fechada = expirada;
+// nova = aberta, sem atendente e com o cliente esperando a primeira resposta de uma pessoa
 function statusExibido(c) {
-    if (c.status === 'resolvida') return 'resolvida'
+    if (c.status === 'resolvida') return c.bloqueada ? 'bloqueada' : 'resolvida'
     if (janelaDaConversa(c)?.fechada) return 'expirada'
-    return c.status === 'pendente' ? 'pendente' : 'aberta'
+    if (c.status === 'pendente') return 'pendente'
+    return !c.atendenteEmail && c.aguardandoHumano ? 'nova' : 'aberta'
 }
 
 function tocarBip() {
@@ -101,6 +130,9 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     const [filtro, setFiltro] = useState('atribuidos')
     const [filtroDepto, setFiltroDepto] = useState('')
     const [filtroStatus, setFiltroStatus] = useState('')
+    const [filtroTag, setFiltroTag] = useState('')
+    const [filtroPeriodo, setFiltroPeriodo] = useState('')
+    const [maisAntigas, setMaisAntigas] = useState(false)
     const [filtroAtendente, setFiltroAtendente] = useState('') // '' todos · 'sem' sem atendente · e-mail
     const [respostas, setRespostas] = useState([])
     const [equipe, setEquipe] = useState([])
@@ -292,11 +324,15 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     // filtro de cima, com a regra da WATI (ver FILTROS)
     const passaFiltroWati = useCallback(
         (c, st = statusExibido(c)) => {
+            // bloqueada é uma resolvida (encerrada) com o contato bloqueado
+            const encerrada = st === 'resolvida' || st === 'bloqueada'
             if (filtro === 'todos') return true
-            if (filtro === 'ativos') return st === 'aberta' || st === 'pendente'
-            if (filtro === 'atribuidos') return mesmoEmail(c.atendenteEmail, usuario.email) && st !== 'resolvida'
+            if (filtro === 'ativos') return st === 'nova' || st === 'aberta' || st === 'pendente'
+            if (filtro === 'atribuidos') return mesmoEmail(c.atendenteEmail, usuario.email) && !encerrada
             if (filtro === 'nao-atribuidos') return naFilaDoSetor(c)
-            if (filtro === 'nao-respondidas') return Boolean(c.aguardandoHumano) && st !== 'resolvida'
+            if (filtro === 'nao-lidas') return c.naoLidas > 0
+            if (filtro === 'ultimas-24h') return dentroDoPeriodo(c.ultimaEm, '1d')
+            if (filtro === 'nao-respondidas') return Boolean(c.aguardandoHumano) && !encerrada
             if (filtro === 'mencoes') return (c.mencionados || []).some((e) => mesmoEmail(e, usuario.email))
             return true
         },
@@ -318,11 +354,20 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
             const st = statusExibido(c)
             if (filtroStatus && st !== filtroStatus) return false
             if (filtroAtendente === 'sem' ? c.atendenteEmail : filtroAtendente && !mesmoEmail(c.atendenteEmail, filtroAtendente)) return false
+            if (filtroTag && !(c.tags || []).some((t) => t.toLowerCase() === filtroTag.toLowerCase())) return false
+            if (!dentroDoPeriodo(c.ultimaEm, filtroPeriodo)) return false
             if (buscando) return filtro === 'todos' || passaFiltroWati(c, st)
             return passaFiltroWati(c, st)
         },
-        [visaoAtendente, buscando, noEscopoNotificacao, filtroStatus, filtroAtendente, filtro, passaFiltroWati],
+        [visaoAtendente, buscando, noEscopoNotificacao, filtroStatus, filtroAtendente, filtroTag, filtroPeriodo, filtro, passaFiltroWati],
     )
+
+    // tags das conversas carregadas, para o filtro de tag (só aparece se houver alguma)
+    const tagsDaLista = useMemo(() => {
+        const vistas = new Map()
+        for (const c of conversas) for (const t of c.tags || []) if (!vistas.has(t.toLowerCase())) vistas.set(t.toLowerCase(), t)
+        return [...vistas.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    }, [conversas])
 
     const conversasVisao = useMemo(() => conversas.filter(noEscopoNotificacao), [conversas, noEscopoNotificacao])
 
@@ -352,7 +397,11 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         [filtroDepto, setoresDaConversa],
     )
 
-    const filtradas = useMemo(() => conversas.filter((c) => passaFiltroDepto(c) && passaFiltro(c)), [conversas, passaFiltroDepto, passaFiltro])
+    // o servidor manda das mais recentes para as mais antigas; "Mais antigas" só inverte
+    const filtradas = useMemo(() => {
+        const lista = conversas.filter((c) => passaFiltroDepto(c) && passaFiltro(c))
+        return maisAntigas ? lista.reverse() : lista
+    }, [conversas, passaFiltroDepto, passaFiltro, maisAntigas])
 
     // contagem por setor do atendente (uma conversa pode entrar em vários setores se o atendente tiver mais de um)
     const contagemDepto = useMemo(() => {
@@ -371,8 +420,31 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         return n
     }, [conversas, passaFiltro, departamentos, setoresDaConversa])
 
-    const faixaFiltros = useRef(null)
-    useRolagemHorizontal(faixaFiltros)
+    // filtros avançados ativos, para o contador do botão e as etiquetas removíveis
+    const [painelFiltros, setPainelFiltros] = useState(false)
+    const botaoFiltros = useRef(null)
+    const filtrosAtivos = [
+        filtroDepto && {
+            chave: 'depto',
+            rotulo: filtroDepto === 'sem' ? 'Sem setor' : deptoPorId[filtroDepto]?.nome || 'Setor',
+            limpar: () => setFiltroDepto(''),
+        },
+        filtroAtendente && {
+            chave: 'atendente',
+            rotulo: filtroAtendente === 'sem' ? 'Sem atendente' : atendentesFiltro.find((p) => mesmoEmail(p.email, filtroAtendente))?.nome || filtroAtendente,
+            limpar: () => setFiltroAtendente(''),
+        },
+        filtroStatus && { chave: 'status', rotulo: STATUS_FILTRO.find(([v]) => v === filtroStatus)?.[1], limpar: () => setFiltroStatus('') },
+        filtroPeriodo && { chave: 'periodo', rotulo: PERIODOS.find(([v]) => v === filtroPeriodo)?.[1], limpar: () => setFiltroPeriodo('') },
+        filtroTag && { chave: 'tag', rotulo: `#${filtroTag}`, limpar: () => setFiltroTag('') },
+    ].filter(Boolean)
+    const limparFiltros = () => {
+        setFiltroDepto('')
+        setFiltroAtendente('')
+        setFiltroStatus('')
+        setFiltroPeriodo('')
+        setFiltroTag('')
+    }
 
     // catálogo da API (WATI + histórico) + tags da lista aberta — sem duplicar (case-insensitive)
     const tagsConhecidas = useMemo(() => {
@@ -458,7 +530,7 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     const itensMenuConversa = (c) => [
         { rotulo: 'Abrir conversa', acao: () => abrir(c) },
         c.naoLidas > 0 ? { rotulo: 'Marcar como lida', acao: () => marcarLida(c) } : { rotulo: 'Marcar como não lida', acao: () => marcarNaoLida(c) },
-        ...itensDeAtendimento(c, usuario.email, { acao: acaoNaConversa(c), aoTransferir: () => setTransferindo(c) }),
+        ...itensDeAtendimento(c, usuario.email, { acao: acaoNaConversa(c), aoTransferir: () => setTransferindo(c), admin: usuario.papel === 'admin' }),
     ]
 
     const escuro = prefs.modo === 'escuro' || (prefs.modo === 'sistema' && window.matchMedia?.('(prefers-color-scheme: dark)').matches)
@@ -503,6 +575,14 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         if (e.target === campoBusca.current) {
             if (busca) setBusca('')
             campoBusca.current.blur()
+            return
+        }
+        // painel de filtros aberto: Esc fecha ele primeiro (o menu de setor, se aberto, já barrou acima) e
+        // devolve o foco ao botão "Filtros"
+        if (painelFiltros) {
+            e.preventDefault()
+            setPainelFiltros(false)
+            botaoFiltros.current?.focus()
             return
         }
         // Esc fecha a conversa atual; o rascunho fica guardado no Composer
@@ -682,51 +762,141 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
                     </div>
                 </div>
 
-                <div className="filtros" role="tablist" aria-label="Filtros" ref={faixaFiltros}>
-                    {FILTROS.map(([k, r]) => {
-                        // contagem só onde ajuda a agir (como os marcadores da WATI)
-                        let qtd = 0
-                        if (k === 'nao-atribuidos') qtd = conversas.filter((c) => naFilaDoSetor(c) && noEscopoNotificacao(c)).length
-                        else if (k === 'nao-respondidas') qtd = conversasVisao.filter((c) => c.aguardandoHumano && c.status !== 'resolvida').length
-                        else if (k === 'mencoes') qtd = conversasVisao.filter((c) => (c.mencionados || []).some((e) => mesmoEmail(e, usuario.email))).length
-                        return (
-                            <button key={k} role="tab" aria-selected={filtro === k} className={`chip ${filtro === k ? 'ativo' : ''}`} onClick={() => setFiltro(k)}>
-                                {r}
-                                {qtd ? <span className="chip-qtd">{qtd}</span> : null}
-                            </button>
-                        )
-                    })}
-                    {meusDeptos.length > 0 ? (
-                        <SeletorDepartamento departamentos={meusDeptos} valor={filtroDepto} aoMudar={setFiltroDepto} contagem={contagemDepto} />
-                    ) : null}
-                    {!visaoAtendente ? (
-                        <select
-                            className={`chip chip-select ${filtroAtendente ? 'ativo' : ''}`}
-                            value={filtroAtendente}
-                            onChange={(e) => setFiltroAtendente(e.target.value)}
-                            aria-label="Filtrar por atendente"
-                        >
-                            <option value="">Todos os atendentes</option>
-                            <option value="sem">Sem atendente</option>
-                            {atendentesFiltro.map((p) => (
-                                <option key={p.email} value={p.email}>
-                                    {p.nome}
-                                </option>
-                            ))}
-                        </select>
-                    ) : null}
-                    <select
-                        className={`chip chip-select ${filtroStatus ? 'ativo' : ''}`}
-                        value={filtroStatus}
-                        onChange={(e) => setFiltroStatus(e.target.value)}
-                        aria-label="Filtrar por status"
-                    >
-                        {STATUS_FILTRO.map(([v, r]) => (
-                            <option key={v} value={v}>
-                                {r}
-                            </option>
+                <div className="filtros">
+                    {/* visões rápidas (como a Team Inbox da WATI): todas à vista, em duas linhas fixas */}
+                    <div className="visoes" role="tablist" aria-label="Visões">
+                        {LINHAS_FILTROS.map((linha, i) => (
+                            <div key={i} className="visoes-linha">
+                                {linha.map(([k, r, curto]) => {
+                                    // contagem só onde ajuda a agir (como os marcadores da WATI)
+                                    let qtd = 0
+                                    if (k === 'nao-atribuidos') qtd = conversas.filter((c) => naFilaDoSetor(c) && noEscopoNotificacao(c)).length
+                                    else if (k === 'nao-lidas') qtd = conversasVisao.filter((c) => c.naoLidas > 0).length
+                                    else if (k === 'nao-respondidas') qtd = conversasVisao.filter((c) => c.aguardandoHumano && c.status !== 'resolvida').length
+                                    else if (k === 'mencoes') qtd = conversasVisao.filter((c) => (c.mencionados || []).some((e) => mesmoEmail(e, usuario.email))).length
+                                    return (
+                                        <button key={k} role="tab" aria-selected={filtro === k} className={`chip ${filtro === k ? 'ativo' : ''}`} title={r} onClick={() => setFiltro(k)}>
+                                            <span className="chip-rotulo">
+                                                {curto ? (
+                                                    <>
+                                                        <span className="rotulo-longo">{r}</span>
+                                                        <span className="rotulo-curto">{curto}</span>
+                                                    </>
+                                                ) : (
+                                                    r
+                                                )}
+                                            </span>
+                                            {qtd ? <span className="chip-qtd">{qtd}</span> : null}
+                                        </button>
+                                    )
+                                })}
+                            </div>
                         ))}
-                    </select>
+                    </div>
+
+                    {/* filtros avançados num painel que abre embaixo; fechado, os ativos viram etiquetas removíveis */}
+                    <div className="filtros-barra">
+                        <button
+                            ref={botaoFiltros}
+                            type="button"
+                            className={`filtro-botao ${painelFiltros ? 'aberto' : ''} ${filtrosAtivos.length ? 'tem' : ''}`}
+                            aria-expanded={painelFiltros}
+                            aria-controls="painel-filtros"
+                            onClick={() => setPainelFiltros((v) => !v)}
+                        >
+                            <Icone nome="filtro" tamanho={15} />
+                            Filtros
+                            {filtrosAtivos.length ? <span className="chip-qtd">{filtrosAtivos.length}</span> : null}
+                            <Icone nome="baixo" tamanho={14} className={`seletor-depto-seta ${painelFiltros ? 'aberto' : ''}`} />
+                        </button>
+                        {!painelFiltros ? (
+                            <div className="filtros-ativos">
+                                {filtrosAtivos.map((f) => (
+                                    <button key={f.chave} type="button" className="filtro-ativo" title={`Remover: ${f.rotulo}`} aria-label={`Remover filtro ${f.rotulo}`} onClick={f.limpar}>
+                                        <span>{f.rotulo}</span>
+                                        <Icone nome="fechar" tamanho={12} />
+                                    </button>
+                                ))}
+                            </div>
+                        ) : null}
+                        <button
+                            type="button"
+                            className="ordem-botao"
+                            aria-pressed={maisAntigas}
+                            data-dica={maisAntigas ? 'Mostrando as mais antigas primeiro' : 'Mostrando as mais recentes primeiro'}
+                            data-dica-lado="esquerda"
+                            onClick={() => setMaisAntigas((v) => !v)}
+                        >
+                            <Icone nome="ordenar" tamanho={15} />
+                            {maisAntigas ? 'Antigas' : 'Recentes'}
+                        </button>
+                    </div>
+
+                    {painelFiltros ? (
+                        <div id="painel-filtros" className="painel-filtros">
+                            {meusDeptos.length > 0 ? (
+                                <div className="filtro-campo">
+                                    <span>Setor</span>
+                                    <SeletorDepartamento departamentos={meusDeptos} valor={filtroDepto} aoMudar={setFiltroDepto} contagem={contagemDepto} campo />
+                                </div>
+                            ) : null}
+                            {!visaoAtendente ? (
+                                <label className="filtro-campo">
+                                    <span>Atendente</span>
+                                    <Seletor
+                                        className="filtro-select"
+                                        ativo={Boolean(filtroAtendente)}
+                                        valor={filtroAtendente}
+                                        aoMudar={setFiltroAtendente}
+                                        opcoes={[{ valor: '', rotulo: 'Todos' }, { valor: 'sem', rotulo: 'Sem atendente' }, ...atendentesFiltro.map((p) => ({ valor: p.email, rotulo: p.nome }))]}
+                                    />
+                                </label>
+                            ) : null}
+                            <label className="filtro-campo">
+                                <span>Status</span>
+                                <Seletor
+                                    className="filtro-select"
+                                    ativo={Boolean(filtroStatus)}
+                                    valor={filtroStatus}
+                                    aoMudar={setFiltroStatus}
+                                    opcoes={STATUS_FILTRO.map(([valor, rotulo]) => ({ valor, rotulo }))}
+                                />
+                            </label>
+                            <label className="filtro-campo">
+                                <span>Período</span>
+                                <Seletor
+                                    className="filtro-select"
+                                    ativo={Boolean(filtroPeriodo)}
+                                    valor={filtroPeriodo}
+                                    aoMudar={setFiltroPeriodo}
+                                    opcoes={PERIODOS.map(([valor, rotulo]) => ({ valor, rotulo }))}
+                                />
+                            </label>
+                            {tagsDaLista.length || filtroTag ? (
+                                <label className="filtro-campo">
+                                    <span>Tag</span>
+                                    <Seletor
+                                        className="filtro-select"
+                                        ativo={Boolean(filtroTag)}
+                                        valor={filtroTag}
+                                        aoMudar={setFiltroTag}
+                                        opcoes={[
+                                            { valor: '', rotulo: 'Todas' },
+                                            ...(tagsDaLista.includes(filtroTag) || !filtroTag ? tagsDaLista : [filtroTag, ...tagsDaLista]).map((t) => ({ valor: t, rotulo: t })),
+                                        ]}
+                                    />
+                                </label>
+                            ) : null}
+                            <div className="painel-filtros-rodape">
+                                <button type="button" className="link-limpar" disabled={!filtrosAtivos.length} onClick={limparFiltros}>
+                                    Limpar filtros
+                                </button>
+                                <button type="button" className="link-limpar" onClick={() => setPainelFiltros(false)}>
+                                    Pronto
+                                </button>
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
 
                 {esperando.length ? (

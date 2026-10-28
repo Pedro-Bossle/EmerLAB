@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 import { respostasDaPlanilha, normalizarTextoBusca } from '../util.js'
 import Modal from './Modal.jsx'
+import Seletor from './Seletor.jsx'
 import Icone from './Icone.jsx'
 import TextoComSugestoes from './TextoComSugestoes.jsx'
 import SeletorDepartamentos from './SeletorDepartamentos.jsx'
@@ -263,10 +264,14 @@ function Usuarios({ departamentos, avisar }) {
                 )}
                 <label className="campo">
                     <span>Papel</span>
-                    <select value={form.papel} onChange={(e) => setForm({ ...form, papel: e.target.value })}>
-                        <option value="atendente">Atendente — vê só os próprios departamentos</option>
-                        <option value="admin">Administrador — vê tudo e gerencia o painel</option>
-                    </select>
+                    <Seletor
+                        valor={form.papel}
+                        aoMudar={(papel) => setForm({ ...form, papel })}
+                        opcoes={[
+                            { valor: 'atendente', rotulo: 'Atendente — vê só os próprios departamentos' },
+                            { valor: 'admin', rotulo: 'Administrador — vê tudo e gerencia o painel' },
+                        ]}
+                    />
                 </label>
                 <fieldset className="campo">
                     <span>Departamentos</span>
@@ -537,14 +542,11 @@ function ImportarRespostas({ departamentos, aoConcluir, aoCancelar, avisar }) {
             </label>
             <label className="campo">
                 <span>Disponível para</span>
-                <select value={departamentoId} onChange={(e) => setDepartamentoId(e.target.value)}>
-                    <option value="">Todos os departamentos</option>
-                    {departamentos.map((d) => (
-                        <option key={d.id} value={d.id}>
-                            {d.nome}
-                        </option>
-                    ))}
-                </select>
+                <Seletor
+                    valor={departamentoId}
+                    aoMudar={setDepartamentoId}
+                    opcoes={[{ valor: '', rotulo: 'Todos os departamentos', cor: null }, ...departamentos.map((d) => ({ valor: d.id, rotulo: d.nome, cor: d.cor }))]}
+                />
             </label>
             {texto.trim() ? (
                 <div className="importacao-previa" aria-live="polite">
@@ -804,27 +806,37 @@ function Respostas({ departamentos, aoMudar, avisar }) {
                             </button>
                         ) : null}
                     </label>
-                    <select className="entrada respostas-filtro" value={filtroDepto} onChange={(e) => setFiltroDepto(e.target.value)} aria-label="Filtrar por departamento">
-                        <option value="">Qualquer departamento</option>
-                        <option value="todos">Disponível para todos</option>
-                        {departamentos.map((d) => (
-                            <option key={d.id} value={d.id}>
-                                {d.nome}
-                            </option>
-                        ))}
-                    </select>
-                    <select className="entrada respostas-filtro" value={filtroRegras} onChange={(e) => setFiltroRegras(e.target.value)} aria-label="Filtrar por regras">
-                        <option value="">Com ou sem regras</option>
-                        <option value="com">Com regras</option>
-                        <option value="sem">Sem regras</option>
-                    </select>
-                    <select className="entrada respostas-filtro" value={ordem} onChange={(e) => setOrdem(e.target.value)} aria-label="Ordenar">
-                        {Object.entries(ORDENS_RESPOSTA).map(([k, [rotulo]]) => (
-                            <option key={k} value={k}>
-                                {rotulo}
-                            </option>
-                        ))}
-                    </select>
+                    <Seletor
+                        className="entrada respostas-filtro"
+                        ativo={Boolean(filtroDepto)}
+                        valor={filtroDepto}
+                        aoMudar={setFiltroDepto}
+                        aria-label="Filtrar por departamento"
+                        opcoes={[
+                            { valor: '', rotulo: 'Qualquer departamento', cor: null },
+                            { valor: 'todos', rotulo: 'Disponível para todos', cor: null },
+                            ...departamentos.map((d) => ({ valor: d.id, rotulo: d.nome, cor: d.cor })),
+                        ]}
+                    />
+                    <Seletor
+                        className="entrada respostas-filtro"
+                        ativo={Boolean(filtroRegras)}
+                        valor={filtroRegras}
+                        aoMudar={setFiltroRegras}
+                        aria-label="Filtrar por regras"
+                        opcoes={[
+                            { valor: '', rotulo: 'Com ou sem regras' },
+                            { valor: 'com', rotulo: 'Com regras' },
+                            { valor: 'sem', rotulo: 'Sem regras' },
+                        ]}
+                    />
+                    <Seletor
+                        className="entrada respostas-filtro"
+                        valor={ordem}
+                        aoMudar={setOrdem}
+                        aria-label="Ordenar"
+                        opcoes={Object.entries(ORDENS_RESPOSTA).map(([valor, [rotulo]]) => ({ valor, rotulo }))}
+                    />
                     <small className="respostas-contagem" aria-live="polite">
                         {filtrando ? `${visiveis.length} de ${lista.length}` : lista.length} resposta(s)
                         {filtrando ? (

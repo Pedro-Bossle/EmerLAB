@@ -73,6 +73,12 @@ alter table public.zap_conversas add column if not exists ultima_cliente_em time
 alter table public.zap_conversas add column if not exists anuncio jsonb;
 -- última resposta de pessoa (painel, WATI ou template de atendente; bot não conta): filtro "Não respondidas"
 alter table public.zap_conversas add column if not exists ultima_humana_em timestamptz;
+-- ConversationId da WATI: alvo dos endpoints v3 de conversa (não depende do 9º dígito)
+alter table public.zap_conversas add column if not exists conversa_wati text;
+-- contato bloqueado (status "block" da WATI): a conversa fica "resolvida" e isto marca o bloqueio
+alter table public.zap_conversas add column if not exists bloqueada_em timestamptz;
+-- último aviso de entregue/lida pelo webhook: o chat aberto recarrega os ticks
+alter table public.zap_conversas add column if not exists ticks_em timestamptz;
 create index if not exists zap_conversas_depto_idx on public.zap_conversas (departamento_id);
 create index if not exists zap_conversas_ultima_idx on public.zap_conversas (ultima_msg_em desc);
 

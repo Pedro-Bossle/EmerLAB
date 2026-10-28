@@ -33,6 +33,11 @@ const RECUSAS = [
     [/blocked|spam/i, 'bloqueado', 'Este contato está bloqueado ou marcado como spam na WATI.'],
 ]
 
+function comHttp(erro, http) {
+    erro.http = http
+    return erro
+}
+
 function recusa(msgOriginal, status, dados) {
     const texto = String(msgOriginal || '')
     for (const [re, codigo, amigavel] of RECUSAS) {
@@ -81,6 +86,14 @@ const PAUSA_LIMITE_MS = 30000
 let pausaAte = 0
 export const watiEmPausa = () => Date.now() < pausaAte
 
+// Retry-After da WATI (segundos ou data HTTP); sem ele ou com valor estranho, a pausa padrão. Teto de 5 min.
+function esperaDoLimite(cabecalho) {
+    const v = String(cabecalho || '').trim()
+    if (!v) return PAUSA_LIMITE_MS
+    const ms = /^\d+(\.\d+)?$/.test(v) ? Number(v) * 1000 : new Date(v).getTime() - Date.now()
+    return Number.isFinite(ms) && ms > 0 ? Math.min(ms, 5 * 60 * 1000) : PAUSA_LIMITE_MS
+}
+
 async function chamar(url, { method = 'GET', body, headers, raw = false } = {}) {
     if (watiEmPausa()) throw new WatiError('A WATI limitou as requisições por alguns segundos. Tente de novo já já.', 429, null, 'limite')
     const { watiToken } = getEnv()
@@ -113,13 +126,16 @@ async function chamar(url, { method = 'GET', body, headers, raw = false } = {}) 
     }
     if (resp.status === 401) throw new WatiError('O token da WATI é inválido ou expirou. Avise o administrador (WATI_API_TOKEN).', 502, null, 'token')
     if (resp.status === 403) throw new WatiError('O token da WATI não tem permissão para esta ação (escopo ou plano).', 502, null, 'permissao')
-    if (resp.status === 429) pausaAte = Date.now() + PAUSA_LIMITE_MS
+    if (resp.status === 429) pausaAte = Date.now() + esperaDoLimite(resp.headers.get('retry-after'))
     if (resp.status === 429) throw new WatiError('A WATI limitou as requisições por alguns segundos. Tente de novo já já.', 429, null, 'limite')
     if (resp.status >= 500) throw new WatiError('A WATI está instável no momento. Tente novamente em instantes.', 502, dados, 'wati_fora')
-    if (!resp.ok) throw recusa(dados?.info || dados?.message || dados?.error?.message, 400, dados)
-    // v1 pode responder 200 com { result: false, info }
-    if (dados && (dados.result === false || dados.ok === false || dados.validWhatsAppNumber === false)) {
-        throw recusa(dados.info || dados.error?.message || (dados.validWhatsAppNumber === false ? 'invalid whatsapp number' : ''), 400, dados)
+    // http: o status real. Um 400 de HTTP é recusa antes de aceitar; já um 200 com result=false pode ter saído
+    if (!resp.ok) throw comHttp(recusa(dados?.info || dados?.message || dados?.error?.message, 400, dados), resp.status)
+    // v1 pode responder 200 com { result: false, info }. validWhatsAppNumber=false com result=true é envio aceito
+    // (sendTemplateMessage devolve os dois campos): tratar como erro fazia o painel repetir e mandar dois templates
+    const invalido = dados?.validWhatsAppNumber === false && dados?.result !== true
+    if (dados && (dados.result === false || dados.ok === false || invalido)) {
+        throw comHttp(recusa(dados.info || dados.error?.message || (invalido ? 'invalid whatsapp number' : ''), 400, dados), resp.status)
     }
     return dados
 }
@@ -226,6 +242,13 @@ export async function atribuirAtendente(waId, email) {
     }
 }
 
+// Atendente pela v3 (PUT conversations/{target}/operator). target = ConversationId ou telefone;
+// sem e-mail a conversa volta para o bot (documentado).
+export async function atribuirAtendenteV3(target, email) {
+    const emailFinal = email ? await emailOperadorWati(email) : null
+    return chamar(v3Url(`conversations/${encodeURIComponent(target)}/operator`), { method: 'PUT', body: { assignee_email: emailFinal } })
+}
+
 // Equipe da conversa pela v3 (PUT contacts/teams): o v1 assignTeam responde 403 para este token (só no plano Pro).
 // target aceita telefone ou ContactId; substitui as equipes que o contato já tinha.
 export async function atribuirEquipe(waId, equipes) {
@@ -308,7 +331,7 @@ export function invalidarCacheTags() {
     invalidarCache('tags:')
 }
 
-const STATUS_WATI = { aberta: 'open', pendente: 'pending', resolvida: 'solved' }
+const STATUS_WATI = { aberta: 'open', pendente: 'pending', resolvida: 'solved', bloqueada: 'block' }
 export async function atualizarStatus(waId, status) {
     const novo = STATUS_WATI[status]
     if (!novo) throw new WatiError('Status inválido.', 400)

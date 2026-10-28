@@ -397,7 +397,7 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
     const itensMenu = [
         { rotulo: 'Dados do contato', acao: () => setPerfilAberto(true) },
         temTemplates && { rotulo: 'Enviar template…', acao: () => setModal('template') },
-        ...itensDeAtendimento(conversa, usuario.email, { acao, aoTransferir: () => setModal('transferir') }),
+        ...itensDeAtendimento(conversa, usuario.email, { acao, aoTransferir: () => setModal('transferir'), admin: usuario.papel === 'admin' }),
     ]
 
     // atalhos da conversa (o ref mantém as ações atuais sem recriar o listener a cada render)
@@ -595,7 +595,19 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                     </button>
                 ) : null}
 
-                {conversa.status === 'resolvida' ? (
+                {conversa.status === 'resolvida' && conversa.bloqueada ? (
+                    <footer className="chat-resolvido" role="status">
+                        <div className="chat-resolvido-texto">
+                            <strong>Este contato está bloqueado</strong>
+                            <p>{usuario.papel === 'admin' ? 'Desbloqueie para voltar a conversar.' : 'Só um administrador pode desbloquear.'}</p>
+                        </div>
+                        {usuario.papel === 'admin' ? (
+                            <button type="button" className="botao botao-primario" onClick={() => acao('status', { status: 'aberta' }, 'Contato desbloqueado.', { status: 'aberta', bloqueada: false })}>
+                                Desbloquear
+                            </button>
+                        ) : null}
+                    </footer>
+                ) : conversa.status === 'resolvida' ? (
                     <footer className="chat-resolvido" role="status">
                         <div className="chat-resolvido-texto">
                             <strong>Este bate-papo foi resolvido</strong>

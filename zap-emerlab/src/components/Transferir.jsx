@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Modal from './Modal.jsx'
+import Seletor from './Seletor.jsx'
 
 export default function Transferir({ conversa, usuario, departamentos, equipe, aoFechar, aoTransferir }) {
     const [departamentoId, setDepartamentoId] = useState(conversa.departamentoId || '')
@@ -13,32 +14,25 @@ export default function Transferir({ conversa, usuario, departamentos, equipe, a
         <Modal titulo="Transferir conversa" aoFechar={aoFechar}>
             <label className="campo">
                 <span>Departamento</span>
-                <select
-                    value={departamentoId}
-                    onChange={(e) => {
-                        setDepartamentoId(e.target.value)
+                <Seletor
+                    valor={departamentoId}
+                    aoMudar={(v) => {
+                        setDepartamentoId(v)
                         setEmail('')
                     }}
-                >
-                    <option value="">Sem departamento (triagem)</option>
-                    {departamentos.map((d) => (
-                        <option key={d.id} value={d.id}>
-                            {d.nome}
-                        </option>
-                    ))}
-                </select>
+                    opcoes={[{ valor: '', rotulo: 'Sem departamento (triagem)', cor: null }, ...departamentos.map((d) => ({ valor: d.id, rotulo: d.nome, cor: d.cor }))]}
+                />
             </label>
             <label className="campo">
                 <span>Atendente</span>
-                <select value={email} onChange={(e) => setEmail(e.target.value)}>
-                    <option value="">Ninguém — deixar na fila do departamento</option>
-                    {candidatos.map((u) => (
-                        <option key={u.email} value={u.email}>
-                            {u.nome}
-                            {u.email === usuario.email ? ' (você)' : ''}
-                        </option>
-                    ))}
-                </select>
+                <Seletor
+                    valor={email}
+                    aoMudar={setEmail}
+                    opcoes={[
+                        { valor: '', rotulo: 'Ninguém — deixar na fila do departamento' },
+                        ...candidatos.map((u) => ({ valor: u.email, rotulo: `${u.nome}${u.email === usuario.email ? ' (você)' : ''}` })),
+                    ]}
+                />
             </label>
             {mudouDepto ? <p className="ajuda">Ao trocar de departamento, a conversa sai do atendente atual e entra na fila do novo departamento.</p> : null}
             <div className="modal-acoes">

@@ -97,6 +97,30 @@ const canalDe = (id) => lerIdConversa(id).canal
 // Qual variante do número a WATI aceitou nesta instância (evita repetir tentativa a cada envio)
 const alvoWatiOk = new Map()
 
+// ConversationId da WATI por número: vem nas mensagens (getMessages) e no webhook. Os endpoints v3 de conversa
+// aceitam esse ID, que não depende do 9º dígito (na WATI o mesmo cliente pode existir com e sem ele).
+// Gravado em zap_conversas.conversa_wati; sem a coluna (schema.sql não rodado), fica só na memória.
+const conversaWati = new Map()
+function lembrarConversaWati(waId, id) {
+    const chave = normalizarWaId(waId)
+    if (!id || !chave || conversaWati.get(chave) === String(id)) return
+    conversaWati.set(chave, String(id))
+    db().from('zap_conversas').update({ conversa_wati: String(id) }).eq('wa_id', chave).then(() => {}, () => {})
+}
+
+/** Endpoints v3 de conversa (status, operador): tenta o ConversationId e, se a WATI não achar, cai no telefone. */
+async function comConversaWati(waId, fn, meta) {
+    const id = conversaWati.get(normalizarWaId(waId)) || meta?.conversa_wati
+    if (id) {
+        try {
+            return await fn(id)
+        } catch (e) {
+            if (!(e instanceof wati.WatiError && (e.status === 400 || e.status === 404))) throw e
+        }
+    }
+    return comAlvoWati(waId, fn)
+}
+
 /** getMessages: tenta com/sem 9º dígito até achar histórico (ou esgotar variantes). */
 async function listarMensagensWati(waId, opts = {}) {
     const preferido = alvoWatiOk.get(normalizarWaId(waId))
@@ -109,6 +133,7 @@ async function listarMensagensWati(waId, opts = {}) {
             const itens = r.mensagens || []
             if (itens.length) {
                 alvoWatiOk.set(normalizarWaId(waId), alvo)
+                lembrarConversaWati(waId, itens.find((m) => m.conversationId)?.conversationId)
                 return { ...r, mensagens: itens, alvoUsado: alvo }
             }
             vazio = { ...r, mensagens: itens, alvoUsado: alvo }
@@ -121,7 +146,29 @@ async function listarMensagensWati(waId, opts = {}) {
     return vazio
 }
 
-/** Envio/atribuir: usa a variante que já funcionou; senão tenta todas. */
+// Envio (texto, arquivo, template) sai para UM número só. Repetir com a outra forma do celular depois de a WATI
+// aceitar manda a mensagem duas vezes: na WATI o mesmo cliente pode existir com e sem o 9º dígito.
+// O número é o do histórico (lista de contatos ou getMessages, só leitura); a outra forma só é tentada quando a
+// WATI recusa por número inválido com HTTP 400, isto é, antes de aceitar o envio.
+async function enviarUmaVez(waId, fn) {
+    const chave = normalizarWaId(waId)
+    if (!alvoWatiOk.has(chave)) await listarMensagensWati(waId, { pagina: 1, tamanho: 1 }).catch(() => null)
+    const preferido = alvoWatiOk.get(chave)
+    let ultimoErro = null
+    for (const alvo of preferido ? [preferido] : variantesWaId(waId)) {
+        try {
+            const r = await fn(alvo)
+            alvoWatiOk.set(chave, alvo)
+            return r
+        } catch (e) {
+            ultimoErro = e
+            if (!(e instanceof wati.WatiError && e.http === 400 && e.codigo === 'numero_invalido')) throw e
+        }
+    }
+    throw ultimoErro
+}
+
+/** Atribuir, status, contato (operações que podem repetir sem efeito duplicado): usa a variante que já funcionou; senão tenta todas. */
 async function comAlvoWati(waId, fn) {
     const preferido = alvoWatiOk.get(normalizarWaId(waId))
     const ordem = preferido ? [preferido, ...variantesWaId(waId).filter((v) => v !== preferido)] : variantesWaId(waId)
@@ -301,6 +348,10 @@ const EVENTOS_ENVIADOS = new Set([
     'sessionMessageSent_v2',
 ])
 
+// Status de mensagem enviada (webhook): sentMessageDELIVERED_v2, sentMessageREAD_v2, sentMessageREPLIED_v2,
+// com ou sem _v2, e messageDelivered/messageRead
+const EVENTO_TICK = /^(sentMessage(DELIVERED|READ|REPLIED|SENT)|message(Delivered|Read))(_v2)?$/i
+
 // Documento recebido: o WhatsApp do cliente manda o nome original no texto ("Comprovante_27-10.pdf")
 const PARECE_NOME_ARQUIVO = /^[^\n\\/]{1,180}\.[a-z0-9]{2,5}$/i
 const extensao = (nome) => (String(nome || '').match(/\.([a-z0-9]{2,5})$/i)?.[1] || '').toLowerCase()
@@ -437,6 +488,8 @@ function fundirMeta(a, b) {
         status: gravada.status || recente.status,
         atendente_email: gravada.atendente_email ?? null,
         departamento_id: gravada.departamento_id ?? null,
+        bloqueada_em: gravada.bloqueada_em ?? null,
+        conversa_wati: recente.conversa_wati || outro.conversa_wati || null,
         atualizado_em: msData(a.atualizado_em) >= msData(b.atualizado_em) ? a.atualizado_em : b.atualizado_em,
         nao_lidas: Math.max(recente.nao_lidas || 0, outro.nao_lidas || 0),
         ultima_cliente_em: msData(recente.ultima_cliente_em) >= msData(outro.ultima_cliente_em) ? recente.ultima_cliente_em : outro.ultima_cliente_em,
@@ -594,6 +647,7 @@ async function listarConversas(usuario, query) {
         const waId = normalizarWaId(m.wa_id)
         const atual = porId.get(waId) || { waId, nome: m.nome, foto: null, atualizadoEm: null }
         const meta = fundirMeta(atual.meta, { ...m, wa_id: waId })
+        if (meta.conversa_wati && !conversaWati.has(waId)) conversaWati.set(waId, meta.conversa_wati)
         // nome da ficha (WATI) > nome já gravado no painel > vazio
         porId.set(waId, { ...atual, waId, nome: atual.nome || meta?.nome || m.nome || null, meta })
     }
@@ -631,6 +685,7 @@ async function listarConversas(usuario, query) {
             departamentoId: c.meta?.departamento_id || null,
             atendenteEmail: c.meta?.atendente_email || null,
             status: c.meta?.status || 'aberta',
+            bloqueada: estaBloqueada(c.meta),
             tags: c.meta?.tags || [],
             atributos: c.atributos || {},
         }
@@ -641,6 +696,8 @@ async function listarConversas(usuario, query) {
         lista = lista.filter(
             (c) =>
                 (c.nome || '').toLowerCase().includes(b) ||
+                // a API não busca no texto das mensagens: vale a última mensagem que o painel guarda
+                (c.ultimaMsg || '').toLowerCase().includes(b) ||
                 c.tags.some((t) => t.toLowerCase().includes(b)) ||
                 Object.values(c.atributos).some((v) => String(v).toLowerCase().includes(b)) ||
                 (d && canal === 'whatsapp' && c.waId.includes(d)),
@@ -762,7 +819,10 @@ function statusDoHistorico(itens) {
         let status = null
         // "The chat has been closed by Bot / by agent X" = resolvido na WATI;
         // "opened by agent" / "initialized by contact" = aberto de novo. "Expired" não muda o status.
-        if (/\b(chat|ticket)\s+has\s+been\s+(closed|solved|resolved)\b/i.test(t)) status = 'resolvida'
+        // Bloqueio (status "block" da v3) antes dos demais: "unblocked" reabre.
+        if (/\bunblock(ed)?\b/i.test(t)) status = 'aberta'
+        else if (/\bblock(ed)?\b/i.test(t)) status = 'bloqueada'
+        else if (/\b(chat|ticket)\s+has\s+been\s+(closed|solved|resolved)\b/i.test(t)) status = 'resolvida'
         else if (/\b(chat|ticket)\s+has\s+been\s+(opened|reopened|initialized)\b/i.test(t)) status = 'aberta'
         else if (!/\bstatus\b/i.test(t) && !/\bmarked as\b/i.test(t)) continue
         else if (/\b(solved|resolved|closed)\b/i.test(t)) status = 'resolvida'
@@ -773,16 +833,34 @@ function statusDoHistorico(itens) {
     return null
 }
 
+// Bloqueada é guardada como status "resolvida" + bloqueada_em: tudo que trata "resolvida" como encerrada
+// continua valendo, e o painel funciona mesmo sem a coluna (aí só não lembra o bloqueio).
+const estaBloqueada = (meta) => Boolean(meta?.bloqueada_em) && meta?.status === 'resolvida'
+const statusAtual = (meta) => (estaBloqueada(meta) ? 'bloqueada' : meta?.status || 'aberta')
+
 function aplicarStatusDoHistorico(meta, itens) {
     const ev = statusDoHistorico(itens)
-    if (!ev || ev.status === (meta?.status || 'aberta')) return null
-    // evento sem data: só aceita "resolvida" (não reabre por Open antigo sem timestamp)
-    if (!ev.em) return ev.status === 'resolvida' ? ev.status : null
+    if (!ev || ev.status === statusAtual(meta)) return null
+    const encerra = ev.status === 'resolvida' || ev.status === 'bloqueada'
+    // evento sem data: só aceita encerramento (não reabre por Open antigo sem timestamp)
+    if (!ev.em) return encerra ? ev.status : null
     if (msData(ev.em) > msData(meta?.atualizado_em) + FOLGA_MS) return ev.status
     // fechamento pelo bot que a conferência antiga não reconhecia: o último evento da WATI ainda é o fechamento
     // e o cliente não escreveu depois dele, então lá a conversa continua encerrada
-    if (ev.status === 'resolvida' && msData(ev.em) > msData(meta?.ultima_cliente_em) + FOLGA_MS) return ev.status
+    if (encerra && msData(ev.em) > msData(meta?.ultima_cliente_em) + FOLGA_MS) return ev.status
     return null
+}
+
+/** Campos de zap_conversas para um status do painel (bloqueada = resolvida + bloqueada_em, gravado à parte). */
+const camposDeStatus = (status) => ({ status: status === 'bloqueada' ? 'resolvida' : status })
+
+// bloqueada_em vai numa escrita separada: sem a coluna, o resto da conversa grava normalmente
+async function marcarBloqueio(waId, bloqueada) {
+    await db()
+        .from('zap_conversas')
+        .update({ bloqueada_em: bloqueada ? new Date().toISOString() : null })
+        .in('wa_id', variantesWaId(waId))
+        .then(() => {}, () => {})
 }
 
 // Departamento pela equipe da WATI (o bot distribui por equipe e o painel não ficava sabendo): mantém o atual
@@ -838,9 +916,12 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
             }
             const statusWati = aplicarStatusDoHistorico(meta, itens)
             if (statusWati) {
-                await salvarMeta(c.waId, { status: statusWati })
-                c.status = statusWati
-                if (meta) meta.status = statusWati
+                const { status } = camposDeStatus(statusWati)
+                await salvarMeta(c.waId, { status })
+                if ((statusWati === 'bloqueada') !== estaBloqueada(meta)) await marcarBloqueio(c.waId, statusWati === 'bloqueada')
+                c.status = status
+                c.bloqueada = statusWati === 'bloqueada'
+                if (meta) meta.status = status
             }
             // sem atendente, a conversa fica com a equipe (como na WATI): traz a equipe para o setor do painel
             if (!c.atendenteEmail && (meta?.status || c.status) !== 'resolvida') {
@@ -899,7 +980,7 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
             // Ask mode / pills de status NÃO contam como mensagem do cliente
             if (!ultima.minha && !textoPareceSistemaWati(ultima.texto) && (meta?.status || c.status) === 'resolvida') {
                 campos.status = 'aberta'
-                await comAlvoWati(c.waId, (alvo) => wati.atualizarStatus(alvo, 'aberta')).catch(() => {})
+                await comConversaWati(c.waId, (alvo) => wati.atualizarStatus(alvo, 'aberta'), meta).catch(() => {})
             }
             await salvarMeta(c.waId, campos)
             Object.assign(c, {
@@ -952,8 +1033,9 @@ async function mensagens(usuario, waId, query) {
         const atendente = atendenteDoHistorico(itens)
         if (atendente && !mesmoEmail(atendente, meta?.atendente_email)) campos.atendente_email = atendente
         const statusWati = aplicarStatusDoHistorico(meta, itens)
-        if (statusWati) campos.status = statusWati
+        if (statusWati) campos.status = camposDeStatus(statusWati).status
         if (Object.keys(campos).length) await salvarMeta(waId, campos).catch(() => {})
+        if (statusWati && (statusWati === 'bloqueada') !== estaBloqueada(meta)) await marcarBloqueio(waId, statusWati === 'bloqueada')
     }
     return { mensagens: lista, temMais }
 }
@@ -1060,7 +1142,7 @@ async function enviarTextoHandler(req, usuario, waId) {
     if (temMarcaServicos(limpo)) throw new HttpError(400, `A mensagem ainda tem ${MARCA_SERVICOS}: a lista de quem realiza não foi preenchida. Confira a UF e a cidade do contato.`)
     if (temMarcaCredenciados(limpo)) throw new HttpError(400, 'A mensagem ainda tem uma marca {credenciados.…}: a lista de credenciados não foi preenchida. Confira a UF e a cidade do contato.')
     const final = preencherVariaveis(limpo, { nome: meta?.nome || '', atendente: usuario.nome, telefone: canalDe(waId) === 'whatsapp' ? waId : '' })
-    const msg = await comAlvoWati(waId, (alvo) => wati.enviarTexto(alvo, final, replyContextId))
+    const msg = await enviarUmaVez(waId, (alvo) => wati.enviarTexto(alvo, final, replyContextId))
     await salvarMeta(waId, {
         ultima_msg: final.slice(0, 500),
         ultima_msg_em: new Date().toISOString(),
@@ -1080,7 +1162,7 @@ async function enviarArquivoHandler(req, usuario, waId) {
     const buffer = Buffer.from(String(base64).replace(/^data:[^,]*,/, ''), 'base64')
     if (buffer.length > MAX_ARQUIVO) throw new HttpError(413, 'Arquivo acima de 3 MB. Comprima ou envie um link.', 'arquivo_grande')
     const nomeArquivo = String(nome || 'arquivo').slice(0, 120)
-    const enviada = await comAlvoWati(waId, (alvo) => wati.enviarArquivo(alvo, { buffer, nomeArquivo, mime, legenda }))
+    const enviada = await enviarUmaVez(waId, (alvo) => wati.enviarArquivo(alvo, { buffer, nomeArquivo, mime, legenda }))
     // guarda o nome original (a WATI renomeia para um UUID); sem a tabela, o envio segue normal
     const caminho = typeof enviada?.data === 'string' ? semBarraInicial(enviada.data) : null
     await db().from('zap_arquivos').insert({ wa_id: waId, nome: nomeArquivo, arquivo: caminho })
@@ -1088,12 +1170,31 @@ async function enviarArquivoHandler(req, usuario, waId) {
     return { ok: true }
 }
 
+// trava de reenvio do mesmo template (por instância; o botão do painel também trava o duplo clique)
+const TEMPLATE_REPETIDO_MS = 30000
+const templatesRecentes = new Map()
+
 async function enviarTemplateHandler(req, usuario, waId) {
     await exigirConversa(usuario, waId)
     if (canalDe(waId) !== 'whatsapp') throw new HttpError(400, 'Templates existem só no WhatsApp. No Instagram e no Messenger, aguarde o cliente escrever.', 'canal')
     const { nome, parametros } = await lerCorpo(req)
     if (!nome) throw new HttpError(400, 'Escolha um template.')
-    await comAlvoWati(waId, (alvo) => wati.enviarTemplate(alvo, nome, parametros))
+    // a WATI exige nome e valor não vazios em cada variável (sendTemplateMessage)
+    const vazias = Object.entries(parametros || {}).filter(([, v]) => !String(v ?? '').trim()).map(([k]) => `{{${k}}}`)
+    if (vazias.length) throw new HttpError(400, `Preencha ${vazias.join(', ')} antes de enviar.`, 'template')
+    // mesmo template, mesmas variáveis, para o mesmo contato em poucos segundos = clique repetido ou reenvio
+    const chave = `${normalizarWaId(waId)}|${nome}|${JSON.stringify(parametros || {})}`
+    if (Date.now() - (templatesRecentes.get(chave) || 0) < TEMPLATE_REPETIDO_MS) {
+        throw new HttpError(409, 'Este template acabou de ser enviado para este contato. Confira o chat antes de mandar de novo.', 'template_repetido')
+    }
+    templatesRecentes.set(chave, Date.now())
+    try {
+        await enviarUmaVez(waId, (alvo) => wati.enviarTemplate(alvo, nome, parametros))
+    } catch (e) {
+        // recusado: libera para tentar de novo na hora
+        templatesRecentes.delete(chave)
+        throw e
+    }
     // template enviado por atendente conta como resposta (regra do "Não respondidas" da WATI)
     await salvarMeta(waId, { ultima_msg: `📄 Template: ${nome}`, ultima_msg_em: new Date().toISOString(), ultima_msg_minha: true, ultima_humana_em: new Date().toISOString() })
     return { ok: true }
@@ -1113,7 +1214,12 @@ async function atribuirHandler(req, usuario, waId) {
     }
     let avisoWati = null
     try {
-        await comAlvoWati(waId, (num) => wati.atribuirAtendente(num, alvo))
+        // v3 pelo ConversationId (recomendada pela WATI); se recusar, o caminho v1 de antes, que também
+        // reabre o ticket Solved antes de atribuir. E-mail que não é operador falha igual nas duas: não repete.
+        await comConversaWati(waId, (t) => wati.atribuirAtendenteV3(t, alvo), meta).catch((e) => {
+            if (!(e instanceof wati.WatiError) || ['operador', 'limite', 'token'].includes(e.codigo)) throw e
+            return comAlvoWati(waId, (num) => wati.atribuirAtendente(num, alvo))
+        })
     } catch (e) {
         // mantém a atribuição local; inclui o texto original da WATI quando o mapeamento for genérico
         const original = e?.detalhe?.original || e?.detalhe?.info || e?.detalhe?.message
@@ -1321,20 +1427,27 @@ async function departamentoHandler(req, usuario, waId) {
 }
 
 async function statusHandler(req, usuario, waId) {
-    await exigirConversa(usuario, waId)
+    const meta = await exigirConversa(usuario, waId)
     const { status } = await lerCorpo(req)
-    if (!['aberta', 'pendente', 'resolvida'].includes(status)) throw new HttpError(400, 'Status inválido.')
+    if (!['aberta', 'pendente', 'resolvida', 'bloqueada'].includes(status)) throw new HttpError(400, 'Status inválido.')
+    // bloquear e desbloquear (reabrir uma bloqueada) são do admin, como na WATI
+    if ((status === 'bloqueada' || estaBloqueada(meta)) && usuario.papel !== 'admin') {
+        throw new HttpError(403, 'Só administradores bloqueiam ou desbloqueiam contatos.')
+    }
     let avisoWati = null
     try {
-        await comAlvoWati(waId, (alvo) => wati.atualizarStatus(alvo, status))
+        await comConversaWati(waId, (alvo) => wati.atualizarStatus(alvo, status), meta)
     } catch (e) {
         // bot/atendente já fechou na WATI (ou expirou): lá não há conversa aberta, então resolver é só espelhar
         const fechadaNaWati = e instanceof wati.WatiError && e.codigo === 'conversa_fechada'
+        // bloqueio que não pegou na WATI não pode aparecer como feito
+        if (status === 'bloqueada') throw e
         // resolvida só no painel some da lista e a WATI reabre/recusa — o atendente acha que “não encerra”
         if (status === 'resolvida' && !fechadaNaWati) throw e
         if (!(status === 'resolvida' && fechadaNaWati)) avisoWati = e.message
     }
-    await salvarMeta(waId, { status })
+    await salvarMeta(waId, camposDeStatus(status))
+    if ((status === 'bloqueada') !== estaBloqueada(meta)) await marcarBloqueio(waId, status === 'bloqueada')
     return { ok: true, avisoWati }
 }
 
@@ -1652,6 +1765,16 @@ async function webhook(req, res, query) {
     const b = await lerCorpo(req)
     const waId = normalizarWaId(b.waId || b.whatsappNumber)
     const evento = b.eventType || ''
+    if (waId && b.conversationId) lembrarConversaWati(waId, b.conversationId)
+    // Entregue / lida / respondida (sentMessageDELIVERED_v2, sentMessageREAD_v2, sentMessageREPLIED_v2…): não é
+    // mensagem nova. Só marca ticks_em (não mexe em atualizado_em, que a sincronização de status usa) e sai.
+    if (EVENTO_TICK.test(evento)) {
+        if (waId) {
+            await db().from('zap_conversas').update({ ticks_em: new Date().toISOString() }).in('wa_id', variantesWaId(waId)).then(() => {}, () => {})
+            wati.invalidarCache(`msgs:${waId}:`)
+        }
+        return enviar(res, 200, { ok: true })
+    }
     if (waId && (evento === 'message' || EVENTOS_ENVIADOS.has(evento) || /^templateMessage/i.test(evento) || b.text !== undefined)) {
         const minha = Boolean(b.owner) || EVENTOS_ENVIADOS.has(evento) || /^templateMessage/i.test(evento) || String(b.type || '').toLowerCase() === 'template'
         const texto = textoPrevia(b.type, b.text || b.finalText)
@@ -1672,7 +1795,7 @@ async function webhook(req, res, query) {
             await db().from('zap_conversas').update({ ultima_humana_em: em }).eq('wa_id', waId).or(`ultima_humana_em.is.null,ultima_humana_em.lt.${em}`)
         }
         if (!minha && metaAntes?.status === 'resolvida') {
-            await comAlvoWati(waId, (alvo) => wati.atualizarStatus(alvo, 'aberta')).catch(() => {})
+            await comConversaWati(waId, (alvo) => wati.atualizarStatus(alvo, 'aberta'), metaAntes).catch(() => {})
         }
         if (!minha && b.messageReferral) await registrarAnuncio(waId, anuncioDe([{ ...b, created: em }]), null)
         if (b.whatsappMessageId) {
@@ -1757,7 +1880,8 @@ export async function handle(req, res, rotaForcada) {
             // só banco: o chat aberto pergunta isto e vai à WATI apenas quando mudou (webhook ou envio gravou algo)
             if (acao === 'versao' && metodo === 'GET') {
                 const meta = await exigirConversa(usuario, waId)
-                return responder({ versao: meta ? `${meta.ultima_msg_em || ''}|${meta.atualizado_em || ''}` : null })
+                // ticks_em (webhook de entregue/lida) faz o chat aberto buscar de novo e atualizar os ticks
+                return responder({ versao: meta ? `${meta.ultima_msg_em || ''}|${meta.atualizado_em || ''}|${meta.ticks_em || ''}` : null })
             }
             if (acao === 'lida' && metodo === 'POST') {
                 await exigirConversa(usuario, waId)

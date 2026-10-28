@@ -7,7 +7,8 @@ Painel de atendimento WhatsApp no estilo do WhatsApp Web, usando a [API da WATI]
 
 - Login com **ID da conta WATI + e-mail + senha**
 - **Três canais: WhatsApp, Instagram e Messenger.** Os ícones ficam numa barra à esquerda no desktop e em abas embaixo no celular, e o clique troca a lista para aquele canal. Só ficam ativos os canais conectados na WATI (`GET /api/ext/v3/channels`)
-- Lista de conversas com busca, filtros (não lidas, minhas, na fila, resolvidas) e filtro por departamento
+- Lista de conversas com busca (nome, telefone, tags, atributos e última mensagem) e os filtros da Team Inbox da WATI: Todos, Ativos, Atribuídos a mim, Não atribuídos, Não lidas, Últimas 24h, Não respondidas e Menções, combináveis com setor, atendente, status (nova, aberta, pendente, resolvida, expirada, bloqueada), tag e período, e ordem mais recentes/mais antigas
+- O admin pode bloquear e desbloquear contatos (status `block` da WATI)
 - Chat com balões, ticks de entrega/leitura, imagens, áudio, vídeo e documentos, responder mensagem, emojis, anexos (até 3 MB)
 - **Departamentos por usuário**: o atendente só vê as conversas dos próprios departamentos (e a triagem, se `ZAP_ATENDENTE_VE_SEM_DEPARTAMENTO=true`). O admin vê tudo
 - Assumir, transferir (departamento e/ou atendente), soltar para a fila, marcar como resolvida/pendente. As atribuições são repassadas à WATI (`assignOperator`, `assignTeam`, status)
@@ -52,6 +53,8 @@ Sem webhook, o painel funciona por polling: a lista atualiza a cada 10 s e o cha
 ```
 https://SEU-DOMINIO/api/webhook?token=<ZAP_WEBHOOK_SECRET>
 ```
+
+Opcional: cadastre também os eventos de status (*Message Delivered*, *Message Read*, *Message Replied*, que chegam como `sentMessageDELIVERED_v2`, `sentMessageREAD_v2` e `sentMessageREPLIED_v2`) no mesmo endereço. Com eles, os ticks do chat aberto atualizam assim que o cliente recebe ou lê.
 
 O `ZAP_WEBHOOK_SECRET` precisa ser **URL-safe** (letras, números, `_`, `-`). **Não use `#`**: vira fragmento de URL, a WATI envia o token cortado e o painel responde 401 — aí só atualiza no refresh.
 
