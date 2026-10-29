@@ -360,6 +360,20 @@
     margin: 0 0 1rem;
 }
 
+.planos_impressao_aviso_modo {
+    color: #9a6700;
+    text-align: center;
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+}
+
+.planos_impressao_modo_equipe {
+    text-align: center;
+    margin: 0 0 0.75rem;
+    font-size: 0.8125rem;
+    color: #555;
+}
+
 .planos_impressao_toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -431,6 +445,14 @@ body.dark-mode .planos_impressao_btn_pdf {
 
 body.dark-mode .planos_impressao_erro {
     color: #f0a0a8;
+}
+
+body.dark-mode .planos_impressao_aviso_modo {
+    color: #e6c35c;
+}
+
+body.dark-mode .planos_impressao_modo_equipe {
+    color: #a0aab4;
 }
 
 body.dark-mode .planos_impressao_table_main .planos_impressao_td_limite_grupo.supertabelaplanos_limite_grupo_cell {

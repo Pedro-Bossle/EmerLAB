@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { UFS_BRASIL, buscarMunicipiosPorUf } from '../../../lib/ibgeLocalidades.js'
 import { buscarTodosPaginado, supabase } from '../../../lib/supabase.js'
 import { filtrarPlanosParaSelecaoGeral, mapearPlanos, CHAVE_PLANO_APENAS_LOJA, ROTULO_PLANO } from '../../../lib/planosHierarquia.js'
@@ -16,6 +16,12 @@ import {
 } from '../../../lib/impressaoPlanos/gerarImpressaoPlanosPdf.js'
 import { resolverMensagensObservacoesPorCategorias } from '../../../lib/impressaoPlanos/planosObservacoes.js'
 import { MIN_REALIZADORES_PRE_MARCAR } from '../../../lib/impressaoPlanos/mapaRealizadoresRegiao.js'
+import {
+    aplicarSelecaoModo,
+    buscarModoImpressaoPlanos,
+    rotuloModoImpressao,
+    salvarModoImpressaoPlanos,
+} from '../../../lib/impressaoPlanos/modoImpressaoPlanos.js'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
@@ -84,9 +90,13 @@ export default function ImpressaoPlanos() {
 
     const [meta, setMeta] = useState(null)
     const [categorias, setCategorias] = useState([])
+    const [modoInfo, setModoInfo] = useState(null)
+    const [avisoModo, setAvisoModo] = useState('')
     const [ordenColuna, setOrdenColuna] = useState('codigo')
     const [ordenDir, setOrdenDir] = useState('asc')
     const tabelaMobile = useMatchMedia('(max-width: 1023px)')
+    const saveModoTimer = useRef(null)
+    const ignorarProximoSaveModo = useRef(false)
 
     useEffect(() => {
         const run = async () => {
@@ -173,17 +183,73 @@ export default function ImpressaoPlanos() {
         if (!ok) setMunicipioNome('')
     }, [municipioNome, opcoesMunicipio])
 
+    const cancelarSaveModoPendente = useCallback(() => {
+        if (saveModoTimer.current) {
+            clearTimeout(saveModoTimer.current)
+            saveModoTimer.current = null
+        }
+    }, [])
+
     const limparLista = useCallback(() => {
+        cancelarSaveModoPendente()
         setCategorias([])
         setMeta(null)
+        setModoInfo(null)
+        setAvisoModo('')
         setErro('')
-    }, [])
+    }, [cancelarSaveModoPendente])
+
+    const persistirModo = useCallback(
+        async (cats, { silencioso = false } = {}) => {
+            if (!planoId || !cidadeTabelaId || !(cats || []).length) return null
+            try {
+                const info = await salvarModoImpressaoPlanos(planoId, cidadeTabelaId, cats)
+                setModoInfo(info)
+                setAvisoModo('')
+                return info
+            } catch (e) {
+                if (!silencioso) {
+                    setAvisoModo(e?.message || 'Não foi possível salvar o modo da equipe.')
+                }
+                return null
+            }
+        },
+        [planoId, cidadeTabelaId],
+    )
+
+    const agendarSalvarModo = useCallback(
+        (cats) => {
+            if (!planoId || !cidadeTabelaId || !(cats || []).length) return
+            cancelarSaveModoPendente()
+            saveModoTimer.current = setTimeout(() => {
+                void persistirModo(cats)
+            }, 600)
+        },
+        [planoId, cidadeTabelaId, cancelarSaveModoPendente, persistirModo],
+    )
+
+    useEffect(() => {
+        cancelarSaveModoPendente()
+    }, [planoId, cidadeTabelaId, cancelarSaveModoPendente])
+
+    useEffect(() => {
+        if (ignorarProximoSaveModo.current) {
+            ignorarProximoSaveModo.current = false
+            return undefined
+        }
+        if (!categorias.length || !planoId || !cidadeTabelaId) return undefined
+        agendarSalvarModo(categorias)
+        return () => cancelarSaveModoPendente()
+    }, [categorias, planoId, cidadeTabelaId, agendarSalvarModo, cancelarSaveModoPendente])
 
     const carregarLista = useCallback(async () => {
         setErro('')
+        setAvisoModo('')
         setCarregando(true)
+        cancelarSaveModoPendente()
         setCategorias([])
         setMeta(null)
+        setModoInfo(null)
         try {
             const res = await carregarLinhasImpressaoPlanos({
                 cidadeId: cidadeTabelaId,
@@ -197,13 +263,39 @@ export default function ImpressaoPlanos() {
                 planoNome: res.planoNome,
                 cidadeNome: res.cidadeNome,
             })
-            setCategorias(res.categorias)
+
+            let cats = res.categorias
+            try {
+                const modo = await buscarModoImpressaoPlanos(planoId, cidadeTabelaId)
+                if (modo?.selecao) {
+                    cats = aplicarSelecaoModo(cats, modo.selecao)
+                    setModoInfo(modo)
+                } else {
+                    setModoInfo(null)
+                }
+            } catch (eModo) {
+                setAvisoModo(
+                    eModo?.message ||
+                        'Não deu para carregar o modo salvo; usando a pré-marcação automática.',
+                )
+            }
+
+            ignorarProximoSaveModo.current = true
+            setCategorias(cats)
         } catch (e) {
             setErro(e?.message || String(e))
         } finally {
             setCarregando(false)
         }
-    }, [cidadeTabelaId, municipioNome, planoId, incluirCidadesParalelas, planos, planosTodos])
+    }, [
+        cidadeTabelaId,
+        municipioNome,
+        planoId,
+        incluirCidadesParalelas,
+        planos,
+        planosTodos,
+        cancelarSaveModoPendente,
+    ])
 
     const toggleLinha = (categoriaId, linhaKey) => {
         setCategorias((prev) =>
@@ -364,6 +456,11 @@ export default function ImpressaoPlanos() {
         if (!meta?.pdfUrl) return
         setGerandoPdf(true)
         setErro('')
+        cancelarSaveModoPendente()
+        const salvo = await persistirModo(categorias)
+        if (!salvo) {
+            // não bloqueia o PDF; aviso já foi setado em persistirModo
+        }
         try {
             const observacoes = await resolverMensagensObservacoesPorCategorias(categorias)
             const blob = await gerarImpressaoPlanosPdf({
@@ -488,13 +585,18 @@ export default function ImpressaoPlanos() {
 
             <p className="planos_impressao_hint">
                 Pré-marcação automática com {MIN_REALIZADORES_PRE_MARCAR}+ realizadores na região (cidade
-                {incluirCidadesParalelas ? ' + paralelas' : ''}).
+                {incluirCidadesParalelas ? ' + paralelas' : ''}). O modo marcado fica salvo para a equipe
+                neste plano e cidade.
             </p>
 
             {erro ? <p className="planos_impressao_erro">{erro}</p> : null}
+            {avisoModo ? <p className="planos_impressao_aviso_modo">{avisoModo}</p> : null}
 
             {categorias.length > 0 ? (
                 <>
+                    <p className="planos_impressao_modo_equipe" role="status">
+                        {rotuloModoImpressao(modoInfo)}
+                    </p>
                     <div className="planos_impressao_toolbar">
                         <CampoBuscaComLimpar
                             value={buscaProc}
