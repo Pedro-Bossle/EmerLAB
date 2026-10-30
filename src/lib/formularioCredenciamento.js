@@ -190,7 +190,14 @@ export async function verificarDocumentoParaEnvioFormulario(cpfCnpj) {
         return { ok: false, motivo: 'erro', erro: errE.message }
     }
 
-    const prestadorId = await buscarPrestadorIdPorDocumento(doc)
+    // Sem login o banco não mostra prestadores (RLS): a consulta volta vazia ou é recusada.
+    // Em qualquer desses casos segue como cadastro novo e a RPC abaixo decide a duplicidade.
+    let prestadorId = null
+    try {
+        prestadorId = await buscarPrestadorIdPorDocumento(doc)
+    } catch (errPrest) {
+        console.warn('[formulário] consulta de prestador por documento indisponível:', errPrest?.message)
+    }
     if (prestadorId) {
         return { ok: true, documento: doc, modo: 'atualizacao', prestadorId }
     }
