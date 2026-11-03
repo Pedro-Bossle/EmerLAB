@@ -147,7 +147,17 @@ async function publicoLer(admin, { token }, ctx) {
     const rel = await resolverToken(admin, token)
     const registro = await carregarRegistro(admin, rel.registro_id)
     const config = await carregarConfig(admin)
-    if (['nao_enviado', 'agendado', 'enviado'].includes(rel.status)) {
+    // Acesso interno (equipe logada com permissão de Pagamentos) não conta como «visualizado» pelo prestador.
+    let interno = false
+    if (ctx.req?.headers?.authorization) {
+        try {
+            const aut = await validarJwtComPermissao(ctx.req, [PERMISSION_KEYS.PAGAMENTOS_VIEW], { supabaseAdmin: admin })
+            interno = !aut.error
+        } catch {
+            interno = false
+        }
+    }
+    if (!interno && ['nao_enviado', 'agendado', 'enviado'].includes(rel.status)) {
         await admin.from('repasse_relatorios').update({ status: 'visualizado', visualizado_em: new Date().toISOString(), atualizado_em: new Date().toISOString() }).eq('id', rel.id)
         await evento(admin, rel.id, 'visualizado', {}, 'prestador', ctx.ipHash)
         rel.status = 'visualizado'
@@ -161,6 +171,7 @@ async function publicoLer(admin, { token }, ctx) {
             periodoInicio: rel.periodo_inicio,
             periodoFim: rel.periodo_fim,
             prestador: registro.prestador_nome || rel.nome_a1,
+            interno,
             tipo: tipoDoRegistro(registro),
             // Só o RPA comum sofre o desconto de 11% (INSS); «RPA s/desc.» não.
             descontoRpa: String(registro.tipo_repasse || '').toLowerCase() === 'rpa',
@@ -670,7 +681,7 @@ export default async function handler(req, res) {
         const admin = createSupabaseAdminClient()
 
         if (publica) {
-            const dados = await publica(admin, body || {}, { ipHash: hashIp(ip) })
+            const dados = await publica(admin, body || {}, { ipHash: hashIp(ip), req })
             return res.status(200).json({ ok: true, ...dados })
         }
         const auth = await validarJwtComPermissao(req, [PERMISSION_KEYS.PAGAMENTOS_EDIT], { supabaseAdmin: admin })

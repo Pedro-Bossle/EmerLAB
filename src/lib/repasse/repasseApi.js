@@ -13,8 +13,19 @@ async function authHeaders() {
     return { Authorization: `Bearer ${token}` }
 }
 
-async function chamar(rota, corpo, { publico = false } = {}) {
-    const headers = { 'Content-Type': 'application/json', ...(publico ? {} : await authHeaders()) }
+/** Cabeçalho de sessão só se houver login (equipe); o prestador não tem sessão e segue sem ele. */
+async function authHeadersOpcional() {
+    try {
+        const { data } = await supabase.auth.getSession()
+        const token = data?.session?.access_token
+        return token ? { Authorization: `Bearer ${token}` } : {}
+    } catch {
+        return {}
+    }
+}
+
+async function chamar(rota, corpo, { publico = false, authOpcional = false } = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(publico ? (authOpcional ? await authHeadersOpcional() : {}) : await authHeaders()) }
     const resp = await fetch(`/api/repasse-mensal?_route=${encodeURIComponent(rota)}`, {
         method: 'POST',
         headers,
@@ -30,7 +41,8 @@ async function chamar(rota, corpo, { publico = false } = {}) {
 }
 
 // ---- públicas (token) ----
-export const publicoLer = (token) => chamar('publico-ler', { token }, { publico: true })
+// Se quem abre é da equipe (logado), a API reconhece e não muda o status para «visualizado».
+export const publicoLer = (token) => chamar('publico-ler', { token }, { publico: true, authOpcional: true })
 export const publicoAprovar = (token) => chamar('publico-aprovar', { token }, { publico: true })
 export const publicoReprovar = (token, observacao, canal) =>
     chamar('publico-reprovar', { token, observacao, canal }, { publico: true })

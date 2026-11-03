@@ -362,6 +362,12 @@ export default function RepasseMensalPublico() {
                 </p>
             </header>
 
+            {r.interno && (
+                <div className="rm_aviso rm_aviso--info" role="status">
+                    Visualização interna: abrir o relatório por aqui não altera o status dele.
+                </div>
+            )}
+
             {r.comprovante && (
                 <div className="rm_aviso rm_aviso--ok" role="status">
                     Pagamento feito por {r.comprovante.forma === 'pix' ? 'PIX' : 'boleto'} em {dataBr(r.comprovante.data)} ({brl(r.comprovante.valor)}).{' '}
