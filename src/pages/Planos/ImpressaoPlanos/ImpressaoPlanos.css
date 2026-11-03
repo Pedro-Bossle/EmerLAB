@@ -283,70 +283,6 @@
     margin: 0.5rem 0 1rem;
 }
 
-.planos_impressao_filtros_center {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 0.75rem;
-    width: 100%;
-}
-
-.planos_impressao_row_center {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    justify-content: center;
-    align-items: flex-end;
-    max-width: 960px;
-    width: 100%;
-}
-
-.planos_impressao_row_center .pcad_field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    font-size: 0.875rem;
-    min-width: 140px;
-    flex: 1 1 140px;
-    max-width: 200px;
-}
-
-.planos_impressao_row_center .pcad_field > span {
-    font-weight: 600;
-    color: var(--azul-escuro, #1a3d5c);
-}
-
-.planos_impressao_switch_cidades {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.35rem;
-    flex-shrink: 0;
-}
-
-.planos_impressao_switch_label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--azul-escuro, #1a3d5c);
-    text-align: center;
-}
-
-.planos_impressao_btn_carregar {
-    padding: 0.45rem 1rem;
-    border-radius: 7px;
-    border: 1px solid var(--azul-destaque, #2d7ab8);
-    background: var(--azul-destaque, #2d7ab8);
-    color: #fff;
-    font-family: inherit;
-    font-size: 0.875rem;
-    cursor: pointer;
-    flex-shrink: 0;
-}
-
-.planos_impressao_btn_carregar:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-}
-
 .planos_impressao_hint {
     text-align: center;
     margin: 0 0 1rem;
@@ -374,43 +310,6 @@
     color: #555;
 }
 
-.planos_impressao_toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 1rem;
-    max-width: 720px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.planos_impressao_toolbar .campo_busca_limpar {
-    flex: 1 1 220px;
-    min-width: 200px;
-}
-
-.planos_impressao_btn_pdf {
-    padding: 0.45rem 1rem;
-    border-radius: 7px;
-    border: 1px solid #ccc;
-    background: #f5f5f5;
-    font-family: inherit;
-    font-size: 0.875rem;
-    cursor: pointer;
-}
-
-.planos_impressao_btn_pdf:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-}
-
-body.dark-mode .planos_impressao_switch_label,
-body.dark-mode .planos_impressao_row_center .pcad_field > span {
-    color: #c8dce8;
-}
-
 body.dark-mode .planos_impressao_realizadores {
     color: #c8dce8;
 }
@@ -435,12 +334,6 @@ body.dark-mode .planos_impressao_btn_secao_desmarcar {
     color: #b8c4d0;
     background: #2a323c;
     border-color: #4a5568;
-}
-
-body.dark-mode .planos_impressao_btn_pdf {
-    background: #2a323c;
-    border-color: #4a5568;
-    color: #e2e8f0;
 }
 
 body.dark-mode .planos_impressao_erro {
@@ -474,10 +367,6 @@ body.dark-mode .planos_impressao_table_wrap {
     border-color: var(--border-soft, #2a3d52);
 }
 
-body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
-    color: #c8dce8;
-}
-
 @media (max-width: 1023px) {
     .credenciamento_main.planos_impressao {
         padding: 0.35rem max(0.65rem, env(safe-area-inset-right))
@@ -495,71 +384,6 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
         margin: 0 0 0.75rem;
     }
 
-    .planos_impressao_filtros_center {
-        margin-bottom: 0;
-        padding: 0.85rem 0.75rem;
-        background: #fff;
-        border: 1px solid #e2e9f1;
-        border-radius: 10px;
-        box-sizing: border-box;
-    }
-
-    .planos_impressao_filtros_center .planos_impressao_row_center {
-        flex-direction: column;
-        align-items: stretch;
-        width: 100%;
-        max-width: none;
-        gap: 0.7rem;
-    }
-
-    .planos_impressao_filtros_center .pcad_field {
-        width: 100%;
-        max-width: none;
-        flex: 1 1 auto;
-        gap: 0.45rem;
-        margin: 0;
-    }
-
-    .planos_impressao_filtros_center .pcad_field > span {
-        font-size: 0.875rem;
-        line-height: 1.2;
-    }
-
-    .planos_impressao_filtros_center .credenciamento_main_input,
-    .planos_impressao_filtros_center .credenciamento_main_select {
-        min-height: 44px;
-        width: 100%;
-        padding: 0.5rem 0.65rem;
-        box-sizing: border-box;
-    }
-
-    .planos_impressao_switch_cidades {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-        gap: 0.75rem;
-        padding: 0.65rem 0 0;
-        margin-top: 0.1rem;
-        border-top: 1px solid #eef2f7;
-    }
-
-    .planos_impressao_switch_label {
-        text-align: left;
-        font-size: 0.875rem;
-        flex: 1 1 auto;
-        padding-right: 0.25rem;
-    }
-
-    .planos_impressao_btn_carregar {
-        width: 100%;
-        min-height: 44px;
-        margin-top: 0.25rem;
-        padding: 0.62rem 1rem;
-        font-size: 0.875rem;
-        font-weight: 600;
-    }
-
     .planos_impressao_hint {
         text-align: left;
         font-size: 0.75rem;
@@ -572,45 +396,6 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
         margin: 0 0 0.75rem;
         padding: 0 0.15rem;
         text-align: left;
-    }
-
-    .planos_impressao_toolbar {
-        position: sticky;
-        top: calc(52px + env(safe-area-inset-top));
-        z-index: 28;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.65rem;
-        max-width: none;
-        width: 100%;
-        margin-bottom: 0.85rem;
-        padding: 0.75rem;
-        box-sizing: border-box;
-        border-radius: 10px;
-        border: 1px solid #e2e9f1;
-        background: #fff;
-    }
-
-    .planos_impressao_toolbar .campo_busca_limpar {
-        flex: 1 1 auto;
-        min-width: 0;
-        width: 100%;
-    }
-
-    .planos_impressao_toolbar .credenciamento_main_input {
-        min-height: 44px;
-        padding: 0.5rem 0.65rem;
-        box-sizing: border-box;
-    }
-
-    .planos_impressao_btn_pdf {
-        width: 100%;
-        min-height: 44px;
-        padding: 0.62rem 1rem;
-        font-weight: 600;
-        background: #e8f1ff;
-        border-color: #9bb8e8;
-        color: #1a3d5c;
     }
 
     .planos_impressao_secao_head {
@@ -853,19 +638,6 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
 }
 
 @media (max-width: 1023px) {
-    body.dark-mode .planos_impressao_toolbar {
-        background: var(--bg-surface, #152232);
-        border-color: var(--border-soft, #2a3d52);
-    }
-
-    body.dark-mode .planos_impressao_filtros_center {
-        background: var(--bg-surface, #152232);
-        border-color: var(--border-soft, #2a3d52);
-    }
-
-    body.dark-mode .planos_impressao_switch_cidades {
-        border-top-color: var(--border-soft, #2a3d52);
-    }
 
     body.dark-mode .planos_impressao_table_main.is-layout-mobile thead th {
         background: var(--bg-surface, #152232);
@@ -881,12 +653,6 @@ body.dark-mode .planos_impressao_filtros_center .pcad_field > span {
     body.dark-mode .planos_impressao_table_main thead th {
         background: var(--bg-surface, #152232);
         box-shadow: 0 1px 0 var(--border-soft, #2a3d52);
-    }
-
-    body.dark-mode .planos_impressao_btn_pdf {
-        background: #1a3350;
-        border-color: #3a6a8a;
-        color: #c8e8f8;
     }
 
     body.dark-mode .planos_impressao_table_wrap {

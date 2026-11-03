@@ -1,14 +1,54 @@
+/**
+ * Searchbar padrão (todas as buscas com «limpar» do sistema).
+ * Os seletores levam o prefixo `body` para vencer a classe de cada tela (.xxx_input)
+ * sem !important — assim altura, raio, ícone e foco ficam iguais em todas as telas.
+ */
 .campo_busca_limpar {
     position: relative;
     display: flex;
     align-items: center;
     width: 100%;
+    min-width: 0;
 }
 
-.campo_busca_limpar .credenciamento_main_input,
-.campo_busca_limpar .supertabelacidades_input {
+body .campo_busca_limpar > input {
     width: 100%;
-    padding-right: 2.1rem;
+    min-width: 0;
+    box-sizing: border-box;
+    min-height: var(--el-control-h, 2.5rem);
+    border-radius: var(--el-radius-control, 10px);
+    padding-right: 2.4rem;
+    text-overflow: ellipsis;
+}
+
+body .campo_busca_limpar.has-icon > input {
+    padding-left: 2.2rem;
+}
+
+body .campo_busca_limpar > input:focus {
+    border-color: var(--el-brand, #1a6fa3);
+    box-shadow: 0 0 0 3px var(--el-ring, rgba(26, 111, 163, 0.18));
+}
+
+body .campo_busca_limpar > input:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+@media (max-width: 767px) {
+    body .campo_busca_limpar > input {
+        min-height: var(--el-control-h-touch, 2.75rem);
+        font-size: max(16px, 1rem);
+    }
+}
+
+.campo_busca_limpar_icone {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--el-ink-muted, #5a7488);
+    pointer-events: none;
 }
 
 /* Evita 2º «×» do navegador em type=search */
@@ -21,17 +61,15 @@
 
 .campo_busca_limpar_btn {
     position: absolute;
-    right: 0.35rem;
+    right: 0.3rem;
     top: 50%;
     transform: translateY(-50%);
     border: none;
     background: transparent;
-    color: var(--cred-muted, #666);
-    font-size: 1.375rem;
-    line-height: 1;
-    width: 1.75rem;
-    height: 1.75rem;
-    border-radius: 4px;
+    color: var(--el-ink-muted, #5a7488);
+    width: 2rem;
+    height: 2rem;
+    border-radius: 6px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -39,9 +77,17 @@
     padding: 0;
 }
 
+@media (max-width: 767px) {
+    .campo_busca_limpar_btn {
+        width: 2.5rem;
+        height: 2.5rem;
+        right: 0.15rem;
+    }
+}
+
 .campo_busca_limpar_btn:hover {
     background: rgba(0, 0, 0, 0.06);
-    color: inherit;
+    color: var(--el-ink, inherit);
 }
 
 body.dark-mode .campo_busca_limpar_btn:hover {

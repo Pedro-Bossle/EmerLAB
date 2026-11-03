@@ -1,0 +1,1001 @@
+/*
+ * EmerLAB UI Kit — tokens e componentes padronizados.
+ * Guia: docs/ui-kit.md · Regra do Cursor: .cursor/rules/emerlab-ui-kit.mdc
+ *
+ * Tudo é prefixado (--ek-*, .ek-*): importar este arquivo não muda nenhuma tela existente.
+ * Telas legadas migram aos poucos trocando as classes próprias (pag_reg_*, supertabela*_filters…)
+ * pelas classes abaixo. Modo escuro: body.dark-mode (mesmo seletor do Tailwind).
+ * Breakpoints: 640px (celular) e 1024px (tablet). Não criar outros.
+ */
+
+/* ============================================================== */
+/* 1. Tokens                                                       */
+/* ============================================================== */
+:root {
+    /* Marca (fonte da verdade: tailwind.config.js) */
+    --ek-brand: #1a6fa3;
+    --ek-brand-deep: #165f8c;
+    --ek-brand-bright: #1f78ad;
+    --ek-brand-pale: #e7f4fc;
+    --ek-brand-mist: #cfe8f8;
+    --ek-on-brand: #ffffff;
+
+    /* Texto */
+    --ek-ink: #142033;
+    --ek-ink-soft: #3d5168;
+    --ek-ink-muted: #5a7488;
+    --ek-placeholder: rgba(90, 116, 136, 0.7);
+
+    /* Superfícies */
+    --ek-page: #f4f8fb;
+    --ek-surface: #ffffff;
+    --ek-surface-tint: #f7fbfe;
+    --ek-field: #ffffff;
+    --ek-glass: rgba(255, 255, 255, 0.82);
+    --ek-overlay: rgba(13, 21, 32, 0.45);
+
+    /* Linhas */
+    --ek-line: #d8e6ef;
+    --ek-line-strong: #bfd7e8;
+    --ek-field-border: #bfd7e8;
+
+    /* Estados */
+    --ek-ok: #0a7a4a;      --ek-ok-bg: #e8f8ef;
+    --ek-warn: #a16207;    --ek-warn-bg: #fef6e7;
+    --ek-erro: #b91c1c;    --ek-erro-bg: #fef2f2;
+    --ek-info: #1f7eb8;    --ek-info-bg: #e8f4fc;
+    --ek-neutro: #5a7488;  --ek-neutro-bg: #eef3f7;
+
+    /* Tabela */
+    --ek-th-bg: #1e3148;
+    --ek-th-ink: #ffffff;
+    --ek-row-alt: #f9fcff;
+    --ek-row-hover: #eef7fd;
+
+    /* Foco */
+    --ek-focus: #165f8c;
+    --ek-ring: rgba(26, 111, 163, 0.18);
+
+    /* Tipografia (12 / 13 / 14 / 16 / 18 / 22 / 28) */
+    --ek-font: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --ek-font-display: 'Syne', 'Manrope', system-ui, sans-serif; /* só título de página */
+    --ek-text-xs: 0.75rem;
+    --ek-text-sm: 0.8125rem;
+    --ek-text-md: 0.875rem;
+    --ek-text-base: 1rem;
+    --ek-text-lg: 1.125rem;
+    --ek-text-xl: 1.375rem;
+    --ek-text-2xl: 1.75rem;
+
+    /* Espaçamento (4 / 8 / 12 / 16 / 24 / 32) */
+    --ek-s1: 4px;
+    --ek-s2: 8px;
+    --ek-s3: 12px;
+    --ek-s4: 16px;
+    --ek-s5: 24px;
+    --ek-s6: 32px;
+
+    /* Medidas de controle */
+    --ek-control-h: 40px;          /* campo, select, botão e chip na mesma linha */
+    --ek-control-h-sm: 32px;       /* ações dentro de tabela */
+    --ek-control-px: 12px;
+    --ek-touch: 44px;              /* piso em telas de toque */
+
+    /* Raios */
+    --ek-r-control: 10px;          /* campos, botões, chips, dropdown */
+    --ek-r-card: 14px;             /* barras de filtro, cards, tabelas */
+    --ek-r-modal: 16px;
+    --ek-r-pill: 999px;            /* só badges e controle segmentado */
+
+    /* Sombras */
+    --ek-shadow-sm: 0 1px 8px rgba(30, 49, 72, 0.06);
+    --ek-shadow-float: 0 4px 18px rgba(20, 32, 51, 0.10);
+    --ek-shadow-pop: 0 12px 32px rgba(20, 32, 51, 0.16);
+
+    /* Vidro (menus flutuantes): um único valor de blur */
+    --ek-blur: blur(12px) saturate(140%);
+    --ek-blur-overlay: blur(4px);
+
+    /* Camadas (iguais ao tailwind.config.js) */
+    --ek-z-sticky: 20;
+    --ek-z-sidebar: 30;
+    --ek-z-nav: 40;
+    --ek-z-dropdown: 60;
+    --ek-z-drawer: 80;
+    --ek-z-modal: 90;
+    --ek-z-toast: 100;
+
+    /* Página */
+    --ek-page-max: 1600px;
+    --ek-gutter: 16px;             /* 16 celular · 24 tablet · 32 desktop */
+
+    --ek-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (min-width: 640px) {
+    :root { --ek-gutter: 24px; }
+}
+
+@media (min-width: 1024px) {
+    :root { --ek-gutter: 32px; }
+}
+
+@media (pointer: coarse) {
+    :root {
+        --ek-control-h: var(--ek-touch);
+        --ek-control-h-sm: 40px;
+    }
+}
+
+body.dark-mode {
+    --ek-brand: #4fa6dc;
+    --ek-brand-deep: #3b93cb;
+    --ek-brand-bright: #7cc4f0;
+    --ek-brand-pale: #16324a;
+    --ek-brand-mist: #1d3f5c;
+    --ek-on-brand: #0d1520;
+
+    --ek-ink: #e8f1f8;
+    --ek-ink-soft: #b9cadb;
+    --ek-ink-muted: #9eb4c8;
+    --ek-placeholder: rgba(158, 180, 200, 0.65);
+
+    --ek-page: #0d1520;
+    --ek-surface: #121c2a;
+    --ek-surface-tint: #152433;
+    --ek-field: #0f1e2e;
+    --ek-glass: rgba(18, 28, 42, 0.82);
+    --ek-overlay: rgba(0, 0, 0, 0.55);
+
+    --ek-line: rgba(255, 255, 255, 0.10);
+    --ek-line-strong: rgba(255, 255, 255, 0.18);
+    --ek-field-border: rgba(255, 255, 255, 0.16);
+
+    --ek-ok: #8fd9a8;     --ek-ok-bg: #163a26;
+    --ek-warn: #e8cf7a;   --ek-warn-bg: #3a3218;
+    --ek-erro: #f2a5a5;   --ek-erro-bg: #3d1c1f;
+    --ek-info: #9fd0f2;   --ek-info-bg: #16324a;
+    --ek-neutro: #9eb4c8; --ek-neutro-bg: #1b2b3d;
+
+    --ek-th-bg: #0b1622;
+    --ek-th-ink: #e8f1f8;
+    --ek-row-alt: #142131;
+    --ek-row-hover: #1a2c40;
+
+    --ek-focus: #7cc4f0;
+    --ek-ring: rgba(124, 196, 240, 0.22);
+
+    --ek-shadow-sm: 0 1px 8px rgba(0, 0, 0, 0.35);
+    --ek-shadow-float: 0 4px 18px rgba(0, 0, 0, 0.45);
+    --ek-shadow-pop: 0 14px 36px rgba(0, 0, 0, 0.55);
+}
+
+/* Só nas áreas do kit: não muda campos nativos nem rolagem das telas legadas */
+body.dark-mode :is(.ek-page, .ek-toolbar, .ek-modal-overlay, .ek-dropdown) {
+    color-scheme: dark;
+}
+
+/* ============================================================== */
+/* 2. Página                                                       */
+/* ============================================================== */
+.ek-page {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: var(--ek-page-max);
+    margin-inline: auto;
+    padding-inline: var(--ek-gutter);
+    padding-block: var(--ek-s5) var(--ek-s6);
+    font-family: var(--ek-font);
+    color: var(--ek-ink);
+    text-align: left;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--ek-s4);
+}
+
+.ek-page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--ek-s3) var(--ek-s4);
+}
+
+.ek-page-header__kicker {
+    display: block;
+    font-size: var(--ek-text-xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ek-ink-muted);
+}
+
+.ek-page-header__title {
+    margin: 2px 0 0;
+    font-family: var(--ek-font-display);
+    font-size: var(--ek-text-2xl);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: var(--ek-ink);
+    text-wrap: balance;
+}
+
+.ek-page-header__desc {
+    margin: var(--ek-s1) 0 0;
+    max-width: 70ch;
+    font-size: var(--ek-text-md);
+    color: var(--ek-ink-muted);
+}
+
+.ek-page-header__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ek-s2);
+}
+
+/* ============================================================== */
+/* 3. Barra de filtros (menu flutuante)                            */
+/* ============================================================== */
+/*
+ * <section class="ek-toolbar ek-toolbar--sticky">
+ *   <h2 class="ek-toolbar__title">Filtros</h2>
+ *   <div class="ek-toolbar__row"> ...ek-field / ek-btn / ek-check / ek-segmented... </div>
+ * </section>
+ */
+.ek-toolbar {
+    box-sizing: border-box;
+    display: grid;
+    gap: var(--ek-s3);
+    padding: var(--ek-s3) var(--ek-s4);
+    background: var(--ek-surface-tint);
+    border: 1px solid var(--ek-line);
+    border-radius: var(--ek-r-card);
+    box-shadow: var(--ek-shadow-sm);
+    font-family: var(--ek-font);
+    text-align: left; /* telas legadas centralizam o contêiner */
+}
+
+.ek-toolbar--sticky {
+    position: sticky;
+    top: var(--ek-sticky-top, 0px);
+    z-index: var(--ek-z-sticky);
+    background: var(--ek-glass);
+    -webkit-backdrop-filter: var(--ek-blur);
+    backdrop-filter: var(--ek-blur);
+    transition: box-shadow 0.2s var(--ek-ease), padding 0.2s var(--ek-ease);
+}
+
+/* Adicionar .is-stuck por IntersectionObserver quando a barra gruda no topo */
+.ek-toolbar--sticky.is-stuck {
+    box-shadow: var(--ek-shadow-float);
+    padding-block: var(--ek-s2);
+    /* Colada no topo: cantos superiores retos (só os de baixo ficam arredondados) */
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-top-color: transparent;
+}
+
+.ek-toolbar__title {
+    margin: 0;
+    font-size: var(--ek-text-sm);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ek-ink-muted);
+    font-family: var(--ek-font);
+}
+
+/* Todos os itens alinham pela base: rótulo em cima, controle embaixo, mesma altura */
+.ek-toolbar__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--ek-s3);
+}
+
+.ek-toolbar__row > .ek-field { flex: 1 1 180px; }
+.ek-toolbar__row > .ek-field--grow { flex: 3 1 280px; }
+.ek-toolbar__row > .ek-field--fixed { flex: 0 0 auto; }
+
+.ek-toolbar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--ek-s2);
+    margin-left: auto;
+}
+
+/* ============================================================== */
+/* 4. Campos                                                       */
+/* ============================================================== */
+.ek-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    text-align: left;
+}
+
+.ek-label {
+    font-size: var(--ek-text-sm);
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--ek-ink-soft);
+}
+
+.ek-hint { font-size: var(--ek-text-xs); color: var(--ek-ink-muted); }
+.ek-error { font-size: var(--ek-text-xs); font-weight: 600; color: var(--ek-erro); }
+
+.ek-input,
+.ek-select,
+.ek-textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: var(--ek-control-h);
+    padding: 0 var(--ek-control-px);
+    font-family: var(--ek-font);
+    font-size: var(--ek-text-md);
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--ek-ink);
+    background: var(--ek-field);
+    border: 1px solid var(--ek-field-border);
+    border-radius: var(--ek-r-control);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ek-textarea { padding-block: 10px; min-height: 96px; resize: vertical; }
+
+.ek-input::placeholder,
+.ek-textarea::placeholder { color: var(--ek-placeholder); }
+
+.ek-input:hover,
+.ek-select:hover,
+.ek-textarea:hover { border-color: var(--ek-brand-bright); }
+
+.ek-input:focus,
+.ek-select:focus,
+.ek-textarea:focus {
+    outline: none;
+    border-color: var(--ek-brand);
+    box-shadow: 0 0 0 3px var(--ek-ring);
+}
+
+.ek-input:disabled,
+.ek-select:disabled,
+.ek-textarea:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.ek-input[aria-invalid='true'],
+.ek-select[aria-invalid='true'] { border-color: var(--ek-erro); }
+
+/* Select nativo com a mesma seta do dropdown */
+.ek-select {
+    appearance: none;
+    padding-right: 34px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ek-ink-muted) 50%),
+        linear-gradient(135deg, var(--ek-ink-muted) 50%, transparent 50%);
+    background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    cursor: pointer;
+}
+
+/* Campo de busca com ícone e botão limpar */
+.ek-search { position: relative; }
+.ek-search > .ek-input { padding-left: 36px; padding-right: 34px; }
+.ek-search__icon {
+    position: absolute; left: 12px; top: 50%; translate: 0 -50%;
+    width: 16px; height: 16px; color: var(--ek-ink-muted); pointer-events: none;
+}
+.ek-search__clear {
+    position: absolute; right: 6px; top: 50%; translate: 0 -50%;
+    width: 26px; height: 26px; border: 0; border-radius: 50%;
+    background: transparent; color: var(--ek-ink-muted); cursor: pointer; font-size: 16px; line-height: 1;
+}
+.ek-search__clear:hover { background: var(--ek-brand-pale); color: var(--ek-ink); }
+
+/* ============================================================== */
+/* 5. Dropdown flutuante (substitui MenuSelectFlutuante)           */
+/* ============================================================== */
+/*
+ * <div class="ek-dropdown is-open">
+ *   <button class="ek-dropdown__trigger" aria-expanded="true">Belo Horizonte (MG)</button>
+ *   <div class="ek-dropdown__panel" role="listbox">
+ *     <input class="ek-input ek-dropdown__search" placeholder="Buscar">
+ *     <button class="ek-dropdown__option is-selected" role="option" aria-selected="true">…</button>
+ *   </div>
+ * </div>
+ */
+.ek-dropdown { position: relative; min-width: 0; }
+.ek-dropdown.is-open { z-index: var(--ek-z-dropdown); }
+
+.ek-dropdown__trigger {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ek-s2);
+    width: 100%;
+    min-height: var(--ek-control-h);
+    padding: 0 var(--ek-control-px);
+    font-family: var(--ek-font);
+    font-size: var(--ek-text-md);
+    font-weight: 500;
+    color: var(--ek-ink);
+    text-align: left;
+    background: var(--ek-field);
+    border: 1px solid var(--ek-field-border);
+    border-radius: var(--ek-r-control);
+    cursor: pointer;
+    padding-right: 34px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ek-ink-muted) 50%),
+        linear-gradient(135deg, var(--ek-ink-muted) 50%, transparent 50%);
+    background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+}
+
+.ek-dropdown.is-open .ek-dropdown__trigger {
+    background-image: linear-gradient(135deg, transparent 50%, var(--ek-ink-muted) 50%),
+        linear-gradient(45deg, var(--ek-ink-muted) 50%, transparent 50%);
+}
+
+.ek-dropdown__trigger:hover { border-color: var(--ek-brand-bright); }
+.ek-dropdown.is-open .ek-dropdown__trigger { border-color: var(--ek-brand); box-shadow: 0 0 0 3px var(--ek-ring); }
+.ek-dropdown__value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ek-dropdown__value.is-placeholder { color: var(--ek-placeholder); }
+
+
+.ek-dropdown__panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 100%;
+    max-width: min(420px, calc(100vw - 2 * var(--ek-gutter)));
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 6px;
+    box-sizing: border-box;
+    background: var(--ek-surface); /* opaco: vidro só nas barras fixas, senão a tabela aparece por trás */
+    border: 1px solid var(--ek-line-strong);
+    border-radius: var(--ek-r-control);
+    box-shadow: var(--ek-shadow-pop);
+    scrollbar-width: thin;
+}
+
+.ek-dropdown:not(.is-open) .ek-dropdown__panel { display: none; }
+.ek-dropdown__panel--right { left: auto; right: 0; }
+.ek-dropdown__search { margin-bottom: 6px; min-height: 36px; }
+
+.ek-dropdown__group {
+    padding: 8px 10px 4px;
+    font-size: var(--ek-text-xs);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ek-ink-muted);
+}
+
+.ek-dropdown__option {
+    display: flex;
+    align-items: center;
+    gap: var(--ek-s2);
+    width: 100%;
+    min-height: 36px;
+    padding: 6px 10px;
+    font-family: var(--ek-font);
+    font-size: var(--ek-text-md);
+    color: var(--ek-ink);
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.ek-dropdown__option:hover,
+.ek-dropdown__option.is-active { background: var(--ek-brand-pale); }
+.ek-dropdown__option.is-selected { color: var(--ek-brand); font-weight: 700; }
+.ek-dropdown__option.is-selected::after { content: '✓'; margin-left: auto; }
+.ek-dropdown__empty { padding: 12px 10px; font-size: var(--ek-text-md); color: var(--ek-ink-muted); }
+
+/* Celular: o painel vira folha inferior */
+@media (max-width: 639px) {
+    .ek-dropdown.is-open::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: var(--ek-overlay);
+        -webkit-backdrop-filter: var(--ek-blur-overlay);
+        backdrop-filter: var(--ek-blur-overlay);
+    }
+    .ek-dropdown__panel {
+        position: fixed;
+        top: auto;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        max-width: none;
+        max-height: 70dvh;
+        padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+        border-radius: var(--ek-r-modal) var(--ek-r-modal) 0 0;
+        background: var(--ek-surface);
+    }
+    .ek-dropdown__option { min-height: var(--ek-touch); }
+}
+
+/* ============================================================== */
+/* 6. Botões                                                       */
+/* ============================================================== */
+.ek-btn {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ek-s2);
+    min-height: var(--ek-control-h);
+    padding: 0 var(--ek-s4);
+    font-family: var(--ek-font);
+    font-size: var(--ek-text-md);
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    color: var(--ek-on-brand);
+    background: var(--ek-brand);
+    border: 1px solid var(--ek-brand);
+    border-radius: var(--ek-r-control);
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ek-btn:hover { background: var(--ek-brand-deep); border-color: var(--ek-brand-deep); }
+.ek-btn:disabled, .ek-btn[aria-disabled='true'] { opacity: 0.55; cursor: not-allowed; }
+.ek-btn svg { width: 16px; height: 16px; flex: none; }
+
+.ek-btn--secondary { color: var(--ek-ink); background: var(--ek-field); border-color: var(--ek-field-border); }
+.ek-btn--secondary:hover { background: var(--ek-brand-pale); border-color: var(--ek-brand-bright); }
+
+.ek-btn--soft { color: var(--ek-brand); background: var(--ek-brand-pale); border-color: var(--ek-brand-mist); }
+.ek-btn--soft:hover { background: var(--ek-brand-mist); border-color: var(--ek-brand-mist); }
+
+.ek-btn--ghost { color: var(--ek-ink-soft); background: transparent; border-color: transparent; }
+.ek-btn--ghost:hover { background: var(--ek-brand-pale); border-color: transparent; }
+
+.ek-btn--danger { color: var(--ek-erro); background: var(--ek-erro-bg); border-color: color-mix(in srgb, var(--ek-erro) 30%, transparent); }
+.ek-btn--danger:hover { background: var(--ek-erro-bg); border-color: var(--ek-erro); }
+
+.ek-btn--success { color: var(--ek-ok); background: var(--ek-ok-bg); border-color: color-mix(in srgb, var(--ek-ok) 30%, transparent); }
+.ek-btn--success:hover { background: var(--ek-ok-bg); border-color: var(--ek-ok); }
+
+.ek-btn--sm { min-height: var(--ek-control-h-sm); padding: 0 var(--ek-s3); font-size: var(--ek-text-sm); }
+.ek-btn--icon { width: var(--ek-control-h); padding: 0; }
+.ek-btn--block { width: 100%; }
+
+/* ============================================================== */
+/* 7. Checkbox em formato de controle ("Ativar edição")            */
+/* ============================================================== */
+.ek-check {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ek-s2);
+    min-height: var(--ek-control-h);
+    padding: 0 var(--ek-s3);
+    font-family: var(--ek-font);
+    font-size: var(--ek-text-md);
+    font-weight: 600;
+    color: var(--ek-ink-soft);
+    background: var(--ek-field);
+    border: 1px solid var(--ek-field-border);
+    border-radius: var(--ek-r-control);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.ek-check input { width: 16px; height: 16px; margin: 0; accent-color: var(--ek-brand); cursor: pointer; }
+.ek-check:hover { border-color: var(--ek-brand-bright); }
+.ek-check:has(input:checked) { color: var(--ek-brand); background: var(--ek-brand-pale); border-color: var(--ek-brand); }
+.ek-check:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--ek-ring); }
+
+/* ============================================================== */
+/* 8. Controle segmentado ("Visualização")                         */
+/* ============================================================== */
+.ek-segmented {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: stretch;
+    gap: 2px;
+    min-height: var(--ek-control-h);
+    padding: 3px;
+    background: var(--ek-brand-pale);
+    border: 1px solid var(--ek-line);
+    border-radius: var(--ek-r-control);
+}
+
+.ek-segmented__opt {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 var(--ek-s3);
+    font-family: var(--ek-font);
+    font-size: var(--ek-text-sm);
+    font-weight: 600;
+    line-height: 1.15;
+    text-align: center;
+    color: var(--ek-ink-soft);
+    background: transparent;
+    border: 0;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.ek-segmented__opt:hover { color: var(--ek-ink); }
+.ek-segmented__opt[aria-pressed='true'],
+.ek-segmented__opt.is-active { color: var(--ek-on-brand); background: var(--ek-brand); box-shadow: var(--ek-shadow-sm); }
+
+/* ============================================================== */
+/* 9. Cards, tabelas, badges                                       */
+/* ============================================================== */
+.ek-card {
+    box-sizing: border-box;
+    padding: var(--ek-s4);
+    background: var(--ek-surface);
+    border: 1px solid var(--ek-line);
+    border-radius: var(--ek-r-card);
+    box-shadow: var(--ek-shadow-sm);
+    min-width: 0;
+}
+
+@media (min-width: 1024px) { .ek-card { padding: var(--ek-s5); } }
+
+.ek-card__title { margin: 0 0 var(--ek-s3); font-size: var(--ek-text-lg); font-weight: 700; color: var(--ek-ink); }
+
+.ek-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--ek-surface);
+    border: 1px solid var(--ek-line);
+    border-radius: var(--ek-r-card);
+    box-shadow: var(--ek-shadow-sm);
+}
+
+.ek-table { width: 100%; border-collapse: collapse; font-family: var(--ek-font); font-size: var(--ek-text-md); }
+
+.ek-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 10px var(--ek-s3);
+    font-size: var(--ek-text-xs);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    text-align: left;
+    white-space: nowrap;
+    color: var(--ek-th-ink);
+    background: var(--ek-th-bg);
+}
+
+.ek-table td {
+    padding: 8px var(--ek-s3);
+    color: var(--ek-ink-soft);
+    border-bottom: 1px solid var(--ek-line);
+    vertical-align: middle;
+}
+
+.ek-table tbody tr:nth-child(even) { background: var(--ek-row-alt); }
+.ek-table tbody tr:hover { background: var(--ek-row-hover); }
+.ek-table .ek-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ek-table .ek-center { text-align: center; }
+
+.ek-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    font-family: var(--ek-font);
+    font-size: var(--ek-text-xs);
+    font-weight: 600;
+    white-space: nowrap;
+    border-radius: var(--ek-r-pill);
+    color: var(--ek-neutro);
+    background: var(--ek-neutro-bg);
+}
+
+.ek-badge--ok { color: var(--ek-ok); background: var(--ek-ok-bg); }
+.ek-badge--warn { color: var(--ek-warn); background: var(--ek-warn-bg); }
+.ek-badge--erro { color: var(--ek-erro); background: var(--ek-erro-bg); }
+.ek-badge--info { color: var(--ek-info); background: var(--ek-info-bg); }
+
+.ek-banner {
+    display: block;
+    padding: var(--ek-s3) var(--ek-s4);
+    font-size: var(--ek-text-md);
+    border-radius: var(--ek-r-control);
+    color: var(--ek-info);
+    background: var(--ek-info-bg);
+}
+
+.ek-banner--ok { color: var(--ek-ok); background: var(--ek-ok-bg); }
+.ek-banner--warn { color: var(--ek-warn); background: var(--ek-warn-bg); }
+.ek-banner--erro { color: var(--ek-erro); background: var(--ek-erro-bg); }
+
+.ek-empty {
+    padding: var(--ek-s6) var(--ek-s4);
+    text-align: center;
+    color: var(--ek-ink-muted);
+    border: 1px dashed var(--ek-line-strong);
+    border-radius: var(--ek-r-card);
+    background: var(--ek-surface);
+}
+
+/* ============================================================== */
+/* 10. Modal                                                       */
+/* ============================================================== */
+.ek-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--ek-z-modal);
+    display: grid;
+    place-items: center;
+    padding: var(--ek-gutter);
+    background: var(--ek-overlay);
+    -webkit-backdrop-filter: var(--ek-blur-overlay);
+    backdrop-filter: var(--ek-blur-overlay);
+}
+
+.ek-modal {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: min(100%, 640px);
+    max-height: calc(100dvh - 2 * var(--ek-gutter));
+    background: var(--ek-surface);
+    border: 1px solid var(--ek-line);
+    border-radius: var(--ek-r-modal);
+    box-shadow: var(--ek-shadow-pop);
+    font-family: var(--ek-font);
+    color: var(--ek-ink);
+}
+
+.ek-modal--lg { width: min(100%, 960px); }
+
+.ek-modal__head,
+.ek-modal__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ek-s3);
+    padding: var(--ek-s3) var(--ek-s4);
+}
+
+.ek-modal__head { border-bottom: 1px solid var(--ek-line); }
+.ek-modal__foot { justify-content: flex-end; border-top: 1px solid var(--ek-line); }
+.ek-modal__title { margin: 0; font-size: var(--ek-text-lg); font-weight: 700; }
+.ek-modal__body { padding: var(--ek-s4); overflow-y: auto; display: grid; gap: var(--ek-s3); }
+
+@media (max-width: 639px) {
+    .ek-modal-overlay { place-items: end stretch; padding: 0; }
+    .ek-modal,
+    .ek-modal--lg {
+        width: 100%;
+        max-height: 92dvh;
+        border-radius: var(--ek-r-modal) var(--ek-r-modal) 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .ek-modal__foot > .ek-btn { flex: 1 1 0; }
+}
+
+/* ============================================================== */
+/* 11. Celular e tablet                                            */
+/* ============================================================== */
+@media (max-width: 1023px) {
+    .ek-toolbar__row > .ek-field,
+    .ek-toolbar__row > .ek-field--grow { flex: 1 1 calc(50% - var(--ek-s3)); }
+    .ek-toolbar__actions { margin-left: 0; width: 100%; }
+}
+
+@media (max-width: 639px) {
+    .ek-page { padding-block: var(--ek-s4) calc(var(--ek-s6) + 4.25rem); } /* 4.25rem = bottom nav */
+    .ek-page-header__title { font-size: var(--ek-text-xl); }
+    .ek-page-header__actions,
+    .ek-page-header__actions > .ek-btn { width: 100%; }
+    .ek-page-header__actions > .ek-btn { flex: 1 1 0; }
+
+    .ek-toolbar { padding: var(--ek-s3); }
+    .ek-toolbar--sticky { top: var(--ek-sticky-top-mobile, var(--ek-sticky-top, 0px)); }
+    .ek-toolbar__row > * { flex: 1 1 100% !important; }
+    .ek-toolbar__actions > .ek-btn,
+    .ek-toolbar__actions > .ek-check { flex: 1 1 calc(50% - var(--ek-s2)); }
+    .ek-toolbar__actions > .ek-field { flex: 1 1 100%; }
+    .ek-segmented { width: 100%; }
+    .ek-segmented__opt { flex: 1 1 0; }
+
+    /* Tabela vira lista de cartões quando marcada com .ek-table--stack e td[data-label] */
+    .ek-table--stack thead { display: none; }
+    .ek-table--stack,
+    .ek-table--stack tbody,
+    .ek-table--stack tr,
+    .ek-table--stack td { display: block; width: 100%; box-sizing: border-box; }
+    .ek-table--stack tr { padding: var(--ek-s2) 0; border-bottom: 1px solid var(--ek-line); }
+    .ek-table--stack td { display: flex; justify-content: space-between; gap: var(--ek-s3); border: 0; padding: 4px var(--ek-s3); text-align: right; }
+    .ek-table--stack td::before { content: attr(data-label); font-weight: 600; color: var(--ek-ink-muted); text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ek-toolbar--sticky,
+    .ek-btn,
+    .ek-input,
+    .ek-select { transition: none; }
+}
+
+/* ============================================================== */
+/* 12. Extensões do projeto (usadas por src/components/ui)         */
+/* ============================================================== */
+.ek-btn--danger-solid { color: #fff; background: var(--ek-erro); border-color: var(--ek-erro); }
+.ek-btn--danger-solid:hover { background: color-mix(in srgb, var(--ek-erro) 85%, #000); border-color: transparent; }
+body.dark-mode .ek-btn--danger-solid { color: #1b0b0b; }
+.ek-btn--lg { min-height: calc(var(--ek-control-h) + 8px); padding: 0 var(--ek-s5); font-size: var(--ek-text-base); }
+
+.ek-modal__desc { margin: 2px 0 0; font-size: var(--ek-text-md); color: var(--ek-ink-muted); }
+.ek-modal--sm { width: min(100%, 440px); }
+.ek-modal--xl { width: min(100%, 1100px); }
+.ek-modal__handle { display: none; }
+@media (max-width: 639px) {
+    .ek-modal__handle { display: block; width: 40px; height: 4px; margin: 8px auto 0; border-radius: 2px; background: var(--ek-line-strong); flex: none; }
+}
+.ek-modal__foot { flex-wrap: wrap; }
+@media (max-width: 639px) { .ek-modal__foot { flex-direction: column-reverse; } .ek-modal__foot > .ek-btn { flex: 0 0 auto; width: 100%; } }
+
+.ek-drawer-overlay { position: fixed; inset: 0; z-index: var(--ek-z-drawer); background: var(--ek-overlay); -webkit-backdrop-filter: var(--ek-blur-overlay); backdrop-filter: var(--ek-blur-overlay); }
+.ek-drawer { position: absolute; display: flex; flex-direction: column; overflow: hidden; background: var(--ek-surface); border: 1px solid var(--ek-line); box-shadow: var(--ek-shadow-pop); color: var(--ek-ink); font-family: var(--ek-font); }
+.ek-drawer--bottom { inset-inline: 0; bottom: 0; max-height: 88dvh; border-radius: var(--ek-r-modal) var(--ek-r-modal) 0 0; }
+.ek-drawer--right { inset-block: 0; right: 0; width: min(100%, 24rem); border-radius: var(--ek-r-modal) 0 0 var(--ek-r-modal); }
+
+.ek-banner--erro[role='alert'] { font-weight: 600; }
+.ek-empty--erro { color: var(--ek-erro); background: var(--ek-erro-bg); border-color: color-mix(in srgb, var(--ek-erro) 30%, transparent); }
+.ek-empty__title { margin: 0 0 4px; font-size: var(--ek-text-lg); font-weight: 700; color: var(--ek-ink); }
+.ek-empty--erro .ek-empty__title { color: var(--ek-erro); }
+.ek-empty__desc { margin: 0 auto; max-width: 44ch; font-size: var(--ek-text-md); }
+.ek-spinner { width: 28px; height: 28px; margin: 0 auto 8px; border: 3px solid var(--ek-line-strong); border-top-color: var(--ek-brand); border-radius: 50%; animation: ek-spin 0.8s linear infinite; }
+@keyframes ek-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ek-spinner { animation-duration: 2.4s; } }
+.ek-skeleton { background: var(--ek-line); border-radius: var(--ek-r-control); animation: ek-pulse 1.4s ease-in-out infinite; }
+@keyframes ek-pulse { 50% { opacity: 0.55; } }
+.ek-list-card { box-sizing: border-box; width: 100%; padding: var(--ek-s4); text-align: left; background: var(--ek-surface); border: 1px solid var(--ek-line); border-radius: var(--ek-r-card); box-shadow: var(--ek-shadow-sm); list-style: none; }
+.ek-list-card:hover { border-color: var(--ek-brand-bright); }
+
+/* Celular: barra de filtros empilhada fica alta demais para grudar no topo (cobriria o conteúdo) */
+@media (max-width: 639px) {
+    .ek-toolbar--sticky { position: static; -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--ek-surface-tint); }
+}
+
+/* Campos curtos (selects de poucas opções, datas) dividem a linha em dois no celular */
+@media (max-width: 639px) {
+    .ek-toolbar__row > .ek-field--half { flex: 1 1 calc(50% - var(--ek-s2)) !important; min-width: 0; }
+}
+@media (max-width: 359px) {
+    .ek-toolbar__row > .ek-field--half { flex-basis: 100% !important; }
+}
+
+/* ============================================================== */
+/* 13. Autocomplete de procedimento («Adicionar procedimento…»)    */
+/*     Mesmo visual do dropdown: painel opaco, item com hover, ✓   */
+/* ============================================================== */
+.row_add_suggest_wrap { position: relative; width: min(560px, 100%); isolation: isolate; }
+
+body .row_add_input {
+    box-sizing: border-box;
+    flex: 1;
+    width: 100%;
+    min-width: 220px;
+    max-width: 560px;
+    min-height: var(--ek-control-h);
+    padding: 0 var(--ek-control-px);
+    font-family: var(--ek-font);
+    font-size: var(--ek-text-md);
+    color: var(--ek-ink);
+    background: var(--ek-field);
+    border: 1px solid var(--ek-field-border);
+    border-radius: var(--ek-r-control);
+}
+body .row_add_input:focus { outline: none; border-color: var(--ek-brand); box-shadow: 0 0 0 3px var(--ek-ring); }
+
+.row_add_suggest_list {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 1250;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 6px;
+    box-sizing: border-box;
+    background: var(--ek-surface);
+    border: 1px solid var(--ek-line-strong);
+    border-radius: var(--ek-r-control);
+    box-shadow: var(--ek-shadow-pop);
+    scrollbar-width: thin;
+}
+.row_add_suggest_list.is-portal { position: fixed; right: auto; z-index: 20000; }
+
+.row_add_suggest_item {
+    display: flex;
+    align-items: center;
+    gap: var(--ek-s2);
+    width: 100%;
+    min-height: 36px;
+    padding: 6px 10px;
+    font-family: var(--ek-font);
+    font-size: var(--ek-text-md);
+    text-align: left;
+    color: var(--ek-ink);
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.row_add_suggest_item:hover,
+.row_add_suggest_item.is-active { background: var(--ek-brand-pale); }
+.row_add_suggest_item span { font-weight: 700; color: var(--ek-brand); min-width: 92px; }
+.row_add_suggest_item small { color: var(--ek-ink-soft); font-size: var(--ek-text-sm); }
+.row_add_suggest_empty { padding: 12px 10px; font-size: var(--ek-text-md); color: var(--ek-ink-muted); }
+
+@media (max-width: 639px) {
+    .row_add_suggest_item { min-height: var(--ek-touch); }
+}
+
+/* Listas de sugestão (typeahead) das telas legadas: painel e itens com o visual do dropdown */
+body :is(
+    .compras_orc_sugestoes,
+    .pcad_sugestoes,
+    .cred_kanban_nome_sugestoes,
+    .cred_kanban_esp_sugestoes,
+    .credenciamento_modal_sugestoes,
+    .cs_sign_kanban_sugestoes,
+    .config_import_cred_sugestoes,
+    .conf_lab_alias_combo_portal
+) {
+    box-sizing: border-box;
+    padding: 6px;
+    color: var(--ek-ink);
+    background: var(--ek-surface);
+    border: 1px solid var(--ek-line-strong);
+    border-radius: var(--ek-r-control);
+    box-shadow: var(--ek-shadow-pop);
+    scrollbar-width: thin;
+}
+
+body :is(
+    .compras_orc_sugestoes,
+    .pcad_sugestoes,
+    .cred_kanban_nome_sugestoes,
+    .cred_kanban_esp_sugestoes,
+    .credenciamento_modal_sugestoes,
+    .cs_sign_kanban_sugestoes,
+    .config_import_cred_sugestoes,
+    .conf_lab_alias_combo_portal
+) :is(button, [role='option']) {
+    border-radius: 8px;
+    border-color: transparent;
+    color: var(--ek-ink);
+    background: transparent;
+    font-family: var(--ek-font);
+    font-size: var(--ek-text-md);
+}
+
+body :is(
+    .compras_orc_sugestoes,
+    .pcad_sugestoes,
+    .cred_kanban_nome_sugestoes,
+    .cred_kanban_esp_sugestoes,
+    .credenciamento_modal_sugestoes,
+    .cs_sign_kanban_sugestoes,
+    .config_import_cred_sugestoes,
+    .conf_lab_alias_combo_portal
+) :is(button:hover, [role='option']:hover, .is-active, [aria-selected='true']) {
+    background: var(--ek-brand-pale);
+}

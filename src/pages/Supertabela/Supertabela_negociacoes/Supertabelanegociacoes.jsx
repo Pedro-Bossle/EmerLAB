@@ -21,8 +21,9 @@ import {
 import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planosHierarquia.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelanegociacoes.css'
-import { PageHeader } from '../../../components/ui'
+import { PageHeader, Toolbar } from '../../../components/ui'
 import { useTelaPequena } from '../../../hooks/useTelaPequena.js'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 const ALTURA_LINHA_TABELA = 42
 const MAX_LINHAS_VISIVEIS = 10
@@ -137,7 +138,6 @@ const Supertabelanegociacoes = () => {
     const [inclusaoMassaAtiva, setInclusaoMassaAtiva] = useState(false)
     const [mostrarCustos, setMostrarCustos] = useState(false)
     const [mostrarNomeAlternativo, setMostrarNomeAlternativo] = useState(false)
-    const [headerCompacto, setHeaderCompacto] = useState(false)
     const [loading, setLoading] = useState(false)
     const [erroDetalhe, setErroDetalhe] = useState('')
 
@@ -1480,15 +1480,6 @@ const Supertabelanegociacoes = () => {
         setPaginaAtualLista((anterior) => Math.min(Math.max(1, anterior), totalPaginasLista))
     }, [totalPaginasLista])
 
-    useEffect(() => {
-        const onScroll = () => {
-            const proximoValor = window.scrollY > 40
-            setHeaderCompacto((anterior) => (anterior === proximoValor ? anterior : proximoValor))
-        }
-        onScroll()
-        window.addEventListener('scroll', onScroll)
-        return () => window.removeEventListener('scroll', onScroll)
-    }, [])
 
     useEffect(() => {
         document.body.classList.add('supertabelanegociacoes_no_bounce')
@@ -1505,36 +1496,32 @@ const Supertabelanegociacoes = () => {
                 description="Tabelas negociadas por prestador, cidade e plano."
             />
 
-            <header className={`supertabelanegociacoes_header ${headerCompacto ? 'is-compact' : ''}`}>
-                <h2>Filtros</h2>
-
+            <Toolbar title="Filtros">
                 {!negociacaoSelecionada ? (
-                    <div className='supertabelanegociacoes_filters'>
-                        <div className='supertabelanegociacoes_filter_item supertabelanegociacoes_filter_busca'>
-                            <p>Busca por nome, cidade ou tipo</p>
+                    <>
+                        <label className="ek-field ek-field--grow">
+                            <span className="ek-label">Busca por nome, cidade ou tipo</span>
                             <input
-                                type='text'
-                                className='supertabelanegociacoes_input'
-                                placeholder='Nome, cidade ou tipo'
+                                type="search"
+                                className="ek-input"
+                                placeholder="Nome, cidade ou tipo"
                                 value={termoBuscaLista}
                                 onChange={(event) => setTermoBuscaLista(event.target.value)}
                             />
-                        </div>
+                        </label>
                         {!somenteLeitura && (
-                            <button
-                                type='button'
-                                className='supertabelanegociacoes_action_btn'
-                                onClick={() => setMostrarNovoForm((anterior) => !anterior)}
-                            >
-                                ＋ Adicionar novo
-                            </button>
+                            <div className="ek-toolbar__actions">
+                                <button type="button" className="ek-btn" onClick={() => setMostrarNovoForm((anterior) => !anterior)}>
+                                    Adicionar novo
+                                </button>
+                            </div>
                         )}
-                    </div>
+                    </>
                 ) : (
-                    <div className='supertabelanegociacoes_filters'>
+                    <>
                         <button
-                            type='button'
-                            className='supertabelanegociacoes_back_btn'
+                            type="button"
+                            className="ek-btn ek-btn--ghost"
                             onClick={() => {
                                 setNegociacaoSelecionadaId(null)
                                 setDetalheBase([])
@@ -1549,112 +1536,32 @@ const Supertabelanegociacoes = () => {
                         >
                             ← Voltar para lista
                         </button>
-                        <div className='supertabelanegociacoes_filter_item supertabelanegociacoes_filter_busca'>
-                            <p>Busca</p>
+                        <label className="ek-field ek-field--grow">
+                            <span className="ek-label">Busca</span>
                             <input
-                                type='text'
-                                className='supertabelanegociacoes_input'
-                                placeholder='Código, procedimento, categoria ou valor'
+                                type="search"
+                                className="ek-input"
+                                placeholder="Código, procedimento, categoria ou valor"
                                 value={termoBuscaDetalhe}
                                 onChange={(event) => setTermoBuscaDetalhe(event.target.value)}
                             />
-                        </div>
-                        <button
-                            type='button'
-                            className='supertabelanegociacoes_action_btn secondary'
-                            onClick={() => void baixarExcelNegociacao()}
-                            title='Excel (.xlsx): cabeçalho Proposta Emerdog / Resposta Veterinario com p, m, g'
-                        >
-                            Baixar Excel
-                        </button>
-                        {!somenteLeitura && (
-                            <button
-                                type='button'
-                                className='supertabelanegociacoes_action_btn'
-                                onClick={abrirGerenciarSelecionada}
-                            >
-                                Gerenciar
-                            </button>
-                        )}
-                        {!somenteLeitura && (
-                            <label className='supertabelanegociacoes_edit_wrap'>
-                                <input
-                                    type='checkbox'
-                                    checked={edicaoAtiva}
-                                    onChange={(event) => setEdicaoAtiva(event.target.checked)}
-                                />
-                                <span>Habilitar edição</span>
-                            </label>
-                        )}
-                        {!somenteLeitura && (
-                            <label className='supertabelanegociacoes_edit_wrap'>
-                                <input
-                                    type='checkbox'
-                                    checked={inclusaoMassaAtiva}
-                                    onChange={(event) => setInclusaoMassaAtiva(event.target.checked)}
-                                />
-                                <span>Inclusão em massa</span>
-                            </label>
-                        )}
-                        <div className='supertabelanegociacoes_filter_item supertabelanegociacoes_filter_pill'>
-                            <p>Custos</p>
-                            <button
-                                type='button'
-                                role='switch'
-                                aria-checked={mostrarCustos}
-                                className={`supertabelanegociacoes_pill_switch ${
-                                    mostrarCustos ? 'is-on' : 'is-off'
-                                }`}
-                                onClick={() => setMostrarCustos((v) => !v)}
-                            >
-                                <span className='supertabelanegociacoes_pill_track' aria-hidden='true'>
-                                    <span className='supertabelanegociacoes_pill_knob' />
-                                </span>
-                                <span className='supertabelanegociacoes_pill_label'>
-                                    {mostrarCustos ? 'Esconder' : 'Mostrar'}
-                                </span>
-                            </button>
-                        </div>
-                        <div className='supertabelanegociacoes_filter_item supertabelanegociacoes_filter_pill'>
-                            <p>Nome alt. (cadastro)</p>
-                            <button
-                                type='button'
-                                role='switch'
-                                aria-checked={mostrarNomeAlternativo}
-                                className={`supertabelanegociacoes_pill_switch ${
-                                    mostrarNomeAlternativo ? 'is-on' : 'is-off'
-                                }`}
-                                onClick={() => setMostrarNomeAlternativo((v) => !v)}
-                            >
-                                <span className='supertabelanegociacoes_pill_track' aria-hidden='true'>
-                                    <span className='supertabelanegociacoes_pill_knob' />
-                                </span>
-                                <span className='supertabelanegociacoes_pill_label'>
-                                    {mostrarNomeAlternativo ? 'Esconder' : 'Mostrar'}
-                                </span>
-                            </button>
-                        </div>
+                        </label>
                         {mostrarCustos && (
                             <>
-                                <div className='supertabelanegociacoes_filter_break' aria-hidden='true' />
-                                <div className='supertabelanegociacoes_filter_item supertabelanegociacoes_filter_item_plano'>
-                                    <p>Plano</p>
-                                    <select
-                                        className='supertabelanegociacoes_select'
-                                        value={planoId}
-                                        onChange={(event) => setPlanoId(event.target.value)}
-                                    >
+                                <label className="ek-field">
+                                    <span className="ek-label">Plano</span>
+                                    <SelectDropdown className="ek-select" value={planoId} onChange={(event) => setPlanoId(event.target.value)}>
                                         {planos.map((plano) => (
                                             <option key={plano.id} value={plano.id}>
                                                 {plano.nome}
                                             </option>
                                         ))}
-                                    </select>
-                                </div>
-                                <div className='supertabelanegociacoes_filter_item supertabelanegociacoes_filter_item_porte'>
-                                    <p>Porte</p>
-                                    <select
-                                        className='supertabelanegociacoes_select'
+                                    </SelectDropdown>
+                                </label>
+                                <label className="ek-field">
+                                    <span className="ek-label">Porte</span>
+                                    <SelectDropdown
+                                        className="ek-select"
                                         value={porteSelecionado}
                                         onChange={(event) => setPorteSelecionado(event.target.value)}
                                     >
@@ -1663,201 +1570,244 @@ const Supertabelanegociacoes = () => {
                                                 {porte.nome}
                                             </option>
                                         ))}
-                                    </select>
-                                </div>
+                                    </SelectDropdown>
+                                </label>
                             </>
                         )}
-                    </div>
+                        <div className="ek-toolbar__actions">
+                            <button
+                                type="button"
+                                className="ek-btn ek-btn--secondary"
+                                onClick={() => void baixarExcelNegociacao()}
+                                title="Excel (.xlsx): cabeçalho Proposta Emerdog / Resposta Veterinario com p, m, g"
+                            >
+                                Baixar Excel
+                            </button>
+                            {!somenteLeitura && (
+                                <button type="button" className="ek-btn ek-btn--soft" onClick={abrirGerenciarSelecionada}>
+                                    Gerenciar
+                                </button>
+                            )}
+                            {!somenteLeitura && (
+                                <label className="ek-check">
+                                    <input type="checkbox" checked={edicaoAtiva} onChange={(event) => setEdicaoAtiva(event.target.checked)} />
+                                    Habilitar edição
+                                </label>
+                            )}
+                            {!somenteLeitura && (
+                                <label className="ek-check">
+                                    <input
+                                        type="checkbox"
+                                        checked={inclusaoMassaAtiva}
+                                        onChange={(event) => setInclusaoMassaAtiva(event.target.checked)}
+                                    />
+                                    Inclusão em massa
+                                </label>
+                            )}
+                            <label className="ek-check">
+                                <input type="checkbox" checked={mostrarCustos} onChange={() => setMostrarCustos((v) => !v)} />
+                                Mostrar custos
+                            </label>
+                            <label className="ek-check">
+                                <input
+                                    type="checkbox"
+                                    checked={mostrarNomeAlternativo}
+                                    onChange={() => setMostrarNomeAlternativo((v) => !v)}
+                                />
+                                Nome alt. (cadastro)
+                            </label>
+                        </div>
+                    </>
                 )}
+            </Toolbar>
 
-                {mostrarNovoForm && !negociacaoSelecionada && (
-                    <div className='supertabelanegociacoes_form_box'>
-                        <h3>Nova negociação</h3>
-                        <label className='supertabelanegociacoes_edit_wrap' style={{ marginBottom: '0.75rem' }}>
+            {mostrarNovoForm && !negociacaoSelecionada && (
+                <div className='supertabelanegociacoes_form_box'>
+                    <h3>Nova negociação</h3>
+                    <label className='supertabelanegociacoes_edit_wrap' style={{ marginBottom: '0.75rem' }}>
+                        <input
+                            type='checkbox'
+                            checked={vincularPrestador}
+                            onChange={(e) => {
+                                setVincularPrestador(e.target.checked)
+                                if (!e.target.checked) setNovoPrestadorId('')
+                            }}
+                        />
+                        <span>Vincular a clínica / prestador credenciado</span>
+                    </label>
+                    {vincularPrestador && (
+                        <label className='supertabelanegociacoes_form_full' style={{ marginBottom: '0.75rem' }}>
+                            <span>Clínica / prestador</span>
+                            <PrestadorVinculoBusca
+                                prestadores={prestadoresParaVinculo}
+                                prestadorId={novoPrestadorId}
+                                rotuloFn={rotuloOpcaoPrestador}
+                                onChange={(p) => {
+                                    setNovoPrestadorId(p ? String(p.id) : '')
+                                    if (p) {
+                                        setNovoNome(p.nome || '')
+                                        const cid = resolverIdTabelaCidade(p)
+                                        if (cid) setNovoCidadeId(String(cid))
+                                    }
+                                }}
+                            />
+                            <small style={{ opacity: 0.85 }}>
+                                Ao salvar, os procedimentos habilitados no perfil do prestador serão incluídos na negociação.
+                            </small>
+                        </label>
+                    )}
+                    <div className='supertabelanegociacoes_form_grid'>
+                        <label>
+                            <span>Nome</span>
                             <input
-                                type='checkbox'
-                                checked={vincularPrestador}
-                                onChange={(e) => {
-                                    setVincularPrestador(e.target.checked)
-                                    if (!e.target.checked) setNovoPrestadorId('')
-                                }}
+                                type='text'
+                                value={novoNome}
+                                onChange={(event) => setNovoNome(event.target.value)}
+                                placeholder='Nome da negociação'
                             />
-                            <span>Vincular a clínica / prestador credenciado</span>
                         </label>
-                        {vincularPrestador && (
-                            <label className='supertabelanegociacoes_form_full' style={{ marginBottom: '0.75rem' }}>
-                                <span>Clínica / prestador</span>
-                                <PrestadorVinculoBusca
-                                    prestadores={prestadoresParaVinculo}
-                                    prestadorId={novoPrestadorId}
-                                    rotuloFn={rotuloOpcaoPrestador}
-                                    onChange={(p) => {
-                                        setNovoPrestadorId(p ? String(p.id) : '')
-                                        if (p) {
-                                            setNovoNome(p.nome || '')
-                                            const cid = resolverIdTabelaCidade(p)
-                                            if (cid) setNovoCidadeId(String(cid))
-                                        }
-                                    }}
-                                />
-                                <small style={{ opacity: 0.85 }}>
-                                    Ao salvar, os procedimentos habilitados no perfil do prestador serão incluídos na negociação.
-                                </small>
-                            </label>
-                        )}
-                        <div className='supertabelanegociacoes_form_grid'>
-                            <label>
-                                <span>Nome</span>
-                                <input
-                                    type='text'
-                                    value={novoNome}
-                                    onChange={(event) => setNovoNome(event.target.value)}
-                                    placeholder='Nome da negociação'
-                                />
-                            </label>
-                            <label>
-                                <span>Cidade</span>
-                                <SelectMunicipioBusca
-                                    value={novoCidadeId == null ? '' : String(novoCidadeId)}
-                                    valueKey="id"
-                                    options={cidadesParaSeletor.map((cidade) => ({
-                                        id: cidade.id,
-                                        nome: cidade.uf ? `${cidade.nome} (${cidade.uf})` : cidade.nome,
-                                    }))}
-                                    onChange={setNovoCidadeId}
-                                    placeholder="Selecionar cidade…"
-                                    searchPlaceholder="Buscar cidade…"
-                                    aria-label="Cidade da negociação"
-                                />
-                            </label>
-                            <label>
-                                <span>Tipo</span>
-                                <input
-                                    type='text'
-                                    value={novoTipo}
-                                    onChange={(event) => setNovoTipo(event.target.value)}
-                                    placeholder={suportaTipo ? 'Tipo da negociação' : 'Sem suporte a coluna tipo'}
-                                    disabled={!suportaTipo}
-                                />
-                            </label>
-                        </div>
-                        <div className='supertabelanegociacoes_form_actions'>
-                            <button type='button' className='supertabelanegociacoes_action_btn' onClick={criarNegociacao}>
-                                Salvar
-                            </button>
-                            <button
-                                type='button'
-                                className='supertabelanegociacoes_action_btn secondary'
-                                onClick={() => {
-                                    setMostrarNovoForm(false)
-                                    setNovoNome('')
-                                    setNovoTipo('')
-                                }}
-                            >
-                                Cancelar
-                            </button>
-                        </div>
+                        <label>
+                            <span>Cidade</span>
+                            <SelectMunicipioBusca
+                                value={novoCidadeId == null ? '' : String(novoCidadeId)}
+                                valueKey="id"
+                                options={cidadesParaSeletor.map((cidade) => ({
+                                    id: cidade.id,
+                                    nome: cidade.uf ? `${cidade.nome} (${cidade.uf})` : cidade.nome,
+                                }))}
+                                onChange={setNovoCidadeId}
+                                placeholder="Selecionar cidade…"
+                                searchPlaceholder="Buscar cidade…"
+                                aria-label="Cidade da negociação"
+                            />
+                        </label>
+                        <label>
+                            <span>Tipo</span>
+                            <input
+                                type='text'
+                                value={novoTipo}
+                                onChange={(event) => setNovoTipo(event.target.value)}
+                                placeholder={suportaTipo ? 'Tipo da negociação' : 'Sem suporte a coluna tipo'}
+                                disabled={!suportaTipo}
+                            />
+                        </label>
                     </div>
-                )}
-
-                {mostrarGerenciarForm && negociacaoSelecionada && (
-                    <div className='supertabelanegociacoes_form_box'>
-                        <h3>Gerenciar negociação</h3>
-                        <div className='supertabelanegociacoes_form_grid'>
-                            <label>
-                                <span>Nome</span>
-                                <input
-                                    type='text'
-                                    value={editarNome}
-                                    onChange={(event) => setEditarNome(event.target.value)}
-                                    placeholder='Nome da negociação'
-                                />
-                            </label>
-                            <label>
-                                <span>Cidade</span>
-                                <SelectMunicipioBusca
-                                    value={editarCidadeId == null ? '' : String(editarCidadeId)}
-                                    valueKey="id"
-                                    options={cidades.map((cidade) => ({
-                                        id: cidade.id,
-                                        nome: cidade.uf ? `${cidade.nome} (${cidade.uf})` : cidade.nome,
-                                    }))}
-                                    onChange={setEditarCidadeId}
-                                    placeholder="Selecionar cidade…"
-                                    searchPlaceholder="Buscar cidade…"
-                                    aria-label="Cidade da negociação"
-                                />
-                            </label>
-                            <label>
-                                <span>Tipo</span>
-                                <input
-                                    type='text'
-                                    value={editarTipo}
-                                    onChange={(event) => setEditarTipo(event.target.value)}
-                                    placeholder={suportaTipo ? 'Tipo da negociação' : 'Sem suporte a coluna tipo'}
-                                    disabled={!suportaTipo}
-                                />
-                            </label>
-                            <label className='supertabelanegociacoes_form_full'>
-                                <span>Clínica / prestador vinculado</span>
-                                <PrestadorVinculoBusca
-                                    prestadores={prestadoresParaVinculo}
-                                    prestadorId={editarPrestadorId}
-                                    rotuloFn={rotuloOpcaoPrestador}
-                                    disabled={!suportaPrestadorId}
-                                    onChange={(p) => setEditarPrestadorId(p ? String(p.id) : '')}
-                                />
-                                {!suportaPrestadorId && (
-                                    <small style={{ opacity: 0.85 }}>
-                                        Execute o script SQL `veterinarios_prestador_id` no Supabase para persistir o vínculo.
-                                    </small>
-                                )}
-                            </label>
-                        </div>
-                        <div className='supertabelanegociacoes_form_actions'>
-                            <button type='button' className='supertabelanegociacoes_action_btn' onClick={salvarGerenciarSelecionada}>
-                                Salvar
-                            </button>
-                            <button
-                                type='button'
-                                className='supertabelanegociacoes_action_btn secondary'
-                                disabled={loading || !editarPrestadorId}
-                                onClick={() => void importarProcedimentosVinculoAtual()}
-                            >
-                                Importar procedimentos do perfil
-                            </button>
-                            <button
-                                type='button'
-                                className='supertabelanegociacoes_action_btn secondary'
-                                onClick={() => setMostrarGerenciarForm(false)}
-                            >
-                                Cancelar
-                            </button>
-                        </div>
+                    <div className='supertabelanegociacoes_form_actions'>
+                        <button type='button' className='supertabelanegociacoes_action_btn' onClick={criarNegociacao}>
+                            Salvar
+                        </button>
+                        <button
+                            type='button'
+                            className='supertabelanegociacoes_action_btn secondary'
+                            onClick={() => {
+                                setMostrarNovoForm(false)
+                                setNovoNome('')
+                                setNovoTipo('')
+                            }}
+                        >
+                            Cancelar
+                        </button>
                     </div>
-                )}
+                </div>
+            )}
 
-                {inclusaoMassaAtiva && negociacaoSelecionada && (
-                    <div className='supertabelanegociacoes_form_box'>
-                        <h3>Inclusão em massa de procedimentos</h3>
+            {mostrarGerenciarForm && negociacaoSelecionada && (
+                <div className='supertabelanegociacoes_form_box'>
+                    <h3>Gerenciar negociação</h3>
+                    <div className='supertabelanegociacoes_form_grid'>
+                        <label>
+                            <span>Nome</span>
+                            <input
+                                type='text'
+                                value={editarNome}
+                                onChange={(event) => setEditarNome(event.target.value)}
+                                placeholder='Nome da negociação'
+                            />
+                        </label>
+                        <label>
+                            <span>Cidade</span>
+                            <SelectMunicipioBusca
+                                value={editarCidadeId == null ? '' : String(editarCidadeId)}
+                                valueKey="id"
+                                options={cidades.map((cidade) => ({
+                                    id: cidade.id,
+                                    nome: cidade.uf ? `${cidade.nome} (${cidade.uf})` : cidade.nome,
+                                }))}
+                                onChange={setEditarCidadeId}
+                                placeholder="Selecionar cidade…"
+                                searchPlaceholder="Buscar cidade…"
+                                aria-label="Cidade da negociação"
+                            />
+                        </label>
+                        <label>
+                            <span>Tipo</span>
+                            <input
+                                type='text'
+                                value={editarTipo}
+                                onChange={(event) => setEditarTipo(event.target.value)}
+                                placeholder={suportaTipo ? 'Tipo da negociação' : 'Sem suporte a coluna tipo'}
+                                disabled={!suportaTipo}
+                            />
+                        </label>
                         <label className='supertabelanegociacoes_form_full'>
-                            <span>Códigos (um por linha ou separados por vírgula)</span>
-                            <textarea
-                                rows={3}
-                                value={textoMassaDetalhe}
-                                onChange={(event) => setTextoMassaDetalhe(event.target.value)}
-                                placeholder={`Ex.: CONS-001, EXAM-103
-ou um código por linha`}
+                            <span>Clínica / prestador vinculado</span>
+                            <PrestadorVinculoBusca
+                                prestadores={prestadoresParaVinculo}
+                                prestadorId={editarPrestadorId}
+                                rotuloFn={rotuloOpcaoPrestador}
+                                disabled={!suportaPrestadorId}
+                                onChange={(p) => setEditarPrestadorId(p ? String(p.id) : '')}
                             />
+                            {!suportaPrestadorId && (
+                                <small style={{ opacity: 0.85 }}>
+                                    Execute o script SQL `veterinarios_prestador_id` no Supabase para persistir o vínculo.
+                                </small>
+                            )}
                         </label>
-                        <div className='supertabelanegociacoes_form_actions'>
-                            <button type='button' className='supertabelanegociacoes_action_btn' onClick={inserirProcedimentosEmMassaDetalhe}>
-                                Inserir procedimentos em massa
-                            </button>
-                        </div>
                     </div>
-                )}
-            </header>
+                    <div className='supertabelanegociacoes_form_actions'>
+                        <button type='button' className='supertabelanegociacoes_action_btn' onClick={salvarGerenciarSelecionada}>
+                            Salvar
+                        </button>
+                        <button
+                            type='button'
+                            className='supertabelanegociacoes_action_btn secondary'
+                            disabled={loading || !editarPrestadorId}
+                            onClick={() => void importarProcedimentosVinculoAtual()}
+                        >
+                            Importar procedimentos do perfil
+                        </button>
+                        <button
+                            type='button'
+                            className='supertabelanegociacoes_action_btn secondary'
+                            onClick={() => setMostrarGerenciarForm(false)}
+                        >
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {inclusaoMassaAtiva && negociacaoSelecionada && (
+                <div className='supertabelanegociacoes_form_box'>
+                    <h3>Inclusão em massa de procedimentos</h3>
+                    <label className='supertabelanegociacoes_form_full'>
+                        <span>Códigos (um por linha ou separados por vírgula)</span>
+                        <textarea
+                            rows={3}
+                            value={textoMassaDetalhe}
+                            onChange={(event) => setTextoMassaDetalhe(event.target.value)}
+                            placeholder={`Ex.: CONS-001, EXAM-103
+ou um código por linha`}
+                        />
+                    </label>
+                    <div className='supertabelanegociacoes_form_actions'>
+                        <button type='button' className='supertabelanegociacoes_action_btn' onClick={inserirProcedimentosEmMassaDetalhe}>
+                            Inserir procedimentos em massa
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {erroDetalhe && (
                 <div className='supertabelanegociacoes_alert' role='alert' aria-live='assertive'>
@@ -2165,7 +2115,7 @@ ou um código por linha`}
                                     <div className='supertabelanegociacoes_paginacao_controles'>
                                         <label className='supertabelanegociacoes_paginacao_label'>
                                             Por página
-                                            <select
+                                            <SelectDropdown
                                                 className='supertabelanegociacoes_select'
                                                 value={itensPorPaginaLista}
                                                 onChange={(event) => handleTrocarItensPorPaginaLista(event.target.value)}
@@ -2174,7 +2124,7 @@ ou um código por linha`}
                                                 <option value={30}>30</option>
                                                 <option value={40}>40</option>
                                                 <option value={100}>100</option>
-                                            </select>
+                                            </SelectDropdown>
                                         </label>
                                         <button
                                             type='button'

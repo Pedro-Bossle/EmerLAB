@@ -107,13 +107,16 @@ export async function enviarEmailResend(opts) {
 
     const resend = getResendClient()
     const payload = {
-        from: getResendFrom(),
+        from: opts?.from ? String(opts.from) : getResendFrom(),
         to: toList,
         subject,
     }
     if (html) payload.html = html
     if (text) payload.text = text
     if (attachments.length) payload.attachments = attachments
+    // Envio agendado (repasse mensal): ISO 8601; a Resend dispara no horário.
+    if (opts?.scheduledAt) payload.scheduledAt = new Date(opts.scheduledAt).toISOString()
+    if (opts?.replyTo) payload.replyTo = String(opts.replyTo)
 
     const { data, error } = await resend.emails.send(payload)
     if (error) {
@@ -126,6 +129,13 @@ export async function enviarEmailResend(opts) {
         throw new Error(msg)
     }
     return data
+}
+
+/** Cancela um e-mail agendado na Resend (repasse mensal). */
+export async function cancelarEmailAgendadoResend(emailId) {
+    const resend = getResendClient()
+    const { error } = await resend.emails.cancel(String(emailId))
+    if (error) throw new Error(String(error?.message || error))
 }
 
 /**

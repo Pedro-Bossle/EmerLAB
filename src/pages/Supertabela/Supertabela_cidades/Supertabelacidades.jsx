@@ -33,7 +33,8 @@ import ModalImpressaoHonorariosCidade from '../../../components/Supertabela/Moda
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelacidades.css'
-import { PageHeader } from '../../../components/ui'
+import { PageHeader, Toolbar } from '../../../components/ui'
+import FiltroUfCidade from '../../../components/Supertabela/FiltroUfCidade.jsx'
 
 const Supertabelacidades = () => {
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
@@ -54,7 +55,6 @@ const Supertabelacidades = () => {
     const [edicaoAtiva, setEdicaoAtiva] = useState(false)
     const [loading, setLoading] = useState(false)
     const [erroDetalhe, setErroDetalhe] = useState('')
-    const [headerCompacto, setHeaderCompacto] = useState(false)
     const [ordenacaoPorCategoria, setOrdenacaoPorCategoria] = useState({})
     const [contagemRealizadoresPorCodigo, setContagemRealizadoresPorCodigo] = useState(() => new Map())
     const [nomesRealizadoresPorCodigo, setNomesRealizadoresPorCodigo] = useState(() => new Map())
@@ -1585,14 +1585,6 @@ const Supertabelacidades = () => {
         return () => clearTimeout(timer)
     }, [erroDetalhe])
 
-    useEffect(() => {
-        const onScroll = () => {
-            setHeaderCompacto(window.scrollY > 40)
-        }
-        onScroll()
-        window.addEventListener('scroll', onScroll)
-        return () => window.removeEventListener('scroll', onScroll)
-    }, [])
 
     return (
         <div className='el-page supertabelacidades'>
@@ -1601,124 +1593,108 @@ const Supertabelacidades = () => {
                 title="Cidades"
                 description="Valores de procedimentos por município e porte."
             />
-            <header className={`supertabelacidades_header ${headerCompacto ? 'is-compact' : ''}`}>
-                <h2>Filtros</h2>
-                <div className='supertabelacidades_filters'>
-                    <div className='supertabelacidades_filter_item supertabelacidades_filter_busca'>
-                        <p>Busca</p>
-                        <CampoBuscaComLimpar
-                            className='supertabelacidades_input'
-                            inputClassName='supertabelacidades_input'
-                            placeholder='Código, procedimento, categoria ou valor'
-                            value={termoBusca}
-                            onChange={(event) => setTermoBusca(event.target.value)}
-                        />
-                    </div>
+            <Toolbar title="Filtros">
+                <div className="ek-field ek-field--grow">
+                    <span className="ek-label">Busca</span>
+                    <CampoBuscaComLimpar
+                        inputClassName="ek-input"
+                        placeholder="Código, procedimento, categoria ou valor"
+                        value={termoBusca}
+                        onChange={(event) => setTermoBusca(event.target.value)}
+                    />
+                </div>
 
-                    <div className='supertabelacidades_filter_item'>
-                        <p>Cidade</p>
-                        <SelectMunicipioBusca
-                            className="supertabelacidades_select_cidade"
-                            inputClassName="supertabelacidades_select"
-                            value={valorFiltroCidade}
-                            valueKey="id"
-                            options={opcoesFiltroCidade.map((op) => ({
-                                id: op.value,
-                                nome: op.label,
-                            }))}
-                            onChange={(valor) => {
-                                setValorFiltroCidade(valor)
-                                const op = opcoesFiltroCidade.find((o) => o.value === valor)
-                                if (op) setCidadeId(String(op.cidadeId))
-                            }}
-                            placeholder="Selecionar cidade…"
-                            searchPlaceholder="Buscar cidade…"
-                            aria-label="Filtrar por cidade"
-                        />
-                    </div>
+                <FiltroUfCidade
+                    opcoes={opcoesFiltroCidade.map((op) => ({ value: op.value, uf: op.uf, nome: op.sort, cidadeId: op.cidadeId }))}
+                    value={valorFiltroCidade}
+                    onChange={(op) => {
+                        setValorFiltroCidade(op.value)
+                        setCidadeId(String(op.cidadeId))
+                    }}
+                />
 
+                <div className="ek-toolbar__actions">
                     {!somenteLeitura && (
                         <button
-                            type='button'
-                            className='supertabelacidades_action_btn'
+                            type="button"
+                            className="ek-btn ek-btn--soft"
                             onClick={() => {
                                 setMostrarGerenciarModal(true)
                                 setCidadeDuplicarOrigem(null)
                                 setNovoNomeCidadeDuplicada('')
                             }}
                         >
-                            <span className='ico'>⚙️</span> Gerenciar tabelas
+                            Gerenciar tabelas
                         </button>
                     )}
 
                     {!somenteLeitura && (
-                        <label className='supertabelacidades_edit_wrap'>
+                        <label className="ek-check">
                             <input
-                                type='checkbox'
+                                type="checkbox"
                                 checked={edicaoAtiva}
                                 onChange={(event) => setEdicaoAtiva(event.target.checked)}
                             />
-                            <span>Ativar edição</span>
+                            Ativar edição
                         </label>
                     )}
 
                     {!somenteLeitura && (
-                        <label className='supertabelacidades_edit_wrap'>
+                        <label className="ek-check">
                             <input
-                                type='checkbox'
+                                type="checkbox"
                                 checked={adicaoMassaAtiva}
                                 onChange={(event) => setAdicaoMassaAtiva(event.target.checked)}
                             />
-                            <span>Adição em massa</span>
+                            Adição em massa
                         </label>
                     )}
 
                     <button
-                        type='button'
-                        className='supertabelacidades_action_btn'
+                        type="button"
+                        className="ek-btn ek-btn--secondary"
                         disabled={!cidadeId || loading || exportandoExcelTela}
                         onClick={() => void baixarExcelTelaCidades()}
                     >
-                        <span className='ico'>📊</span>{' '}
                         {exportandoExcelTela ? 'Gerando Excel…' : 'Exportar Excel'}
                     </button>
 
                     <button
-                        type='button'
-                        className='supertabelacidades_action_btn'
+                        type="button"
+                        className="ek-btn ek-btn--secondary"
                         disabled={!cidadeId || loading || exportandoExcelTela}
                         onClick={abrirModalPdfHonorarios}
                     >
-                        <span className='ico'>📄</span> Exportar PDF
+                        Exportar PDF
                     </button>
                 </div>
+            </Toolbar>
 
-                {adicaoMassaAtiva && (
-                    <div className='cidade_vazia_wrap'>
-                        <p>Adicionar procedimentos em massa na cidade selecionada</p>
-                        <div className='cidade_vazia_form'>
-                            <label htmlFor='codigos-adicao-massa'>
-                                IDs de procedimentos (um por linha ou separados por vírgula)
-                            </label>
-                            <textarea
-                                id='codigos-adicao-massa'
-                                rows={3}
-                                value={codigosInicializacaoCidade}
-                                onChange={(event) => setCodigosInicializacaoCidade(event.target.value)}
-                                placeholder={`Ex.: CONS-00N, EXAM-103
+            {adicaoMassaAtiva && (
+                <div className='cidade_vazia_wrap'>
+                    <p>Adicionar procedimentos em massa na cidade selecionada</p>
+                    <div className='cidade_vazia_form'>
+                        <label htmlFor='codigos-adicao-massa'>
+                            IDs de procedimentos (um por linha ou separados por vírgula)
+                        </label>
+                        <textarea
+                            id='codigos-adicao-massa'
+                            rows={3}
+                            value={codigosInicializacaoCidade}
+                            onChange={(event) => setCodigosInicializacaoCidade(event.target.value)}
+                            placeholder={`Ex.: CONS-00N, EXAM-103
 ou um código por linha`}
-                            />
-                            <button
-                                type='button'
-                                className='cidade_vazia_btn'
-                                onClick={preencherProcedimentosCidadeAtual}
-                            >
-                                Inserir procedimentos em massa
-                            </button>
-                        </div>
+                        />
+                        <button
+                            type='button'
+                            className='cidade_vazia_btn'
+                            onClick={preencherProcedimentosCidadeAtual}
+                        >
+                            Inserir procedimentos em massa
+                        </button>
                     </div>
-                )}
-            </header>
+                </div>
+            )}
 
             {erroDetalhe && (
                 <div className='supertabelacidades_alert' role='alert' aria-live='assertive'>

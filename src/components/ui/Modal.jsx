@@ -65,6 +65,40 @@ function useDialogFocus({ open, onClose, panelRef }) {
   }, [open, panelRef])
 }
 
+/** Trava a rolagem da página enquanto houver sobreposição aberta (contador: suporta modais empilhados). */
+let travasRolagem = 0
+function useTravaRolagem(ativo) {
+  useEffect(() => {
+    if (!ativo || typeof document === 'undefined') return undefined
+    const { body } = document
+    if (travasRolagem === 0) body.dataset.elOverflowAnterior = body.style.overflow || ''
+    travasRolagem += 1
+    body.style.overflow = 'hidden'
+    return () => {
+      travasRolagem = Math.max(0, travasRolagem - 1)
+      if (travasRolagem === 0) {
+        body.style.overflow = body.dataset.elOverflowAnterior || ''
+        delete body.dataset.elOverflowAnterior
+      }
+    }
+  }, [ativo])
+}
+
+function IconeFechar() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" focusable="false">
+      <path d="m5 5 10 10M15 5 5 15" />
+    </svg>
+  )
+}
+
+/**
+ * Modal padrão. Desktop/tablet: diálogo centralizado. Telefone: bottom sheet (cantos superiores
+ * arredondados, altura máx. 92dvh, rodapé respeitando a área segura).
+ *
+ * Props: open, onClose, title, description, footer (ações; escreva na ordem Cancelar, Principal: a principal fica à direita no desktop e no topo no telefone), size (sm|md|lg|xl|full), busy (bloqueia fechar enquanto salva),
+ * dismissOnBackdrop (padrão true), bodyClassName, className.
+ */
 export function Modal({
   open,
   onClose,
@@ -74,69 +108,58 @@ export function Modal({
   footer,
   className,
   size = 'md',
+  busy = false,
+  dismissOnBackdrop = true,
+  bodyClassName,
 }) {
   const panelRef = useRef(null)
   const titleId = useId()
-  useDialogFocus({ open, onClose, panelRef })
+  const fechar = busy ? undefined : onClose
+  useDialogFocus({ open, onClose: fechar, panelRef })
+  useTravaRolagem(open)
 
   if (!open) return null
   if (typeof document === 'undefined') return null
 
-  const widths = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
-    full: 'max-w-[min(96vw,56rem)]',
-  }
+  const larguras = { sm: 'ek-modal--sm', md: '', lg: 'ek-modal--lg', xl: 'ek-modal--xl', full: 'ek-modal--xl' }
 
   return createPortal(
-    <div className="fixed inset-0 z-modal flex items-end justify-center p-0 sm:items-center sm:p-4">
-      <button
-        type="button"
-        className="absolute inset-0 bg-ink/50 backdrop-blur-[2px]"
-        aria-label="Fechar"
-        onClick={() => onClose?.()}
-      />
+    <div
+      className="ek-modal-overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && dismissOnBackdrop) fechar?.()
+      }}
+    >
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
+        aria-busy={busy || undefined}
         tabIndex={-1}
         aria-labelledby={title ? titleId : undefined}
         aria-label={title ? undefined : 'Diálogo'}
-        className={cn(
-          'relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-line bg-white shadow-lift dark:border-white/10 dark:bg-[#1a2838] sm:rounded-2xl',
-          widths[size] || widths.md,
-          className,
-        )}
+        className={cn('ek-modal', larguras[size] ?? '', className)}
       >
-        <span aria-hidden="true" className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-line sm:hidden" />
+        <span aria-hidden="true" className="ek-modal__handle" />
         {(title || onClose) && (
-          <div className="flex items-start justify-between gap-3 border-b border-line px-4 py-3 dark:border-white/10">
+          <div className="ek-modal__head">
             <div className="min-w-0">
               {title ? (
-                <h2 id={titleId} className="font-display text-lg font-bold text-ink dark:text-[#e8f1f8]">
+                <h2 id={titleId} className="ek-modal__title">
                   {title}
                 </h2>
               ) : null}
-              {description ? (
-                <p className="mt-0.5 text-sm text-ink-soft dark:text-[#9eb4c8]">{description}</p>
-              ) : null}
+              {description ? <p className="ek-modal__desc">{description}</p> : null}
             </div>
             {onClose ? (
-              <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar">
-                ×
+              <Button variant="ghost" size="icon" onClick={fechar} disabled={busy} aria-label="Fechar" className="shrink-0">
+                <IconeFechar />
               </Button>
             ) : null}
           </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">{children}</div>
-        {footer ? (
-          <div className="flex flex-col-reverse gap-2 border-t border-line px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-white/10 sm:flex-row sm:justify-end sm:pb-3">
-            {footer}
-          </div>
-        ) : null}
+        <div className={cn('ek-modal__body', bodyClassName)}>{children}</div>
+        {footer ? <div className="ek-modal__foot">{footer}</div> : null}
       </div>
     </div>,
     document.body,
@@ -157,45 +180,33 @@ export function Drawer({ open, onClose, title, children, side = 'bottom', classN
   if (!open) return null
   if (typeof document === 'undefined') return null
 
-  const sideClass =
-    side === 'right'
-      ? 'inset-y-0 right-0 h-full w-[min(100%,24rem)] rounded-l-2xl'
-      : 'inset-x-0 bottom-0 max-h-[88dvh] w-full rounded-t-2xl'
+  const sideClass = side === 'right' ? 'ek-drawer--right' : 'ek-drawer--bottom'
 
   return createPortal(
-    <div className="fixed inset-0 z-drawer">
-      <button
-        type="button"
-        className="absolute inset-0 bg-ink/45"
-        aria-label="Fechar"
-        onClick={onClose}
-      />
+    <div className="ek-drawer-overlay">
+      <button type="button" className="absolute inset-0 cursor-default" aria-label="Fechar" tabIndex={-1} onClick={onClose} />
       <div
         ref={panelRef}
-        className={cn(
-          'absolute flex flex-col overflow-hidden border border-line bg-white shadow-lift dark:border-white/10 dark:bg-[#1a2838]',
-          sideClass,
-          className,
-        )}
+        className={cn('ek-drawer', sideClass, className)}
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
         aria-labelledby={title ? titleId : undefined}
         aria-label={title ? undefined : 'Painel'}
       >
-        <div className="flex items-center justify-between border-b border-line px-4 py-3 dark:border-white/10">
+        <div className="ek-modal__head">
           {title ? (
-            <h2 id={titleId} className="font-display text-base font-bold text-ink dark:text-[#e8f1f8]">
+            <h2 id={titleId} className="ek-modal__title">
               {title}
             </h2>
           ) : (
             <span className="sr-only">Painel</span>
           )}
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar">
-            ×
+            <IconeFechar />
           </Button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+        <div className="ek-modal__body min-h-0 flex-1">{children}</div>
       </div>
     </div>,
     document.body,

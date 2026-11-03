@@ -2,28 +2,6 @@
     text-align: left;
 }
 
-.config_obs_planos_toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem 1rem;
-    align-items: center;
-    justify-content: space-between;
-    max-width: 980px;
-    width: calc(100% - 1.5em);
-    margin: 0 auto 1.1rem;
-}
-
-.config_obs_planos_busca {
-    flex: 1 1 240px;
-    min-width: 180px;
-}
-
-.config_obs_planos_toolbar_acoes {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-}
-
 .config_obs_planos_muted {
     color: #5a7a94;
     font-size: 0.875rem;
@@ -423,7 +401,6 @@ body.dark-mode .config_obs_planos_chip {
         padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     }
 
-    .config_obs_planos_toolbar,
     .config_obs_planos_muted,
     .config_obs_planos_form,
     .config_obs_planos_lista {
@@ -433,20 +410,6 @@ body.dark-mode .config_obs_planos_chip {
         margin-right: auto;
     }
 
-    .config_obs_planos_toolbar {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.55rem;
-    }
-
-    .config_obs_planos_busca {
-        min-width: 0;
-        width: 100%;
-        flex: 1 1 auto;
-    }
-
-    .config_obs_planos_toolbar_acoes,
-    .config_obs_planos_toolbar_acoes .credenciamento_main_action_btn,
     .config_obs_planos_card_acoes .credenciamento_main_action_btn,
     .config_obs_planos_form_acoes .credenciamento_main_action_btn {
         width: 100%;
@@ -531,4 +494,13 @@ body.dark-mode .config_obs_planos_chip {
     body.dark-mode .config_obs_planos_form_acoes {
         background: linear-gradient(to top, #122536 70%, transparent);
     }
+}
+
+/* Largura única: lista, formulário e avisos acompanham a barra de filtros (UI Kit) */
+.config_obs_planos_lista,
+.config_obs_planos_form,
+.config_obs_planos_muted {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
 }

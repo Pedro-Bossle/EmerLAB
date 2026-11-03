@@ -27,8 +27,10 @@ import {
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaprocedimentos.css'
-import { PageHeader } from '../../../components/ui'
+import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar'
+import { PageHeader, Toolbar } from '../../../components/ui'
 import SupertabelaBeneficiosCatalogo from './SupertabelaBeneficiosCatalogo.jsx'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 const normalizarTextoBusca = (texto) =>
     String(texto || '')
@@ -56,7 +58,6 @@ const Supertabelaprocedimentos = () => {
     const [edicaoAtiva, setEdicaoAtiva] = useState(false)
     const [loading, setLoading] = useState(false)
     const [erroDetalhe, setErroDetalhe] = useState('')
-    const [headerCompacto, setHeaderCompacto] = useState(false)
     const [ordenacaoPorCategoria, setOrdenacaoPorCategoria] = useState({})
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
 
@@ -909,14 +910,6 @@ const Supertabelaprocedimentos = () => {
         return () => clearTimeout(timer)
     }, [erroDetalhe])
 
-    useEffect(() => {
-        const onScroll = () => {
-            setHeaderCompacto(window.scrollY > 40)
-        }
-        onScroll()
-        window.addEventListener('scroll', onScroll)
-        return () => window.removeEventListener('scroll', onScroll)
-    }, [])
 
     useEffect(() => {
         if (!categorias.length) return
@@ -961,185 +954,177 @@ const Supertabelaprocedimentos = () => {
                 </button>
             </div>
 
-            <header className={`supertabelaprocedimentos_header ${headerCompacto ? 'is-compact' : ''}`}>
-                <h2>Filtros</h2>
-                <div className='supertabelaprocedimentos_filters'>
-                    <div className='supertabelaprocedimentos_filter_item supertabelaprocedimentos_filter_busca'>
-                        <p>Busca</p>
-                        <input
-                            type='text'
-                            className='supertabelaprocedimentos_input'
-                            placeholder={
-                                modoDescontos
-                                    ? 'Código, tipo, grupo ou valor'
-                                    : modoCategorias
-                                      ? 'ID, nome, quantidade ou limite'
-                                      : 'Código, procedimento, plano base, categoria ou valor'
-                            }
-                            value={termoBusca}
-                            onChange={(event) => setTermoBusca(event.target.value)}
-                        />
-                    </div>
+            <Toolbar title="Filtros">
+                <div className="ek-field ek-field--grow">
+                    <span className="ek-label">Busca</span>
+                    <CampoBuscaComLimpar
+                        inputClassName="ek-input"
+                        placeholder={
+                            modoDescontos
+                                ? 'Código, tipo, grupo ou valor'
+                                : modoCategorias
+                                  ? 'ID, nome, quantidade ou limite'
+                                  : 'Código, procedimento, plano base, categoria ou valor'
+                        }
+                        value={termoBusca}
+                        onChange={(event) => setTermoBusca(event.target.value)}
+                    />
+                </div>
 
+                <div className="ek-toolbar__actions">
                     {!modoDescontos ? (
-                    <div className='supertabelaprocedimentos_filter_item supertabelaprocedimentos_filter_mode'>
-                        <p className='supertabelaprocedimentos_filter_mode_label'>Visualização</p>
-                        <div
-                            className='supertabelaprocedimentos_mode_rail'
-                            role='group'
-                            aria-label='Tipo de visualização'
-                        >
-                            <span
-                                className={`supertabelaprocedimentos_mode_thumb ${modoCategorias ? 'is-right' : 'is-left'}`}
-                                aria-hidden
-                            />
-                            <button
-                                type='button'
-                                className={`supertabelaprocedimentos_mode_btn ${!modoCategorias ? 'is-active' : ''}`}
-                                onClick={() => setModoCategorias(false)}
-                            >
-                                Procedimentos
-                            </button>
-                            <button
-                                type='button'
-                                className={`supertabelaprocedimentos_mode_btn ${modoCategorias ? 'is-active' : ''}`}
-                                onClick={() => setModoCategorias(true)}
-                            >
-                                Categorias
-                            </button>
+                        <div className="ek-field ek-field--fixed">
+                            <span className="ek-label">Visualização</span>
+                            <div className="ek-segmented" role="group" aria-label="Tipo de visualização">
+                                <button
+                                    type="button"
+                                    className="ek-segmented__opt"
+                                    aria-pressed={!modoCategorias}
+                                    onClick={() => setModoCategorias(false)}
+                                >
+                                    Procedimentos
+                                </button>
+                                <button
+                                    type="button"
+                                    className="ek-segmented__opt"
+                                    aria-pressed={modoCategorias}
+                                    onClick={() => setModoCategorias(true)}
+                                >
+                                    Categorias
+                                </button>
+                            </div>
                         </div>
-                    </div>
                     ) : null}
 
                     {!somenteLeitura && (
-                        <label className='supertabelaprocedimentos_edit_wrap'>
+                        <label className="ek-check">
                             <input
-                                type='checkbox'
+                                type="checkbox"
                                 checked={edicaoAtiva}
                                 onChange={(event) => setEdicaoAtiva(event.target.checked)}
                             />
-                            <span>Ativar edição</span>
+                            Ativar edição
                         </label>
                     )}
 
                     {!somenteLeitura && (
-                        <label className='supertabelaprocedimentos_edit_wrap'>
+                        <label className="ek-check">
                             <input
-                                type='checkbox'
+                                type="checkbox"
                                 checked={adicionarNovoAtivo}
                                 onChange={(event) => setAdicionarNovoAtivo(event.target.checked)}
                                 disabled={!modoDescontos && modoCategorias}
                             />
-                            <span>Adicionar novo</span>
+                            Adicionar novo
                         </label>
                     )}
 
                     {!somenteLeitura && modoCategorias && !modoDescontos && (
-                        <label className='supertabelaprocedimentos_edit_wrap'>
+                        <label className="ek-check">
                             <input
-                                type='checkbox'
+                                type="checkbox"
                                 checked={adicionarCategoriaAtivo}
                                 onChange={(event) => setAdicionarCategoriaAtivo(event.target.checked)}
                             />
-                            <span>Nova categoria</span>
+                            Nova categoria
                         </label>
                     )}
                 </div>
+            </Toolbar>
 
-                {adicionarCategoriaAtivo && modoCategorias && !modoDescontos && (
-                    <div className='supertabelaprocedimentos_massa_wrap'>
-                        <p>Adicionar categoria</p>
-                        <div className='supertabelaprocedimentos_massa_form'>
-                            <div className='supertabelaprocedimentos_novo_grid supertabelaprocedimentos_novo_grid_cat'>
-                                <input
-                                    type='text'
-                                    className='supertabelaprocedimentos_input'
-                                    placeholder='Nome da categoria'
-                                    value={novaCategoriaNome}
-                                    onChange={(event) => setNovaCategoriaNome(event.target.value)}
-                                />
-                            </div>
-                            <button
-                                type='button'
-                                className='supertabelaprocedimentos_massa_btn'
-                                onClick={inserirNovaCategoria}
-                                disabled={loading}
-                            >
-                                Criar categoria
-                            </button>
+            {adicionarCategoriaAtivo && modoCategorias && !modoDescontos && (
+                <div className='supertabelaprocedimentos_massa_wrap'>
+                    <p>Adicionar categoria</p>
+                    <div className='supertabelaprocedimentos_massa_form'>
+                        <div className='supertabelaprocedimentos_novo_grid supertabelaprocedimentos_novo_grid_cat'>
+                            <input
+                                type='text'
+                                className='supertabelaprocedimentos_input'
+                                placeholder='Nome da categoria'
+                                value={novaCategoriaNome}
+                                onChange={(event) => setNovaCategoriaNome(event.target.value)}
+                            />
                         </div>
+                        <button
+                            type='button'
+                            className='supertabelaprocedimentos_massa_btn'
+                            onClick={inserirNovaCategoria}
+                            disabled={loading}
+                        >
+                            Criar categoria
+                        </button>
                     </div>
-                )}
+                </div>
+            )}
 
-                {adicionarNovoAtivo && !modoCategorias && !modoDescontos && (
-                    <div className='supertabelaprocedimentos_massa_wrap'>
-                        <p>Adicionar novo procedimento</p>
-                        <div className='supertabelaprocedimentos_massa_form'>
-                            <div className='supertabelaprocedimentos_novo_grid'>
-                                <input
-                                    type='text'
-                                    className='supertabelaprocedimentos_input'
-                                    placeholder='Código (ex.: CONS-001)'
-                                    value={novoProcedimento.codigo}
-                                    onChange={(event) =>
-                                        setNovoProcedimento((anterior) => ({
-                                            ...anterior,
-                                            codigo: normalizarCodigo(event.target.value) }))
-                                    }
-                                />
-                                <input
-                                    type='text'
-                                    className='supertabelaprocedimentos_input'
-                                    placeholder='Nome do procedimento'
-                                    value={novoProcedimento.nome}
-                                    onChange={(event) =>
-                                        setNovoProcedimento((anterior) => ({
-                                            ...anterior,
-                                            nome: event.target.value }))
-                                    }
-                                />
-                                <select
-                                    className='supertabelaprocedimentos_input'
-                                    value={novoProcedimento.categoriaId}
-                                    onChange={(event) =>
-                                        setNovoProcedimento((anterior) => ({
-                                            ...anterior,
-                                            categoriaId: event.target.value }))
-                                    }
-                                >
-                                    {categorias.map((categoria) => (
-                                        <option key={`novo-cat-${categoria.id}`} value={categoria.id}>
-                                            {categoria.nome}
-                                        </option>
-                                    ))}
-                                </select>
-                                <select
-                                    className='supertabelaprocedimentos_input'
-                                    value={novoProcedimento.planoBaseChave}
-                                    onChange={(event) =>
-                                        setNovoProcedimento((anterior) => ({
-                                            ...anterior,
-                                            planoBaseChave: event.target.value }))
-                                    }
-                                >
-                                    {ORDEM_PLANOS_BASE_PROCEDIMENTOS.map((chavePlano) => (
-                                        <option key={`novo-plano-${chavePlano}`} value={chavePlano}>
-                                            {ROTULO_PLANO[chavePlano]}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <button
-                                type='button'
-                                className='supertabelaprocedimentos_massa_btn'
-                                onClick={inserirNovoProcedimento}
+            {adicionarNovoAtivo && !modoCategorias && !modoDescontos && (
+                <div className='supertabelaprocedimentos_massa_wrap'>
+                    <p>Adicionar novo procedimento</p>
+                    <div className='supertabelaprocedimentos_massa_form'>
+                        <div className='supertabelaprocedimentos_novo_grid'>
+                            <input
+                                type='text'
+                                className='supertabelaprocedimentos_input'
+                                placeholder='Código (ex.: CONS-001)'
+                                value={novoProcedimento.codigo}
+                                onChange={(event) =>
+                                    setNovoProcedimento((anterior) => ({
+                                        ...anterior,
+                                        codigo: normalizarCodigo(event.target.value) }))
+                                }
+                            />
+                            <input
+                                type='text'
+                                className='supertabelaprocedimentos_input'
+                                placeholder='Nome do procedimento'
+                                value={novoProcedimento.nome}
+                                onChange={(event) =>
+                                    setNovoProcedimento((anterior) => ({
+                                        ...anterior,
+                                        nome: event.target.value }))
+                                }
+                            />
+                            <SelectDropdown
+                                className='supertabelaprocedimentos_input'
+                                value={novoProcedimento.categoriaId}
+                                onChange={(event) =>
+                                    setNovoProcedimento((anterior) => ({
+                                        ...anterior,
+                                        categoriaId: event.target.value }))
+                                }
                             >
-                                Adicionar novo procedimento
-                            </button>
+                                {categorias.map((categoria) => (
+                                    <option key={`novo-cat-${categoria.id}`} value={categoria.id}>
+                                        {categoria.nome}
+                                    </option>
+                                ))}
+                            </SelectDropdown>
+                            <SelectDropdown
+                                className='supertabelaprocedimentos_input'
+                                value={novoProcedimento.planoBaseChave}
+                                onChange={(event) =>
+                                    setNovoProcedimento((anterior) => ({
+                                        ...anterior,
+                                        planoBaseChave: event.target.value }))
+                                }
+                            >
+                                {ORDEM_PLANOS_BASE_PROCEDIMENTOS.map((chavePlano) => (
+                                    <option key={`novo-plano-${chavePlano}`} value={chavePlano}>
+                                        {ROTULO_PLANO[chavePlano]}
+                                    </option>
+                                ))}
+                            </SelectDropdown>
                         </div>
+                        <button
+                            type='button'
+                            className='supertabelaprocedimentos_massa_btn'
+                            onClick={inserirNovoProcedimento}
+                        >
+                            Adicionar novo procedimento
+                        </button>
                     </div>
-                )}
-            </header>
+                </div>
+            )}
 
             {erroDetalhe && (
                 <div className='supertabelaprocedimentos_alert' role='alert' aria-live='assertive'>
@@ -1433,7 +1418,7 @@ const Supertabelaprocedimentos = () => {
                                         </td>
                                         <td>
                                             {edicaoAtiva ? (
-                                                <select
+                                                <SelectDropdown
                                                     className='supertabelaprocedimentos_cell_select'
                                                     value={linha.planoBaseChave}
                                                     onChange={(event) =>
@@ -1445,14 +1430,14 @@ const Supertabelaprocedimentos = () => {
                                                             {ROTULO_PLANO[chavePlano]}
                                                         </option>
                                                     ))}
-                                                </select>
+                                                </SelectDropdown>
                                             ) : (
                                                 ROTULO_PLANO[linha.planoBaseChave]
                                             )}
                                         </td>
                                         <td>
                                             {edicaoAtiva ? (
-                                                <select
+                                                <SelectDropdown
                                                     className='supertabelaprocedimentos_cell_select'
                                                     value={linha.categoriaId ?? ''}
                                                     onChange={(event) =>
@@ -1464,7 +1449,7 @@ const Supertabelaprocedimentos = () => {
                                                             {categoria.nome}
                                                         </option>
                                                     ))}
-                                                </select>
+                                                </SelectDropdown>
                                             ) : (
                                                 categorias.find((categoria) => Number(categoria.id) === Number(linha.categoriaId))?.nome ||
                                                 '-'

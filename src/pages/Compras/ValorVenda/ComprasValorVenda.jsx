@@ -11,7 +11,8 @@ import { extrairCodigosProcedimentoEmMassa } from '../../../lib/parseCodigosEmMa
 import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/supabase'
 import { bloquearSeSomenteLeitura } from '../../../lib/readOnlyGuard'
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
-import { PageHeader } from '../../../components/ui'
+import { PageHeader, Toolbar } from '../../../components/ui'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 import './ComprasValorVenda.css'
 
 const normalizarTexto = (texto) =>
@@ -40,7 +41,6 @@ const ComprasValorVenda = () => {
     const [loading, setLoading] = useState(false)
     const [erro, setErro] = useState('')
     const [aviso, setAviso] = useState('')
-    const [headerCompacto, setHeaderCompacto] = useState(false)
 
     const [vendas, setVendas] = useState([])
     const [procedimentos, setProcedimentos] = useState([])
@@ -170,12 +170,6 @@ const ComprasValorVenda = () => {
         carregarPermissoes()
     }, [])
 
-    useEffect(() => {
-        const onScroll = () => setHeaderCompacto(window.scrollY > 22)
-        onScroll()
-        window.addEventListener('scroll', onScroll, { passive: true })
-        return () => window.removeEventListener('scroll', onScroll)
-    }, [])
 
     useEffect(() => {
         if (!aviso) return
@@ -634,64 +628,54 @@ const ComprasValorVenda = () => {
                 description='Gerencie os valores de venda da lojinha por procedimento e categoria.'
             />
 
-            <header className={`compras_vv_header ${headerCompacto ? 'is-compact' : ''}`}>
-                <h2>Filtros</h2>
-                <div className='compras_vv_header_body'>
-                    <div className='compras_vv_filters'>
-                        <div className='compras_vv_filter_item compras_vv_filter_busca'>
-                            <p>Busca</p>
-                            <input
-                                type='text'
-                                className='compras_vv_input compras_vv_input_filter'
-                                placeholder='Código, nome ou categoria'
-                                value={termoBusca}
-                                onChange={(e) => setTermoBusca(e.target.value)}
-                            />
-                        </div>
-
-                        {!somenteLeitura && (
-                            <label className='compras_vv_edit_wrap'>
-                                <input type='checkbox' checked={edicaoAtiva} onChange={(e) => setEdicaoAtiva(e.target.checked)} />
-                                <span>Habilitar edição</span>
-                            </label>
-                        )}
-
-                        {!somenteLeitura && (
-                            <label className='compras_vv_edit_wrap'>
-                                <input type='checkbox' checked={adicaoMassaAtiva} onChange={(e) => setAdicaoMassaAtiva(e.target.checked)} />
-                                <span>Adição em massa</span>
-                            </label>
-                        )}
-
-                        {!somenteLeitura && (
-                            <button type='button' className='compras_vv_filters_action_btn' onClick={abrirNovo}>
-                                ＋ Novo registro
-                            </button>
-                        )}
+            <Toolbar title="Filtros">
+                <label className="ek-field ek-field--grow">
+                    <span className="ek-label">Busca</span>
+                    <input
+                        type="search"
+                        className="ek-input"
+                        placeholder="Código, nome ou categoria"
+                        value={termoBusca}
+                        onChange={(e) => setTermoBusca(e.target.value)}
+                    />
+                </label>
+                {!somenteLeitura && (
+                    <div className="ek-toolbar__actions">
+                        <label className="ek-check">
+                            <input type="checkbox" checked={edicaoAtiva} onChange={(e) => setEdicaoAtiva(e.target.checked)} />
+                            Habilitar edição
+                        </label>
+                        <label className="ek-check">
+                            <input type="checkbox" checked={adicaoMassaAtiva} onChange={(e) => setAdicaoMassaAtiva(e.target.checked)} />
+                            Adição em massa
+                        </label>
+                        <button type="button" className="ek-btn" onClick={abrirNovo}>
+                            Novo registro
+                        </button>
                     </div>
+                )}
+            </Toolbar>
 
-                    {adicaoMassaAtiva && !somenteLeitura && (
-                        <div className='compras_vv_massa_panel'>
-                            <p>Adicionar procedimentos em massa na tabela de valores de venda</p>
-                            <div className='compras_vv_massa_form'>
-                                <label htmlFor='compras-vv-codigos-massa'>
-                                    IDs de procedimentos (um por linha ou separados por vírgula)
-                                </label>
-                                <textarea
-                                    id='compras-vv-codigos-massa'
-                                    rows={3}
-                                    value={massaTexto}
-                                    onChange={(e) => setMassaTexto(e.target.value)}
-                                    placeholder={`Ex.: CONS-00N, EXAM-103 ou um código por linha`}
-                                />
-                                <button type='button' className='compras_vv_massa_btn' disabled={loading} onClick={aplicarMassa}>
-                                    Inserir procedimentos em massa
-                                </button>
-                            </div>
-                        </div>
-                    )}
+            {adicaoMassaAtiva && !somenteLeitura && (
+                <div className='compras_vv_massa_panel'>
+                    <p>Adicionar procedimentos em massa na tabela de valores de venda</p>
+                    <div className='compras_vv_massa_form'>
+                        <label htmlFor='compras-vv-codigos-massa'>
+                            IDs de procedimentos (um por linha ou separados por vírgula)
+                        </label>
+                        <textarea
+                            id='compras-vv-codigos-massa'
+                            rows={3}
+                            value={massaTexto}
+                            onChange={(e) => setMassaTexto(e.target.value)}
+                            placeholder={`Ex.: CONS-00N, EXAM-103 ou um código por linha`}
+                        />
+                        <button type='button' className='compras_vv_massa_btn' disabled={loading} onClick={aplicarMassa}>
+                            Inserir procedimentos em massa
+                        </button>
+                    </div>
                 </div>
-            </header>
+            )}
 
             {erro && (
                 <div className='compras_vv_alert' role='alert'>
@@ -915,14 +899,14 @@ const ComprasValorVenda = () => {
                         <div className='compras_vv_modal_grid'>
                             <label className='compras_vv_modal_full'>
                                 <span>Procedimento (código)</span>
-                                <select className='compras_vv_select' value={formCod} onChange={(e) => setFormCod(e.target.value)}>
+                                <SelectDropdown className='compras_vv_select' value={formCod} onChange={(e) => setFormCod(e.target.value)}>
                                     <option value=''>Selecione</option>
                                     {procedimentos.map((p) => (
                                         <option key={p.codigo} value={normalizarCod(p.codigo)}>
                                             {p.codigo} — {p.nome}
                                         </option>
                                     ))}
-                                </select>
+                                </SelectDropdown>
                             </label>
                             <label className='compras_vv_modal_full'>
                                 <span>Valor de venda (R$)</span>

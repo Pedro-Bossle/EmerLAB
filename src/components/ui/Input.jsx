@@ -1,47 +1,42 @@
-import { useId } from 'react'
+import { createElement, useId } from 'react'
+import { SelectDropdown } from './Dropdown'
 import { cn } from '../../lib/cn'
 
+/** Campos do UI Kit (ek-field / ek-label / ek-input / ek-select / ek-textarea). Ver docs/ui-kit.md. */
 function composeDescribedBy(existing, ...ids) {
   const parts = [existing, ...ids].flatMap((v) => String(v || '').split(/\s+/)).filter(Boolean)
   return parts.length ? parts.join(' ') : undefined
 }
 
-export function Input({ className, label, hint, error, id, 'aria-describedby': ariaDescribedBy, ...props }) {
+function Campo({ tag, sufixoId, controlClass, className, label, hint, error, id, 'aria-describedby': ariaDescribedBy, children, ...props }) {
   const reactId = useId()
-  const controlId = id || `${reactId}-input`
+  const controlId = id || props.name || `${reactId}-${sufixoId}`
   const errorId = `${reactId}-error`
   const hintId = `${reactId}-hint`
-  const describedBy = composeDescribedBy(
-    ariaDescribedBy,
-    hint && !error ? hintId : null,
-    error ? errorId : null,
-  )
+  const describedBy = composeDescribedBy(ariaDescribedBy, hint && !error ? hintId : null, error ? errorId : null)
 
   return (
-    <label className={cn('flex w-full flex-col gap-1.5', className)}>
-      {label ? (
-        <span className="text-sm font-semibold text-ink-soft dark:text-[#b9cadb]">
-          {label}
-        </span>
-      ) : null}
-      <input
-        id={controlId}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        aria-errormessage={error ? errorId : undefined}
-        className={cn(
-          'min-h-touch w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-base font-medium leading-normal text-ink placeholder:text-ink-muted/65 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 dark:border-white/15 dark:bg-[#0f1e2e] dark:text-[#e8f1f8]',
-          error && 'border-status-erro focus:ring-status-erro/20',
-        )}
-        {...props}
-      />
+    <label className={cn('ek-field', className)}>
+      {label ? <span className="ek-label">{label}</span> : null}
+      {createElement(
+        tag === 'select' ? SelectDropdown : tag,
+        {
+          id: controlId,
+          'aria-invalid': error ? true : undefined,
+          'aria-describedby': describedBy,
+          'aria-errormessage': error ? errorId : undefined,
+          className: controlClass,
+          ...props,
+        },
+        children,
+      )}
       {hint && !error ? (
-        <span id={hintId} className="text-xs text-ink-muted">
+        <span id={hintId} className="ek-hint">
           {hint}
         </span>
       ) : null}
       {error ? (
-        <span id={errorId} className="text-xs font-semibold text-status-erro" role="alert">
+        <span id={errorId} className="ek-error" role="alert">
           {error}
         </span>
       ) : null}
@@ -49,107 +44,18 @@ export function Input({ className, label, hint, error, id, 'aria-describedby': a
   )
 }
 
-export function Select({
-  className,
-  label,
-  hint,
-  error,
-  id,
-  children,
-  'aria-describedby': ariaDescribedBy,
-  ...props
-}) {
-  const reactId = useId()
-  const controlId = id || props.name || `${reactId}-select`
-  const errorId = `${reactId}-error`
-  const hintId = `${reactId}-hint`
-  const describedBy = composeDescribedBy(
-    ariaDescribedBy,
-    hint && !error ? hintId : null,
-    error ? errorId : null,
-  )
+export function Input(props) {
+  return <Campo tag="input" sufixoId="input" controlClass="ek-input" {...props} />
+}
 
+export function Select({ children, ...props }) {
   return (
-    <label className={cn('flex w-full flex-col gap-1.5', className)}>
-      {label ? (
-        <span className="text-sm font-semibold text-ink-soft dark:text-[#b9cadb]">
-          {label}
-        </span>
-      ) : null}
-      <select
-        id={controlId}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        aria-errormessage={error ? errorId : undefined}
-        className={cn(
-          'min-h-touch w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-base font-medium leading-normal text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 dark:border-white/15 dark:bg-[#0f1e2e] dark:text-[#e8f1f8]',
-          error && 'border-status-erro',
-        )}
-        {...props}
-      >
-        {children}
-      </select>
-      {hint && !error ? (
-        <span id={hintId} className="text-xs text-ink-muted">
-          {hint}
-        </span>
-      ) : null}
-      {error ? (
-        <span id={errorId} className="text-xs font-semibold text-status-erro" role="alert">
-          {error}
-        </span>
-      ) : null}
-    </label>
+    <Campo tag="select" sufixoId="select" controlClass="ek-select" {...props}>
+      {children}
+    </Campo>
   )
 }
 
-export function Textarea({
-  className,
-  label,
-  hint,
-  error,
-  id,
-  'aria-describedby': ariaDescribedBy,
-  ...props
-}) {
-  const reactId = useId()
-  const controlId = id || props.name || `${reactId}-textarea`
-  const errorId = `${reactId}-error`
-  const hintId = `${reactId}-hint`
-  const describedBy = composeDescribedBy(
-    ariaDescribedBy,
-    hint && !error ? hintId : null,
-    error ? errorId : null,
-  )
-
-  return (
-    <label className={cn('flex w-full flex-col gap-1.5', className)}>
-      {label ? (
-        <span className="text-sm font-semibold text-ink-soft dark:text-[#b9cadb]">
-          {label}
-        </span>
-      ) : null}
-      <textarea
-        id={controlId}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        aria-errormessage={error ? errorId : undefined}
-        className={cn(
-          'min-h-24 w-full rounded-xl border border-line bg-white px-3 py-2 text-base font-medium text-ink placeholder:text-ink-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 dark:border-white/15 dark:bg-[#0f1e2e] dark:text-[#e8f1f8]',
-          error && 'border-status-erro',
-        )}
-        {...props}
-      />
-      {hint && !error ? (
-        <span id={hintId} className="text-xs text-ink-muted">
-          {hint}
-        </span>
-      ) : null}
-      {error ? (
-        <span id={errorId} className="text-xs font-semibold text-status-erro" role="alert">
-          {error}
-        </span>
-      ) : null}
-    </label>
-  )
+export function Textarea(props) {
+  return <Campo tag="textarea" sufixoId="textarea" controlClass="ek-textarea" {...props} />
 }

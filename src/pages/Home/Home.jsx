@@ -71,6 +71,7 @@ import {
 } from '../../lib/pagamentosRegistros'
 import { formatarCpfCnpjEntrada } from '../../lib/prestadorCadastroHelpers'
 import { supabase } from '../../lib/supabase'
+import { SelectDropdown } from '../../components/ui/Dropdown.jsx'
 import './Home.css'
 
 // Emerzap: painel de atendimento WhatsApp (app separado, com login próprio). Override com VITE_EMERZAP_URL.
@@ -1269,7 +1270,7 @@ const Home = () => {
 
                         <label className="home_dash_tarefa_filtro_wrap">
                             <span className="home_dash_tarefa_filtro_label">Filtrar</span>
-                            <select
+                            <SelectDropdown
                                 className="home_dash_input home_dash_tarefa_filtro_select"
                                 value={filtroTarefas}
                                 onChange={(e) => setFiltroTarefas(e.target.value)}
@@ -1280,7 +1281,7 @@ const Home = () => {
                                         {f.label} ({contagensFiltro[f.id] ?? 0})
                                     </option>
                                 ))}
-                            </select>
+                            </SelectDropdown>
                         </label>
 
                         <div className="home_dash_tarefa_toolbar">
@@ -1974,7 +1975,7 @@ const Home = () => {
                                 <div className="home_dash_tarefa_form_meta">
                                     <label className="home_dash_tarefa_campo">
                                         <span>Atribuir</span>
-                                        <select
+                                        <SelectDropdown
                                             className="home_dash_input"
                                             value={formTarefa.atribuidoA || userId}
                                             onChange={(e) =>
@@ -1994,7 +1995,7 @@ const Home = () => {
                                                     </option>
                                                 ))
                                             )}
-                                        </select>
+                                        </SelectDropdown>
                                     </label>
                                     <div className="home_dash_tarefa_prazo_grupo">
                                         <label className="home_dash_tarefa_campo">
@@ -2056,7 +2057,7 @@ const Home = () => {
                                     ) : null}
                                     <label className="home_dash_tarefa_campo">
                                         <span>Prioridade</span>
-                                        <select
+                                        <SelectDropdown
                                             className="home_dash_input"
                                             value={formTarefa.prioridade}
                                             onChange={(e) =>
@@ -2071,7 +2072,7 @@ const Home = () => {
                                                     {p.label}
                                                 </option>
                                             ))}
-                                        </select>
+                                        </SelectDropdown>
                                     </label>
                                 </div>
                             </div>

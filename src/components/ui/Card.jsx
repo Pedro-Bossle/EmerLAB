@@ -2,52 +2,22 @@ import { cn } from '../../lib/cn'
 
 export function Card({ className, children, ...props }) {
   return (
-    <div
-      className={cn(
-        'rounded-2xl border border-line bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#1a2838] md:p-5',
-        className,
-      )}
-      {...props}
-    >
+    <div className={cn('ek-card', className)} {...props}>
       {children}
     </div>
   )
 }
 
-export function PageHeader({
-  className,
-  kicker,
-  title,
-  description,
-  actions,
-}) {
+/** Cabeçalho de página do UI Kit. `el-page-header` fica como alias das regras legadas (alinhamento à esquerda). */
+export function PageHeader({ className, kicker, title, description, actions }) {
   return (
-    <header
-      className={cn(
-        'el-page-header mb-6 flex w-full flex-col gap-4 border-b border-line/70 pb-5 text-left dark:border-white/10 sm:flex-row sm:items-end sm:justify-between',
-        className,
-      )}
-    >
-      <div className="el-page-header__text min-w-0 flex-1 text-left">
-        {kicker ? (
-          <p className="el-page-header__kicker mb-1.5 text-xs font-bold uppercase tracking-[0.12em] text-brand">
-            {kicker}
-          </p>
-        ) : null}
-        <h1 className="el-page-header__title font-sans text-[1.7rem] font-extrabold leading-tight tracking-tight text-[#123e59] dark:text-[#e8f1f8] md:text-[2rem]">
-          {title}
-        </h1>
-        {description ? (
-          <p className="el-page-header__desc mt-2 max-w-2xl text-base font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8]">
-            {description}
-          </p>
-        ) : null}
+    <header className={cn('ek-page-header el-page-header', className)}>
+      <div className="el-page-header__text min-w-0 flex-1">
+        {kicker ? <span className="ek-page-header__kicker el-page-header__kicker">{kicker}</span> : null}
+        <h1 className="ek-page-header__title el-page-header__title">{title}</h1>
+        {description ? <p className="ek-page-header__desc el-page-header__desc">{description}</p> : null}
       </div>
-      {actions ? (
-        <div className="el-page-header__actions flex flex-wrap items-center justify-start gap-2 sm:justify-end">
-          {actions}
-        </div>
-      ) : null}
+      {actions ? <div className="ek-page-header__actions el-page-header__actions">{actions}</div> : null}
     </header>
   )
 }

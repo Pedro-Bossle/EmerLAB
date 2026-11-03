@@ -52,7 +52,10 @@ import {
 import { TOAST_AUTO_DISMISS_MS, useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import '../Supertabela_main/Supertabelamain.css'
 import './Supertabelaplanos.css'
-import { PageHeader } from '../../../components/ui'
+import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar'
+import { PageHeader, Toolbar } from '../../../components/ui'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
+import FiltroUfCidade from '../../../components/Supertabela/FiltroUfCidade.jsx'
 
 const COLUNAS_PLANO = [
     { chave: 'basico', titulo: 'Básico', match: (n) => n.includes('BASICO') || n.includes('BASIC') },
@@ -150,7 +153,6 @@ const Supertabelaplanos = () => {
 
     const [loading, setLoading] = useState(false)
     const [erroDetalhe, setErroDetalhe] = useState('')
-    const [headerCompacto, setHeaderCompacto] = useState(false)
     const [ordenacaoPorCategoria, setOrdenacaoPorCategoria] = useState({})
     const [edicoesLocais, setEdicoesLocais] = useState({})
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null)
@@ -2062,12 +2064,6 @@ const Supertabelaplanos = () => {
         return () => clearTimeout(timer)
     }, [erroDetalhe])
 
-    useEffect(() => {
-        const onScroll = () => setHeaderCompacto(window.scrollY > 40)
-        onScroll()
-        window.addEventListener('scroll', onScroll)
-        return () => window.removeEventListener('scroll', onScroll)
-    }, [])
 
     useEffect(() => {
         if (modoLimitacoes) {
@@ -2138,202 +2134,180 @@ const Supertabelaplanos = () => {
                 title="Planos"
                 description="Cobertura, limites e valores por plano e cidade."
             />
-            <header className={`supertabelaplanos_header ${headerCompacto ? 'is-compact' : ''}`}>
-                <h2>Filtros</h2>
-                <div className='supertabelaplanos_filters'>
-                    <div className='supertabelaplanos_filter_item supertabelaplanos_filter_busca'>
-                        <p>Pesquisa</p>
-                        <input
-                            type='text'
-                            className='supertabelaplanos_input'
-                            placeholder={
-                                modoLimitacoes
-                                    ? 'Código, procedimento, categoria, limite, carência ou valor'
-                                    : 'Código, procedimento, categoria ou valor'
-                            }
-                            value={termoBusca}
-                            onChange={(e) => setTermoBusca(e.target.value)}
-                        />
-                    </div>
+            <Toolbar title="Filtros">
+                <div className="ek-field ek-field--grow">
+                    <span className="ek-label">Pesquisa</span>
+                    <CampoBuscaComLimpar
+                        inputClassName="ek-input"
+                        placeholder={
+                            modoLimitacoes
+                                ? 'Código, procedimento, categoria, limite, carência ou valor'
+                                : 'Código, procedimento, categoria ou valor'
+                        }
+                        value={termoBusca}
+                        onChange={(e) => setTermoBusca(e.target.value)}
+                    />
+                </div>
 
-                    {!modoLimitacoes && (
-                        <div className='supertabelaplanos_filter_item'>
-                            <p>Cidade</p>
-                            <SelectMunicipioBusca
-                                className="supertabelaplanos_select_cidade"
-                                inputClassName="supertabelaplanos_select"
-                                value={valorFiltroCidade}
-                                valueKey="id"
-                                options={opcoesFiltroCidade.map((op) => ({
-                                    id: op.value,
-                                    nome: op.label,
-                                }))}
-                                onChange={(valor) => {
-                                    setValorFiltroCidade(valor)
-                                    const op = opcoesFiltroCidade.find((o) => o.value === valor)
-                                    if (op) setCidadeId(String(op.cidadeId))
-                                }}
-                                placeholder="Selecionar cidade…"
-                                searchPlaceholder="Buscar cidade…"
-                                aria-label="Filtrar por cidade"
-                            />
-                        </div>
-                    )}
+                {!modoLimitacoes && (
+                    <FiltroUfCidade
+                    opcoes={opcoesFiltroCidade.map((op) => ({ value: op.value, uf: op.uf, nome: op.sort, cidadeId: op.cidadeId }))}
+                    value={valorFiltroCidade}
+                    onChange={(op) => {
+                        setValorFiltroCidade(op.value)
+                        setCidadeId(String(op.cidadeId))
+                    }}
+                />
+                )}
 
+                {modoLimitacoes && (
+                    <label className="ek-field">
+                        <span className="ek-label">Plano</span>
+                        <SelectDropdown
+                            className="ek-select"
+                            value={planoDetalheId}
+                            onChange={(e) => setPlanoDetalheId(e.target.value)}
+                        >
+                            {planos.map((plano) => (
+                                <option key={plano.id} value={plano.id}>
+                                    {plano.nome}
+                                </option>
+                            ))}
+                        </SelectDropdown>
+                    </label>
+                )}
+
+                <div className="ek-toolbar__actions">
                     {!somenteLeitura && (
                         <button
-                            type='button'
-                            className='supertabelaplanos_action_btn'
+                            type="button"
+                            className="ek-btn ek-btn--soft"
                             onClick={() => {
                                 setMostrarGerenciarModal(true)
                                 setCidadeDuplicarOrigem(null)
                                 setNovoNomeCidadeDuplicada('')
                             }}
                         >
-                            <span className='supertabelaplanos_action_btn_ico'>⚙️</span> Gerenciar tabelas
+                            Gerenciar tabelas
                         </button>
                     )}
 
                     {!somenteLeitura && (
-                        <label className='supertabelaplanos_edit_wrap'>
+                        <label className="ek-check">
                             <input
-                                type='checkbox'
+                                type="checkbox"
                                 checked={edicaoAtiva}
                                 onChange={(e) => setEdicaoAtiva(e.target.checked)}
                             />
-                            <span>Ativar edição</span>
+                            Ativar edição
                         </label>
                     )}
 
                     {!somenteLeitura && (
-                        <label className='supertabelaplanos_edit_wrap'>
+                        <label className="ek-check">
                             <input
-                                type='checkbox'
+                                type="checkbox"
                                 checked={adicaoMassaAtiva}
                                 onChange={(e) => setAdicaoMassaAtiva(e.target.checked)}
                             />
-                            <span>Adição em massa</span>
+                            Adição em massa
                         </label>
                     )}
 
                     {!somenteLeitura && podeExclusaoPorLista && !modoLimitacoes && (
                         <button
-                            type='button'
-                            className='supertabelaplanos_action_btn'
+                            type="button"
+                            className="ek-btn ek-btn--danger"
                             onClick={abrirExclusaoListaModal}
                             disabled={loading || !cidadeId}
-                            title='Excluir procedimentos que NÃO estão na lista informada'
+                            title="Excluir procedimentos que NÃO estão na lista informada"
                         >
-                            <span className='supertabelaplanos_action_btn_ico'>🗑️</span> Exclusão por lista
+                            Exclusão por lista
                         </button>
                     )}
 
                     <button
-                        type='button'
-                        className='supertabelaplanos_action_btn'
+                        type="button"
+                        className="ek-btn ek-btn--secondary"
                         disabled={!cidadeId || loading || exportandoExcelTela}
                         onClick={() => void baixarExcelTelaPlanos()}
                     >
-                        <span className='supertabelaplanos_action_btn_ico'>📊</span>{' '}
                         {exportandoExcelTela ? 'Gerando Excel…' : 'Exportar Excel'}
                     </button>
 
-                    <div className='supertabelaplanos_filter_item supertabelaplanos_filter_mode'>
-                        <p className='supertabelaplanos_filter_mode_label'>Visualização</p>
-                        <div className='supertabelaplanos_mode_rail' role='group' aria-label='Tipo de visualização da tabela'>
-                            <span
-                                className={`supertabelaplanos_mode_thumb ${modoLimitacoes ? 'is-right' : 'is-left'}`}
-                                aria-hidden
-                            />
+                    <div className="ek-field ek-field--fixed">
+                        <span className="ek-label">Visualização</span>
+                        <div className="ek-segmented" role="group" aria-label="Tipo de visualização da tabela">
                             <button
-                                type='button'
-                                className={`supertabelaplanos_mode_btn ${!modoLimitacoes ? 'is-active' : ''}`}
+                                type="button"
+                                className="ek-segmented__opt"
+                                aria-pressed={!modoLimitacoes}
                                 onClick={() => definirModoLimitacoes(false)}
                             >
                                 Ver diferenças
                             </button>
                             <button
-                                type='button'
-                                className={`supertabelaplanos_mode_btn ${modoLimitacoes ? 'is-active' : ''}`}
+                                type="button"
+                                className="ek-segmented__opt"
+                                aria-pressed={modoLimitacoes}
                                 onClick={() => definirModoLimitacoes(true)}
                             >
                                 Ver carências e limites
                             </button>
                         </div>
                     </div>
+                </div>
+            </Toolbar>
 
-                    <div
-                        className={`supertabelaplanos_filter_plano_wrap ${modoLimitacoes ? 'is-visible' : ''}`}
-                        aria-hidden={!modoLimitacoes}
-                    >
-                        <div className='supertabelaplanos_filter_item'>
-                            <p>Plano</p>
-                            <select
-                                className='supertabelaplanos_select'
-                                value={planoDetalheId}
-                                onChange={(e) => setPlanoDetalheId(e.target.value)}
-                                disabled={!modoLimitacoes}
-                            >
-                                {planos.map((plano) => (
-                                    <option key={plano.id} value={plano.id}>
-                                        {plano.nome}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+            {adicaoMassaAtiva && (
+                <div className='supertabelaplanos_cidade_vazia_wrap'>
+                    <p>
+                        {modoLimitacoes
+                            ? `Adicionar procedimentos em massa no plano «${planoDetalheNome}» (limites/carências).`
+                            : 'Adicionar procedimentos em massa na cidade selecionada (vínculo nos quatro planos mapeados).'}
+                    </p>
+                    <div className='supertabelaplanos_cidade_vazia_form'>
+                        <label htmlFor='codigos-adicao-massa-planos'>
+                            Códigos de procedimentos (um por linha ou separados por vírgula)
+                        </label>
+                        <textarea
+                            id='codigos-adicao-massa-planos'
+                            rows={3}
+                            value={codigosInicializacaoPlanos}
+                            onChange={(e) => setCodigosInicializacaoPlanos(e.target.value)}
+                            placeholder={`Ex.: CONS-00N, EXAM-103
+ou um código por linha`}
+                        />
+                        <button
+                            type='button'
+                            className='supertabelaplanos_cidade_vazia_btn'
+                            onClick={preencherProcedimentosMassaPlanos}
+                            disabled={loading}
+                        >
+                            Inserir procedimentos em massa
+                        </button>
+                        {progressoMassa.ativo && (
+                            <div className='supertabelaplanos_progress_wrap' role='status' aria-live='polite'>
+                                <div className='supertabelaplanos_progress_meta'>
+                                    <span>{progressoMassa.label || 'Processando...'}</span>
+                                    <strong>
+                                        {progressoMassa.atual}/{progressoMassa.total} ({percentualProgressoMassa}%)
+                                    </strong>
+                                </div>
+                                <div
+                                    className='supertabelaplanos_progress_bar'
+                                    role='progressbar'
+                                    aria-valuemin={0}
+                                    aria-valuemax={100}
+                                    aria-valuenow={percentualProgressoMassa}
+                                >
+                                    <span style={{ width: `${percentualProgressoMassa}%` }} />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
-
-                {adicaoMassaAtiva && (
-                    <div className='supertabelaplanos_cidade_vazia_wrap'>
-                        <p>
-                            {modoLimitacoes
-                                ? `Adicionar procedimentos em massa no plano «${planoDetalheNome}» (limites/carências).`
-                                : 'Adicionar procedimentos em massa na cidade selecionada (vínculo nos quatro planos mapeados).'}
-                        </p>
-                        <div className='supertabelaplanos_cidade_vazia_form'>
-                            <label htmlFor='codigos-adicao-massa-planos'>
-                                Códigos de procedimentos (um por linha ou separados por vírgula)
-                            </label>
-                            <textarea
-                                id='codigos-adicao-massa-planos'
-                                rows={3}
-                                value={codigosInicializacaoPlanos}
-                                onChange={(e) => setCodigosInicializacaoPlanos(e.target.value)}
-                                placeholder={`Ex.: CONS-00N, EXAM-103
-ou um código por linha`}
-                            />
-                            <button
-                                type='button'
-                                className='supertabelaplanos_cidade_vazia_btn'
-                                onClick={preencherProcedimentosMassaPlanos}
-                                disabled={loading}
-                            >
-                                Inserir procedimentos em massa
-                            </button>
-                            {progressoMassa.ativo && (
-                                <div className='supertabelaplanos_progress_wrap' role='status' aria-live='polite'>
-                                    <div className='supertabelaplanos_progress_meta'>
-                                        <span>{progressoMassa.label || 'Processando...'}</span>
-                                        <strong>
-                                            {progressoMassa.atual}/{progressoMassa.total} ({percentualProgressoMassa}%)
-                                        </strong>
-                                    </div>
-                                    <div
-                                        className='supertabelaplanos_progress_bar'
-                                        role='progressbar'
-                                        aria-valuemin={0}
-                                        aria-valuemax={100}
-                                        aria-valuenow={percentualProgressoMassa}
-                                    >
-                                        <span style={{ width: `${percentualProgressoMassa}%` }} />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-            </header>
+            )}
 
             {erroDetalhe && (
                 <div className='supertabelaplanos_alert' role='alert' aria-live='assertive'>

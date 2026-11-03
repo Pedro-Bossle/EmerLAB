@@ -43,6 +43,7 @@ import logoE from '../../../assets/logo_E.png'
 import '../../Credenciamento/Credenciamento_main/Credenciamento_main.css'
 import './ConfigConferenciaLaboratorio.css'
 import { PageHeader } from '../../../components/ui'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 const ROTULO_CAMPO = {
     codigo: 'Código',
@@ -136,7 +137,7 @@ function MapaColunas({ titulo, headers, mapCols, setMapCols, campos, rotulos = {
             {campos.map((campo) => (
                 <label key={`${titulo}-${campo}`}>
                     {rotulos[campo] || ROTULO_CAMPO[campo] || campo}
-                    <select
+                    <SelectDropdown
                         value={mapCols[campo] ?? ''}
                         onChange={(e) =>
                             setMapCols((prev) => ({
@@ -151,7 +152,7 @@ function MapaColunas({ titulo, headers, mapCols, setMapCols, campos, rotulos = {
                                 {h || `Coluna ${i + 1}`}
                             </option>
                         ))}
-                    </select>
+                    </SelectDropdown>
                 </label>
             ))}
         </div>

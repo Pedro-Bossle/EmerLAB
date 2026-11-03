@@ -7,6 +7,7 @@ import {
 export function rotuloTipoRepasse(valor) {
     const v = String(valor || '').toLowerCase()
     if (v === 'rpa') return 'RPA'
+    if (v === 'rpa_sd') return 'RPA s/desc.'
     if (v === 'nota') return 'Nota'
     if (v === 'boleto') return 'Boleto'
     return valor ? String(valor) : '—'

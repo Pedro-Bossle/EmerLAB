@@ -20,7 +20,7 @@ import {
 import { rotuloMesAnoCurto, rotuloTipoRepasse } from '../../lib/pagamentosPrestador.js'
 import { formatarValorMonetarioBr } from '../../lib/pagamentosValor.js'
 import { normalizarTextoBusca } from '../../lib/prestadorCadastroHelpers.js'
-import { PageHeader } from '../../components/ui'
+import { PageHeader, Toolbar } from '../../components/ui'
 import './PagamentosResumo.css'
 
 function rotuloQtdMeses(n) {
@@ -225,49 +225,32 @@ export default function PagamentosResumo() {
                 }
             />
 
-            <header className="pag_res_header_sticky">
-                <h2 className="pag_res_filtros_titulo">Filtros</h2>
-                <div className="pag_res_filtros_flutuantes">
-                    <div className="pag_res_filtros_inner">
-                        <label className="pag_res_filtro pag_res_filtro--grow">
-                            <span>Prestador</span>
-                            <input
-                                type="search"
-                                value={busca}
-                                onChange={(e) => setBusca(e.target.value)}
-                                placeholder="Filtrar por nome, tipo ou PIX…"
-                            />
-                        </label>
-                        <div className="pag_res_filtros_acoes">
-                            <button
-                                type="button"
-                                className="pag_res_btn pag_res_btn--sec"
-                                onClick={expandirTodos}
-                            >
-                                Expandir
-                            </button>
-                            <button
-                                type="button"
-                                className="pag_res_btn pag_res_btn--sec"
-                                onClick={recolherTodos}
-                            >
-                                Recolher
-                            </button>
-                            <button
-                                type="button"
-                                className="pag_res_btn"
-                                onClick={() => void carregar()}
-                                disabled={loading}
-                            >
-                                Atualizar
-                            </button>
-                            <Link className="pag_res_btn pag_res_btn--sec" to="/pagamentos/registro">
-                                Ir ao Registro
-                            </Link>
-                        </div>
-                    </div>
+            <Toolbar title="Filtros">
+                <label className="ek-field ek-field--grow">
+                    <span className="ek-label">Prestador</span>
+                    <input
+                        type="search"
+                        className="ek-input"
+                        value={busca}
+                        onChange={(e) => setBusca(e.target.value)}
+                        placeholder="Filtrar por nome, tipo ou PIX…"
+                    />
+                </label>
+                <div className="ek-toolbar__actions">
+                    <button type="button" className="ek-btn ek-btn--secondary" onClick={expandirTodos}>
+                        Expandir
+                    </button>
+                    <button type="button" className="ek-btn ek-btn--secondary" onClick={recolherTodos}>
+                        Recolher
+                    </button>
+                    <button type="button" className="ek-btn" onClick={() => void carregar()} disabled={loading}>
+                        Atualizar
+                    </button>
+                    <Link className="ek-btn ek-btn--secondary" to="/pagamentos/registro">
+                        Ir ao Registro
+                    </Link>
                 </div>
-            </header>
+            </Toolbar>
 
             {erro ? <p className="pag_res_erro">{erro}</p> : null}
 

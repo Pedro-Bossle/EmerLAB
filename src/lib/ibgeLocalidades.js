@@ -27,18 +27,24 @@ async function garantirIndiceNomeUf() {
         return
     }
     promessaIndiceUf = (async () => {
-        for (const uf of UFS_BRASIL) {
-            try {
-                const municipios = await buscarMunicipiosPorUf(uf)
-                municipios.forEach((m) => {
-                    const chave = normalizarNomeMunicipio(m.nome)
-                    if (chave && !mapaNomeMunicipioParaUf.has(chave)) {
-                        mapaNomeMunicipioParaUf.set(chave, uf)
-                    }
-                })
-            } catch {
-                /* ignora UF com falha pontual */
-            }
+        // Em paralelo (antes: 27 chamadas em fila). A ordem das UFs é preservada ao montar o mapa,
+        // então nomes repetidos em mais de uma UF continuam resolvendo para a mesma UF de antes.
+        const resultados = await Promise.all(
+            UFS_BRASIL.map(async (uf) => {
+                try {
+                    return { uf, municipios: await buscarMunicipiosPorUf(uf) }
+                } catch {
+                    return { uf, municipios: [] } // ignora UF com falha pontual
+                }
+            }),
+        )
+        for (const { uf, municipios } of resultados) {
+            municipios.forEach((m) => {
+                const chave = normalizarNomeMunicipio(m.nome)
+                if (chave && !mapaNomeMunicipioParaUf.has(chave)) {
+                    mapaNomeMunicipioParaUf.set(chave, uf)
+                }
+            })
         }
     })()
     await promessaIndiceUf

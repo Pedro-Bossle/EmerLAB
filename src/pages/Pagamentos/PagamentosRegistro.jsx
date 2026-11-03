@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PrestadorVinculoBusca from '../Supertabela/Supertabela_negociacoes/PrestadorVinculoBusca.jsx'
 import { buscarTodosPaginado, getReadOnlyFlag, setReadOnlyFlag, supabase } from '../../lib/supabase.js'
 import { bloquearSeSomenteLeitura } from '../../lib/readOnlyGuard.js'
@@ -27,6 +27,8 @@ import {
     excluirPagamentoRegistro,
     formatarDataAtualizadoEm,
     inserirPagamentoRegistro,
+    agruparPendenciasPorPrestador,
+    listarPagamentosPendentesNota,
     listarPagamentosRegistros,
     listarPagamentosRegistrosIntervalo,
     mensagemDuplicataPrestadorCompetencia,
@@ -36,11 +38,30 @@ import {
 import {
     formatarValorMonetarioBr,
     normalizarValorMonetarioEntrada,
+    ehTipoRpa,
+    valorLiquidoRpa,
 } from '../../lib/pagamentosValor.js'
+import { lerRelatorioXlsx, linhasResumoMassa } from '../../lib/repasse/lerRelatorioExcel.js'
+import {
+    contarMesesEmAbertoPorPrestador,
+    criarRelatorios,
+    desfazerPagamento,
+    lerConfigRepasse,
+    linkDoRelatorio,
+    listarRelatoriosPorRegistros,
+} from '../../lib/repasse/repasseApi.js'
+import { ehCompetenciaNovoModelo, rotuloStatusRelatorio } from '../../lib/repasse/repasseCore.js'
+import { avisar } from '../../lib/dialogos.js'
+import PagamentosEnvioWizard from './PagamentosEnvioWizard.jsx'
+import PagamentosComprovanteModal from './PagamentosComprovanteModal.jsx'
+import PagamentosMenuFlutuante from './PagamentosMenuFlutuante.jsx'
+import PagamentosPainelPrestador from './PagamentosPainelPrestador.jsx'
+import PagamentosAPagar from './PagamentosAPagar.jsx'
 import './PagamentosRegistro.css'
 import PagamentosExportarModal from './PagamentosExportarModal.jsx'
 import { useSfscExclusaoConfirm } from '../../hooks/useSfscExclusaoConfirm.jsx'
-import { PageHeader } from '../../components/ui'
+import { Button, Modal, PageHeader, Toolbar } from '../../components/ui'
+import { SelectDropdown } from '../../components/ui/Dropdown.jsx'
 
 const hoje = new Date()
 const MES_ATUAL = hoje.getMonth() + 1
@@ -48,7 +69,9 @@ const ANO_ATUAL = hoje.getFullYear()
 
 const OPCOES_TIPO_FILTRO = [
     { value: '', label: 'Todos os tipos' },
-    ...TIPOS_REPASSE.filter((t) => t.value),
+    { value: 'rpa', label: 'RPA' },
+    { value: 'rpa_sd', label: 'RPA s/desc.' },
+    { value: 'nota', label: 'Nota fiscal' },
     { value: 'boleto', label: 'Boleto' },
 ]
 
@@ -257,6 +280,86 @@ export default function PagamentosRegistro() {
     const [massaAno, setMassaAno] = useState(ANO_ATUAL)
     const [massaLinhas, setMassaLinhas] = useState('')
     const [massaColando, setMassaColando] = useState(false)
+    const [relatorioXlsx, setRelatorioXlsx] = useState(null)
+    const [relatorioXlsxLendo, setRelatorioXlsxLendo] = useState(false)
+    const [relatorioXlsxErro, setRelatorioXlsxErro] = useState('')
+    const [arrastandoXlsx, setArrastandoXlsx] = useState(false)
+    const xlsxInputRef = useRef(null)
+    // Repasse mensal: relatórios por registro (null = tabelas ainda indisponíveis), config e modais.
+    const [relatorios, setRelatorios] = useState(null)
+    const [configRepasse, setConfigRepasse] = useState(null)
+    const [filtroRelatorio, setFiltroRelatorio] = useState('')
+    const [wizardAberto, setWizardAberto] = useState(false)
+    const [comprovanteAlvo, setComprovanteAlvo] = useState(null)
+    /** Menu flutuante aberto na tabela: { tipo: 'repasse' | 'acoes', id, el }. */
+    const [menuAberto, setMenuAberto] = useState(null)
+    const fecharMenu = useCallback(() => setMenuAberto(null), [])
+    /** Painel lateral do prestador e fluxo «desfazer pagamento». */
+    const [painelPrestador, setPainelPrestador] = useState(null)
+    const [desfazendo, setDesfazendo] = useState(null)
+    const [motivoDesfazer, setMotivoDesfazer] = useState('')
+    const [desfazendoOcupado, setDesfazendoOcupado] = useState(false)
+    /** Atalho de fila: '' | 'acao' | 'pagar' | 'divergente'. */
+    const [filaRapida, setFilaRapida] = useState(() => {
+        try {
+            return new URLSearchParams(window.location.search).get('fila') === 'pagar' ? 'pagar' : ''
+        } catch {
+            return ''
+        }
+    })
+    /** «Aprovados a pagar» (ex-Resumo): resposta marcada e ainda não pago, em todas as competências. */
+    const [pendentesPagar, setPendentesPagar] = useState([])
+    const [pendentesCarregando, setPendentesCarregando] = useState(true)
+    const carregarPendentes = useCallback(async () => {
+        try {
+            setPendentesPagar(await listarPagamentosPendentesNota())
+        } catch {
+            setPendentesPagar([])
+        } finally {
+            setPendentesCarregando(false)
+        }
+    }, [])
+    const assinaturaPendentes = useMemo(() => registros.filter((r) => r.resposta && !r.pago).length + ':' + registros.length, [registros])
+    useEffect(() => {
+        void carregarPendentes()
+    }, [carregarPendentes, assinaturaPendentes])
+    const qtdPrestadoresAPagar = useMemo(() => agruparPendenciasPorPrestador(pendentesPagar).length, [pendentesPagar])
+    /** «Habilitar edição»: desligado, prestador e valor aparecem como texto (sem contorno) e não editam. */
+    const [edicaoAtiva, setEdicaoAtiva] = useState(() => {
+        try {
+            return window.localStorage.getItem('pag_reg_edicao') === '1'
+        } catch {
+            return false
+        }
+    })
+    const alternarEdicao = useCallback((ligada) => {
+        setEdicaoAtiva(ligada)
+        try {
+            window.localStorage.setItem('pag_reg_edicao', ligada ? '1' : '0')
+        } catch {
+            /* sem armazenamento: vale só nesta sessão */
+        }
+    }, [])
+    /** Meses não pagos por prestador (todas as competências), para o aviso ao lado de «Ver meses». */
+    const [mesesAbertos, setMesesAbertos] = useState(() => new Map())
+    const assinaturaAbertos = useMemo(() => registros.filter((r) => !r.pago).length + ':' + registros.length, [registros])
+    useEffect(() => {
+        if (!registros.length) return undefined
+        let ativo = true
+        contarMesesEmAbertoPorPrestador({ forcar: true })
+            .then((m) => ativo && setMesesAbertos(m))
+            .catch(() => {})
+        return () => {
+            ativo = false
+        }
+    }, [assinaturaAbertos])
+    const rotuloVerMeses = (row) => {
+        const total = mesesAbertos.get(String(row.prestadorId)) || 0
+        const outros = total - (row.pago ? 0 : 1)
+        return outros > 0 ? { texto: `Ver meses · +${outros} em aberto`, alerta: true } : { texto: 'Ver meses', alerta: false }
+    }
+    const [repasseOcupado, setRepasseOcupado] = useState('')
+    const [resumoRelatorios, setResumoRelatorios] = useState(null)
     const [resumoMassa, setResumoMassa] = useState(null)
     const [resumoMassaSelecao, setResumoMassaSelecao] = useState({})
     const [resumoMassaBuscaId, setResumoMassaBuscaId] = useState('')
@@ -301,7 +404,7 @@ export default function PagamentosRegistro() {
         return Number(de.mes) === Number(ate.mes) && Number(de.ano) === Number(ate.ano)
     }, [intervaloFiltroCompetencia])
 
-    const colSpanTabelaVazia = (podeEditar ? 10 : 9) - (ocultarColunaMes ? 1 : 0)
+    const colSpanTabelaVazia = 7 - (ocultarColunaMes ? 1 : 0) + (relatorios !== null ? 1 : 0)
 
     const competenciaNovaLinha = useMemo(() => {
         const { ate } = intervaloFiltroCompetencia
@@ -382,6 +485,19 @@ export default function PagamentosRegistro() {
         })
     }, [prestadores, loading, registros.length, podeEditar])
 
+    /** Filas do repasse (substituem abrir a Caixa para saber o que depende do financeiro). */
+    const pertenceFila = useCallback(
+        (r, fila) => {
+            const rel = relatorios?.get(r.id)
+            if (!rel) return false
+            if (fila === 'divergente') return Boolean(rel.divergente)
+            if (fila === 'acao') return rel.status === 'documento_em_revisao' || rel.status === 'reprovado'
+            if (fila === 'pagar') return Boolean(r.resposta) && !r.pago
+            return true
+        },
+        [relatorios],
+    )
+
     const linhasFiltradas = useMemo(() => {
         const termo = normalizarTextoBusca(buscaNome)
         let lista = [...registrosComRepasseAtualizado]
@@ -390,6 +506,17 @@ export default function PagamentosRegistro() {
         }
         if (filtroTipo) {
             lista = lista.filter((r) => String(r.tipoRepasse || '').toLowerCase() === filtroTipo)
+        }
+        if (filaRapida && relatorios) {
+            lista = lista.filter((r) => pertenceFila(r, filaRapida))
+        }
+        if (filtroRelatorio) {
+            lista = lista.filter((r) => {
+                const rel = relatorios?.get(r.id)
+                if (filtroRelatorio === 'divergente') return Boolean(rel?.divergente)
+                if (filtroRelatorio === 'sem_relatorio') return !rel
+                return rel?.status === filtroRelatorio
+            })
         }
         if (filtroResposta === 'sim') lista = lista.filter((r) => r.resposta)
         if (filtroResposta === 'nao') lista = lista.filter((r) => !r.resposta)
@@ -441,7 +568,7 @@ export default function PagamentosRegistro() {
             }
         })
         return lista
-    }, [registrosComRepasseAtualizado, buscaNome, filtroTipo, filtroResposta, filtroPago, ordenarCol, ordenarDir])
+    }, [registrosComRepasseAtualizado, buscaNome, filtroTipo, filtroRelatorio, relatorios, filtroResposta, filtroPago, ordenarCol, ordenarDir, filaRapida, pertenceFila])
 
     const totalValor = useMemo(
         () => linhasFiltradas.reduce((s, r) => s + (Number(r.valor) || 0), 0),
@@ -631,6 +758,198 @@ export default function PagamentosRegistro() {
         [linhasFiltradas, podeEditar, persistirRegistro],
     )
 
+    /** Anexa o .xlsx do sistema principal: separa abas, gera o resumo e confere totais (docs/repasse-mensal.md §5). */
+    const aoAnexarRelatorioXlsx = useCallback(async (arquivo) => {
+        if (!arquivo) return
+        setRelatorioXlsxErro('')
+        setRelatorioXlsxLendo(true)
+        try {
+            if (!/\.xlsx$/i.test(arquivo.name)) throw new Error('Envie um arquivo .xlsx.')
+            const relatorio = await lerRelatorioXlsx(arquivo)
+            if (!relatorio.abas.length) throw new Error('Nenhuma aba de prestador encontrada no arquivo.')
+            setRelatorioXlsx(relatorio)
+            setMassaLinhas(linhasResumoMassa(relatorio.abas))
+            // A competência da inclusão é escolhida pelo usuário; anexar o arquivo não a altera.
+        } catch (e) {
+            setRelatorioXlsx(null)
+            setRelatorioXlsxErro(e?.message || 'Não foi possível ler o arquivo.')
+        } finally {
+            setRelatorioXlsxLendo(false)
+        }
+    }, [])
+
+    // Ctrl+V com o .xlsx copiado no Explorer, enquanto a Inclusão em massa está aberta (texto colado segue normal).
+    useEffect(() => {
+        if (!massaAberta) return undefined
+        const aoColar = (e) => {
+            const f = Array.from(e.clipboardData?.files || []).find((x) => /\.xlsx$/i.test(x.name))
+            if (!f) return
+            e.preventDefault()
+            void aoAnexarRelatorioXlsx(f)
+        }
+        document.addEventListener('paste', aoColar)
+        return () => document.removeEventListener('paste', aoColar)
+    }, [massaAberta, aoAnexarRelatorioXlsx])
+
+    const repasseAtivo = relatorios !== null
+    const novoModelo = useCallback(
+        (row) => ehCompetenciaNovoModelo(row.mes, row.ano, configRepasse?.competencia_inicial || '2026-10'),
+        [configRepasse],
+    )
+
+    const recarregarRelatorios = useCallback(async () => {
+        try {
+            setRelatorios(await listarRelatoriosPorRegistros(registros.map((r) => r.id)))
+        } catch {
+            // Migração do repasse ainda não aplicada (ou sem permissão): a tela segue como era.
+            setRelatorios(null)
+        }
+    }, [registros])
+
+    useEffect(() => {
+        void recarregarRelatorios()
+    }, [recarregarRelatorios])
+
+    useEffect(() => {
+        lerConfigRepasse().then(setConfigRepasse).catch(() => {})
+    }, [])
+
+    const nomeNormalizado = (t) => normalizarTextoBusca(t)
+
+    /** Aba do .xlsx anexado que corresponde ao registro (A1 = nome do prestador). */
+    const abaDoRegistro = useCallback(
+        (row) => {
+            if (!relatorioXlsx) return null
+            const alvo = nomeNormalizado(row.prestadorNome)
+            return (
+                relatorioXlsx.abas.find((a) => nomeNormalizado(a.nomeA1) === alvo) ||
+                relatorioXlsx.abas.find((a) => {
+                    const p = resolverPrestadorPorNome(prestadores, a.nomeA1)
+                    return p && String(p.id) === String(row.prestadorId)
+                }) ||
+                null
+            )
+        },
+        [relatorioXlsx, prestadores],
+    )
+
+    /** Cria relatório + link para registros (nunca altera o registro). */
+    const vincularRegistros = useCallback(
+        async (pares) => {
+            const itens = pares.map(({ registroId, aba }) => ({
+                registro_id: registroId,
+                aba,
+                arquivo: relatorioXlsx?.arquivo || '',
+                periodo: relatorioXlsx?.periodo || null,
+            }))
+            const saida = []
+            for (let i = 0; i < itens.length; i += 4) {
+                const { itens: r } = await criarRelatorios(itens.slice(i, i + 4))
+                saida.push(...r)
+            }
+            await recarregarRelatorios()
+            return saida
+        },
+        [relatorioXlsx, recarregarRelatorios],
+    )
+
+    const aoVincularRelatorio = useCallback(
+        async (row) => {
+            const aba = abaDoRegistro(row)
+            if (!aba) {
+                await avisar({
+                    titulo: 'Anexe o relatório primeiro',
+                    mensagem: 'Abra «Inclusão em massa», anexe o .xlsx do sistema principal e tente de novo: o relatório é vinculado pela aba cujo nome (A1) corresponde ao prestador.',
+                })
+                return
+            }
+            setRepasseOcupado(row.id)
+            try {
+                const [r] = await vincularRegistros([{ registroId: row.id, aba }])
+                if (!r?.ok) setErro(r?.error || 'Não foi possível vincular o relatório.')
+            } catch (e) {
+                setErro(e.message)
+            } finally {
+                setRepasseOcupado('')
+            }
+        },
+        [abaDoRegistro, vincularRegistros],
+    )
+
+    const copiarLink = useCallback(async (row) => {
+        const rel = relatorios?.get(row.id)
+        if (!rel) return
+        try {
+            const { link } = await linkDoRelatorio(rel.id)
+            await navigator.clipboard.writeText(link)
+            setInfo('Link copiado. Ele é a credencial do prestador: envie só a ele.')
+        } catch (e) {
+            setErro(e.message)
+        }
+    }, [relatorios])
+
+    const abrirLink = useCallback(async (row) => {
+        const rel = relatorios?.get(row.id)
+        if (!rel) return
+        try {
+            const { link } = await linkDoRelatorio(rel.id)
+            window.open(link, '_blank', 'noopener')
+        } catch (e) {
+            setErro(e.message)
+        }
+    }, [relatorios])
+
+    /** Selo único do repasse (tabela desktop): abre menu com link e comprovante. */
+    const celulaRepasse = (row) => {
+        if (!repasseAtivo || !novoModelo(row)) return <span className="pag_reg_sem_repasse">—</span>
+        const rel = relatorios.get(row.id)
+        if (!rel) {
+            return podeEditar ? (
+                <button type="button" className="pag_reg_btn pag_reg_btn--sec pag_reg_btn--mini" disabled={repasseOcupado === row.id} onClick={() => void aoVincularRelatorio(row)}>
+                    Vincular relatório
+                </button>
+            ) : (
+                <span className="pag_reg_sem_repasse">—</span>
+            )
+        }
+        if (rel.divergente) {
+            return <span className="pag_reg_rel pag_reg_rel--erro" title={`Soma das linhas ${formatarValorMonetarioBr(rel.soma_linhas_repasse)} × total ${formatarValorMonetarioBr(rel.total_repasse)}`}>Total não confere</span>
+        }
+        const comp = rel.comprovante
+        const rotulo = comp
+            ? `Comprovante ${formatarDataAtualizadoEm(comp.enviado_em).slice(0, 5)}`
+            : rel.fluxo === 'laboratorio_manual'
+              ? 'Laboratório · manual'
+              : rotuloStatusRelatorio(rel.status)
+        const cls = comp ? 'aprovado' : rel.status
+        return (
+            <button
+                type="button"
+                className={`pag_reg_rel pag_reg_rel--${cls} pag_reg_rel_btn`}
+                aria-haspopup="menu"
+                aria-expanded={menuAberto?.tipo === 'repasse' && menuAberto.id === row.id}
+                onClick={(e) => setMenuAberto({ tipo: 'repasse', id: row.id, el: e.currentTarget })}
+            >
+                {rotulo}
+            </button>
+        )
+    }
+
+    /** Pago nos registros com relatório vinculado: só existe com comprovante (clicar abre o envio). */
+    const pagoPorComprovante = (row) => {
+        if (!repasseAtivo || !novoModelo(row)) return false
+        const rel = relatorios.get(row.id)
+        return Boolean(rel && !rel.divergente)
+    }
+
+    const aoClicarPago = (row) => {
+        if (!pagoPorComprovante(row)) return void aoToggleCheck(row.id, 'pago')
+        const rel = relatorios.get(row.id)
+        if (rel.comprovante) return
+        if (row.pago) return void aoToggleCheck(row.id, 'pago') // pago à mão antes do comprovante: pode corrigir
+        setComprovanteAlvo(row)
+    }
+
     const aplicarInclusaoMassa = useCallback(async () => {
         if (bloquearSeSomenteLeitura((m) => setErro(m)) || !podeEditar) return
         setMassaColando(true)
@@ -790,6 +1109,36 @@ export default function PagamentosRegistro() {
                 }
             }
 
+            // Repasse mensal: registros criados com o .xlsx anexado já nascem com relatório e link.
+            setResumoRelatorios(null)
+            if (relatorioXlsx && relatorios !== null && adicionados.length) {
+                const pares = adicionados
+                    .map((a) => ({
+                        registroId: a.registroId,
+                        aba:
+                            relatorioXlsx.abas.find((x) => nomeNormalizado(x.nomeA1) === nomeNormalizado(a.nomeColado)) ||
+                            relatorioXlsx.abas.find((x) => nomeNormalizado(x.nomeA1) === nomeNormalizado(a.nome)) ||
+                            relatorioXlsx.abas.find((x) => {
+                                const p = resolverPrestadorPorNome(prestadores, x.nomeA1)
+                                const p2 = resolverPrestadorPorNome(prestadores, a.nomeColado)
+                                return p && p2 && String(p.id) === String(p2.id)
+                            }),
+                    }))
+                    .filter((p) => p.aba)
+                if (pares.length) {
+                    try {
+                        const r = await vincularRegistros(pares)
+                        setResumoRelatorios({
+                            vinculados: r.filter((x) => x.ok).length,
+                            divergentes: r.filter((x) => x.ok && x.divergente).length,
+                            falhas: r.filter((x) => !x.ok).map((x) => x.error),
+                        })
+                    } catch (e) {
+                        setResumoRelatorios({ vinculados: 0, divergentes: 0, falhas: [e.message] })
+                    }
+                }
+            }
+
             const periodosInseridos = [
                 ...new Set(
                     adicionados.map((a) => rotuloMesAnoCurto(a.mes, a.ano)).filter((p) => p && p !== '—'),
@@ -857,6 +1206,9 @@ export default function PagamentosRegistro() {
         intervaloFiltroCompetencia,
         podeEditar,
         registros,
+        relatorioXlsx,
+        relatorios,
+        vincularRegistros,
     ])
 
     const filtroCompetenciaDe = mesAnoParaInputMonth(filtroMesDe, filtroAnoDe)
@@ -979,176 +1331,282 @@ export default function PagamentosRegistro() {
                 title="Registro de pagamentos"
                 description="Filtre por competência e prestador, inclua registros e acompanhe respostas e pagamentos."
             />
-            <header className="pag_reg_header">
-                <h2 className="pag_reg_filtros_titulo">Filtros</h2>
-
-                <div
-                    className={[
-                        'pag_reg_filtros_flutuantes',
-                        massaAberta ? 'pag_reg_filtros_flutuantes--massa' : '',
-                    ]
-                        .filter(Boolean)
-                        .join(' ')}
-                >
-                    <div className="pag_reg_filtros_inner">
-                        <label className="pag_reg_filtro pag_reg_filtro--competencia pag_reg_filtro--intervalo">
-                            <span>Competência</span>
-                            <div className="pag_reg_competencia_intervalo">
-                                <label className="pag_reg_competencia_de_ate">
-                                    <span className="pag_reg_competencia_de_ate_label">De</span>
-                                    <input
-                                        type="month"
-                                        className="pag_reg_input_month"
-                                        value={filtroCompetenciaDe}
-                                        onChange={(e) => aoMudarFiltroCompetenciaDe(e.target.value)}
-                                        aria-label="Competência inicial"
-                                    />
-                                </label>
-                                <span className="pag_reg_competencia_sep" aria-hidden="true">
-                                    até
-                                </span>
-                                <label className="pag_reg_competencia_de_ate">
-                                    <span className="pag_reg_competencia_de_ate_label">Até</span>
-                                    <input
-                                        type="month"
-                                        className="pag_reg_input_month"
-                                        value={filtroCompetenciaAte}
-                                        onChange={(e) => aoMudarFiltroCompetenciaAte(e.target.value)}
-                                        aria-label="Competência final"
-                                    />
-                                </label>
-                            </div>
+            <Toolbar title="Filtros">
+                <label className="ek-field ek-field--half">
+                    <span className="ek-label">Competência — de</span>
+                    <input
+                        type="month"
+                        className="ek-input"
+                        value={filtroCompetenciaDe}
+                        onChange={(e) => aoMudarFiltroCompetenciaDe(e.target.value)}
+                        aria-label="Competência inicial"
+                    />
+                </label>
+                <label className="ek-field ek-field--half">
+                    <span className="ek-label">Competência — até</span>
+                    <input
+                        type="month"
+                        className="ek-input"
+                        value={filtroCompetenciaAte}
+                        onChange={(e) => aoMudarFiltroCompetenciaAte(e.target.value)}
+                        aria-label="Competência final"
+                    />
+                </label>
+                <label className="ek-field ek-field--grow">
+                    <span className="ek-label">Prestador</span>
+                    <input
+                        type="search"
+                        className="ek-input"
+                        value={buscaNome}
+                        onChange={(e) => setBuscaNome(e.target.value)}
+                        placeholder="Filtrar por nome…"
+                    />
+                </label>
+                <label className="ek-field ek-field--half">
+                    <span className="ek-label">Tipo</span>
+                    <SelectDropdown className="ek-select" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
+                        {OPCOES_TIPO_FILTRO.map((o) => (
+                            <option key={o.value || 'todos'} value={o.value}>
+                                {o.label}
+                            </option>
+                        ))}
+                    </SelectDropdown>
+                </label>
+                <label className="ek-field ek-field--half">
+                    <span className="ek-label">Resposta</span>
+                    <SelectDropdown className="ek-select" value={filtroResposta} onChange={(e) => setFiltroResposta(e.target.value)}>
+                        {OPCOES_FILTRO_SIM_NAO.map((o) => (
+                            <option key={`resp-${o.value || 't'}`} value={o.value}>
+                                {o.label}
+                            </option>
+                        ))}
+                    </SelectDropdown>
+                </label>
+                <label className="ek-field ek-field--half">
+                    <span className="ek-label">Pago</span>
+                    <SelectDropdown className="ek-select" value={filtroPago} onChange={(e) => setFiltroPago(e.target.value)}>
+                        {OPCOES_FILTRO_SIM_NAO.map((o) => (
+                            <option key={`pago-${o.value || 't'}`} value={o.value}>
+                                {o.label}
+                            </option>
+                        ))}
+                    </SelectDropdown>
+                </label>
+                {repasseAtivo && (
+                    <label className="ek-field ek-field--half">
+                        <span className="ek-label">Relatório</span>
+                        <SelectDropdown className="ek-select" value={filtroRelatorio} onChange={(e) => setFiltroRelatorio(e.target.value)}>
+                            <option value="">Todos</option>
+                            <option value="sem_relatorio">Sem relatório</option>
+                            <option value="nao_enviado">Não enviado</option>
+                            <option value="agendado">Agendado</option>
+                            <option value="enviado">Enviado</option>
+                            <option value="visualizado">Visualizado</option>
+                            <option value="aprovado">Aprovado</option>
+                            <option value="documento_em_revisao">Documento em revisão</option>
+                            <option value="documento_devolvido">Documento devolvido</option>
+                            <option value="reprovado">Reprovado</option>
+                            <option value="divergente">Total não confere</option>
+                        </SelectDropdown>
+                    </label>
+                )}
+                <div className="ek-toolbar__actions">
+                    {podeEditar && (
+                        <label className="ek-check">
+                            <input type="checkbox" checked={edicaoAtiva} onChange={(e) => alternarEdicao(e.target.checked)} />
+                            Habilitar edição
                         </label>
-                        <label className="pag_reg_filtro pag_reg_filtro--grow">
-                            <span>Prestador</span>
-                            <input
-                                type="search"
-                                value={buscaNome}
-                                onChange={(e) => setBuscaNome(e.target.value)}
-                                placeholder="Filtrar por nome…"
-                            />
-                        </label>
-                        <label className="pag_reg_filtro">
-                            <span>Tipo</span>
-                            <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
-                                {OPCOES_TIPO_FILTRO.map((o) => (
-                                    <option key={o.value || 'todos'} value={o.value}>
-                                        {o.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <label className="pag_reg_filtro">
-                            <span>Resposta</span>
-                            <select
-                                value={filtroResposta}
-                                onChange={(e) => setFiltroResposta(e.target.value)}
-                            >
-                                {OPCOES_FILTRO_SIM_NAO.map((o) => (
-                                    <option key={`resp-${o.value || 't'}`} value={o.value}>
-                                        {o.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <label className="pag_reg_filtro">
-                            <span>Pago</span>
-                            <select value={filtroPago} onChange={(e) => setFiltroPago(e.target.value)}>
-                                {OPCOES_FILTRO_SIM_NAO.map((o) => (
-                                    <option key={`pago-${o.value || 't'}`} value={o.value}>
-                                        {o.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <div className="pag_reg_filtros_acoes">
-                            <button
-                                type="button"
-                                className="pag_reg_btn pag_reg_btn--sec"
-                                onClick={() => setExportModalAberto(true)}
-                            >
-                                Exportar Excel
-                            </button>
-                            <button
-                                type="button"
-                                className="pag_reg_btn pag_reg_btn--sec"
-                                onClick={() => setMassaAberta((v) => !v)}
-                            >
-                                {massaAberta ? 'Fechar Inclusão' : 'Inclusão em massa'}
-                            </button>
-                            {podeEditar && (
-                                <button type="button" className="pag_reg_btn" onClick={() => void adicionarLinha()}>
-                                    + Linha
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    {massaAberta && (
-                        <div className="pag_reg_massa">
-                            <p className="pag_reg_massa_tip">
-                                <strong>Formato:</strong> uma linha por registro, colunas com <strong>Tab</strong>{' '}
-                                (Excel) ou <code>;</code>. Com competência na linha:{' '}
-                                <code>MM/AAAA[TAB]prestador[TAB]valor[TAB]resposta[TAB]pago</code>. Sem mês na
-                                linha, usa a <strong>competência padrão</strong> abaixo:{' '}
-                                <code>prestador[TAB]valor[TAB]TRUE[TAB]TRUE</code>.
-                                <br />
-                                Resposta e pago: <code>TRUE</code>/<code>FALSE</code> ou <code>SIM</code>/
-                                <code>NÃO</code>. Ex. com datas:{' '}
-                                <code>01/2026[TAB]Clínica[TAB]150[TAB]TRUE[TAB]TRUE</code>.
-                            </p>
-                            <div className="pag_reg_massa_row">
-                                <label className="pag_reg_filtro pag_reg_filtro--mes">
-                                    <span>Competência padrão (linhas sem MM/AAAA)</span>
-                                    <input
-                                        type="month"
-                                        className="pag_reg_input_month"
-                                        value={massaCompetencia}
-                                        onChange={(e) => aoMudarMassaCompetencia(e.target.value)}
-                                        disabled={massaColando}
-                                    />
-                                </label>
-                            </div>
-                            <label className="pag_reg_massa_area pag_reg_massa_area--full">
-                                <span>Linhas</span>
-                                <textarea
-                                    rows={8}
-                                    value={massaLinhas}
-                                    onChange={(e) => setMassaLinhas(e.target.value)}
-                                    disabled={massaColando}
-                                />
-                            </label>
-                            <button
-                                type="button"
-                                className="pag_reg_btn"
-                                disabled={massaColando || !podeEditar}
-                                title={
-                                    !podeEditar
-                                        ? somenteLeitura
-                                            ? 'Perfil somente leitura.'
-                                            : 'Sem permissão para editar pagamentos.'
-                                        : undefined
-                                }
-                                onClick={() => void aplicarInclusaoMassa()}
-                            >
-                                {massaColando ? 'Incluindo…' : 'Criar registros'}
-                            </button>
-                            {!podeEditar && (
-                                <p className="pag_reg_massa_sem_edit">
-                                    {somenteLeitura
-                                        ? 'Modo somente leitura: não é possível criar registros.'
-                                        : 'Peça a permissão «Editar Pagamentos» em Gerenciar acessos (ou «Editar Credenciamento»).'}
-                                </p>
-                            )}
-                        </div>
+                    )}
+                    {podeEditar && repasseAtivo && (
+                        <button type="button" className="ek-btn ek-btn--secondary" onClick={() => setWizardAberto(true)}>
+                            Enviar relatórios
+                        </button>
+                    )}
+                    <button type="button" className="ek-btn ek-btn--secondary" onClick={() => setExportModalAberto(true)}>
+                        Exportar Excel
+                    </button>
+                    <button type="button" className="ek-btn ek-btn--secondary" onClick={() => setMassaAberta(true)}>
+                        Inclusão em massa
+                    </button>
+                    {podeEditar && (
+                        <button type="button" className="ek-btn" onClick={() => void adicionarLinha()}>
+                            + Linha
+                        </button>
                     )}
                 </div>
-            </header>
+            </Toolbar>
+
+            <Modal open={massaAberta} onClose={() => setMassaAberta(false)} busy={massaColando} title="Inclusão em massa" size="xl">
+                <div className="pag_reg_massa">
+                    <p className="pag_reg_massa_tip">
+                        <strong>Formato:</strong> uma linha por registro, colunas com <strong>Tab</strong>{' '}
+                        (Excel) ou <code>;</code>. Com competência na linha:{' '}
+                        <code>MM/AAAA[TAB]prestador[TAB]valor[TAB]resposta[TAB]pago</code>. Sem mês na
+                        linha, usa a <strong>competência padrão</strong> abaixo:{' '}
+                        <code>prestador[TAB]valor[TAB]TRUE[TAB]TRUE</code>.
+                        <br />
+                        Resposta e pago: <code>TRUE</code>/<code>FALSE</code> ou <code>SIM</code>/
+                        <code>NÃO</code>. Ex. com datas:{' '}
+                        <code>01/2026[TAB]Clínica[TAB]150[TAB]TRUE[TAB]TRUE</code>.
+                    </p>
+                    <div className="pag_reg_massa_row">
+                        <label className="ek-field">
+                            <span className="ek-label">Competência padrão (linhas sem MM/AAAA)</span>
+                            <input
+                                type="month"
+                                className="ek-input"
+                                value={massaCompetencia}
+                                onChange={(e) => aoMudarMassaCompetencia(e.target.value)}
+                                disabled={massaColando}
+                            />
+                        </label>
+                    </div>
+                    <div className="pag_reg_massa_xlsx">
+                        <div
+                            className={`comprovante_drop${arrastandoXlsx ? ' is-over' : ''}${relatorioXlsx ? ' has-file' : ''}${massaColando || relatorioXlsxLendo ? ' is-disabled' : ''}`}
+                            role="button"
+                            tabIndex={0}
+                            aria-disabled={massaColando || relatorioXlsxLendo}
+                            onClick={() => !(massaColando || relatorioXlsxLendo) && xlsxInputRef.current?.click()}
+                            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), !(massaColando || relatorioXlsxLendo) && xlsxInputRef.current?.click())}
+                            onDragOver={(e) => { e.preventDefault(); setArrastandoXlsx(true) }}
+                            onDragLeave={() => setArrastandoXlsx(false)}
+                            onDrop={(e) => { e.preventDefault(); setArrastandoXlsx(false); void aoAnexarRelatorioXlsx(e.dataTransfer.files?.[0]) }}
+                        >
+                            {relatorioXlsx ? (
+                                <>
+                                    <span className="comprovante_drop_nome">{relatorioXlsx.arquivo}</span>
+                                    <span className="comprovante_drop_dica">{relatorioXlsx.abas.length} abas lidas · clique para trocar o arquivo</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="comprovante_drop_titulo">Relatório de atendimentos (.xlsx)</span>
+                                    <span className="comprovante_drop_dica">Escolher arquivo, arrastar aqui ou colar com <kbd>Ctrl</kbd> + <kbd>V</kbd></span>
+                                </>
+                            )}
+                        </div>
+                        <input
+                            ref={xlsxInputRef}
+                            type="file"
+                            accept=".xlsx"
+                            className="sr-only"
+                            tabIndex={-1}
+                            disabled={massaColando || relatorioXlsxLendo}
+                            onChange={(e) => {
+                                void aoAnexarRelatorioXlsx(e.target.files?.[0])
+                                e.target.value = ''
+                            }}
+                        />
+                        {relatorioXlsxLendo && <p className="pag_reg_massa_xlsx_msg">Lendo arquivo…</p>}
+                        {relatorioXlsxErro && (
+                            <p className="pag_reg_massa_xlsx_msg pag_reg_massa_xlsx_msg--erro" role="alert">
+                                {relatorioXlsxErro}
+                            </p>
+                        )}
+                        {relatorioXlsx && (
+                            <div className="pag_reg_massa_xlsx_resumo">
+                                <p className="pag_reg_massa_xlsx_msg">
+                                    <strong>{relatorioXlsx.abas.length}</strong> abas lidas de{' '}
+                                    {relatorioXlsx.arquivo};{' '}
+                                    <strong>{relatorioXlsx.abas.filter((a) => a.divergente).length}</strong>{' '}
+                                    com total que não confere;{' '}
+                                    <strong>
+                                        {relatorioXlsx.abas.filter((a) => a.fluxo === 'laboratorio_manual').length}
+                                    </strong>{' '}
+                                    laboratório(s) em fluxo manual. O texto abaixo foi preenchido com o total
+                                    de cada aba; nenhum registro foi criado ainda.
+                                </p>
+                                <details>
+                                    <summary>Separação do relatório</summary>
+                                    <div className="pag_reg_table_wrap">
+                                        <table className="pag_reg_massa_xlsx_tabela">
+                                            <thead>
+                                                <tr>
+                                                    <th>Aba</th>
+                                                    <th>Nome (A1)</th>
+                                                    <th>Atend.</th>
+                                                    <th>Soma das linhas</th>
+                                                    <th>Total da aba</th>
+                                                    <th>Conferência</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {relatorioXlsx.abas.map((a) => (
+                                                    <tr
+                                                        key={a.abaOriginal + a.nomeA1}
+                                                        className={a.divergente ? 'is-divergente' : undefined}
+                                                    >
+                                                        <td>{a.abaNome}</td>
+                                                        <td>{a.nomeA1}</td>
+                                                        <td>{a.atendimentos}</td>
+                                                        <td>{formatarValorMonetarioBr(a.somaLinhas)}</td>
+                                                        <td>{formatarValorMonetarioBr(a.totalAba)}</td>
+                                                        <td>
+                                                            {a.fluxo === 'laboratorio_manual'
+                                                                ? 'Laboratório · manual'
+                                                                : a.divergente
+                                                                  ? `Total não confere (${formatarValorMonetarioBr(a.diferencaTotais)})`
+                                                                  : 'Confere'}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </details>
+                            </div>
+                        )}
+                    </div>
+                    <label className="pag_reg_massa_area pag_reg_massa_area--full">
+                        <span>Linhas</span>
+                        <textarea
+                            rows={8}
+                            value={massaLinhas}
+                            onChange={(e) => setMassaLinhas(e.target.value)}
+                            disabled={massaColando}
+                        />
+                    </label>
+                    <button
+                        type="button"
+                        className="pag_reg_btn"
+                        disabled={massaColando || !podeEditar}
+                        title={
+                            !podeEditar
+                                ? somenteLeitura
+                                    ? 'Perfil somente leitura.'
+                                    : 'Sem permissão para editar pagamentos.'
+                                : undefined
+                        }
+                        onClick={() => void aplicarInclusaoMassa()}
+                    >
+                        {massaColando ? 'Incluindo…' : 'Criar registros'}
+                    </button>
+                    {!podeEditar && (
+                        <p className="pag_reg_massa_sem_edit">
+                            {somenteLeitura
+                                ? 'Modo somente leitura: não é possível criar registros.'
+                                : 'Peça a permissão «Editar Pagamentos» em Gerenciar acessos (ou «Editar Credenciamento»).'}
+                        </p>
+                    )}
+                </div>
+            </Modal>
 
             {erro && (
                 <div className="pag_reg_banner pag_reg_banner--erro" role="alert">
                     {erro}
                     <button type="button" onClick={() => setErro('')}>
+                        ×
+                    </button>
+                </div>
+            )}
+            {resumoRelatorios && (
+                <div className={`pag_reg_banner ${resumoRelatorios.falhas.length ? 'pag_reg_banner--erro' : 'pag_reg_banner--info'}`} role="status">
+                    <span className="pag_reg_banner_txt">
+                        <strong>{resumoRelatorios.vinculados}</strong> relatório(s) vinculado(s)
+                        {resumoRelatorios.divergentes > 0 ? ` · ${resumoRelatorios.divergentes} com total que não confere (ficam fora do envio)` : ''}
+                        {resumoRelatorios.falhas.length > 0 ? ` · ${resumoRelatorios.falhas.length} falha(s): ${[...new Set(resumoRelatorios.falhas)].join('; ')}` : ''}
+                    </span>
+                    <button type="button" onClick={() => setResumoRelatorios(null)} aria-label="Fechar aviso">
                         ×
                     </button>
                 </div>
@@ -1252,7 +1710,7 @@ export default function PagamentosRegistro() {
                                                         {a.semCadastro ? (
                                                             <div className="pag_reg_resumo_vinculo">
                                                                 {a.sugestoes?.length > 0 ? (
-                                                                    <select
+                                                                    <SelectDropdown
                                                                         className="pag_reg_resumo_select"
                                                                         value={resumoMassaSelecao[a.registroId] || ''}
                                                                         disabled={
@@ -1272,7 +1730,7 @@ export default function PagamentosRegistro() {
                                                                                 {s.nome}
                                                                             </option>
                                                                         ))}
-                                                                    </select>
+                                                                    </SelectDropdown>
                                                                 ) : (
                                                                     <span className="pag_reg_resumo_sem_sug">
                                                                         Nenhuma sugestão automática
@@ -1390,7 +1848,39 @@ export default function PagamentosRegistro() {
                 <strong>Total: {formatarValorMonetarioBr(totalValor)}</strong>
             </div>
 
-            {loading ? (
+            {repasseAtivo && (
+                <div className="pag_reg_filas" role="group" aria-label="Filas do repasse">
+                    {[
+                        ['', 'Todos'],
+                        ['acao', 'Aguardando minha ação'],
+                        ['pagar', 'Aprovados a pagar'],
+                        ['divergente', 'Divergentes'],
+                    ].map(([chave, rotulo]) => {
+                        const n = chave === 'pagar' ? qtdPrestadoresAPagar : chave ? registrosComRepasseAtualizado.filter((r) => pertenceFila(r, chave)).length : registrosComRepasseAtualizado.length
+                        return (
+                            <button
+                                key={chave || 'todos'}
+                                type="button"
+                                className={`pag_reg_fila${filaRapida === chave ? ' is-on' : ''}`}
+                                aria-pressed={filaRapida === chave}
+                                onClick={() => setFilaRapida(chave)}
+                            >
+                                {rotulo} <b>{n}</b>
+                            </button>
+                        )
+                    })}
+                </div>
+            )}
+
+            {filaRapida === 'pagar' && repasseAtivo ? (
+                <PagamentosAPagar
+                    registros={pendentesPagar}
+                    busca={buscaNome}
+                    carregando={pendentesCarregando}
+                    podeEditar={podeEditar}
+                    onAbrirPainel={setPainelPrestador}
+                />
+            ) : loading ? (
                 <p className="pag_reg_loading">A carregar…</p>
             ) : (
                 <>
@@ -1400,6 +1890,7 @@ export default function PagamentosRegistro() {
                                 'pag_reg_table',
                                 'tabela-cartoes',
                                 ocultarColunaMes ? 'pag_reg_table--sem_mes' : '',
+                                edicaoAtiva ? '' : 'pag_reg_table--leitura',
                             ]
                                 .filter(Boolean)
                                 .join(' ')}
@@ -1414,16 +1905,6 @@ export default function PagamentosRegistro() {
                                     <th className="pag_reg_col_prestador">
                                         <button type="button" onClick={() => alternarOrdenacao('prestador')}>
                                             Prestador{indicadorOrdem('prestador')}
-                                        </button>
-                                    </th>
-                                    <th className="pag_reg_col_tipo">
-                                        <button type="button" onClick={() => alternarOrdenacao('tipo')}>
-                                            Tipo{indicadorOrdem('tipo')}
-                                        </button>
-                                    </th>
-                                    <th className="pag_reg_col_pix">
-                                        <button type="button" onClick={() => alternarOrdenacao('pix')}>
-                                            Pix{indicadorOrdem('pix')}
                                         </button>
                                     </th>
                                     <th className="pag_reg_col_valor">
@@ -1441,17 +1922,15 @@ export default function PagamentosRegistro() {
                                             Pago{indicadorOrdem('pago')}
                                         </button>
                                     </th>
+                                    {repasseAtivo && <th className="pag_reg_col_rel">Repasse</th>}
                                     <th className="pag_reg_col_atualizado">
                                         <button type="button" onClick={() => alternarOrdenacao('atualizadoEm')}>
                                             Atualizado{indicadorOrdem('atualizadoEm')}
                                         </button>
                                     </th>
-                                    <th className="pag_reg_col_obs">
-                                        <button type="button" onClick={() => alternarOrdenacao('obs')}>
-                                            Obs{indicadorOrdem('obs')}
-                                        </button>
+                                    <th className="pag_reg_th_acao">
+                                        <span className="pag_reg_sr_only">Ações</span>
                                     </th>
-                                    {podeEditar && <th className="pag_reg_th_acao"> </th>}
                                 </tr>
                             </thead>
                             <tbody>
@@ -1467,6 +1946,9 @@ export default function PagamentosRegistro() {
                                         key={row.id}
                                         className={[
                                             row.pago ? 'pag_reg_row--pago' : '',
+                                            repasseAtivo && novoModelo(row) && relatorios.get(row.id)?.divergente
+                                                ? 'pag_reg_row--divergente'
+                                                : '',
                                             salvandoId === row.id ? 'is-saving' : '',
                                         ]
                                             .filter(Boolean)
@@ -1482,27 +1964,41 @@ export default function PagamentosRegistro() {
                                                 rotuloFn={rotuloPrestador}
                                                 titleValor={row.prestadorNome || undefined}
                                                 onChange={(p) => void aoSelecionarPrestador(row.id, p)}
-                                                disabled={!podeEditar}
+                                                disabled={!podeEditar || !edicaoAtiva}
                                                 usePortal
                                                 placeholder="Pesquisar prestador…"
                                             />
-                                        </td>
-                                        <td data-label="Tipo" className="pag_reg_col_tipo">
-                                            {rotuloTipoRepasse(row.tipoRepasse)}
-                                        </td>
-                                        <td
-                                            data-label="Pix"
-                                            className="pag_reg_col_pix pag_reg_pix"
-                                            title={row.chavePix}
-                                        >
-                                            {row.chavePix || '—'}
+                                            <div className="pag_reg_sub" title={row.chavePix || ''}>
+                                                <span className="pag_reg_sub_txt">
+                                                    {rotuloTipoRepasse(row.tipoRepasse)}
+                                                    {row.chavePix && row.chavePix !== rotuloTipoRepasse(row.tipoRepasse) ? ` · ${row.chavePix}` : ''}
+                                                </span>
+                                                {row.prestadorId && (
+                                                    <button
+                                                        type="button"
+                                                        className={`pag_reg_link_meses${rotuloVerMeses(row).alerta ? ' has-abertos' : ''}`}
+                                                        onClick={() => setPainelPrestador({ id: row.prestadorId, nome: row.prestadorNome })}
+                                                    >
+                                                        {rotuloVerMeses(row).texto}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                         <td data-label="Valor" className="pag_reg_col_valor">
+                                            <div className={ehTipoRpa(row.tipoRepasse) && valorLiquidoRpa(row.valor) != null ? 'pag_reg_valor_rpa' : 'pag_reg_valor_simples'}>
+                                            {ehTipoRpa(row.tipoRepasse) && valorLiquidoRpa(row.valor) != null && (
+                                                    <>
+                                                        <span className="pag_reg_rot" title="Valor com desconto de 11% (RPA)">Líquido −11%</span>
+                                                        <strong className="pag_reg_liq">{formatarValorMonetarioBr(valorLiquidoRpa(row.valor))}</strong>
+                                                        <span className="pag_reg_rot">Original</span>
+                                                    </>
+                                                )}
                                             <input
-                                                className="pag_reg_input_valor"
+                                                className={`pag_reg_input_valor${ehTipoRpa(row.tipoRepasse) ? ' pag_reg_input_valor--original' : ''}`}
+                                                title={ehTipoRpa(row.tipoRepasse) ? 'Valor original (antes do desconto de 11%)' : undefined}
                                                 type="text"
                                                 inputMode="decimal"
-                                                disabled={!podeEditar}
+                                                disabled={!podeEditar || !edicaoAtiva}
                                                 value={
                                                     valorEdicao[row.id] !== undefined
                                                         ? valorEdicao[row.id]
@@ -1536,6 +2032,7 @@ export default function PagamentosRegistro() {
                                                 }}
                                                 onPaste={(e) => void processarColagemValor(e, idx)}
                                             />
+                                            </div>
                                         </td>
                                         <td data-label="Resposta" className="pag_reg_col_chk pag_reg_chk">
                                             <label
@@ -1557,46 +2054,39 @@ export default function PagamentosRegistro() {
                                                 <input
                                                     type="checkbox"
                                                     checked={row.pago}
-                                                    disabled={!podeEditar}
-                                                    onChange={() => void aoToggleCheck(row.id, 'pago')}
+                                                    disabled={!podeEditar || Boolean(relatorios?.get(row.id)?.comprovante && pagoPorComprovante(row))}
+                                                    title={
+                                                        pagoPorComprovante(row)
+                                                            ? relatorios.get(row.id)?.comprovante
+                                                                ? 'Pago com comprovante'
+                                                                : 'Clique para anexar o comprovante e marcar como pago'
+                                                            : undefined
+                                                    }
+                                                    onChange={() => aoClicarPago(row)}
                                                 />
                                                 <span className="pag_reg_sr_only">Pago</span>
                                             </label>
                                         </td>
-                                        <td
-                                            data-label="Atualizado"
-                                            className="pag_reg_col_atualizado"
-                                            title={row.atualizadoEm || ''}
-                                        >
-                                            {formatarDataAtualizadoEm(row.atualizadoEm)}
-                                        </td>
-                                        <td data-label="Obs" className="pag_reg_col_obs">
-                                            <input
-                                                className="pag_reg_input_obs"
-                                                type="text"
-                                                disabled={!podeEditar}
-                                                value={row.obs}
-                                                onChange={(e) => aoAlterarCampo(row.id, { obs: e.target.value })}
-                                                onBlur={() => aoBlurCampo(row.id)}
-                                                placeholder="observações"
-                                            />
-                                        </td>
-                                        {podeEditar && (
-                                            <td className="pag_reg_td_acao">
-                                                <button
-                                                    type="button"
-                                                    className="table_delete_btn"
-                                                    title="Excluir linha. Shift + clique = exclusão rápida."
-                                                    onClick={(event) =>
-                                                        void excluirLinha(row.id, {
-                                                            ignorarConfirmacao: event.shiftKey,
-                                                        })
-                                                    }
-                                                >
-                                                    🗑️
-                                                </button>
+                                        {repasseAtivo && (
+                                            <td data-label="Repasse" className="pag_reg_col_rel">
+                                                {celulaRepasse(row)}
                                             </td>
                                         )}
+                                        <td data-label="Atualizado" className="pag_reg_col_atualizado" title={row.atualizadoEm || ''}>
+                                            {formatarDataAtualizadoEm(row.atualizadoEm)}
+                                        </td>
+                                        <td className="pag_reg_td_acao">
+                                            <button
+                                                type="button"
+                                                className={`pag_reg_btn_mais${row.obs ? ' has-obs' : ''}`}
+                                                aria-label="Mais ações"
+                                                aria-haspopup="menu"
+                                                title={row.obs ? `Obs: ${row.obs}` : 'Mais ações'}
+                                                onClick={(e) => setMenuAberto({ tipo: 'acoes', id: row.id, el: e.currentTarget })}
+                                            >
+                                                ⋯
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -1660,7 +2150,7 @@ export default function PagamentosRegistro() {
                                         {row.chavePix || '—'}
                                     </p>
                                     <label className="pag_reg_card_field">
-                                        <span>Valor</span>
+                                        <span>Valor{ehTipoRpa(row.tipoRepasse) && valorLiquidoRpa(row.valor) != null ? ` · líquido ${formatarValorMonetarioBr(valorLiquidoRpa(row.valor))} (−11%)` : ''}</span>
                                         <input
                                             className="pag_reg_input_valor"
                                             type="text"
@@ -1676,6 +2166,16 @@ export default function PagamentosRegistro() {
                                             onPaste={(e) => void processarColagemValor(e, idx)}
                                         />
                                     </label>
+                                    {repasseAtivo && novoModelo(row) && (
+                                        <div className="pag_reg_card_repasse">
+                                            <div>{celulaRepasse(row)}</div>
+                                            {row.prestadorId && (
+                                                <button type="button" className={`pag_reg_link_meses${rotuloVerMeses(row).alerta ? ' has-abertos' : ''}`} onClick={() => setPainelPrestador({ id: row.prestadorId, nome: row.prestadorNome })}>
+                                                    {rotuloVerMeses(row).texto}
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
                                     <div className="pag_reg_card_checks">
                                         <label>
                                             <input
@@ -1690,8 +2190,8 @@ export default function PagamentosRegistro() {
                                             <input
                                                 type="checkbox"
                                                 checked={row.pago}
-                                                disabled={!podeEditar}
-                                                onChange={() => void aoToggleCheck(row.id, 'pago')}
+                                                disabled={!podeEditar || Boolean(relatorios?.get(row.id)?.comprovante && pagoPorComprovante(row))}
+                                                onChange={() => aoClicarPago(row)}
                                             />
                                             Pago
                                         </label>
@@ -1719,6 +2219,138 @@ export default function PagamentosRegistro() {
                 </>
             )}
             {exclusaoToast}
+            <PagamentosEnvioWizard
+                open={wizardAberto}
+                onClose={() => setWizardAberto(false)}
+                registros={linhasFiltradas}
+                relatorios={relatorios || new Map()}
+                onConcluido={() => void recarregarRelatorios()}
+            />
+            {menuAberto &&
+                (() => {
+                    const row = registros.find((r) => r.id === menuAberto.id)
+                    if (!row) return null
+                    if (menuAberto.tipo === 'repasse') {
+                        const rel = relatorios?.get(row.id)
+                        if (!rel) return null
+                        return (
+                            <PagamentosMenuFlutuante ancora={menuAberto.el} onFechar={fecharMenu}>
+                                <button type="button" role="menuitem" onClick={() => { fecharMenu(); void copiarLink(row) }}>Copiar link</button>
+                                <button type="button" role="menuitem" onClick={() => { fecharMenu(); void abrirLink(row) }}>Abrir relatório</button>
+                                {podeEditar && !rel.comprovante && (
+                                    <>
+                                        <hr />
+                                        <button type="button" role="menuitem" onClick={() => { fecharMenu(); setComprovanteAlvo(row) }}>Anexar comprovante</button>
+                                    </>
+                                )}
+                                {podeEditar && rel.comprovante && (
+                                    <>
+                                        <hr />
+                                        <button type="button" role="menuitem" className="pag_reg_menu_perigo" onClick={() => { fecharMenu(); setMotivoDesfazer(''); setDesfazendo(row) }}>Desfazer pagamento…</button>
+                                    </>
+                                )}
+                            </PagamentosMenuFlutuante>
+                        )
+                    }
+                    return (
+                        <PagamentosMenuFlutuante ancora={menuAberto.el} onFechar={fecharMenu} alinhar="direita">
+                            <label className="pag_reg_menu_campo">
+                                Observações
+                                <input
+                                    type="text"
+                                    disabled={!podeEditar}
+                                    value={row.obs}
+                                    placeholder="observações"
+                                    onChange={(e) => aoAlterarCampo(row.id, { obs: e.target.value })}
+                                    onBlur={() => aoBlurCampo(row.id)}
+                                />
+                            </label>
+                            {podeEditar && (
+                                <>
+                                    <hr />
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        className="pag_reg_menu_perigo"
+                                        title="Shift + clique = exclusão rápida."
+                                        onClick={(event) => {
+                                            fecharMenu()
+                                            void excluirLinha(row.id, { ignorarConfirmacao: event.shiftKey })
+                                        }}
+                                    >
+                                        Excluir registro
+                                    </button>
+                                </>
+                            )}
+                        </PagamentosMenuFlutuante>
+                    )
+                })()}
+            {comprovanteAlvo && relatorios?.get(comprovanteAlvo.id) && (
+                <PagamentosComprovanteModal
+                    open
+                    key={comprovanteAlvo.id}
+                    itens={[{ registro: comprovanteAlvo, relatorio: relatorios.get(comprovanteAlvo.id) }]}
+                    onClose={() => setComprovanteAlvo(null)}
+                    onEnviado={() => {
+                        setRegistros((prev) => prev.map((r) => (r.id === comprovanteAlvo.id ? { ...r, pago: true } : r)))
+                        void recarregarRelatorios()
+                        setInfo('Comprovante enviado e registro marcado como pago.')
+                    }}
+                />
+            )}
+            {painelPrestador && (
+                <PagamentosPainelPrestador
+                    prestadorId={painelPrestador.id}
+                    prestadorNome={painelPrestador.nome}
+                    competenciaInicial={configRepasse?.competencia_inicial}
+                    podeEditar={podeEditar}
+                    onClose={() => setPainelPrestador(null)}
+                    onMudou={() => {
+                        void carregarRegistros()
+                        void carregarPendentes()
+                        void recarregarRelatorios()
+                    }}
+                />
+            )}
+            <Modal
+                open={Boolean(desfazendo)}
+                onClose={() => setDesfazendo(null)}
+                busy={desfazendoOcupado}
+                title="Desfazer pagamento"
+                description={desfazendo ? `${desfazendo.prestadorNome} · ${rotuloMesAnoCurto(desfazendo.mes, desfazendo.ano)}` : ''}
+                footer={
+                    <>
+                        <Button variant="secondary" disabled={desfazendoOcupado} onClick={() => setDesfazendo(null)}>Cancelar</Button>
+                        <Button
+                            variant="dangerSolid"
+                            disabled={motivoDesfazer.trim().length < 5 || desfazendoOcupado}
+                            onClick={async () => {
+                                setDesfazendoOcupado(true)
+                                try {
+                                    const alvo = desfazendo
+                                    await desfazerPagamento(relatorios.get(alvo.id).id, motivoDesfazer.trim())
+                                    setRegistros((prev) => prev.map((r) => (r.id === alvo.id ? { ...r, pago: false } : r)))
+                                    await recarregarRelatorios()
+                                    setDesfazendo(null)
+                                    setInfo('Pagamento desfeito. O comprovante foi removido do registro.')
+                                } catch (e) {
+                                    setErro(e.message)
+                                } finally {
+                                    setDesfazendoOcupado(false)
+                                }
+                            }}
+                        >
+                            Desfazer pagamento
+                        </Button>
+                    </>
+                }
+            >
+                <label className="flex flex-col gap-1.5 text-sm font-semibold">
+                    Motivo (obrigatório, fica no log do relatório)
+                    <textarea rows={3} className="rounded-xl border border-line p-3 text-base font-medium" value={motivoDesfazer} onChange={(e) => setMotivoDesfazer(e.target.value)} maxLength={500} />
+                </label>
+                <p className="mt-2 text-xs text-ink-soft">O e-mail já enviado ao prestador não é cancelado. Só o comprovante e a marcação de pago são removidos.</p>
+            </Modal>
             <PagamentosExportarModal
                 aberto={exportModalAberto}
                 onClose={() => setExportModalAberto(false)}

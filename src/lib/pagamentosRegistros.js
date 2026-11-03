@@ -142,6 +142,23 @@ export async function listarPagamentosRegistros({ mes, ano } = {}) {
 
 export async function listarPagamentosRegistrosIntervalo(mesDe, anoDe, mesAte, anoAte) {
     const intervalo = normalizarIntervaloCompetencia(mesDe, anoDe, mesAte, anoAte)
+    const { de, ate } = intervalo
+    const valido = [de.mes, de.ano, ate.mes, ate.ano].every((n) => Number.isInteger(n) && n > 0)
+    if (valido) {
+        // O filtro roda no banco: antes baixava a tabela inteira (todos os meses) a cada carga da tela.
+        const { data, error } = await buscarTodosPaginado(() =>
+            supabase
+                .from(TABELA)
+                .select('*')
+                .or(`ano.gt.${de.ano},and(ano.eq.${de.ano},mes.gte.${de.mes})`)
+                .or(`ano.lt.${ate.ano},and(ano.eq.${ate.ano},mes.lte.${ate.mes})`)
+                .order('ano', { ascending: false })
+                .order('mes', { ascending: false })
+                .order('criado_em', { ascending: true })
+                .order('id', { ascending: true }),
+        )
+        if (!error) return (data || []).map(mapRowPagamento).filter((r) => registroNoIntervaloCompetencia(r, intervalo))
+    }
     const todos = await listarPagamentosRegistros()
     return todos.filter((r) => registroNoIntervaloCompetencia(r, intervalo))
 }

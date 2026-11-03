@@ -34,11 +34,12 @@ import {
 } from "../../../lib/cidadesSupertabelaVinculos.js";
 
 import { buscarTodosPaginado, supabase } from "../../../lib/supabase";
-import { PageHeader } from "../../../components/ui";
+import { PageHeader, Toolbar } from "../../../components/ui";
 import SelectMunicipioBusca from "../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx";
 import SelectUfBusca from "../../../components/SelectUfBusca/SelectUfBusca.jsx";
 import { montarTextoCopiaRapidaOrcamento } from "../../../lib/compras/orcamentoExport.js";
 import { baixarOrcamentoPdf } from "../../../lib/compras/gerarOrcamentoPdf.js";
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 import "./ComprasOrcamento.css";
 
@@ -813,21 +814,18 @@ const ComprasOrcamento = () => {
         description="Monte orçamentos com valores de compra, diferença de plano e quem realiza."
       />
 
-      <div className="compras_orc_filtros_flutuantes">
-          <div className="compras_orc_filtros_inner">
-            <div className="compras_orc_filtro_item compras_orc_filtro_busca">
-              <p className="compras_orc_filtro_label">Adicionar Procedimento</p>
-
-              <div className="compras_orc_busca_wrap">
-                <input
-                  className="compras_orc_input"
-                  type="search"
-                  value={buscaProc}
-                  onChange={(e) => setBuscaProc(e.target.value)}
-                  placeholder="Código ou nome — apenas procedimentos que estão na lojinha"
-                  autoComplete="off"
-                />
-
+      <Toolbar title="Filtros">
+        <div className="ek-field ek-field--grow">
+          <span className="ek-label">Adicionar procedimento</span>
+          <div className="compras_orc_busca_wrap">
+            <input
+              className="ek-input"
+              type="search"
+              value={buscaProc}
+              onChange={(e) => setBuscaProc(e.target.value)}
+              placeholder="Código ou nome — apenas procedimentos que estão na lojinha"
+              autoComplete="off"
+            />
                 {sugestoesProcedimentos.length > 0 && (
                   <ul
                     className="compras_orc_sugestoes compras_orc_sugestoes_docked"
@@ -845,41 +843,36 @@ const ComprasOrcamento = () => {
                     ))}
                   </ul>
                 )}
-              </div>
-            </div>
+          </div>
+        </div>
 
-            <label className="compras_orc_filtro_item">
-              <span className="compras_orc_filtro_label">UF</span>
-              <SelectUfBusca
-                value={ufComprador}
-                ufs={ufsPermitidasCredenciamento}
-                inputClassName="compras_orc_select"
-                emptyLabel="Selecione"
-                placeholder="Selecione"
-                onChange={(u) => {
-                  setUfComprador(u);
-                  setCidadeCompradorMunicipio("");
-                  setCidadeCompradorId("");
-                }}
-              />
-            </label>
+        <div className="ek-field ek-field--half">
+          <span className="ek-label">UF</span>
+          <SelectUfBusca
+            value={ufComprador}
+            ufs={ufsPermitidasCredenciamento}
+            emptyLabel="Selecione"
+            placeholder="Selecione"
+            onChange={(u) => {
+              setUfComprador(u);
+              setCidadeCompradorMunicipio("");
+              setCidadeCompradorId("");
+            }}
+          />
+        </div>
 
-            <label className="compras_orc_filtro_item">
-              <span className="compras_orc_filtro_label">Cidade</span>
-
-              <SelectMunicipioBusca
-                value={cidadeCompradorMunicipio}
-                valueKey="nome"
-                options={opcoesMunicipioComprador}
-                disabled={!ufComprador || idsFiltroPlanoCidade == null}
-                loading={
-                  Boolean(ufComprador) &&
-                  (loadingMunicipiosUf || idsFiltroPlanoCidade == null)
-                }
-                inputClassName="compras_orc_select"
-                placeholder={
-                  !ufComprador ? "Selecione a UF" : "Buscar cidade…"
-                }
+        <div className="ek-field">
+          <span className="ek-label">Cidade</span>
+          <SelectMunicipioBusca
+            value={cidadeCompradorMunicipio}
+            valueKey="nome"
+            options={opcoesMunicipioComprador}
+            disabled={!ufComprador || idsFiltroPlanoCidade == null}
+            loading={
+              Boolean(ufComprador) &&
+              (loadingMunicipiosUf || idsFiltroPlanoCidade == null)
+            }
+            placeholder={!ufComprador ? "Selecione a UF" : "Buscar cidade…"}
                 onChange={(nome) => {
                   const n = String(nome || "").trim();
                   setCidadeCompradorMunicipio(n);
@@ -900,30 +893,25 @@ const ComprasOrcamento = () => {
                     });
                   setCidadeCompradorId(cid ? String(cid) : "");
                 }}
-              />
-            </label>
+          />
+        </div>
 
-            <label className="compras_orc_filtro_item">
-              <span className="compras_orc_filtro_label">
-                Plano do comprador
-              </span>
-
-              <select
-                className="compras_orc_select"
-                value={planoCompradorId}
-                onChange={(e) => setPlanoCompradorId(e.target.value)}
-              >
-                <option value="">Selecione</option>
-
-                {planos.map((p) => (
-                  <option key={p.id} value={String(p.id)}>
-                    {p.nome}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-      </div>
+        <label className="ek-field">
+          <span className="ek-label">Plano do comprador</span>
+          <SelectDropdown
+            className="ek-select"
+            value={planoCompradorId}
+            onChange={(e) => setPlanoCompradorId(e.target.value)}
+          >
+            <option value="">Selecione</option>
+            {planos.map((p) => (
+              <option key={p.id} value={String(p.id)}>
+                {p.nome}
+              </option>
+            ))}
+          </SelectDropdown>
+        </label>
+      </Toolbar>
 
       {erro && (
         <div className="compras_orc_alert" role="alert">
@@ -955,7 +943,7 @@ const ComprasOrcamento = () => {
 
               <button
                 type="button"
-                className="compras_orc_btn"
+                className="ek-btn ek-btn--secondary"
                 disabled={!podeCopiarOrcamento}
                 onClick={() => void copiarOrcamentoRapido()}
                 title={
@@ -969,7 +957,7 @@ const ComprasOrcamento = () => {
 
               <button
                 type="button"
-                className="compras_orc_btn"
+                className="ek-btn ek-btn--secondary"
                 disabled={!podeGerarPdf}
                 onClick={() => void gerarPdfOrcamento()}
                 title={
@@ -983,7 +971,7 @@ const ComprasOrcamento = () => {
 
               <button
                 type="button"
-                className="compras_orc_btn secondary"
+                className="ek-btn ek-btn--secondary"
                 disabled={!carrinho.length}
                 onClick={limparCarrinho}
                 title="Limpar todos os itens"

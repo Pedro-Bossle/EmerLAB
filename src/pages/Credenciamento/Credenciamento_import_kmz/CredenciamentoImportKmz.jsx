@@ -15,6 +15,7 @@ import PrestadorVinculoBusca from '../../Supertabela/Supertabela_negociacoes/Pre
 import '../Credenciamento_main/Credenciamento_main.css'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import { PageHeader } from '../../../components/ui'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 import './CredenciamentoImportKmz.css'
 
 const rotuloPrestador = (p) => (p?.nome ? String(p.nome) : `ID ${p?.id}`)
@@ -306,7 +307,7 @@ const CredenciamentoImportKmz = () => {
                                             ) : (
                                                 <>
                                                     {l.sugestoes?.length > 0 && l.tipo === 'revisar' ? (
-                                                        <select
+                                                        <SelectDropdown
                                                             className="credenciamento_main_select cred_import_kmz_select"
                                                             value={l.prestadorId ? String(l.prestadorId) : ''}
                                                             disabled={somenteLeitura || aplicando}
@@ -320,7 +321,7 @@ const CredenciamentoImportKmz = () => {
                                                                     {s.nome}
                                                                 </option>
                                                             ))}
-                                                        </select>
+                                                        </SelectDropdown>
                                                     ) : null}
                                                     <PrestadorVinculoBusca
                                                         prestadores={prestadoresVinculo}

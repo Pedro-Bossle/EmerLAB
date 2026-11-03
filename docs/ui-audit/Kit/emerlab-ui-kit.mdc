@@ -1,0 +1,145 @@
+---
+description: Padrão visual do EmerLAB (UI Kit). Use ao criar ou alterar telas, filtros, campos, dropdowns, botões, tabelas, modais, modo escuro ou layout mobile.
+globs: src/**/*.jsx,src/**/*.css
+alwaysApply: false
+---
+
+# EmerLAB UI Kit
+
+Fonte única: `src/styles/emerlab-kit.css` (classes `ek-*`, variáveis `--ek-*`). Guia completo: `docs/ui-kit.md`.
+O arquivo já é importado em `src/main.jsx`. Não importe de novo.
+
+## Regras
+
+1. **Tela nova ou trecho reescrito usa as classes `ek-*`.** Não crie CSS próprio de tela (`minhatela_filters`, `minhatela_btn`…) para algo que o kit já tem.
+2. **Nada de cor fixa.** Use `var(--ek-*)`. O modo escuro (`body.dark-mode`) troca as variáveis sozinho. Não escreva regras `body.dark-mode .minha-classe` para cor.
+3. **Uma altura de controle por linha:** campo, select, dropdown, botão, `ek-check` e `ek-segmented` usam `--ek-control-h` (40px; 44px em tela de toque). Ações dentro de tabela usam `ek-btn--sm`.
+4. **Rótulo sempre em cima e alinhado à esquerda** (`ek-label`, 13px, sem caixa alta). Nunca centralize rótulos de filtro.
+5. **Raios:** controles 10px, cards, barras e tabelas 14px, modal 16px. Pílula (999px) só em `ek-badge` e no trilho do `ek-segmented`.
+6. **Espaços:** escala de 4/8/12/16/24/32 (`--ek-s1`…`--ek-s6`). Gap entre itens de filtro: 12px. Entre botões: 8px.
+7. **Laterais da página:** `ek-page` (16px no celular, 24px no tablet, 32px no desktop, máx. 1600px). Não use `margin: 0 1em`, `margin-left: 0.5rem !important` etc.
+8. **Vidro (blur):** só em barra fixa (`ek-toolbar--sticky`) e no fundo de modal. Um valor só: `--ek-blur` (12px) e `--ek-blur-overlay` (4px). Painéis de dropdown são opacos.
+9. **Breakpoints:** só `max-width: 639px` (celular) e `max-width: 1023px` (tablet). Não crie 720, 900, 960…
+10. **Camadas:** `--ek-z-*` (sticky 20, sidebar 30, nav 40, dropdown 60, drawer 80, modal 90, toast 100). Nada de `z-index: 1300`.
+11. **Fonte:** Manrope. Syne só no título da página (`ek-page-header__title`).
+12. **Números em coluna:** `ek-num` (direita + tabular-nums).
+13. **Componentes React existentes** (`src/components/ui`: `Button`, `Input`, `Select`, `Card`, `Badge`, `Modal`) continuam válidos. Em tela legada, prefira as classes `ek-*` direto no JSX para não misturar Tailwind com o CSS da tela.
+
+## Esqueleto de tela
+
+```jsx
+<main className="ek-page">
+  <header className="ek-page-header">
+    <div>
+      <span className="ek-page-header__kicker">Pagamentos</span>
+      <h1 className="ek-page-header__title">Registro de pagamentos</h1>
+      <p className="ek-page-header__desc">Uma frase sobre o que a tela faz.</p>
+    </div>
+    <div className="ek-page-header__actions">
+      <button className="ek-btn ek-btn--secondary">Exportar Excel</button>
+      <button className="ek-btn">+ Novo</button>
+    </div>
+  </header>
+
+  <section className="ek-toolbar ek-toolbar--sticky">
+    <h2 className="ek-toolbar__title">Filtros</h2>
+    <div className="ek-toolbar__row">
+      <label className="ek-field ek-field--grow">
+        <span className="ek-label">Busca</span>
+        <span className="ek-search">
+          <SearchIcon className="ek-search__icon" />
+          <input className="ek-input" placeholder="Código, procedimento ou valor" />
+        </span>
+      </label>
+      <label className="ek-field">
+        <span className="ek-label">Plano</span>
+        <select className="ek-select">…</select>
+      </label>
+      <div className="ek-toolbar__actions">
+        <label className="ek-check"><input type="checkbox" /> Ativar edição</label>
+        <button className="ek-btn ek-btn--soft">Gerenciar tabelas</button>
+        <div className="ek-field ek-field--fixed">
+          <span className="ek-label">Visualização</span>
+          <div className="ek-segmented" role="group">
+            <button className="ek-segmented__opt" aria-pressed="true">Ver diferenças</button>
+            <button className="ek-segmented__opt" aria-pressed="false">Carências e limites</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div className="ek-table-wrap">
+    <table className="ek-table ek-table--stack">
+      <thead><tr><th>Prestador</th><th className="ek-num">Valor</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-label="Prestador">…</td>
+          <td data-label="Valor" className="ek-num">R$ 180,00</td>
+          <td data-label="Status"><span className="ek-badge ek-badge--ok">Pago</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+```
+
+## Dropdown com busca (substitui `MenuSelectFlutuante` em telas novas)
+
+```jsx
+<div className={`ek-dropdown ${aberto ? 'is-open' : ''}`}>
+  <button className="ek-dropdown__trigger" aria-haspopup="listbox" aria-expanded={aberto}>
+    <span className={`ek-dropdown__value ${valor ? '' : 'is-placeholder'}`}>{valor || 'Selecione'}</span>
+  </button>
+  <div className="ek-dropdown__panel" role="listbox">
+    <input className="ek-input ek-dropdown__search" placeholder="Buscar" />
+    <div className="ek-dropdown__group">Rio Grande do Sul</div>
+    <button className="ek-dropdown__option is-selected" role="option" aria-selected="true">Porto Alegre (RS)</button>
+  </div>
+</div>
+```
+
+- Fecha com Esc e com clique fora. Setas ↑/↓ movem `is-active`, e Enter seleciona.
+- No celular o painel vira folha inferior sozinho (CSS). Não precisa de código extra.
+
+## Barra fixa com sombra ao grudar
+
+```js
+// .is-stuck quando a barra encosta no topo
+const sentinela = document.createElement('div'); barra.before(sentinela)
+new IntersectionObserver(([e]) => barra.classList.toggle('is-stuck', !e.isIntersecting)).observe(sentinela)
+```
+
+Se a tela tiver cabeçalho fixo acima, defina `style={{ '--ek-sticky-top': '64px' }}` na barra.
+
+## Modal
+
+```jsx
+<div className="ek-modal-overlay">
+  <div className="ek-modal" role="dialog" aria-modal="true" aria-labelledby="t">
+    <div className="ek-modal__head"><h2 id="t" className="ek-modal__title">Título</h2><button className="ek-btn ek-btn--ghost ek-btn--icon" aria-label="Fechar">×</button></div>
+    <div className="ek-modal__body">…</div>
+    <div className="ek-modal__foot"><button className="ek-btn ek-btn--secondary">Cancelar</button><button className="ek-btn">Salvar</button></div>
+  </div>
+</div>
+```
+
+No celular vira folha inferior, e os botões do rodapé dividem a largura.
+
+## Migrando tela legada
+
+Troque por equivalência e apague o CSS antigo da tela quando nada mais o usar:
+
+| Legado | Kit |
+|---|---|
+| `*_filtros_flutuantes`, `*_filters`, `*_header` com blur | `ek-toolbar ek-toolbar--sticky` |
+| `*_filtro`, `*_filter_item` + `<p>`/`<span>` de rótulo | `ek-field` + `ek-label` |
+| `pag_reg_btn`, `*_action_btn` | `ek-btn` (`--secondary`, `--soft`, `--ghost`, `--danger`) |
+| `MenuSelectFlutuante` | `ek-dropdown` |
+| checkbox solto "Ativar edição" | `ek-check` |
+| alternador "Visualização" | `ek-segmented` |
+| `table_main`, `pag_reg_table` | `ek-table` dentro de `ek-table-wrap` |
+| `pag_reg_resumo_stat--ok/erro/aviso` | `ek-badge--ok/erro/warn` |
+| `.pag_reg { margin: 0 1em }`, margens `!important` do `responsive-app.css` | `ek-page` |
+
+Migre uma tela por vez e confira nos modos claro e escuro, em 1280px e em 390px.

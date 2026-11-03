@@ -85,44 +85,6 @@
     color: #8a2f2f;
 }
 
-.admin_auditoria_filtros {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 10px;
-    padding: 12px;
-    margin-bottom: 12px;
-    background: #f8fbfd;
-    border: 1px solid #d7e8f2;
-    border-radius: 12px;
-}
-
-.admin_auditoria_filtros label {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    text-align: left;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--azul-escuro, #123e59);
-}
-
-.admin_auditoria_filtro_q {
-    grid-column: span 2;
-}
-
-.admin_auditoria_filtros select,
-.admin_auditoria_filtros input {
-    height: 34px;
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px solid #9fc7e1;
-    background: #fff;
-    font: inherit;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #1f3a4f;
-}
-
 .admin_auditoria_stats {
     display: flex;
     gap: 16px;
@@ -416,7 +378,6 @@ body.dark-mode .admin_auditoria_stats {
     color: #9eb4c8;
 }
 
-body.dark-mode .admin_auditoria_filtros,
 body.dark-mode .admin_auditoria_table_wrap,
 body.dark-mode .admin_auditoria_modal {
     background: #122536;
@@ -443,12 +404,6 @@ body.dark-mode .admin_auditoria_table td {
     color: #dce7f2;
 }
 
-body.dark-mode .admin_auditoria_filtros label {
-    color: #b6c5d3;
-}
-
-body.dark-mode .admin_auditoria_filtros select,
-body.dark-mode .admin_auditoria_filtros input,
 body.dark-mode .admin_auditoria_header_acoes button,
 body.dark-mode .admin_auditoria_paginacao button,
 body.dark-mode .admin_auditoria_table button,
@@ -914,10 +869,6 @@ body.dark-mode .admin_auditoria_presets_titulo {
 
     .admin_auditoria_alerta button {
         width: 100%;
-    }
-
-    .admin_auditoria_filtro_q {
-        grid-column: span 1;
     }
 
     .admin_auditoria_json_grid,

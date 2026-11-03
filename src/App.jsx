@@ -48,7 +48,8 @@ const ComprasOrcamento = lazy(() => import('./pages/Compras/Orcamento/ComprasOrc
 const ContratosEmerdog = lazy(() => import('./pages/Contratos/ContratosEmerdog'));
 const ClicksignEmerdog = lazy(() => import('./pages/Contratos/ClicksignEmerdog'));
 const PagamentosRegistro = lazy(() => import('./pages/Pagamentos/PagamentosRegistro'));
-const PagamentosResumo = lazy(() => import('./pages/Pagamentos/PagamentosResumo'));
+const PagamentosCaixa = lazy(() => import('./pages/Pagamentos/PagamentosCaixa'));
+const RepasseMensalPublico = lazy(() => import('./pages/RepasseMensal/RepasseMensalPublico'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 function App() {
   return (
@@ -63,6 +64,8 @@ function App() {
         <Route path="/alterar-senha" element={<AlterarSenha />} />
         <Route path="/ser_parceiro" element={<CredenciamentoFormularioPublico />} />
         <Route path="/ser-parceiro" element={<Navigate to="/ser_parceiro" replace />} />
+        {/* Link único do repasse mensal (sem login): o token é a credencial. */}
+        <Route path="/repasse_mensal/:token" element={<RepasseMensalPublico />} />
         <Route path="/credenciamento/cadastro-publico" element={<CredenciamentoFormularioPublico />} />
         <Route path="/credenciamento/cadastro-publico/:slug" element={<CredenciamentoFormularioPublico />} />
         <Route path="/emerzap" element={<Navigate to="/home" replace />} />
@@ -406,17 +409,19 @@ function App() {
               </PrivateRoute>
             }
           />
+          {/* O Resumo virou a fila «Aprovados a pagar» do Registro. */}
+          <Route path="/pagamentos/resumo" element={<Navigate to="/pagamentos/registro?fila=pagar" replace />} />
           <Route
-            path="/pagamentos/resumo"
+            path="/pagamentos/caixa"
             element={
-              <PrivateRoute permission="pagamentos.view" toolId="pagamentos.resumo">
-                <PagamentosResumo />
+              <PrivateRoute permission="pagamentos.view" toolId="pagamentos.caixa">
+                <PagamentosCaixa />
               </PrivateRoute>
             }
           />
           <Route path="/pagamentos/cadastro" element={<Navigate to="/pagamentos/registro" replace />} />
           <Route path="/pagamentos/todos" element={<Navigate to="/pagamentos/registro" replace />} />
-          <Route path="/pagamentos/pendencias" element={<Navigate to="/pagamentos/resumo" replace />} />
+          <Route path="/pagamentos/pendencias" element={<Navigate to="/pagamentos/registro?fila=pagar" replace />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -132,53 +132,6 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
     margin: 10px 1.5em;
 }
 
-.supertabelaprocedimentos_header {
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    background: transparent;
-    padding: 8px 0 10px 0;
-    transition: padding 0.2s ease, background-color 0.2s ease, backdrop-filter 0.2s ease;
-}
-
-.supertabelaprocedimentos_header.is-compact {
-    padding: 4px 0 6px 0;
-    background: rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(6px);
-}
-
-.supertabelaprocedimentos_header.is-compact h2 {
-    font-size: 1.375rem;
-    margin: 0;
-    opacity: 0.95;
-}
-
-.supertabelaprocedimentos_filters {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: flex-end;
-    gap: 8px;
-    padding: 0.7em 0.9em;
-    margin: 0.75em auto;
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-    background: #f8fbfd;
-    border: 1px solid #d7e8f2;
-    border-radius: 12px;
-}
-
-.supertabelaprocedimentos_filter_item p {
-    margin: 0 0 4px 0;
-    font-size: 0.875rem;
-}
-
-.supertabelaprocedimentos_filter_busca {
-    flex: 1 1 280px;
-    min-width: 200px;
-}
-
 .supertabelaprocedimentos_input {
     height: 34px;
     padding: 6px 10px;
@@ -190,26 +143,6 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
     box-sizing: border-box;
     font-size: 0.875rem;
     font-family: inherit;
-}
-
-.supertabelaprocedimentos_edit_wrap {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 34px;
-    padding: 0 10px;
-    border-radius: 7px;
-    border: 1px solid #b8d3e5;
-    background: #fff;
-    font-size: 0.875rem;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.supertabelaprocedimentos_edit_wrap input[type='checkbox'] {
-    width: 16px;
-    height: 16px;
-    accent-color: var(--azul-destaque);
 }
 
 .supertabelaprocedimentos_table_container {
@@ -487,64 +420,6 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
     text-align: left;
 }
 
-.supertabelaprocedimentos_filter_mode_label {
-    margin: 0 0 4px 0;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--azul-escuro, #1e3148);
-}
-
-.supertabelaprocedimentos_mode_rail {
-    position: relative;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: stretch;
-    min-height: 32px;
-    min-width: 240px;
-    padding: 3px;
-    border-radius: 999px;
-    border: 1px solid #b8d3e5;
-    background: #e8f0f7;
-    box-shadow: inset 0 1px 2px rgba(30, 49, 72, 0.06);
-}
-
-.supertabelaprocedimentos_mode_thumb {
-    position: absolute;
-    top: 3px;
-    bottom: 3px;
-    left: 3px;
-    width: calc(50% - 4.5px);
-    border-radius: 999px;
-    background: linear-gradient(180deg, #3498db 0%, #1f7ec2 100%);
-    box-shadow: 0 2px 10px rgba(31, 126, 194, 0.35);
-    z-index: 0;
-    pointer-events: none;
-    transition: left 0.2s ease;
-}
-
-.supertabelaprocedimentos_mode_thumb.is-right {
-    left: calc(50% + 1.5px);
-}
-
-.supertabelaprocedimentos_mode_btn {
-    position: relative;
-    z-index: 1;
-    margin: 0;
-    padding: 6px 10px;
-    border: none;
-    background: transparent;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #4a6b85;
-    cursor: pointer;
-    border-radius: 999px;
-}
-
-.supertabelaprocedimentos_mode_btn.is-active {
-    color: #ffffff;
-    font-weight: 700;
-}
-
 .supertabelaprocedimentos_table_container.is-categorias-full {
     width: 100%;
     max-width: none;
@@ -718,33 +593,6 @@ body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabel
         margin: 10px 0.5rem;
     }
 
-    .supertabelaprocedimentos_header h2,
-    .supertabelaprocedimentos_header.is-compact h2 {
-        display: none;
-    }
-
-    .supertabelaprocedimentos_filters {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        flex-direction: unset;
-        align-items: end;
-        max-width: none;
-        gap: 0.4rem 0.5rem;
-        padding: 0.5em 0.55em;
-        margin: 0.25em 0;
-        text-align: left;
-    }
-
-    .supertabelaprocedimentos_filter_busca,
-    .supertabelaprocedimentos_filters > .supertabelaprocedimentos_filter_item:first-child {
-        grid-column: 1 / -1;
-    }
-
-    .supertabelaprocedimentos_filters p {
-        font-size: 0.75rem;
-        margin-bottom: 2px;
-    }
-
     .supertabelaprocedimentos_input {
         min-width: 0;
         width: 100%;
@@ -752,24 +600,6 @@ body.dark-mode .supertabelaprocedimentos_categorias_table.is-editing .supertabel
         min-height: 34px;
         font-size: 0.875rem;
         box-sizing: border-box;
-    }
-
-    .supertabelaprocedimentos_filter_mode,
-    .supertabelaprocedimentos_mode_rail {
-        min-width: 0;
-        width: 100%;
-        max-width: none;
-        grid-column: 1 / -1;
-        min-height: 34px;
-    }
-
-    .supertabelaprocedimentos_edit_wrap {
-        width: 100%;
-        justify-content: flex-start;
-        white-space: normal;
-        min-height: 34px;
-        grid-column: 1 / -1;
-        font-size: 0.75rem;
     }
 
     .supertabelaprocedimentos_catalogo_modo {

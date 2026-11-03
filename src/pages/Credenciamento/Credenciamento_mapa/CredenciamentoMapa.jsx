@@ -42,6 +42,7 @@ import { formatarContatoSeTelefone, formatarLinhaTelefonesContato } from '../../
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import { PageHeader } from '../../../components/ui'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoMapa.css'
 import 'leaflet/dist/leaflet.css'
@@ -1020,7 +1021,7 @@ const CredenciamentoMapa = () => {
                 </div>
                 <label className="credenciamento_mapa_filtro w-full md:ml-auto md:w-auto">
                     Especialidade
-                    <select
+                    <SelectDropdown
                         className="credenciamento_main_select"
                         value={especialidadeAtiva}
                         onChange={(e) => {
@@ -1033,7 +1034,7 @@ const CredenciamentoMapa = () => {
                                 {esp.nome} ({esp.itens.length})
                             </option>
                         ))}
-                    </select>
+                    </SelectDropdown>
                 </label>
             </div>
             </div>

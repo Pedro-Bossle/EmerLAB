@@ -9,6 +9,7 @@ import { PERMISSION_KEYS, hasStoredPermission } from '../../lib/accessControl.js
 import './ContratosEmerdog.css'
 import { TOAST_AUTO_DISMISS_MS } from './contratosUi.js'
 import { PageHeader } from '../../components/ui'
+import { SelectDropdown } from '../../components/ui/Dropdown.jsx'
 
 const clinicaInicial = {
     cnpj: '',
@@ -421,7 +422,7 @@ const ContratosEmerdog = () => {
                                 <label className="contratos_field_req" htmlFor="ve-mod">
                                     Modelo de atendimento
                                 </label>
-                                <select
+                                <SelectDropdown
                                     id="ve-mod"
                                     className="contratos_select"
                                     value={volante.modeloAtendimento}
@@ -429,7 +430,7 @@ const ContratosEmerdog = () => {
                                 >
                                     <option value="Domiciliar">Domiciliar</option>
                                     <option value="Volante">Volante</option>
-                                </select>
+                                </SelectDropdown>
                             </div>
                             <div className="contratos_field">
                                 <label className="contratos_field_req" htmlFor="ve-esp">

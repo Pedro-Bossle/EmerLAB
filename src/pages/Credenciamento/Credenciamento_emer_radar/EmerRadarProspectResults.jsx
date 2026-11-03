@@ -24,6 +24,7 @@ import {
 import { descartarProspectoMaps, atualizarProspectoMaps } from '../../../lib/credenciamento/prospectosMapsRepo.js'
 import { prospectoIndicaAtendimento24h } from '../../../lib/credenciamento/prospectosOsmHorario.js'
 import { classify, copyText, displayCategory, formatarNotaMaps, unifyContato } from '../../../lib/credenciamento/emerRadarUi.js'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 const markerIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -760,7 +761,7 @@ export default function EmerRadarProspectResults({
           onChange={(e) => setFilter('query', e.target.value)}
           placeholder="Buscar estabelecimento…"
         />
-        <select
+        <SelectDropdown
           className={inputCls}
           value={filters.categoria}
           onChange={(e) => setFilter('categoria', e.target.value)}
@@ -771,8 +772,8 @@ export default function EmerRadarProspectResults({
               {c}
             </option>
           ))}
-        </select>
-        <select
+        </SelectDropdown>
+        <SelectDropdown
           className={inputCls}
           value={filters.cidade}
           onChange={(e) => setFilter('cidade', e.target.value)}
@@ -783,8 +784,8 @@ export default function EmerRadarProspectResults({
               {c}
             </option>
           ))}
-        </select>
-        <select
+        </SelectDropdown>
+        <SelectDropdown
           className={inputCls}
           value={filters.termo}
           onChange={(e) => setFilter('termo', e.target.value)}
@@ -795,8 +796,8 @@ export default function EmerRadarProspectResults({
               {t}
             </option>
           ))}
-        </select>
-        <select
+        </SelectDropdown>
+        <SelectDropdown
           className={inputCls}
           value={filters.sort}
           onChange={(e) => setFilter('sort', e.target.value)}
@@ -804,7 +805,7 @@ export default function EmerRadarProspectResults({
           <option value="original">Ordem original</option>
           <option value="az">Nome A-Z</option>
           <option value="za">Nome Z-A</option>
-        </select>
+        </SelectDropdown>
         <label className="inline-flex items-center gap-2 text-sm text-ink-soft">
           <input
             type="checkbox"

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
-import { PageHeader } from '../../../components/ui'
+import { PageHeader, Toolbar } from '../../../components/ui'
 import { supabase } from '../../../lib/supabase.js'
 import { listarUsuariosParaAtribuicao } from '../../../lib/homeTarefas.js'
 import { buscarMunicipiosPorUfRobusto } from '../../../lib/ibgeLocalidades.js'
@@ -56,6 +56,7 @@ import {
 } from '../../../lib/credKanbanColagem.js'
 import './CredenciamentoKanban.css'
 import { avisar } from '../../../lib/dialogos.js'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 function novaEntradaRascunhoKanban(base = {}) {
     return {
@@ -709,7 +710,7 @@ export default function CredenciamentoKanban() {
                     >
                         <label>
                             <span>Mover para</span>
-                            <select
+                            <SelectDropdown
                                 value=""
                                 aria-label={`Mover ${card.nome || card.id} para outra coluna`}
                                 onChange={(e) => {
@@ -729,7 +730,7 @@ export default function CredenciamentoKanban() {
                                         {c.label}
                                     </option>
                                 ))}
-                            </select>
+                            </SelectDropdown>
                         </label>
                     </div>
                 ) : null}
@@ -778,100 +779,83 @@ export default function CredenciamentoKanban() {
             <div className="cred_kanban_filtros_wrap">
                 <button
                     type="button"
-                    className="cred_kanban_filtros_toggle"
+                    className="ek-btn ek-btn--secondary cred_kanban_filtros_toggle"
                     aria-expanded={filtrosAbertos}
                     onClick={() => setFiltrosAbertos((v) => !v)}
                 >
                     Filtros {filtrosAbertos ? '▴' : '▾'}
                 </button>
-                <section
-                    className={`cred_kanban_filtros${filtrosAbertos ? ' is-open' : ''}`}
-                    aria-label="Filtros"
-                >
-                <label className="cred_kanban_filtro_busca">
-                    <span>Busca</span>
-                    <input
-                        value={filtroBusca}
-                        onChange={(e) => setFiltroBusca(e.target.value)}
-                        placeholder="Nome, telefone…"
-                    />
-                </label>
-                <label>
-                    <span>Tipo</span>
-                    <input
-                        value={filtroEsp}
-                        onChange={(e) => setFiltroEsp(e.target.value)}
-                        list="cred_kanban_esp_filtro"
-                        placeholder="Especialidade…"
-                    />
-                    <datalist id="cred_kanban_esp_filtro">
-                        {especialidades.map((e) => (
-                            <option key={e.id} value={e.nome} />
-                        ))}
-                    </datalist>
-                </label>
-                <label>
-                    <span>Responsável</span>
-                    <select value={filtroAssignee} onChange={(e) => setFiltroAssignee(e.target.value)}>
-                        <option value="">Todos</option>
-                        {usuarios.map((u) => (
-                            <option key={u.id} value={u.id}>
-                                {u.nome}
-                            </option>
-                        ))}
-                    </select>
-                </label>
-                <label>
-                    <span>UF</span>
-                    <SelectUfBusca
-                        value={filtroUf}
-                        ufs={ufsNosCards}
-                        emptyLabel="Todas"
-                        placeholder="Todas"
-                        className="cred_kanban_select_uf"
-                        onChange={(u) => {
-                            setFiltroUf(u)
-                            setFiltroCidade('')
-                        }}
-                    />
-                </label>
-                <label>
-                    <span>Cidade</span>
-                    <SelectMunicipioBusca
-                        options={opcoesCidadeFiltro}
-                        value={filtroCidade}
-                        valueKey="nome"
-                        onChange={setFiltroCidade}
-                        placeholder="Todas"
-                        searchPlaceholder="Buscar cidade…"
-                        emptyLabel="Todas"
-                        aria-label="Filtrar por cidade"
-                        className="cred_kanban_select_cidade"
-                    />
-                </label>
-                <div className="cred_kanban_filtro_datas" role="group" aria-label="Datas">
-                    <span>Datas</span>
-                    <div className="cred_kanban_filtro_datas_campos">
+                <Toolbar title="Filtros" sticky={false} className={`cred_kanban_filtros_bar${filtrosAbertos ? ' is-open' : ''}`}>
+                    <label className="ek-field ek-field--grow">
+                        <span className="ek-label">Busca</span>
                         <input
-                            type="date"
-                            value={filtroDe}
-                            onChange={(e) => setFiltroDe(e.target.value)}
-                            aria-label="Data inicial"
-                            title="De"
+                            className="ek-input"
+                            value={filtroBusca}
+                            onChange={(e) => setFiltroBusca(e.target.value)}
+                            placeholder="Nome, telefone…"
                         />
-                        <span className="cred_kanban_filtro_datas_sep" aria-hidden="true">
-                            –
-                        </span>
+                    </label>
+                    <label className="ek-field">
+                        <span className="ek-label">Tipo</span>
                         <input
-                            type="date"
-                            value={filtroAte}
-                            onChange={(e) => setFiltroAte(e.target.value)}
-                            aria-label="Data final"
-                            title="Até"
+                            className="ek-input"
+                            value={filtroEsp}
+                            onChange={(e) => setFiltroEsp(e.target.value)}
+                            list="cred_kanban_esp_filtro"
+                            placeholder="Especialidade…"
+                        />
+                        <datalist id="cred_kanban_esp_filtro">
+                            {especialidades.map((e) => (
+                                <option key={e.id} value={e.nome} />
+                            ))}
+                        </datalist>
+                    </label>
+                    <label className="ek-field">
+                        <span className="ek-label">Responsável</span>
+                        <SelectDropdown className="ek-select" value={filtroAssignee} onChange={(e) => setFiltroAssignee(e.target.value)}>
+                            <option value="">Todos</option>
+                            {usuarios.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                    {u.nome}
+                                </option>
+                            ))}
+                        </SelectDropdown>
+                    </label>
+                    <div className="ek-field ek-field--half">
+                        <span className="ek-label">UF</span>
+                        <SelectUfBusca
+                            value={filtroUf}
+                            ufs={ufsNosCards}
+                            emptyLabel="Todas"
+                            placeholder="Todas"
+                            onChange={(u) => {
+                                setFiltroUf(u)
+                                setFiltroCidade('')
+                            }}
                         />
                     </div>
-                </div>
-                </section>
+                    <div className="ek-field ek-field--half">
+                        <span className="ek-label">Cidade</span>
+                        <SelectMunicipioBusca
+                            options={opcoesCidadeFiltro}
+                            value={filtroCidade}
+                            valueKey="nome"
+                            onChange={setFiltroCidade}
+                            placeholder="Todas"
+                            searchPlaceholder="Buscar cidade…"
+                            emptyLabel="Todas"
+                            aria-label="Filtrar por cidade"
+                        />
+                    </div>
+                    <label className="ek-field ek-field--half">
+                        <span className="ek-label">Data — de</span>
+                        <input type="date" className="ek-input" value={filtroDe} onChange={(e) => setFiltroDe(e.target.value)} aria-label="Data inicial" />
+                    </label>
+                    <label className="ek-field ek-field--half">
+                        <span className="ek-label">Data — até</span>
+                        <input type="date" className="ek-input" value={filtroAte} onChange={(e) => setFiltroAte(e.target.value)} aria-label="Data final" />
+                    </label>
+                </Toolbar>
             </div>
 
             {loading ? <p className="cred_kanban_loading">Carregando board…</p> : null}
@@ -984,7 +968,7 @@ export default function CredenciamentoKanban() {
             {nSel > 0 ? (
                 <div className="cred_kanban_bulk" role="region" aria-label="Atribuição em massa">
                     <span className="cred_kanban_bulk_count">{nSel} selecionado(s)</span>
-                    <select
+                    <SelectDropdown
                         value={assignMassa}
                         onChange={(e) => setAssignMassa(e.target.value)}
                         aria-label="Responsável"
@@ -995,7 +979,7 @@ export default function CredenciamentoKanban() {
                                 {u.nome}
                             </option>
                         ))}
-                    </select>
+                    </SelectDropdown>
                     <button
                         type="button"
                         className="is-primary"
@@ -1828,7 +1812,7 @@ function KanbanCardModal({
                     <div className="cred_kanban_modal_mover" role="group" aria-label="Enviar para categoria">
                         <label className="cred_kanban_modal_mover_campo">
                             <span>Enviar para</span>
-                            <select
+                            <SelectDropdown
                                 value={destinoColuna}
                                 disabled={movendoColuna || salvando || excluindo || !destinosMover.length}
                                 onChange={(e) => setDestinoColuna(e.target.value)}
@@ -1848,7 +1832,7 @@ function KanbanCardModal({
                                         </optgroup>
                                     )
                                 })}
-                            </select>
+                            </SelectDropdown>
                         </label>
                         <button
                             type="button"
@@ -2075,14 +2059,14 @@ function KanbanCardModal({
                         </label>
                         <label>
                             <span>Responsável</span>
-                            <select value={atribuidoA} onChange={(e) => setAtribuidoA(e.target.value)}>
+                            <SelectDropdown value={atribuidoA} onChange={(e) => setAtribuidoA(e.target.value)}>
                                 <option value="">—</option>
                                 {usuarios.map((u) => (
                                     <option key={u.id} value={u.id}>
                                         {u.nome}
                                     </option>
                                 ))}
-                            </select>
+                            </SelectDropdown>
                         </label>
                     </div>
                     {prestadorIdLocal || card.prestadorId ? (

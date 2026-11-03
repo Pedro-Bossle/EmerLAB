@@ -77,6 +77,7 @@ import './ClicksignEmerdog.css'
 import { TOAST_AUTO_DISMISS_MS, abrirUrlDownload, formatarDataPtBr } from './contratosUi.js'
 import { useConfirmacaoExclusaoAutoDismiss } from '../../lib/toastUi.js'
 import { PageHeader } from '../../components/ui'
+import { SelectDropdown } from '../../components/ui/Dropdown.jsx'
 
 const PDF_MAX_BYTES = CLICKSIGN_PDF_STORAGE_MAX_BYTES
 const STORAGE_FLUXO_EID = 'emerdog_cs_fluxo_eid'
@@ -2117,7 +2118,7 @@ export default function ClicksignEmerdog() {
                             </div>
                             <div className="contratos_field clicksign_field_inline">
                                 <label htmlFor="cs-filtro-estado">Estado</label>
-                                <select
+                                <SelectDropdown
                                     id="cs-filtro-estado"
                                     className="contratos_select"
                                     value={statusFilter}
@@ -2128,7 +2129,7 @@ export default function ClicksignEmerdog() {
                                     <option value="running">Em processo</option>
                                     <option value="closed">Finalizado</option>
                                     <option value="canceled">Cancelado</option>
-                                </select>
+                                </SelectDropdown>
                             </div>
                             <button
                                 type="button"
@@ -2312,7 +2313,7 @@ export default function ClicksignEmerdog() {
                                 <div className="clicksign_lista_paginacao_controles">
                                     <label className="clicksign_lista_paginacao_label">
                                         Por página
-                                        <select
+                                        <SelectDropdown
                                             className="contratos_select"
                                             value={itensPorPaginaLista}
                                             onChange={(e) => handleTrocarItensPorPaginaLista(e.target.value)}
@@ -2321,7 +2322,7 @@ export default function ClicksignEmerdog() {
                                             <option value={30}>30</option>
                                             <option value={40}>40</option>
                                             <option value={100}>100</option>
-                                        </select>
+                                        </SelectDropdown>
                                     </label>
                                     <button
                                         type="button"
@@ -2741,7 +2742,7 @@ export default function ClicksignEmerdog() {
                                         <h3 className="cs_sign_section_label">Envio</h3>
                                         <div className="contratos_field cs_sign_field_full">
                                             <label htmlFor="cs-sig-ch">Canal</label>
-                                            <select
+                                            <SelectDropdown
                                                 id="cs-sig-ch"
                                                 className="contratos_select cs_input"
                                                 value={signDraft.channel}
@@ -2755,7 +2756,7 @@ export default function ClicksignEmerdog() {
                                             >
                                                 <option value="email">E-mail</option>
                                                 <option value="whatsapp">WhatsApp</option>
-                                            </select>
+                                            </SelectDropdown>
                                         </div>
                                         {canalSignatario(signDraft.channel) === 'email' ? (
                                             <div className="contratos_field cs_sign_field_full">
@@ -3219,7 +3220,7 @@ export default function ClicksignEmerdog() {
                                         <h3 className="cs_sign_section_label">Envio</h3>
                                         <div className="contratos_field cs_sign_w400">
                                             <label htmlFor="cs-sig-ed-ch">Canal</label>
-                                            <select
+                                            <SelectDropdown
                                                 id="cs-sig-ed-ch"
                                                 className="contratos_select cs_input"
                                                 value={signDraft.channel}
@@ -3233,7 +3234,7 @@ export default function ClicksignEmerdog() {
                                             >
                                                 <option value="email">E-mail</option>
                                                 <option value="whatsapp">WhatsApp</option>
-                                            </select>
+                                            </SelectDropdown>
                                         </div>
                                         {canalSignatario(signDraft.channel) === 'email' ? (
                                             <div className="contratos_field cs_sign_w400">
@@ -3288,7 +3289,7 @@ export default function ClicksignEmerdog() {
                                         </div>
                                         <div className="contratos_field cs_sign_w400">
                                             <label htmlFor="cs-sig-ed-papel">Qualificação (agenda)</label>
-                                            <select
+                                            <SelectDropdown
                                                 id="cs-sig-ed-papel"
                                                 className="contratos_select cs_input"
                                                 value={signQualPapel}
@@ -3299,7 +3300,7 @@ export default function ClicksignEmerdog() {
                                                         {p.label}
                                                     </option>
                                                 ))}
-                                            </select>
+                                            </SelectDropdown>
                                         </div>
                                     </div>
                                 </div>
@@ -3406,7 +3407,7 @@ export default function ClicksignEmerdog() {
                                                                     : c.email || '—'}
                                                             </td>
                                                             <td>
-                                                                <select
+                                                                <SelectDropdown
                                                                     className="contratos_select cs_input cs_sign_qual_select_inline"
                                                                     value={agendaQualPorId[localId] || 'sign'}
                                                                     onChange={(e) =>
@@ -3421,7 +3422,7 @@ export default function ClicksignEmerdog() {
                                                                             {p.label}
                                                                         </option>
                                                                     ))}
-                                                                </select>
+                                                                </SelectDropdown>
                                                             </td>
                                                         </tr>
                                                     )
@@ -3511,7 +3512,7 @@ export default function ClicksignEmerdog() {
                                         <label htmlFor="cs-sig-papel-sel">
                                             Assinar como <span className="cs_sig_req_mark">*</span>
                                         </label>
-                                        <select
+                                        <SelectDropdown
                                             id="cs-sig-papel-sel"
                                             className="contratos_select cs_input cs_sign_qual_select_proj"
                                             value={signQualPapel}
@@ -3522,7 +3523,7 @@ export default function ClicksignEmerdog() {
                                                     {p.label}
                                                 </option>
                                             ))}
-                                        </select>
+                                        </SelectDropdown>
                                     </div>
                                 </div>
                                 <div className="contratos_modal_foot cs_sign_modal_foot">

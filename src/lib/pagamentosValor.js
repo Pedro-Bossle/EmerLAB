@@ -23,3 +23,15 @@ export function formatarValorMonetarioBr(valor) {
     if (!Number.isFinite(n)) return ''
     return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
+
+/** Desconto retido nos repasses do tipo RPA. */
+export const DESCONTO_RPA = 0.11
+
+export const ehTipoRpa = (tipoRepasse) => String(tipoRepasse || '').toLowerCase() === 'rpa'
+
+/** Valor com o desconto do RPA (11%), arredondado em centavos. `null` se o valor não for numérico. */
+export function valorLiquidoRpa(valor) {
+    const v = Number(valor)
+    if (valor == null || valor === '' || !Number.isFinite(v)) return null
+    return Math.round(v * (1 - DESCONTO_RPA) * 100) / 100
+}

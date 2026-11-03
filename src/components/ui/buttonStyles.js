@@ -1,37 +1,31 @@
 import { cn } from '../../lib/cn'
 
+/** Variantes e tamanhos do Button: classes do UI Kit (src/styles/emerlab-kit.css, docs/ui-kit.md). */
 export const buttonVariants = {
-  primary:
-    'bg-brand text-white shadow-soft hover:bg-brand-deep disabled:opacity-60',
-  secondary:
-    'border border-line bg-white text-ink hover:bg-surface-tint dark:border-white/15 dark:bg-[#152433] dark:text-[#e8f1f8]',
-  ghost:
-    'bg-transparent text-ink-soft hover:bg-brand-pale/60 dark:text-[#9eb4c8] dark:hover:bg-white/5',
-  danger:
-    'border border-status-erro/30 bg-status-erro-bg text-status-erro hover:bg-red-100',
-  /** Ação destrutiva confirmada (ex.: «Excluir prestador»). Branco sobre #b91c1c = 6,5:1. */
-  dangerSolid: 'bg-status-erro text-white shadow-soft hover:bg-red-800 disabled:opacity-60',
-  success:
-    'border border-status-ok/30 bg-status-ok-bg text-status-ok hover:bg-emerald-100',
+  primary: '',
+  secondary: 'ek-btn--secondary',
+  ghost: 'ek-btn--ghost',
+  danger: 'ek-btn--danger',
+  /** Ação destrutiva confirmada (ex.: «Excluir prestador»). */
+  dangerSolid: 'ek-btn--danger-solid',
+  success: 'ek-btn--success',
+  soft: 'ek-btn--soft',
 }
 
+/* Altura 40 px (44 px em tela de toque, pelo próprio kit). sm = ações dentro de tabela. */
 export const buttonSizes = {
-  /* 44 px no toque; compacto só com ponteiro fino (desktop). */
-  sm: 'min-h-touch px-3 text-sm sm:min-h-9',
-  md: 'min-h-touch px-4 text-sm',
-  lg: 'min-h-12 px-5 text-base',
-  icon: 'h-11 w-11 p-0',
+  sm: 'ek-btn--sm',
+  md: '',
+  lg: 'ek-btn--lg',
+  icon: 'ek-btn--icon',
 }
 
-const buttonBase =
-  'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-not-allowed'
-
-/** Classes partilhadas do Button para usar em <Link> / <a> sem aninhar botões. */
+/** Classes compartilhadas do Button para usar em <Link> / <a> sem aninhar botões. */
 export function buttonClassName({ className, variant = 'primary', size = 'md' } = {}) {
   return cn(
-    buttonBase,
-    buttonVariants[variant] || buttonVariants.primary,
-    buttonSizes[size] || buttonSizes.md,
+    'ek-btn',
+    buttonVariants[variant] ?? buttonVariants.primary,
+    buttonSizes[size] ?? buttonSizes.md,
     className,
   )
 }

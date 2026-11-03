@@ -1,0 +1,277 @@
+/**
+ * EmerLab — Design System (camada global).
+ *
+ * Fonte única dos tokens e das regras que unificam as folhas legadas por página
+ * (que carregam depois deste arquivo, daí o prefixo `body` para ganhar em especificidade
+ * sem recorrer a !important). Componentes novos devem usar `src/components/ui/*`;
+ * esta folha existe para que as telas legadas herdem o mesmo padrão sem edição individual.
+ *
+ * Breakpoints de referência (espelham o Tailwind): sm 640 · md 768 · lg 1024 · xl 1280.
+ */
+
+:root {
+  /* Controles */
+  --el-control-h: 2.5rem;
+  --el-control-h-touch: 2.75rem; /* 44px — alvo de toque mínimo */
+  --el-radius-control: 0.625rem;
+  --el-radius-panel: 0.875rem;
+  --el-radius-sheet: 1.125rem;
+
+  /* Cores semânticas (espelham tailwind.config.js) */
+  --el-ink: #142033;
+  --el-ink-soft: #3d5168;
+  --el-ink-muted: #5a7488;
+  --el-brand: #1a6fa3;
+  --el-brand-deep: #165f8c;
+  --el-line: #d8e6ef;
+  --el-line-strong: #bfd7e8;
+  --el-surface: #ffffff;
+  --el-ring: rgba(26, 111, 163, 0.18);
+
+  /* Camadas: as folhas legadas usam 1000–11000 (menus 1250–1400, confirmações 1250, portais 10050).
+     NÃO normalizar às cegas: a ordem relativa entre modal, menu e confirmação é funcional.
+     Componentes novos usam a escala Tailwind (nav 40 · fab 55 · drawer 80 · modal 90 · toast 100). */
+
+  /* Overlays */
+  --el-scrim: rgba(15, 30, 48, 0.5);
+  --el-shadow-modal: 0 18px 48px rgba(15, 30, 48, 0.28);
+  --el-modal-gutter: 1rem;
+
+  /* Movimento */
+  --el-ease: cubic-bezier(0.2, 0, 0, 1);
+  --el-dur-fast: 120ms;
+  --el-dur: 180ms;
+}
+
+body.dark-mode {
+  --el-ink: #e8f1f8;
+  --el-ink-soft: #b9cadb;
+  --el-ink-muted: #9eb4c8;
+  --el-line: rgba(255, 255, 255, 0.12);
+  --el-line-strong: rgba(255, 255, 255, 0.2);
+  --el-surface: #1a2838;
+  --el-scrim: rgba(0, 0, 0, 0.6);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Modais legados — mesma geometria, mesma camada, mesmo comportamento mobile  */
+/* -------------------------------------------------------------------------- */
+
+/* Scrim e posicionamento (desktop/tablet: centralizado, com respiro seguro). */
+body :is(
+  .home_dash_modal_backdrop,
+  .credenciamento_modal_backdrop,
+  .contratos_modal_backdrop,
+  .sih_modal_backdrop,
+  .pcad_modal_backdrop,
+  .pag_exp_backdrop,
+  .cred_kanban_modal_backdrop,
+  .admin_auditoria_modal_backdrop,
+  .conf_lab_drawer_overlay
+) {
+  background: var(--el-scrim);
+  overscroll-behavior: contain;
+  padding-top: max(var(--el-modal-gutter), env(safe-area-inset-top));
+  padding-bottom: max(var(--el-modal-gutter), env(safe-area-inset-bottom));
+  padding-left: max(var(--el-modal-gutter), env(safe-area-inset-left));
+  padding-right: max(var(--el-modal-gutter), env(safe-area-inset-right));
+  box-sizing: border-box;
+}
+
+/* Painéis: nunca passam da viewport visível (dvh respeita a barra do navegador mobile). */
+body :is(
+  .home_dash_modal,
+  .credenciamento_modal,
+  .contratos_modal,
+  .sih_modal,
+  .pcad_modal,
+  .pag_exp_modal
+) {
+  max-height: calc(100dvh - 2 * var(--el-modal-gutter));
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+}
+
+body :is(.cred_kanban_modal, .admin_auditoria_modal) {
+  box-sizing: border-box;
+}
+
+/*
+ * Painéis que rolam inteiros (sem corpo rolável próprio): o rodapé de ações fica colado no fim da
+ * área visível, para «Salvar/Cancelar» nunca sumirem com formulários longos.
+ */
+/* Quanto o rodapé precisa «descer» para cobrir o padding inferior do painel (ou do scrim, no kanban). */
+body .home_dash_modal { --el-sticky-bottom: 1.15rem; }
+body .credenciamento_modal { --el-sticky-bottom: 14px; }
+body .cred_kanban_modal { --el-sticky-bottom: max(var(--el-modal-gutter), env(safe-area-inset-bottom)); }
+
+body :is(.home_dash_modal, .credenciamento_modal, .cred_kanban_modal) :is(
+  .home_dash_modal_actions,
+  .credenciamento_modal_actions,
+  .cred_kanban_modal_footer
+) {
+  position: sticky;
+  bottom: calc(-1 * var(--el-sticky-bottom, 0px));
+  z-index: 2;
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  background: var(--el-surface, #fff);
+  box-shadow: 0 -10px 12px -10px rgba(15, 30, 48, 0.22);
+}
+
+body.dark-mode :is(.home_dash_modal, .credenciamento_modal, .cred_kanban_modal) :is(
+  .home_dash_modal_actions,
+  .credenciamento_modal_actions,
+  .cred_kanban_modal_footer
+) {
+  background: #1a2838;
+}
+
+/* Telefone: bottom sheet — painel ancorado embaixo, cantos superiores, rolagem interna. */
+@media (max-width: 640px) {
+  body :is(
+    .home_dash_modal_backdrop,
+    .credenciamento_modal_backdrop,
+    .contratos_modal_backdrop,
+    .sih_modal_backdrop,
+    .pcad_modal_backdrop,
+    .pag_exp_backdrop
+  ) {
+    align-items: flex-end;
+    justify-items: stretch;
+    padding: 0;
+  }
+
+  body :is(
+    .home_dash_modal,
+    .credenciamento_modal,
+    .contratos_modal,
+    .sih_modal,
+    .pcad_modal,
+    .pag_exp_modal
+  ) {
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: var(--el-radius-sheet) var(--el-radius-sheet) 0 0;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    --el-sticky-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  /* Painéis sem rolagem própria precisam rolar (o cabeçalho/rodapé flex seguem visíveis nos que já têm corpo rolável). */
+  body :is(.home_dash_modal, .credenciamento_modal, .pag_exp_modal) {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Kanban/Auditoria rolam o backdrop: menos margem, painel usa a largura toda. */
+  body :is(.cred_kanban_modal_backdrop, .admin_auditoria_modal_backdrop) {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+
+  /* Rodapés de ação: botões empilham na largura total, ação principal primeiro ao alcance do polegar. */
+  body :is(
+    .home_dash_modal_actions,
+    .credenciamento_modal_actions,
+    .contratos_modal_foot,
+    .sih_modal_foot,
+    .pcad_modal_foot,
+    .cred_kanban_modal_footer
+  ) {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  body :is(
+    .home_dash_modal_actions,
+    .credenciamento_modal_actions,
+    .contratos_modal_foot,
+    .sih_modal_foot,
+    .pcad_modal_foot,
+    .cred_kanban_modal_footer
+  ) > :is(button, a) {
+    flex: 1 1 auto;
+    min-width: min(8rem, 100%);
+    min-height: var(--el-control-h-touch);
+  }
+
+  /* Botão de fechar: alvo de toque de 44px. */
+  body :is(.sih_modal_close, .pcad_modal_close) {
+    min-width: var(--el-control-h-touch);
+    min-height: var(--el-control-h-touch);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Controles de formulário e ações — toque confortável em telas pequenas       */
+/* -------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  /* 44px é o alvo de toque mínimo. */
+  body :is(.el-page, .el-legacy-wrap, .content) :is(
+    select,
+    textarea,
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']):not([type='hidden'])
+  ) {
+    min-height: var(--el-control-h-touch);
+  }
+
+  /* 16px evita o zoom automático do iOS ao focar (month/date abrem seletor nativo, sem zoom). */
+  body :is(.el-page, .el-legacy-wrap, .content) :is(
+    select,
+    textarea,
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']):not([type='hidden']):not([type='month']):not([type='date']):not([type='time']):not([type='datetime-local'])
+  ) {
+    font-size: max(16px, 1rem);
+  }
+
+  body :is(.el-page, .el-legacy-wrap, .content) textarea {
+    min-height: 5.5rem;
+  }
+
+  /* Botões de ação legados (barras de filtro, cabeçalhos de seção, colunas kanban). */
+  body :is(.el-page, .el-legacy-wrap, .content) :is(
+    [class*='_action_btn'],
+    [class*='_mode_btn'],
+    [class*='_col_add']
+  ) {
+    min-height: var(--el-control-h-touch);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tabelas largas: dica visual de rolagem horizontal (sombra nas bordas)       */
+/* -------------------------------------------------------------------------- */
+@media (max-width: 1023px) {
+  body :is(.el-page, .el-legacy-wrap) :is([class*='table_wrap'], .el-scroll-x) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    background:
+      linear-gradient(to right, var(--el-surface, #fff) 30%, transparent) left center / 1.25rem 100% no-repeat local,
+      linear-gradient(to left, var(--el-surface, #fff) 30%, transparent) right center / 1.25rem 100% no-repeat local,
+      linear-gradient(to right, rgba(20, 32, 51, 0.14), transparent) left center / 0.6rem 100% no-repeat scroll,
+      linear-gradient(to left, rgba(20, 32, 51, 0.14), transparent) right center / 0.6rem 100% no-repeat scroll;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Títulos de página: um único tamanho/alinhamento (as folhas legadas reduziam */
+/* o h1 a 18px e/ou o recuavam em cada tela)                                   */
+/* -------------------------------------------------------------------------- */
+body :is(.el-page, .el-legacy-wrap) h1 {
+  font-size: clamp(1.375rem, 1.1rem + 1.2vw, 1.75rem);
+  line-height: 1.2;
+  padding-left: 0;
+  padding-right: 0;
+  text-align: left;
+}
+
+/* Gutter único das páginas no telefone/tablet (legadas tinham 8–24px conforme a tela). */
+@media (max-width: 767px) {
+  /* !important deliberado: várias folhas legadas fixam o padding da própria tela com seletores mais específicos. */
+  body :is(.el-page, .el-legacy-wrap) {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+}

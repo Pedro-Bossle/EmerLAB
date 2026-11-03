@@ -44,10 +44,11 @@ import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMai
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
-import { PageHeader } from '../../../components/ui'
+import { PageHeader, Toolbar } from '../../../components/ui'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 import { confirmarAcao } from '../../../lib/dialogos.js'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 const LISTA_UI_STORAGE_KEY = 'emerdog_credenciamento_cadastro_lista_ui'
 
@@ -65,7 +66,6 @@ const CredenciamentoCadastroLista = () => {
     const navigate = useNavigate()
     const [loading, setLoading] = useState(true)
     const [erro, setErro] = useState('')
-    const [headerCompacto, setHeaderCompacto] = useState(false)
     const [termoBusca1, setTermoBusca1] = useState(() => lerEstadoListaUi()?.termoBusca1 ?? '')
     const [termoBusca2, setTermoBusca2] = useState(() => lerEstadoListaUi()?.termoBusca2 ?? '')
     const [filtroSituacao, setFiltroSituacao] = useState(() => lerEstadoListaUi()?.filtroSituacao ?? '')
@@ -103,7 +103,6 @@ const CredenciamentoCadastroLista = () => {
     const [rcMalhaCarregada, setRcMalhaCarregada] = useState(false)
     const [rcCidadesTabela, setRcCidadesTabela] = useState([])
     const [rcVinculosMalha, setRcVinculosMalha] = useState([])
-    const [filtrosMaisAberto, setFiltrosMaisAberto] = useState(false)
 
     const [modalSimplesAberto, setModalSimplesAberto] = useState(false)
     const [simplesNome, setSimplesNome] = useState('')
@@ -285,12 +284,6 @@ const CredenciamentoCadastroLista = () => {
         ordenarDir,
     ])
 
-    useEffect(() => {
-        const onScroll = () => setHeaderCompacto(window.scrollY > 22)
-        onScroll()
-        window.addEventListener('scroll', onScroll, { passive: true })
-        return () => window.removeEventListener('scroll', onScroll)
-    }, [])
 
     useEffect(() => {
         if (pularResetPaginaRef.current) {
@@ -847,117 +840,82 @@ const CredenciamentoCadastroLista = () => {
         <div className={`el-legacy-wrap credenciamento_main credenciamento_cadastro_lista${somenteLeitura ? ' somente_leitura_lista' : ''}`}>
             <PageHeader kicker="Credenciamento" title="Cadastro de prestadores" />
 
-            <header className={`credenciamento_main_header ${headerCompacto ? 'is-compact' : ''}`}>
-                <h2 className="credenciamento_cadastro_filters_title">Filtros</h2>
-                <div className="credenciamento_main_filters credenciamento_cadastro_filters">
-                    <div className="credenciamento_cadastro_filters_row_busca">
-                        <label className="credenciamento_cadastro_field">
-                            <span>Busca 1</span>
-                            <CampoBuscaComLimpar
-                                className="credenciamento_main_input"
-                                placeholder="Nome, cidade, tipo…"
-                                value={termoBusca1}
-                                onChange={(e) => setTermoBusca1(e.target.value)}
-                            />
-                        </label>
-                        <label className="credenciamento_cadastro_field">
-                            <span>Busca 2</span>
-                            <CampoBuscaComLimpar
-                                className="credenciamento_main_input"
-                                placeholder="2º critério…"
-                                value={termoBusca2}
-                                onChange={(e) => setTermoBusca2(e.target.value)}
-                            />
-                        </label>
-                        <label className="credenciamento_cadastro_field credenciamento_cadastro_field--situacao">
-                            <span>Situação</span>
-                            <select
-                                className="credenciamento_main_select"
-                                value={filtroSituacao}
-                                onChange={(e) => setFiltroSituacao(e.target.value)}
-                            >
-                                <option value="">Todas</option>
-                                {situacoesParaSelecao.map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                        {s.descricao}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+            <Toolbar title="Filtros">
+                <div className="ek-field ek-field--grow">
+                    <span className="ek-label">Busca 1</span>
+                    <CampoBuscaComLimpar
+                        inputClassName="ek-input"
+                        placeholder="Nome, cidade, tipo…"
+                        value={termoBusca1}
+                        onChange={(e) => setTermoBusca1(e.target.value)}
+                    />
+                </div>
+                <div className="ek-field ek-field--grow">
+                    <span className="ek-label">Busca 2</span>
+                    <CampoBuscaComLimpar
+                        inputClassName="ek-input"
+                        placeholder="2º critério…"
+                        value={termoBusca2}
+                        onChange={(e) => setTermoBusca2(e.target.value)}
+                    />
+                </div>
+                <label className="ek-field">
+                    <span className="ek-label">Situação</span>
+                    <SelectDropdown className="ek-select" value={filtroSituacao} onChange={(e) => setFiltroSituacao(e.target.value)}>
+                        <option value="">Todas</option>
+                        {situacoesParaSelecao.map((s) => (
+                            <option key={s.id} value={s.id}>
+                                {s.descricao}
+                            </option>
+                        ))}
+                    </SelectDropdown>
+                </label>
+                <div className="ek-toolbar__actions">
+                    <button
+                        type="button"
+                        className="ek-btn ek-btn--secondary"
+                        disabled={exportandoPdf || loading}
+                        onClick={() => setModalExportPdfAberto(true)}
+                        title="Exporta PDF pelos critérios do modal (período e situações)"
+                    >
+                        Relatório
+                    </button>
+                    <button
+                        type="button"
+                        className="ek-btn ek-btn--secondary"
+                        onClick={abrirModalRc}
+                        title="Imprimir rede credenciada (RC)"
+                    >
+                        Rede Cred.
+                    </button>
+                    {!somenteLeitura ? (
+                        <>
+                            <button type="button" className="ek-btn ek-btn--secondary" onClick={abrirModalSimples}>
+                                Novo Simples
+                            </button>
+                            <button type="button" className="ek-btn" onClick={() => navigate('/credenciamento/cadastro/novo')}>
+                                Novo
+                            </button>
+                        </>
+                    ) : null}
+                    {podeDevTool && !somenteLeitura ? (
                         <button
                             type="button"
-                            className={`credenciamento_main_action_btn secondary credenciamento_cadastro_mais_btn${filtrosMaisAberto ? ' is-open' : ''}`}
-                            aria-expanded={filtrosMaisAberto}
-                            aria-controls="credenciamento-cadastro-acoes"
-                            onClick={() => setFiltrosMaisAberto((v) => !v)}
+                            className="ek-btn ek-btn--soft"
+                            disabled={labsMassaBusy}
+                            onClick={() => void vincularLaboratoriosEmMassa()}
+                            title="Dev: vincular laboratórios por cidade-tabela em todos os prestadores"
                         >
-                            Mais
-                            <span className="credenciamento_cadastro_mais_chevron" aria-hidden="true">
-                                {filtrosMaisAberto ? '▴' : '▾'}
-                            </span>
+                            {labsMassaBusy ? 'Vinculando…' : 'Dev · vincular labs'}
                         </button>
-                    </div>
-
-                    {filtrosMaisAberto ? (
-                        <div
-                            id="credenciamento-cadastro-acoes"
-                            className="credenciamento_cadastro_filters_row_acoes"
-                        >
-                            <button
-                                type="button"
-                                className="credenciamento_main_action_btn secondary"
-                                disabled={exportandoPdf || loading}
-                                onClick={() => setModalExportPdfAberto(true)}
-                                title="Exporta PDF pelos critérios do modal (período e situações)"
-                            >
-                                Relatório
-                            </button>
-                            <button
-                                type="button"
-                                className="credenciamento_main_action_btn secondary"
-                                onClick={abrirModalRc}
-                                title="Imprimir rede credenciada (RC)"
-                            >
-                                Rede Cred.
-                            </button>
-                            {!somenteLeitura ? (
-                                <>
-                                    <button
-                                        type="button"
-                                        className="credenciamento_main_action_btn secondary"
-                                        onClick={abrirModalSimples}
-                                    >
-                                        Novo Simples
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="credenciamento_main_action_btn credenciamento_cadastro_btn_novo"
-                                        onClick={() => navigate('/credenciamento/cadastro/novo')}
-                                    >
-                                        Novo
-                                    </button>
-                                </>
-                            ) : null}
-                            {podeDevTool && !somenteLeitura ? (
-                                <button
-                                    type="button"
-                                    className="credenciamento_main_action_btn secondary credenciamento_cadastro_btn_dev_labs"
-                                    disabled={labsMassaBusy}
-                                    onClick={() => void vincularLaboratoriosEmMassa()}
-                                    title="Dev: vincular laboratórios por cidade-tabela em todos os prestadores"
-                                >
-                                    {labsMassaBusy ? 'Vinculando…' : 'Dev · vincular labs'}
-                                </button>
-                            ) : null}
-                            {podeDevTool && feedbackLabsMassa ? (
-                                <p className="pcad_muted pcad_servicos_massa_feedback credenciamento_cadastro_dev_labs_feedback">
-                                    {feedbackLabsMassa}
-                                </p>
-                            ) : null}
-                        </div>
                     ) : null}
                 </div>
-            </header>
+                {podeDevTool && feedbackLabsMassa ? (
+                    <p className="ek-hint" style={{ flex: '1 1 100%' }}>
+                        {feedbackLabsMassa}
+                    </p>
+                ) : null}
+            </Toolbar>
 
             <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
 
@@ -1147,7 +1105,7 @@ const CredenciamentoCadastroLista = () => {
                                     <div className="credenciamento_main_paginacao_grupo">
                                         <label className="credenciamento_main_paginacao_label">
                                             Por página
-                                            <select
+                                            <SelectDropdown
                                                 className="credenciamento_main_select"
                                                 value={itensPorPagina}
                                                 onChange={(e) => setItensPorPagina(Number(e.target.value))}
@@ -1156,7 +1114,7 @@ const CredenciamentoCadastroLista = () => {
                                                 <option value={30}>30</option>
                                                 <option value={40}>40</option>
                                                 <option value={100}>100</option>
-                                            </select>
+                                            </SelectDropdown>
                                         </label>
                                     </div>
                                     <div className="credenciamento_main_paginacao_grupo credenciamento_main_paginacao_grupo--nav">
@@ -1365,7 +1323,7 @@ const CredenciamentoCadastroLista = () => {
                             </label>
                             <label className="credenciamento_cadastro_simples_especialidade">
                                 <span>Especialidade *</span>
-                                <select
+                                <SelectDropdown
                                     value={simplesEspecialidadeId}
                                     onChange={(e) => setSimplesEspecialidadeId(e.target.value)}
                                 >
@@ -1375,7 +1333,7 @@ const CredenciamentoCadastroLista = () => {
                                             {e.nome}
                                         </option>
                                     ))}
-                                </select>
+                                </SelectDropdown>
                             </label>
                             <label className="credenciamento_cadastro_simples_telefone">
                                 <span>Telefone</span>
@@ -1388,7 +1346,7 @@ const CredenciamentoCadastroLista = () => {
                             </label>
                             <label className="credenciamento_cadastro_simples_situacao">
                                 <span>Situação</span>
-                                <select
+                                <SelectDropdown
                                     value={simplesSituacaoId}
                                     onChange={(e) => setSimplesSituacaoId(e.target.value)}
                                 >
@@ -1398,7 +1356,7 @@ const CredenciamentoCadastroLista = () => {
                                             {s.descricao}
                                         </option>
                                     ))}
-                                </select>
+                                </SelectDropdown>
                             </label>
                             <label className="credenciamento_cadastro_simples_uf">
                                 <span>UF *</span>

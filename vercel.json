@@ -27,6 +27,10 @@
       "maxDuration": 30,
       "includeFiles": "public/email/**"
     },
+    "api/repasse-mensal.js": {
+      "maxDuration": 30,
+      "includeFiles": "public/email/**"
+    },
     "api/audit-logs.js": {
       "maxDuration": 30
     },

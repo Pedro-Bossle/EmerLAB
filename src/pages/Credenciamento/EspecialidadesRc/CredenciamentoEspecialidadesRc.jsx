@@ -11,7 +11,7 @@ import {
 } from '../../../lib/rc/ordenarCardsRc.js'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
-import { PageHeader } from '../../../components/ui'
+import { PageHeader, Toolbar } from '../../../components/ui'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoEspecialidadesRc.css'
 
@@ -222,30 +222,33 @@ const CredenciamentoEspecialidadesRc = () => {
                 className="especialidades_rc_sucesso"
             />
 
-            <header className="especialidades_rc_toolbar">
-                <CampoBuscaComLimpar
-                    className="credenciamento_main_input especialidades_rc_busca"
+            <Toolbar title="Filtros" sticky={false}>
+                <div className="ek-field ek-field--grow">
+                    <span className="ek-label">Buscar</span>
+                    <CampoBuscaComLimpar
+                    inputClassName="ek-input"
                     placeholder="Buscar especialidade ou tipo"
                     value={busca}
                     onChange={(e) => setBusca(e.target.value)}
                 />
-                <div className="especialidades_rc_toolbar_acoes">
+                </div>
+                <div className="ek-toolbar__actions">
                     {!somenteLeitura ? (
                         <button
                             type="button"
-                            className="credenciamento_main_action_btn especialidades_rc_btn_novo"
+                            className="ek-btn"
                             disabled={loading || salvando}
                             onClick={() => {
                                 setNovoAtivo((ativo) => !ativo)
                                 setErro('')
                             }}
                         >
-                            {novoAtivo ? 'Cancelar' : '＋ Novo'}
+                            {novoAtivo ? 'Cancelar' : 'Novo'}
                         </button>
                     ) : null}
                     <button
                         type="button"
-                        className="credenciamento_main_action_btn secondary"
+                        className="ek-btn ek-btn--secondary"
                         disabled={somenteLeitura || loading}
                         onClick={aplicarOrdemPadraoGrupos}
                     >
@@ -253,14 +256,14 @@ const CredenciamentoEspecialidadesRc = () => {
                     </button>
                     <button
                         type="button"
-                        className="credenciamento_main_action_btn"
+                        className="ek-btn"
                         disabled={somenteLeitura || salvando || !ordemDirty}
                         onClick={salvarOrdem}
                     >
                         {salvando ? 'Salvando…' : 'Salvar ordem'}
                     </button>
                 </div>
-            </header>
+            </Toolbar>
 
             {novoAtivo && !somenteLeitura ? (
                 <section className="especialidades_rc_novo_painel">

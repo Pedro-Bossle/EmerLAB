@@ -44,9 +44,9 @@ export const OPS_CHILDREN = [
 
   {
 
-    label: 'Pagamentos - Resumo',
+    label: 'Pagamentos - Caixa de entrada',
 
-    href: '/pagamentos/resumo',
+    href: '/pagamentos/caixa',
 
     permission: PERMISSION_KEYS.PAGAMENTOS_VIEW,
 

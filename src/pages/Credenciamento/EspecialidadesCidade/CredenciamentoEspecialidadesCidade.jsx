@@ -20,6 +20,7 @@ import './CredenciamentoEspecialidadesCidade.css'
 import { PageHeader } from '../../../components/ui'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 function useContagemColunasEspecialidade() {
     const [cols, setCols] = useState(() => {
@@ -410,7 +411,7 @@ export default function CredenciamentoEspecialidadesCidade() {
                     </label>
                     <label className="pcad_field">
                         <span>Ordenar por</span>
-                        <select
+                        <SelectDropdown
                             className="credenciamento_main_input"
                             value={ordenacao}
                             onChange={(e) => setOrdenacao(e.target.value)}
@@ -420,7 +421,7 @@ export default function CredenciamentoEspecialidadesCidade() {
                             <option value="za">Z–A</option>
                             <option value="cres">Crescente</option>
                             <option value="desc">Decrescente</option>
-                        </select>
+                        </SelectDropdown>
                     </label>
                     <div className="quem_realiza_switch_cidades">
                         <span className="quem_realiza_switch_cidades_label">Buscar em cidades paralelas</span>

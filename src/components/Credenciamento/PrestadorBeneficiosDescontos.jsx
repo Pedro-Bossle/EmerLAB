@@ -11,6 +11,7 @@ import {
     downloadImpressaoDescontosPdf,
     gerarImpressaoDescontosPdf,
 } from '../../lib/impressaoDescontos/gerarImpressaoDescontosPdf.js'
+import { SelectDropdown } from '../ui/Dropdown.jsx'
 import './PrestadorBeneficiosDescontos.css'
 
 function limparNumeroPct(valor) {
@@ -286,7 +287,7 @@ export default function PrestadorBeneficiosDescontos({
                 <div className="pcad_beneficios_form">
                     <label className="pcad_field pcad_beneficios_campo_grupo">
                         <span>Grupo</span>
-                        <select
+                        <SelectDropdown
                             className="credenciamento_main_input"
                             value={grupoSel}
                             disabled={bloqueado}
@@ -298,11 +299,11 @@ export default function PrestadorBeneficiosDescontos({
                                     {g.nome || g.codigo}
                                 </option>
                             ))}
-                        </select>
+                        </SelectDropdown>
                     </label>
                     <label className="pcad_field pcad_beneficios_campo_tipo">
                         <span>Tipo</span>
-                        <select
+                        <SelectDropdown
                             className="credenciamento_main_input"
                             value={tipoSel}
                             disabled={bloqueado || !grupoSel}
@@ -314,7 +315,7 @@ export default function PrestadorBeneficiosDescontos({
                                     {t.nome}
                                 </option>
                             ))}
-                        </select>
+                        </SelectDropdown>
                     </label>
                     <div className="pcad_beneficios_pct_clip">
                         <label className="pcad_field pcad_beneficios_pct">

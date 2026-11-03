@@ -68,35 +68,6 @@
   font-size: 0.875rem;
 }
 
-.cred_kanban_filtros {
-  display: grid;
-  grid-template-columns:
-    minmax(12rem, 1.6fr)
-    minmax(9rem, 1fr)
-    minmax(9rem, 1fr)
-    5.5rem
-    minmax(8rem, 1fr)
-    minmax(14rem, 1.2fr);
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid #d7e8f2;
-  border-radius: 12px;
-  background: #f8fbfd;
-  align-items: end;
-}
-
-.cred_kanban_filtros label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #547084;
-  text-transform: uppercase;
-}
-
-.cred_kanban_filtros input,
-.cred_kanban_filtros select,
 .cred_kanban_modal input,
 .cred_kanban_modal select {
   border: 1px solid #bfd7e8;
@@ -124,18 +95,6 @@
   font-size: 0.875rem;
   font-weight: 600;
   color: #1e3148;
-  background: #fff;
-}
-
-.cred_kanban_filtros .select_municipio_busca_trigger {
-  border: 1px solid #bfd7e8;
-  border-radius: 8px;
-  padding: 5px 8px 5px 9px;
-  min-height: 32px;
-  height: 32px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #1f3a4f;
   background: #fff;
 }
 
@@ -189,39 +148,6 @@
   text-overflow: clip;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
-}
-
-.cred_kanban_filtro_busca {
-  min-width: 0;
-}
-
-.cred_kanban_filtro_datas {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #547084;
-  text-transform: uppercase;
-  min-width: 0;
-}
-
-.cred_kanban_filtro_datas_campos {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.cred_kanban_filtro_datas_campos input {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.cred_kanban_filtro_datas_sep {
-  flex-shrink: 0;
-  color: #8aa0b4;
-  font-weight: 700;
 }
 
 .cred_kanban_loading {
@@ -1679,7 +1605,6 @@ body.dark-mode .cred_kanban_modal {
   color: #d7e6f0;
 }
 
-body.dark-mode .cred_kanban_filtros,
 body.dark-mode .cred_kanban_coluna,
 body.dark-mode .cred_kanban_checklist,
 body.dark-mode .cred_kanban_mencao,
@@ -1755,11 +1680,8 @@ body.dark-mode .cred_kanban_assignee.is-empty {
 }
 
 body.dark-mode .cred_kanban_acoes button,
-body.dark-mode .cred_kanban_filtros input,
-body.dark-mode .cred_kanban_filtros select,
 body.dark-mode .cred_kanban_modal input,
 body.dark-mode .cred_kanban_modal select,
-body.dark-mode .cred_kanban_filtros .select_municipio_busca_trigger,
 body.dark-mode .cred_kanban_modal .cred_kanban_campo_uf .select_municipio_busca_trigger,
 body.dark-mode .cred_kanban_modal .cred_kanban_campo_cidade .select_municipio_busca_trigger,
 body.dark-mode .cred_kanban_modal textarea,
@@ -1771,8 +1693,6 @@ body.dark-mode .cred_kanban_filtros_toggle {
   color: #d7e6f0;
 }
 
-body.dark-mode .cred_kanban_filtros label span,
-body.dark-mode .cred_kanban_filtro_datas > span,
 body.dark-mode .cred_kanban_modal_grid label,
 body.dark-mode .cred_kanban_modal_secao > h3 {
   color: #8aa0b0;
@@ -1801,21 +1721,6 @@ body.dark-mode .cred_kanban_erro {
 
   .cred_kanban_filtros_toggle {
     display: block;
-  }
-
-  .cred_kanban_filtros {
-    display: none;
-    grid-template-columns: 1fr 1fr;
-    margin-bottom: 0;
-  }
-
-  .cred_kanban_filtros.is-open {
-    display: grid;
-  }
-
-  .cred_kanban_filtro_busca,
-  .cred_kanban_filtro_datas {
-    grid-column: 1 / -1;
   }
 
   .cred_kanban_desktop {
@@ -2036,8 +1941,6 @@ body.dark-mode .cred_kanban_erro {
     grid-column: 2;
   }
 
-  .cred_kanban_filtros input,
-  .cred_kanban_filtros select,
   .cred_kanban_modal input,
   .cred_kanban_modal select {
     width: 100%;
@@ -2095,27 +1998,9 @@ body.dark-mode .cred_kanban_erro {
   }
 }
 
-@media (max-width: 1100px) and (min-width: 901px) {
-  .cred_kanban_filtros {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .cred_kanban_filtro_busca {
-    grid-column: span 2;
-  }
-
-  .cred_kanban_filtro_datas {
-    grid-column: span 1;
-  }
-}
-
 @media (min-width: 901px) {
   .cred_kanban_filtros_toggle {
     display: none !important;
-  }
-
-  .cred_kanban_filtros {
-    display: grid !important;
   }
 }
 
@@ -2149,4 +2034,12 @@ body.dark-mode .cred_kanban_mobile_chip.is-active {
   background: #0f74b9;
   border-color: #0f74b9;
   color: #fff;
+}
+
+/* Filtros: barra do UI Kit; no celular/tablet estreito recolhe atrás do botão «Filtros» */
+.cred_kanban_filtros_toggle { display: none; }
+
+@media (max-width: 900px) {
+  .cred_kanban_filtros_toggle { display: inline-flex; width: 100%; margin-bottom: 8px; }
+  .cred_kanban_filtros_bar:not(.is-open) { display: none; }
 }

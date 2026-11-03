@@ -25,13 +25,14 @@ import {
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
-import { PageHeader } from '../../../components/ui'
+import { PageHeader, Toolbar } from '../../../components/ui'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers.js'
 import '../../Credenciamento/Credenciamento_main/Credenciamento_main.css'
 import '../../Supertabela/Supertabela_planos/Supertabelaplanos.css'
 import './ImpressaoPlanos.css'
 import CelulaRealizadores, { obterClasseProcedimento } from './CelulaRealizadores.jsx'
 import { procedimentoIsentoLimiteGrupo } from '../../../lib/categoriaLimitesGrupo.js'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 function limiteExibicaoLinhaMobile(linha, ctx) {
     const {
@@ -497,91 +498,82 @@ export default function ImpressaoPlanos() {
                 description="Selecione UF, cidade e plano para gerar a listagem e o PDF de impressão."
             />
 
-            <section className="planos_impressao_filtros planos_impressao_filtros_center">
-                <div className="planos_impressao_row planos_impressao_row_center">
-                    <label className="pcad_field">
-                        <span>UF</span>
-                        <SelectUfBusca
-                            value={uf}
-                            ufs={ufsPermitidas}
-                            inputClassName="credenciamento_main_input"
-                            emptyLabel="—"
+            <Toolbar title="Filtros" sticky={false}>
+                <div className="ek-field">
+                    <span className="ek-label">UF</span>
+                    <SelectUfBusca
+                        value={uf}
+                        ufs={ufsPermitidas}
+                        emptyLabel="—"
                             onChange={(u) => {
                                 setUf(u)
                                 setMunicipioNome('')
                                 limparLista()
                             }}
-                        />
-                    </label>
+                    />
+                </div>
 
-                    <label className="pcad_field">
-                        <span>Cidade</span>
-                        <SelectMunicipioBusca
-                            value={municipioNome}
-                            options={opcoesMunicipio.map((o) => ({
-                                id: o.municipioNome,
-                                nome: o.municipioNome,
-                            }))}
-                            disabled={!uf || loadingMunicipios}
-                            loading={loadingMunicipios}
-                            placeholder={!uf ? 'Selecione a UF' : 'Buscar cidade…'}
+                <div className="ek-field">
+                    <span className="ek-label">Cidade</span>
+                    <SelectMunicipioBusca
+                        value={municipioNome}
+                        options={opcoesMunicipio.map((o) => ({
+                            id: o.municipioNome,
+                            nome: o.municipioNome,
+                        }))}
+                        disabled={!uf || loadingMunicipios}
+                        loading={loadingMunicipios}
+                        placeholder={!uf ? 'Selecione a UF' : 'Buscar cidade…'}
                             onChange={(nome) => {
                                 setMunicipioNome(nome)
                                 limparLista()
                             }}
-                        />
-                    </label>
+                    />
+                </div>
 
-                    <label className="pcad_field">
-                        <span>Plano</span>
-                        <select
-                            className="credenciamento_main_input"
-                            value={planoId}
-                            disabled={!municipioNome}
+                <label className="ek-field">
+                    <span className="ek-label">Plano</span>
+                    <SelectDropdown
+                        className="ek-select"
+                        value={planoId}
+                        disabled={!municipioNome}
                             onChange={(e) => {
                                 setPlanoId(e.target.value)
                                 limparLista()
                             }}
-                        >
-                            <option value="">{!municipioNome ? 'Selecione a cidade' : '—'}</option>
-                            {planosImpressao.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.nome}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                    >
+                        <option value="">{!municipioNome ? 'Selecione a cidade' : '—'}</option>
+                        {planosImpressao.map((p) => (
+                            <option key={p.id} value={p.id}>
+                                {p.nome}
+                            </option>
+                        ))}
+                    </SelectDropdown>
+                </label>
 
-                    <div className="planos_impressao_switch_cidades">
-                        <span className="planos_impressao_switch_label">Cidades paralelas</span>
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked={incluirCidadesParalelas}
-                            className={`credenciamento_switch ${incluirCidadesParalelas ? 'is-on' : 'is-off'}`}
+                <div className="ek-toolbar__actions">
+                    <label
+                        className="ek-check"
+                        title="Inclui prestadores com esta cidade em «Cidades que atendem» na contagem de realizadores"
+                    >
+                        <input
+                            type="checkbox"
+                            checked={incluirCidadesParalelas}
                             disabled={!municipioNome}
-                            onClick={() => setIncluirCidadesParalelas((v) => !v)}
-                            title="Inclui prestadores com esta cidade em «Cidades que atendem» na contagem de realizadores"
-                        >
-                            <span className="credenciamento_switch_track">
-                                <span className="credenciamento_switch_knob" />
-                            </span>
-                            <span className="credenciamento_switch_label">
-                                {incluirCidadesParalelas ? 'Sim' : 'Não'}
-                            </span>
-                        </button>
-                    </div>
-
+                            onChange={() => setIncluirCidadesParalelas((v) => !v)}
+                        />
+                        Cidades paralelas
+                    </label>
                     <button
                         type="button"
-                        className="planos_impressao_btn_carregar"
+                        className="ek-btn"
                         disabled={!municipioNome || !planoId || !cidadeTabelaId || carregando}
                         onClick={() => void carregarLista()}
                     >
                         {carregando ? 'Carregando…' : 'Carregar procedimentos'}
                     </button>
                 </div>
-            </section>
+            </Toolbar>
 
             <p className="planos_impressao_hint">
                 Pré-marcação automática com {MIN_REALIZADORES_PRE_MARCAR}+ realizadores na região (cidade
@@ -597,22 +589,27 @@ export default function ImpressaoPlanos() {
                     <p className="planos_impressao_modo_equipe" role="status">
                         {rotuloModoImpressao(modoInfo)}
                     </p>
-                    <div className="planos_impressao_toolbar">
-                        <CampoBuscaComLimpar
-                            value={buscaProc}
-                            onChange={(e) => setBuscaProc(e.target.value)}
-                            placeholder="Buscar por código ou nome…"
-                            className="credenciamento_main_input"
-                        />
-                        <button
-                            type="button"
-                            className="planos_impressao_btn_pdf"
-                            disabled={gerandoPdf || totalMarcados === 0}
-                            onClick={() => void gerarPdf()}
-                        >
-                            {gerandoPdf ? 'Gerando PDF…' : `Imprimir PDF (${totalMarcados})`}
-                        </button>
-                    </div>
+                    <Toolbar title="Procedimentos" sticky={false}>
+                        <div className="ek-field ek-field--grow">
+                            <span className="ek-label">Buscar</span>
+                            <CampoBuscaComLimpar
+                                inputClassName="ek-input"
+                                value={buscaProc}
+                                onChange={(e) => setBuscaProc(e.target.value)}
+                                placeholder="Buscar por código ou nome…"
+                            />
+                        </div>
+                        <div className="ek-toolbar__actions">
+                            <button
+                                type="button"
+                                className="ek-btn"
+                                disabled={gerandoPdf || totalMarcados === 0}
+                                onClick={() => void gerarPdf()}
+                            >
+                                {gerandoPdf ? 'Gerando PDF…' : `Imprimir PDF (${totalMarcados})`}
+                            </button>
+                        </div>
+                    </Toolbar>
 
                     <div className="supertabelaplanos planos_impressao_conteudo">
                         <div className="supertabelaplanos_table_stage">

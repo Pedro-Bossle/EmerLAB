@@ -124,7 +124,7 @@
   .el-legacy-wrap .table_main_wrap,
   .el-legacy-wrap [class*='_table_wrap'],
   .el-legacy-wrap [class*='table_wrap'] {
-    @apply -mx-1 overflow-x-auto;
+    @apply overflow-x-auto; /* sem margem negativa: a tabela tem a mesma largura da barra de filtros (UI Kit) */
   }
 
   .el-page h1,

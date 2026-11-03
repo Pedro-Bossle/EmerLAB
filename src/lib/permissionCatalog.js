@@ -326,6 +326,13 @@ export const PERMISSION_CATALOG = [
                 actions: R,
                 href: '/pagamentos/resumo',
             },
+            {
+                id: 'pagamentos.caixa',
+                label: 'Caixa de entrada',
+                descricao: 'Revisão de notas/boletos e relatórios de repasse reprovados.',
+                actions: RU,
+                href: '/pagamentos/caixa',
+            },
         ],
     },
     {
@@ -587,10 +594,12 @@ export function expandLegacyToAcl(perms) {
     if (p[L.PAGAMENTOS_VIEW]) {
         setTool('pagamentos.registro', { read: true })
         setTool('pagamentos.resumo', { read: true })
+        setTool('pagamentos.caixa', { read: true })
     }
     if (p[L.PAGAMENTOS_EDIT]) {
         setTool('pagamentos.registro', { read: true, create: true, update: true, delete: true })
         setTool('pagamentos.resumo', { read: true })
+        setTool('pagamentos.caixa', { read: true, update: true })
     }
     if (p[L.ACCESS_MANAGE]) {
         setTool('admin.acessos', { read: true, create: true, update: true, delete: true })
@@ -641,6 +650,12 @@ export function completarAclFerramentasCredenciamento(perms) {
     if (!p[kUpd]) {
         if (hasAcl(p, 'credenciamento.import_kmz', 'update') || p[L.CREDENCIAMENTO_EDIT]) {
             p[kUpd] = true
+        }
+    }
+    const kCaixa = aclKey('pagamentos.caixa', 'read')
+    if (!p[kCaixa]) {
+        if (hasAcl(p, 'pagamentos.registro', 'read') || p[L.PAGAMENTOS_VIEW]) {
+            p[kCaixa] = true
         }
     }
     const kResumo = aclKey('pagamentos.resumo', 'read')

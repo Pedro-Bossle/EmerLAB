@@ -15,8 +15,9 @@ import { inativarNegociacoesSeCancelado } from '../../../lib/negociacaoInativarP
 import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanenteCredenciamento.js'
 import { useConfirmacaoExclusaoAutoDismiss } from '../../../lib/toastUi.js'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
-import { PageHeader } from '../../../components/ui'
+import { PageHeader, Toolbar } from '../../../components/ui'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 const normalizarTexto = (texto) =>
     String(texto || '')
@@ -78,7 +79,6 @@ const Credenciamento_main = () => {
         const profile = getStoredAccessProfile()
         return profile ? !hasPermission(profile, PERMISSION_KEYS.CREDENCIAMENTO_EDIT) : false
     })
-    const [headerCompacto, setHeaderCompacto] = useState(false)
     const [expandedRowId, setExpandedRowId] = useState(null)
 
     const [prestadores, setPrestadores] = useState([])
@@ -258,12 +258,6 @@ const Credenciamento_main = () => {
         carregarPermissoes()
     }, [])
 
-    useEffect(() => {
-        const onScroll = () => setHeaderCompacto(window.scrollY > 22)
-        onScroll()
-        window.addEventListener('scroll', onScroll, { passive: true })
-        return () => window.removeEventListener('scroll', onScroll)
-    }, [])
 
     useEffect(() => {
         setPaginaAtual(1)
@@ -997,132 +991,111 @@ const Credenciamento_main = () => {
         <div className='el-legacy-wrap credenciamento_main'>
             <PageHeader kicker="Credenciamento" title="Principal" />
 
-            <header className={`credenciamento_main_header ${headerCompacto ? 'is-compact' : ''}`}>
-                <h2>Filtros</h2>
-                <div className='credenciamento_main_filters'>
-                    <div className='credenciamento_main_filters_layout'>
-                        <div className='credenciamento_main_filters_selectors'>
-                            <div className='credenciamento_main_filters_row'>
-                                <div className='credenciamento_main_filter_item credenciamento_main_filter_busca'>
-                                    <p>Busca</p>
-                                    <CampoBuscaComLimpar
-                                        className='credenciamento_main_input'
-                                        placeholder='Nome, especialidade, cidades ou tipos'
-                                        value={termoBusca1}
-                                        onChange={(event) => setTermoBusca1(event.target.value)}
-                                    />
-                                </div>
-                                <div className='credenciamento_main_filter_item credenciamento_main_filter_busca'>
-                                    <p>Refinar busca</p>
-                                    <CampoBuscaComLimpar
-                                        className='credenciamento_main_input'
-                                        placeholder='Refinar busca (2º critério)'
-                                        value={termoBusca2}
-                                        onChange={(event) => setTermoBusca2(event.target.value)}
-                                    />
-                                </div>
-                                <div className='credenciamento_main_filter_item'>
-                                    <p>Situação</p>
-                                    <select className='credenciamento_main_select' value={filtroSituacao} onChange={(e) => setFiltroSituacao(e.target.value)}>
-                                        <option value=''>Todas</option>
-                                        {situacoesParaSelecao.map((situacao) => (
-                                            <option key={`sit-filtro-${situacao.id}`} value={situacao.id}>
-                                                {situacao.descricao}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                            <div className='credenciamento_main_filters_row'>
-                                {mostrarColunaPdf && (
-                                    <div className='credenciamento_main_filter_item'>
-                                        <p>PDF</p>
-                                        <select className='credenciamento_main_select' value={filtroPdf} onChange={(e) => setFiltroPdf(e.target.value)}>
-                                            <option value='todos'>Todos</option>
-                                            <option value='sim'>Com PDF</option>
-                                            <option value='nao'>Sem PDF</option>
-                                        </select>
-                                    </div>
-                                )}
-                                {mostrarColunaSite && (
-                                    <div className='credenciamento_main_filter_item'>
-                                        <p>Site</p>
-                                        <select className='credenciamento_main_select' value={filtroSite} onChange={(e) => setFiltroSite(e.target.value)}>
-                                            <option value='todos'>Todos</option>
-                                            <option value='sim'>No site</option>
-                                            <option value='nao'>Fora do site</option>
-                                        </select>
-                                    </div>
-                                )}
-                                {mostrarColunaMapa && (
-                                    <div className='credenciamento_main_filter_item'>
-                                        <p>Mapa</p>
-                                        <select className='credenciamento_main_select' value={filtroMapa} onChange={(e) => setFiltroMapa(e.target.value)}>
-                                            <option value='todos'>Todos</option>
-                                            <option value='sim'>No mapa</option>
-                                            <option value='nao'>Fora do mapa</option>
-                                        </select>
-                                    </div>
-                                )}
-                                <div className='credenciamento_main_filter_item'>
-                                    <p>Dia</p>
-                                    <select className='credenciamento_main_select' value={filtroDia} onChange={(e) => setFiltroDia(e.target.value)}>
-                                        <option value='todos'>Todos</option>
-                                        {opcoesFiltroMes.map((opcao) => (
-                                            <option key={`mes-${opcao.valor}`} value={opcao.valor}>
-                                                {opcao.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                            {podeDevTool && (
-                            <div className='credenciamento_main_colunas_toggle' role='group' aria-label='Dev Tool — colunas extras'>
-                                <span className='credenciamento_main_colunas_toggle_label'>Dev · colunas:</span>
-                                <label className='credenciamento_main_colunas_toggle_item'>
-                                    <input
-                                        type='checkbox'
-                                        checked={colProc.pdf}
-                                        onChange={() => toggleColuna('processos', 'pdf')}
-                                    />
+            <Toolbar title="Filtros">
+                <div className="ek-field ek-field--grow">
+                    <span className="ek-label">Busca</span>
+                    <CampoBuscaComLimpar
+                        inputClassName="ek-input"
+                        placeholder="Nome, especialidade, cidades ou tipos"
+                        value={termoBusca1}
+                        onChange={(event) => setTermoBusca1(event.target.value)}
+                    />
+                </div>
+                <div className="ek-field ek-field--grow">
+                    <span className="ek-label">Refinar busca</span>
+                    <CampoBuscaComLimpar
+                        inputClassName="ek-input"
+                        placeholder="Refinar busca (2º critério)"
+                        value={termoBusca2}
+                        onChange={(event) => setTermoBusca2(event.target.value)}
+                    />
+                </div>
+                <label className="ek-field">
+                    <span className="ek-label">Situação</span>
+                    <SelectDropdown className="ek-select" value={filtroSituacao} onChange={(e) => setFiltroSituacao(e.target.value)}>
+                        <option value="">Todas</option>
+                        {situacoesParaSelecao.map((situacao) => (
+                            <option key={`sit-filtro-${situacao.id}`} value={situacao.id}>
+                                {situacao.descricao}
+                            </option>
+                        ))}
+                    </SelectDropdown>
+                </label>
+                {mostrarColunaPdf && (
+                    <label className="ek-field ek-field--half">
+                        <span className="ek-label">PDF</span>
+                        <SelectDropdown className="ek-select" value={filtroPdf} onChange={(e) => setFiltroPdf(e.target.value)}>
+                            <option value="todos">Todos</option>
+                            <option value="sim">Com PDF</option>
+                            <option value="nao">Sem PDF</option>
+                        </SelectDropdown>
+                    </label>
+                )}
+                {mostrarColunaSite && (
+                    <label className="ek-field ek-field--half">
+                        <span className="ek-label">Site</span>
+                        <SelectDropdown className="ek-select" value={filtroSite} onChange={(e) => setFiltroSite(e.target.value)}>
+                            <option value="todos">Todos</option>
+                            <option value="sim">No site</option>
+                            <option value="nao">Fora do site</option>
+                        </SelectDropdown>
+                    </label>
+                )}
+                {mostrarColunaMapa && (
+                    <label className="ek-field ek-field--half">
+                        <span className="ek-label">Mapa</span>
+                        <SelectDropdown className="ek-select" value={filtroMapa} onChange={(e) => setFiltroMapa(e.target.value)}>
+                            <option value="todos">Todos</option>
+                            <option value="sim">No mapa</option>
+                            <option value="nao">Fora do mapa</option>
+                        </SelectDropdown>
+                    </label>
+                )}
+                <label className="ek-field ek-field--half">
+                    <span className="ek-label">Dia</span>
+                    <SelectDropdown className="ek-select" value={filtroDia} onChange={(e) => setFiltroDia(e.target.value)}>
+                        <option value="todos">Todos</option>
+                        {opcoesFiltroMes.map((opcao) => (
+                            <option key={`mes-${opcao.valor}`} value={opcao.valor}>
+                                {opcao.label}
+                            </option>
+                        ))}
+                    </SelectDropdown>
+                </label>
+                <div className="ek-toolbar__actions">
+                    {podeDevTool && (
+                        <div className="ek-field ek-field--fixed">
+                            <span className="ek-label">Dev · colunas</span>
+                            <div className="ek-toolbar__actions" role="group" aria-label="Dev Tool — colunas extras" style={{ margin: 0 }}>
+                                <label className="ek-check">
+                                    <input type="checkbox" checked={colProc.pdf} onChange={() => toggleColuna('processos', 'pdf')} />
                                     PDF
                                 </label>
-                                <label className='credenciamento_main_colunas_toggle_item'>
-                                    <input
-                                        type='checkbox'
-                                        checked={colProc.site}
-                                        onChange={() => toggleColuna('processos', 'site')}
-                                    />
+                                <label className="ek-check">
+                                    <input type="checkbox" checked={colProc.site} onChange={() => toggleColuna('processos', 'site')} />
                                     Site
                                 </label>
-                                <label className='credenciamento_main_colunas_toggle_item'>
-                                    <input
-                                        type='checkbox'
-                                        checked={colProc.mapa}
-                                        onChange={() => toggleColuna('processos', 'mapa')}
-                                    />
+                                <label className="ek-check">
+                                    <input type="checkbox" checked={colProc.mapa} onChange={() => toggleColuna('processos', 'mapa')} />
                                     Mapa
                                 </label>
                             </div>
-                            )}
                         </div>
-                        <div className='credenciamento_main_filters_actions'>
-                            {!somenteLeitura && (
-                                <button
-                                    type='button'
-                                    className='credenciamento_main_action_btn'
-                                    onClick={() => {
-                                        resetarModal()
-                                        setModalAberto(true)
-                                    }}
-                                >
-                                    ＋ Novo cadastro
-                                </button>
-                            )}
-                        </div>
-                    </div>
+                    )}
+                    {!somenteLeitura && (
+                        <button
+                            type="button"
+                            className="ek-btn"
+                            onClick={() => {
+                                resetarModal()
+                                setModalAberto(true)
+                            }}
+                        >
+                            Novo cadastro
+                        </button>
+                    )}
                 </div>
-            </header>
+            </Toolbar>
 
             <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
             {somenteLeitura && (
@@ -1190,7 +1163,7 @@ const Credenciamento_main = () => {
                                             <td className='table_text_left'>{item.telefoneEfetivo ? formatarTelefoneEntrada(item.telefoneEfetivo) : '-'}</td>
                                             <td className='table_text_left cred_col_endereco'>{[item.endereco, item.modalidadeEfetiva].filter(Boolean).join(' | ') || '-'}</td>
                                             <td onClick={(e) => e.stopPropagation()} className='cred_col_situacao'>
-                                                <select
+                                                <SelectDropdown
                                                     className={`credenciamento_inline_select credenciamento_inline_select_situacao ${classeCorSituacao(
                                                         situacaoPorId.get(Number(item.situacao_id))?.descricao || ''
                                                     )}`}
@@ -1207,7 +1180,7 @@ const Credenciamento_main = () => {
                                                             {situacao.descricao}
                                                         </option>
                                                     ))}
-                                                </select>
+                                                </SelectDropdown>
                                             </td>
                                             {mostrarColunaPdf && (
                                                 <td
@@ -1315,12 +1288,12 @@ const Credenciamento_main = () => {
                                     <div className='credenciamento_main_paginacao_grupo'>
                                         <label className='credenciamento_main_paginacao_label'>
                                             Por página
-                                            <select className='credenciamento_main_select' value={itensPorPagina} onChange={(e) => setItensPorPagina(Number(e.target.value))}>
+                                            <SelectDropdown className='credenciamento_main_select' value={itensPorPagina} onChange={(e) => setItensPorPagina(Number(e.target.value))}>
                                                 <option value={20}>20</option>
                                                 <option value={30}>30</option>
                                                 <option value={40}>40</option>
                                                 <option value={100}>100</option>
-                                            </select>
+                                            </SelectDropdown>
                                         </label>
                                     </div>
                                     <div className='credenciamento_main_paginacao_grupo credenciamento_main_paginacao_grupo--nav'>
@@ -1362,14 +1335,14 @@ const Credenciamento_main = () => {
                             </label>
                             <label>
                                 <span>Especialidade principal *</span>
-                                <select value={novaEspecialidadePrincipalId} onChange={(e) => setNovaEspecialidadePrincipalId(e.target.value)}>
+                                <SelectDropdown value={novaEspecialidadePrincipalId} onChange={(e) => setNovaEspecialidadePrincipalId(e.target.value)}>
                                     <option value=''>Selecionar</option>
                                     {especialidades.map((especialidade) => (
                                         <option key={`esp-principal-${especialidade.id}`} value={especialidade.id}>
                                             {especialidade.nome}
                                         </option>
                                     ))}
-                                </select>
+                                </SelectDropdown>
                             </label>
                             <label>
                                 <span>Telefone</span>
@@ -1397,14 +1370,14 @@ const Credenciamento_main = () => {
 
                             <label>
                                 <span>Situação</span>
-                                <select value={novaSituacaoId} onChange={(e) => setNovaSituacaoId(e.target.value)}>
+                                <SelectDropdown value={novaSituacaoId} onChange={(e) => setNovaSituacaoId(e.target.value)}>
                                     <option value=''>Selecionar</option>
                                     {situacoesParaSelecao.map((situacao) => (
                                         <option key={`sit-add-${situacao.id}`} value={situacao.id}>
                                             {situacao.descricao}
                                         </option>
                                     ))}
-                                </select>
+                                </SelectDropdown>
                             </label>
                             <label>
                                 <span>Atende em clínica?</span>

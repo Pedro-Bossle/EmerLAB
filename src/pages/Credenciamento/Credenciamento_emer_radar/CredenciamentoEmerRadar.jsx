@@ -71,6 +71,7 @@ import EmerRadarLoader from './EmerRadarLoader.jsx'
 import EmerRadarProspectResults from './EmerRadarProspectResults.jsx'
 import './CredenciamentoEmerRadar.css'
 import { avisar, confirmarAcao } from '../../../lib/dialogos.js'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 const SELECT_CIDADE_INPUT =
   'w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]'
@@ -1134,7 +1135,7 @@ function PipelinePanel({ workerDisponivel = false }) {
         <div className="mt-2 flex flex-wrap items-end gap-3">
           <label className="min-w-[240px] flex-1 text-sm">
             <span className="mb-1 block font-semibold">Run</span>
-            <select
+            <SelectDropdown
               className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
               value={selectedPastRun}
               onChange={(e) => setSelectedPastRun(e.target.value)}
@@ -1145,7 +1146,7 @@ function PipelinePanel({ workerDisponivel = false }) {
                   {r.label || r.id}
                 </option>
               ))}
-            </select>
+            </SelectDropdown>
           </label>
           <button
             type="button"
@@ -2316,7 +2317,7 @@ function ProspectPanel({ workerDisponivel = false }) {
             </label>
             <label className="text-sm">
               <span className="mb-1 block font-semibold">Status</span>
-              <select
+              <SelectDropdown
                 className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
                 value={filtroStatus}
                 onChange={(e) => setFiltroStatus(e.target.value)}
@@ -2327,7 +2328,7 @@ function ProspectPanel({ workerDisponivel = false }) {
                     {s.label}
                   </option>
                 ))}
-              </select>
+              </SelectDropdown>
             </label>
             <label className="text-sm">
               <span className="mb-1 block font-semibold">Busca livre</span>

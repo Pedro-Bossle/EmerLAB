@@ -191,6 +191,28 @@ export async function obterOuCriarCidadeCredenciamento(nomeCidade, uf) {
 /**
  * UF + município (IBGE): tenta alinhar ao nome da cidade-tabela antes de criar em credenciamento.
  */
+/**
+ * Leitura das tabelas de apoio (vínculos + cidades da tabela de valores), reaproveitada por 15 s.
+ * Antes cada município baixava as duas tabelas inteiras; ao salvar um perfil isso se repetia N vezes.
+ * Só leitura: nada é gravado. Falhas não ficam em cache.
+ */
+let cacheTabelasApoioCidades = { em: 0, promessa: null }
+function lerTabelasApoioCidades() {
+    const agora = Date.now()
+    if (cacheTabelasApoioCidades.promessa && agora - cacheTabelasApoioCidades.em < 15_000) {
+        return cacheTabelasApoioCidades.promessa
+    }
+    const promessa = Promise.all([
+        carregarVinculosMunicipios(supabase),
+        supabase.from('cidades').select('id, nome, uf'),
+    ])
+    cacheTabelasApoioCidades = { em: agora, promessa }
+    promessa.catch(() => {
+        if (cacheTabelasApoioCidades.promessa === promessa) cacheTabelasApoioCidades = { em: 0, promessa: null }
+    })
+    return promessa
+}
+
 export async function obterOuCriarCidadeCredenciamentoPorMunicipio(uf, nomeMunicipio) {
     const nome = String(nomeMunicipio || '').trim()
     const ufNorm = normalizarUfCredenciamento(uf)
@@ -198,10 +220,7 @@ export async function obterOuCriarCidadeCredenciamentoPorMunicipio(uf, nomeMunic
 
     const candidatos = [nome]
     try {
-        const [vinculos, { data: cidades, error: errCid }] = await Promise.all([
-            carregarVinculosMunicipios(supabase),
-            supabase.from('cidades').select('id, nome, uf'),
-        ])
+        const [vinculos, { data: cidades, error: errCid }] = await lerTabelasApoioCidades()
         if (!errCid && cidades?.length) {
             const tabelaId = resolverCidadeTabelaId({
                 uf: ufNorm,

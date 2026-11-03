@@ -121,9 +121,13 @@ export async function mapaProcedimentoIdPorCodigo(codigos) {
     if (!unicos.length) return mapa
 
     const chunk = 80
-    for (let i = 0; i < unicos.length; i += chunk) {
-        const lote = unicos.slice(i, i + chunk)
-        const { data, error } = await supabase.from('procedimentos').select('id, codigo').in('codigo', lote)
+    const lotes = []
+    for (let i = 0; i < unicos.length; i += chunk) lotes.push(unicos.slice(i, i + chunk))
+    // Lotes em paralelo (antes, em fila).
+    const respostas = await Promise.all(
+        lotes.map((lote) => supabase.from('procedimentos').select('id, codigo').in('codigo', lote)),
+    )
+    for (const { data, error } of respostas) {
         if (error) throw new Error(error.message)
         ;(data || []).forEach((row) => {
             const cod = normalizarCodigo(row.codigo)
@@ -138,12 +142,12 @@ async function buscarProcedimentosPorIds(ids) {
     const unicos = [...new Set(ids.map(Number).filter(Number.isFinite))]
     const out = []
     const chunk = 80
-    for (let i = 0; i < unicos.length; i += chunk) {
-        const lote = unicos.slice(i, i + chunk)
-        const { data, error } = await supabase
-            .from('procedimentos')
-            .select('id, codigo, nome, categoria_id')
-            .in('id', lote)
+    const lotes = []
+    for (let i = 0; i < unicos.length; i += chunk) lotes.push(unicos.slice(i, i + chunk))
+    const respostas = await Promise.all(
+        lotes.map((lote) => supabase.from('procedimentos').select('id, codigo, nome, categoria_id').in('id', lote)),
+    )
+    for (const { data, error } of respostas) {
         if (error) throw new Error(error.message)
         out.push(...(data || []))
     }
@@ -154,12 +158,12 @@ async function buscarProcedimentosPorCodigos(codigos) {
     const unicos = [...new Set(codigos.map(normalizarCodigo).filter(Boolean))]
     const out = []
     const chunk = 80
-    for (let i = 0; i < unicos.length; i += chunk) {
-        const lote = unicos.slice(i, i + chunk)
-        const { data, error } = await supabase
-            .from('procedimentos')
-            .select('id, codigo, nome, categoria_id')
-            .in('codigo', lote)
+    const lotes = []
+    for (let i = 0; i < unicos.length; i += chunk) lotes.push(unicos.slice(i, i + chunk))
+    const respostas = await Promise.all(
+        lotes.map((lote) => supabase.from('procedimentos').select('id, codigo, nome, categoria_id').in('codigo', lote)),
+    )
+    for (const { data, error } of respostas) {
         if (error) throw new Error(error.message)
         out.push(...(data || []))
     }
@@ -260,7 +264,11 @@ export function montarLinhasPrestadorProcedimentos(prestadorId, codigos, mapaIdP
 export async function sincronizarPrestadorProcedimentos(prestadorId, codigos, mapaNomeAlternativo = null) {
     const pid = normalizarPrestadorIdParaQuery(prestadorId)
     if (pid == null) return
-    const mapa = await mapaProcedimentoIdPorCodigo(codigos)
+    // Mapa de ids do catálogo e vínculos atuais são independentes: buscados juntos.
+    const [mapa, vinculosAtuais] = await Promise.all([
+        mapaProcedimentoIdPorCodigo(codigos),
+        buscarVinculosPrestadorProcedimentos(prestadorId).catch(() => null),
+    ])
     const faltando = (codigos || []).filter((c) => String(c || '').trim() && !mapa.has(normalizarCodigo(c)))
     if (faltando.length) {
         throw new Error(
@@ -269,7 +277,8 @@ export async function sincronizarPrestadorProcedimentos(prestadorId, codigos, ma
     }
     const mapaAltPreservar = new Map()
     try {
-        const vinculos = await buscarVinculosPrestadorProcedimentos(prestadorId)
+        const vinculos = vinculosAtuais
+        if (!vinculos) throw new Error('vínculos indisponíveis')
         for (const v of vinculos) {
             const cod =
                 normalizarCodigo(v.procedimento_cod) || normalizarCodigo(v.procedimento_id)
@@ -284,12 +293,66 @@ export async function sincronizarPrestadorProcedimentos(prestadorId, codigos, ma
             mapaAltPreservar.set(cod, alt ? String(alt).trim() : '')
         }
     }
-    const { error: errDel } = await supabase.from('prestador_procedimentos').delete().eq('prestador_id', pid)
-    if (errDel) throw new Error(errDel.message)
     const rows = montarLinhasPrestadorProcedimentos(pid, codigos, mapa, mapaAltPreservar)
-    if (!rows.length) return
     const semAlt = (list) => list.map(({ nome_alternativo: _n, ...r }) => r)
-    let payload = prestadorProcedimentosTemNomeAlternativo ? rows : semAlt(rows)
+
+    // Sem leitura dos vínculos atuais (falha pontual): mantém o caminho antigo (apagar tudo e reinserir).
+    if (!vinculosAtuais) {
+        const { error: errDel } = await supabase.from('prestador_procedimentos').delete().eq('prestador_id', pid)
+        if (errDel) throw new Error(errDel.message)
+        await inserirLinhasPrestadorProcedimentos(rows, semAlt)
+        return
+    }
+
+    // Por diferença: só apaga o que saiu, insere o que entrou e atualiza o que mudou.
+    // O estado final do banco é o mesmo de «apagar tudo e reinserir» (mesmos códigos, ids de catálogo e nomes
+    // alternativos); linhas que não mudaram mantêm o próprio id/data em vez de serem recriadas.
+    const chaveVinculo = (cod, id) => normalizarCodigo(cod) || normalizarCodigo(id)
+    const atuaisPorChave = new Map()
+    for (const v of vinculosAtuais) {
+        const k = chaveVinculo(v.procedimento_cod, v.procedimento_id)
+        if (!atuaisPorChave.has(k)) atuaisPorChave.set(k, [])
+        atuaisPorChave.get(k).push(v)
+    }
+    const inserir = []
+    const atualizar = []
+    for (const row of rows) {
+        const k = chaveVinculo(row.procedimento_cod, row.procedimento_id)
+        const existente = atuaisPorChave.get(k)?.shift()
+        if (!existente) {
+            inserir.push(row)
+            continue
+        }
+        const mudouId = Number(existente.procedimento_id) !== Number(row.procedimento_id) &&
+            !(existente.procedimento_id == null && row.procedimento_id == null)
+        const mudouCod = String(existente.procedimento_cod ?? '') !== String(row.procedimento_cod ?? '')
+        const mudouAlt =
+            'nome_alternativo' in row &&
+            String(existente.nome_alternativo ?? '') !== String(row.nome_alternativo ?? '')
+        if (mudouId || mudouCod || mudouAlt) {
+            const patch = { procedimento_cod: row.procedimento_cod, procedimento_id: row.procedimento_id }
+            if ('nome_alternativo' in row) patch.nome_alternativo = row.nome_alternativo
+            atualizar.push({ id: existente.id, patch })
+        }
+    }
+    const idsRemover = [...atuaisPorChave.values()].flat().map((v) => v.id)
+    for (let i = 0; i < idsRemover.length; i += 200) {
+        const { error } = await supabase.from('prestador_procedimentos').delete().in('id', idsRemover.slice(i, i + 200))
+        if (error) throw new Error(error.message)
+    }
+    if (atualizar.length) {
+        const resp = await Promise.all(
+            atualizar.map(({ id, patch }) => supabase.from('prestador_procedimentos').update(patch).eq('id', id)),
+        )
+        const erro = resp.find((r) => r.error)?.error
+        if (erro) throw new Error(erro.message)
+    }
+    if (inserir.length) await inserirLinhasPrestadorProcedimentos(inserir, semAlt)
+}
+
+async function inserirLinhasPrestadorProcedimentos(rows, semAlt) {
+    if (!rows.length) return
+    const payload = prestadorProcedimentosTemNomeAlternativo ? rows : semAlt(rows)
     let { error: errIns } = await supabase.from('prestador_procedimentos').insert(payload)
     if (errIns && isErroColunaNomeAlternativo(errIns)) {
         prestadorProcedimentosTemNomeAlternativo = false

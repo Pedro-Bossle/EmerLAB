@@ -15,9 +15,11 @@ import { buscarTodosPaginado, getReadOnlyFlag, supabase } from '../../../lib/sup
 import { TOAST_AUTO_DISMISS_MS } from '../../../lib/toastUi.js'
 import { calcularJanelaVirtualTabela, criarHandlerScrollVirtualTabela } from '../../../lib/tabelaVirtualScroll.js'
 import { filtrarPlanosParaSelecaoGeral, mapearPlanos } from '../../../lib/planosHierarquia.js'
-import { PageHeader } from '../../../components/ui'
+import { PageHeader, Toolbar } from '../../../components/ui'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import { useTelaPequena } from '../../../hooks/useTelaPequena.js'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
+import FiltroUfCidade from '../../../components/Supertabela/FiltroUfCidade.jsx'
 
 const Supertabelamain = () => {
     const telaPequena = useTelaPequena()
@@ -41,7 +43,6 @@ const Supertabelamain = () => {
     const [, setLoading] = useState(false)
     const [erroDetalhe, setErroDetalhe] = useState('')
     const [ordenacaoPorCategoria, setOrdenacaoPorCategoria] = useState({})
-    const [headerCompactProgress, setHeaderCompactProgress] = useState(0)
     const [edicaoAtiva, setEdicaoAtiva] = useState(false)
     const [somenteLeitura] = useState(() => getReadOnlyFlag() || !hasStoredPermission(PERMISSION_KEYS.SUPERTABELA_EDIT))
     const [edicoesLocais, setEdicoesLocais] = useState({})
@@ -822,31 +823,6 @@ const Supertabelamain = () => {
     /**
      * Compacta o header de filtros quando a página está rolada.
      */
-    useEffect(() => {
-        let rafId = null
-
-        const onScroll = () => {
-            if (rafId) return
-
-            rafId = window.requestAnimationFrame(() => {
-                const progress = Math.min(Math.max(window.scrollY, 0) / 64, 1)
-                setHeaderCompactProgress((anterior) => {
-                    if (Math.abs(anterior - progress) < 0.01) return anterior
-                    return progress
-                })
-                rafId = null
-            })
-        }
-
-        onScroll()
-        window.addEventListener('scroll', onScroll)
-        return () => {
-            window.removeEventListener('scroll', onScroll)
-            if (rafId) {
-                window.cancelAnimationFrame(rafId)
-            }
-        }
-    }, [])
 
     return (
         <div className='el-page supertabelamain'>
@@ -855,89 +831,71 @@ const Supertabelamain = () => {
                 title="Visão Geral"
                 description="Consulta e edição de valores por cidade, plano e porte."
             />
-            <header
-                className='supertabelamain_header'
-                style={{ '--compact-progress': headerCompactProgress }}
-            >
-                <h2>Filtros</h2>
+            <Toolbar title="Filtros">
+                <label className="ek-field ek-field--grow">
+                    <span className="ek-label">Busca</span>
+                    <input
+                        className="ek-input"
+                        type="search"
+                        placeholder="Código, procedimento, categoria ou valor"
+                        value={termoBusca}
+                        onChange={(event) => setTermoBusca(event.target.value)}
+                    />
+                </label>
 
-                <div className='supertabelamain_filters'>
-                    <div className='supertabelamain_filters_input'>
-                        <p>Busca</p>
-                        <input
-                            className='supertabelamain_filters_input_text'
-                            type="text"
-                            placeholder='Código, procedimento, categoria ou valor'
-                            value={termoBusca}
-                            onChange={(event) => setTermoBusca(event.target.value)}
-                        />
+                <FiltroUfCidade
+                    opcoes={cidadesNoFiltroPlano.map((c) => ({ value: String(c.id), uf: String(c.uf || '').toUpperCase(), nome: c.nome }))}
+                    value={String(cidadeId || '')}
+                    onChange={(op) => setCidadeId(op.value)}
+                />
+
+                <label className="ek-field">
+                    <span className="ek-label">Plano</span>
+                    <SelectDropdown
+                        className="ek-select"
+                        name="plano"
+                        id="plano"
+                        value={planoId}
+                        onChange={(event) => setPlanoId(event.target.value)}
+                    >
+                        {planos.map((plano) => (
+                            <option key={plano.id} value={plano.id}>
+                                {plano.nome}
+                            </option>
+                        ))}
+                    </SelectDropdown>
+                </label>
+
+                <label className="ek-field">
+                    <span className="ek-label">Tamanho</span>
+                    <SelectDropdown
+                        className="ek-select"
+                        name="porte"
+                        id="porte"
+                        value={porteSelecionado}
+                        onChange={(event) => setPorteSelecionado(event.target.value)}
+                    >
+                        {portes.map((porte) => (
+                            <option key={porte.id} value={porte.id}>
+                                {porte.nome}
+                            </option>
+                        ))}
+                    </SelectDropdown>
+                </label>
+
+                {!somenteLeitura && (
+                    <div className="ek-toolbar__actions">
+                        <label className="ek-check">
+                            <input
+                                type="checkbox"
+                                checked={edicaoAtiva}
+                                onChange={(event) => setEdicaoAtiva(event.target.checked)}
+                            />
+                            Ativar edição
+                        </label>
                     </div>
-
-                    <div className='supertabelamain_filters_select'>
-                        <p>Cidade</p>
-                        <SelectMunicipioBusca
-                            value={cidadeId}
-                            valueKey="id"
-                            options={cidadesNoFiltroPlano.map((cidade) => ({
-                                id: cidade.id,
-                                nome: cidade.uf ? `${cidade.nome} (${cidade.uf})` : cidade.nome,
-                            }))}
-                            onChange={setCidadeId}
-                            inputClassName="supertabelamain_filters_select_select"
-                            placeholder="Selecionar cidade…"
-                            searchPlaceholder="Buscar cidade…"
-                            aria-label="Filtrar por cidade"
-                        />
-                    </div>
-
-                    <div className='supertabelamain_filters_select'>
-                        <p>Plano</p>
-                        <select
-                            className='supertabelamain_filters_select_select'
-                            name="plano"
-                            id="plano"
-                            value={planoId}
-                            onChange={(event) => setPlanoId(event.target.value)}
-                        >
-                            {planos.map((plano) => (
-                                <option key={plano.id} value={plano.id}>
-                                    {plano.nome}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className='supertabelamain_filters_select'>
-                        <p>Tamanho</p>
-                        <select
-                            className='supertabelamain_filters_select_select'
-                            name="porte"
-                            id="porte"
-                            value={porteSelecionado}
-                            onChange={(event) => setPorteSelecionado(event.target.value)}
-                        >
-                            {portes.map((porte) => (
-                                <option key={porte.id} value={porte.id}>
-                                    {porte.nome}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {!somenteLeitura && (
-                        <div className='supertabelamain_filters_select'>
-                            <label className='supertabelamain_filters_checkbox_wrap'>
-                                <input
-                                    type="checkbox"
-                                    checked={edicaoAtiva}
-                                    onChange={(event) => setEdicaoAtiva(event.target.checked)}
-                                />
-                                <span>Ativar edição</span>
-                            </label>
-                        </div>
-                    )}
-                </div>
-            </header>
+                )}
+            </Toolbar>
 
             {erroDetalhe && (
                 <div className='supertabelamain_alert' role='alert' aria-live='assertive'>

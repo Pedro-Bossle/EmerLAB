@@ -37,6 +37,7 @@ import {
 import ClinicasAtendeInput from './ClinicasAtendeInput.jsx'
 import {
     carregarCodigosPrestadorProcedimentos,
+    ordenarCodigosProcedimentosUnicos,
     sincronizarPrestadorProcedimentos,
 } from '../../../lib/prestadorProcedimentos.js'
 import { excluirPrestadorPermanentemente } from '../../../lib/exclusaoPermanenteCredenciamento.js'
@@ -76,6 +77,7 @@ import {
     montarEnderecoGeocodeFromPrestador,
     parseCoordenadaEntrada,
 } from '../../../lib/credenciamento/prestadorEnderecoGeocode'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 import '../Credenciamento_main/Credenciamento_main.css'
 import './CredenciamentoCadastro.css'
 
@@ -369,80 +371,103 @@ const CredenciamentoCadastroForm = () => {
             }
             ultimoCepBuscadoRef.current = String(data.cep || '').replace(/\D/g, '')
 
-            const { data: pcs } = await supabase.from('prestador_cidades').select('cidade_id, principal').eq('prestador_id', prestadorId)
-            const listaPc = pcs || []
-            const idsC = []
-            const vistosCidade = new Set()
-            listaPc.forEach((r) => {
-                const cid = Number(r.cidade_id)
-                if (!cid || vistosCidade.has(cid)) return
-                vistosCidade.add(cid)
-                idsC.push(cid)
-            })
-            let mapaCid = new Map()
-            if (idsC.length) {
-                const { data: rowsC } = await supabase
-                    .from('cidades_credenciamento')
-                    .select('id, nome, uf')
-                    .in('id', idsC)
-                mapaCid = new Map(
-                    (rowsC || []).map((c) => [
-                        Number(c.id),
-                        { nome: c.nome, uf: String(c.uf || '').trim().toUpperCase() },
-                    ]),
-                )
-            }
-            const atendeBase = idsC.map((cid) => {
-                const row = mapaCid.get(cid)
-                return {
-                    cidadeId: cid,
-                    nome: row?.nome || `Cidade #${cid}`,
-                    uf: row?.uf || '',
+            // As leituras abaixo não dependem umas das outras: rodam juntas (antes eram ~10 idas em fila).
+            // Cada ramo só devolve dados; o estado é aplicado depois, na mesma ordem de antes.
+            const lerCidades = async () => {
+                const { data: pcs } = await supabase.from('prestador_cidades').select('cidade_id, principal').eq('prestador_id', prestadorId)
+                const listaPc = pcs || []
+                const idsC = []
+                const vistosCidade = new Set()
+                listaPc.forEach((r) => {
+                    const cid = Number(r.cidade_id)
+                    if (!cid || vistosCidade.has(cid)) return
+                    vistosCidade.add(cid)
+                    idsC.push(cid)
+                })
+                let mapaCid = new Map()
+                if (idsC.length) {
+                    const { data: rowsC } = await supabase
+                        .from('cidades_credenciamento')
+                        .select('id, nome, uf')
+                        .in('id', idsC)
+                    mapaCid = new Map(
+                        (rowsC || []).map((c) => [
+                            Number(c.id),
+                            { nome: c.nome, uf: String(c.uf || '').trim().toUpperCase() },
+                        ]),
+                    )
                 }
-            })
-            const atende = await Promise.all(
-                atendeBase.map(async (item) => {
-                    if (item.uf) return item
-                    const uf = await resolverUfPorNomeMunicipio(item.nome)
-                    return { ...item, uf: uf || '' }
-                }),
-            )
+                const atendeBase = idsC.map((cid) => {
+                    const row = mapaCid.get(cid)
+                    return {
+                        cidadeId: cid,
+                        nome: row?.nome || `Cidade #${cid}`,
+                        uf: row?.uf || '',
+                    }
+                })
+                const atende = await Promise.all(
+                    atendeBase.map(async (item) => {
+                        if (item.uf) return item
+                        const uf = await resolverUfPorNomeMunicipio(item.nome)
+                        return { ...item, uf: uf || '' }
+                    }),
+                )
+                return { listaPc, atende }
+            }
+            const lerProcedimentos = async () => {
+                try {
+                    return { codigos: await carregarCodigosPrestadorProcedimentos(prestadorId) }
+                } catch (errProc) {
+                    return { erro: errProc }
+                }
+            }
+            const lerCertificadosEResponsaveis = async () => {
+                try {
+                    const [certs, resp] = await Promise.all([
+                        carregarCertificadosConclusaoPrestador(prestadorId),
+                        carregarResponsaveisPrestador(prestadorId),
+                    ])
+                    return { certs, resp }
+                } catch (errVet) {
+                    return { erro: errVet }
+                }
+            }
+
+            const [rCidades, rEsp, rVets, rClinicas, rProc, rLabs, rCertResp] = await Promise.all([
+                lerCidades(),
+                supabase.from('prestador_especialidades').select('especialidade_id, principal').eq('prestador_id', prestadorId),
+                supabase.from('prestador_estabelecimentos').select('veterinario_id').eq('estabelecimento_id', prestadorId),
+                supabase.from('prestador_estabelecimentos').select('estabelecimento_id, principal').eq('veterinario_id', prestadorId),
+                lerProcedimentos(),
+                supabase.from('prestador_laboratorios_solicitacao').select('laboratorio_id').eq('prestador_id', prestadorId),
+                lerCertificadosEResponsaveis(),
+            ])
+
+            const { listaPc, atende } = rCidades
             const ordemSalva = lerOrdemCidadesAtende(prestadorId)
             setCidadesAtende(ordenarCidadesAtendePorChave(atende, ordemSalva))
 
-            const { data: peData } = await supabase
-                .from('prestador_especialidades')
-                .select('especialidade_id, principal')
-                .eq('prestador_id', prestadorId)
-            const secEsp = (peData || []).filter((r) => !r.principal).map((r) => Number(r.especialidade_id))
+            const secEsp = (rEsp.data || []).filter((r) => !r.principal).map((r) => Number(r.especialidade_id))
             setEspecialidadesSecundariasIds(secEsp)
 
-            const { data: vets } = await supabase
-                .from('prestador_estabelecimentos')
-                .select('veterinario_id')
-                .eq('estabelecimento_id', prestadorId)
-            const idsVetsVinc = (vets || []).map((v) => Number(v.veterinario_id))
+            const idsVetsVinc = (rVets.data || []).map((v) => Number(v.veterinario_id))
             setVetsVinculados(idsVetsVinc)
             setVetsPendentes([])
 
-            const { data: peClinicas } = await supabase
-                .from('prestador_estabelecimentos')
-                .select('estabelecimento_id, principal')
-                .eq('veterinario_id', prestadorId)
-            const idsClin = [...new Set((peClinicas || []).map((r) => Number(r.estabelecimento_id)).filter(Boolean))]
+            const idsClin = [...new Set((rClinicas.data || []).map((r) => Number(r.estabelecimento_id)).filter(Boolean))]
             setEstabelecimentosSelecionados(idsClin)
             setAtendeEmClinica(idsClin.length > 0)
             setSecaoMultiplasCidades(listaPc.length > 0 || idsClin.length > 0)
             setSecaoVetsVinculados(idsVetsVinc.length > 0)
 
-            try {
-                const codigosProc = await carregarCodigosPrestadorProcedimentos(prestadorId)
-                setProcSelecionados(codigosProc)
+            if (!rProc.erro) {
+                setProcSelecionados(rProc.codigos)
                 snapshotKanbanRef.current = {
                     ...snapshotKanbanRef.current,
-                    procs: [...codigosProc],
+                    procs: [...rProc.codigos],
                 }
-            } catch (errProc) {
+            } else {
+                const errProc = rProc.erro
                 setErro((prev) =>
                     prev
                         ? `${prev}\nProcedimentos: ${errProc?.message || String(errProc)}`
@@ -452,22 +477,15 @@ const CredenciamentoCadastroForm = () => {
                 snapshotKanbanRef.current = { ...snapshotKanbanRef.current, procs: [] }
             }
 
-            const { data: labsSol } = await supabase
-                .from('prestador_laboratorios_solicitacao')
-                .select('laboratorio_id')
-                .eq('prestador_id', prestadorId)
-            setLaboratoriosSolicitacaoIds((labsSol || []).map((r) => Number(r.laboratorio_id)))
+            setLaboratoriosSolicitacaoIds((rLabs.data || []).map((r) => Number(r.laboratorio_id)))
 
-            try {
-                const [certs, resp] = await Promise.all([
-                    carregarCertificadosConclusaoPrestador(prestadorId),
-                    carregarResponsaveisPrestador(prestadorId),
-                ])
-                setCertificadosSalvos(certs)
+            if (!rCertResp.erro) {
+                setCertificadosSalvos(rCertResp.certs)
                 setCertificadosPendentes([])
                 setCertificadosRemoverIds([])
-                setResponsaveis(responsaveisFromDbRows(resp))
-            } catch (errVet) {
+                setResponsaveis(responsaveisFromDbRows(rCertResp.resp))
+            } else {
+                const errVet = rCertResp.erro
                 setCertificadosSalvos([])
                 setResponsaveis([])
                 const msgV = errVet?.message || String(errVet)
@@ -940,7 +958,8 @@ const CredenciamentoCadastroForm = () => {
             }
 
             await sincronizarPrestadorProcedimentos(pid, procSelecionados, mapaNomeAlternativoRef.current)
-            const codigosAtualizados = await carregarCodigosPrestadorProcedimentos(pid)
+            // Os códigos gravados são exatamente os selecionados: não precisa reler o banco (a tela navega ao fim do salvamento).
+            const codigosAtualizados = ordenarCodigosProcedimentosUnicos(procSelecionados)
             setProcSelecionados(codigosAtualizados)
 
             await supabase.from('prestador_laboratorios_solicitacao').delete().eq('prestador_id', pid)
@@ -971,7 +990,6 @@ const CredenciamentoCadastroForm = () => {
                         removerIds: certificadosRemoverIds,
                     })
                 }
-                setCertificadosSalvos(await carregarCertificadosConclusaoPrestador(pid))
                 setCertificadosPendentes([])
                 setCertificadosRemoverIds([])
             }
@@ -989,6 +1007,8 @@ const CredenciamentoCadastroForm = () => {
                 solicitarGeocodePrestador(pid)
             }
 
+            // Em segundo plano: o perfil já está salvo; a sincronização do Kanban não bloqueia a saída da tela.
+            void (async () => {
             try {
                 const snap = snapshotKanbanRef.current || { dados: null, procs: [] }
                 const dadosDepois = {
@@ -1036,6 +1056,7 @@ const CredenciamentoCadastroForm = () => {
             } catch {
                 /* Kanban ausente ou falha de sync não bloqueia o save do perfil */
             }
+            })()
 
             navigate('/credenciamento/cadastro', { replace: true })
         } catch (e) {
@@ -1136,7 +1157,7 @@ const CredenciamentoCadastroForm = () => {
                         </label>
                         <label className="pcad_field">
                             Situação
-                            <select
+                            <SelectDropdown
                                 className="credenciamento_main_select"
                                 value={form.situacao_id}
                                 onChange={(e) => setCampo('situacao_id', e.target.value)}
@@ -1148,7 +1169,7 @@ const CredenciamentoCadastroForm = () => {
                                         {s.descricao}
                                     </option>
                                 ))}
-                            </select>
+                            </SelectDropdown>
                         </label>
                     </div>
                     <div className="pcad_row pcad_row4 pcad_row4_contact">
@@ -1203,7 +1224,7 @@ const CredenciamentoCadastroForm = () => {
                     <div className="pcad_row pcad_row_esp">
                         <label className="pcad_field">
                             Especialidade *
-                            <select
+                            <SelectDropdown
                                 className="credenciamento_main_select"
                                 value={form.especialidade_id}
                                 onChange={(e) => setCampo('especialidade_id', e.target.value)}
@@ -1215,7 +1236,7 @@ const CredenciamentoCadastroForm = () => {
                                         {e.nome}
                                     </option>
                                 ))}
-                            </select>
+                            </SelectDropdown>
                         </label>
                         <MultiEspecialidadesInput
                             layout="inline"
@@ -1382,7 +1403,7 @@ const CredenciamentoCadastroForm = () => {
                     <div className="pcad_row pcad_row_fin">
                         <label className="pcad_field">
                             Tipo de PIX
-                            <select
+                            <SelectDropdown
                                 className="credenciamento_main_select"
                                 value={form.tipo_pix}
                                 onChange={(e) => {
@@ -1399,7 +1420,7 @@ const CredenciamentoCadastroForm = () => {
                                         {t.label}
                                     </option>
                                 ))}
-                            </select>
+                            </SelectDropdown>
                         </label>
                         <label className="pcad_field">
                             Chave PIX
@@ -1427,19 +1448,19 @@ const CredenciamentoCadastroForm = () => {
                             <label className="pcad_field_label" htmlFor="pcad_tipo_repasse">
                                 Nota / RPA
                             </label>
-                            <select
+                            <SelectDropdown
                                 id="pcad_tipo_repasse"
                                 className="credenciamento_main_select"
                                 value={form.tipo_repasse}
                                 onChange={(e) => setCampo('tipo_repasse', e.target.value)}
                                 disabled={somenteLeitura}
                             >
-                                {opcoesTipoRepasse(form.tipo_repasse).map((t) => (
+                                {opcoesTipoRepasse(form.tipo_repasse, { interno: true }).map((t) => (
                                     <option key={t.value || 'vazio'} value={t.value}>
                                         {t.label}
                                     </option>
                                 ))}
-                            </select>
+                            </SelectDropdown>
                             <p className="pcad_field_tip">{TIPO_REPASSE_DICA}</p>
                         </div>
                     </div>

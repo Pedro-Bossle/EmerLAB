@@ -9,7 +9,7 @@ import { blocoAssinaturaEmailHtml, blocoAssinaturaEmailText } from './emailAssin
 
 const BRAND = EMAIL_BRAND
 
-const escapeHtml = (value) =>
+export const escapeHtml = (value) =>
     String(value ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -28,7 +28,7 @@ const primeiroNome = (nomeOuEmail) => {
  * Envelope visual comum (cores da plataforma + logo Emerdog).
  * @param {{ preheader: string, titulo: string, corpoHtml: string, ctaLabel?: string, ctaHref?: string, rodapeExtra?: string, produto?: string }} opts
  */
-function envelopeHtml(opts) {
+export function envelopeHtml(opts) {
     const preheader = escapeHtml(opts.preheader)
     const titulo = escapeHtml(opts.titulo)
     const ctaLabel = opts.ctaLabel ? escapeHtml(opts.ctaLabel) : ''

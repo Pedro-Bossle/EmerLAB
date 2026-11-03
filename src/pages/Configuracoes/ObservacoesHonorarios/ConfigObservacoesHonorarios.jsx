@@ -15,7 +15,7 @@ import {
 } from '../../../lib/impressaoHonorarios/honorariosObservacoes.js'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
-import { PageHeader } from '../../../components/ui'
+import { PageHeader, Toolbar } from '../../../components/ui'
 import '../../Credenciamento/Credenciamento_main/Credenciamento_main.css'
 import './ConfigObservacoesHonorarios.css'
 import { confirmarAcao } from '../../../lib/dialogos.js'
@@ -413,18 +413,21 @@ const ConfigObservacoesHonorarios = () => {
             ) : null}
 
             {!formAberto ? (
-                <div className="config_obs_honorarios_toolbar">
-                    <CampoBuscaComLimpar
-                        className="credenciamento_main_input config_obs_honorarios_busca"
+                <Toolbar title="Filtros" sticky={false}>
+                    <div className="ek-field ek-field--grow">
+                        <span className="ek-label">Buscar</span>
+                        <CampoBuscaComLimpar
+                        inputClassName="ek-input"
                         value={buscaObs}
                         onChange={(e) => setBuscaObs(e.target.value)}
                         placeholder="Buscar observação ou procedimento…"
                     />
-                    <div className="config_obs_honorarios_toolbar_acoes">
+                    </div>
+                    <div className="ek-toolbar__actions">
                         {!somenteLeitura ? (
                             <button
                                 type="button"
-                                className="credenciamento_main_action_btn"
+                                className="ek-btn"
                                 onClick={abrirNova}
                                 disabled={salvando}
                             >
@@ -434,7 +437,7 @@ const ConfigObservacoesHonorarios = () => {
                             <span className="config_obs_honorarios_muted">Somente leitura</span>
                         )}
                     </div>
-                </div>
+                </Toolbar>
             ) : null}
 
             {formAberto ? (

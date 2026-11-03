@@ -34,12 +34,18 @@ export const TIPOS_REPASSE = [
 export const TIPO_REPASSE_DICA =
     'Se o atendimento é feito pelo CPF, escolha RPA. Se o veterinário possui CNPJ, escolha Nota.'
 
-/** Inclui valores antigos (ex.: boleto) só para exibir o que já está gravado. */
-export function opcoesTipoRepasse(valorAtual) {
-    const base = TIPOS_REPASSE
+/** Tipo só para uso interno (perfil do prestador): RPA sem o desconto de 11%. Não aparece no formulário público. */
+export const TIPO_REPASSE_RPA_SEM_DESCONTO = { value: 'rpa_sd', label: 'RPA s/desc.' }
+
+/**
+ * Inclui valores antigos (ex.: boleto) só para exibir o que já está gravado.
+ * `interno: true` (perfil do prestador) também oferece «RPA s/desc.»; o formulário público não.
+ */
+export function opcoesTipoRepasse(valorAtual, { interno = false } = {}) {
+    const base = interno ? [...TIPOS_REPASSE, TIPO_REPASSE_RPA_SEM_DESCONTO] : TIPOS_REPASSE
     const v = String(valorAtual || '').trim().toLowerCase()
     if (!v || base.some((t) => t.value === v)) return base
-    const legado = { boleto: 'Boleto' }[v]
+    const legado = { boleto: 'Boleto', rpa_sd: TIPO_REPASSE_RPA_SEM_DESCONTO.label }[v]
     return [...base, { value: v, label: legado || v }]
 }
 

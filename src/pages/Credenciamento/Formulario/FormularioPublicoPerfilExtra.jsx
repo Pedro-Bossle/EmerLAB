@@ -14,6 +14,7 @@ import PrestadorCertificadosConclusaoInput from '../Credenciamento_cadastro/Pres
 import PrestadorResponsaveisInput from '../Credenciamento_cadastro/PrestadorResponsaveisInput.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 const PLACEHOLDER_CRMV = 'PF/PJ - 123456 - UF'
 
@@ -261,7 +262,7 @@ export default function FormularioPublicoPerfilExtra({
                             </label>
                             <label className="fcred_field">
                                 <span>Especialidade</span>
-                                <select
+                                <SelectDropdown
                                     className="fcred_select credenciamento_main_select"
                                     value={espVetPrincipalId}
                                     onChange={(e) => setEspVetPrincipalId(e.target.value)}
@@ -272,7 +273,7 @@ export default function FormularioPublicoPerfilExtra({
                                             {e.nome}
                                         </option>
                                     ))}
-                                </select>
+                                </SelectDropdown>
                             </label>
                         </div>
                         <div className="fcred_vet_multi_linha">

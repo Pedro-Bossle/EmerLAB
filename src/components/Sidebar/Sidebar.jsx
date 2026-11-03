@@ -14,6 +14,7 @@ import { supabase } from "../../lib/supabase";
 import { logoutSessao } from "../../lib/authSession";
 import { lerDarkModeAtivo, salvarDarkModeAtivo } from "../../lib/sidebarPrefs";
 import { avisar } from '../../lib/dialogos.js'
+import { contarPendenciasCaixa } from '../../lib/repasse/repasseApi.js'
 
 const SIDEBAR_ICONS = {
   inicio: (
@@ -152,6 +153,18 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
   const accessProfile = useStoredAccessProfile();
   const [darkModeAtivo, setDarkModeAtivo] = useState(() => lerDarkModeAtivo());
   const [openMenus, setOpenMenus] = useState({});
+  const [pendenciasCaixa, setPendenciasCaixa] = useState(0);
+
+  // Contador da Caixa de entrada (Pagamentos): falha em silêncio (sem permissão ou tabelas ainda não criadas).
+  useEffect(() => {
+    let ativo = true;
+    contarPendenciasCaixa()
+      .then((n) => ativo && setPendenciasCaixa(n))
+      .catch(() => {});
+    return () => {
+      ativo = false;
+    };
+  }, [pathname]);
 
   const podeVerItemMenu = (child) => {
     if (child?.type === "section") return true;
@@ -421,6 +434,11 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
                             onClick={() => onAfterNavigate?.()}
                           >
                             {child.label}
+                            {child.href === "/pagamentos/caixa" && pendenciasCaixa > 0 ? (
+                              <span className="ml-2 rounded-full bg-white/25 px-1.5 text-xs font-bold" aria-label={`${pendenciasCaixa} pendências`}>
+                                {pendenciasCaixa > 99 ? "99+" : pendenciasCaixa}
+                              </span>
+                            ) : null}
                           </Link>
                         ),
                       )}

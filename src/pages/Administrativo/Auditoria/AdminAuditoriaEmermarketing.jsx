@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { Toolbar } from '../../../components/ui'
 import {
     SEVERIDADES_AUDITORIA,
     baixarTextoComoArquivo,
@@ -7,6 +8,7 @@ import {
     formatarValorAuditoriaAmigavel,
     listarDiffCampos,
 } from '../../../lib/auditoriaLogs.js'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 const PAGE_SIZE = 50
 
@@ -365,21 +367,21 @@ export default function AdminAuditoriaEmermarketing({ acoesRef = null, onStatusC
                 ) : null}
             </section>
 
-            <section className="admin_auditoria_filtros" aria-label="Filtros">
-                <label>
-                    <span>Usuário</span>
-                    <select value={filtroUsuario} onChange={(e) => setFiltroUsuario(e.target.value)}>
+            <Toolbar title="Filtros" sticky={false}>
+                <label className="ek-field">
+                    <span className="ek-label">Usuário</span>
+                    <SelectDropdown className="ek-select" value={filtroUsuario} onChange={(e) => setFiltroUsuario(e.target.value)}>
                         <option value="">Todos</option>
                         {usuarios.map((u) => (
                             <option key={u.id || u.email} value={u.id}>
                                 {u.nome || u.email || u.id}
                             </option>
                         ))}
-                    </select>
+                    </SelectDropdown>
                 </label>
-                <label>
-                    <span>Ação</span>
-                    <select value={filtroAcao} onChange={(e) => setFiltroAcao(e.target.value)}>
+                <label className="ek-field">
+                    <span className="ek-label">Ação</span>
+                    <SelectDropdown className="ek-select" value={filtroAcao} onChange={(e) => setFiltroAcao(e.target.value)}>
                         <option value="">Todas</option>
                         {(acoesLista.length
                             ? acoesLista
@@ -389,11 +391,11 @@ export default function AdminAuditoriaEmermarketing({ acoesRef = null, onStatusC
                                 {a}
                             </option>
                         ))}
-                    </select>
+                    </SelectDropdown>
                 </label>
-                <label>
-                    <span>Tabela</span>
-                    <select
+                <label className="ek-field">
+                    <span className="ek-label">Tabela</span>
+                    <SelectDropdown className="ek-select"
                         value={presetAtivo ? '' : filtroEntidade}
                         disabled={Boolean(presetAtivo)}
                         onChange={(e) => {
@@ -407,11 +409,11 @@ export default function AdminAuditoriaEmermarketing({ acoesRef = null, onStatusC
                                 {t}
                             </option>
                         ))}
-                    </select>
+                    </SelectDropdown>
                 </label>
-                <label>
-                    <span>Severidade</span>
-                    <select
+                <label className="ek-field">
+                    <span className="ek-label">Severidade</span>
+                    <SelectDropdown className="ek-select"
                         value={filtroSeveridade}
                         onChange={(e) => setFiltroSeveridade(e.target.value)}
                     >
@@ -420,26 +422,26 @@ export default function AdminAuditoriaEmermarketing({ acoesRef = null, onStatusC
                                 {s.label}
                             </option>
                         ))}
-                    </select>
+                    </SelectDropdown>
                 </label>
-                <label>
-                    <span>De</span>
-                    <input type="date" value={filtroDe} onChange={(e) => setFiltroDe(e.target.value)} />
+                <label className="ek-field">
+                    <span className="ek-label">De</span>
+                    <input className="ek-input" type="date" value={filtroDe} onChange={(e) => setFiltroDe(e.target.value)} />
                 </label>
-                <label>
-                    <span>Até</span>
-                    <input type="date" value={filtroAte} onChange={(e) => setFiltroAte(e.target.value)} />
+                <label className="ek-field">
+                    <span className="ek-label">Até</span>
+                    <input className="ek-input" type="date" value={filtroAte} onChange={(e) => setFiltroAte(e.target.value)} />
                 </label>
-                <label className="admin_auditoria_filtro_q">
-                    <span>Busca</span>
-                    <input
+                <label className="ek-field ek-field--grow">
+                    <span className="ek-label">Busca</span>
+                    <input className="ek-input"
                         type="search"
                         value={filtroQ}
                         onChange={(e) => setFiltroQ(e.target.value)}
                         placeholder="Usuário, tabela, id…"
                     />
                 </label>
-            </section>
+            </Toolbar>
 
             <div className="admin_auditoria_stats">
                 <span>

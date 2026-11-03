@@ -25,75 +25,6 @@
 }
 
 /* Barra de controles — fluxo normal (sem sticky: evita cobrir título/sidebar) */
-.compras_orc_filtros_flutuantes {
-    position: relative;
-    z-index: 1;
-    max-width: 1300px;
-    width: calc(100% - 1.5em);
-    margin: 0 auto 1rem;
-    box-sizing: border-box;
-    padding: 0.65em 0.9em;
-    background: #f8fbfd;
-    border: 1px solid #d7e8f2;
-    border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(30, 49, 72, 0.08);
-}
-
-.compras_orc_filtros_inner {
-
-    display: flex;
-
-    flex-wrap: nowrap;
-
-    align-items: flex-end;
-
-    justify-content: center;
-
-    gap: 10px;
-
-    text-align: left;
-
-}
-
-
-
-.compras_orc_filtro_item {
-
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 4px;
-
-    flex: 1 1 0;
-
-    min-width: 0;
-
-}
-
-
-
-.compras_orc_filtro_busca {
-
-    flex: 1.35 1 220px;
-
-}
-
-
-
-.compras_orc_filtro_label,
-
-.compras_orc_filtro_item > span:first-child {
-
-    margin: 0;
-
-    font-size: 0.875rem;
-
-    font-weight: 600;
-
-    color: var(--azul-escuro);
-
-}
 
 
 
@@ -104,34 +35,6 @@
     width: 100%;
 
     min-width: 0;
-
-}
-
-
-
-.compras_orc_input,
-
-.compras_orc_select {
-
-    height: 34px;
-
-    padding: 6px 10px;
-
-    border-radius: 7px;
-
-    border: 1px solid var(--azul-destaque);
-
-    background: #fff;
-
-    font-family: inherit;
-
-    font-size: 0.875rem;
-
-    width: 100%;
-
-    min-width: 0;
-
-    box-sizing: border-box;
 
 }
 
@@ -1000,8 +903,6 @@
 
 
 
-body.dark-mode .compras_orc_filtros_flutuantes,
-
 body.dark-mode .compras_orc_main_card {
 
     background: var(--bg-surface, #132335);
@@ -1030,8 +931,6 @@ body.dark-mode .compras_orc_empty {
 
 
 
-body.dark-mode .compras_orc_filtro_label,
-
 body.dark-mode .compras_orc_main_titulo {
 
     color: var(--azul-claro, #e7f4fc);
@@ -1039,10 +938,6 @@ body.dark-mode .compras_orc_main_titulo {
 }
 
 
-
-body.dark-mode .compras_orc_input,
-
-body.dark-mode .compras_orc_select,
 
 body.dark-mode .compras_orc_sugestoes {
 
@@ -1282,26 +1177,6 @@ body.dark-mode .compras_orc hr {
 
 
 
-@media (max-width: 960px) {
-
-    .compras_orc_filtros_inner {
-
-        flex-wrap: wrap;
-
-    }
-
-
-
-    .compras_orc_filtro_busca {
-
-        flex: 1 1 100%;
-
-    }
-
-}
-
-
-
 .compras_orc_quem_realiza {
     margin-top: 18px;
     width: 100%;
@@ -1484,14 +1359,6 @@ body.dark-mode .compras_orc_quem_badge {
     .compras_orc hr {
 
         margin: 10px 1em;
-
-    }
-
-
-
-    .compras_orc_filtros_flutuantes {
-
-        width: 100%;
 
     }
 

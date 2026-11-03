@@ -1,0 +1,699 @@
+/* Página pública do repasse mensal (/repasse_mensal/:token). Mobile-first, sem layout do sistema. */
+.rm_pagina {
+    --rm-azul: #1a6fa3;
+    --rm-azul-destaque: #0a5d96;
+    --rm-azul-claro: #e7f4fc;
+    --rm-ink: #142033;
+    --rm-muted: #5a7488;
+    --rm-line: #d8e6ef;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1rem 0.5rem 3rem;
+    color: var(--rm-ink);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.rm_pagina h1 {
+    margin: 0;
+    font-size: clamp(1.4rem, 1.1rem + 1.2vw, 1.75rem);
+}
+
+.rm_marca {
+    margin: 0;
+    font: 800 1.25rem/1 'Syne', sans-serif;
+    color: var(--rm-azul-destaque);
+}
+
+.rm_topo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--rm-line);
+}
+
+.rm_sub,
+.rm_meta {
+    margin: 0;
+    color: var(--rm-muted);
+    font-size: 0.9375rem;
+}
+
+.rm_prestador {
+    margin: 0.35rem 0 0;
+    font-size: 1.125rem;
+    font-weight: 700;
+}
+
+.rm_centro {
+    text-align: center;
+}
+
+.rm_cartao {
+    background: #fff;
+    border: 1px solid var(--rm-line);
+    border-radius: 14px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.rm_cartao h2 {
+    margin: 0;
+    font-size: 1.125rem;
+}
+
+.rm_totais {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+}
+
+@media (min-width: 640px) {
+    .rm_totais {
+        grid-template-columns: 1.4fr 1fr 1fr;
+    }
+}
+
+.rm_total {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--rm-line);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.rm_total span {
+    font-size: 0.8125rem;
+    color: var(--rm-muted);
+}
+
+.rm_total strong {
+    font-size: 1.375rem;
+}
+
+.rm_total--destaque {
+    background: var(--rm-azul-destaque);
+    border-color: var(--rm-azul-destaque);
+    color: #fff;
+}
+
+.rm_total--destaque span {
+    color: #d7ecfa;
+}
+
+.rm_aviso {
+    margin: 0;
+    padding: 0.7rem 0.9rem;
+    border-radius: 10px;
+    font-size: 0.9375rem;
+    line-height: 1.45;
+}
+
+.rm_aviso--info {
+    background: var(--rm-azul-claro);
+    color: var(--rm-azul-destaque);
+}
+
+.rm_aviso--ok {
+    background: #e8f8ef;
+    color: #0a7a4a;
+}
+
+.rm_aviso--alerta {
+    background: #fef6e7;
+    color: #8a5a00;
+}
+
+.rm_aviso--erro {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.rm_btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    padding: 0.5rem 1.1rem;
+    border: 1px solid var(--rm-line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--rm-ink);
+    font: 650 0.9375rem inherit;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.rm_btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.rm_btn--primario {
+    background: var(--rm-azul);
+    border-color: var(--rm-azul);
+    color: #fff;
+}
+
+.rm_btn--texto {
+    border-color: transparent;
+    background: transparent;
+    color: #b91c1c;
+    align-self: flex-start;
+}
+
+.rm_link {
+    border: 0;
+    background: none;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.rm_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.rm_acoes--download .rm_btn {
+    flex: 1 1 9rem;
+}
+
+.rm_form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.rm_form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.rm_form input,
+.rm_form textarea {
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--rm-line);
+    border-radius: 10px;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 500;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.rm_previa {
+    margin: 0;
+    padding: 0.6rem 0.8rem;
+    background: #f7fbfe;
+    border-left: 3px solid var(--rm-azul);
+    font-size: 0.875rem;
+    color: var(--rm-muted);
+    white-space: pre-wrap;
+}
+
+.rm_rodape {
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--rm-muted);
+}
+
+/* Tabela de atendimentos */
+.rm_tabela_wrap {
+    overflow-x: auto;
+    border: 1px solid var(--rm-line);
+    border-radius: 12px;
+    background: #fff;
+    -webkit-overflow-scrolling: touch;
+}
+
+.rm_tabela {
+    width: 100%;
+    min-width: 720px;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.rm_tabela th,
+.rm_tabela td {
+    padding: 0.5rem 0.65rem;
+    border-bottom: 1px solid var(--rm-line);
+    text-align: left;
+    vertical-align: top;
+}
+
+.rm_tabela thead th {
+    position: sticky;
+    top: 0;
+    background: #f4f8fb;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.rm_grupo th {
+    background: #f4f8fb;
+    font-size: 0.9375rem;
+}
+
+.rm_col_num {
+    text-align: right !important;
+    white-space: nowrap;
+}
+
+.rm_col_repasse {
+    text-align: right !important;
+    white-space: nowrap;
+    background: var(--rm-azul-claro);
+    color: var(--rm-azul-destaque);
+    font-weight: 700;
+    border-left: 2px solid #bfd7e8;
+    border-right: 2px solid #bfd7e8;
+}
+
+.rm_grupo .rm_col_repasse {
+    background: var(--rm-azul-destaque);
+    color: #fff;
+}
+
+.rm_linha_inicio td {
+    border-top: 1px solid #bfd7e8;
+}
+
+@media print {
+    .rm_acoes,
+    .rm_cartao,
+    .rm_rodape {
+        display: none;
+    }
+}
+
+/* —— Decisão do prestador: aprovar / reprovar —— */
+.rm_decisao {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.rm_decisao--solo {
+    grid-template-columns: 1fr;
+}
+
+.rm_decisao .rm_btn {
+    min-height: 3.25rem;
+    border-radius: 14px;
+    font-size: 1rem;
+    gap: 0.5rem;
+    transition: transform 0.08s, box-shadow 0.15s, background 0.15s;
+}
+
+.rm_decisao .rm_btn:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.rm_btn--aprovar {
+    background: #15803d;
+    border-color: #15803d;
+    color: #fff;
+    box-shadow: 0 2px 0 #0f5f2d;
+}
+
+.rm_btn--aprovar:hover:not(:disabled) {
+    background: #166d36;
+}
+
+.rm_btn--reprovar {
+    background: #fff;
+    border: 1.5px solid #dc2626;
+    color: #b91c1c;
+}
+
+.rm_btn--reprovar:hover:not(:disabled) {
+    background: #fef2f2;
+}
+
+.rm_btn--neutro {
+    background: #fff;
+    border: 1.5px solid var(--rm-line);
+    color: var(--rm-ink);
+}
+
+.rm_btn--neutro:hover:not(:disabled) {
+    background: #f4f8fb;
+}
+
+.rm_btn--aprovar:focus-visible,
+.rm_btn--reprovar:focus-visible,
+.rm_btn--neutro:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 2px;
+}
+
+.rm_form .rm_btn--aprovar {
+    width: 100%;
+    min-height: 3.25rem;
+    border-radius: 14px;
+    font-size: 1rem;
+}
+
+.rm_confirma {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid #bbf7d0;
+    border-radius: 14px;
+    background: #f0fdf4;
+}
+
+.rm_confirma p {
+    margin: 0;
+}
+
+@media (max-width: 520px) {
+    .rm_decisao {
+        grid-template-columns: 1fr;
+    }
+
+    /* No celular o Aprovar continua como ação principal, mas fica em cima */
+    .rm_decisao .rm_btn--aprovar {
+        order: -1;
+    }
+}
+
+/* —— Veterinários separados por blocos —— */
+.rm_bloco + .rm_bloco .rm_grupo th {
+    border-top: 22px solid #fff;
+}
+
+.rm_grupo th {
+    background: var(--rm-azul-destaque) !important;
+    color: #fff !important;
+    text-align: left;
+    font-size: 0.9375rem;
+    padding: 0.7rem 0.75rem;
+    border-bottom: 0;
+}
+
+.rm_grupo th:first-child {
+    border-top-left-radius: 10px;
+    position: relative;
+}
+
+.rm_grupo th:last-child {
+    border-top-right-radius: 10px;
+}
+
+.rm_grupo th.rm_col_repasse {
+    background: #0a4a78 !important;
+    border-left: 0;
+    border-right: 0;
+}
+
+.rm_vet_rot {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.8;
+}
+
+.rm_vet_nome {
+    display: inline;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.rm_vet_qtd {
+    margin-left: 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    opacity: 0.85;
+}
+
+.rm_vet_sub_rot {
+    display: block;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.8;
+}
+
+/* —— Vincular nota / boleto —— */
+.rm_form_titulo {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.rm_campo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.rm_campo_rot {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--rm-muted);
+}
+
+.rm_campo input:not([type='file']) {
+    min-height: 2.9rem;
+    padding: 0.55rem 0.8rem;
+    border: 1.5px solid var(--rm-line);
+    border-radius: 12px;
+    font: inherit;
+    background: #fff;
+    color: var(--rm-ink);
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.rm_campo input:focus-visible {
+    outline: 3px solid #bfdbfe;
+    border-color: var(--rm-azul);
+}
+
+.rm_form_grade {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 0.75rem;
+}
+
+.rm_drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 1.2rem 1rem;
+    border: 2px dashed var(--rm-azul);
+    border-radius: 14px;
+    background: var(--rm-azul-claro);
+    color: var(--rm-azul-destaque);
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.rm_drop:hover,
+.rm_drop.is-over {
+    background: #d3ebf9;
+}
+
+.rm_drop:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 2px;
+}
+
+.rm_drop.has-file {
+    border-style: solid;
+    border-color: #15803d;
+    background: #f0fdf4;
+    color: #15803d;
+}
+
+.rm_drop_titulo {
+    font-weight: 800;
+    font-size: 1rem;
+}
+
+.rm_drop_nome {
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.rm_drop_dica {
+    font-size: 0.8rem;
+    opacity: 0.85;
+}
+
+.rm_drop_remover {
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0.25rem;
+}
+
+.rm_sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+}
+
+/* —— Desconto do RPA —— */
+.rm_desconto {
+    margin: 1rem 0;
+    padding: 1rem 1.1rem;
+    border: 1px solid #fde68a;
+    border-radius: 14px;
+    background: #fffbeb;
+}
+
+.rm_desconto h2 {
+    margin: 0 0 0.6rem;
+    font-size: 1rem;
+}
+
+.rm_desconto dl {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0 0 0.75rem;
+}
+
+.rm_desconto dl > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.rm_desconto dt {
+    color: var(--rm-muted);
+}
+
+.rm_desconto dd {
+    margin: 0;
+    font-weight: 700;
+}
+
+.rm_desconto_menos dd {
+    color: #b45309;
+}
+
+.rm_desconto_final {
+    padding-top: 0.45rem;
+    border-top: 1px dashed #f5d98a;
+    font-size: 1.1rem;
+}
+
+.rm_desconto_final dt,
+.rm_desconto_final dd {
+    color: var(--rm-ink);
+    font-weight: 800;
+}
+
+.rm_desconto p {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #78560f;
+}
+
+/* —— Total geral da tabela —— */
+.rm_tabela tfoot .rm_total_geral th {
+    background: #0f2f4a;
+    color: #fff;
+    text-align: left;
+    font-size: 1rem;
+    padding: 0.85rem 0.75rem;
+    border-top: 22px solid #fff;
+}
+
+.rm_tabela tfoot .rm_total_geral th.rm_col_num,
+.rm_tabela tfoot .rm_total_geral th.rm_col_repasse {
+    text-align: right !important;
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.rm_tabela tfoot .rm_total_geral th.rm_col_repasse {
+    background: #0a4a78;
+    border-left: 0;
+    border-right: 0;
+    color: #fff;
+}
+
+.rm_total_geral_sub {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    opacity: 0.85;
+}
+
+/* —— Colunas repetidas sob cada veterinário e menos quebra de linha —— */
+.rm_tabela {
+    min-width: 680px;
+}
+
+.rm_tabela th,
+.rm_tabela td {
+    padding: 0.4rem 0.45rem;
+}
+
+.rm_tabela .rm_td_id,
+.rm_tabela .rm_td_data {
+    white-space: nowrap;
+}
+
+.rm_colunas th {
+    background: #f4f8fb;
+    color: var(--rm-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-bottom: 2px solid #bfd7e8;
+}
+
+.rm_colunas th.rm_col_repasse {
+    background: var(--rm-azul-claro);
+    color: var(--rm-azul-destaque);
+}
+
+.rm_total small {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 500;
+    opacity: 0.8;
+}

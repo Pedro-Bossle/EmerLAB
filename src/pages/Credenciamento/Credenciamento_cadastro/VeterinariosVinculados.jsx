@@ -7,6 +7,7 @@ import {
     obterResponsavelCadastroAtual,
     prestadorEhEstabelecimento,
 } from '../../../lib/prestadorCadastroHelpers'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 /**
  * Vínculo de veterinários a estabelecimento (clínica etc.): busca por nome, novo perfil mínimo ou existente.
@@ -220,7 +221,7 @@ export default function VeterinariosVinculados({
                 </label>
                 <label className="pcad_field">
                     Especialidade
-                    <select
+                    <SelectDropdown
                         className="credenciamento_main_select"
                         value={espEfetiva}
                         disabled={somenteLeitura || incluindo}
@@ -232,7 +233,7 @@ export default function VeterinariosVinculados({
                                 {e.nome}
                             </option>
                         ))}
-                    </select>
+                    </SelectDropdown>
                 </label>
                 <label className="pcad_field pcad_vet_crmv_cell">
                     CRMV

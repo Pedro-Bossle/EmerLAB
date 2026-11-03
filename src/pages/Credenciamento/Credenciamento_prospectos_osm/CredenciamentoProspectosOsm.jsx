@@ -51,6 +51,7 @@ import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/Selec
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
 import { PageHeader } from '../../../components/ui'
 import { useGeminiRate } from '../../../hooks/useGemini.js'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 import '../Credenciamento_main/Credenciamento_main.css'
 import '../Credenciamento_cadastro/CredenciamentoCadastro.css'
 import '../Credenciamento_mapa/CredenciamentoMapa.css'
@@ -795,7 +796,7 @@ const CredenciamentoProspectosOsm = () => {
                         </div>
                         <label className="pcad_field cred_prospectos_osm_field_status">
                             <span>Status</span>
-                            <select
+                            <SelectDropdown
                                 className="credenciamento_main_select"
                                 value={status}
                                 onChange={(e) => setStatus(e.target.value)}
@@ -806,7 +807,7 @@ const CredenciamentoProspectosOsm = () => {
                                         {s.label}
                                     </option>
                                 ))}
-                            </select>
+                            </SelectDropdown>
                         </label>
                         <div className="cred_prospectos_osm_linha1_acoes">
                             <button
@@ -1112,7 +1113,7 @@ const CredenciamentoProspectosOsm = () => {
                                             </td>
                                             <td>
                                                 {podeEditar ? (
-                                                    <select
+                                                    <SelectDropdown
                                                         className="credenciamento_main_select cred_prospectos_osm_status_sel"
                                                         value={row.status_prospeccao || 'novo'}
                                                         onClick={(e) => e.stopPropagation()}
@@ -1125,7 +1126,7 @@ const CredenciamentoProspectosOsm = () => {
                                                                 {s.label}
                                                             </option>
                                                         ))}
-                                                    </select>
+                                                    </SelectDropdown>
                                                 ) : (
                                                     row.status_prospeccao
                                                 )}
@@ -1274,7 +1275,7 @@ const CredenciamentoProspectosOsm = () => {
                             </label>
                             <label>
                                 <span>Categoria</span>
-                                <select
+                                <SelectDropdown
                                     className="credenciamento_main_input"
                                     value={editForm.categoria_id}
                                     onChange={(e) => setCampoEdit('categoria_id', e.target.value)}
@@ -1290,7 +1291,7 @@ const CredenciamentoProspectosOsm = () => {
                                             {editando.categoria_label || editForm.categoria_id}
                                         </option>
                                     ) : null}
-                                </select>
+                                </SelectDropdown>
                             </label>
                             <label className="credenciamento_modal_full">
                                 <span>Endereço</span>
@@ -1378,7 +1379,7 @@ const CredenciamentoProspectosOsm = () => {
                             </label>
                             <label>
                                 <span>Status</span>
-                                <select
+                                <SelectDropdown
                                     className="credenciamento_main_input"
                                     value={editForm.status_prospeccao}
                                     onChange={(e) => setCampoEdit('status_prospeccao', e.target.value)}
@@ -1388,7 +1389,7 @@ const CredenciamentoProspectosOsm = () => {
                                             {s.label}
                                         </option>
                                     ))}
-                                </select>
+                                </SelectDropdown>
                             </label>
                             <label className="credenciamento_modal_full">
                                 <span>Observação</span>

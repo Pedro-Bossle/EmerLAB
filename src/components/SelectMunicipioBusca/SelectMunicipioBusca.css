@@ -1,268 +1,108 @@
+/*
+ * Dropdown de município/cidade com busca. Visual = UI Kit (.ek-dropdown, docs/ui-kit.md):
+ * mesmas alturas, raios, cores e modo escuro vêm das variáveis --ek-*.
+ * O prefixo `body` vence a classe `inputClassName` que cada tela passa ao gatilho.
+ */
 .select_municipio_busca {
-  position: relative;
-  width: 100%;
-  min-width: 0;
+    position: relative;
+    width: 100%;
+    min-width: 0;
 }
 
-.select_municipio_busca.is-disabled {
-  opacity: 0.72;
+.select_municipio_busca.is-disabled { opacity: 0.6; }
+
+body .select_municipio_busca_trigger {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ek-s2);
+    width: 100%;
+    min-height: var(--ek-control-h);
+    padding: 0 var(--ek-control-px);
+    font-family: var(--ek-font);
+    font-size: var(--ek-text-md);
+    font-weight: 500;
+    text-align: left;
+    color: var(--ek-ink);
+    background: var(--ek-field);
+    border: 1px solid var(--ek-field-border);
+    border-radius: var(--ek-r-control);
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.select_municipio_busca_trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
-  min-width: 0;
-  min-height: 2.45rem;
-  padding: 0.45rem 0.55rem 0.45rem 0.7rem;
-  box-sizing: border-box;
-  border: 1px solid #b9d4e8;
-  border-radius: 10px;
-  background: #fff;
-  color: #1e3148;
-  font: inherit;
-  font-size: 0.875rem;
-  text-align: left;
-  cursor: pointer;
+body .select_municipio_busca_trigger:hover:not(:disabled) { border-color: var(--ek-brand-bright); }
+body .select_municipio_busca_trigger:disabled { cursor: not-allowed; }
+body .select_municipio_busca.is-open .select_municipio_busca_trigger {
+    border-color: var(--ek-brand);
+    box-shadow: 0 0 0 3px var(--ek-ring);
 }
 
-.select_municipio_busca_trigger:hover:not(:disabled) {
-  border-color: #8eb8d4;
-}
-
-.select_municipio_busca_trigger:focus-visible {
-  outline: 2px solid #3a8fbf;
-  outline-offset: 1px;
-}
-
-.select_municipio_busca.is-open .select_municipio_busca_trigger {
-  border-color: #3a8fbf;
-  box-shadow: 0 0 0 2px rgba(58, 143, 191, 0.18);
-}
-
-.select_municipio_busca_trigger.is-placeholder .select_municipio_busca_trigger_label {
-  color: #7a91a6;
-  font-weight: 500;
-}
-
-.select_municipio_busca_trigger_label {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-}
-
-.select_municipio_busca_trigger_actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.15rem;
-  flex: 0 0 auto;
-}
-
-.select_municipio_busca_chevron {
-  display: inline-flex;
-  color: #5a7188;
-  transition: transform 0.15s ease;
-}
-
-.select_municipio_busca.is-open .select_municipio_busca_chevron {
-  transform: rotate(180deg);
-}
+.select_municipio_busca_trigger.is-placeholder .select_municipio_busca_trigger_label { color: var(--ek-placeholder); }
+.select_municipio_busca_trigger_label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select_municipio_busca_trigger_actions { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.select_municipio_busca_chevron { display: inline-flex; color: var(--ek-ink-muted); transition: transform 0.15s; }
+.select_municipio_busca.is-open .select_municipio_busca_chevron { transform: rotate(180deg); }
 
 .select_municipio_busca_clear {
-  width: 1.35rem;
-  height: 1.35rem;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #5a7188;
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    font-size: 16px; line-height: 1; color: var(--ek-ink-muted); cursor: pointer;
 }
+.select_municipio_busca_clear:hover { background: var(--ek-brand-pale); color: var(--ek-ink); }
 
-.select_municipio_busca_clear:hover {
-  background: rgba(30, 49, 72, 0.08);
-  color: #1e3148;
-}
-
+/* Painel (portal, fora do .ek-dropdown): opaco, como o painel do kit */
 .select_municipio_busca_painel {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-  background: #1b2833;
-  border: 1px solid #2f4454;
-  border-radius: 12px;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.42);
-  box-sizing: border-box;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    overflow: hidden;
+    font-family: var(--ek-font);
+    color: var(--ek-ink);
+    background: var(--ek-surface);
+    border: 1px solid var(--ek-line-strong);
+    border-radius: var(--ek-r-control);
+    box-shadow: var(--ek-shadow-pop);
 }
 
-.select_municipio_busca_search {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin: 8px 8px 4px;
-  padding: 0.45rem 0.6rem;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  flex: 0 0 auto;
-}
-
-.select_municipio_busca_search_icon {
-  display: inline-flex;
-  color: #9db0c4;
-  flex: 0 0 auto;
-}
-
+.select_municipio_busca_search { position: relative; margin-bottom: 6px; }
+.select_municipio_busca_search_icon { position: absolute; left: 10px; top: 50%; translate: 0 -50%; display: inline-flex; color: var(--ek-ink-muted); pointer-events: none; }
 .select_municipio_busca_search_input {
-  flex: 1 1 auto;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: #e8f1f8;
-  font: inherit;
-  font-size: 0.875rem;
-  outline: none;
+    box-sizing: border-box; width: 100%; min-height: 36px; padding: 0 10px 0 32px;
+    font-family: var(--ek-font); font-size: var(--ek-text-md); color: var(--ek-ink);
+    background: var(--ek-field); border: 1px solid var(--ek-field-border); border-radius: var(--ek-r-control);
 }
+.select_municipio_busca_search_input::placeholder { color: var(--ek-placeholder); }
+.select_municipio_busca_search_input:focus { outline: none; border-color: var(--ek-brand); box-shadow: 0 0 0 3px var(--ek-ring); }
 
-.select_municipio_busca_search_input::placeholder {
-  color: #8fa3b6;
-}
-
-.select_municipio_busca_lista {
-  margin: 0;
-  padding: 4px 6px 8px;
-  list-style: none;
-  overflow-y: auto;
-  overflow-x: hidden;
-  flex: 1 1 auto;
-  min-height: 0;
-  box-sizing: border-box;
-}
+.select_municipio_busca_lista { margin: 0; padding: 0; list-style: none; overflow-y: auto; scrollbar-width: thin; }
 
 .select_municipio_busca_item {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  width: 100%;
-  text-align: left;
-  border: 0;
-  background: transparent;
-  padding: 0.5rem 0.55rem;
-  border-radius: 8px;
-  font: inherit;
-  font-size: 0.875rem;
-  color: #e8f1f8;
-  cursor: pointer;
+    display: flex; align-items: center; gap: var(--ek-s2);
+    width: 100%; min-height: 36px; padding: 6px 10px;
+    font-family: var(--ek-font); font-size: var(--ek-text-md); text-align: left;
+    color: var(--ek-ink); background: transparent; border: 0; border-radius: 8px; cursor: pointer;
 }
-
-.select_municipio_busca_check {
-  width: 1rem;
-  height: 1rem;
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-}
-
-.select_municipio_busca_item_label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .select_municipio_busca_item:hover,
-.select_municipio_busca_item.is-active {
-  background: rgba(110, 182, 224, 0.16);
+.select_municipio_busca_item.is-active { background: var(--ek-brand-pale); }
+.select_municipio_busca_item.is-selected { color: var(--ek-brand); font-weight: 700; }
+.select_municipio_busca_check { display: inline-flex; justify-content: center; width: 16px; flex: none; color: var(--ek-brand); }
+.select_municipio_busca_item_label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select_municipio_busca_vazio { padding: 12px 10px; font-size: var(--ek-text-md); color: var(--ek-ink-muted); }
+
+@media (max-width: 639px) {
+    body .select_municipio_busca_trigger { min-height: var(--ek-touch); }
+    .select_municipio_busca_item { min-height: var(--ek-touch); }
 }
 
-.select_municipio_busca_item.is-selected {
-  font-weight: 700;
+.select_municipio_busca_grupo {
+    padding: 8px 10px 4px;
+    font-size: var(--ek-text-xs);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ek-ink-muted);
 }
-
-.select_municipio_busca_vazio {
-  padding: 0.65rem 0.7rem;
-  font-size: 0.875rem;
-  color: #9db0c4;
-}
-
-/* Tema claro: trigger claro; painel mantém contraste do drop (como referência). */
-body:not(.dark-mode) .select_municipio_busca_painel {
-  background: #fff;
-  border-color: #b9d4e8;
-  box-shadow: 0 12px 32px rgba(30, 49, 72, 0.18);
-}
-
-body:not(.dark-mode) .select_municipio_busca_search {
-  background: #f3f8fb;
-  border-color: #d5e6f1;
-}
-
-body:not(.dark-mode) .select_municipio_busca_search_icon {
-  color: #6a8094;
-}
-
-body:not(.dark-mode) .select_municipio_busca_search_input {
-  color: #1e3148;
-}
-
-body:not(.dark-mode) .select_municipio_busca_search_input::placeholder {
-  color: #7a91a6;
-}
-
-body:not(.dark-mode) .select_municipio_busca_item {
-  color: #1e3148;
-}
-
-body:not(.dark-mode) .select_municipio_busca_item:hover,
-body:not(.dark-mode) .select_municipio_busca_item.is-active {
-  background: #e8f4fb;
-}
-
-body:not(.dark-mode) .select_municipio_busca_check {
-  color: #0f74b9;
-}
-
-body:not(.dark-mode) .select_municipio_busca_vazio {
-  color: #6a8094;
-}
-
-body.dark-mode .select_municipio_busca_trigger {
-  background: #152530;
-  border-color: #2a3f4e;
-  color: #e8f1f8;
-}
-
-body.dark-mode .select_municipio_busca_trigger:hover:not(:disabled) {
-  border-color: #3d5a6e;
-}
-
-body.dark-mode .select_municipio_busca.is-open .select_municipio_busca_trigger {
-  border-color: #6eb6e0;
-  box-shadow: 0 0 0 2px rgba(110, 182, 224, 0.2);
-}
-
-body.dark-mode .select_municipio_busca_trigger.is-placeholder .select_municipio_busca_trigger_label {
-  color: #8fa3b6;
-}
-
-body.dark-mode .select_municipio_busca_chevron,
-body.dark-mode .select_municipio_busca_clear {
-  color: #9db0c4;
-}
-
-body.dark-mode .select_municipio_busca_clear:hover {
-  background: rgba(125, 185, 225, 0.12);
-  color: #e8f1f8;
-}
+.select_municipio_busca_painel:focus { outline: none; }

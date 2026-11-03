@@ -16,6 +16,7 @@ import { placeholderOutrasEspecialidadesPublico } from '../../../lib/formularioP
 import FormularioPublicoPerfilExtra from './FormularioPublicoPerfilExtra.jsx'
 import SelectMunicipioBusca from '../../../components/SelectMunicipioBusca/SelectMunicipioBusca.jsx'
 import SelectUfBusca from '../../../components/SelectUfBusca/SelectUfBusca.jsx'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 function Bloco({ titulo, children }) {
     return (
@@ -200,7 +201,7 @@ export default function FormularioPublicoPassoDados({
                             <div className="pcad_row pcad_row_esp fcred_pcad_esp_row">
                                 <label className="pcad_field">
                                     Especialidade *
-                                    <select
+                                    <SelectDropdown
                                         className="credenciamento_main_select"
                                         value={especialidadePrincipalId}
                                         onChange={(e) => setEspecialidadePrincipalId(e.target.value)}
@@ -211,7 +212,7 @@ export default function FormularioPublicoPassoDados({
                                                 {e.nome}
                                             </option>
                                         ))}
-                                    </select>
+                                    </SelectDropdown>
                                 </label>
                                 <MultiEspecialidadesInput
                                     layout="inline"
@@ -229,7 +230,7 @@ export default function FormularioPublicoPassoDados({
                         <div className="pcad_row pcad_row_esp fcred_pcad_esp_row">
                             <label className="pcad_field">
                                 Especialidade *
-                                <select
+                                <SelectDropdown
                                     className="credenciamento_main_select"
                                     value={especialidadePrincipalId}
                                     onChange={(e) => setEspecialidadePrincipalId(e.target.value)}
@@ -240,7 +241,7 @@ export default function FormularioPublicoPassoDados({
                                             {e.nome}
                                         </option>
                                     ))}
-                                </select>
+                                </SelectDropdown>
                             </label>
                             <MultiEspecialidadesInput
                                 layout="inline"
@@ -259,7 +260,7 @@ export default function FormularioPublicoPassoDados({
                 <div className="fcred_grid fcred_grid_3">
                     <label className="fcred_field">
                         <span>Tipo de PIX</span>
-                        <select
+                        <SelectDropdown
                             className="fcred_select credenciamento_main_select"
                             value={tipoPix}
                             onChange={(e) => {
@@ -272,7 +273,7 @@ export default function FormularioPublicoPassoDados({
                                     {t.label}
                                 </option>
                             ))}
-                        </select>
+                        </SelectDropdown>
                     </label>
                     <label className="fcred_field">
                         <span>Chave PIX</span>
@@ -304,7 +305,7 @@ export default function FormularioPublicoPassoDados({
                     </label>
                     <div className="fcred_field">
                         <span>Nota / RPA</span>
-                        <select
+                        <SelectDropdown
                             className="fcred_select credenciamento_main_select"
                             value={tipoRepasse}
                             onChange={(e) => setTipoRepasse(e.target.value)}
@@ -314,7 +315,7 @@ export default function FormularioPublicoPassoDados({
                                     {t.label}
                                 </option>
                             ))}
-                        </select>
+                        </SelectDropdown>
                         <p className="fcred_field_hint fcred_doc_muted">{TIPO_REPASSE_DICA}</p>
                     </div>
                 </div>

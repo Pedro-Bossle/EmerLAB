@@ -5,6 +5,7 @@ import http from 'node:http'
 import adminUsersHandler from '../api/admin-users.js'
 import emailHandler from '../api/email.js'
 import auditLogsHandler from '../api/audit-logs.js'
+import repasseMensalHandler from '../api/repasse-mensal.js'
 import rcPdfHandler from '../api/rc-pdf.js'
 import consultaCnpjHandler from '../api/consulta-cnpj.js'
 import geocodePrestadorHandler from '../api/geocode-prestador.js'
@@ -76,6 +77,7 @@ const server = http.createServer(async (req, res) => {
             '/api/admin-users': adminUsersHandler,
             '/api/email': emailHandler,
             '/api/audit-logs': auditLogsHandler,
+            '/api/repasse-mensal': repasseMensalHandler,
             '/api/rc-pdf': rcPdfHandler,
             '/api/consulta-cnpj': consultaCnpjHandler,
             '/api/geocode-prestador': geocodePrestadorHandler,

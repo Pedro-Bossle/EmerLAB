@@ -11,6 +11,7 @@ import clicksignDownloadHandler from './api/clicksign-download.js'
 import clicksignUploadDocumentHandler from './api/clicksign-upload-document.js'
 import adminUsersHandler from './api/admin-users.js'
 import emailHandler from './api/email.js'
+import repasseMensalHandler from './api/repasse-mensal.js'
 import emerRadarCronHandler from './api/_lib/emerRadarCronHandler.js'
 import auditLogsHandler from './api/audit-logs.js'
 import { nodeHandler as ibgeMunicipiosHandler } from './api/ibge-municipios.js'
@@ -401,6 +402,11 @@ function makeJsonApiDevPlugin(name, pathPrefix, handler, erroLabel) {
     }
 }
 
+/** Em dev, atende /api/repasse-mensal (multiplexada por ?_route=). */
+function repasseMensalDevPlugin() {
+    return makeJsonApiDevPlugin('repasse-mensal-dev', '/api/repasse-mensal', repasseMensalHandler, 'Falha na API repasse-mensal.')
+}
+
 /** Em dev, atende POST /api/email (worker Emer-Radar → Resend). */
 function emailDevPlugin() {
     return makeJsonApiDevPlugin('email-dev', '/api/email', emailHandler, 'Falha na API email.')
@@ -703,6 +709,7 @@ export default defineConfig(({ command, mode }) => {
             command === 'serve' ? prospectosOsmColetarDevPlugin() : null,
             command === 'serve' ? adminUsersDevPlugin() : null,
             command === 'serve' ? emailDevPlugin() : null,
+            command === 'serve' ? repasseMensalDevPlugin() : null,
             command === 'serve' ? emerRadarCronDevPlugin() : null,
             command === 'serve' ? auditLogsDevPlugin() : null,
             command === 'serve' ? geminiRateDevPlugin() : null,

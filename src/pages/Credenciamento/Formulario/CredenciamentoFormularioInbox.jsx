@@ -30,7 +30,8 @@ import {
 } from '../../../lib/prestadorCadastroHelpers'
 import CampoBuscaComLimpar from '../../../components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx'
 import CredenciamentoMainAlert from '../../../components/Toast/CredenciamentoMainAlert.jsx'
-import { PageHeader } from '../../../components/ui'
+import { PageHeader, Toolbar } from '../../../components/ui'
+import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 const FILTROS = [
     { id: 'abertas', label: 'Pendentes e em análise', status: ['pendente', 'em_analise'] },
@@ -475,30 +476,21 @@ export default function CredenciamentoFormularioInbox() {
             <CredenciamentoMainAlert message={erro} onClose={() => setErro('')} role="alert" />
             <CredenciamentoMainAlert message={okMsg} onClose={() => setOkMsg('')} role="status" />
 
-            <header className="credenciamento_main_header">
-                <h2 className="credenciamento_cadastro_filters_title">Filtrar entradas</h2>
-                <div className="credenciamento_main_filters fcred_inbox_filters">
-                    <div
-                        className="fcred_inbox_filtros flex flex-wrap gap-2"
-                        role="group"
-                        aria-label="Filtrar entradas"
-                    >
-                        {FILTROS.map((f) => (
-                            <button
-                                key={f.id}
-                                type="button"
-                                aria-pressed={filtroAtivo.id === f.id}
-                                className={`credenciamento_main_action_btn min-h-touch ${
-                                    filtroAtivo.id === f.id ? '' : 'secondary'
-                                }`}
-                                onClick={() => mudarFiltro(f.id)}
-                            >
-                                {f.label}
-                            </button>
-                        ))}
-                    </div>
+            <Toolbar title="Filtrar entradas">
+                <div className="ek-segmented" role="group" aria-label="Filtrar entradas" style={{ flexWrap: 'wrap' }}>
+                    {FILTROS.map((f) => (
+                        <button
+                            key={f.id}
+                            type="button"
+                            className="ek-segmented__opt"
+                            aria-pressed={filtroAtivo.id === f.id}
+                            onClick={() => mudarFiltro(f.id)}
+                        >
+                            {f.label}
+                        </button>
+                    ))}
                 </div>
-            </header>
+            </Toolbar>
 
             <div className="fcred_layout fcred_inbox_layout">
                 <aside className="fcred_paginas fcred_inbox_lista" aria-label="Lista de entradas">
@@ -758,7 +750,7 @@ export default function CredenciamentoFormularioInbox() {
                                     {sugestoesPrestadorNome.length > 0 ? (
                                         <label className="fcred_inbox_vinculo_sug">
                                             <span>Sugestões para «{p.nome || 'sem nome'}»</span>
-                                            <select
+                                            <SelectDropdown
                                                 className="credenciamento_main_select"
                                                 value={prestadorVinculoId}
                                                 disabled={somenteLeitura || acaoLoading}
@@ -770,7 +762,7 @@ export default function CredenciamentoFormularioInbox() {
                                                         {s.nome}
                                                     </option>
                                                 ))}
-                                            </select>
+                                            </SelectDropdown>
                                         </label>
                                     ) : (
                                         <p className="pcad_muted">Nenhuma sugestão automática para este nome.</p>

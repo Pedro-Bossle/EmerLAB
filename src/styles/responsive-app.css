@@ -17,16 +17,16 @@
         height: auto;
         max-height: none;
         overflow: visible;
-        margin-left: 0.5rem !important;
-        margin-right: 0.5rem !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
         margin-bottom: 1.25rem;
         box-sizing: border-box;
         max-width: 100%;
     }
 
     .credenciamento_main.quem_realiza > hr {
-        margin-left: 0.75rem !important;
-        margin-right: 0.75rem !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
     }
 
     .credenciamento_main.quem_realiza .quem_realiza_split {
@@ -44,8 +44,8 @@
     .compras_vv,
     .compras_orc,
     .gerenciamento_acessos {
-        margin-left: 0.5rem !important;
-        margin-right: 0.5rem !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
         margin-bottom: 1.25rem;
         box-sizing: border-box;
         max-width: 100%;
@@ -59,65 +59,14 @@
     .credenciamento_main hr,
     .compras_vv hr,
     .compras_orc hr {
-        margin-left: 0.75rem !important;
-        margin-right: 0.75rem !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
     }
 
     /* Filtros: empilhar e ocupar largura útil */
-    .supertabelamain_filters,
-    .supertabelacidades_filters,
-    .supertabelaplanos_filters,
-    .supertabelaprocedimentos_filters,
-    .supertabelanegociacoes_filters,
-    .credenciamento_main_filters,
-    .planos_impressao_filtros,
-    .compras_vv_filters,
-    .compras_orc_filtros_inner {
-        flex-wrap: wrap !important;
-        justify-content: stretch !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        box-sizing: border-box;
-    }
-
-    .supertabelamain_filters_input,
-    .supertabelamain_filters_select,
-    .supertabelacidades_filters .supertabelacidades_filter_item,
-    .supertabelaplanos_filters .supertabelaplanos_filter_item,
-    .supertabelaprocedimentos_filters .supertabelaprocedimentos_filter_item,
-    .supertabelanegociacoes_filters .supertabelanegociacoes_filter_item,
-    .credenciamento_main_filter_item,
-    .compras_vv_filter_item,
-    .compras_orc_filtro_item {
-        flex: 1 1 100% !important;
-        min-width: 0 !important;
-    }
-
-    .credenciamento_main_filters_row,
-    .credenciamento_main_filters_selectors .credenciamento_main_filters_row:first-child {
-        grid-template-columns: 1fr !important;
-        gap: 8px !important;
-    }
-
-    .credenciamento_main_filters_layout {
-        flex-direction: column !important;
-    }
 
     .gerenciamento_acessos_layout {
         grid-template-columns: 1fr !important;
-    }
-
-    .compras_orc_filtros_flutuantes {
-        width: 100% !important;
-        max-width: 100% !important;
-        box-sizing: border-box;
-    }
-
-    .compras_vv_header_body {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
     }
 
     .documentation {
