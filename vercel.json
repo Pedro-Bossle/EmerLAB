@@ -27,10 +27,6 @@
       "maxDuration": 30,
       "includeFiles": "public/email/**"
     },
-    "api/repasse-mensal.js": {
-      "maxDuration": 30,
-      "includeFiles": "public/email/**"
-    },
     "api/audit-logs.js": {
       "maxDuration": 30
     },
@@ -51,6 +47,10 @@
     {
       "source": "/api/clicksign/:path*",
       "destination": "/api/clicksign-catchall?path=:path*"
+    },
+    {
+      "source": "/api/repasse-mensal",
+      "destination": "/api/email?_fn=repasse-mensal"
     },
     {
       "source": "/api/emer-radar-cron",

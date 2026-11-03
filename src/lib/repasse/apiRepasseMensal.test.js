@@ -82,7 +82,7 @@ vi.mock('../../../api/_lib/repasseEmails.js', () => {
     }
 })
 
-import handler from '../../../api/repasse-mensal.js'
+import handler from '../../../api/_lib/repasseMensalHandler.js'
 
 globalThis.process.env.REPASSE_TOKEN_SECRET = 'segredo-de-teste'
 

@@ -10,16 +10,16 @@
  * recomputável por HMAC(id, versão) para o «Copiar link».
  */
 import crypto from 'node:crypto'
-import { PERMISSION_KEYS } from '../src/lib/accessControl.js'
+import { PERMISSION_KEYS } from '../../src/lib/accessControl.js'
 import {
     createSupabaseAdminClient,
     getClientIp,
     readJsonBodyLimited,
     responderSePayloadGrande,
     validarJwtComPermissao,
-} from '../src/lib/api/serverAuth.js'
-import { aplicarRateLimit } from '../src/lib/api/rateLimit.js'
-import { emailAssetOrigin } from './_lib/emailBrand.js'
+} from '../../src/lib/api/serverAuth.js'
+import { aplicarRateLimit } from '../../src/lib/api/rateLimit.js'
+import { emailAssetOrigin } from './emailBrand.js'
 import {
     avaliarValorDocumento,
     aplicarVariaveis,
@@ -28,14 +28,14 @@ import {
     instrucaoPorTipo,
     validarArquivoRepasse,
     periodoMesAnteriorLabel,
-} from '../src/lib/repasse/repasseCore.js'
-import { cancelarEmailAgendadoResend, enviarEmailResend } from './_lib/resendMail.js'
+} from '../../src/lib/repasse/repasseCore.js'
+import { cancelarEmailAgendadoResend, enviarEmailResend } from './resendMail.js'
 import {
     montarEmailRepasseComprovante,
     montarEmailRepasseDocumentoDevolvido,
     montarEmailRepasseRelatorio,
     montarEmailRepasseReprovacao,
-} from './_lib/repasseEmails.js'
+} from './repasseEmails.js'
 
 const BUCKET = 'repasse-documentos'
 const LIMITE_PUBLICO = { limit: 40, windowMs: 60_000 }

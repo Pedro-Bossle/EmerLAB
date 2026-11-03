@@ -16,7 +16,7 @@ if (!para.includes('@')) {
 process.env.EMAIL_PUBLIC_URL = process.argv[3] || 'http://localhost:5174'
 
 const { createSupabaseAdminClient } = await import('../src/lib/api/serverAuth.js')
-const { tokenDoRelatorio, hashDoToken } = await import('../api/repasse-mensal.js')
+const { tokenDoRelatorio, hashDoToken } = await import('../api/_lib/repasseMensalHandler.js')
 const { montarEmailRepasseRelatorio } = await import('../api/_lib/repasseEmails.js')
 const { enviarEmailResend } = await import('../api/_lib/resendMail.js')
 const { emailAssetOrigin } = await import('../api/_lib/emailBrand.js')

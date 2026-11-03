@@ -344,7 +344,7 @@ Uma linha só, com os campos do §4.6.
 
 ## 8. API
 
-Arquivo novo: `api/repasse-mensal.js`, multiplexado com `?_route=` como os outros, com `maxDuration: 30` e `includeFiles: "public/email/**"` no `vercel.json`.
+Código em `api/_lib/repasseMensalHandler.js`, multiplexado com `?_route=`. Para respeitar o limite de 12 funções serverless do plano Hobby, ele **não é uma função própria**: `api/email.js` o atende quando a URL traz `_fn=repasse-mensal`, e o `vercel.json` reescreve `/api/repasse-mensal` para `/api/email?_fn=repasse-mensal` (mesmos `maxDuration: 30` e `includeFiles: "public/email/**"` da função de e-mail).
 
 **Rotas públicas** (pelo token). Têm limite de requisições via `emer_rate_limit_consumir` e devolvem erro genérico para token inválido, vencido ou revogado.
 
@@ -445,7 +445,7 @@ Novas ferramentas no `permissionCatalog.js`: `pagamentos.caixa` (rota) e `pagame
 | `src/lib/repasse/repasseApi.js` (novo) | chamadas ao `api/repasse-mensal` |
 | `src/App.jsx` | rotas `/repasse_mensal/:token` (pública) e `/pagamentos/caixa` |
 | `src/lib/permissionCatalog.js`, sidebar | ferramentas e contador da Caixa |
-| `api/repasse-mensal.js` (novo), `api/_lib/emailTemplates.js` | §8 e §9 |
+| `api/_lib/repasseMensalHandler.js` (novo), `api/email.js`, `api/_lib/emailTemplates.js` | §8 e §9 |
 | `vercel.json` | config da função nova |
 | `supabase/migrations/…_repasse_mensal.sql` (novo) | §7, só `CREATE` |
 
