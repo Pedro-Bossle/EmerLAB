@@ -108,17 +108,28 @@ function lembrarConversaWati(waId, id) {
     db().from('zap_conversas').update({ conversa_wati: String(id) }).eq('wa_id', chave).then(() => {}, () => {})
 }
 
+// Ao tentar várias formas do número, a que não existe na WATI responde "Contact not found". Esse erro só diz
+// que aquela variante não é o contato; não pode esconder a recusa real da variante certa (ex.: conversa encerrada).
+const erroDeContatoInexistente = (e) => e instanceof wati.WatiError && e.codigo === 'contato_inexistente'
+const erroMaisUtil = (atual, novo) => (!atual || (erroDeContatoInexistente(atual) && !erroDeContatoInexistente(novo)) ? novo : atual)
+
 /** Endpoints v3 de conversa (status, operador): tenta o ConversationId e, se a WATI não achar, cai no telefone. */
 async function comConversaWati(waId, fn, meta) {
     const id = conversaWati.get(normalizarWaId(waId)) || meta?.conversa_wati
+    let erroId = null
     if (id) {
         try {
             return await fn(id)
         } catch (e) {
             if (!(e instanceof wati.WatiError && (e.status === 400 || e.status === 404))) throw e
+            erroId = e
         }
     }
-    return comAlvoWati(waId, fn)
+    try {
+        return await comAlvoWati(waId, fn)
+    } catch (e) {
+        throw erroMaisUtil(e, erroId)
+    }
 }
 
 /** getMessages: tenta com/sem 9º dígito até achar histórico (ou esgotar variantes). */
@@ -179,7 +190,7 @@ async function comAlvoWati(waId, fn) {
             alvoWatiOk.set(normalizarWaId(waId), alvo)
             return r
         } catch (e) {
-            ultimoErro = e
+            ultimoErro = erroMaisUtil(ultimoErro, e)
             if (!(e instanceof wati.WatiError && (e.status === 400 || e.status === 404 || e.codigo === 'numero_invalido'))) throw e
         }
     }
@@ -1189,7 +1200,8 @@ const TEMPLATE_REPETIDO_MS = 30000
 const templatesRecentes = new Map()
 
 async function enviarTemplateHandler(req, usuario, waId) {
-    exigirSerAtendente(await exigirConversa(usuario, waId), usuario)
+    const meta = await exigirConversa(usuario, waId)
+    exigirSerAtendente(meta, usuario)
     if (canalDe(waId) !== 'whatsapp') throw new HttpError(400, 'Templates existem só no WhatsApp. No Instagram e no Messenger, aguarde o cliente escrever.', 'canal')
     const { nome, parametros } = await lerCorpo(req)
     if (!nome) throw new HttpError(400, 'Escolha um template.')
@@ -1211,6 +1223,12 @@ async function enviarTemplateHandler(req, usuario, waId) {
     }
     // template enviado por atendente conta como resposta (regra do "Não respondidas" da WATI)
     await salvarMeta(waId, { ultima_msg: `📄 Template: ${nome}`, ultima_msg_em: new Date().toISOString(), ultima_msg_minha: true, ultima_humana_em: new Date().toISOString() })
+    // o template reabre a conversa na WATI: leva para lá o atendente do painel, que a WATI recusava com ela encerrada
+    if (meta?.atendente_email) {
+        await comConversaWati(waId, (t) => wati.atribuirAtendenteV3(t, meta.atendente_email), meta)
+            .catch(() => comAlvoWati(waId, (num) => wati.atribuirAtendente(num, meta.atendente_email)))
+            .catch(() => {})
+    }
     return { ok: true }
 }
 
@@ -1238,6 +1256,11 @@ async function atribuirHandler(req, usuario, waId) {
         // mantém a atribuição local; inclui o texto original da WATI quando o mapeamento for genérico
         const original = e?.detalhe?.original || e?.detalhe?.info || e?.detalhe?.message
         avisoWati = original && original !== e.message ? `${e.message} — detalhe: ${original}` : e.message
+        // conversa encerrada na WATI (e, sem o cliente escrever, sem como reabrir): explica o que fazer
+        if (e instanceof wati.WatiError && ['conversa_fechada', 'ticket_resolvido'].includes(e.codigo)) {
+            avisoWati =
+                'Na WATI esta conversa está encerrada e não aceita atendente agora. A atribuição ficou no painel e vai para a WATI quando você enviar um template ou o cliente escrever.'
+        }
     }
     // Assumir implica conversa aberta; se a WATI reabriu um Solved no assign, alinha o painel
     const campos = { atendente_email: alvo }

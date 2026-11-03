@@ -24,6 +24,9 @@ const RECUSAS = [
     // v3 conversations/{target}/status sem conversa aberta: o bot/atendente fechou ou a janela expirou
     [/conversation\s+with\s+.*\bnot\s+found\b/i, 'conversa_fechada',
         'Na WATI esta conversa já está encerrada (fechada pelo bot, por um atendente ou expirada).'],
+    // o número tentado não existe como contato (ex.: a variante com/sem o 9º dígito que a WATI não usa)
+    [/\bcontact\s+(was\s+)?not\s+found\b|\bcontact\s+does\s+not\s+exist\b/i, 'contato_inexistente',
+        'Este número não existe como contato na WATI (confira se ele está gravado lá com ou sem o 9º dígito).'],
     [/operator.*(not|no).*(found|exist)|user.*(not|no).*found|\bno\s+such\s+operator\b|email.*(not|no).*(found|exist|operator)|not\s+a\s+valid\s+operator|operator\s+does\s+not\s+exist/i, 'operador',
         'Esse e-mail não existe como operador na WATI. A atribuição ficou só no painel.'],
     [/template.*(not.*found|not.*approved|paused|disabled)|parameter/i, 'template',
