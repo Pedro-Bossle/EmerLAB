@@ -31,11 +31,12 @@ function botaoSecundario(label, href) {
 const textoPuro = (partes) => partes.filter(Boolean).join('\n\n')
 
 /** Relatório para o prestador. `corpo` já vem com as variáveis aplicadas (texto livre editável). */
-export function montarEmailRepasseRelatorio({ assunto, corpo, prestador, competencia, valor, atendimentos, formaPagamento, link, whatsapp }) {
+export function montarEmailRepasseRelatorio({ assunto, corpo, prestador, competencia, valor, atendimentos, formaPagamento, link, whatsapp, descontoRpa = null }) {
     const wa = linkWhatsapp(whatsapp, `Olá! Tenho uma dúvida sobre o relatório de repasse de ${competencia} (${prestador}).`)
     const corpoHtml = `${paragrafos(corpo)}${cartao([
         linhaCartao('Competência', competencia),
         linhaCartao('Repasse Emerdog', brl(valor)),
+        ...(descontoRpa ? [linhaCartao(`Desconto de INSS (${descontoRpa.pct}%)`, `− ${brl(descontoRpa.desconto)}`), linhaCartao('Valor a receber', brl(descontoRpa.liquido))] : []),
         linhaCartao('Atendimentos', String(atendimentos)),
         linhaCartao('Forma de pagamento', formaPagamento),
     ])}${botaoSecundario('Dúvidas? WhatsApp', wa)}`
@@ -49,7 +50,7 @@ export function montarEmailRepasseRelatorio({ assunto, corpo, prestador, compete
             ctaHref: link,
             produto: PRODUTO,
         }),
-        text: textoPuro([corpo, `Repasse Emerdog (${competencia}): ${brl(valor)} · ${atendimentos} atendimentos`, `Ver relatório e aprovar: ${link}`, `Dúvidas? ${wa}`]),
+        text: textoPuro([corpo, `Repasse Emerdog (${competencia}): ${brl(valor)} · ${atendimentos} atendimentos`, descontoRpa ? `Desconto de INSS (${descontoRpa.pct}%): − ${brl(descontoRpa.desconto)} · Valor a receber: ${brl(descontoRpa.liquido)}` : '', `Ver relatório e aprovar: ${link}`, `Dúvidas? ${wa}`]),
     }
 }
 

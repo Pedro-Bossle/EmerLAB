@@ -3,6 +3,8 @@
  * Sem dependências de Node/DOM.
  */
 
+import { DESCONTO_RPA, valorLiquidoRpa } from '../pagamentosValor.js'
+
 export const STATUS_RELATORIO = {
     nao_enviado: 'Não enviado',
     agendado: 'Agendado',
@@ -56,10 +58,26 @@ export function avaliarValorDocumento(valorDocumento, totalRepasse, totalTutor) 
     return { nivel: 'aviso_diferente', diferenca: (v - centavos(totalRepasse)) / 100 }
 }
 
-/** Texto de `{instrucao_tipo}` do e-mail (§4.2). */
-export function instrucaoPorTipo(tipo, valorFormatado) {
+const brlCore = (n) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+/** Desconto do RPA (INSS, 11%) sobre o repasse: { pct, desconto, liquido } em números. */
+export function descontoRpaDoRepasse(valorBruto) {
+    const bruto = Number(valorBruto || 0)
+    const liquido = valorLiquidoRpa(bruto) ?? bruto
+    return { pct: Math.round(DESCONTO_RPA * 100), desconto: Math.round((bruto - liquido) * 100) / 100, liquido }
+}
+
+/**
+ * Texto de `{instrucao_tipo}` do e-mail (§4.2).
+ * `descontoRpa: true` (RPA que sofre o desconto de 11%) avisa o desconto e o valor a receber.
+ */
+export function instrucaoPorTipo(tipo, valorFormatado, { descontoRpa = false, valorBruto = null } = {}) {
     if (tipo === 'nota') return `anexe a nota fiscal no valor de ${valorFormatado}`
     if (tipo === 'boleto') return `anexe o boleto no valor de ${valorFormatado}`
+    if (descontoRpa && valorBruto != null) {
+        const d = descontoRpaDoRepasse(valorBruto)
+        return `é só aprovar o relatório. Como o pagamento é por RPA, haverá desconto de ${d.pct}% de INSS (${brlCore(d.desconto)}) sobre o repasse de ${valorFormatado}, e você receberá ${brlCore(d.liquido)}`
+    }
     return 'é só aprovar o relatório'
 }
 

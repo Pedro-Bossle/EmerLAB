@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase.js'
 import { formatarValorMonetarioBr } from '../../lib/pagamentosValor.js'
-import { enviarLote, planejarEnvio } from '../../lib/repasse/repasseApi.js'
+import { enviarLote, lerRelatorioCompleto, planejarEnvio } from '../../lib/repasse/repasseApi.js'
 import {
     TIPOS_REPASSE_ROTULO,
     aplicarVariaveis,
     distribuirHorarios,
+    descontoRpaDoRepasse,
     instrucaoPorTipo,
     rotuloStatusRelatorio,
     periodoMesAnteriorLabel,
@@ -122,6 +123,22 @@ export default function PagamentosEnvioWizard({ open, onClose, registros, relato
     }, [janelaIso, escolhidos.length, ordem])
 
     const previa = escolhidos.find((c) => c.rel.id === previaId) || escolhidos[0]
+    // A lista de relatórios não traz os atendimentos (JSON pesado): busca só o do relatório em prévia.
+    const [atendPrevia, setAtendPrevia] = useState({})
+    const previaRelId = previa?.rel.id
+    useEffect(() => {
+        if (!previaRelId || atendPrevia[previaRelId] != null) return undefined
+        let ativo = true
+        lerRelatorioCompleto(previaRelId)
+            .then((r) => {
+                const n = (r?.dados?.grupos || []).reduce((s, g) => s + (g.atendimentos || []).length, 0)
+                if (ativo) setAtendPrevia((p) => ({ ...p, [previaRelId]: n }))
+            })
+            .catch(() => {})
+        return () => {
+            ativo = false
+        }
+    }, [previaRelId, atendPrevia])
     const varsPrevia = previa
         ? (() => {
               const valor = formatarValorMonetarioBr(previa.rel.total_repasse)
@@ -129,8 +146,11 @@ export default function PagamentosEnvioWizard({ open, onClose, registros, relato
                   prestador: previa.reg.prestadorNome,
                   competencia: periodoMesAnteriorLabel(),
                   valor,
-                  atendimentos: '—',
-                  instrucao_tipo: instrucaoPorTipo(tipoDe(previa.reg.tipoRepasse), valor),
+                  atendimentos: atendPrevia[previa.rel.id] ?? '…',
+                  instrucao_tipo: instrucaoPorTipo(tipoDe(previa.reg.tipoRepasse), valor, {
+                      descontoRpa: String(previa.reg.tipoRepasse || '').toLowerCase() === 'rpa',
+                      valorBruto: previa.rel.total_repasse,
+                  }),
               }
           })()
         : null
@@ -289,7 +309,16 @@ export default function PagamentosEnvioWizard({ open, onClose, registros, relato
                             <>
                                 <p className="font-bold">{aplicarVariaveis(assunto, varsPrevia)}</p>
                                 <p className="whitespace-pre-wrap">{aplicarVariaveis(corpo, varsPrevia)}</p>
-                                <p className="rounded-lg border border-line bg-white p-2">Repasse Emerdog: <strong>{varsPrevia.valor}</strong></p>
+                                <div className="flex flex-col gap-1 rounded-lg border border-line bg-white p-2">
+                                    <p>Repasse Emerdog: <strong>{varsPrevia.valor}</strong></p>
+                                    {String(previa.reg.tipoRepasse || '').toLowerCase() === 'rpa' ? (
+                                        <>
+                                            <p>Desconto de INSS ({descontoRpaDoRepasse(previa.rel.total_repasse).pct}%): <strong>− {formatarValorMonetarioBr(descontoRpaDoRepasse(previa.rel.total_repasse).desconto)}</strong></p>
+                                            <p>Valor a receber: <strong>{formatarValorMonetarioBr(descontoRpaDoRepasse(previa.rel.total_repasse).liquido)}</strong></p>
+                                        </>
+                                    ) : null}
+                                    <p>Atendimentos: <strong>{varsPrevia.atendimentos}</strong></p>
+                                </div>
                                 <p className="font-semibold text-brand">[Ver relatório e aprovar] [Dúvidas? WhatsApp]</p>
                             </>
                         ) : null}

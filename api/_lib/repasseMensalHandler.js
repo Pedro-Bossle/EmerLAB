@@ -26,6 +26,7 @@ import {
     distribuirHorarios,
     ehCompetenciaNovoModelo,
     instrucaoPorTipo,
+    descontoRpaDoRepasse,
     validarArquivoRepasse,
     periodoMesAnteriorLabel,
 } from '../../src/lib/repasse/repasseCore.js'
@@ -377,13 +378,16 @@ async function enviarLote(admin, { envio_id, itens }, ctx) {
             const valorFmt = Number(rel.total_repasse).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
             const comp = periodoMesAnteriorLabel() // o e-mail sempre fala do mês anterior ao do envio
             const prestador = registro.prestador_nome || rel.nome_a1
-            const vars = { prestador, competencia: comp, valor: valorFmt, atendimentos: contarAtendimentos(rel.dados), instrucao_tipo: instrucaoPorTipo(tipo, valorFmt) }
+            // Só o RPA comum sofre o desconto de 11% (INSS); «RPA s/desc.» não.
+            const comDesconto = tipo === 'rpa' && String(registro.tipo_repasse || '').toLowerCase() === 'rpa'
+            const vars = { prestador, competencia: comp, valor: valorFmt, atendimentos: contarAtendimentos(rel.dados), instrucao_tipo: instrucaoPorTipo(tipo, valorFmt, { descontoRpa: comDesconto, valorBruto: rel.total_repasse }) }
             const token = tokenDoRelatorio(rel.id, rel.token_versao)
             const m = montarEmailRepasseRelatorio({
                 assunto: aplicarVariaveis(envio.assunto, vars), corpo: aplicarVariaveis(envio.corpo, vars), prestador, competencia: comp,
                 valor: rel.total_repasse, atendimentos: vars.atendimentos,
                 formaPagamento: tipo === 'rpa' ? 'RPA' : tipo === 'nota' ? 'Nota fiscal' : 'Boleto',
                 link: linkPublico(token), whatsapp: config.whatsapp_financeiro,
+                descontoRpa: comDesconto ? descontoRpaDoRepasse(rel.total_repasse) : null,
             })
             const horario = item.horario && new Date(item.horario) > new Date(Date.now() + 60_000) ? new Date(item.horario) : null
             const data = await enviarEmailResend({ to: para, subject: m.subject, html: m.html, text: m.text, from: remetente(config), scheduledAt: horario || undefined })

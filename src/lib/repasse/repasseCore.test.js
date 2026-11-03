@@ -4,6 +4,7 @@ import {
     avaliarValorDocumento,
     distribuirHorarios,
     ehCompetenciaNovoModelo,
+    descontoRpaDoRepasse,
     instrucaoPorTipo,
     linkWhatsapp,
     periodoMesAnteriorLabel,
@@ -66,6 +67,16 @@ describe('textos e arquivos', () => {
         expect(instrucaoPorTipo('rpa', 'R$ 1')).toMatch(/aprovar/)
         expect(instrucaoPorTipo('nota', 'R$ 1')).toMatch(/nota fiscal no valor de R\$ 1/)
         expect(instrucaoPorTipo('boleto', 'R$ 1')).toMatch(/boleto/)
+    })
+
+    it('RPA com desconto avisa o desconto de 11% e o valor a receber; sem desconto segue simples', () => {
+        const t = instrucaoPorTipo('rpa', 'R$ 1.500,00', { descontoRpa: true, valorBruto: 1500 })
+        expect(t).toMatch(/aprovar o relatório/)
+        expect(t).toMatch(/desconto de 11% de INSS/)
+        expect(t).toMatch(/165,00/)
+        expect(t).toMatch(/1\.335,00/)
+        expect(instrucaoPorTipo('rpa', 'R$ 1.500,00', { descontoRpa: false, valorBruto: 1500 })).toBe('é só aprovar o relatório')
+        expect(descontoRpaDoRepasse(1500)).toEqual({ pct: 11, desconto: 165, liquido: 1335 })
     })
     it('valida arquivo', () => {
         expect(validarArquivoRepasse({ nome: 'a.exe', tamanho: 10 })).toMatch(/Formato/)
