@@ -46,16 +46,22 @@ export function assinar(nome, { aoAviso, aoEstado }) {
  * Agrupa avisos: espera `esperaMs` (vários avisos seguidos viram uma recarga) e nunca roda `fn`
  * mais de uma vez a cada `intervaloMinMs` (um canal barulhento não vira DoS na própria API).
  */
-export function criarAgendadorDeAviso(fn, { esperaMs = 400, intervaloMinMs = 2000 } = {}) {
+export function criarAgendadorDeAviso(fn, { esperaMs = 400, intervaloMinMs = 2000, janelaMs = 30000, maxNaJanela = 6, intervaloFreioMs = 15000 } = {}) {
     let timer = null
     let ultima = 0
+    const execucoes = []
     return {
         aviso() {
             if (timer) return // já há uma recarga agendada: este aviso entra nela
-            const espera = Math.max(esperaMs, ultima + intervaloMinMs - Date.now())
+            // freio de segurança: se os avisos não param (laço entre recarga e aviso), espaça para 15 s
+            const agora = Date.now()
+            while (execucoes.length && agora - execucoes[0] > janelaMs) execucoes.shift()
+            const minimo = execucoes.length >= maxNaJanela ? intervaloFreioMs : intervaloMinMs
+            const espera = Math.max(esperaMs, ultima + minimo - agora)
             timer = setTimeout(() => {
                 timer = null
                 ultima = Date.now()
+                execucoes.push(ultima)
                 fn()
             }, espera)
         },

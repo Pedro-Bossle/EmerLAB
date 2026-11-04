@@ -282,7 +282,9 @@ async function salvarMeta(waId, campos) {
             .upsert({ wa_id: waId, ...campos, atualizado_em: new Date().toISOString() }, { onConflict: 'wa_id' }),
     )
     invalidar('conversas:') // a lista recarregada logo após uma ação (assumir, resolver…) já vem atualizada
-    void avisarConversa(normalizarWaId(waId))
+    // Só avisa quando algo MUDOU. A conferência da lista grava `salvarMeta(waId, {})` só para marcar «conferida»;
+    // avisar nesse caso fazia cada recarga gerar um aviso que gerava outra recarga (laço infinito).
+    if (Object.keys(campos || {}).length) void avisarConversa(normalizarWaId(waId))
 }
 
 // Entrada por anúncio (Click-to-WhatsApp): a mensagem do cliente que veio do anúncio traz messageReferral
