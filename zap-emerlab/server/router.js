@@ -3,7 +3,8 @@ import { Buffer } from 'node:buffer'
 import process from 'node:process'
 import { getEnv, envFaltando } from './env.js'
 import { hashSenha, conferirSenha, criarToken, lerToken, compararSeguro, segredoAleatorio, impressao } from './crypto.js'
-import { db, ok, DbError, buscarUsuarioPorEmail, buscarUsuarioPorId, idsDepartamentos } from './db.js'
+import { db, ok, DbError, buscarUsuarioPorEmail, buscarUsuarioPorId, idsDepartamentos, invalidarUsuarios, listarDepartamentos, invalidarDepartamentos } from './db.js'
+import { memo, invalidar } from './cache.js'
 import * as wati from './wati.js'
 import { emailConfigurado, enviarEmail, montarEmailConvite } from './email.js'
 import { municipiosPorUf } from './ibge.js'
@@ -279,6 +280,7 @@ async function salvarMeta(waId, campos) {
             .from('zap_conversas')
             .upsert({ wa_id: waId, ...campos, atualizado_em: new Date().toISOString() }, { onConflict: 'wa_id' }),
     )
+    invalidar('conversas:') // a lista recarregada logo após uma ação (assumir, resolver…) já vem atualizada
 }
 
 // Entrada por anúncio (Click-to-WhatsApp): a mensagem do cliente que veio do anúncio traz messageReferral
@@ -302,6 +304,7 @@ function anuncioDe(itens) {
 async function registrarAnuncio(waId, anuncio, atual) {
     if (!anuncio || (atual && atual.em === anuncio.em)) return false
     const r = await db().from('zap_conversas').upsert({ wa_id: waId, anuncio }, { onConflict: 'wa_id' })
+    invalidar('conversas:')
     return !r.error
 }
 
@@ -591,6 +594,7 @@ async function aceitarConvite(req, res) {
     const u = await lerConvite(token)
     const senhaHash = hashSenha(senha)
     ok(await db().from('zap_usuarios').update({ senha_hash: senhaHash, atualizado_em: new Date().toISOString() }).eq('id', u.id))
+    invalidarUsuarios()
     const maxAge = Math.round(env.sessionHoras * 3600)
     const sessao = criarToken({ uid: u.id, email: u.email, pv: impressao(senhaHash), exp: Date.now() + maxAge * 1000 }, env.sessionSecret)
     enviar(res, 200, { ok: true, tenantId: env.watiTenantId, email: u.email }, { 'Set-Cookie': cookieSessao(req, sessao, maxAge) })
@@ -599,7 +603,7 @@ async function aceitarConvite(req, res) {
 async function me(usuario) {
     const env = getEnv()
     const [departamentos, canais] = await Promise.all([
-        db().from('zap_departamentos').select('id, nome, cor, equipe_wati').order('nome').then(ok),
+        listarDepartamentos(),
         wati.listarCanais(),
     ])
     return {
@@ -625,6 +629,7 @@ async function trocarSenha(req, res, usuario) {
     if (!u || !conferirSenha(atual || '', u.senha_hash)) throw new HttpError(400, 'Senha atual incorreta.')
     const senhaHash = hashSenha(nova)
     ok(await db().from('zap_usuarios').update({ senha_hash: senhaHash, atualizado_em: new Date().toISOString() }).eq('id', u.id))
+    invalidarUsuarios()
     const env = getEnv()
     const maxAge = Math.round(env.sessionHoras * 3600)
     const token = criarToken({ uid: u.id, email: u.email, pv: impressao(senhaHash), exp: Date.now() + maxAge * 1000 }, env.sessionSecret)
@@ -640,12 +645,15 @@ async function listarConversas(usuario, query) {
             : wati.listarContatosCanal(canal).then((lista) => lista.map((c) => normalizarContatoCanal(c, canal)))
     const [contatos, metasTodas] = await Promise.all([
         buscarContatos,
-        db()
-            .from('zap_conversas')
-            .select('*')
-            .order('ultima_msg_em', { ascending: false, nullsFirst: false })
-            .limit(300)
-            .then(ok),
+        // 3 s de cache: os atendentes (e as abas de cada um) consultam a mesma lista a cada 10 s
+        memo('conversas:lista', 3000, () =>
+            db()
+                .from('zap_conversas')
+                .select('*')
+                .order('ultima_msg_em', { ascending: false, nullsFirst: false })
+                .limit(300)
+                .then(ok),
+        ),
     ])
     const metas = metasTodas.filter((m) => canalDe(m.wa_id) === canal)
     const porId = new Map()
@@ -877,6 +885,7 @@ async function marcarBloqueio(waId, bloqueada) {
         .update({ bloqueada_em: bloqueada ? new Date().toISOString() : null })
         .in('wa_id', variantesWaId(waId))
         .then(() => {}, () => {})
+    invalidar('conversas:')
 }
 
 // Departamento pela equipe da WATI (o bot distribui por equipe e o painel não ficava sabendo): mantém o atual
@@ -911,7 +920,7 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
     if (wati.watiEmPausa()) return
     const escolhidas = escolherParaVerificar(lista, metaPorId, contatoEm)
     if (!escolhidas.length) return
-    const departamentos = await db().from('zap_departamentos').select('id, equipe_wati').then(ok).catch(() => [])
+    const departamentos = await listarDepartamentos().catch(() => [])
     await Promise.allSettled(
         escolhidas.map(async (c) => {
             verificadas.set(c.waId, Date.now())
@@ -1698,6 +1707,7 @@ async function editarUsuario(req, id) {
     }
     ok(await db().from('zap_usuarios').update(campos).eq('id', id))
     if (Array.isArray(b.departamentos)) await salvarDepartamentosDoUsuario(id, b.departamentos)
+    invalidarUsuarios()
     return { ok: true }
 }
 
@@ -2039,14 +2049,17 @@ export async function handle(req, res, rotaForcada) {
             exigirAdmin(usuario)
             if (!partes[1] && metodo === 'POST') {
                 ok(await db().from('zap_departamentos').insert(validarDepto(await lerCorpo(req))))
+                invalidarDepartamentos()
                 return responder({ ok: true })
             }
             if (partes[1] && metodo === 'PUT') {
                 ok(await db().from('zap_departamentos').update(validarDepto(await lerCorpo(req))).eq('id', partes[1]))
+                invalidarDepartamentos()
                 return responder({ ok: true })
             }
             if (partes[1] && metodo === 'DELETE') {
                 ok(await db().from('zap_departamentos').delete().eq('id', partes[1]))
+                invalidarDepartamentos()
                 return responder({ ok: true })
             }
         }
@@ -2063,6 +2076,7 @@ export async function handle(req, res, rotaForcada) {
             if (partes[1] && metodo === 'DELETE') {
                 if (partes[1] === ADMIN_ENV_ID || partes[1] === usuario.id) throw new HttpError(400, 'Não é possível remover este usuário.')
                 ok(await db().from('zap_usuarios').delete().eq('id', partes[1]))
+                invalidarUsuarios()
                 return responder({ ok: true })
             }
         }
