@@ -23,8 +23,15 @@ export function registrarAoExpirar(fn) {
 let limiteAte = 0
 export const emLimiteWati = () => Date.now() < limiteAte
 
+// Recarga disparada por um aviso em tempo real: pede ao servidor que ignore os caches curtos (fresh=1)
+let frescoAte = 0
+export const pedirDadoFresco = (ms = 1500) => {
+    frescoAte = Date.now() + ms
+}
+
 export async function api(caminho, { method = 'GET', body } = {}) {
     let resp
+    if (method === 'GET' && Date.now() < frescoAte) caminho += `${caminho.includes('?') ? '&' : '?'}fresh=1`
     try {
         resp = await fetch(`/api/${caminho}`, {
             method,

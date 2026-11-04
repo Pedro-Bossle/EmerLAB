@@ -5,6 +5,7 @@ import { getEnv, envFaltando } from './env.js'
 import { hashSenha, conferirSenha, criarToken, lerToken, compararSeguro, segredoAleatorio, impressao } from './crypto.js'
 import { db, ok, DbError, buscarUsuarioPorEmail, buscarUsuarioPorId, idsDepartamentos, invalidarUsuarios, listarDepartamentos, invalidarDepartamentos } from './db.js'
 import { memo, invalidar } from './cache.js'
+import { avisar, avisarConversa, configTempoReal, nomeCanal, tempoRealAtivo } from './tempoReal.js'
 import * as wati from './wati.js'
 import { emailConfigurado, enviarEmail, montarEmailConvite } from './email.js'
 import { municipiosPorUf } from './ibge.js'
@@ -281,6 +282,7 @@ async function salvarMeta(waId, campos) {
             .upsert({ wa_id: waId, ...campos, atualizado_em: new Date().toISOString() }, { onConflict: 'wa_id' }),
     )
     invalidar('conversas:') // a lista recarregada logo após uma ação (assumir, resolver…) já vem atualizada
+    void avisarConversa(normalizarWaId(waId))
 }
 
 // Entrada por anúncio (Click-to-WhatsApp): a mensagem do cliente que veio do anúncio traz messageReferral
@@ -616,6 +618,8 @@ async function me(usuario) {
             webhook: Boolean(env.webhookSecret),
             // como a "Default Team" da WATI: conversa sem atendente e sem setor fica visível para todos os atendentes
             atendenteVeSemDepto: env.atendenteVeSemDepto,
+            // avisos em tempo real (null = só polling); ver server/tempoReal.js
+            realtime: configTempoReal(),
         },
     }
 }
@@ -1886,6 +1890,7 @@ async function processarWebhook(b) {
         if (waId) {
             await db().from('zap_conversas').update({ ticks_em: new Date().toISOString() }).in('wa_id', variantesWaId(waId)).then(() => {}, () => {})
             wati.invalidarCache(`msgs:${waId}:`)
+            await avisar('conv', normalizarWaId(waId))
         }
         return
     }
@@ -1927,6 +1932,7 @@ async function processarWebhook(b) {
     }
     if (!minha && b.messageReferral) await registrarAnuncio(waId, anuncioDe([{ ...b, created: em }]), null)
     wati.invalidarCache(`msgs:${waId}:`)
+    await avisarConversa(normalizarWaId(waId))
 }
 
 // ---------- roteamento ----------
@@ -1960,8 +1966,18 @@ export async function handle(req, res, rotaForcada) {
 
         const usuario = await usuarioDaSessao(req)
         const responder = (corpo) => enviar(res, 200, corpo)
+        // recarga disparada por um aviso em tempo real: o dado novo não pode vir de um cache de 3 s de outra instância
+        if (metodo === 'GET' && query.get('fresh') === '1') {
+            invalidar('conversas:')
+            wati.invalidarCache('msgs:')
+        }
 
         if (rota === 'auth/me' && metodo === 'GET') return responder(await me(usuario))
+        if (rota === 'canais' && metodo === 'GET') {
+            // nome do canal de uma conversa (só para quem está logado); null = tempo real desligado
+            const waId = normalizarWaId(query.get('waId') || '')
+            return responder({ conv: tempoRealAtivo() && waId ? nomeCanal('conv', waId) : null })
+        }
         if (rota === 'auth/senha' && metodo === 'POST') return await trocarSenha(req, res, usuario)
         if (rota === 'conversas' && metodo === 'GET') return responder(await listarConversas(usuario, query))
         if (rota === 'templates' && metodo === 'GET') return responder({ templates: await wati.listarTemplates() })

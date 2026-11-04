@@ -240,7 +240,19 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
         citacoesLocais.current = new Map()
         carregar()
     }, [carregar])
-    usarAtualizacao(carregar, { visivel: INTERVALO_CHAT })
+    // canal desta conversa (nome secreto, entregue só a quem está logado); sem tempo real: null
+    const [canalConv, setCanalConv] = useState(null)
+    useEffect(() => {
+        if (!config?.realtime) return undefined
+        let vivo = true
+        api(`canais?waId=${encodeURIComponent(waId)}`)
+            .then((r) => vivo && setCanalConv(r.conv || null))
+            .catch(() => {})
+        return () => {
+            vivo = false
+        }
+    }, [config?.realtime, waId])
+    usarAtualizacao(carregar, { visivel: INTERVALO_CHAT, tempoReal: canalConv ? { nome: canalConv, visivelRt: 15000 } : null })
 
     const carregarAntigas = async () => {
         const prox = pagina + 1

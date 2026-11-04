@@ -288,7 +288,12 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
         const t = setTimeout(() => carregarConversas(busca), busca ? 400 : 0)
         return () => clearTimeout(t)
     }, [busca, carregarConversas])
-    usarAtualizacao(() => carregarConversas(busca), { visivel: INTERVALO_LISTA })
+    // com tempo real: o aviso recarrega na hora e o polling espaça para 30 s (nunca menos: a lista também
+    // reconcilia com a WATI, e mudanças feitas dentro da própria WATI não geram aviso)
+    usarAtualizacao(() => carregarConversas(busca), {
+        visivel: INTERVALO_LISTA,
+        tempoReal: config.realtime?.lista ? { nome: config.realtime.lista, visivelRt: 30000 } : null,
+    })
 
     // Teams/Outlook (prévia): ocupa a lista e a área do chat no lugar do canal
     const [appMs, setAppMs] = useState(null)

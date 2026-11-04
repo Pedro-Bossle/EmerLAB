@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, registrarAoExpirar } from './api.js'
+import { configurarTempoReal } from './tempoReal.js'
 import { usePreferencias } from './tema.js'
 import Login from './components/Login.jsx'
 import CriarSenha from './components/CriarSenha.jsx'
@@ -20,6 +21,7 @@ export default function App() {
             const status = await api('status')
             if (!status.configurado) return setEstado({ fase: 'config', faltando: status.faltando })
             const sessao = await api('auth/me')
+            configurarTempoReal(sessao.config?.realtime) // antes de renderizar o painel (os efeitos dos filhos assinam os canais)
             setEstado({ fase: 'painel', sessao })
         } catch (e) {
             setEstado(e.status === 401 ? { fase: 'login' } : { fase: 'erro', erro: e.message })
