@@ -201,7 +201,25 @@ export async function carregarCaixa() {
         .eq('status', 'reprovado')
         .order('respondido_em', { ascending: true })
     if (e2) throw new Error(e2.message)
-    const relIds = [...new Set([...(docs || []).map((d) => d.relatorio_id), ...(arquivadas || []).map((d) => d.relatorio_id), ...(reprov || []).map((r) => r.id)])]
+    // RPA não anexa documento: a confirmação dele é o evento «aprovado» gravado pela página pública (autor prestador).
+    // Mesmo prazo das notas aprovadas, para a Caixa não crescer sem fim.
+    const { data: evRpa, error: e4 } = await supabase
+        .from('repasse_eventos')
+        .select('id, relatorio_id, criado_em')
+        .eq('tipo', 'aprovado')
+        .eq('autor', 'prestador')
+        .gte('criado_em', corte)
+        .order('criado_em', { ascending: false })
+        .limit(300)
+    if (e4) throw new Error(e4.message)
+    const relIds = [
+        ...new Set([
+            ...(docs || []).map((d) => d.relatorio_id),
+            ...(arquivadas || []).map((d) => d.relatorio_id),
+            ...(reprov || []).map((r) => r.id),
+            ...(evRpa || []).map((e) => e.relatorio_id),
+        ]),
+    ]
     const rels = new Map()
     const regs = new Map()
     const obs = new Map()
@@ -219,7 +237,7 @@ export async function carregarCaixa() {
             .order('criado_em', { ascending: false })
         for (const e of ev || []) if (!obs.has(e.relatorio_id)) obs.set(e.relatorio_id, e)
     }
-    return { docs: docs || [], arquivadas: arquivadas || [], reprovados: reprov || [], rels, regs, obs }
+    return { docs: docs || [], arquivadas: arquivadas || [], reprovados: reprov || [], rpaAprovados: evRpa || [], rels, regs, obs }
 }
 
 /** Contagem de pendências da Caixa (para o menu). */

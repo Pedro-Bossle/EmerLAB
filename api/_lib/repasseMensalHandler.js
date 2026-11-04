@@ -231,8 +231,28 @@ async function publicoDocumento(admin, { token, path, numero, vencimento, valor 
     if (aval.nivel === 'erro_tutor') throw new ErroApi(422, 'Esse é o valor pago pelo tutor, não o repasse. Confira o valor.')
     if (!String(numero || '').trim()) throw new ErroApi(400, tipo === 'nota' ? 'Informe o número da nota.' : 'Informe a linha digitável.')
     if (tipo === 'boleto' && !vencimento) throw new ErroApi(400, 'Informe o vencimento do boleto.')
+    // Envio repetido (clique duplo, reenvio por falha de rede): mesmo tipo, número e valor já em revisão ou aprovado
+    // não vira um segundo documento. Responde como sucesso (o prestador não precisa fazer nada) e descarta o arquivo novo.
+    const numeroLimpo = String(numero).trim().slice(0, 120)
+    const { data: jaExiste } = await admin
+        .from('repasse_documentos')
+        .select('id, status')
+        .eq('relatorio_id', rel.id)
+        .eq('tipo', tipo)
+        .eq('numero', numeroLimpo)
+        .eq('valor', arredondar(v))
+        .in('status', ['em_revisao', 'aprovado'])
+        .limit(1)
+    if (jaExiste?.length) {
+        try {
+            await admin.storage.from(BUCKET).remove([path])
+        } catch {
+            // arquivo órfão é inofensivo; a limpeza diária só olha documentos registrados
+        }
+        return { status: jaExiste[0].status === 'aprovado' ? 'aprovado' : 'documento_em_revisao', alerta: aval.nivel, duplicado: true }
+    }
     const { error } = await admin.from('repasse_documentos').insert({
-        relatorio_id: rel.id, tipo, storage_path: path, numero: String(numero).trim().slice(0, 120),
+        relatorio_id: rel.id, tipo, storage_path: path, numero: numeroLimpo,
         vencimento: tipo === 'boleto' ? vencimento : null, valor: arredondar(v), status: 'em_revisao',
     })
     if (error) throw new ErroApi(500, 'Não foi possível registrar o documento.')

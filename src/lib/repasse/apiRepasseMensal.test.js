@@ -203,6 +203,21 @@ describe('página pública', () => {
         expect(tabela('pagamentos_registros')[0].resposta).toBe(false) // só o financeiro aprova
     })
 
+    it('envio repetido do mesmo documento (clique duplo) não cria um segundo documento', async () => {
+        semear({ tipo: 'nota' })
+        const { relId, token } = await criarELink()
+        const corpo = { token, numero: '3', valor: 150 }
+        const a = await chamar('publico-documento', { ...corpo, path: `2026-10/${relId}/documento/a.pdf` })
+        const b = await chamar('publico-documento', { ...corpo, path: `2026-10/${relId}/documento/b.pdf` })
+        expect(a).toMatchObject({ ok: true, status: 'documento_em_revisao' })
+        expect(b).toMatchObject({ ok: true, status: 'documento_em_revisao', duplicado: true })
+        expect(tabela('repasse_documentos')).toHaveLength(1)
+        expect(tabela('repasse_eventos').filter((e) => e.tipo === 'documento_enviado')).toHaveLength(1)
+        // número diferente é outro documento
+        await chamar('publico-documento', { ...corpo, numero: '4', path: `2026-10/${relId}/documento/c.pdf` })
+        expect(tabela('repasse_documentos')).toHaveLength(2)
+    })
+
     it('rejeita caminho de documento de outro relatório', async () => {
         semear({ tipo: 'nota' })
         const { token } = await criarELink()
