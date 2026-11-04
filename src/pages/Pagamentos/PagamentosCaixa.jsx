@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission } from '../../lib/accessControl.js'
 import { getReadOnlyFlag } from '../../lib/supabase.js'
-import { formatarValorMonetarioBr } from '../../lib/pagamentosValor.js'
+import { DESCONTO_RPA, formatarValorMonetarioBr, valorLiquidoRpa } from '../../lib/pagamentosValor.js'
 import {
     carregarCaixa,
     lerConfigRepasse,
@@ -36,6 +36,7 @@ const ABAS = [
     { id: 'reprovados', rotulo: 'Reprovados', dica: 'Relatórios que o prestador não aprovou' },
     { id: 'devolvidos', rotulo: 'Devolvidos', dica: 'Documentos que você devolveu e aguardam o prestador' },
     { id: 'arquivadas', rotulo: 'Aprovadas', dica: `Notas e boletos aprovados, consultáveis por ${DIAS_RETENCAO_DOCUMENTOS} dias` },
+    { id: 'rpa', rotulo: 'RPA aprovados', dica: `Prestadores RPA que aprovaram o relatório, nos últimos ${DIAS_RETENCAO_DOCUMENTOS} dias` },
 ]
 
 function Secao({ titulo, descricao, children }) {
@@ -135,9 +136,9 @@ export default function PagamentosCaixa() {
 
             {dados ? (
                 <>
-                    <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" role="tablist" aria-label="Filas da Caixa de entrada">
+                    <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5" role="tablist" aria-label="Filas da Caixa de entrada">
                         {ABAS.map((x) => {
-                            const n = x.id === 'revisar' ? emRevisao.length : x.id === 'reprovados' ? dados.reprovados.length : x.id === 'arquivadas' ? dados.arquivadas.length : devolvidos.length
+                            const n = x.id === 'revisar' ? emRevisao.length : x.id === 'reprovados' ? dados.reprovados.length : x.id === 'arquivadas' ? dados.arquivadas.length : x.id === 'rpa' ? (dados.rpaAprovados || []).length : devolvidos.length
                             const ativa = aba === x.id
                             const urgente = (x.id === 'revisar' || x.id === 'reprovados') && n > 0
                             return (
@@ -256,6 +257,38 @@ export default function PagamentosCaixa() {
                                         <div className="flex flex-wrap gap-2">
                                             <Button variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => void abrirArquivo({ documento_id: d.id })}>Ver documento</Button>
                                             <Button variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => void abrirRelatorio(d.relatorio_id)}>Relatório</Button>
+                                        </div>
+                                    </Card>
+                                )
+                            })}
+                        </Secao>
+                    ) : null}
+
+                    {aba === 'rpa' ? (
+                        <Secao titulo="RPA aprovados" descricao="Prestadores RPA não anexam documento: a aprovação do relatório é a confirmação. Somente leitura; o pagamento segue pelo Registro (Aprovados a pagar).">
+                            {(dados.rpaAprovados || []).length === 0 ? <EmptyState title="Nenhuma aprovação de RPA recente" description="Quando um prestador RPA aprovar o relatório, aparece aqui." /> : null}
+                            {(dados.rpaAprovados || []).map((e) => {
+                                const rel = dados.rels.get(e.relatorio_id)
+                                const reg = rel ? dados.regs.get(rel.registro_id) : null
+                                const liquido = valorLiquidoRpa(rel?.total_repasse)
+                                return (
+                                    <Card key={e.id} className="flex flex-col gap-3">
+                                        <div className="flex flex-wrap items-start justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <p className="truncate text-base font-bold">{reg?.prestador_nome || rel?.nome_a1 || 'Prestador'}</p>
+                                                <p className="text-sm text-ink-soft">{rel ? `Competência ${comp(rel)}` : ''}</p>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <Badge tone="ok">Aprovou o relatório</Badge>
+                                                <span className="text-xs font-semibold text-ink-soft">{haQuanto(e.criado_em)} · {dataBr(e.criado_em)}</span>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line text-sm sm:max-w-md">
+                                            <div className="bg-surface-tint px-3 py-2"><p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Repasse</p><p className="text-base font-bold tabular-nums">{formatarValorMonetarioBr(rel?.total_repasse)}</p></div>
+                                            <div className="bg-surface-tint px-3 py-2"><p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">A receber (−{Math.round(DESCONTO_RPA * 100)}%)</p><p className="text-base font-bold tabular-nums">{liquido == null ? '—' : formatarValorMonetarioBr(liquido)}</p></div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => void abrirRelatorio(e.relatorio_id)}>Relatório</Button>
                                         </div>
                                     </Card>
                                 )

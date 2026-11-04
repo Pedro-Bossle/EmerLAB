@@ -104,6 +104,7 @@ function FormDocumento({ token, relatorio, whatsapp, aoEnviado }) {
     const [erroRede, setErroRede] = useState(false)
     const [arrastando, setArrastando] = useState(false)
     const inputRef = useRef(null)
+    const enviandoRef = useRef(false)
     const valorNum = Number(String(valor).replace(/\./g, '').replace(',', '.'))
 
     // Ctrl+V cola o arquivo copiado enquanto o formulário está na tela.
@@ -127,6 +128,9 @@ function FormDocumento({ token, relatorio, whatsapp, aoEnviado }) {
         const msg = arquivo ? validarArquivoRepasse({ nome: arquivo.name, tamanho: arquivo.size, tipos: ['pdf', 'xml'] }) : 'Escolha o arquivo.'
         if (msg) return setErro(msg)
         if (aval.nivel === 'erro_tutor' || aval.nivel === 'erro_invalido') return setErro('Confira o valor do documento.')
+        // trava síncrona: dois cliques/toques antes do botão desabilitar enviavam o mesmo documento duas vezes
+        if (enviandoRef.current) return
+        enviandoRef.current = true
         setEnviando(true)
         try {
             await publicoEnviarDocumento(token, arquivo, { numero, vencimento: tipo === 'boleto' ? vencimento : null, valor: valorNum })
@@ -135,6 +139,7 @@ function FormDocumento({ token, relatorio, whatsapp, aoEnviado }) {
             setErro(err.message)
             setErroRede(Boolean(err.rede))
         } finally {
+            enviandoRef.current = false
             setEnviando(false)
         }
     }
