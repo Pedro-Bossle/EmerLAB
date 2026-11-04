@@ -275,7 +275,7 @@ async function exigirConversa(usuario, waId) {
     throw new HttpError(403, 'Esta conversa foi transferida para outro departamento e saiu da sua fila.', 'outro_departamento')
 }
 
-async function salvarMeta(waId, campos) {
+async function salvarMeta(waId, campos, { avisar: avisarOutros = true } = {}) {
     ok(
         await db()
             .from('zap_conversas')
@@ -284,7 +284,9 @@ async function salvarMeta(waId, campos) {
     invalidar('conversas:') // a lista recarregada logo após uma ação (assumir, resolver…) já vem atualizada
     // Só avisa quando algo MUDOU. A conferência da lista grava `salvarMeta(waId, {})` só para marcar «conferida»;
     // avisar nesse caso fazia cada recarga gerar um aviso que gerava outra recarga (laço infinito).
-    if (Object.keys(campos || {}).length) void avisarConversa(normalizarWaId(waId))
+    // `avisar: false` nas gravações feitas ao LER (conferência com a WATI): quem avisa é o webhook e as ações do atendente.
+    // Avisar a partir de leitura fazia cada recarga gerar avisos que geravam novas recargas.
+    if (avisarOutros && Object.keys(campos || {}).length) void avisarConversa(normalizarWaId(waId))
 }
 
 // Entrada por anúncio (Click-to-WhatsApp): a mensagem do cliente que veio do anúncio traz messageReferral
@@ -686,7 +688,7 @@ async function listarConversas(usuario, query) {
         .slice(0, 40)
     if (espelhar.length) {
         Promise.allSettled(
-            espelhar.map((c) => salvarMeta(c.waId, { nome: String(c.nome || c.atributos.name).slice(0, 120) })),
+            espelhar.map((c) => salvarMeta(c.waId, { nome: String(c.nome || c.atributos.name).slice(0, 120) }, { avisar: false })),
         ).catch(() => {})
     }
     const pessoas = await pessoasDoPainel().catch(() => [])
@@ -942,13 +944,13 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
             if (await registrarAnuncio(c.waId, anuncio, meta?.anuncio)) c.anuncio = anuncio
             const atendente = atendenteDoHistorico(itens)
             if (atendente && !mesmoEmail(atendente, meta?.atendente_email)) {
-                await salvarMeta(c.waId, { atendente_email: atendente })
+                await salvarMeta(c.waId, { atendente_email: atendente }, { avisar: false })
                 c.atendenteEmail = atendente
             }
             const statusWati = aplicarStatusDoHistorico(meta, itens)
             if (statusWati) {
                 const { status } = camposDeStatus(statusWati)
-                await salvarMeta(c.waId, { status })
+                await salvarMeta(c.waId, { status }, { avisar: false })
                 if ((statusWati === 'bloqueada') !== estaBloqueada(meta)) await marcarBloqueio(c.waId, statusWati === 'bloqueada')
                 c.status = status
                 c.bloqueada = statusWati === 'bloqueada'
@@ -958,7 +960,7 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
             if (!c.atendenteEmail && (meta?.status || c.status) !== 'resolvida') {
                 const depto = await departamentoDaWati(c.waId, meta, departamentos).catch(() => undefined)
                 if (depto) {
-                    await salvarMeta(c.waId, { departamento_id: depto })
+                    await salvarMeta(c.waId, { departamento_id: depto }, { avisar: false })
                     c.departamentoId = depto
                     if (meta) meta.departamento_id = depto
                 }
@@ -970,13 +972,13 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
             // última do cliente entre as lidas: corrige a janela de 24h mesmo sem mensagem nova
             const humana = msgs.find((m) => m.minha && respostaHumanaWati(m.operador))?.em
             if (humana && msData(humana) > msData(meta?.ultima_humana_em) + FOLGA_MS) {
-                await salvarMeta(c.waId, { ultima_humana_em: humana })
+                await salvarMeta(c.waId, { ultima_humana_em: humana }, { avisar: false })
                 c.ultimaHumanaEm = humana
             }
             const doCliente = msgs.find((m) => !m.minha && !textoPareceSistemaWati(m.texto))?.em
             // espelha o horário da WATI mesmo se a meta local estava adiantada/atrasada (fuso errado)
             if (doCliente && Math.abs(msData(doCliente) - msData(meta?.ultima_cliente_em)) > FOLGA_MS) {
-                await salvarMeta(c.waId, { ultima_cliente_em: doCliente })
+                await salvarMeta(c.waId, { ultima_cliente_em: doCliente }, { avisar: false })
                 c.ultimaClienteEm = doCliente
             }
             const conhecidaMs = meta?.ultima_msg_em ? new Date(meta.ultima_msg_em).getTime() : null
@@ -1013,7 +1015,7 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
                 campos.status = 'aberta'
                 await comConversaWati(c.waId, (alvo) => wati.atualizarStatus(alvo, 'aberta'), meta).catch(() => {})
             }
-            await salvarMeta(c.waId, campos)
+            await salvarMeta(c.waId, campos, { avisar: false })
             Object.assign(c, {
                 ultimaMsg: texto,
                 ultimaMinha: ultima.minha,
@@ -1065,7 +1067,7 @@ async function mensagens(usuario, waId, query) {
         if (atendente && !mesmoEmail(atendente, meta?.atendente_email)) campos.atendente_email = atendente
         const statusWati = aplicarStatusDoHistorico(meta, itens)
         if (statusWati) campos.status = camposDeStatus(statusWati).status
-        if (Object.keys(campos).length) await salvarMeta(waId, campos).catch(() => {})
+        if (Object.keys(campos).length) await salvarMeta(waId, campos, { avisar: false }).catch(() => {})
         if (statusWati && (statusWati === 'bloqueada') !== estaBloqueada(meta)) await marcarBloqueio(waId, statusWati === 'bloqueada')
     }
     return { mensagens: lista, temMais }
@@ -1145,7 +1147,7 @@ async function exigirSessaoLivre(waId, meta) {
         if (doCliente?.em) {
             const restante = 24 * 3600 * 1000 - (Date.now() - new Date(doCliente.em).getTime())
             if (restante > 0) {
-                await salvarMeta(waId, { ultima_cliente_em: doCliente.em }).catch(() => {})
+                await salvarMeta(waId, { ultima_cliente_em: doCliente.em }, { avisar: false }).catch(() => {})
                 return
             }
         }
