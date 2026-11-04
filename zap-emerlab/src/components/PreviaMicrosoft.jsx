@@ -6,10 +6,11 @@ import MolduraMicrosoft from './MolduraMicrosoft.jsx'
 import { CONVERSAS_TEAMS, EMAILS_OUTLOOK, EVENTOS_AGENDA, gerarEmailsExemplo } from '../previaMicrosoftDados.js'
 import { PRESENCA, dataLocal, gravar, horaAgora, ler } from '../util.js'
 import { Arquivo, Avatar } from './MsComum.jsx'
+import { useContaMs, useEmailsMs, useTeamsMs } from '../clienteMs.js'
 
-// Prévia de Teams e Outlook dentro do Emerzap. Ainda não há o registro do app no Azure (Microsoft Graph): o
-// "Entrar com a Microsoft" é simulado, os dados são de exemplo (previaMicrosoftDados.js) e o envio só aparece na
-// tela. Serve para ver como fica depois da integração; na versão real o login é a conta Microsoft da Emerdog.
+// Teams e Outlook dentro do Emerzap. Com MS_ATIVO no servidor (ver server/microsoft.js) usa a conta Microsoft real de cada
+// atendente (Graph); sem ele segue a prévia: "Entrar com a Microsoft" simulado, dados de exemplo (previaMicrosoftDados.js)
+// e envio que só aparece na tela. A prop `real` (vinda de clienteMs.js) é o que separa os dois modos.
 
 const CHAVE_CONECTADO = 'zap.previaMs.conectado'
 
@@ -27,12 +28,15 @@ function TextoComMencao({ texto }) {
         .map((parte, i) => (parte.startsWith('@') ? <mark key={i} className="ms-mencao">{parte}</mark> : parte))
 }
 
-function Teams({ selecionado, aoSelecionar, moldura }) {
+function Teams({ selecionado, aoSelecionar, moldura, real }) {
     const [extras, setExtras] = useState({}) // mensagens "enviadas" na prévia, por conversa
     const [texto, setTexto] = useState('')
+    const [enviando, setEnviando] = useState(false)
+    const [erroEnvio, setErroEnvio] = useState('')
     const [lidas, setLidas] = useState(new Set())
     const fim = useRef(null)
-    const conversas = CONVERSAS_TEAMS.map((c) => ({ ...c, mensagens: [...c.mensagens, ...(extras[c.id] || [])], naoLidas: lidas.has(c.id) ? 0 : c.naoLidas }))
+    const base = real ? real.conversas : CONVERSAS_TEAMS
+    const conversas = base.map((c) => ({ ...c, mensagens: real ? c.mensagens : [...c.mensagens, ...(extras[c.id] || [])], naoLidas: lidas.has(c.id) ? 0 : c.naoLidas }))
     const atual = conversas.find((c) => c.id === selecionado) || null
 
     useEffect(() => {
@@ -41,19 +45,34 @@ function Teams({ selecionado, aoSelecionar, moldura }) {
 
     const abrir = (id) => {
         setLidas((s) => new Set(s).add(id))
+        setErroEnvio('')
+        real?.marcarVisto(id)
         aoSelecionar(id)
     }
-    const enviar = (e) => {
+    const enviar = async (e) => {
         e.preventDefault()
         const t = texto.trim()
-        if (!t || !atual) return
+        if (!t || !atual || enviando) return
+        if (real) {
+            setEnviando(true)
+            setErroEnvio('')
+            try {
+                await real.enviar(atual.id, t)
+                setTexto('')
+            } catch (err) {
+                setErroEnvio(err.message || 'Não foi possível enviar.')
+            } finally {
+                setEnviando(false)
+            }
+            return
+        }
         setExtras((x) => ({ ...x, [atual.id]: [...(x[atual.id] || []), { autor: 'você', texto: t, hora: horaAgora(), dia: 'Hoje', minha: true }] }))
         setTexto('')
     }
 
     // canais da equipe fixados em cima; reuniões no meio; chats privados sempre embaixo
     const item = (c) => {
-        const ultima = c.mensagens.at(-1)
+        const ultima = c.mensagens.at(-1) || { hora: '', autor: '', texto: c.erro ? 'Sem acesso a este canal' : 'Sem mensagens' }
         return (
             <button key={c.id} role="listitem" className={`item ${selecionado === c.id ? 'selecionado' : ''} ${c.naoLidas ? 'nao-lida' : ''}`} onClick={() => abrir(c.id)}>
                 <Avatar nome={c.nome} tipo={c.tipo} presenca={c.presenca} />
@@ -61,6 +80,7 @@ function Teams({ selecionado, aoSelecionar, moldura }) {
                     <div className="item-linha">
                         <span className="item-nome-wrap">
                             <span className="item-nome">{c.nome}</span>
+                            {c.privado ? <Icone nome="cadeado" tamanho={12} /> : null}
                         </span>
                         <span className={`item-hora ${c.naoLidas ? 'destaque' : ''}`}>{ultima.hora}</span>
                     </div>
@@ -111,11 +131,13 @@ function Teams({ selecionado, aoSelecionar, moldura }) {
                                 : 'Conversa em grupo'}
                     </small>
                 </div>
-                <div className="barra-acoes">
-                    <button className="icone-botao" aria-label="Chamada de vídeo" data-dica="Chamada de vídeo (na integração, abre o Teams)" data-dica-lado="esquerda">
-                        <Icone nome="video" />
-                    </button>
-                </div>
+                {!real ? (
+                    <div className="barra-acoes">
+                        <button className="icone-botao" aria-label="Chamada de vídeo" data-dica="Chamada de vídeo (na integração, abre o Teams)" data-dica-lado="esquerda">
+                            <Icone nome="video" />
+                        </button>
+                    </div>
+                ) : null}
             </header>
             <div className="mensagens">
                 <div className="mensagens-interno">
@@ -173,25 +195,43 @@ function Teams({ selecionado, aoSelecionar, moldura }) {
             <form className="composer ms-composer" onSubmit={enviar}>
                 <div className="ms-campo">
                     <input className="entrada" value={texto} onChange={(e) => setTexto(e.target.value)} placeholder={`Mensagem para ${atual.nome}`} aria-label="Mensagem" />
-                    <button className="icone-botao" type="submit" aria-label="Enviar" disabled={!texto.trim()}>
+                    <button className="icone-botao" type="submit" aria-label="Enviar" disabled={!texto.trim() || enviando}>
                         <Icone nome="enviar" />
                     </button>
                 </div>
-                <small>Prévia: a mensagem só aparece aqui, não é enviada ao Teams.</small>
+                {real ? erroEnvio ? <small role="alert">{erroEnvio}</small> : null : <small>Prévia: a mensagem só aparece aqui, não é enviada ao Teams.</small>}
             </form>
         </section>
     ) : null
-    return <MolduraMicrosoft {...moldura} lista={lista} conteudo={conteudo} />
+    const listaOuEstado =
+        real && real.carregando ? (
+            <div className="estado-vazio">
+                <p>Carregando os canais…</p>
+            </div>
+        ) : real && real.erro && !conversas.length ? (
+            <div className="estado-vazio">
+                <p>{real.erro}</p>
+            </div>
+        ) : (
+            lista
+        )
+    return <MolduraMicrosoft {...moldura} lista={listaOuEstado} conteudo={conteudo} />
 }
 
 // Outlook: alterna entre E-mail e Agenda. E-mails e eventos ficam aqui para não se perderem na troca.
-function Outlook({ selecionado, aoSelecionar, usuario, moldura }) {
+function Outlook({ selecionado, aoSelecionar, usuario, moldura, real }) {
     const [modo, setModo] = useState('email')
+    const abrirReal = real?.abrir
+    useEffect(() => {
+        if (selecionado && abrirReal) abrirReal(selecionado)
+    }, [selecionado, abrirReal])
     // todos os e-mails (todas as pastas) com a data de chegada calculada a partir de "minutos atrás"
     const [agora] = useState(() => new Date().getTime())
-    const [emails, setEmails] = useState(() =>
+    const [emailsPrevia, setEmailsPrevia] = useState(() =>
         [...EMAILS_OUTLOOK, ...gerarEmailsExemplo()].map(({ minutos, ...e }) => ({ ...e, recebido: agora - minutos * 60000 })),
     )
+    const emails = real ? real.emails || [] : emailsPrevia
+    const setEmails = real ? real.setEmails : setEmailsPrevia
     const [eventos, setEventos] = useState(() =>
         EVENTOS_AGENDA.map(({ dia, ...e }) => {
             const d = new Date()
@@ -209,16 +249,40 @@ function Outlook({ selecionado, aoSelecionar, usuario, moldura }) {
                 <button role="tab" aria-selected={modo === 'email'} className={modo === 'email' ? 'ativo' : ''} onClick={() => trocar('email')}>
                     <Icone nome="email" tamanho={15} /> E-mail
                 </button>
-                <button role="tab" aria-selected={modo === 'agenda'} className={modo === 'agenda' ? 'ativo' : ''} onClick={() => trocar('agenda')}>
-                    <Icone nome="calendario" tamanho={15} /> Agenda
-                </button>
+                {!real ? (
+                    <button role="tab" aria-selected={modo === 'agenda'} className={modo === 'agenda' ? 'ativo' : ''} onClick={() => trocar('agenda')}>
+                        <Icone nome="calendario" tamanho={15} /> Agenda
+                    </button>
+                ) : null}
             </div>
             <button className="botao botao-pequeno ms-novo" onClick={() => aoSelecionar(modo === 'email' ? 'novo' : 'novo-evento')}>
                 <Icone nome="mais" tamanho={16} /> {modo === 'email' ? 'Novo e-mail' : 'Novo evento'}
             </button>
         </div>
     )
-    const comum = { selecionado, aoSelecionar, usuario, moldura, topo }
+    const faixa =
+        real && (real.erro || real.carregando) ? (
+            <p className="ms-faixa" role={real.erro ? 'alert' : 'status'}>
+                <Icone nome="info" tamanho={14} /> {real.erro || 'Carregando e-mails…'}
+                {real.erro ? (
+                    <button type="button" className="ms-link" onClick={real.limparErro}>
+                        Fechar
+                    </button>
+                ) : null}
+            </p>
+        ) : null
+    const comum = {
+        selecionado,
+        aoSelecionar,
+        usuario,
+        moldura,
+        topo: (
+            <>
+                {topo}
+                {faixa}
+            </>
+        ),
+    }
     return modo === 'email' ? (
         <CaixaEmail {...comum} emails={emails} setEmails={setEmails} agora={agora} />
     ) : (
@@ -229,6 +293,11 @@ function Outlook({ selecionado, aoSelecionar, usuario, moldura }) {
 export default function PreviaMicrosoft({ app, usuario, aoSelecionar }) {
     const [conectado, setConectado] = useState(() => Boolean(ler(CHAVE_CONECTADO, false)))
     const [selecionado, setSelecionado] = useState(null)
+    const conta = useContaMs()
+    const ligadoReal = conta.st.ativo && conta.st.conectado
+    const teamsMs = useTeamsMs(ligadoReal && app === 'teams', conta.st.canal)
+    const emailsMs = useEmailsMs(ligadoReal && app === 'outlook', conta.st.canal)
+    const modoReal = conta.st.ativo
 
     const selecionar = (id) => {
         setSelecionado(id)
@@ -240,10 +309,22 @@ export default function PreviaMicrosoft({ app, usuario, aoSelecionar }) {
         selecionar(null)
     }
 
-    const moldura = { app, usuario, conectado, conectar }
+    if (conta.st.carregando) {
+        return (
+            <main className="principal">
+                <div className="estado-vazio">
+                    <p>Carregando…</p>
+                </div>
+            </main>
+        )
+    }
+    const infoReal = modoReal ? { email: conta.st.email, aviso: conta.aviso, reconectar: conta.st.reconectar } : null
+    const moldura = modoReal
+        ? { app, usuario, conectado: conta.st.conectado, conectar: (sim) => (sim ? conta.conectar(app) : conta.desconectar()), real: infoReal }
+        : { app, usuario, conectado, conectar }
     return app === 'teams' ? (
-        <Teams selecionado={selecionado} aoSelecionar={selecionar} moldura={moldura} />
+        <Teams selecionado={selecionado} aoSelecionar={selecionar} moldura={moldura} real={modoReal ? teamsMs : null} />
     ) : (
-        <Outlook selecionado={selecionado} aoSelecionar={selecionar} usuario={usuario} moldura={moldura} />
+        <Outlook selecionado={selecionado} aoSelecionar={selecionar} usuario={usuario} moldura={moldura} real={modoReal ? emailsMs : null} />
     )
 }

@@ -264,9 +264,9 @@
     "semantic_hash": ""
   },
   "src/components/BatePapo/BatePapoFloating.jsx": {
-    "mtime": 1787577663.7334116,
-    "seen": 1793728847.1369212,
-    "ast_hash": "40ea0ae15156b4e5e586000c02d6071a",
+    "mtime": 1793814045.4734366,
+    "seen": 1793815074.4386067,
+    "ast_hash": "f65ed890aff71392a9b50241d022710d",
     "semantic_hash": ""
   },
   "src/components/BatePapo/EmerzapChaveContaModal.jsx": {
@@ -294,9 +294,9 @@
     "semantic_hash": ""
   },
   "src/components/BatePapo/useEmerzapChat.js": {
-    "mtime": 1787347181.6917307,
-    "seen": 1793728847.1369386,
-    "ast_hash": "3df32f2676137d385c0c8c59a48e9c2d",
+    "mtime": 1793814045.412347,
+    "seen": 1793815074.4390326,
+    "ast_hash": "1341ebce64b0f21d5dc02989131ae77f",
     "semantic_hash": ""
   },
   "src/components/CampoBuscaComLimpar/CampoBuscaComLimpar.jsx": {
@@ -306,9 +306,9 @@
     "semantic_hash": ""
   },
   "src/components/Credenciamento/FormularioInboxBell.jsx": {
-    "mtime": 1787949695.6336846,
-    "seen": 1793728847.1369455,
-    "ast_hash": "fd5ffc1d4004b96b99e7a54c26861580",
+    "mtime": 1793803505.5762746,
+    "seen": 1793815074.4391713,
+    "ast_hash": "a6488c01ceaf5656db56890760536b0b",
     "semantic_hash": ""
   },
   "src/components/Credenciamento/PrestadorBeneficiosDescontos.jsx": {
@@ -360,9 +360,9 @@
     "semantic_hash": ""
   },
   "src/components/Layout2/Layout2.jsx": {
-    "mtime": 1793103369.9783957,
-    "seen": 1793728847.1369774,
-    "ast_hash": "029684655a27e5b89bb4c5b4389e4fdd",
+    "mtime": 1793803505.5772755,
+    "seen": 1793815074.440317,
+    "ast_hash": "44b07972cba6ed95ec004c754f433f65",
     "semantic_hash": ""
   },
   "src/components/Layout/Layout.jsx": {
@@ -438,9 +438,9 @@
     "semantic_hash": ""
   },
   "src/components/Sidebar/Sidebar.jsx": {
-    "mtime": 1793725976.250144,
-    "seen": 1793728847.1370213,
-    "ast_hash": "7026114777de3c293aae1bf102e7c0a2",
+    "mtime": 1793803527.2029617,
+    "seen": 1793815074.441362,
+    "ast_hash": "6301bf803c8260c56855ba5b5ae70c54",
     "semantic_hash": ""
   },
   "src/components/Supertabela/CidadeTabelaIbgeForm.jsx": {
@@ -1134,9 +1134,9 @@
     "semantic_hash": ""
   },
   "src/lib/credenciamento/kanbanMencoes.js": {
-    "mtime": 1787687394.8453503,
-    "seen": 1793728847.13743,
-    "ast_hash": "5267cafe212b868a1e72f29af858786d",
+    "mtime": 1793814045.3185356,
+    "seen": 1793815074.453387,
+    "ast_hash": "4a93fd4718a24b25120b49354c8612d0",
     "semantic_hash": ""
   },
   "src/lib/credenciamento/kanbanOutlookMeta.js": {
@@ -1428,9 +1428,9 @@
     "semantic_hash": ""
   },
   "src/lib/homeBatePapo.js": {
-    "mtime": 1793103370.022971,
-    "seen": 1793728847.137598,
-    "ast_hash": "3036c74b2e5dbd894710ed1a46da378d",
+    "mtime": 1793814045.3693023,
+    "seen": 1793815074.4589925,
+    "ast_hash": "e5d4655799a37b19f3b8b758e4366f9b",
     "semantic_hash": ""
   },
   "src/lib/homeFavoritos.js": {
@@ -1440,9 +1440,9 @@
     "semantic_hash": ""
   },
   "src/lib/homeTarefas.js": {
-    "mtime": 1793103370.023974,
-    "seen": 1793728847.1376047,
-    "ast_hash": "b0e700dd23d9b2d62a3c2d5fa061bb67",
+    "mtime": 1793814045.2638688,
+    "seen": 1793815074.4590812,
+    "ast_hash": "8432d43e2834d69a41bdf549f2b03f90",
     "semantic_hash": ""
   },
   "src/lib/ibgeLocalidades.js": {
@@ -1782,9 +1782,9 @@
     "semantic_hash": ""
   },
   "src/lib/repasse/lerRelatorioExcel.js": {
-    "mtime": 1793737128.2784166,
-    "seen": 1793737229.040278,
-    "ast_hash": "b0b5eca12a6236479f7fde92c6f5d05e",
+    "mtime": 1793806822.8121538,
+    "seen": 1793815074.466832,
+    "ast_hash": "19e752df22a98c6274b1ba22397aba90",
     "semantic_hash": ""
   },
   "src/lib/repasse/lerRelatorioExcel.test.js": {
@@ -1794,9 +1794,9 @@
     "semantic_hash": ""
   },
   "src/lib/repasse/repasseApi.js": {
-    "mtime": 1793793773.7369068,
-    "seen": 1793793847.848759,
-    "ast_hash": "77f5277a030aa8b68c3ef1c329ffe9fe",
+    "mtime": 1793804466.9587939,
+    "seen": 1793815074.4670227,
+    "ast_hash": "b26c2dee71038dd007d3c0d0d771ab24",
     "semantic_hash": ""
   },
   "src/lib/repasse/repasseCore.js": {
@@ -2208,9 +2208,9 @@
     "semantic_hash": ""
   },
   "src/pages/Home/Home.jsx": {
-    "mtime": 1793731872.1703753,
-    "seen": 1793732088.2806067,
-    "ast_hash": "1e55c93834e3874827894e160a5dbd06",
+    "mtime": 1793814045.5390842,
+    "seen": 1793815074.475983,
+    "ast_hash": "1c699b52759d6b99ea59e3ec8462b10d",
     "semantic_hash": ""
   },
   "src/pages/Home/HomeNotifHelp.jsx": {
@@ -2268,9 +2268,9 @@
     "semantic_hash": ""
   },
   "src/pages/Pagamentos/PagamentosRegistro.jsx": {
-    "mtime": 1793793525.7843282,
-    "seen": 1793793623.2514138,
-    "ast_hash": "5b47728dfae8cccf7ffa92311ccdfdca",
+    "mtime": 1793806822.783571,
+    "seen": 1793815074.4772215,
+    "ast_hash": "040206ff5e13c895bb383f88d4123e1c",
     "semantic_hash": ""
   },
   "src/pages/Pagamentos/PagamentosResumo.jsx": {
@@ -2292,9 +2292,9 @@
     "semantic_hash": ""
   },
   "src/pages/RepasseMensal/RepasseMensalPublico.jsx": {
-    "mtime": 1793739467.960035,
-    "seen": 1793739557.0869813,
-    "ast_hash": "1e8341c1e8d5a102a3485a5c99a9c3b7",
+    "mtime": 1793804466.989998,
+    "seen": 1793815074.4776363,
+    "ast_hash": "350598f2f7db29d734dbaa35e92fd56c",
     "semantic_hash": ""
   },
   "src/pages/Supertabela/Supertabela_cidades/Supertabelacidades.jsx": {
@@ -2508,15 +2508,15 @@
     "semantic_hash": ""
   },
   "zap-emerlab/server/crypto.js": {
-    "mtime": 1793102824.308504,
-    "seen": 1793728847.138251,
-    "ast_hash": "d76838e9720173ccf26a423be1db146a",
+    "mtime": 1793814726.5965526,
+    "seen": 1793815074.482819,
+    "ast_hash": "4b86f6c9985b850ae56e0d07c2b73d27",
     "semantic_hash": ""
   },
   "zap-emerlab/server/db.js": {
-    "mtime": 1793122076.049137,
-    "seen": 1793728847.1382563,
-    "ast_hash": "46738af915f56cf74858a2dff404ce38",
+    "mtime": 1793814067.5796735,
+    "seen": 1793815074.482823,
+    "ast_hash": "5c7642901372fdab19f6da446545d6ba",
     "semantic_hash": ""
   },
   "zap-emerlab/server/email.js": {
@@ -2532,9 +2532,9 @@
     "semantic_hash": ""
   },
   "zap-emerlab/server/env.js": {
-    "mtime": 1793121004.980343,
-    "seen": 1793728847.138267,
-    "ast_hash": "b7b21b1e3701bbacdfdc3da8b7a181c7",
+    "mtime": 1793814726.5970652,
+    "seen": 1793815074.4830937,
+    "ast_hash": "c17e9e2e9a85deffdd558bfc9354ca6e",
     "semantic_hash": ""
   },
   "zap-emerlab/server/ibge.js": {
@@ -2544,15 +2544,15 @@
     "semantic_hash": ""
   },
   "zap-emerlab/server/quemRealiza.js": {
-    "mtime": 1793128210.164333,
-    "seen": 1793728847.138274,
-    "ast_hash": "e3cecfdb265e88fe90f8c54b928c558a",
+    "mtime": 1793814063.830788,
+    "seen": 1793815074.483236,
+    "ast_hash": "ab7d6868bdd064c8d5bfcf0c7052d840",
     "semantic_hash": ""
   },
   "zap-emerlab/server/router.js": {
-    "mtime": 1793711223.9241023,
-    "seen": 1793728847.1382773,
-    "ast_hash": "149fe2adaf635851be0a00c3aacf2019",
+    "mtime": 1793814952.176089,
+    "seen": 1793815074.4832397,
+    "ast_hash": "f8d2dbb62a3a85cd19230d00adf530d3",
     "semantic_hash": ""
   },
   "zap-emerlab/server/wati.js": {
@@ -2562,9 +2562,9 @@
     "semantic_hash": ""
   },
   "zap-emerlab/src/App.jsx": {
-    "mtime": 1793102824.3175044,
-    "seen": 1793728847.1382842,
-    "ast_hash": "869a23763da2b22df8dba59c087b7af0",
+    "mtime": 1793796446.0454905,
+    "seen": 1793815074.4833755,
+    "ast_hash": "d525c299144eb2c3a0ac390708ee393d",
     "semantic_hash": ""
   },
   "zap-emerlab/src/ErroTela.jsx": {
@@ -2580,9 +2580,9 @@
     "semantic_hash": ""
   },
   "zap-emerlab/src/api.js": {
-    "mtime": 1793120496.5955737,
-    "seen": 1793728847.1382947,
-    "ast_hash": "0fd6847f2e960030c9bfbc16f2c749dc",
+    "mtime": 1793796446.0443702,
+    "seen": 1793815074.4836512,
+    "ast_hash": "901dc3cfe727f9f83afe8a012c7d31e7",
     "semantic_hash": ""
   },
   "zap-emerlab/src/atalhos.js": {
@@ -2592,9 +2592,9 @@
     "semantic_hash": ""
   },
   "zap-emerlab/src/atualizacao.js": {
-    "mtime": 1793120521.1209192,
-    "seen": 1793728847.1383026,
-    "ast_hash": "0319749922795759828a4135cfb0841d",
+    "mtime": 1793796446.0443702,
+    "seen": 1793815074.4837809,
+    "ast_hash": "0b4adc8ec2d67c1c48f4f68d3f3f665c",
     "semantic_hash": ""
   },
   "zap-emerlab/src/components/Admin.jsx": {
@@ -2604,9 +2604,9 @@
     "semantic_hash": ""
   },
   "zap-emerlab/src/components/Chat.jsx": {
-    "mtime": 1793196430.1132238,
-    "seen": 1793728847.1383107,
-    "ast_hash": "fefac9a1b114c689bff95bb122a93476",
+    "mtime": 1793796446.0475974,
+    "seen": 1793815074.4839196,
+    "ast_hash": "191ee6669f0acdb3df87bd45f956b5d1",
     "semantic_hash": ""
   },
   "zap-emerlab/src/components/Composer.jsx": {
@@ -2712,9 +2712,9 @@
     "semantic_hash": ""
   },
   "zap-emerlab/src/components/MolduraMicrosoft.jsx": {
-    "mtime": 1793199754.4981046,
-    "seen": 1793728847.1383789,
-    "ast_hash": "5c0e4892b530d93aa6669e4322237f77",
+    "mtime": 1793814952.178045,
+    "seen": 1793815074.485755,
+    "ast_hash": "cd51b451250eb173c26a0e85024e0b0f",
     "semantic_hash": ""
   },
   "zap-emerlab/src/components/MsComum.jsx": {
@@ -2730,9 +2730,9 @@
     "semantic_hash": ""
   },
   "zap-emerlab/src/components/Painel.jsx": {
-    "mtime": 1793211444.6846018,
-    "seen": 1793728847.138391,
-    "ast_hash": "bb5759f3f3226d1cac552195d295054c",
+    "mtime": 1793814952.178045,
+    "seen": 1793815074.4859266,
+    "ast_hash": "ae1c26c2695752b835d477698d01b284",
     "semantic_hash": ""
   },
   "zap-emerlab/src/components/Perfil.jsx": {
@@ -2754,9 +2754,9 @@
     "semantic_hash": ""
   },
   "zap-emerlab/src/components/PreviaMicrosoft.jsx": {
-    "mtime": 1793206335.036623,
-    "seen": 1793728847.138408,
-    "ast_hash": "65d8ac87b1b6ab170d3c59a7526160ad",
+    "mtime": 1793814952.17905,
+    "seen": 1793815074.4861894,
+    "ast_hash": "5847d24a67a0a3822a2ecd3ba8842d40",
     "semantic_hash": ""
   },
   "zap-emerlab/src/components/Redimensionar.jsx": {
@@ -2862,9 +2862,9 @@
     "semantic_hash": ""
   },
   "zap-emerlab/vercel.json": {
-    "mtime": 1793102824.3555038,
-    "seen": 1793728847.138494,
-    "ast_hash": "0fb791298b5187f85479d9d2bdd76f3c",
+    "mtime": 1793815025.1705506,
+    "seen": 1793815074.4877095,
+    "ast_hash": "bd0c4d661aba463bbb9b5f41897c79c8",
     "semantic_hash": ""
   },
   "zap-emerlab/vite.config.js": {
@@ -3429,6 +3429,90 @@
     "mtime": 1793793773.7359076,
     "seen": 1793793847.8177834,
     "ast_hash": "596691579f61f907a9d7e33ab64b2084",
+    "semantic_hash": ""
+  },
+  "src/lib/notifContagens.js": {
+    "mtime": 1793803473.3896103,
+    "seen": 1793815074.4622388,
+    "ast_hash": "78625b59384db06ca74a83630addc240",
+    "semantic_hash": ""
+  },
+  "src/lib/repasse/modeloRelatorio.js": {
+    "mtime": 1793806794.2429225,
+    "seen": 1793815074.4670122,
+    "ast_hash": "4c02505db284fa677227ec41b1582733",
+    "semantic_hash": ""
+  },
+  "src/lib/repasse/notificacoesPagamentos.js": {
+    "mtime": 1793803472.4631908,
+    "seen": 1793815074.4670157,
+    "ast_hash": "5995729c6a72a693cca76e2a6336a7be",
+    "semantic_hash": ""
+  },
+  "src/lib/repasse/notificacoesPagamentos.test.js": {
+    "mtime": 1793803527.278174,
+    "seen": 1793815074.467019,
+    "ast_hash": "b2fc2b2bd53ad681a147d487bb4e734e",
+    "semantic_hash": ""
+  },
+  "src/lib/repasse/repasseApi.rede.test.js": {
+    "mtime": 1793804467.071608,
+    "seen": 1793815074.467025,
+    "ast_hash": "1a5ff72c994906de7b7206ba1c16e3d0",
+    "semantic_hash": ""
+  },
+  "src/lib/repasse/vinculoManual.test.js": {
+    "mtime": 1793806794.6745045,
+    "seen": 1793815074.4672608,
+    "ast_hash": "f6b2b5f38052ba1b529a80a93cfa3565",
+    "semantic_hash": ""
+  },
+  "src/pages/Pagamentos/PagamentosVincularRelatorioModal.jsx": {
+    "mtime": 1793806760.257987,
+    "seen": 1793815074.4773414,
+    "ast_hash": "dacf8ad13944dcd4e90f4c84ce79834b",
+    "semantic_hash": ""
+  },
+  "zap-emerlab/scripts/teste-tempo-real.mjs": {
+    "mtime": 1793796561.2983902,
+    "seen": 1793815074.482811,
+    "ast_hash": "2a16bb999b424a6769a2161fc3a85a06",
+    "semantic_hash": ""
+  },
+  "zap-emerlab/server/cache.js": {
+    "mtime": 1793795313.4367776,
+    "seen": 1793815074.482815,
+    "ast_hash": "864b802abfaea00f713e472a90b8990a",
+    "semantic_hash": ""
+  },
+  "zap-emerlab/server/microsoft.js": {
+    "mtime": 1793814810.6259575,
+    "seen": 1793815074.4832325,
+    "ast_hash": "581cb38a9c48e5d49ebad448e4c71243",
+    "semantic_hash": ""
+  },
+  "zap-emerlab/server/tempoReal.js": {
+    "mtime": 1793796610.9925573,
+    "seen": 1793815074.4832425,
+    "ast_hash": "b2c389eef9b353f125091866f7ad0011",
+    "semantic_hash": ""
+  },
+  "zap-emerlab/src/clienteMs.js": {
+    "mtime": 1793814975.1790183,
+    "seen": 1793815074.4837847,
+    "ast_hash": "82f4fc837fa8abcb4464cca59f07b32a",
+    "semantic_hash": ""
+  },
+  "zap-emerlab/src/tempoReal.js": {
+    "mtime": 1793805304.5265274,
+    "seen": 1793815074.4875362,
+    "ast_hash": "4ab68069f02cc5036c86edd2bea80e75",
+    "semantic_hash": ""
+  },
+  "zap-emerlab/docs/microsoft-outlook-teams.md": {
+    "mtime": 1793815044.587042,
+    "seen": 1793815074.4904182,
+    "ast_hash": "4388c941deb7d1268a1bb12aadbc8850",
     "semantic_hash": ""
   },
   "package-lock.json": {

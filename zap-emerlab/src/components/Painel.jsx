@@ -298,7 +298,7 @@ export default function Painel({ sessao, prefs, setPrefs, aoSair, recarregarSess
     // Teams/Outlook (prévia): ocupa a lista e a área do chat no lugar do canal
     const [appMs, setAppMs] = useState(null)
     const [msComItem, setMsComItem] = useState(false)
-    const vePreviaMs = PREVIA_MICROSOFT.includes(String(usuario.email || '').toLowerCase())
+    const vePreviaMs = Boolean(config.microsoft) || PREVIA_MICROSOFT.includes(String(usuario.email || '').toLowerCase())
     const abrirAppMs = (app) => {
         setAppMs(app)
         setMsComItem(false)

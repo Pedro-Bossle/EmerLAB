@@ -3,7 +3,7 @@ import IconeMicrosoft, { LogoMicrosoft } from './IconeMicrosoft.jsx'
 import { APPS_MS } from '../util.js'
 
 // lista à esquerda e leitura à direita, com o cabeçalho da conta e a tela de login
-export default function MolduraMicrosoft({ app, usuario, conectado, conectar, lista, conteudo }) {
+export default function MolduraMicrosoft({ app, usuario, conectado, conectar, lista, conteudo, real }) {
     const info = APPS_MS[app]
     return (
         <>
@@ -13,7 +13,7 @@ export default function MolduraMicrosoft({ app, usuario, conectado, conectar, li
                         <h1 className="titulo-canal">
                             <IconeMicrosoft app={app} tamanho={20} /> {info.nome}
                         </h1>
-                        <small>{conectado ? `${usuario.email} · conta Microsoft` : 'Conta Microsoft não conectada'}</small>
+                        <small>{conectado ? `${(real && real.email) || usuario.email} · conta Microsoft` : 'Conta Microsoft não conectada'}</small>
                     </div>
                     {conectado ? (
                         <div className="barra-acoes">
@@ -23,9 +23,15 @@ export default function MolduraMicrosoft({ app, usuario, conectado, conectar, li
                         </div>
                     ) : null}
                 </header>
-                <p className="ms-faixa" role="note">
-                    <Icone nome="info" tamanho={14} /> Prévia: dados de exemplo e envio simulado, até a integração com a Microsoft.
-                </p>
+                {!real ? (
+                    <p className="ms-faixa" role="note">
+                        <Icone nome="info" tamanho={14} /> Prévia: dados de exemplo e envio simulado, até a integração com a Microsoft.
+                    </p>
+                ) : real.aviso ? (
+                    <p className="ms-faixa" role="alert">
+                        <Icone nome="info" tamanho={14} /> {real.aviso}
+                    </p>
+                ) : null}
                 {conectado ? (
                     lista
                 ) : (
@@ -39,7 +45,8 @@ export default function MolduraMicrosoft({ app, usuario, conectado, conectar, li
                 {!conectado ? (
                     <div className="ms-login">
                         <IconeMicrosoft app={app} tamanho={56} />
-                        <h2>Conecte sua conta Microsoft</h2>
+                        <h2>{real?.reconectar ? 'Reconecte sua conta Microsoft' : 'Conecte sua conta Microsoft'}</h2>
+                        {real?.reconectar ? <p>O acesso da sua conta expirou ou foi revogado. Entre de novo para continuar.</p> : null}
                         <p>
                             Para usar o {info.rotulo} dentro do Emerzap, entre com a sua conta Microsoft da Emerdog (<strong>@emerdog.com.br</strong>). O acesso
                             usa o seu próprio login, com as mesmas permissões que você tem no {info.rotulo}.
@@ -47,7 +54,7 @@ export default function MolduraMicrosoft({ app, usuario, conectado, conectar, li
                         <button className="ms-entrar" onClick={() => conectar(true)}>
                             <LogoMicrosoft /> Entrar com a Microsoft
                         </button>
-                        <small>Prévia: o login ainda é simulado, enquanto o app não é registrado no Azure.</small>
+                        {!real ? <small>Prévia: o login ainda é simulado, enquanto o app não é registrado no Azure.</small> : null}
                     </div>
                 ) : (
                     conteudo || (

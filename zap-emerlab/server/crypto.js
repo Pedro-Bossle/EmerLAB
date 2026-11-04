@@ -51,3 +51,26 @@ export function lerToken(token, segredo) {
         return null
     }
 }
+
+// Cifra simétrica (AES-256-GCM) para segredos guardados no banco, como o refresh token da Microsoft.
+// Formato: v1.<iv>.<tag>.<dados> (base64url). A chave é qualquer texto longo; vira 32 bytes por SHA-256.
+const chaveAes = (segredo) => crypto.createHash('sha256').update(String(segredo)).digest()
+
+export function cifrar(texto, segredo) {
+    const iv = crypto.randomBytes(12)
+    const c = crypto.createCipheriv('aes-256-gcm', chaveAes(segredo), iv)
+    const dados = Buffer.concat([c.update(String(texto), 'utf8'), c.final()])
+    return `v1.${iv.toString('base64url')}.${c.getAuthTag().toString('base64url')}.${dados.toString('base64url')}`
+}
+
+export function decifrar(valor, segredo) {
+    const [v, iv, tag, dados] = String(valor || '').split('.')
+    if (v !== 'v1' || !iv || !tag || !dados) return null
+    try {
+        const d = crypto.createDecipheriv('aes-256-gcm', chaveAes(segredo), Buffer.from(iv, 'base64url'))
+        d.setAuthTag(Buffer.from(tag, 'base64url'))
+        return Buffer.concat([d.update(Buffer.from(dados, 'base64url')), d.final()]).toString('utf8')
+    } catch {
+        return null
+    }
+}
