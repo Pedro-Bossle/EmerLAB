@@ -838,170 +838,197 @@ const CredenciamentoCadastroForm = () => {
                 if (errUp) throw new Error(errUp.message)
             }
 
-            await supabase.from('prestador_cidades').delete().eq('prestador_id', pid)
-            if (secaoMultiplasCidades) {
-                const cidadesPayload = []
-                if (cidadesAtende.length) {
-                    cidadesAtende.forEach((c) => {
-                        cidadesPayload.push({
-                            prestador_id: pid,
-                            cidade_id: c.cidadeId,
-                            principal: Number(c.cidadeId) === Number(cidadePrincipalId),
+            // Gravações dependentes só do id do prestador: cada bloco é uma cadeia independente e todos rodam em paralelo.
+            const gravarCidades = async () => {
+                await supabase.from('prestador_cidades').delete().eq('prestador_id', pid)
+                if (secaoMultiplasCidades) {
+                    const cidadesPayload = []
+                    if (cidadesAtende.length) {
+                        cidadesAtende.forEach((c) => {
+                            cidadesPayload.push({
+                                prestador_id: pid,
+                                cidade_id: c.cidadeId,
+                                principal: Number(c.cidadeId) === Number(cidadePrincipalId),
+                            })
                         })
-                    })
-                } else if (cidadePrincipalId) {
-                    cidadesPayload.push({ prestador_id: pid, cidade_id: cidadePrincipalId, principal: true })
-                }
-                if (cidadesPayload.length) {
-                    await supabase.from('prestador_cidades').upsert(cidadesPayload, {
-                        onConflict: 'prestador_id,cidade_id',
-                        ignoreDuplicates: true,
-                    })
-                }
-                salvarOrdemCidadesAtende(pid, cidadesAtende)
-            }
-
-            await supabase.from('prestador_especialidades').delete().eq('prestador_id', pid)
-            const payloadEsp = [
-                { prestador_id: pid, especialidade_id: Number(form.especialidade_id), principal: true },
-            ]
-            especialidadesSecundariasIds.forEach((eid) => {
-                if (Number(eid) === Number(form.especialidade_id)) return
-                payloadEsp.push({ prestador_id: pid, especialidade_id: Number(eid), principal: false })
-            })
-            await supabase.from('prestador_especialidades').insert(payloadEsp)
-
-            if (secaoMultiplasCidades) {
-                await supabase.from('prestador_estabelecimentos').delete().eq('veterinario_id', pid)
-                if (atendeEmClinica && estabelecimentosSelecionados.length) {
-                    const rowsEst = estabelecimentosSelecionados.map((estabelecimentoId, idx) => ({
-                        veterinario_id: pid,
-                        estabelecimento_id: Number(estabelecimentoId),
-                        principal: idx === 0,
-                    }))
-                    const { error: errEst } = await supabase.from('prestador_estabelecimentos').insert(rowsEst)
-                    if (errEst) throw new Error(errEst.message)
-                }
-            } else {
-                await supabase.from('prestador_estabelecimentos').delete().eq('veterinario_id', pid)
-            }
-
-            if (secaoVetsVinculados) {
-                const sitClinica = form.situacao_id ? Number(form.situacao_id) : null
-                let idsVets = [...vetsVinculados.map(Number)]
-                let cidadeVet = form.cidade_id ? Number(form.cidade_id) : null
-                if (!cidadeVet && form.endereco_cidade) {
-                    const obj = await obterOuCriarCidadePorMunicipio(
-                        form.endereco_uf,
-                        form.endereco_cidade,
-                    )
-                    if (obj?.id) cidadeVet = Number(obj.id)
-                }
-
-                const responsavelVets = await obterResponsavelCadastroAtual(supabase)
-                const agoraVet = new Date().toISOString()
-                for (const v of vetsPendentes) {
-                    const esp = especialidades.find((e) => Number(e.id) === Number(v.especialidade_id))
-                    const tipoV = String(esp?.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
-                    if (!cidadeVet) {
-                        throw new Error('Defina a cidade da clínica antes de salvar veterinários pendentes.')
+                    } else if (cidadePrincipalId) {
+                        cidadesPayload.push({ prestador_id: pid, cidade_id: cidadePrincipalId, principal: true })
                     }
-                    const { data: insV, error: errV } = await supabase
-                        .from('prestadores')
-                        .insert({
-                            nome: v.nome.trim(),
-                            crmv: normalizarCrmvParaSalvar(v.crmv),
-                            especialidade_id: Number(v.especialidade_id),
-                            tipo: tipoV,
-                            cidade_id: cidadeVet,
-                            situacao_id: sitClinica,
-                            ativo: true,
-                            data_cadastro: agoraVet,
-                            data_atualizacao: agoraVet,
-                            ...(responsavelVets.id
-                                ? {
-                                      cadastrado_por: responsavelVets.id,
-                                      cadastrado_por_nome: responsavelVets.nome,
-                                  }
-                                : {}),
+                    if (cidadesPayload.length) {
+                        await supabase.from('prestador_cidades').upsert(cidadesPayload, {
+                            onConflict: 'prestador_id,cidade_id',
+                            ignoreDuplicates: true,
                         })
-                        .select('id')
-                        .single()
-                    if (errV) throw new Error(errV.message)
-                    idsVets.push(Number(insV.id))
+                    }
+                    salvarOrdemCidadesAtende(pid, cidadesAtende)
                 }
-                idsVets = [...new Set(idsVets.filter(Boolean))]
-
-                await supabase.from('prestador_estabelecimentos').delete().eq('estabelecimento_id', pid)
-                if (idsVets.length) {
-                    const rows = idsVets.map((vid) => ({
-                        veterinario_id: vid,
-                        estabelecimento_id: pid,
-                        principal: false,
-                    }))
-                    await supabase.from('prestador_estabelecimentos').insert(rows)
-                }
-                setVetsPendentes([])
-
-                // Mantém vets alinhados à situação da clínica (credenciados só quando a clínica credenciar).
-                if (sitClinica && idsVets.length) {
-                    await sincronizarSituacaoVetsDoEstabelecimento(
-                        supabase,
-                        pid,
-                        sitClinica,
-                        situacoes,
-                        isNovo ? null : situacaoIdInicial,
-                    )
-                }
-            } else {
-                await supabase.from('prestador_estabelecimentos').delete().eq('estabelecimento_id', pid)
             }
 
-            await sincronizarPrestadorProcedimentos(pid, procSelecionados, mapaNomeAlternativoRef.current)
-            // Os códigos gravados são exatamente os selecionados: não precisa reler o banco (a tela navega ao fim do salvamento).
-            const codigosAtualizados = ordenarCodigosProcedimentosUnicos(procSelecionados)
-            setProcSelecionados(codigosAtualizados)
+            const gravarEspecialidades = async () => {
+                await supabase.from('prestador_especialidades').delete().eq('prestador_id', pid)
+                const payloadEsp = [
+                    { prestador_id: pid, especialidade_id: Number(form.especialidade_id), principal: true },
+                ]
+                especialidadesSecundariasIds.forEach((eid) => {
+                    if (Number(eid) === Number(form.especialidade_id)) return
+                    payloadEsp.push({ prestador_id: pid, especialidade_id: Number(eid), principal: false })
+                })
+                await supabase.from('prestador_especialidades').insert(payloadEsp)
+            }
 
-            await supabase.from('prestador_laboratorios_solicitacao').delete().eq('prestador_id', pid)
-            if (laboratoriosSolicitacaoIds.length) {
-                const rowsLabs = [...new Set(laboratoriosSolicitacaoIds.map(Number).filter(Boolean))].map((lid) => ({
-                    prestador_id: pid,
-                    laboratorio_id: lid,
-                }))
-                const { error: errLabs } = await supabase.from('prestador_laboratorios_solicitacao').insert(rowsLabs)
-                if (errLabs) {
-                    const msg = String(errLabs.message || '')
-                    if (msg.toLowerCase().includes('row-level security')) {
-                        throw new Error(
-                            'Sem permissão para gravar laboratórios de solicitação (RLS). Execute no Supabase o script scripts/sql/prestador_laboratorios_solicitacao_rls.sql.',
+            const gravarEstabelecimentos = async () => {
+                if (secaoMultiplasCidades) {
+                    await supabase.from('prestador_estabelecimentos').delete().eq('veterinario_id', pid)
+                    if (atendeEmClinica && estabelecimentosSelecionados.length) {
+                        const rowsEst = estabelecimentosSelecionados.map((estabelecimentoId, idx) => ({
+                            veterinario_id: pid,
+                            estabelecimento_id: Number(estabelecimentoId),
+                            principal: idx === 0,
+                        }))
+                        const { error: errEst } = await supabase.from('prestador_estabelecimentos').insert(rowsEst)
+                        if (errEst) throw new Error(errEst.message)
+                    }
+                } else {
+                    await supabase.from('prestador_estabelecimentos').delete().eq('veterinario_id', pid)
+                }
+
+                if (secaoVetsVinculados) {
+                    const sitClinica = form.situacao_id ? Number(form.situacao_id) : null
+                    let idsVets = [...vetsVinculados.map(Number)]
+                    let cidadeVet = form.cidade_id ? Number(form.cidade_id) : null
+                    if (!cidadeVet && form.endereco_cidade) {
+                        const obj = await obterOuCriarCidadePorMunicipio(
+                            form.endereco_uf,
+                            form.endereco_cidade,
+                        )
+                        if (obj?.id) cidadeVet = Number(obj.id)
+                    }
+
+                    const responsavelVets = await obterResponsavelCadastroAtual(supabase)
+                    const agoraVet = new Date().toISOString()
+                    for (const v of vetsPendentes) {
+                        const esp = especialidades.find((e) => Number(e.id) === Number(v.especialidade_id))
+                        const tipoV = String(esp?.tipo || 'ESPECIALIDADE').trim() || 'ESPECIALIDADE'
+                        if (!cidadeVet) {
+                            throw new Error('Defina a cidade da clínica antes de salvar veterinários pendentes.')
+                        }
+                        const { data: insV, error: errV } = await supabase
+                            .from('prestadores')
+                            .insert({
+                                nome: v.nome.trim(),
+                                crmv: normalizarCrmvParaSalvar(v.crmv),
+                                especialidade_id: Number(v.especialidade_id),
+                                tipo: tipoV,
+                                cidade_id: cidadeVet,
+                                situacao_id: sitClinica,
+                                ativo: true,
+                                data_cadastro: agoraVet,
+                                data_atualizacao: agoraVet,
+                                ...(responsavelVets.id
+                                    ? {
+                                          cadastrado_por: responsavelVets.id,
+                                          cadastrado_por_nome: responsavelVets.nome,
+                                      }
+                                    : {}),
+                            })
+                            .select('id')
+                            .single()
+                        if (errV) throw new Error(errV.message)
+                        idsVets.push(Number(insV.id))
+                    }
+                    idsVets = [...new Set(idsVets.filter(Boolean))]
+
+                    await supabase.from('prestador_estabelecimentos').delete().eq('estabelecimento_id', pid)
+                    if (idsVets.length) {
+                        const rows = idsVets.map((vid) => ({
+                            veterinario_id: vid,
+                            estabelecimento_id: pid,
+                            principal: false,
+                        }))
+                        await supabase.from('prestador_estabelecimentos').insert(rows)
+                    }
+                    setVetsPendentes([])
+
+                    // Mantém vets alinhados à situação da clínica (credenciados só quando a clínica credenciar).
+                    if (sitClinica && idsVets.length) {
+                        await sincronizarSituacaoVetsDoEstabelecimento(
+                            supabase,
+                            pid,
+                            sitClinica,
+                            situacoes,
+                            isNovo ? null : situacaoIdInicial,
                         )
                     }
-                    throw new Error(msg)
+                } else {
+                    await supabase.from('prestador_estabelecimentos').delete().eq('estabelecimento_id', pid)
                 }
             }
 
-            if (mostrarCertificadosResponsaveis) {
-                await sincronizarResponsaveisPrestador(pid, responsaveis)
-
-                const novosCertFiles = certificadosPendentes.map((p) => p.file).filter(Boolean)
-                if (novosCertFiles.length || certificadosRemoverIds.length) {
-                    await sincronizarCertificadosConclusaoPrestador(pid, {
-                        novos: novosCertFiles,
-                        removerIds: certificadosRemoverIds,
-                    })
-                }
-                setCertificadosPendentes([])
-                setCertificadosRemoverIds([])
+            // Os códigos gravados são exatamente os selecionados: não precisa reler o banco (a tela navega ao fim do salvamento).
+            const codigosAtualizados = ordenarCodigosProcedimentosUnicos(procSelecionados)
+            const gravarProcedimentos = async () => {
+                await sincronizarPrestadorProcedimentos(pid, procSelecionados, mapaNomeAlternativoRef.current)
+    setProcSelecionados(codigosAtualizados)
             }
 
-            try {
-                await sincronizarBeneficiosPrestador(pid, pacoteBeneficiosRef.current || { itens: [], observacoes: '' })
-            } catch (eBeneficios) {
-                const msg = String(eBeneficios?.message || '')
-                if (!/beneficios_catalogo|prestador_beneficios|schema cache|does not exist/i.test(msg)) {
-                    throw eBeneficios
+            const gravarLaboratorios = async () => {
+                await supabase.from('prestador_laboratorios_solicitacao').delete().eq('prestador_id', pid)
+                if (laboratoriosSolicitacaoIds.length) {
+                    const rowsLabs = [...new Set(laboratoriosSolicitacaoIds.map(Number).filter(Boolean))].map((lid) => ({
+                        prestador_id: pid,
+                        laboratorio_id: lid,
+                    }))
+                    const { error: errLabs } = await supabase.from('prestador_laboratorios_solicitacao').insert(rowsLabs)
+                    if (errLabs) {
+                        const msg = String(errLabs.message || '')
+                        if (msg.toLowerCase().includes('row-level security')) {
+                            throw new Error(
+                                'Sem permissão para gravar laboratórios de solicitação (RLS). Execute no Supabase o script scripts/sql/prestador_laboratorios_solicitacao_rls.sql.',
+                            )
+                        }
+                        throw new Error(msg)
+                    }
                 }
             }
+
+            const gravarResponsaveis = async () => {
+                if (mostrarCertificadosResponsaveis) {
+                    await sincronizarResponsaveisPrestador(pid, responsaveis)
+
+                    const novosCertFiles = certificadosPendentes.map((p) => p.file).filter(Boolean)
+                    if (novosCertFiles.length || certificadosRemoverIds.length) {
+                        await sincronizarCertificadosConclusaoPrestador(pid, {
+                            novos: novosCertFiles,
+                            removerIds: certificadosRemoverIds,
+                        })
+                    }
+                    setCertificadosPendentes([])
+                    setCertificadosRemoverIds([])
+                }
+            }
+
+            const gravarBeneficios = async () => {
+                try {
+                    await sincronizarBeneficiosPrestador(pid, pacoteBeneficiosRef.current || { itens: [], observacoes: '' })
+                } catch (eBeneficios) {
+                    const msg = String(eBeneficios?.message || '')
+                    if (!/beneficios_catalogo|prestador_beneficios|schema cache|does not exist/i.test(msg)) {
+                        throw eBeneficios
+                    }
+                }
+            }
+
+            const resultados = await Promise.allSettled([
+                gravarCidades(),
+                gravarEspecialidades(),
+                gravarEstabelecimentos(),
+                gravarProcedimentos(),
+                gravarLaboratorios(),
+                gravarResponsaveis(),
+                gravarBeneficios(),
+            ])
+            const falha = resultados.find((r) => r.status === 'rejected')
+            if (falha) throw falha.reason
 
             if ((tipoSalvar === 'LOCAL' || tipoEspecialidadePrestador(esp?.tipo) === 'LOCAL') && !salvouCoordenadasManual) {
                 solicitarGeocodePrestador(pid)
