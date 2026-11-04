@@ -25,13 +25,39 @@ async function authHeadersOpcional() {
     }
 }
 
-async function chamar(rota, corpo, { publico = false, authOpcional = false } = {}) {
+/** Falha de rede (sem resposta do servidor): o navegador só diz «Failed to fetch». */
+export const MSG_SEM_CONEXAO =
+    'Não foi possível conectar ao servidor. Verifique sua internet e tente de novo. Se usa bloqueador de anúncios, antivírus ou rede corporativa, tente em outro navegador ou no celular.'
+
+const espera = (ms) => new Promise((r) => setTimeout(r, ms))
+
+export function erroDeRede() {
+    const e = new Error(MSG_SEM_CONEXAO)
+    e.rede = true
+    return e
+}
+
+/** Erros de rede do fetch/Storage (não confunda com resposta HTTP de erro). */
+const pareceRede = (e) => e?.name === 'TypeError' || /failed to fetch|network|load failed|fetch/i.test(String(e?.message || ''))
+
+async function chamar(rota, corpo, { publico = false, authOpcional = false, tentativasRede = 1 } = {}) {
     const headers = { 'Content-Type': 'application/json', ...(publico ? (authOpcional ? await authHeadersOpcional() : {}) : await authHeaders()) }
-    const resp = await fetch(`/api/repasse-mensal?_route=${encodeURIComponent(rota)}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(corpo || {}),
-    })
+    let resp
+    for (let t = 1; ; t++) {
+        try {
+            resp = await fetch(`/api/repasse-mensal?_route=${encodeURIComponent(rota)}`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(corpo || {}),
+            })
+            break
+        } catch (e) {
+            if (!pareceRede(e)) throw e
+            // só repete chamadas que podem ser repetidas sem efeito duplicado (leitura e URL de envio)
+            if (t >= tentativasRede) throw erroDeRede()
+            await espera(700 * t)
+        }
+    }
     const json = await resp.json().catch(() => ({}))
     if (!resp.ok || json?.ok === false) {
         const err = new Error(json?.error || `Falha na API do repasse (${resp.status}).`)
@@ -43,7 +69,7 @@ async function chamar(rota, corpo, { publico = false, authOpcional = false } = {
 
 // ---- públicas (token) ----
 // Se quem abre é da equipe (logado), a API reconhece e não muda o status para «visualizado».
-export const publicoLer = (token) => chamar('publico-ler', { token }, { publico: true, authOpcional: true })
+export const publicoLer = (token) => chamar('publico-ler', { token }, { publico: true, authOpcional: true, tentativasRede: 3 })
 export const publicoAprovar = (token) => chamar('publico-aprovar', { token }, { publico: true })
 export const publicoReprovar = (token, observacao, canal) =>
     chamar('publico-reprovar', { token, observacao, canal }, { publico: true })
@@ -51,9 +77,23 @@ export const publicoComprovante = (token) => chamar('publico-comprovante', { tok
 
 /** Sobe NF/boleto (URL assinada) e registra o documento. */
 export async function publicoEnviarDocumento(token, arquivo, { numero, vencimento, valor }) {
-    const prep = await chamar('publico-upload-url', { token, nome: arquivo.name, tamanho: arquivo.size }, { publico: true })
-    const { error } = await supabase.storage.from(BUCKET_REPASSE).uploadToSignedUrl(prep.path, prep.uploadToken, arquivo)
-    if (error) throw new Error('Não foi possível enviar o arquivo. Tente novamente.')
+    // Até 3 tentativas do envio do arquivo. Cada uma pede uma URL nova (o token do envio é de uso único) e, se a
+    // rede cair no meio, recomeça sozinha. O registro do documento (abaixo) NÃO é repetido: duplicaria a nota.
+    let prep = null
+    for (let t = 1; t <= 3; t++) {
+        prep = await chamar('publico-upload-url', { token, nome: arquivo.name, tamanho: arquivo.size }, { publico: true, tentativasRede: 2 })
+        let falha = null
+        try {
+            const { error } = await supabase.storage.from(BUCKET_REPASSE).uploadToSignedUrl(prep.path, prep.uploadToken, arquivo)
+            falha = error
+        } catch (e) {
+            falha = e
+        }
+        if (!falha) break
+        const rede = pareceRede(falha)
+        if (t === 3 || !rede) throw rede ? erroDeRede() : new Error('Não foi possível enviar o arquivo. Tente novamente.')
+        await espera(1000 * t)
+    }
     return chamar('publico-documento', { token, path: prep.path, numero, vencimento, valor }, { publico: true })
 }
 

@@ -52,12 +52,13 @@ import {
     listarRelatoriosPorRegistros,
 } from '../../lib/repasse/repasseApi.js'
 import { ehCompetenciaNovoModelo, rotuloStatusRelatorio } from '../../lib/repasse/repasseCore.js'
-import { avisar, confirmarAcao } from '../../lib/dialogos.js'
+import { confirmarAcao } from '../../lib/dialogos.js'
 import PagamentosEnvioWizard from './PagamentosEnvioWizard.jsx'
 import PagamentosComprovanteModal from './PagamentosComprovanteModal.jsx'
 import PagamentosMenuFlutuante from './PagamentosMenuFlutuante.jsx'
 import PagamentosPainelPrestador from './PagamentosPainelPrestador.jsx'
 import PagamentosAPagar from './PagamentosAPagar.jsx'
+import PagamentosVincularRelatorioModal from './PagamentosVincularRelatorioModal.jsx'
 import './PagamentosRegistro.css'
 import PagamentosExportarModal from './PagamentosExportarModal.jsx'
 import { useSfscExclusaoConfirm } from '../../hooks/useSfscExclusaoConfirm.jsx'
@@ -298,6 +299,8 @@ export default function PagamentosRegistro() {
     /** Painel lateral do prestador e fluxo «desfazer pagamento». */
     const [painelPrestador, setPainelPrestador] = useState(null)
     const [desfazendo, setDesfazendo] = useState(null)
+    /** Registro cujo relatório está sendo vinculado à mão (planilha de um prestador só). */
+    const [vinculoManual, setVinculoManual] = useState(null)
     const [motivoDesfazer, setMotivoDesfazer] = useState('')
     const [desfazendoOcupado, setDesfazendoOcupado] = useState(false)
     /** Atalho de fila: '' | 'acao' | 'pagar' | 'divergente'. */
@@ -858,10 +861,8 @@ export default function PagamentosRegistro() {
         async (row) => {
             const aba = abaDoRegistro(row)
             if (!aba) {
-                await avisar({
-                    titulo: 'Anexe o relatório primeiro',
-                    mensagem: 'Abra «Inclusão em massa», anexe o .xlsx do sistema principal e tente de novo: o relatório é vinculado pela aba cujo nome (A1) corresponde ao prestador.',
-                })
+                // sem o .xlsx do mês anexado na Inclusão em massa: vincula à mão, com a planilha só deste prestador
+                setVinculoManual(row)
                 return
             }
             setRepasseOcupado(row.id)
@@ -2299,6 +2300,21 @@ export default function PagamentosRegistro() {
                                     onBlur={() => aoBlurCampo(row.id)}
                                 />
                             </label>
+                            {podeEditar && repasseAtivo && novoModelo(row) && (!relatorios.get(row.id) || relatorios.get(row.id).status === 'nao_enviado') && (
+                                <>
+                                    <hr />
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => {
+                                            fecharMenu()
+                                            setVinculoManual(row)
+                                        }}
+                                    >
+                                        {relatorios.get(row.id) ? 'Substituir relatório…' : 'Vincular relatório manualmente…'}
+                                    </button>
+                                </>
+                            )}
                             {podeReenviarEmail(row) && (
                                 <>
                                     <hr />
@@ -2345,6 +2361,18 @@ export default function PagamentosRegistro() {
                         setRegistros((prev) => prev.map((r) => (r.id === comprovanteAlvo.id ? { ...r, pago: true } : r)))
                         void recarregarRelatorios()
                         setInfo('Comprovante enviado e registro marcado como pago.')
+                    }}
+                />
+            )}
+            {vinculoManual && (
+                <PagamentosVincularRelatorioModal
+                    open
+                    registro={vinculoManual}
+                    relatorioAtual={relatorios?.get(vinculoManual.id) || null}
+                    onClose={() => setVinculoManual(null)}
+                    onVinculado={(r) => {
+                        void recarregarRelatorios()
+                        setInfo(r?.divergente ? 'Relatório vinculado, mas o total não confere: ele fica fora do envio até ser corrigido.' : 'Relatório vinculado. O link já está disponível no menu do Repasse.')
                     }}
                 />
             )}

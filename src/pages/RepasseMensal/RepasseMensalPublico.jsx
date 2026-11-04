@@ -93,7 +93,7 @@ function TabelaAtendimentos({ grupos }) {
     )
 }
 
-function FormDocumento({ token, relatorio, aoEnviado }) {
+function FormDocumento({ token, relatorio, whatsapp, aoEnviado }) {
     const tipo = relatorio.tipo
     const [arquivo, setArquivo] = useState(null)
     const [numero, setNumero] = useState('')
@@ -101,6 +101,7 @@ function FormDocumento({ token, relatorio, aoEnviado }) {
     const [valor, setValor] = useState(String(relatorio.totalRepasse).replace('.', ','))
     const [enviando, setEnviando] = useState(false)
     const [erro, setErro] = useState('')
+    const [erroRede, setErroRede] = useState(false)
     const [arrastando, setArrastando] = useState(false)
     const inputRef = useRef(null)
     const valorNum = Number(String(valor).replace(/\./g, '').replace(',', '.'))
@@ -132,6 +133,7 @@ function FormDocumento({ token, relatorio, aoEnviado }) {
             aoEnviado()
         } catch (err) {
             setErro(err.message)
+            setErroRede(Boolean(err.rede))
         } finally {
             setEnviando(false)
         }
@@ -194,9 +196,17 @@ function FormDocumento({ token, relatorio, aoEnviado }) {
                 </p>
             )}
             {erro && (
-                <p className="rm_aviso rm_aviso--erro" role="alert">
-                    {erro}
-                </p>
+                <div className="rm_aviso rm_aviso--erro" role="alert">
+                    <p>{erro}</p>
+                    {erroRede && (
+                        <p>
+                            Não conseguiu? Envie a {rotulo} pelo WhatsApp do financeiro:{' '}
+                            <a href={linkWhatsapp(whatsapp, `Olá! Não consegui anexar a ${rotulo} do repasse de ${relatorio.competencia} (${relatorio.prestador}) pelo site.`)}>
+                                abrir conversa
+                            </a>
+                        </p>
+                    )}
+                </div>
             )}
             <button type="submit" className="rm_btn rm_btn--aprovar" disabled={enviando}>
                 {enviando ? 'Enviando…' : `Aprovar e anexar ${rotulo}`}
@@ -479,7 +489,7 @@ export default function RepasseMensalPublico() {
                             )
                         ) : (
                             <>
-                                <FormDocumento token={token} relatorio={r} aoEnviado={carregar} />
+                                <FormDocumento token={token} relatorio={r} whatsapp={whatsapp} aoEnviado={carregar} />
                                 <div className="rm_decisao rm_decisao--solo">
                                     <button type="button" className="rm_btn rm_btn--reprovar" onClick={() => setReprovando(true)}>
                                         <span aria-hidden="true">✕</span> Reprovar relatório

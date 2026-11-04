@@ -67,6 +67,19 @@ export function periodoDoNomeArquivo(nomeArquivo) {
     return { inicio: `${m[3]}-${m[2]}-${m[1]}`, fim: `${m[6]}-${m[5]}-${m[4]}` }
 }
 
+/** Colunas do relatório, nesta ordem (A..G). O vínculo manual exige exatamente estas. */
+export const COLUNAS_RELATORIO = ['Atendimento', 'Tutor', 'Pet', 'Data', 'Procedimento', 'Repasse', 'Diferença']
+
+const semAcento = (t) =>
+    String(t || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase()
+
+/** A linha de cabeçalho tem as 7 colunas esperadas, na ordem? */
+const cabecalhoConfere = (linha) => COLUNAS_RELATORIO.every((nome, i) => semAcento(texto(linha[i])) === semAcento(nome))
+
 const ehCabecalho = (linha) => texto(linha[0]).toLowerCase() === 'atendimento'
 const ehTotais = (linha) => /^totais/i.test(texto(linha[0]))
 /**
@@ -96,6 +109,8 @@ export function interpretarAba(linhas) {
     let somaTutor = 0
     let totalAba = null
     let atendimentos = 0
+    let cabecalhosFora = 0 // linhas de cabeçalho que não têm as 7 colunas na ordem
+    let temTotaisPrestador = false // existe a linha «Totais Prestador» com o total do repasse (coluna F)
 
     // Total do prestador = última célula preenchida da coluna F (macro GerarResumoAbas).
     for (let i = linhas.length - 1; i >= 0; i--) {
@@ -110,12 +125,14 @@ export function interpretarAba(linhas) {
         const linha = linhas[i] || []
         if (linha.every((c) => texto(c) === '')) continue
         if (ehCabecalho(linha)) {
+            if (!cabecalhoConfere(linha)) cabecalhosFora += 1
             grupo = { titulo: tituloPendente || nomeA1, atendimentos: [] }
             grupos.push(grupo)
             atend = null
             continue
         }
         if (ehTotais(linha)) {
+            if (/^totais prestador/i.test(texto(linha[0])) && numero(linha[5]) != null) temTotaisPrestador = true
             tituloPendente = ''
             continue
         }
@@ -155,8 +172,30 @@ export function interpretarAba(linhas) {
         totalTutor: arredondar(somaTutor),
         totalAba,
         diferencaTotais,
+        cabecalhoOk: cabecalhosFora === 0,
+        temTotaisPrestador,
         divergente: totalAba == null || Math.abs(diferencaTotais) > TOLERANCIA_CONFERENCIA,
     }
+}
+
+/**
+ * Confere uma aba interpretada para o vínculo MANUAL e devolve a lista de problemas em português.
+ * `erros` impedem o vínculo; `avisos` deixam vincular (o relatório fica «total não confere» fora do envio).
+ */
+export function validarAbaRelatorio(aba, { valorRegistro = null } = {}) {
+    const erros = []
+    const avisos = []
+    if (!aba) return { erros: ['Nenhuma aba encontrada no arquivo.'], avisos }
+    if (!aba.nomeA1) erros.push('A célula A1 precisa ter o nome do prestador.')
+    if (!aba.grupos?.length) erros.push(`Não achei a linha de cabeçalho com as colunas: ${COLUNAS_RELATORIO.join(' | ')}.`)
+    else if (aba.cabecalhoOk === false) erros.push(`O cabeçalho precisa ter as colunas, nesta ordem: ${COLUNAS_RELATORIO.join(' | ')}.`)
+    if (aba.grupos?.length && !aba.atendimentos) erros.push('Nenhum atendimento encontrado abaixo do cabeçalho.')
+    if (!aba.temTotaisPrestador) erros.push('Falta a linha «Totais Prestador» com o total da coluna Repasse (F).')
+    else if (aba.divergente) avisos.push(`A soma das linhas (${aba.somaLinhas.toFixed(2).replace('.', ',')}) não bate com o «Totais Prestador» (${aba.totalAba.toFixed(2).replace('.', ',')}).`)
+    if (aba.totalAba != null && valorRegistro != null && Math.abs(Number(valorRegistro) - aba.totalAba) > TOLERANCIA_CONFERENCIA) {
+        avisos.push(`O total do relatório (${aba.totalAba.toFixed(2).replace('.', ',')}) é diferente do valor do registro (${Number(valorRegistro).toFixed(2).replace('.', ',')}).`)
+    }
+    return { erros, avisos }
 }
 
 /** Fluxo manual dos laboratórios (§6): nome começando com LABORATORIO. */
