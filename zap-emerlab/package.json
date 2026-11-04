@@ -9,6 +9,7 @@
     "dev:api": "node --watch-path=./server --watch-path=./src/regras.js --watch-path=./src/variaveis.js ./scripts/dev-server.mjs",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "vitest run",
     "hash-senha": "node ./scripts/hash-senha.mjs"
   },
   "dependencies": {
