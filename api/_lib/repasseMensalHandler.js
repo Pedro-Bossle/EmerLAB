@@ -27,6 +27,9 @@ import {
     ehCompetenciaNovoModelo,
     instrucaoPorTipo,
     descontoRpaDoRepasse,
+    ASSUNTO_PADRAO,
+    CORPO_PADRAO,
+    DIAS_RETENCAO_DOCUMENTOS,
     validarArquivoRepasse,
     periodoMesAnteriorLabel,
 } from '../../src/lib/repasse/repasseCore.js'
@@ -368,6 +371,66 @@ async function planejarEnvio(admin, body, ctx) {
     return { envio_id: envio.id, plano: ordenados.map((id, i) => ({ relatorio_id: id, horario: horarios[i] ? horarios[i].toISOString() : null })) }
 }
 
+/**
+ * Reenvia agora o e-mail do relatório ao prestador (menu ⋯ do Registro). Não muda o status do relatório
+ * (aprovado continua aprovado); se ainda era «não enviado», vira «enviado». Link revogado ou vencido é renovado.
+ */
+async function reenviarEmail(admin, { relatorio_id }, ctx) {
+    const rel = await carregarRelatorio(admin, relatorio_id)
+    const registro = await carregarRegistro(admin, rel.registro_id)
+    const config = await carregarConfig(admin)
+    if (rel.divergente) throw new ErroApi(409, 'Total não confere: o relatório está fora do envio.')
+    if (rel.fluxo === 'laboratorio_manual') throw new ErroApi(409, 'Laboratório em fluxo manual.')
+    if (rel.status === 'agendado') throw new ErroApi(409, 'O e-mail está agendado. Cancele o agendamento antes de reenviar.')
+    if (!ehCompetenciaNovoModelo(rel.mes, rel.ano, config.competencia_inicial)) throw new ErroApi(409, 'Competência legado.')
+    const para = await emailDoPrestador(admin, registro.prestador_id)
+    if (!para) throw new ErroApi(422, 'Prestador sem e-mail no cadastro.')
+
+    // Mesmo texto do envio original, se existir; senão o padrão.
+    let assunto = ASSUNTO_PADRAO
+    let corpo = CORPO_PADRAO
+    if (rel.envio_id) {
+        const { data: envio } = await admin.from('repasse_envios').select('assunto, corpo').eq('id', rel.envio_id).maybeSingle()
+        if (envio) { assunto = envio.assunto; corpo = envio.corpo }
+    }
+
+    const agora = new Date()
+    const vencido = rel.token_expira_em && new Date(rel.token_expira_em) < agora
+    const atualiza = { atualizado_em: agora.toISOString(), token_expira_em: new Date(agora.getTime() + config.validade_link_dias * 86_400_000).toISOString() }
+    let versao = rel.token_versao
+    if (rel.token_revogado_em || vencido) {
+        versao = rel.token_versao + 1
+        atualiza.token_versao = versao
+        atualiza.token_hash = hashDoToken(tokenDoRelatorio(rel.id, versao))
+        atualiza.token_revogado_em = null
+    }
+    const tipo = tipoDoRegistro(registro)
+    const valorFmt = Number(rel.total_repasse).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+    const prestador = registro.prestador_nome || rel.nome_a1
+    const comDesconto = tipo === 'rpa' && String(registro.tipo_repasse || '').toLowerCase() === 'rpa'
+    const vars = {
+        prestador, competencia: periodoMesAnteriorLabel(), valor: valorFmt, atendimentos: contarAtendimentos(rel.dados),
+        instrucao_tipo: instrucaoPorTipo(tipo, valorFmt, { descontoRpa: comDesconto, valorBruto: rel.total_repasse }),
+    }
+    const m = montarEmailRepasseRelatorio({
+        assunto: aplicarVariaveis(assunto, vars), corpo: aplicarVariaveis(corpo, vars), prestador, competencia: vars.competencia,
+        valor: rel.total_repasse, atendimentos: vars.atendimentos,
+        formaPagamento: tipo === 'rpa' ? 'RPA' : tipo === 'nota' ? 'Nota fiscal' : 'Boleto',
+        link: linkPublico(tokenDoRelatorio(rel.id, versao)), whatsapp: config.whatsapp_financeiro,
+        descontoRpa: comDesconto ? descontoRpaDoRepasse(rel.total_repasse) : null,
+    })
+    const data = await enviarEmailResend({ to: para, subject: m.subject, html: m.html, text: m.text, from: remetente(config) })
+    const primeiroEnvio = rel.status === 'nao_enviado'
+    if (primeiroEnvio) {
+        atualiza.status = 'enviado'
+        atualiza.enviado_em = agora.toISOString()
+    }
+    atualiza.resend_email_id = data?.id || null
+    await admin.from('repasse_relatorios').update(atualiza).eq('id', rel.id)
+    await evento(admin, rel.id, primeiroEnvio ? 'enviado' : 'reenviado', { para, link_renovado: versao !== rel.token_versao }, ctx.user.email || ctx.user.id)
+    return { ok: true, para, primeiroEnvio }
+}
+
 async function enviarLote(admin, { envio_id, itens }, ctx) {
     if (!Array.isArray(itens) || !itens.length || itens.length > 10) throw new ErroApi(400, 'Envie até 10 e-mails por chamada.')
     const { data: envio } = await admin.from('repasse_envios').select('*').eq('id', envio_id).maybeSingle()
@@ -645,6 +708,7 @@ const INTERNAS = {
     link: linkInterno,
     'planejar-envio': planejarEnvio,
     'enviar-lote': enviarLote,
+    'reenviar-email': reenviarEmail,
     'cancelar-agendamento': cancelarAgendamento,
     'revisar-documento': revisarDocumento,
     'marcar-tratado': marcarTratado,
@@ -657,9 +721,58 @@ const INTERNAS = {
     'url-arquivo': urlArquivo,
 }
 
+/**
+ * Exclui do EmerLAB (arquivo no Storage + registro) as notas/boletos APROVADOS com mais de
+ * DIAS_RETENCAO_DOCUMENTOS dias de recebidos. Pendentes (em revisão/devolvidos) nunca são apagados.
+ * O histórico do relatório guarda um evento «documento_excluido» (sem o arquivo).
+ */
+export async function limparDocumentosVencidos(admin, agora = new Date()) {
+    const limite = new Date(agora.getTime() - DIAS_RETENCAO_DOCUMENTOS * 86_400_000).toISOString()
+    const { data: docs, error } = await admin
+        .from('repasse_documentos')
+        .select('id, relatorio_id, storage_path, tipo, numero, valor')
+        .eq('status', 'aprovado')
+        .lt('criado_em', limite)
+        .limit(200)
+    if (error) throw new Error(error.message)
+    const lista = docs || []
+    if (!lista.length) return { excluidos: 0 }
+    const paths = lista.map((d) => d.storage_path).filter(Boolean)
+    if (paths.length) {
+        const { error: eSt } = await admin.storage.from(BUCKET).remove(paths)
+        if (eSt) throw new Error(`Storage: ${eSt.message}`)
+    }
+    const { error: eDel } = await admin.from('repasse_documentos').delete().in('id', lista.map((d) => d.id))
+    if (eDel) throw new Error(eDel.message)
+    for (const d of lista) await evento(admin, d.relatorio_id, 'documento_excluido', { tipo: d.tipo, numero: d.numero, valor: d.valor, motivo: `retenção de ${DIAS_RETENCAO_DOCUMENTOS} dias` }, 'sistema')
+    return { excluidos: lista.length }
+}
+
+/** Rota da limpeza: só com o segredo do cron (Vercel envia `Authorization: Bearer $CRON_SECRET`). */
+async function responderLimpeza(req, res) {
+    const segredo = process.env.CRON_SECRET
+    if (!segredo) return res.status(503).json({ ok: false, error: 'Defina CRON_SECRET no servidor.' })
+    const recebido = String(req.headers?.authorization || '')
+    const esperado = `Bearer ${segredo}`
+    const a = Buffer.from(recebido)
+    const b = Buffer.from(esperado)
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(401).json({ ok: false, error: 'Não autorizado.' })
+    try {
+        const r = await limparDocumentosVencidos(createSupabaseAdminClient())
+        return res.status(200).json({ ok: true, ...r })
+    } catch (e) {
+        return res.status(500).json({ ok: false, error: e.message })
+    }
+}
+
 export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
     res.setHeader('Cache-Control', 'no-store')
+    try {
+        if (new URL(req.url || '/', 'http://localhost').searchParams.get('_route') === 'limpar-documentos') return await responderLimpeza(req, res)
+    } catch {
+        /* URL inválida: segue o fluxo normal */
+    }
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Método não permitido.' })
     try {
         const url = new URL(req.url || '/', 'http://localhost')

@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase.js'
 import { formatarValorMonetarioBr } from '../../lib/pagamentosValor.js'
 import { enviarLote, lerRelatorioCompleto, planejarEnvio } from '../../lib/repasse/repasseApi.js'
 import {
+    ASSUNTO_PADRAO,
+    CORPO_PADRAO,
     TIPOS_REPASSE_ROTULO,
     aplicarVariaveis,
     distribuirHorarios,
@@ -14,13 +16,6 @@ import {
 import { normalizarTextoBusca } from '../../lib/prestadorCadastroHelpers.js'
 import { Badge, Button, Modal } from '../../components/ui'
 import { SelectDropdown } from '../../components/ui/Dropdown.jsx'
-
-const ASSUNTO_PADRAO = 'Relatório de repasse {competencia} — {prestador}'
-const CORPO_PADRAO = `Olá, {prestador}!
-
-Segue o relatório de repasse de {competencia}, com {atendimentos} atendimento(s) e valor de repasse de {valor}.
-
-Para concluir, {instrucao_tipo}. Acesse o botão abaixo para conferir o relatório.`
 
 const FILTROS = [
     { id: 'pendentes', label: 'Ainda não enviados' },

@@ -1,7 +1,7 @@
 {
   ".cursor/mcp.json": {
-    "mtime": 1793711356.6120164,
-    "seen": 1793728847.136737,
+    "mtime": 1793793318.515793,
+    "seen": 1793793623.2164931,
     "ast_hash": "584e962a5a4241101c59c0e231405b88",
     "semantic_hash": ""
   },
@@ -270,8 +270,8 @@
     "semantic_hash": ""
   },
   "src/components/BatePapo/EmerzapChaveContaModal.jsx": {
-    "mtime": 1793711356.6140158,
-    "seen": 1793728847.1369245,
+    "mtime": 1793793318.5207946,
+    "seen": 1793793623.221034,
     "ast_hash": "37c6e7bed8093c034df4e19c3e57686e",
     "semantic_hash": ""
   },
@@ -348,8 +348,8 @@
     "semantic_hash": ""
   },
   "src/components/Layout2/FloatingLayerPortal.jsx": {
-    "mtime": 1793711356.6140158,
-    "seen": 1793728847.1369708,
+    "mtime": 1793793318.5207946,
+    "seen": 1793793623.2220757,
     "ast_hash": "ddfc1f83613e8d71454ef8e9852fc010",
     "semantic_hash": ""
   },
@@ -396,8 +396,8 @@
     "semantic_hash": ""
   },
   "src/components/Outlook/MsalAppProvider.jsx": {
-    "mtime": 1793711356.613016,
-    "seen": 1793728847.1369977,
+    "mtime": 1793793318.5177922,
+    "seen": 1793793623.222853,
     "ast_hash": "c0f80ddd859ae44427b2825e4ec538ee",
     "semantic_hash": ""
   },
@@ -1434,8 +1434,8 @@
     "semantic_hash": ""
   },
   "src/lib/homeFavoritos.js": {
-    "mtime": 1793711356.6140158,
-    "seen": 1793728847.1376014,
+    "mtime": 1793793318.5207946,
+    "seen": 1793793623.2388144,
     "ast_hash": "28676694f33222939db7f6fa23e60d72",
     "semantic_hash": ""
   },
@@ -1770,9 +1770,9 @@
     "semantic_hash": ""
   },
   "src/lib/repasse/apiRepasseMensal.test.js": {
-    "mtime": 1793738640.1466525,
-    "seen": 1793738723.8289027,
-    "ast_hash": "de0681ef8d93d22b105fb355dd28868e",
+    "mtime": 1793793812.4349768,
+    "seen": 1793793847.8484514,
+    "ast_hash": "a121808362677f02f49360d1a4afd6b2",
     "semantic_hash": ""
   },
   "src/lib/repasse/exportRelatorio.js": {
@@ -1794,15 +1794,15 @@
     "semantic_hash": ""
   },
   "src/lib/repasse/repasseApi.js": {
-    "mtime": 1793739467.959036,
-    "seen": 1793739557.073937,
-    "ast_hash": "f30928751c3546b120dac6b05d085a9f",
+    "mtime": 1793793773.7369068,
+    "seen": 1793793847.848759,
+    "ast_hash": "77f5277a030aa8b68c3ef1c329ffe9fe",
     "semantic_hash": ""
   },
   "src/lib/repasse/repasseCore.js": {
-    "mtime": 1793739188.7834408,
-    "seen": 1793739256.2820892,
-    "ast_hash": "1fc7a999add9838c82c5bfe4d77879b3",
+    "mtime": 1793793773.7348766,
+    "seen": 1793793847.8487644,
+    "ast_hash": "6ffcfd3609df3710e2b9f90a4a49ac8b",
     "semantic_hash": ""
   },
   "src/lib/repasse/repasseCore.test.js": {
@@ -1836,8 +1836,8 @@
     "semantic_hash": ""
   },
   "src/lib/supertabelaBuscaValores.js": {
-    "mtime": 1793711356.6110158,
-    "seen": 1793728847.1378431,
+    "mtime": 1793793318.5147936,
+    "seen": 1793793623.2445743,
     "ast_hash": "77c916568dc02815c593041d8c527747",
     "semantic_hash": ""
   },
@@ -1872,8 +1872,8 @@
     "semantic_hash": ""
   },
   "src/lib/vincularLaboratoriosPorCidadeTabela.js": {
-    "mtime": 1793711356.6140158,
-    "seen": 1793728847.1378636,
+    "mtime": 1793793318.5227928,
+    "seen": 1793793623.2451644,
     "ast_hash": "dcf4ac7f43fe54eea5d3f336609e4cf5",
     "semantic_hash": ""
   },
@@ -2148,8 +2148,8 @@
     "semantic_hash": ""
   },
   "src/pages/Credenciamento/Credenciamento_prospectos_osm/CredenciamentoProspectosOsm.jsx": {
-    "mtime": 1793731872.1623747,
-    "seen": 1793732088.2796574,
+    "mtime": 1793793318.5227928,
+    "seen": 1793793623.2495995,
     "ast_hash": "7403541bf6916fc5c9d7e5d1ef6a5f97",
     "semantic_hash": ""
   },
@@ -2238,9 +2238,9 @@
     "semantic_hash": ""
   },
   "src/pages/Pagamentos/PagamentosCaixa.jsx": {
-    "mtime": 1793734631.052421,
-    "seen": 1793734724.3970506,
-    "ast_hash": "dcf017cad1b393cb6c4403b35c8922cf",
+    "mtime": 1793793773.7380316,
+    "seen": 1793793847.8571754,
+    "ast_hash": "57ad4177f6a20ad867404d66484b5735",
     "semantic_hash": ""
   },
   "src/pages/Pagamentos/PagamentosComprovanteModal.jsx": {
@@ -2250,9 +2250,9 @@
     "semantic_hash": ""
   },
   "src/pages/Pagamentos/PagamentosEnvioWizard.jsx": {
-    "mtime": 1793739188.7844372,
-    "seen": 1793739256.2982795,
-    "ast_hash": "1ab4f5c5873b32b23e9ae78182a4b7ac",
+    "mtime": 1793793525.6008182,
+    "seen": 1793793623.2511451,
+    "ast_hash": "2693c5ebaa6e600dc120004f67dfd07d",
     "semantic_hash": ""
   },
   "src/pages/Pagamentos/PagamentosExportarModal.jsx": {
@@ -2268,9 +2268,9 @@
     "semantic_hash": ""
   },
   "src/pages/Pagamentos/PagamentosRegistro.jsx": {
-    "mtime": 1793737252.1019776,
-    "seen": 1793737302.9787595,
-    "ast_hash": "5ff8ad1199f07a86548f4743facd1f56",
+    "mtime": 1793793525.7843282,
+    "seen": 1793793623.2514138,
+    "ast_hash": "5b47728dfae8cccf7ffa92311ccdfdca",
     "semantic_hash": ""
   },
   "src/pages/Pagamentos/PagamentosResumo.jsx": {
@@ -2448,9 +2448,9 @@
     "semantic_hash": ""
   },
   "vercel.json": {
-    "mtime": 1793738640.1406536,
-    "seen": 1793738723.8628492,
-    "ast_hash": "da0eee489536d836c31a4f88f3d7c4e1",
+    "mtime": 1793793773.977763,
+    "seen": 1793793847.860394,
+    "ast_hash": "3f1af17ba08518bc51ec073ec8097ba0",
     "semantic_hash": ""
   },
   "vite.config.js": {
@@ -2994,8 +2994,8 @@
     "semantic_hash": ""
   },
   "scripts/sql/README_auditoria.md": {
-    "mtime": 1793711356.6110158,
-    "seen": 1793728847.138596,
+    "mtime": 1793793318.5147936,
+    "seen": 1793793623.263474,
     "ast_hash": "4ad634709b718880dff11a5da47965b4",
     "semantic_hash": ""
   },
@@ -3426,9 +3426,9 @@
     "semantic_hash": ""
   },
   "api/_lib/repasseMensalHandler.js": {
-    "mtime": 1793739467.9580362,
-    "seen": 1793739557.0185559,
-    "ast_hash": "6cd2f4926fd10bf0040e260a841fb4fd",
+    "mtime": 1793793773.7359076,
+    "seen": 1793793847.8177834,
+    "ast_hash": "596691579f61f907a9d7e33ab64b2084",
     "semantic_hash": ""
   },
   "package-lock.json": {

@@ -46,12 +46,13 @@ import {
     contarMesesEmAbertoPorPrestador,
     criarRelatorios,
     desfazerPagamento,
+    reenviarEmail,
     lerConfigRepasse,
     linkDoRelatorio,
     listarRelatoriosPorRegistros,
 } from '../../lib/repasse/repasseApi.js'
 import { ehCompetenciaNovoModelo, rotuloStatusRelatorio } from '../../lib/repasse/repasseCore.js'
-import { avisar } from '../../lib/dialogos.js'
+import { avisar, confirmarAcao } from '../../lib/dialogos.js'
 import PagamentosEnvioWizard from './PagamentosEnvioWizard.jsx'
 import PagamentosComprovanteModal from './PagamentosComprovanteModal.jsx'
 import PagamentosMenuFlutuante from './PagamentosMenuFlutuante.jsx'
@@ -898,6 +899,39 @@ export default function PagamentosRegistro() {
             setErro(e.message)
         }
     }, [relatorios])
+
+    /** Pode receber (ou reenviar) o e-mail do relatório: relatório do novo modelo, sem divergência e não agendado. */
+    const podeReenviarEmail = (row) => {
+        if (!podeEditar || !repasseAtivo || !novoModelo(row)) return false
+        const rel = relatorios.get(row.id)
+        return Boolean(rel && !rel.divergente && rel.fluxo !== 'laboratorio_manual' && rel.status !== 'agendado')
+    }
+
+    const aoReenviarEmail = async (row) => {
+        const rel = relatorios?.get(row.id)
+        if (!rel) return
+        const primeiro = rel.status === 'nao_enviado'
+        const ok = await confirmarAcao({
+            titulo: `${primeiro ? 'Enviar' : 'Reenviar'} o e-mail para «${row.prestadorNome}»?`,
+            mensagem: primeiro
+                ? 'O prestador recebe agora o e-mail com o link do relatório de repasse.'
+                : 'O prestador recebe de novo o e-mail com o link do relatório. O status do relatório não muda.',
+            confirmar: primeiro ? 'Enviar e-mail' : 'Reenviar e-mail',
+            cancelar: 'Cancelar',
+        })
+        if (!ok) return
+        setRepasseOcupado(row.id)
+        setErro('')
+        try {
+            const r = await reenviarEmail(rel.id)
+            setInfo(`E-mail ${r.primeiroEnvio ? 'enviado' : 'reenviado'} para ${r.para}.`)
+            await recarregarRelatorios()
+        } catch (e) {
+            setErro(e.message)
+        } finally {
+            setRepasseOcupado('')
+        }
+    }
 
     /** Selo único do repasse (tabela desktop): abre menu com link e comprovante. */
     const celulaRepasse = (row) => {
@@ -2265,6 +2299,22 @@ export default function PagamentosRegistro() {
                                     onBlur={() => aoBlurCampo(row.id)}
                                 />
                             </label>
+                            {podeReenviarEmail(row) && (
+                                <>
+                                    <hr />
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        disabled={repasseOcupado === row.id}
+                                        onClick={() => {
+                                            fecharMenu()
+                                            void aoReenviarEmail(row)
+                                        }}
+                                    >
+                                        {relatorios.get(row.id)?.status === 'nao_enviado' ? 'Enviar e-mail do relatório' : 'Reenviar e-mail'}
+                                    </button>
+                                </>
+                            )}
                             {podeEditar && (
                                 <>
                                     <hr />

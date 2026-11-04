@@ -12,6 +12,7 @@ import {
     salvarConfigRepasse,
     urlArquivo,
 } from '../../lib/repasse/repasseApi.js'
+import { DIAS_RETENCAO_DOCUMENTOS } from '../../lib/repasse/repasseCore.js'
 import { Badge, Button, Card, EmptyState, Input, LoadingState, Modal, PageHeader } from '../../components/ui'
 
 const dataBr = (iso) => {
@@ -34,6 +35,7 @@ const ABAS = [
     { id: 'revisar', rotulo: 'Para revisar', dica: 'Notas fiscais e boletos enviados pelos prestadores' },
     { id: 'reprovados', rotulo: 'Reprovados', dica: 'Relatórios que o prestador não aprovou' },
     { id: 'devolvidos', rotulo: 'Devolvidos', dica: 'Documentos que você devolveu e aguardam o prestador' },
+    { id: 'arquivadas', rotulo: 'Aprovadas', dica: `Notas e boletos aprovados, consultáveis por ${DIAS_RETENCAO_DOCUMENTOS} dias` },
 ]
 
 function Secao({ titulo, descricao, children }) {
@@ -133,11 +135,11 @@ export default function PagamentosCaixa() {
 
             {dados ? (
                 <>
-                    <div className="mb-5 grid gap-3 sm:grid-cols-3" role="tablist" aria-label="Filas da Caixa de entrada">
+                    <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" role="tablist" aria-label="Filas da Caixa de entrada">
                         {ABAS.map((x) => {
-                            const n = x.id === 'revisar' ? emRevisao.length : x.id === 'reprovados' ? dados.reprovados.length : devolvidos.length
+                            const n = x.id === 'revisar' ? emRevisao.length : x.id === 'reprovados' ? dados.reprovados.length : x.id === 'arquivadas' ? dados.arquivadas.length : devolvidos.length
                             const ativa = aba === x.id
-                            const urgente = x.id !== 'devolvidos' && n > 0
+                            const urgente = (x.id === 'revisar' || x.id === 'reprovados') && n > 0
                             return (
                                 <button
                                     key={x.id}
@@ -223,6 +225,37 @@ export default function PagamentosCaixa() {
                                         <div className="flex flex-wrap gap-2">
                                             <Button variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => void abrirRelatorio(r.id)}>Relatório</Button>
                                             {podeEditar ? <Button size="sm" className="ml-auto" disabled={Boolean(ocupado)} onClick={() => void rodar('tr', () => marcarTratado(r.id))}>Marcar como tratado</Button> : null}
+                                        </div>
+                                    </Card>
+                                )
+                            })}
+                        </Secao>
+                    ) : null}
+
+                    {aba === 'arquivadas' ? (
+                        <Secao titulo="Notas fiscais e boletos aprovados" descricao={`Ficam disponíveis para consulta por ${DIAS_RETENCAO_DOCUMENTOS} dias, contados do recebimento. Depois disso o arquivo é excluído do EmerLAB.`}>
+                            {dados.arquivadas.length === 0 ? <EmptyState title="Nenhum documento aprovado nos últimos dias" description="As notas e boletos aprovados aparecem aqui até o fim do prazo." /> : null}
+                            {dados.arquivadas.map((d) => {
+                                const rel = dados.rels.get(d.relatorio_id)
+                                const reg = rel ? dados.regs.get(rel.registro_id) : null
+                                const exclusao = new Date(new Date(d.criado_em).getTime() + DIAS_RETENCAO_DOCUMENTOS * 86_400_000)
+                                const restam = Math.max(0, Math.ceil((exclusao.getTime() - Date.now()) / 86_400_000))
+                                return (
+                                    <Card key={d.id} className="flex flex-col gap-3">
+                                        <div className="flex flex-wrap items-start justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <p className="truncate text-base font-bold">{reg?.prestador_nome || rel?.nome_a1 || 'Prestador'}</p>
+                                                <p className="text-sm text-ink-soft">
+                                                    {d.tipo === 'boleto' ? `Boleto · vence ${dataBr(d.vencimento)}` : `NF ${d.numero || ''}`}
+                                                    {rel ? ` · competência ${comp(rel)}` : ''} · {formatarValorMonetarioBr(d.valor)}
+                                                </p>
+                                                <p className="text-xs text-ink-soft">Recebido em {dataBr(d.criado_em)}{d.revisado_em ? ` · aprovado em ${dataBr(d.revisado_em)}` : ''}</p>
+                                            </div>
+                                            <Badge tone={restam <= 7 ? 'warn' : 'ok'}>{restam === 0 ? 'Excluída hoje' : `Excluída em ${restam} dia${restam === 1 ? '' : 's'} (${dataBr(exclusao.toISOString())})`}</Badge>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => void abrirArquivo({ documento_id: d.id })}>Ver documento</Button>
+                                            <Button variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => void abrirRelatorio(d.relatorio_id)}>Relatório</Button>
                                         </div>
                                     </Card>
                                 )

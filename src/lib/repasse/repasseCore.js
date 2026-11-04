@@ -81,6 +81,17 @@ export function instrucaoPorTipo(tipo, valorFormatado, { descontoRpa = false, va
     return 'é só aprovar o relatório'
 }
 
+/** Notas fiscais/boletos aprovados ficam disponíveis para consulta por este prazo e depois são excluídas. */
+export const DIAS_RETENCAO_DOCUMENTOS = 60
+
+/** Assunto e corpo padrão do e-mail do relatório (editáveis no envio em lote). */
+export const ASSUNTO_PADRAO = 'Relatório de repasse {competencia} — {prestador}'
+export const CORPO_PADRAO = `Olá, {prestador}!
+
+Segue o relatório de repasse de {competencia}, com {atendimentos} atendimento(s) e valor de repasse de {valor}.
+
+Para concluir, {instrucao_tipo}. Acesse o botão abaixo para conferir o relatório.`
+
 /** Substitui {variaveis}; desconhecidas ficam como estão. */
 export function aplicarVariaveis(texto, vars) {
     return String(texto || '').replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m))

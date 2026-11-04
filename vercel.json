@@ -1,6 +1,12 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "crons": [
+    {
+      "path": "/api/repasse-mensal?_route=limpar-documentos",
+      "schedule": "0 6 * * *"
+    }
+  ],
   "framework": "vite",
   "functions": {
     "api/rc-pdf.js": {

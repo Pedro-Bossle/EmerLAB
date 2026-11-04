@@ -4,7 +4,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const db = { tabelas: {}, emails: [], storage: new Map() }
+const db = { tabelas: {}, emails: [], storage: new Map(), removidos: [] }
 
 function tabela(n) {
     return (db.tabelas[n] ||= [])
@@ -18,6 +18,8 @@ function builder(nome, modo, payload) {
         select: () => b,
         eq: (k, v) => (filtros.push((r) => r[k] === v), b),
         in: (k, vs) => (filtros.push((r) => vs.includes(r[k])), b),
+        lt: (k, v) => (filtros.push((r) => r[k] < v), b),
+        gte: (k, v) => (filtros.push((r) => r[k] >= v), b),
         order: (k, o) => ((ordem = [k, o?.ascending !== false]), b),
         limit: (n) => ((limite = n), b),
         single: async () => ({ data: executar()[0] ?? null, error: null }),
@@ -32,6 +34,10 @@ function builder(nome, modo, payload) {
             return novos
         }
         let achadas = linhas.filter((r) => filtros.every((f) => f(r)))
+        if (modo === 'delete') {
+            db.tabelas[nome] = linhas.filter((r) => !achadas.includes(r))
+            return achadas
+        }
         if (modo === 'update') {
             achadas.forEach((r) => Object.assign(r, payload))
             return achadas
@@ -47,9 +53,11 @@ const admin = {
         select: (...a) => builder(n, 'select').select(...a),
         insert: (p) => builder(n, 'insert', p),
         update: (p) => builder(n, 'update', p),
+        delete: () => builder(n, 'delete'),
     }),
     storage: {
         from: () => ({
+            remove: async (paths) => (db.removidos.push(...paths), { data: paths, error: null }),
             createSignedUploadUrl: async (p) => ({ data: { token: 'up-' + p }, error: null }),
             createSignedUrl: async (p) => ({ data: { signedUrl: 'https://x/' + p }, error: null }),
             download: async (p) => ({ data: { arrayBuffer: async () => new TextEncoder().encode(db.storage.get(p) || 'conteudo').buffer }, error: null }),
@@ -106,6 +114,7 @@ function semear({ tipo = 'rpa', valor = 150, mes = 10, ano = 2026 } = {}) {
 beforeEach(() => {
     db.tabelas = {}
     db.emails = []
+    db.removidos = []
 })
 
 describe('criar-relatorios', () => {
@@ -218,6 +227,39 @@ describe('página pública', () => {
     })
 })
 
+describe('retenção de documentos (60 dias)', () => {
+    const dias = (n) => new Date(Date.now() - n * 86_400_000).toISOString()
+    const cron = async (segredo) => {
+        const res = { setHeader() {}, status(c) { this.code = c; return this }, json(p) { this.corpo = p; return this } }
+        await handler({ method: 'GET', url: '/api/repasse-mensal?_route=limpar-documentos', headers: segredo ? { authorization: `Bearer ${segredo}` } : {} }, res)
+        return { status: res.code, ...res.corpo }
+    }
+
+    it('exclui só nota/boleto APROVADO com mais de 60 dias (arquivo e registro) e guarda o evento', async () => {
+        globalThis.process.env.CRON_SECRET = 'cron-teste'
+        tabela('repasse_documentos').push(
+            { id: 'velho', relatorio_id: 'r1', status: 'aprovado', criado_em: dias(61), storage_path: 'a/velho.pdf', tipo: 'nota', numero: '10', valor: 150 },
+            { id: 'recente', relatorio_id: 'r1', status: 'aprovado', criado_em: dias(10), storage_path: 'a/recente.pdf', tipo: 'nota', numero: '11', valor: 150 },
+            { id: 'pendente', relatorio_id: 'r1', status: 'em_revisao', criado_em: dias(90), storage_path: 'a/pendente.pdf', tipo: 'nota', numero: '12', valor: 150 },
+        )
+        const r = await cron('cron-teste')
+        expect(r).toMatchObject({ ok: true, excluidos: 1 })
+        expect(db.removidos).toEqual(['a/velho.pdf'])
+        expect(tabela('repasse_documentos').map((d) => d.id).sort()).toEqual(['pendente', 'recente'])
+        expect(tabela('repasse_eventos').find((e) => e.tipo === 'documento_excluido').dados.numero).toBe('10')
+    })
+
+    it('só roda com o segredo do cron', async () => {
+        globalThis.process.env.CRON_SECRET = 'cron-teste'
+        tabela('repasse_documentos').push({ id: 'velho', relatorio_id: 'r1', status: 'aprovado', criado_em: dias(100), storage_path: 'a/v.pdf' })
+        expect((await cron('')).status).toBe(401)
+        expect((await cron('errado')).status).toBe(401)
+        expect(tabela('repasse_documentos')).toHaveLength(1)
+        delete globalThis.process.env.CRON_SECRET
+        expect((await cron('qualquer')).status).toBe(503)
+    })
+})
+
 describe('envio e comprovante', () => {
     it('só envia relatórios aptos: bloqueia divergente e prestador sem e-mail; marca enviado', async () => {
         semear()
@@ -236,6 +278,36 @@ describe('envio e comprovante', () => {
         // reenviar o mesmo (já enviado) é recusado
         r = await chamar('enviar-lote', { envio_id: plano.envio_id, itens: plano.plano })
         expect(r.resultados[0].ok).toBe(false)
+    })
+
+    it('reenviar e-mail: primeiro envio vira «enviado»; reenvio mantém o status e registra o evento', async () => {
+        semear()
+        const c = await chamar('criar-relatorios', { itens: [{ registro_id: 'reg1', aba: aba() }] })
+        const relId = c.itens[0].relatorio_id
+        let r = await chamar('reenviar-email', { relatorio_id: relId })
+        expect(r).toMatchObject({ ok: true, para: 'clinica@x.com', primeiroEnvio: true })
+        expect(tabela('repasse_relatorios')[0].status).toBe('enviado')
+        tabela('repasse_relatorios')[0].status = 'aprovado'
+        r = await chamar('reenviar-email', { relatorio_id: relId })
+        expect(r).toMatchObject({ ok: true, primeiroEnvio: false })
+        expect(db.emails).toHaveLength(2)
+        expect(tabela('repasse_relatorios')[0].status).toBe('aprovado')
+        expect(tabela('repasse_eventos').filter((e) => e.tipo === 'reenviado')).toHaveLength(1)
+    })
+
+    it('reenviar e-mail é recusado para agendado, divergente e prestador sem e-mail', async () => {
+        semear()
+        const c = await chamar('criar-relatorios', { itens: [{ registro_id: 'reg1', aba: aba() }] })
+        const relId = c.itens[0].relatorio_id
+        tabela('repasse_relatorios')[0].status = 'agendado'
+        expect((await chamar('reenviar-email', { relatorio_id: relId })).status).toBe(409)
+        tabela('repasse_relatorios')[0].status = 'enviado'
+        tabela('repasse_relatorios')[0].divergente = true
+        expect((await chamar('reenviar-email', { relatorio_id: relId })).status).toBe(409)
+        tabela('repasse_relatorios')[0].divergente = false
+        tabela('prestadores')[0].email = ''
+        expect((await chamar('reenviar-email', { relatorio_id: relId })).status).toBe(422)
+        expect(db.emails).toHaveLength(0)
     })
 
     it('agendamento usa scheduledAt e fica «agendado»', async () => {

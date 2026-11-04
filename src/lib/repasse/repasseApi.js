@@ -3,6 +3,7 @@
  * e leituras diretas das tabelas repasse_* (RLS por permissão de Pagamentos).
  */
 import { supabase } from '../supabase.js'
+import { DIAS_RETENCAO_DOCUMENTOS } from './repasseCore.js'
 
 export const BUCKET_REPASSE = 'repasse-documentos'
 
@@ -61,6 +62,7 @@ export const criarRelatorios = (itens) => chamar('criar-relatorios', { itens })
 export const linkDoRelatorio = (relatorio_id) => chamar('link', { relatorio_id })
 export const planejarEnvio = (dados) => chamar('planejar-envio', dados)
 export const enviarLote = (envio_id, itens) => chamar('enviar-lote', { envio_id, itens })
+export const reenviarEmail = (relatorio_id) => chamar('reenviar-email', { relatorio_id })
 export const cancelarAgendamento = (relatorio_ids) => chamar('cancelar-agendamento', { relatorio_ids })
 export const revisarDocumento = (documento_id, acao, motivo) =>
     chamar('revisar-documento', { documento_id, acao, motivo })
@@ -144,13 +146,22 @@ export async function carregarCaixa() {
         .in('status', ['em_revisao', 'devolvido'])
         .order('criado_em', { ascending: true })
     if (e1) throw new Error(e1.message)
+    // Notas/boletos aprovados: consultáveis pelo prazo de retenção; depois a limpeza diária os exclui.
+    const corte = new Date(Date.now() - DIAS_RETENCAO_DOCUMENTOS * 86_400_000).toISOString()
+    const { data: arquivadas, error: e3 } = await supabase
+        .from('repasse_documentos')
+        .select('id, relatorio_id, tipo, numero, vencimento, valor, status, criado_em, revisado_em')
+        .eq('status', 'aprovado')
+        .gte('criado_em', corte)
+        .order('criado_em', { ascending: false })
+    if (e3) throw new Error(e3.message)
     const { data: reprov, error: e2 } = await supabase
         .from('repasse_relatorios')
         .select(COLUNAS_LISTA)
         .eq('status', 'reprovado')
         .order('respondido_em', { ascending: true })
     if (e2) throw new Error(e2.message)
-    const relIds = [...new Set([...(docs || []).map((d) => d.relatorio_id), ...(reprov || []).map((r) => r.id)])]
+    const relIds = [...new Set([...(docs || []).map((d) => d.relatorio_id), ...(arquivadas || []).map((d) => d.relatorio_id), ...(reprov || []).map((r) => r.id)])]
     const rels = new Map()
     const regs = new Map()
     const obs = new Map()
@@ -168,7 +179,7 @@ export async function carregarCaixa() {
             .order('criado_em', { ascending: false })
         for (const e of ev || []) if (!obs.has(e.relatorio_id)) obs.set(e.relatorio_id, e)
     }
-    return { docs: docs || [], reprovados: reprov || [], rels, regs, obs }
+    return { docs: docs || [], arquivadas: arquivadas || [], reprovados: reprov || [], rels, regs, obs }
 }
 
 /** Contagem de pendências da Caixa (para o menu). */
