@@ -263,8 +263,14 @@ function podeVerConversa(usuario, meta) {
     return usuario.departamentos.includes(meta.departamento_id)
 }
 
+// Cache de 2 s por conversa: abrir/enviar/marcar lida repetem esta leitura em sequência. A chave começa com «conversas:»
+// de propósito: todo `invalidar('conversas:')` (salvarMeta, anúncio, bloqueio, webhook) já a descarta. Conversa ainda
+// sem registro (null) não é guardada pelo memo.
+const VALIDADE_META_MS = 2000
 async function metaConversa(waId) {
-    return ok(await db().from('zap_conversas').select('*').eq('wa_id', waId).maybeSingle())
+    return memo(`conversas:meta:${waId}`, VALIDADE_META_MS, async () =>
+        ok(await db().from('zap_conversas').select('*').eq('wa_id', waId).maybeSingle()),
+    )
 }
 
 async function exigirConversa(usuario, waId) {
@@ -933,95 +939,100 @@ async function verificarNaWati(lista, metaPorId, contatoEm) {
         escolhidas.map(async (c) => {
             verificadas.set(c.waId, Date.now())
             const { mensagens: itens } = await listarMensagensWati(c.waId, { pagina: 1, tamanho: 20 })
-            // marca como conferida no banco (atualizado_em), mesmo que não haja nada novo
-            await salvarMeta(c.waId, {})
-            const msgs = itens
-                .map(normalizarMensagem)
-                .filter((m) => (m.evento === 'message' || m.evento === 'broadcastMessage') && m.em)
-                .sort((a, b) => msData(b.em) - msData(a.em))
-            const meta = metaPorId.get(c.waId)
-            const anuncio = anuncioDe(itens)
-            if (await registrarAnuncio(c.waId, anuncio, meta?.anuncio)) c.anuncio = anuncio
-            const atendente = atendenteDoHistorico(itens)
-            if (atendente && !mesmoEmail(atendente, meta?.atendente_email)) {
-                await salvarMeta(c.waId, { atendente_email: atendente }, { avisar: false })
-                c.atendenteEmail = atendente
-            }
-            const statusWati = aplicarStatusDoHistorico(meta, itens)
-            if (statusWati) {
-                const { status } = camposDeStatus(statusWati)
-                await salvarMeta(c.waId, { status }, { avisar: false })
-                if ((statusWati === 'bloqueada') !== estaBloqueada(meta)) await marcarBloqueio(c.waId, statusWati === 'bloqueada')
-                c.status = status
-                c.bloqueada = statusWati === 'bloqueada'
-                if (meta) meta.status = status
-            }
-            // sem atendente, a conversa fica com a equipe (como na WATI): traz a equipe para o setor do painel
-            if (!c.atendenteEmail && (meta?.status || c.status) !== 'resolvida') {
-                const depto = await departamentoDaWati(c.waId, meta, departamentos).catch(() => undefined)
-                if (depto) {
-                    await salvarMeta(c.waId, { departamento_id: depto }, { avisar: false })
-                    c.departamentoId = depto
-                    if (meta) meta.departamento_id = depto
+            // Tudo o que a conferência muda nesta conversa é acumulado e gravado numa única escrita no fim (antes eram até 7).
+            // A escrita sempre acontece (mesmo sem nada novo) para marcar a conversa como conferida (atualizado_em).
+            const pend = {}
+            try {
+                const msgs = itens
+                    .map(normalizarMensagem)
+                    .filter((m) => (m.evento === 'message' || m.evento === 'broadcastMessage') && m.em)
+                    .sort((a, b) => msData(b.em) - msData(a.em))
+                const meta = metaPorId.get(c.waId)
+                const anuncio = anuncioDe(itens)
+                if (await registrarAnuncio(c.waId, anuncio, meta?.anuncio)) c.anuncio = anuncio
+                const atendente = atendenteDoHistorico(itens)
+                if (atendente && !mesmoEmail(atendente, meta?.atendente_email)) {
+                    Object.assign(pend, { atendente_email: atendente })
+                    c.atendenteEmail = atendente
                 }
-            }
-            const ultima = msgs[0]
-            if (!ultima) return
-            // horário certo mesmo quando não há nada novo (o card podia estar com o last_updated do contato)
-            c.ultimaEm = ultima.em
-            // última do cliente entre as lidas: corrige a janela de 24h mesmo sem mensagem nova
-            const humana = msgs.find((m) => m.minha && respostaHumanaWati(m.operador))?.em
-            if (humana && msData(humana) > msData(meta?.ultima_humana_em) + FOLGA_MS) {
-                await salvarMeta(c.waId, { ultima_humana_em: humana }, { avisar: false })
-                c.ultimaHumanaEm = humana
-            }
-            const doCliente = msgs.find((m) => !m.minha && !textoPareceSistemaWati(m.texto))?.em
-            // espelha o horário da WATI mesmo se a meta local estava adiantada/atrasada (fuso errado)
-            if (doCliente && Math.abs(msData(doCliente) - msData(meta?.ultima_cliente_em)) > FOLGA_MS) {
-                await salvarMeta(c.waId, { ultima_cliente_em: doCliente }, { avisar: false })
-                c.ultimaClienteEm = doCliente
-            }
-            const conhecidaMs = meta?.ultima_msg_em ? new Date(meta.ultima_msg_em).getTime() : null
-            const nova = (m) => conhecidaMs === null || new Date(m.em).getTime() > conhecidaMs + FOLGA_MS
-            const texto = textoPrevia(ultima.tipo, ultima.texto).slice(0, 500)
-            const previaDesatualizada =
-                texto !== (meta?.ultima_msg || '') || Boolean(ultima.minha) !== Boolean(meta?.ultima_msg_minha)
-            // mensagens do cliente depois da última resposta nossa (ignora pills Ask/status)
-            const msgsCliente = msgs.filter((m) => !textoPareceSistemaWati(m.texto))
-            const corte = msgsCliente.findIndex((m) => m.minha)
-            const semResposta = corte < 0 ? msgsCliente.filter((m) => !m.minha) : msgsCliente.slice(0, corte).filter((m) => !m.minha)
-            let naoLidas = meta?.nao_lidas || 0
-            if (conhecidaMs === null || nova(ultima)) {
-                if (conhecidaMs === null) {
-                    // primeira vez: só conta como nova se ainda dá para responder (janela de 24h)
-                    naoLidas = Date.now() - new Date(ultima.em).getTime() < 24 * 3600 * 1000 ? semResposta.length : 0
-                } else if (msgsCliente.some((m) => m.minha && nova(m))) {
-                    naoLidas = semResposta.length // alguém respondeu (pela WATI): conta só o que veio depois
-                } else {
-                    naoLidas = (meta?.nao_lidas || 0) + semResposta.filter(nova).length
+                const statusWati = aplicarStatusDoHistorico(meta, itens)
+                if (statusWati) {
+                    const { status } = camposDeStatus(statusWati)
+                    Object.assign(pend, { status })
+                    if ((statusWati === 'bloqueada') !== estaBloqueada(meta)) await marcarBloqueio(c.waId, statusWati === 'bloqueada')
+                    c.status = status
+                    c.bloqueada = statusWati === 'bloqueada'
+                    if (meta) meta.status = status
                 }
+                // sem atendente, a conversa fica com a equipe (como na WATI): traz a equipe para o setor do painel
+                if (!c.atendenteEmail && (meta?.status || c.status) !== 'resolvida') {
+                    const depto = await departamentoDaWati(c.waId, meta, departamentos).catch(() => undefined)
+                    if (depto) {
+                        Object.assign(pend, { departamento_id: depto })
+                        c.departamentoId = depto
+                        if (meta) meta.departamento_id = depto
+                    }
+                }
+                const ultima = msgs[0]
+                if (!ultima) return
+                // horário certo mesmo quando não há nada novo (o card podia estar com o last_updated do contato)
+                c.ultimaEm = ultima.em
+                // última do cliente entre as lidas: corrige a janela de 24h mesmo sem mensagem nova
+                const humana = msgs.find((m) => m.minha && respostaHumanaWati(m.operador))?.em
+                if (humana && msData(humana) > msData(meta?.ultima_humana_em) + FOLGA_MS) {
+                    Object.assign(pend, { ultima_humana_em: humana })
+                    c.ultimaHumanaEm = humana
+                }
+                const doCliente = msgs.find((m) => !m.minha && !textoPareceSistemaWati(m.texto))?.em
+                // espelha o horário da WATI mesmo se a meta local estava adiantada/atrasada (fuso errado)
+                if (doCliente && Math.abs(msData(doCliente) - msData(meta?.ultima_cliente_em)) > FOLGA_MS) {
+                    Object.assign(pend, { ultima_cliente_em: doCliente })
+                    c.ultimaClienteEm = doCliente
+                }
+                const conhecidaMs = meta?.ultima_msg_em ? new Date(meta.ultima_msg_em).getTime() : null
+                const nova = (m) => conhecidaMs === null || new Date(m.em).getTime() > conhecidaMs + FOLGA_MS
+                const texto = textoPrevia(ultima.tipo, ultima.texto).slice(0, 500)
+                const previaDesatualizada =
+                    texto !== (meta?.ultima_msg || '') || Boolean(ultima.minha) !== Boolean(meta?.ultima_msg_minha)
+                // mensagens do cliente depois da última resposta nossa (ignora pills Ask/status)
+                const msgsCliente = msgs.filter((m) => !textoPareceSistemaWati(m.texto))
+                const corte = msgsCliente.findIndex((m) => m.minha)
+                const semResposta = corte < 0 ? msgsCliente.filter((m) => !m.minha) : msgsCliente.slice(0, corte).filter((m) => !m.minha)
+                let naoLidas = meta?.nao_lidas || 0
+                if (conhecidaMs === null || nova(ultima)) {
+                    if (conhecidaMs === null) {
+                        // primeira vez: só conta como nova se ainda dá para responder (janela de 24h)
+                        naoLidas = Date.now() - new Date(ultima.em).getTime() < 24 * 3600 * 1000 ? semResposta.length : 0
+                    } else if (msgsCliente.some((m) => m.minha && nova(m))) {
+                        naoLidas = semResposta.length // alguém respondeu (pela WATI): conta só o que veio depois
+                    } else {
+                        naoLidas = (meta?.nao_lidas || 0) + semResposta.filter(nova).length
+                    }
+                }
+                // sempre corrige a prévia do card se o texto/lado divergir (ex.: resposta feita só na WATI)
+                if (conhecidaMs !== null && !nova(ultima) && !previaDesatualizada) {
+                    c.ultimaMsg = texto
+                    c.ultimaMinha = ultima.minha
+                    return
+                }
+                const campos = { ultima_msg: texto, ultima_msg_em: ultima.em, ultima_msg_minha: ultima.minha, nao_lidas: naoLidas }
+                // cliente escreveu numa conversa resolvida → reabre (igual ao webhook)
+                // espelha na WATI: senão o ticket fica Solved lá e o Assumir falha
+                // Ask mode / pills de status NÃO contam como mensagem do cliente
+                if (!ultima.minha && !textoPareceSistemaWati(ultima.texto) && (meta?.status || c.status) === 'resolvida') {
+                    campos.status = 'aberta'
+                    await comConversaWati(c.waId, (alvo) => wati.atualizarStatus(alvo, 'aberta'), meta).catch(() => {})
+                }
+                Object.assign(pend, campos)
+                Object.assign(c, {
+                    ultimaMsg: texto,
+                    ultimaMinha: ultima.minha,
+                    naoLidas,
+                    ...(campos.status ? { status: campos.status } : {}),
+                })
+            } finally {
+                await salvarMeta(c.waId, pend, { avisar: false })
             }
-            // sempre corrige a prévia do card se o texto/lado divergir (ex.: resposta feita só na WATI)
-            if (conhecidaMs !== null && !nova(ultima) && !previaDesatualizada) {
-                c.ultimaMsg = texto
-                c.ultimaMinha = ultima.minha
-                return
-            }
-            const campos = { ultima_msg: texto, ultima_msg_em: ultima.em, ultima_msg_minha: ultima.minha, nao_lidas: naoLidas }
-            // cliente escreveu numa conversa resolvida → reabre (igual ao webhook)
-            // espelha na WATI: senão o ticket fica Solved lá e o Assumir falha
-            // Ask mode / pills de status NÃO contam como mensagem do cliente
-            if (!ultima.minha && !textoPareceSistemaWati(ultima.texto) && (meta?.status || c.status) === 'resolvida') {
-                campos.status = 'aberta'
-                await comConversaWati(c.waId, (alvo) => wati.atualizarStatus(alvo, 'aberta'), meta).catch(() => {})
-            }
-            await salvarMeta(c.waId, campos, { avisar: false })
-            Object.assign(c, {
-                ultimaMsg: texto,
-                ultimaMinha: ultima.minha,
-                naoLidas,
-                ...(campos.status ? { status: campos.status } : {}),
-            })
         }),
     )
 }
@@ -2111,3 +2122,6 @@ export async function handle(req, res, rotaForcada) {
         })
     }
 }
+
+// Somente para os testes automatizados (não faz parte da API)
+export const __teste = { verificarNaWati, metaConversa, salvarMeta }
