@@ -20,6 +20,13 @@ import {
     rotuloTipoPerfil,
 } from '../../lib/formularioCredenciamento'
 import { supabase } from '../../lib/supabase'
+import { publicarContagens } from '../../lib/notifContagens'
+import {
+    EVENTO_MUDANCA_NOTIF_PAGAMENTOS,
+    contarNotificacoesPagamentos,
+    limparNotificacoesPagamentos,
+    listarNotificacoesPagamentos,
+} from '../../lib/repasse/notificacoesPagamentos'
 import { formatarCpfCnpjEntrada } from '../../lib/prestadorCadastroHelpers'
 import { formatarDataPtBr } from '../../pages/Contratos/contratosUi'
 import './FormularioInboxBell.css'
@@ -185,11 +192,15 @@ export default function FormularioInboxBell({
 } = {}) {
     const podeNotifForm = useStoredPermission(PERMISSION_KEYS.NOTIFICACOES_FORMULARIO)
     const podeNotifContratos = useStoredPermission(PERMISSION_KEYS.NOTIFICACOES_CONTRATOS)
+    // Pagamentos: quem vê a área recebe o que os prestadores responderam ao e-mail de repasse
+    const podeNotifPag = useStoredPermission(PERMISSION_KEYS.PAGAMENTOS_VIEW)
     const isDock = mode === 'dock'
     const controlled = typeof openControlled === 'boolean'
 
     const [countForm, setCountForm] = useState(0)
     const [countContratos, setCountContratos] = useState(0)
+    const [countPag, setCountPag] = useState(0)
+    const [recentesPag, setRecentesPag] = useState([])
     const [recentesForm, setRecentesForm] = useState([])
     const [recentesContratos, setRecentesContratos] = useState([])
     const [abertoInterno, setAbertoInterno] = useState(false)
@@ -218,14 +229,19 @@ export default function FormularioInboxBell({
     const dragRef = useRef({ ativo: false, moved: false, ox: 0, oy: 0, sx: 0, sy: 0 })
     const ultimoSyncContratosRef = useRef(0)
 
-    const countTotal = countForm + countContratos
-    const temPermissao = podeNotifForm || podeNotifContratos
+    const countTotal = countForm + countContratos + countPag
+    const temPermissao = podeNotifForm || podeNotifContratos || podeNotifPag
     const visivel = temPermissao && (isDock || countTotal > 0)
     const ancora = detectarAncora(pos, compacto)
 
     useEffect(() => {
         onBadgeChange?.(countTotal)
     }, [countTotal, onBadgeChange])
+
+    // a sidebar mostra as bolinhas de Formulário e Clicksign com estas contagens
+    useEffect(() => {
+        publicarContagens({ form: countForm, contratos: countContratos, pagamentos: countPag })
+    }, [countForm, countContratos, countPag])
 
     useEffect(() => {
         if (!temPermissao) return undefined
@@ -302,12 +318,19 @@ export default function FormularioInboxBell({
         }
     }, [podeNotifForm, aberto])
 
+    const atualizarPagamentos = useCallback(async () => {
+        if (!podeNotifPag) return
+        setCountPag(await contarNotificacoesPagamentos())
+        if (aberto) setRecentesPag(await listarNotificacoesPagamentos(8))
+    }, [podeNotifPag, aberto])
+
     const atualizar = useCallback(
         async (opts = {}) => {
             if (!temPermissao) return
             const forcarContratos = Boolean(opts.forcarContratos)
             try {
                 if (podeNotifForm) await atualizarFormulario()
+                if (podeNotifPag) await atualizarPagamentos()
                 if (podeNotifContratos) {
                     await sincronizarContratosSeDevido(forcarContratos)
                     const n = await contarNotificacoesContratosTotal()
@@ -322,9 +345,11 @@ export default function FormularioInboxBell({
             temPermissao,
             podeNotifForm,
             podeNotifContratos,
+            podeNotifPag,
             aberto,
             sincronizarContratosSeDevido,
             atualizarFormulario,
+            atualizarPagamentos,
         ],
     )
 
@@ -354,6 +379,13 @@ export default function FormularioInboxBell({
             void supabase.removeChannel(channel)
         }
     }, [temPermissao, podeNotifForm, atualizarFormulario])
+
+    useEffect(() => {
+        if (!temPermissao || !podeNotifPag) return undefined
+        const onMudou = () => void atualizarPagamentos().catch(() => {})
+        window.addEventListener(EVENTO_MUDANCA_NOTIF_PAGAMENTOS, onMudou)
+        return () => window.removeEventListener(EVENTO_MUDANCA_NOTIF_PAGAMENTOS, onMudou)
+    }, [temPermissao, podeNotifPag, atualizarPagamentos])
 
     useEffect(() => {
         if (!temPermissao || !podeNotifContratos) return undefined
@@ -437,6 +469,10 @@ export default function FormularioInboxBell({
                     const n = await contarEntradasFormularioPendentesNotificacao()
                     setCountForm(n)
                 }
+                if (podeNotifPag) {
+                    setRecentesPag(await listarNotificacoesPagamentos(8))
+                    setCountPag(await contarNotificacoesPagamentos())
+                }
                 if (podeNotifContratos) {
                     ultimoSyncContratosRef.current = 0
                     await sincronizarContratosSeDevido(true)
@@ -447,7 +483,7 @@ export default function FormularioInboxBell({
                 setLoading(false)
             }
         })()
-    }, [aberto, temPermissao, podeNotifForm, podeNotifContratos, sincronizarContratosSeDevido])
+    }, [aberto, temPermissao, podeNotifForm, podeNotifContratos, podeNotifPag, sincronizarContratosSeDevido])
 
     useEffect(() => {
         if (!aberto || isDock) return undefined
@@ -479,6 +515,11 @@ export default function FormularioInboxBell({
             }
             setCountContratos(0)
             setRecentesContratos([])
+            if (podeNotifPag) {
+                limparNotificacoesPagamentos()
+                setCountPag(0)
+                setRecentesPag([])
+            }
             if (podeNotifForm) {
                 limparNotificacoesFormularioBell()
                 setCountForm(0)
@@ -487,7 +528,7 @@ export default function FormularioInboxBell({
         } finally {
             setLimpando(false)
         }
-    }, [podeNotifContratos, podeNotifForm])
+    }, [podeNotifContratos, podeNotifForm, podeNotifPag])
 
     const onPointerDown = (e) => {
         if (isDock) return
@@ -548,7 +589,9 @@ export default function FormularioInboxBell({
     if (!visivel) return null
 
     const podeLimpar =
-        (podeNotifContratos && countContratos > 0) || (podeNotifForm && countForm > 0)
+        (podeNotifContratos && countContratos > 0) ||
+        (podeNotifForm && countForm > 0) ||
+        (podeNotifPag && countPag > 0)
     const vazio = !loading && !syncContratos && countTotal === 0
     const badge = countTotal > 99 ? '99+' : String(countTotal)
     const drawerStyle = isDock
@@ -682,6 +725,40 @@ export default function FormularioInboxBell({
                                         onClick={() => setAberto(false)}
                                     >
                                         Abrir contratos
+                                    </Link>
+                                </p>
+                            </section>
+                        )}
+
+                        {podeNotifPag && countPag > 0 && (
+                            <section className="notif_float_sec" aria-labelledby="notif-sec-pag">
+                                <h3 id="notif-sec-pag" className="notif_float_sec_tit">
+                                    Pagamentos
+                                    <span className="notif_float_sec_count">{countPag}</span>
+                                </h3>
+                                <ul className="notif_float_list">
+                                    {recentesPag.map((n) => (
+                                        <li key={n.id}>
+                                            <Link
+                                                to="/pagamentos/caixa"
+                                                className="notif_float_item"
+                                                onClick={() => setAberto(false)}
+                                            >
+                                                <span className="notif_float_item_nome">{n.texto}</span>
+                                                <span className="notif_float_item_meta">
+                                                    {formatarDataPtBr(n.criadoEm)}
+                                                </span>
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="notif_float_sec_foot">
+                                    <Link
+                                        to="/pagamentos/caixa"
+                                        className="notif_float_link"
+                                        onClick={() => setAberto(false)}
+                                    >
+                                        Abrir Caixa de entrada
                                     </Link>
                                 </p>
                             </section>

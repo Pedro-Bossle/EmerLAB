@@ -25,6 +25,7 @@ const Layout2 = () => {
   const profile = useStoredAccessProfile()
   const podeNotifForm = useStoredPermission(PERMISSION_KEYS.NOTIFICACOES_FORMULARIO)
   const podeNotifContratos = useStoredPermission(PERMISSION_KEYS.NOTIFICACOES_CONTRATOS)
+  const podeNotifPagamentos = useStoredPermission(PERMISSION_KEYS.PAGAMENTOS_VIEW)
   const [openManual, setOpenManual] = useState(() => {
     if (typeof window !== 'undefined' && window.matchMedia(MQ_COMPACT).matches) return false
     return lerSidebarFixada()
@@ -39,7 +40,7 @@ const Layout2 = () => {
   const [badgeNotif, setBadgeNotif] = useState(0)
 
   const showDevTools = isDevToolsEnabled(profile)
-  const showNotif = (podeNotifForm || podeNotifContratos) && pathname !== '/home'
+  const showNotif = (podeNotifForm || podeNotifContratos || podeNotifPagamentos) && pathname !== '/home'
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined

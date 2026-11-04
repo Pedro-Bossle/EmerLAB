@@ -15,6 +15,7 @@ import { logoutSessao } from "../../lib/authSession";
 import { lerDarkModeAtivo, salvarDarkModeAtivo } from "../../lib/sidebarPrefs";
 import { avisar } from '../../lib/dialogos.js'
 import { contarPendenciasCaixa } from '../../lib/repasse/repasseApi.js'
+import { useContagensNotif } from '../../lib/notifContagens'
 
 const SIDEBAR_ICONS = {
   inicio: (
@@ -154,6 +155,16 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
   const [darkModeAtivo, setDarkModeAtivo] = useState(() => lerDarkModeAtivo());
   const [openMenus, setOpenMenus] = useState({});
   const [pendenciasCaixa, setPendenciasCaixa] = useState(0);
+  const contagensNotif = useContagensNotif();
+  // bolinha de pendências por item do menu (Caixa de entrada: tarefas; Clicksign e inbox do formulário: avisos do sino)
+  const contagemDoItem = (href) =>
+    href === "/pagamentos/caixa"
+      ? pendenciasCaixa
+      : href === "/contratos/clicksign"
+        ? contagensNotif.contratos
+        : href === "/credenciamento/formulario/entradas"
+          ? contagensNotif.form
+          : 0;
 
   // Contador da Caixa de entrada (Pagamentos): falha em silêncio (sem permissão ou tabelas ainda não criadas).
   useEffect(() => {
@@ -165,6 +176,8 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
       ativo = false;
     };
   }, [pathname]);
+
+  const contagemDoGrupo = (item) => (item.children || []).reduce((t, c) => t + (c.href ? contagemDoItem(c.href) : 0), 0);
 
   const podeVerItemMenu = (child) => {
     if (child?.type === "section") return true;
@@ -390,12 +403,24 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
                     }
                     title={item.label}
                   >
-                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
+                    <span className="relative inline-flex h-5 w-5 shrink-0 items-center justify-center">
                       {icon}
+                      {/* menu fechado/recolhido: um ponto avisa que há pendência dentro do grupo */}
+                      {contagemDoGrupo(item) > 0 && !(open && openMenus[item.id]) && !open ? (
+                        <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-[#0f3a56]" aria-hidden />
+                      ) : null}
                     </span>
                     <span className={cn(labelClass, "flex-1 text-left")}>
                       {item.label}
                     </span>
+                    {open && contagemDoGrupo(item) > 0 && !openMenus[item.id] ? (
+                      <span
+                        className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-white/25 px-1.5 text-xs font-bold leading-none"
+                        aria-label={`${contagemDoGrupo(item)} pendências neste grupo`}
+                      >
+                        {contagemDoGrupo(item) > 99 ? "99+" : contagemDoGrupo(item)}
+                      </span>
+                    ) : null}
                     {open ? (
                       <span className="shrink-0 text-white/70" aria-hidden>
                         {openMenus[item.id] ? "▾" : "▸"}
@@ -427,16 +452,22 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
                             key={child.href}
                             to={child.href}
                             className={cn(
-                              "min-h-10 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-white/90 hover:bg-white/10 hover:text-white",
+                              "flex min-h-10 min-w-0 items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-white/90 hover:bg-white/10 hover:text-white",
                               pathname === child.href &&
                                 "bg-white/15 text-white",
                             )}
                             onClick={() => onAfterNavigate?.()}
                           >
-                            {child.label}
-                            {child.href === "/pagamentos/caixa" && pendenciasCaixa > 0 ? (
-                              <span className="ml-2 rounded-full bg-white/25 px-1.5 text-xs font-bold" aria-label={`${pendenciasCaixa} pendências`}>
-                                {pendenciasCaixa > 99 ? "99+" : pendenciasCaixa}
+                            {/* o rótulo encolhe com reticências; a bolinha nunca sai do item (antes vazava da sidebar) */}
+                            <span className="min-w-0 flex-1 truncate" title={child.label}>
+                              {child.label}
+                            </span>
+                            {contagemDoItem(child.href) > 0 ? (
+                              <span
+                                className="ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-white/25 px-1.5 text-xs font-bold leading-none"
+                                aria-label={`${contagemDoItem(child.href)} pendências`}
+                              >
+                                {contagemDoItem(child.href) > 99 ? "99+" : contagemDoItem(child.href)}
                               </span>
                             ) : null}
                           </Link>
