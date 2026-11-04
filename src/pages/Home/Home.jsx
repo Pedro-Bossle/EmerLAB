@@ -169,8 +169,8 @@ const Home = () => {
         setLoading(true)
         setErro('')
         try {
-            const { data: userData } = await supabase.auth.getUser()
-            const uid = userData?.user?.id || userId
+            const { data: userData } = await supabase.auth.getSession()
+            const uid = userData?.session?.user?.id || userId
             if (uid) setFavoritosIds(lerFavoritosHome(uid))
 
             const jobs = []

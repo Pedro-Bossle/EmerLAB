@@ -12,10 +12,13 @@
 // atende a cidade quem tem o endereço nela OU a tem como cidade adicional no perfil (prestador_cidades).
 // Vet vinculado a clínica usa as cidades adicionais da clínica (idsPrestadorCidadesParaFiltro).
 import { db, ok } from './db.js'
+import { memo } from './cache.js'
 import { normCodigo } from '../src/regras.js'
 
 const PAGINA = 1000
-const VALIDADE_MS = 10 * 60 * 1000
+// A base são 8 tabelas lidas inteiras e quase não muda. `memo` junta as chamadas simultâneas: antes, quando o cache
+// vencia, cada requisição em andamento refazia as 8 leituras (≈1.500 cargas/dia no Supabase).
+const VALIDADE_MS = 60 * 60 * 1000
 // ver ESPECIALIDADES_ESTABELECIMENTO_IDS no projeto principal (clínica, hospital, equipe, laboratório)
 const ESPECIALIDADES_ESTABELECIMENTO = new Set([1, 2, 3, 5])
 // classificação das marcas {credenciados.*}: 1 Clínica 24h, 2 Clínica, 3 Consultório (e Hospital, pelo nome) · 5 Laboratório.
@@ -72,11 +75,12 @@ async function todas(montar) {
     }
 }
 
-// prestadores credenciados com a localidade já resolvida e o catálogo de procedimentos, guardados por 10 min
-let cache = null
+// prestadores credenciados com a localidade já resolvida e o catálogo de procedimentos, guardados por 60 min
+function carregarBase() {
+    return memo('quemrealiza:base', VALIDADE_MS, carregarBaseDoBanco)
+}
 
-async function carregarBase() {
-    if (cache && Date.now() - cache.em < VALIDADE_MS) return cache.dados
+async function carregarBaseDoBanco() {
     const [prestadores, situacoes, vinculos, procedimentos, adicionais, cidadesCred, especialidades, beneficios] = await Promise.all([
         todas(() =>
             db().from('prestadores').select('id, nome, especialidade_id, endereco_uf, endereco_cidade, situacao_id, telefone, celular, tipo').eq('ativo', true).order('id'),
@@ -151,9 +155,7 @@ async function carregarBase() {
         catalogo.set(cod, String(r.nome || cod).trim())
         codigoPorId.set(Number(r.id), cod)
     }
-    const dados = { rede, catalogo, codigoPorId }
-    cache = { em: Date.now(), dados }
-    return dados
+    return { rede, catalogo, codigoPorId }
 }
 
 /** Catálogo de procedimentos (código → nome) para conferir as regras services {…}. */

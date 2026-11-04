@@ -44,8 +44,9 @@ export async function buscarUsuarioPorEmail(email) {
 }
 
 // Toda requisição do painel valida a sessão lendo o usuário; com o polling isso eram ~54 mil leituras por dia.
-// 30 s de cache (e limpeza ao gravar nesta instância): desativar um usuário ou trocar a senha vale em até 30 s.
-const TTL_USUARIO_MS = 30_000
+// 2 min de cache (e limpeza ao gravar nesta instância): desativar um usuário ou trocar a senha vale em até 2 min
+// nas outras instâncias (o cache é por instância serverless, então TTL curto demais quase não poupa leituras).
+const TTL_USUARIO_MS = 120_000
 
 export async function buscarUsuarioPorId(id) {
     return memo(`usuario:${id}`, TTL_USUARIO_MS, async () =>
@@ -64,9 +65,9 @@ export function invalidarUsuarios() {
     invalidar('usuario:')
 }
 
-const TTL_DEPARTAMENTOS_MS = 60_000
+const TTL_DEPARTAMENTOS_MS = 600_000
 
-/** Departamentos (mudam raramente): cache de 60 s compartilhado entre /me e a conferência na WATI. */
+/** Departamentos (mudam raramente): cache de 10 min compartilhado entre /me e a conferência na WATI. */
 export function listarDepartamentos() {
     return memo('departamentos', TTL_DEPARTAMENTOS_MS, async () => ok(await db().from('zap_departamentos').select('id, nome, cor, equipe_wati').order('nome')))
 }

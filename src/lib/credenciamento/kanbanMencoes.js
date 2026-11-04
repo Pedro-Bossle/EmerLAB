@@ -67,8 +67,8 @@ export async function notificarMencoesKanban({
 
     let uid = autorId
     if (!uid) {
-        const { data } = await supabase.auth.getUser()
-        uid = data?.user?.id
+        const { data } = await supabase.auth.getSession()
+        uid = data?.session?.user?.id
     }
     if (!uid) return { criados: 0 }
 
@@ -105,8 +105,8 @@ export async function notificarMencoesKanban({
  * @returns {Promise<Array<{ id, cardId, cardNome, deUserId, deNome, preview, criadoEm }>>}
  */
 export async function listarNotificacoesMencoesKanban({ userId } = {}) {
-    const { data: userData } = await supabase.auth.getUser()
-    const uid = userId || userData?.user?.id
+    const { data: userData } = await supabase.auth.getSession()
+    const uid = userId || userData?.session?.user?.id
     if (!uid) return []
 
     const { data, error } = await supabase
@@ -144,8 +144,8 @@ export async function marcarMencoesKanbanCardLidas(cardId, { userId } = {}) {
     const idCard = Number(cardId)
     if (!Number.isFinite(idCard) || idCard <= 0) return
 
-    const { data: userData } = await supabase.auth.getUser()
-    const uid = userId || userData?.user?.id
+    const { data: userData } = await supabase.auth.getSession()
+    const uid = userId || userData?.session?.user?.id
     if (!uid) return
 
     const { error } = await supabase
@@ -162,8 +162,8 @@ export async function marcarMencoesKanbanCardLidas(cardId, { userId } = {}) {
 
 export async function marcarMencaoKanbanLida(mencaoId) {
     if (!mencaoId) return
-    const { data: userData } = await supabase.auth.getUser()
-    const uid = userData?.user?.id
+    const { data: userData } = await supabase.auth.getSession()
+    const uid = userData?.session?.user?.id
     if (!uid) return
 
     const { error } = await supabase

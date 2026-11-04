@@ -71,9 +71,9 @@ export function useEmerzapChat({ ativo = true, onBadgeChange } = {}) {
     if (!permitido) return undefined
     let cancelado = false
     void (async () => {
-      const { data } = await supabase.auth.getUser()
+      const { data } = await supabase.auth.getSession()
       if (cancelado) return
-      setUserId(data?.user?.id || null)
+      setUserId(data?.session?.user?.id || null)
     })()
     return () => {
       cancelado = true

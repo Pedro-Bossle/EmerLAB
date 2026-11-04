@@ -297,8 +297,8 @@ function previewBatePapo(texto, max = 80) {
 export { previewBatePapo }
 
 async function uidAtual() {
-  const { data } = await supabase.auth.getUser()
-  const uid = data?.user?.id
+  const { data } = await supabase.auth.getSession()
+  const uid = data?.session?.user?.id
   if (!uid) throw new Error('Sessão ausente.')
   return uid
 }

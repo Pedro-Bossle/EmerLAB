@@ -325,8 +325,8 @@ export async function anexarArquivosTarefa(tarefaId, files) {
         throw new Error(`Máximo de ${MAX_ANEXOS_TAREFA} anexos por tarefa.`)
     }
 
-    const { data: userData } = await supabase.auth.getUser()
-    const uid = userData?.user?.id
+    const { data: userData } = await supabase.auth.getSession()
+    const uid = userData?.session?.user?.id
     if (!uid) throw new Error('Sessão ausente.')
 
     const novos = []
@@ -371,8 +371,8 @@ export async function removerAnexoTarefa(tarefaId, storagePath) {
         return mapRowTarefa(data)
     }
 
-    const { data: userData } = await supabase.auth.getUser()
-    const uid = userData?.user?.id
+    const { data: userData } = await supabase.auth.getSession()
+    const uid = userData?.session?.user?.id
     if (!uid) throw new Error('Sessão ausente.')
 
     const { data: atual, error } = await selectTarefaPorId(tid)
@@ -561,8 +561,8 @@ export async function listarUsuariosParaAtribuicao() {
 }
 
 export async function listarTarefasHome({ userId } = {}) {
-    const { data: userData } = await supabase.auth.getUser()
-    const uid = userId || userData?.user?.id
+    const { data: userData } = await supabase.auth.getSession()
+    const uid = userId || userData?.session?.user?.id
     if (!uid) throw new Error('Sessão ausente.')
 
     const tentativas = [
@@ -661,8 +661,8 @@ export async function criarTarefaHome({
     atribuidoA,
     anexosFiles = [],
 }) {
-    const { data: userData } = await supabase.auth.getUser()
-    const uid = userData?.user?.id
+    const { data: userData } = await supabase.auth.getSession()
+    const uid = userData?.session?.user?.id
     if (!uid) throw new Error('Sessão ausente.')
     const tit = String(titulo || '').trim()
     if (!tit) throw new Error('Informe o título da tarefa.')
@@ -901,8 +901,8 @@ export async function listarMensagensTarefa(tarefaId) {
 }
 
 export async function enviarMensagemTarefa(tarefaId, texto) {
-    const { data: userData } = await supabase.auth.getUser()
-    const uid = userData?.user?.id
+    const { data: userData } = await supabase.auth.getSession()
+    const uid = userData?.session?.user?.id
     if (!uid) throw new Error('Sessão ausente.')
     const tid = String(tarefaId || '').trim()
     const corpo = String(texto || '').trim()
@@ -934,8 +934,8 @@ export async function enviarMensagemTarefa(tarefaId, texto) {
 }
 
 export async function marcarMensagensTarefaComoLidas(tarefaId) {
-    const { data: userData } = await supabase.auth.getUser()
-    const uid = userData?.user?.id
+    const { data: userData } = await supabase.auth.getSession()
+    const uid = userData?.session?.user?.id
     if (!uid) return
     const tid = String(tarefaId || '').trim()
     if (!tid) return
@@ -957,8 +957,8 @@ export async function marcarMensagensTarefaComoLidas(tarefaId) {
  * @returns {Promise<Array<{ tarefaId, tarefaTitulo, deUserId, deNome, preview, quantidade, ultimaEm }>>}
  */
 export async function listarNotificacoesMensagensTarefas({ userId } = {}) {
-    const { data: userData } = await supabase.auth.getUser()
-    const uid = userId || userData?.user?.id
+    const { data: userData } = await supabase.auth.getSession()
+    const uid = userId || userData?.session?.user?.id
     if (!uid) return []
 
     const { data: msgs, error } = await supabase
