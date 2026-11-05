@@ -13,6 +13,7 @@ import adminUsersHandler from './api/admin-users.js'
 import emailHandler from './api/email.js'
 import repasseMensalHandler from './api/_lib/repasseMensalHandler.js'
 import emerRadarCronHandler from './api/_lib/emerRadarCronHandler.js'
+import emerRadarRunsHandler from './api/_lib/emerRadarRunsHandler.js'
 import auditLogsHandler from './api/audit-logs.js'
 import { nodeHandler as ibgeMunicipiosHandler } from './api/ibge-municipios.js'
 
@@ -422,6 +423,16 @@ function emerRadarCronDevPlugin() {
     )
 }
 
+/** Em dev, atende POST /api/emer-radar-runs (execuções + estado do cron). */
+function emerRadarRunsDevPlugin() {
+    return makeJsonApiDevPlugin(
+        'emer-radar-runs-dev',
+        '/api/emer-radar-runs',
+        emerRadarRunsHandler,
+        'Falha ao ler as execuções do Emer-Radar.',
+    )
+}
+
 /** Em dev, atende GET /api/gemini-rate no Vite (mesma function que prospectos). */
 function geminiRateDevPlugin() {
     return {
@@ -711,6 +722,7 @@ export default defineConfig(({ command, mode }) => {
             command === 'serve' ? emailDevPlugin() : null,
             command === 'serve' ? repasseMensalDevPlugin() : null,
             command === 'serve' ? emerRadarCronDevPlugin() : null,
+            command === 'serve' ? emerRadarRunsDevPlugin() : null,
             command === 'serve' ? auditLogsDevPlugin() : null,
             command === 'serve' ? geminiRateDevPlugin() : null,
             command === 'serve' ? clicksignDevPlugin() : null,

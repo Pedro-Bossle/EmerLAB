@@ -63,6 +63,10 @@
       "destination": "/api/audit-logs?_route=emer-radar-cron"
     },
     {
+      "source": "/api/emer-radar-runs",
+      "destination": "/api/audit-logs?_route=emer-radar-runs"
+    },
+    {
       "source": "/api/nominatim-search",
       "destination": "/api/map-osm?_route=nominatim"
     },

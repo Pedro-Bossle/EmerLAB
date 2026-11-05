@@ -79,7 +79,7 @@ export default async function handler(req, res) {
     try {
         let body
         try {
-            body = await readJsonBodyLimited(req)
+            body = await readJsonBodyLimited(req, { maxBytes: 3 * 1024 * 1024 }) // anexos Excel/HTML do pipeline vêm em base64
         } catch (e) {
             if (responderSePayloadGrande(res, e)) return
             throw e

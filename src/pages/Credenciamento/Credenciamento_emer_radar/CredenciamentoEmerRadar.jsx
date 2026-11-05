@@ -15,8 +15,6 @@ import {
   pipelineListQueue,
   pipelineRemoveFromQueue,
   pipelineExportUrl,
-  pipelineGetRun,
-  pipelineListRuns,
   pipelinePreviewCities,
   pipelineResults,
   pipelineStart,
@@ -68,6 +66,7 @@ import {
 } from '../../../lib/credenciamento/prospectosMapsRepo.js'
 import { buscarMunicipiosPorUf, mesclarMunicipiosComExtras } from '../../../lib/ibgeLocalidades.js'
 import EmerRadarLoader from './EmerRadarLoader.jsx'
+import EmerRadarExecucoes from './EmerRadarExecucoes.jsx'
 import EmerRadarProspectResults from './EmerRadarProspectResults.jsx'
 import './CredenciamentoEmerRadar.css'
 import { avisar, confirmarAcao } from '../../../lib/dialogos.js'
@@ -275,12 +274,12 @@ export default function CredenciamentoEmerRadar() {
       {apiOk === 'actions' ? (
         <div className="el-stage mb-4 text-sm border border-[#123e59]/15 bg-[#123e59]/5 dark:border-sky-400/25 dark:bg-sky-400/10">
           <p className="m-0 font-semibold text-[#123e59] dark:text-sky-100">
-            Produção (Vercel): sem worker Emer-Radar — isto é esperado.
+            Produção: a coleta roda no GitHub Actions — não há worker neste site.
           </p>
           <p className="mt-2 mb-0 text-xs text-ink-muted dark:text-sky-100/80">
-            O pedido a <code>/emeradar</code> devolvia o HTML da SPA (daí o erro de JSON). Em
-            produção use <strong>«Rodar cron (Actions)»</strong> para a fila. Tráfego do dia
-            grava no Supabase; Prospect Maps interativo só em local com o worker.
+            Use <strong>«Rodar cron (Actions)»</strong> para processar a fila e abra os resultados
+            em <strong>Execuções e resultados</strong>. Prospect Maps interativo só funciona em
+            local, com o worker.
           </p>
         </div>
       ) : null}
@@ -325,8 +324,6 @@ function PipelinePanel({ workerDisponivel = false }) {
   const [sendEmail, setSendEmail] = useState(false)
   const [snap, setSnap] = useState(null)
   const [results, setResults] = useState([])
-  const [pastRuns, setPastRuns] = useState([])
-  const [selectedPastRun, setSelectedPastRun] = useState('')
   const [error, setError] = useState('')
   const [cooldownDays, setCooldownDays] = useState(70)
   const [usuarios, setUsuarios] = useState([])
@@ -353,12 +350,6 @@ function PipelinePanel({ workerDisponivel = false }) {
     () => parseCidadesTrafego(trafegoTexto, trafegoUf),
     [trafegoTexto, trafegoUf],
   )
-
-  const refreshRuns = useCallback(() => {
-    pipelineListRuns()
-      .then((r) => setPastRuns(r.runs || []))
-      .catch(() => setPastRuns([]))
-  }, [])
 
   const refreshRegistry = useCallback(() => {
     listCities()
@@ -402,19 +393,17 @@ function PipelinePanel({ workerDisponivel = false }) {
       .then((s) => setDestinatarios(s.tarefa_destinatarios || []))
       .catch(() => undefined)
 
-    // Runs / status HTTP: só com worker (dev).
+    // Status HTTP em tempo real: só com worker (dev). As execuções vêm do servidor (EmerRadarExecucoes).
     if (!workerDisponivel) {
-      setPastRuns([])
       setSnap(null)
       return undefined
     }
 
-    refreshRuns()
     pipelineStatus()
       .then(setSnap)
       .catch(() => undefined)
     return undefined
-  }, [workerDisponivel, refreshRuns, refreshRegistry, refreshTrafego, refreshFilaCron])
+  }, [workerDisponivel, refreshRegistry, refreshTrafego, refreshFilaCron])
 
   useEffect(() => {
     if (!rows.length) {
@@ -447,7 +436,6 @@ function PipelinePanel({ workerDisponivel = false }) {
         setSnap(s)
         const r = await pipelineResults()
         setResults(r.results || [])
-        refreshRuns()
         refreshRegistry()
       } catch {
         /* ignore */
@@ -462,7 +450,6 @@ function PipelinePanel({ workerDisponivel = false }) {
           if (s?.status === 'CONCLUIDO') {
             const r = await pipelineResults()
             setResults(r.results || [])
-            refreshRuns()
             refreshRegistry()
           }
         })
@@ -472,7 +459,7 @@ function PipelinePanel({ workerDisponivel = false }) {
       es.close()
       clearInterval(poll)
     }
-  }, [isRunning, refreshRuns, refreshRegistry])
+  }, [isRunning, refreshRegistry])
 
   const addCity = () => {
     setError('')
@@ -1058,13 +1045,37 @@ function PipelinePanel({ workerDisponivel = false }) {
         )}
       </PanelStep>
 
+      <PanelStep
+        step={4}
+        title="Execuções e resultados"
+        hint="Estado do cron e todas as coletas já feitas. Escolha uma execução para ver os resultados abaixo ou baixar o Excel."
+      >
+        <EmerRadarExecucoes
+          workerDisponivel={workerDisponivel}
+          executando={isRunning}
+          onCarregar={(data) => {
+            setResults(data.results || [])
+            setSnap({
+              status: 'CONCLUIDO',
+              run_id: data.run_id,
+              encontrados: data.total,
+              progress: data.run?.progress,
+              logs: data.run?.logs || [],
+            })
+            setTimeout(() => {
+              document.getElementById('emer-radar-resultados')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }, 50)
+          }}
+        />
+      </PanelStep>
+
       <details
         className="el-stage emer-radar-details"
         open={avancadoAberto}
         onToggle={(e) => setAvancadoAberto(e.currentTarget.open)}
       >
         <summary className="emer-radar-details__summary">
-          Opções avançadas (destinatários, runs, histórico de cidades)
+          Opções avançadas (destinatários e histórico de cidades)
         </summary>
         <div className="emer-radar-details__body space-y-5 pt-3">
       <section>
@@ -1130,72 +1141,6 @@ function PipelinePanel({ workerDisponivel = false }) {
         </button>
       </section>
 
-      <section>
-        <h3 className="mt-0 font-bold">Pipelines anteriores</h3>
-        <div className="mt-2 flex flex-wrap items-end gap-3">
-          <label className="min-w-[240px] flex-1 text-sm">
-            <span className="mb-1 block font-semibold">Run</span>
-            <SelectDropdown
-              className="w-full rounded-xl border border-line px-3 py-2 dark:border-white/15 dark:bg-[#152433]"
-              value={selectedPastRun}
-              onChange={(e) => setSelectedPastRun(e.target.value)}
-            >
-              <option value="">Selecione…</option>
-              {pastRuns.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.label || r.id}
-                </option>
-              ))}
-            </SelectDropdown>
-          </label>
-          <button
-            type="button"
-            className={buttonClassName()}
-            disabled={!selectedPastRun || isRunning}
-            onClick={async () => {
-              try {
-                const data = await pipelineGetRun(selectedPastRun)
-                setResults(data.results || [])
-                setSnap({
-                  status: data.run?.status || 'CONCLUIDO',
-                  run_id: data.run_id,
-                  encontrados: data.total,
-                  progress: data.run?.progress,
-                  logs: data.run?.logs || [],
-                })
-              } catch (e) {
-                setError(e.message)
-              }
-            }}
-          >
-            Carregar
-          </button>
-          {selectedPastRun ? (
-            <>
-              <a
-                className={buttonClassName({ variant: 'secondary' })}
-                href={pipelineExportUrl('xlsx', selectedPastRun)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Excel
-              </a>
-              <a
-                className={buttonClassName({ variant: 'secondary' })}
-                href={pipelineExportUrl('html', selectedPastRun)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Relatório HTML
-              </a>
-            </>
-          ) : null}
-          <button type="button" className={buttonClassName({ variant: 'secondary' })} onClick={refreshRuns}>
-            Atualizar lista
-          </button>
-        </div>
-      </section>
-
       {registry.length > 0 && (
         <section>
           <h3 className="mt-0 font-bold">Histórico de cidades ({registry.length})</h3>
@@ -1242,6 +1187,7 @@ function PipelinePanel({ workerDisponivel = false }) {
         </div>
       </details>
 
+      <div id="emer-radar-resultados" />
       {snap && (
         <PanelStep
           title="Estado da execução"
@@ -1281,7 +1227,7 @@ function PipelinePanel({ workerDisponivel = false }) {
           <pre className="mt-3 max-h-40 overflow-auto rounded-xl bg-[#0d1520] p-3 text-xs text-[#cfe8f8]">
             {(snap.logs || []).slice(-40).join('\n') || 'Sem logs ainda.'}
           </pre>
-          {snap.status === 'CONCLUIDO' && (
+          {snap.status === 'CONCLUIDO' && workerDisponivel && (
             <div className="mt-3 flex flex-wrap gap-3 text-sm">
               <a
                 className="text-brand font-semibold underline"
@@ -1407,10 +1353,10 @@ function MapsTable({ rows }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => {
+          {rows.map((r, i) => {
             const href = hrefGoogleMaps(r)
             return (
-            <tr key={r.id || `${r.nome}-${r.endereco}`}>
+            <tr key={`${r.id || r.nome}-${i}`}>
               <td>
                 <div className="font-semibold inline-flex items-center gap-1">
                   <span>{dash(r.nome)}</span>
@@ -1467,8 +1413,8 @@ function PlanoTable({ fonte, rows }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id || `${r.nome}-${r.bairro}`}>
+            {rows.map((r, i) => (
+              <tr key={`${r.id || r.nome}-${i}`}>
                 <td className="font-semibold">{dash(r.nome)}</td>
                 <td>{dash(r.tipo || r.especialidade || r.categoria)}</td>
                 <td>
@@ -1500,8 +1446,8 @@ function PlanoTable({ fonte, rows }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id || `${r.nome}-${r.endereco}`}>
+            {rows.map((r, i) => (
+              <tr key={`${r.id || r.nome}-${i}`}>
                 <td className="font-semibold">{dash(r.nome)}</td>
                 <td>{dash(r.tipo || r.especialidade || r.categoria)}</td>
                 <td>{dash(r.endereco)}</td>
@@ -1528,8 +1474,8 @@ function PlanoTable({ fonte, rows }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
-            <tr key={r.id || `${r.nome}-${r.endereco}`}>
+          {rows.map((r, i) => (
+            <tr key={`${r.id || r.nome}-${i}`}>
               <td className="font-semibold">{dash(r.nome)}</td>
               <td>{dash(r.tipo || r.especialidade || r.categoria)}</td>
               <td>{dash(r.endereco)}</td>

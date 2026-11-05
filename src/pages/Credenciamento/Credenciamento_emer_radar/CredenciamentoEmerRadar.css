@@ -1148,3 +1148,103 @@ body.dark-mode .emer-radar-details__summary {
 body.dark-mode .emer-radar-details__body {
   border-top-color: rgba(255, 255, 255, 0.1);
 }
+
+/* --- Execuções e estado do cron (kit) --- */
+.er-exec {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.er-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+@media (max-width: 1023px) {
+  .er-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 639px) {
+  .er-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.er-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ek-line, #d8e6ef);
+  border-radius: 12px;
+  background: var(--ek-surface-tint, #f7fbfe);
+}
+.er-stat__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ek-ink-muted, #5a7488);
+}
+.er-stat__value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ek-ink, #142033);
+  overflow-wrap: anywhere;
+}
+.er-stat__hint {
+  font-size: 0.8rem;
+  color: var(--ek-ink-muted, #5a7488);
+}
+.er-exec__alerta {
+  margin: 0;
+  padding: 0.65rem 0.9rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  border: 1px solid var(--ek-line, #d8e6ef);
+}
+.er-exec__alerta--warn {
+  color: var(--ek-warn);
+  background: var(--ek-warn-bg);
+  border-color: transparent;
+}
+.er-exec__alerta--erro {
+  color: var(--ek-erro);
+  background: var(--ek-erro-bg);
+  border-color: transparent;
+}
+.er-exec__aviso {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ek-ink-muted, #5a7488);
+}
+.er-exec__links {
+  margin: 0;
+  font-size: 0.85rem;
+}
+.er-exec__links a {
+  color: var(--ek-brand, #1a6fa3);
+  font-weight: 600;
+  text-decoration: underline;
+}
+.er-exec__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.er-exec__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.er-exec__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.er-exec .ek-table tr.is-selected td {
+  background: var(--ek-info-bg);
+}

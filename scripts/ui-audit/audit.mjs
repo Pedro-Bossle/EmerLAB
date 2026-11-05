@@ -136,6 +136,7 @@ export async function newPage(vp) {
       if (/fonts\.(googleapis|gstatic)/.test(u.hostname)) return req.continue()
       return req.respond({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'application/json', body: '{}' })
     }
+    if (REAL && u.pathname === '/api/emer-radar-runs') return req.continue() // só leitura
     if (u.pathname.startsWith('/api/')) {
       const m = globalThis.__apiMock?.(req)
       if (m) return req.respond(m)

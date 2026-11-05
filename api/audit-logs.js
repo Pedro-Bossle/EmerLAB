@@ -14,8 +14,9 @@ import {
     responderSePayloadGrande,
 } from '../src/lib/api/serverAuth.js'
 import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
-import { isEmerRadarCronRequest } from '../src/lib/api/vercelUnifiedRoute.js'
+import { isEmerRadarCronRequest, isEmerRadarRunsRequest } from '../src/lib/api/vercelUnifiedRoute.js'
 import emerRadarCronHandler from './_lib/emerRadarCronHandler.js'
+import emerRadarRunsHandler from './_lib/emerRadarRunsHandler.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
 dotenvConfig()
@@ -128,6 +129,9 @@ export default async function handler(req, res) {
     // Hobby: 12 Serverless — Emer-Radar cron partilha esta function via rewrite.
     if (isEmerRadarCronRequest(req)) {
         return emerRadarCronHandler(req, res)
+    }
+    if (isEmerRadarRunsRequest(req)) {
+        return emerRadarRunsHandler(req, res)
     }
 
     res.setHeader('Content-Type', 'application/json; charset=utf-8')

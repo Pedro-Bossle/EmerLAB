@@ -52,6 +52,27 @@ export async function triggerEmerRadarCron(opts = {}) {
   return json
 }
 
+/** Lê execuções e estado do cron pelo servidor (service role): funciona em produção, sem worker. */
+async function chamarRunsApi(payload) {
+  const { data: sess } = await (await import('../supabase.js')).supabase.auth.getSession()
+  const token = sess?.session?.access_token
+  if (!token) throw new Error('Faça login para ver as execuções.')
+  const res = await fetch('/api/emer-radar-runs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok || json?.ok === false) {
+    throw new Error(json?.error || `Falha ao ler o Emer-Radar (HTTP ${res.status}).`)
+  }
+  return json
+}
+
+export const emerRadarStatusCron = () => chamarRunsApi({ action: 'status' })
+export const emerRadarListarExecucoes = () => chamarRunsApi({ action: 'runs' })
+export const emerRadarCarregarExecucao = (runId) => chamarRunsApi({ action: 'run', runId })
+
 export function getDefaultSearchTerms() {
   return [...DEFAULT_TERMS]
 }

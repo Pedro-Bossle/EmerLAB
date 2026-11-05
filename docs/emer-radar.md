@@ -22,10 +22,16 @@ Obrigatórios:
 - `DATABASE_URL` — Postgres da fila/runs do Emer-Radar
 - `CRON_SECRET` — o mesmo valor usado pelo endpoint `/api/pipeline/cron/run-queue`
 
-Opcionais (e-mail / tarefas EmerLAB):
+E-mail do relatório (Resend, via EmerLAB):
+
+- `EMAIL_INTERNAL_SECRET` — mesmo valor da Vercel. Com ele o worker envia por `POST /api/email`
+  (anexos Excel/HTML em base64). Opcional: `EMAIL_API_URL` (default `https://emerlab.com.br/api/email`).
+- Sem o segredo, o worker tenta `SMTP_*` (legado). Sem nenhum dos dois, o envio é pulado.
+- O mesmo segredo envia o alerta quando o cron falha ou termina com 0 resultados.
+
+Tarefas no Home do EmerLAB:
 
 - `EMERDOG_SUPABASE_URL`, `EMERDOG_SUPABASE_SERVICE_ROLE_KEY`, `EMERDOG_TAREFA_CRIADOR_ID`
-- Ou SMTP_* se o mailer do worker ainda usar SMTP
 
 ### Secrets no EmerLAB (Vercel)
 
@@ -34,6 +40,14 @@ Para o botão «Rodar cron (Actions)» (`POST /api/emer-radar-cron`, rewrite →
 - `EMER_RADAR_GITHUB_TOKEN` — PAT com permissão de disparar workflows
 - `EMER_RADAR_GITHUB_REPO` — default `Pedro-Bossle/teste-emeradar`
 - `EMER_RADAR_WORKFLOW_FILE` — default `emer-radar-cron.yml`
+
+## Execuções e estado do cron (UI)
+
+- Aba Pipeline → «Execuções e resultados»: próxima execução, último disparo no GitHub, fila e última coleta,
+  mais a lista de coletas (abrir resultados / baixar Excel).
+- Lê por `POST /api/emer-radar-runs` (rewrite → `audit-logs`), com a service role: as tabelas `pipeline_runs`
+  e `pipeline_results` têm RLS sem políticas, então o navegador não as lê direto.
+- O cron falha (e alerta por e-mail) quando o pipeline termina com 0 registros.
 
 ## E-mail do pipeline (Resend)
 
