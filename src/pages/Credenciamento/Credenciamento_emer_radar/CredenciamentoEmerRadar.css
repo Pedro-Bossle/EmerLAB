@@ -977,7 +977,7 @@ body.dark-mode .emer-radar-panel__hint {
 }
 @media (min-width: 1024px) {
   .emer-radar-form-grid--catalog {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 .emer-radar-form-grid__wide {
@@ -1398,4 +1398,61 @@ body.dark-mode .emer-radar-details__body {
   color: var(--ek-ok);
   background: var(--ek-ok-bg);
   border-color: transparent;
+}
+
+/* --- Botão «baixar servidor» ao lado da bolinha de status --- */
+.emer-radar-servidor-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--ek-line, #d8e6ef);
+  border-radius: 10px;
+  background: var(--ek-surface, #fff);
+  color: var(--ek-brand, #1a6fa3);
+  cursor: pointer;
+}
+.emer-radar-servidor-btn:hover {
+  background: var(--ek-brand-pale, #e7f4fc);
+  border-color: var(--ek-brand, #1a6fa3);
+}
+.emer-radar-servidor-btn:focus-visible {
+  outline: 2px solid var(--ek-ring, #1a6fa3);
+  outline-offset: 2px;
+}
+
+/* --- Modal do servidor de prospecção --- */
+.er-servidor__estado {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--ek-line, #d8e6ef);
+  border-radius: 12px;
+  background: var(--ek-surface-tint, #f7fbfe);
+}
+.er-servidor__estado .emer-radar-status-dot {
+  margin-top: 0.3rem;
+}
+.er-servidor__titulo {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.er-servidor__passos {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+  list-style: decimal;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+}
+.er-servidor__nota,
+.er-servidor__arquivo {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+  color: var(--ek-ink-muted, #5a7488);
 }
