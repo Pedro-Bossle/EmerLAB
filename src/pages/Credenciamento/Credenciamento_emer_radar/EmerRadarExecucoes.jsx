@@ -2,13 +2,15 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Badge, Button, EmptyState, ErrorState, LoadingState, ResponsiveTable } from '../../../components/ui'
 import {
   emerRadarCarregarExecucao,
+  emerRadarCatalogar,
   emerRadarListarExecucoes,
   emerRadarStatusCron,
   pipelineListRuns,
 } from '../../../lib/credenciamento/emerRadarApi.js'
 import { exportarExecucaoEmerRadarParaExcel } from '../../../lib/credenciamento/exportEmerRadarRun.js'
 import { LIMIAR_MARCADORES_CRON } from '../../../lib/credenciamento/trafegoCidades.js'
-import { avisar } from '../../../lib/dialogos.js'
+import { avisar, confirmarAcao } from '../../../lib/dialogos.js'
+import { abrirExecucaoEmerRadar } from '../../../lib/credenciamento/abrirExecucaoEmerRadar.js'
 
 const fmtDataHora = (iso) => {
   if (!iso) return '—'
@@ -92,10 +94,30 @@ export default function EmerRadarExecucoes({ workerDisponivel = false, executand
     estavaExecutando.current = executando
   }, [executando, atualizar])
 
-  // A sessão do app fica no sessionStorage; window.open sem `noopener` entrega uma cópia à aba nova.
   const abrir = (run) => {
-    const aba = window.open(`/credenciamento/emer-radar/execucao/${encodeURIComponent(run.id)}`, '_blank')
-    if (!aba) avisar({ titulo: 'Pop-up bloqueado', mensagem: 'Permita pop-ups para este site e tente de novo.' })
+    if (!abrirExecucaoEmerRadar(run.id)) {
+      avisar({ titulo: 'Pop-up bloqueado', mensagem: 'Permita pop-ups para este site e tente de novo.' })
+    }
+  }
+
+  const sincronizarTudo = async () => {
+    const ok = await confirmarAcao({
+      titulo: 'Adicionar todas as execuções ao catálogo?',
+      confirmar: 'Adicionar',
+      mensagem:
+        'Os registros do Google Maps de todas as execuções entram no catálogo de prospectos (os da coleta mais recente têm prioridade). ' +
+        'Quem já está no catálogo mantém status e dados editados — só campos vazios são completados.',
+    })
+    if (!ok) return
+    setAbrindo('catalogo')
+    try {
+      const r = await emerRadarCatalogar({ todos: true })
+      avisar({ titulo: 'Catálogo atualizado', mensagem: `${r.runs} execuções lidas · ${r.novos} prospectos novos no catálogo.` })
+    } catch (e) {
+      avisar({ titulo: 'Não foi possível atualizar o catálogo', mensagem: e?.message || 'Erro desconhecido.' })
+    } finally {
+      setAbrindo('')
+    }
   }
 
   const baixarExcel = async (run) => {
@@ -190,9 +212,14 @@ export default function EmerRadarExecucoes({ workerDisponivel = false, executand
 
       <div className="er-exec__bar">
         <h3 className="er-exec__title">Execuções ({runs.length})</h3>
-        <Button variant="secondary" onClick={() => void atualizar()} disabled={carregando}>
-          {carregando ? 'Atualizando…' : 'Atualizar'}
-        </Button>
+        <div className="er-exec__acoes">
+          <Button variant="secondary" onClick={() => void sincronizarTudo()} disabled={abrindo === 'catalogo'} title="Grava no catálogo os registros do Maps de todas as execuções">
+            {abrindo === 'catalogo' ? 'Adicionando…' : 'Adicionar todas ao catálogo'}
+          </Button>
+          <Button variant="secondary" onClick={() => void atualizar()} disabled={carregando}>
+            {carregando ? 'Atualizando…' : 'Atualizar'}
+          </Button>
+        </div>
       </div>
 
       {carregando && runs.length === 0 ? (

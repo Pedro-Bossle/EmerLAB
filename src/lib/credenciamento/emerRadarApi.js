@@ -24,10 +24,15 @@ const DEFAULT_TERMS = [
   'hospital veterinário',
 ]
 
+/** Worker local detectado no computador do usuário quando o site roda em produção (Emer-Radar Worker .exe). */
+const WORKER_LOCAL_PROD = 'http://127.0.0.1:8000'
+let workerLocalAtivo = false
+
 export function getEmerRadarApiBase() {
   const direct = String(import.meta.env.VITE_EMERADAR_DIRECT || '').trim() === 'true'
   const raw = (import.meta.env.VITE_EMERADAR_API_BASE || '').trim().replace(/\/$/, '')
   if (direct && raw) return raw
+  if (workerLocalAtivo) return WORKER_LOCAL_PROD
   return '/emeradar'
 }
 
@@ -72,6 +77,12 @@ async function chamarRunsApi(payload) {
 export const emerRadarStatusCron = () => chamarRunsApi({ action: 'status' })
 export const emerRadarListarExecucoes = () => chamarRunsApi({ action: 'runs' })
 export const emerRadarCarregarExecucao = (runId) => chamarRunsApi({ action: 'run', runId })
+/** Pacote do servidor de prospecção (.exe): disponibilidade, tamanho e data. */
+export const emerRadarWorkerInfo = () => chamarRunsApi({ action: 'worker-info' })
+/** Mesmo, com link de download temporário (2 min). */
+export const emerRadarWorkerDownload = () => chamarRunsApi({ action: 'worker-download' })
+/** Grava as coletas do Maps de um run (ou de todos) no catálogo unificado. */
+export const emerRadarCatalogar = ({ runId, todos = false } = {}) => chamarRunsApi({ action: 'catalogar', runId, todos })
 
 export function getDefaultSearchTerms() {
   return [...DEFAULT_TERMS]
@@ -114,7 +125,7 @@ async function request(path, init = {}) {
 
   if (pareceHtml) {
     // Em produção /emeradar não existe → Vercel devolve index.html da SPA.
-    if (isEmerRadarAmbienteRemoto()) {
+    if (isEmerRadarAmbienteRemoto() && !workerLocalAtivo) {
       throw new Error('WORKER_AUSENTE_PROD')
     }
     throw new Error(
@@ -142,8 +153,23 @@ async function request(path, init = {}) {
 }
 
 export async function emerRadarHealth() {
-  // Em produção não há worker hospedado — o cron corre no GitHub Actions.
+  // Em produção não há worker hospedado (o cron corre no GitHub Actions), mas o usuário pode estar com o
+  // «Emer-Radar Worker» aberto no próprio computador: tenta o localhost antes de desistir.
   if (isEmerRadarAmbienteRemoto()) {
+    workerLocalAtivo = false
+    try {
+      const ctrl = new AbortController()
+      const t = setTimeout(() => ctrl.abort(), 1500)
+      const res = await fetch(`${WORKER_LOCAL_PROD}/api/health`, { signal: ctrl.signal })
+      clearTimeout(t)
+      const body = res.ok ? await res.json().catch(() => null) : null
+      if (body?.app === 'Emer-Radar') {
+        workerLocalAtivo = true
+        return body
+      }
+    } catch {
+      /* worker local não está aberto (ou o navegador bloqueou o acesso) */
+    }
     return { ok: false, mode: 'actions-only', message: 'WORKER_AUSENTE_PROD' }
   }
   return request('/api/health')

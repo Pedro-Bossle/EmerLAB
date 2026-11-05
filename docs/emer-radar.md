@@ -41,6 +41,35 @@ Para o botão «Rodar cron (Actions)» (`POST /api/emer-radar-cron`, rewrite →
 - `EMER_RADAR_GITHUB_REPO` — default `Pedro-Bossle/teste-emeradar`
 - `EMER_RADAR_WORKFLOW_FILE` — default `emer-radar-cron.yml`
 
+## Catálogo unificado (Prospect Maps + pipeline)
+
+- A tela tem três abas: **Catálogo** (tudo o que foi coletado), **Busca manual** (Maps ao vivo, precisa do worker local)
+  e **Coleta automática** (tráfego do dia, fila, execuções).
+- Os dois caminhos gravam no mesmo lugar: `cred_prospectos_maps`. O formato é montado por
+  `src/lib/credenciamento/prospectosMapsCore.js` (usado pelo navegador e pelo servidor).
+- **Cron → catálogo:** ao terminar, o worker chama `POST /api/emer-radar-runs {action:'catalogar', runId}` com
+  `Authorization: Bearer EMAIL_INTERNAL_SECRET` (`backend/pipeline/catalogo_sync.py`). Falha nessa etapa não derruba o pipeline.
+- Regras de gravação: só preenche campos vazios, nunca rebaixa o status (contactado/credenciado) e preserva dados editados.
+  Registros «somente rede» (sem presença no Maps) ficam só no run.
+- Fachada e planos: ficam em `tags` (`tags.imagem`, `tags.planos`). A URL da fachada é do Google e pode expirar; se falhar, o cartão
+  tenta buscar ao vivo (com worker) e, sem worker, mostra «Sem imagem».
+- Execuções antigas: botão «Adicionar todas ao catálogo» (aba Coleta automática) ou «Adicionar N ao catálogo» na página da execução.
+
+## Servidor de prospecção (.exe para Windows)
+
+- Programa com janela (`teste-emeradar/desktop/emer_radar_worker.py`, empacotado com PyInstaller): botão
+  «Iniciar servidor de prospecção» / «Parar servidor», instruções e log. Escuta só em `127.0.0.1:8000`.
+- **Gerar:** `teste-emeradar\desktopuild_exe.bat` → `dist\EmerRadarWorker\EmerRadarWorker.exe` e `dist\EmerRadarWorker.zip` (~93 MB;
+  o Chromium é baixado na primeira execução para a pasta `browsers`).
+- **Publicar para download no EmerLAB:** `node scripts/publicar-worker.mjs <caminho do .zip>` (usa a service role do `.env.local`).
+  Cria o bucket PRIVADO `emer-radar-worker` e envia `EmerRadarWorker.zip`. O limite de tamanho de arquivo do projeto
+  precisa comportar ~100 MB (Supabase → Project Settings → Storage → Upload file size limit).
+- **Baixar:** ícone ao lado da bolinha de status do Emer-Radar → modal com instruções. O link é gerado por
+  `POST /api/emer-radar-runs {action:'worker-download'}` (login + permissão) e vale 2 minutos.
+- **Detecção:** o site testa `http://127.0.0.1:8000/api/health`; com o servidor aberto a bolinha fica verde e a aba
+  «Busca manual» aparece. Em produção o Chrome pode pedir permissão de «rede local» (o worker já responde ao preflight
+  de rede privada e o CSP do `vercel.json` permite a conexão).
+
 ## Execuções e estado do cron (UI)
 
 - Aba Pipeline → «Execuções e resultados»: próxima execução, último disparo no GitHub, fila e última coleta,

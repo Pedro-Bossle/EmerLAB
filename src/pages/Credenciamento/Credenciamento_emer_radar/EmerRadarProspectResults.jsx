@@ -23,7 +23,16 @@ import {
 } from '../../../lib/credenciamento/emerRadarProspectosDismiss.js'
 import { descartarProspectoMaps, atualizarProspectoMaps } from '../../../lib/credenciamento/prospectosMapsRepo.js'
 import { prospectoIndicaAtendimento24h } from '../../../lib/credenciamento/prospectosOsmHorario.js'
-import { classify, copyText, displayCategory, formatarNotaMaps, unifyContato } from '../../../lib/credenciamento/emerRadarUi.js'
+import {
+  classify,
+  copyText,
+  displayCategory,
+  formatDateBR,
+  formatarNotaMaps,
+  planoLabel,
+  unifyContato,
+} from '../../../lib/credenciamento/emerRadarUi.js'
+import { pareceUrlFachadaMaps } from '../../../lib/credenciamento/prospectosMapsCore.js'
 import { SelectDropdown } from '../../../components/ui/Dropdown.jsx'
 
 const markerIcon = L.icon({
@@ -62,20 +71,6 @@ function pumpPhotoQueue() {
   }
 }
 
-function pareceUrlFachadaMaps(url) {
-  const u = String(url || '').trim().toLowerCase()
-  if (!u.startsWith('http')) return false
-  if (
-    /maps\.gstatic|\/maps\/vt|staticmap|mt[0-3]\.google|khms|tile\.openstreetmap|streetviewpixels/i.test(
-      u,
-    )
-  ) {
-    return false
-  }
-  if (u.includes('googleusercontent.com/a/')) return false
-  return u.includes('googleusercontent.com') || u.includes('ggpht.com')
-}
-
 /**
  * Usa imagem da sessão se houver; senão busca ao vivo no Maps (só quando o card entra na viewport).
  */
@@ -85,8 +80,10 @@ function useFachadaLive(est) {
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
   const mediaRef = useRef(null)
+  const jaInvalidouRef = useRef(false)
 
   useEffect(() => {
+    jaInvalidouRef.current = false
     const next =
       est?.imagem && pareceUrlFachadaMaps(est.imagem) ? String(est.imagem) : null
     setUrl(next)
@@ -136,7 +133,17 @@ function useFachadaLive(est) {
     }
   }, [url, failed, est?.link_maps, est?.nome, est?.cidade, est?.uf])
 
-  return { url, loading, failed, mediaRef }
+  /** A URL salva expirou: tenta buscar ao vivo (se houver worker) uma única vez; depois desiste. */
+  const invalidar = () => {
+    if (jaInvalidouRef.current) {
+      setFailed(true)
+      return
+    }
+    jaInvalidouRef.current = true
+    setUrl(null)
+  }
+
+  return { url, loading, failed, mediaRef, invalidar }
 }
 
 function dash(v) {
@@ -373,11 +380,10 @@ function HoursDisplay({ horario, detalhado }) {
   )
 }
 
-function ProspectCard({ est, podeEditar, onEnviadoKanban, onRemover, enviando, jaEnviado, removendo }) {
-  const [imgError, setImgError] = useState(false)
+function ProspectCard({ est, podeEditar, exigirSalvo, onEnviadoKanban, onRemover, enviando, jaEnviado, removendo }) {
   const [copiado, setCopiado] = useState(false)
-  const { url: fachadaUrl, loading: loadingFoto, mediaRef } = useFachadaLive(est)
-  const showImg = Boolean(fachadaUrl) && !imgError
+  const { url: fachadaUrl, loading: loadingFoto, mediaRef, invalidar } = useFachadaLive(est)
+  const showImg = Boolean(fachadaUrl)
   const is24h = prospectoIndicaAtendimento24h(est)
 
   const handleCopy = async () => {
@@ -399,7 +405,7 @@ function ProspectCard({ est, podeEditar, onEnviadoKanban, onRemover, enviando, j
             alt={`Fachada de ${est.nome}`}
             loading="lazy"
             referrerPolicy="no-referrer"
-            onError={() => setImgError(true)}
+            onError={invalidar}
           />
         ) : (
           <div className="emer-radar-card__placeholder">
@@ -424,6 +430,15 @@ function ProspectCard({ est, podeEditar, onEnviadoKanban, onRemover, enviando, j
           ) : null}
         </h4>
         <p className="emer-radar-card__cat">{displayCategory(est)}</p>
+        {Array.isArray(est.planos) && est.planos.length > 0 ? (
+          <p className="emer-radar-card__planos" aria-label="Já está nos planos">
+            {est.planos.map((p) => (
+              <span key={p} className={`emer-radar-pill emer-radar-pill--${p}`}>
+                {planoLabel(p)}
+              </span>
+            ))}
+          </p>
+        ) : null}
         <ul>
           <li>{dash(est.endereco)}</li>
           {(est.cidade || est.uf) && (
@@ -447,7 +462,10 @@ function ProspectCard({ est, podeEditar, onEnviadoKanban, onRemover, enviando, j
           )}
         </ul>
         {est.termo_busca && (
-          <p className="emer-radar-card__term">Encontrado por: “{est.termo_busca}”</p>
+          <p className="emer-radar-card__term">
+            Encontrado por: “{est.termo_busca}”
+            {est.coletado_em ? ` · coletado em ${formatDateBR(est.coletado_em)}` : ''}
+          </p>
         )}
         <div className="emer-radar-card__actions">
           <a href={mapsUrl(est)} target="_blank" rel="noreferrer">
@@ -463,7 +481,7 @@ function ProspectCard({ est, podeEditar, onEnviadoKanban, onRemover, enviando, j
           >
             {copiado ? 'Copiado' : 'Copiar'}
           </button>
-          {podeEditar ? (
+          {podeEditar && (!exigirSalvo || est._salvo) ? (
             <>
               <button
                 type="button"
@@ -508,6 +526,7 @@ const FILTERS_INITIAL = {
   categoria: '',
   cidade: '',
   termo: '',
+  plano: '',
   onlyPhone: false,
   onlyAddress: false,
   sort: 'original',
@@ -523,6 +542,8 @@ const FILTERS_INITIAL = {
  *   onAtualizarFiltrados?: (itens: object[]) => void,
  *   onRemovido?: (est: object) => void,
  *   onEnviadoKanbanOk?: (est: object) => void,
+ *   exigirSalvo?: boolean, // só mostra → Kanban / Remover para registros já salvos no catálogo
+ *   acoes?: React.ReactNode, // botões extras no topo (ex.: «Adicionar ao catálogo»)
  * }} props
  */
 export default function EmerRadarProspectResults({
@@ -533,6 +554,8 @@ export default function EmerRadarProspectResults({
   onAtualizarFiltrados,
   onRemovido,
   onEnviadoKanbanOk,
+  exigirSalvo = false,
+  acoes = null,
 }) {
   const [viewMode, setViewMode] = useState('lista')
   const [filters, setFilters] = useState(FILTERS_INITIAL)
@@ -590,10 +613,19 @@ export default function EmerRadarProspectResults({
     if (filters.categoria) list = list.filter((r) => displayCategory(r) === filters.categoria)
     if (filters.cidade) list = list.filter((r) => r.cidade === filters.cidade)
     if (filters.termo) list = list.filter((r) => r.termo_busca === filters.termo)
+    if (filters.plano === 'em_plano') list = list.filter((r) => (r.planos || []).length > 0)
+    if (filters.plano === 'fora') list = list.filter((r) => !(r.planos || []).length)
+    if (filters.plano === 'com_foto') list = list.filter((r) => Boolean(r.imagem))
     if (filters.onlyPhone) list = list.filter((r) => Boolean(r.telefone))
     if (filters.onlyAddress) list = list.filter((r) => Boolean(r.endereco))
     if (filters.sort === 'az') list.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
     else if (filters.sort === 'za') list.sort((a, b) => b.nome.localeCompare(a.nome, 'pt-BR'))
+    else if (filters.sort === 'nota') {
+      const n = (r) => Number(String(formatarNotaMaps(r.nota) || r.nota || '').replace(',', '.')) || 0
+      list.sort((a, b) => n(b) - n(a) || a.nome.localeCompare(b.nome, 'pt-BR'))
+    } else if (filters.sort === 'recente') {
+      list.sort((a, b) => String(b.atualizado_em || b.coletado_em || '').localeCompare(String(a.atualizado_em || a.coletado_em || '')))
+    }
     return list
   }, [visiveis, filters])
 
@@ -603,6 +635,14 @@ export default function EmerRadarProspectResults({
     const pet = visiveis.filter((r) => classify(r) === 'pet' || classify(r) === 'outros').length
     return { hospital, clinica, pet, total: visiveis.length }
   }, [visiveis])
+
+  const contagemPlano = useMemo(
+    () => ({
+      emPlano: visiveis.filter((r) => (r.planos || []).length > 0).length,
+      comFoto: visiveis.filter((r) => Boolean(r.imagem)).length,
+    }),
+    [visiveis],
+  )
 
   const setFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }))
 
@@ -720,6 +760,7 @@ export default function EmerRadarProspectResults({
               Mapa
             </button>
           </div>
+          {acoes}
           {typeof onAtualizarFiltrados === 'function' ? (
             <button
               type="button"
@@ -799,12 +840,24 @@ export default function EmerRadarProspectResults({
         </SelectDropdown>
         <SelectDropdown
           className={inputCls}
+          value={filters.plano}
+          onChange={(e) => setFilter('plano', e.target.value)}
+        >
+          <option value="">Planos: todos</option>
+          <option value="em_plano">Já estão em algum plano ({contagemPlano.emPlano})</option>
+          <option value="fora">Fora dos planos ({visiveis.length - contagemPlano.emPlano})</option>
+          <option value="com_foto">Com fachada ({contagemPlano.comFoto})</option>
+        </SelectDropdown>
+        <SelectDropdown
+          className={inputCls}
           value={filters.sort}
           onChange={(e) => setFilter('sort', e.target.value)}
         >
           <option value="original">Ordem original</option>
           <option value="az">Nome A-Z</option>
           <option value="za">Nome Z-A</option>
+          <option value="nota">Melhor nota</option>
+          <option value="recente">Coletados mais recentemente</option>
         </SelectDropdown>
         <label className="ek-check">
           <input
@@ -842,6 +895,12 @@ export default function EmerRadarProspectResults({
       {!filtered.length ? (
         <p className="mt-4 mb-0 text-sm text-ink-muted">
           Nenhum prospecto visível para estes filtros.
+          {filters.plano === 'em_plano' && contagemPlano.emPlano === 0
+            ? ' Nenhum registro deste conjunto tem vínculo com planos gravado — esse dado vem da coleta automática (use «Adicionar todas ao catálogo» na aba Coleta automática).'
+            : ''}
+          {filters.plano === 'com_foto' && contagemPlano.comFoto === 0
+            ? ' Nenhum registro tem fachada salva — a foto vem da coleta automática.'
+            : ''}
         </p>
       ) : viewMode === 'mapa' ? (
         <div className="mt-4">
@@ -856,6 +915,7 @@ export default function EmerRadarProspectResults({
                 key={key}
                 est={est}
                 podeEditar={podeEditar}
+                exigirSalvo={exigirSalvo}
                 enviando={enviandoKey === key}
                 removendo={removendoKey === key}
                 jaEnviado={enviados.has(key) || String(est?.status_prospeccao || '') === 'contactado'}

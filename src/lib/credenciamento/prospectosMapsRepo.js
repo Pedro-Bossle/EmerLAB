@@ -1,11 +1,14 @@
 import { supabase } from '../supabase.js'
+import { unifyContato } from './emerRadarUi.js'
 import {
-    categoriaMapsIrrelevante,
-    formatarNotaMaps,
-    resolverCidadeProspectoMaps,
-    ufFromEndereco,
-    unifyContato,
-} from './emerRadarUi.js'
+    linhasUnicasDeColeta,
+    mapearEstabelecimentoMapsParaRow,
+    mapsIdDeEstabelecimento,
+    mesclarComExistentes,
+    rowMapsParaCardUi,
+} from './prospectosMapsCore.js'
+
+export { mapearEstabelecimentoMapsParaRow, mapsIdDeEstabelecimento, rowMapsParaCardUi }
 
 const TABELA = 'cred_prospectos_maps'
 
@@ -15,125 +18,6 @@ export const STATUS_PROSPECCAO_MAPS_OPCOES = [
     { id: 'descartado', label: 'Descartado' },
     { id: 'credenciado', label: 'Credenciado' },
 ]
-
-/** Hash estável quando o worker não manda `id`. */
-export function mapsIdDeEstabelecimento(est) {
-    const direto = String(est?.id || est?.maps_id || '').trim()
-    if (direto) return direto
-    const base = [est?.nome, est?.endereco, est?.cidade, est?.uf, est?.link_maps, est?.telefone]
-        .map((s) => String(s || '').trim().toLowerCase())
-        .join('|')
-    let h = 0
-    for (let i = 0; i < base.length; i += 1) {
-        h = (Math.imul(31, h) + base.charCodeAt(i)) | 0
-    }
-    return `gen_${(h >>> 0).toString(16)}`
-}
-
-function parseCoord(v) {
-    if (v == null || v === '') return null
-    const n = Number(String(v).replace(',', '.'))
-    return Number.isFinite(n) ? n : null
-}
-
-/** Rua/Av. com número costuma ser scrape completo; "Bairro, Cidade - UF" é parcial. */
-function enderecoMapsMaisEspecifico(candidato, atual) {
-    const a = String(candidato || '').trim()
-    const b = String(atual || '').trim()
-    if (!a) return false
-    if (!b) return true
-    if (a === b) return false
-    const temVia = (s) =>
-        /\b(rua|r\.|av\.|avenida|travessa|alameda|estrada|rodovia|praça|praca)\b/i.test(s) ||
-        /\d{1,5}\b/.test(s)
-    const score = (s) => (temVia(s) ? 2 : 0) + Math.min(s.length, 120) / 120
-    return score(a) > score(b) + 0.15
-}
-
-/**
- * Mapeia resultado do worker → linha DB.
- * Nunca inclui `imagem` (fachada fica só na sessão da busca).
- */
-export function mapearEstabelecimentoMapsParaRow(est, { cidadePadrao = '', ufPadrao = '' } = {}) {
-    const mapsId = mapsIdDeEstabelecimento(est)
-    const lat = parseCoord(est?.latitude ?? est?.lat)
-    const lng = parseCoord(est?.longitude ?? est?.lng ?? est?.lon)
-    const website = String(est?.website || est?.site || '').trim()
-    const telRaw = String(est?.telefone || '').trim()
-    const waRaw = String(est?.whatsapp || '').trim()
-    const telefoneUnificado = unifyContato(telRaw, waRaw) || telRaw || waRaw || ''
-    const endereco = String(est?.endereco || '').trim()
-    const cidade = resolverCidadeProspectoMaps(est, { cidadePadrao })
-    const ufWorker = String(est?.uf || '')
-        .trim()
-        .toUpperCase()
-        .slice(0, 2)
-    const uf = ufWorker || ufFromEndereco(endereco, ufPadrao)
-    let categoria = String(est?.categoria || est?.tipo || est?.especialidade || '').trim()
-    if (categoriaMapsIrrelevante(categoria)) categoria = ''
-    const notaBruta = est?.nota != null ? String(est.nota).trim() : ''
-    return {
-        maps_id: mapsId,
-        nome: String(est?.nome || '').trim() || 'Sem nome',
-        endereco,
-        cidade,
-        uf,
-        telefone: telefoneUnificado,
-        whatsapp: waRaw || (telefoneUnificado && telefoneUnificado !== telRaw ? telefoneUnificado : ''),
-        horario: String(est?.horario || '').trim(),
-        horario_detalhado: String(est?.horario_detalhado || '').trim(),
-        nota: formatarNotaMaps(notaBruta) || notaBruta,
-        num_avaliacoes: est?.num_avaliacoes != null ? String(est.num_avaliacoes).trim() : '',
-        categoria,
-        lat,
-        lng,
-        link_maps: String(est?.link_maps || '').trim(),
-        website,
-        termo_busca: String(est?.termo_busca || '').trim(),
-        tags: (() => {
-            const tags = { fonte: 'emer_radar_maps' }
-            if (Array.isArray(est?.planos) && est.planos.length) tags.planos = est.planos
-            if (Array.isArray(est?.origens) && est.origens.length) tags.origens = est.origens
-            return tags
-        })(),
-        atualizado_em: new Date().toISOString(),
-    }
-}
-
-/**
- * Shape de card da UI a partir da linha salva (sem imagem).
- */
-export function rowMapsParaCardUi(row) {
-    if (!row) return null
-    const telefone = unifyContato(row.telefone, row.whatsapp) || row.telefone || row.whatsapp || ''
-    const categoria = categoriaMapsIrrelevante(row.categoria) ? '' : row.categoria || ''
-    return {
-        id: row.maps_id || row.id,
-        maps_db_id: row.id,
-        maps_id: row.maps_id,
-        nome: row.nome,
-        endereco: row.endereco,
-        cidade: row.cidade,
-        uf: row.uf,
-        telefone,
-        whatsapp: row.whatsapp || '',
-        horario: row.horario || '',
-        horario_detalhado: row.horario_detalhado || '',
-        nota: formatarNotaMaps(row.nota) || row.nota || '',
-        num_avaliacoes: row.num_avaliacoes || '',
-        categoria,
-        latitude: row.lat != null ? String(row.lat) : '',
-        longitude: row.lng != null ? String(row.lng) : '',
-        link_maps: row.link_maps || '',
-        website: row.website || '',
-        site: row.website || '',
-        termo_busca: row.termo_busca || '',
-        status_prospeccao: row.status_prospeccao || 'novo',
-        observacao: row.observacao || '',
-        imagem: null,
-        _salvo: true,
-    }
-}
 
 /**
  * @param {{ uf?: string, cidade?: string, status?: string, busca?: string, limite?: number, incluirDescartados?: boolean }} filtros
@@ -236,7 +120,7 @@ export function montarFilaAtualizacaoCatalogo(itens, opts = {}) {
 }
 
 /**
- * Upsert em lote dos resultados da coleta. Omite imagens.
+ * Upsert em lote dos resultados da coleta (a fachada, quando vem do Maps, fica em `tags.imagem`).
  * @param {object[]} estabelecimentos
  * @param {{ cidade?: string, uf?: string, preferirNovos?: boolean }} [ctx]
  */
@@ -245,17 +129,7 @@ export async function upsertProspectosMapsDeColeta(estabelecimentos, ctx = {}) {
     if (!lista.length) return { ok: true, salvos: 0, itens: [] }
     const preferirNovos = Boolean(ctx.preferirNovos)
 
-    const rows = []
-    const visto = new Set()
-    for (const est of lista) {
-        const row = mapearEstabelecimentoMapsParaRow(est, {
-            cidadePadrao: ctx.cidade,
-            ufPadrao: ctx.uf,
-        })
-        if (!row.maps_id || visto.has(row.maps_id)) continue
-        visto.add(row.maps_id)
-        rows.push(row)
-    }
+    const rows = linhasUnicasDeColeta(lista, ctx)
     if (!rows.length) return { ok: true, salvos: 0, itens: [] }
 
     // Não sobrescrever campos já salvos com vazio em re-coleta
@@ -263,69 +137,10 @@ export async function upsertProspectosMapsDeColeta(estabelecimentos, ctx = {}) {
     const { data: existentes } = await supabase
         .from(TABELA)
         .select(
-            'maps_id, telefone, whatsapp, horario, horario_detalhado, endereco, nota, num_avaliacoes, categoria, link_maps, website, lat, lng, cidade, uf, status_prospeccao',
+            'maps_id, telefone, whatsapp, horario, horario_detalhado, endereco, nota, num_avaliacoes, categoria, link_maps, website, lat, lng, cidade, uf, status_prospeccao, tags',
         )
         .in('maps_id', ids)
-    const porId = new Map((existentes || []).map((r) => [String(r.maps_id), r]))
-    const camposPreservar = [
-        'telefone',
-        'whatsapp',
-        'horario',
-        'horario_detalhado',
-        'endereco',
-        'nota',
-        'num_avaliacoes',
-        'categoria',
-        'link_maps',
-        'website',
-        'cidade',
-        'uf',
-    ]
-    for (const row of rows) {
-        const ant = porId.get(String(row.maps_id))
-        if (!ant) continue
-        for (const campo of camposPreservar) {
-            const novo = row[campo]
-            const velho = ant[campo]
-            const novoVazio =
-                novo == null ||
-                (typeof novo === 'string' && !String(novo).trim()) ||
-                (typeof novo === 'number' && !Number.isFinite(novo))
-            const velhoTem =
-                velho != null &&
-                !(typeof velho === 'string' && !String(velho).trim()) &&
-                !(typeof velho === 'number' && !Number.isFinite(velho))
-            // Não reaproveitar categoria absurda (ex.: escritório do governo) de scrape antigo
-            if (campo === 'categoria' && novoVazio && categoriaMapsIrrelevante(velho)) {
-                row.categoria = ''
-                continue
-            }
-            // Atualização intencional: valor novo não-vazio sempre vence
-            if (preferirNovos && !novoVazio) continue
-            if (novoVazio && velhoTem) row[campo] = velho
-        }
-        // Endereço novo mais específico (rua/av.) substitui vago "Bairro, Cidade - UF"
-        const endNovo = String(row.endereco || '').trim()
-        const endVelho = String(ant.endereco || '').trim()
-        if (endNovo && (preferirNovos || enderecoMapsMaisEspecifico(endNovo, endVelho))) {
-            row.endereco = endNovo
-            if (preferirNovos || !String(row.cidade || '').trim() || String(row.cidade) === String(ant.cidade)) {
-                row.cidade = resolverCidadeProspectoMaps(
-                    { endereco: endNovo, cidade: row.cidade },
-                    { cidadePadrao: ant.cidade },
-                )
-            }
-        }
-        if (row.lat == null && ant.lat != null) row.lat = ant.lat
-        if (row.lng == null && ant.lng != null) row.lng = ant.lng
-        if (!String(row.telefone || '').trim()) {
-            row.telefone = unifyContato(ant.telefone, ant.whatsapp) || ant.telefone || ant.whatsapp || ''
-        }
-        // Nunca rebaixar contactado/credenciado para o default do insert
-        if (ant.status_prospeccao && ant.status_prospeccao !== 'novo') {
-            row.status_prospeccao = ant.status_prospeccao
-        }
-    }
+    mesclarComExistentes(rows, existentes, { preferirNovos })
 
     const { data, error } = await supabase
         .from(TABELA)
@@ -394,7 +209,7 @@ export async function descartarProspectoMaps(idOuMapsId) {
 
 /**
  * Cruza resultados da sessão com linhas salvas (para Remover/Kanban usarem db id).
- * Mantém `imagem` só na sessão.
+ * Mantém a `imagem` da sessão; senão usa a salva em `tags.imagem`.
  */
 export function enriquecerResultadosComSalvos(resultados, salvos) {
     const byMapsId = new Map()
@@ -423,8 +238,8 @@ export function enriquecerResultadosComSalvos(resultados, salvos) {
             uf: est.uf || row.uf || '',
             status_prospeccao: row.status_prospeccao,
             _salvo: true,
-            // fachada só se ainda vier do worker nesta sessão
-            imagem: est.imagem || null,
+            planos: est.planos?.length ? est.planos : Array.isArray(row.tags?.planos) ? row.tags.planos : [],
+            imagem: est.imagem || (typeof row.tags?.imagem === 'string' ? row.tags.imagem : null),
         }
     })
 }
