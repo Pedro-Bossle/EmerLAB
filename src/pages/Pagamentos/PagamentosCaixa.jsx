@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission } from '../../lib/accessControl.js'
 import { getReadOnlyFlag } from '../../lib/supabase.js'
-import { DESCONTO_RPA, formatarValorMonetarioBr, valorLiquidoRpa } from '../../lib/pagamentosValor.js'
+import { DESCONTO_RPA, ehTipoRpa, formatarValorMonetarioBr, valorLiquidoRpa } from '../../lib/pagamentosValor.js'
 import {
     carregarCaixa,
     lerConfigRepasse,
@@ -270,7 +270,9 @@ export default function PagamentosCaixa() {
                             {(dados.rpaAprovados || []).map((e) => {
                                 const rel = dados.rels.get(e.relatorio_id)
                                 const reg = rel ? dados.regs.get(rel.registro_id) : null
-                                const liquido = valorLiquidoRpa(rel?.total_repasse)
+                                // só o RPA com desconto retém 11%; «RPA s/desc.» recebe o valor cheio do repasse
+                                const comDesconto = ehTipoRpa(reg?.tipo_repasse)
+                                const liquido = comDesconto ? valorLiquidoRpa(rel?.total_repasse) : rel?.total_repasse == null ? null : Number(rel.total_repasse)
                                 return (
                                     <Card key={e.id} className="flex flex-col gap-3">
                                         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -285,7 +287,7 @@ export default function PagamentosCaixa() {
                                         </div>
                                         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line text-sm sm:max-w-md">
                                             <div className="bg-surface-tint px-3 py-2"><p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Repasse</p><p className="text-base font-bold tabular-nums">{formatarValorMonetarioBr(rel?.total_repasse)}</p></div>
-                                            <div className="bg-surface-tint px-3 py-2"><p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">A receber (−{Math.round(DESCONTO_RPA * 100)}%)</p><p className="text-base font-bold tabular-nums">{liquido == null ? '—' : formatarValorMonetarioBr(liquido)}</p></div>
+                                            <div className="bg-surface-tint px-3 py-2"><p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">A receber{comDesconto ? ` (−${Math.round(DESCONTO_RPA * 100)}%)` : ''}</p><p className="text-base font-bold tabular-nums">{liquido == null ? '—' : formatarValorMonetarioBr(liquido)}</p></div>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
                                             <Button variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => void abrirRelatorio(e.relatorio_id)}>Relatório</Button>
