@@ -24,6 +24,7 @@ const CredenciamentoCadastroLista = lazy(() => import('./pages/Credenciamento/Cr
 const CredenciamentoCadastroForm = lazy(() => import('./pages/Credenciamento/Credenciamento_cadastro/CredenciamentoCadastroForm'));
 const CredenciamentoMapa = lazy(() => import('./pages/Credenciamento/Credenciamento_mapa/CredenciamentoMapa'));
 const CredenciamentoEmerRadar = lazy(() => import('./pages/Credenciamento/Credenciamento_emer_radar/CredenciamentoEmerRadar'));
+const EmerRadarExecucaoPage = lazy(() => import('./pages/Credenciamento/Credenciamento_emer_radar/EmerRadarExecucaoPage'));
 /* Catálogo OSM legado — rota redireciona para Emer-Radar
 const CredenciamentoProspectosOsm = lazy(() => import('./pages/Credenciamento/Credenciamento_prospectos_osm/CredenciamentoProspectosOsm'));
 */
@@ -196,6 +197,14 @@ function App() {
             element={
               <PrivateRoute permission="credenciamento.view" toolId="credenciamento.prospectos_osm">
                 <CredenciamentoEmerRadar />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/credenciamento/emer-radar/execucao/:runId"
+            element={
+              <PrivateRoute permission="credenciamento.view" toolId="credenciamento.prospectos_osm">
+                <EmerRadarExecucaoPage />
               </PrivateRoute>
             }
           />

@@ -4,7 +4,6 @@ import {
   emerRadarCarregarExecucao,
   emerRadarListarExecucoes,
   emerRadarStatusCron,
-  pipelineGetRun,
   pipelineListRuns,
 } from '../../../lib/credenciamento/emerRadarApi.js'
 import { exportarExecucaoEmerRadarParaExcel } from '../../../lib/credenciamento/exportEmerRadarRun.js'
@@ -49,14 +48,13 @@ function Estatistica({ rotulo, valor, detalhe, tone }) {
  * Lê pelo servidor (service role): em produção as tabelas do pipeline não são legíveis pelo navegador
  * e o worker HTTP não existe.
  */
-export default function EmerRadarExecucoes({ workerDisponivel = false, executando = false, onCarregar }) {
+export default function EmerRadarExecucoes({ workerDisponivel = false, executando = false }) {
   const [status, setStatus] = useState(null)
   const [statusErro, setStatusErro] = useState('')
   const [runs, setRuns] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const [abrindo, setAbrindo] = useState('')
-  const [selecionado, setSelecionado] = useState('')
 
   const atualizar = useCallback(async () => {
     setCarregando(true)
@@ -94,23 +92,10 @@ export default function EmerRadarExecucoes({ workerDisponivel = false, executand
     estavaExecutando.current = executando
   }, [executando, atualizar])
 
-  const abrir = async (run) => {
-    setAbrindo(run.id)
-    try {
-      let data
-      try {
-        data = await emerRadarCarregarExecucao(run.id)
-      } catch (e) {
-        if (!workerDisponivel) throw e
-        data = await pipelineGetRun(run.id)
-      }
-      setSelecionado(run.id)
-      onCarregar?.(data)
-    } catch (e) {
-      avisar({ titulo: 'Não foi possível abrir a execução', mensagem: e?.message || 'Erro desconhecido.' })
-    } finally {
-      setAbrindo('')
-    }
+  // A sessão do app fica no sessionStorage; window.open sem `noopener` entrega uma cópia à aba nova.
+  const abrir = (run) => {
+    const aba = window.open(`/credenciamento/emer-radar/execucao/${encodeURIComponent(run.id)}`, '_blank')
+    if (!aba) avisar({ titulo: 'Pop-up bloqueado', mensagem: 'Permita pop-ups para este site e tente de novo.' })
   }
 
   const baixarExcel = async (run) => {
@@ -148,17 +133,21 @@ export default function EmerRadarExecucoes({ workerDisponivel = false, executand
     alertas.push({ tone: 'warn', texto: 'A última execução terminou com 0 registros. Pode ser mudança no Google Maps ou bloqueio do scraper.' })
   }
 
+  // Estes avisos descrevem a ÚLTIMA COLETA gravada; não refletem a configuração atual do cron.
+  const dataUltima = ultima ? fmtDataHora(ultima.finished_at || ultima.started_at) : ''
+  const nota = `Na coleta de ${dataUltima}`
+  const aposConfigurar = 'Se você já configurou depois, o aviso some na próxima coleta.'
   const emailRun = ultima?.email
   if (emailRun && emailRun.ok === false) {
     alertas.push({
       tone: 'warn',
-      texto: `O e-mail da última execução não foi enviado${emailRun.skipped ? ' (envio não configurado no cron)' : ''}. Configure EMAIL_INTERNAL_SECRET no GitHub Actions do teste-emeradar.`,
+      texto: `${nota} o e-mail não foi enviado${emailRun.skipped ? ' (envio não configurado)' : ''}. ${aposConfigurar}`,
     })
   }
   if (ultima?.tarefas && ultima.tarefas.ok === false) {
     alertas.push({
       tone: 'warn',
-      texto: 'As tarefas da Home não foram criadas na última execução. Configure EMERDOG_SUPABASE_URL, EMERDOG_SUPABASE_SERVICE_ROLE_KEY e EMERDOG_TAREFA_CRIADOR_ID no GitHub Actions.',
+      texto: `${nota} as tarefas da Home não foram criadas. ${aposConfigurar}`,
     })
   }
 
@@ -231,9 +220,8 @@ export default function EmerRadarExecucoes({ workerDisponivel = false, executand
               const concluido = r.status === 'concluido' || r.status === 'CONCLUIDO'
               const vazio = concluido && !r.total
               const cidades = (r.cidades || []).map((c) => `${c.cidade}/${c.uf}`)
-              const ativo = selecionado === r.id
               return (
-                <tr key={r.id} className={ativo ? 'is-selected' : undefined}>
+                <tr key={r.id}>
                   <td data-label="Data">{fmtDataHora(r.started_at)}</td>
                   <td data-label="Cidades">
                     {cidades.length ? (
@@ -261,8 +249,8 @@ export default function EmerRadarExecucoes({ workerDisponivel = false, executand
                   </td>
                   <td data-label="">
                     <div className="er-exec__acoes">
-                      <Button disabled={abrindo === r.id} onClick={() => void abrir(r)}>
-                        {abrindo === r.id ? 'Abrindo…' : ativo ? 'Aberta' : 'Ver resultados'}
+                      <Button disabled={!r.total} onClick={() => abrir(r)} title="Abre em uma nova aba">
+                        Ver resultados ↗
                       </Button>
                       <Button
                         variant="secondary"

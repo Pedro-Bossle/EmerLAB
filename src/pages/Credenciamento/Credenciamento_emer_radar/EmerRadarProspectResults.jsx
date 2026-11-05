@@ -806,7 +806,7 @@ export default function EmerRadarProspectResults({
           <option value="az">Nome A-Z</option>
           <option value="za">Nome Z-A</option>
         </SelectDropdown>
-        <label className="inline-flex items-center gap-2 text-sm text-ink-soft">
+        <label className="ek-check">
           <input
             type="checkbox"
             checked={filters.onlyPhone}
@@ -814,7 +814,7 @@ export default function EmerRadarProspectResults({
           />
           Com telefone
         </label>
-        <label className="inline-flex items-center gap-2 text-sm text-ink-soft">
+        <label className="ek-check">
           <input
             type="checkbox"
             checked={filters.onlyAddress}
@@ -829,7 +829,7 @@ export default function EmerRadarProspectResults({
       </p>
 
       {feedback ? (
-        <p className="mt-3 mb-0 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-200">
+        <p className="er-exec__alerta er-exec__alerta--ok mt-3" role="status">
           {feedback}
         </p>
       ) : null}

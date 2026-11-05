@@ -517,15 +517,26 @@ body.dark-mode .emer-radar-stats__item strong {
 }
 
 .emer-radar-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.6rem;
   align-items: center;
 }
 
 .emer-radar-filters__query {
-  flex: 1 1 14rem;
-  min-width: 12rem;
+  grid-column: span 2;
+}
+@media (max-width: 639px) {
+  .emer-radar-filters__query {
+    grid-column: auto;
+  }
+}
+
+/* O sino flutuante do app cobria as ações do cabeçalho (abas / Excel) à direita. */
+@media (min-width: 1024px) {
+  .emer-radar-page .el-page-header__actions {
+    margin-right: 3.75rem;
+  }
 }
 
 /* Usa mais largura util da area do Layout2 */
@@ -1247,4 +1258,144 @@ body.dark-mode .emer-radar-details__body {
 }
 .er-exec .ek-table tr.is-selected td {
   background: var(--ek-info-bg);
+}
+
+/* --- Tráfego do dia: cidades acompanhadas (recolhido por padrão) --- */
+.er-trafego {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+  width: 100%;
+}
+.er-trafego__resumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.er-trafego__chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--ek-line, #d8e6ef);
+  border-radius: 12px;
+  background: var(--ek-surface-tint, #f7fbfe);
+  color: var(--ek-ink-soft, #3d5168);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.er-trafego__chip:hover {
+  border-color: var(--ek-brand, #1a6fa3);
+}
+.er-trafego__chip.is-active {
+  border-color: var(--ek-brand, #1a6fa3);
+  background: var(--ek-brand-pale, #e7f4fc);
+  color: var(--ek-brand, #1a6fa3);
+}
+.er-trafego__chip-n {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--ek-ink, #142033);
+}
+.er-trafego__quase {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ek-ink-soft, #3d5168);
+}
+.er-trafego__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+}
+.er-trafego__filtros {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+@media (max-width: 1023px) {
+  .er-trafego__filtros {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 639px) {
+  .er-trafego__filtros {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.er-trafego__uf {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ek-ink-muted, #5a7488);
+}
+
+/* --- Resultados de uma execução (página em nova aba) --- */
+.er-run {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.er-run__abas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--ek-line, #d8e6ef);
+  padding-bottom: 0.5rem;
+}
+.er-run__aba {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ek-ink-soft, #3d5168);
+  font-weight: 700;
+  cursor: pointer;
+}
+.er-run__aba:hover {
+  background: var(--ek-brand-pale, #e7f4fc);
+}
+.er-run__aba.is-active {
+  background: var(--ek-brand, #1a6fa3);
+  color: var(--ek-on-brand, #fff);
+}
+.er-run__contagem {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ek-ink-muted, #5a7488);
+}
+.er-run__sort {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+.er-run__maps {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ek-brand, #1a6fa3);
+  text-decoration: underline;
+}
+.er-run__planos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+.er-run__mais {
+  display: flex;
+  justify-content: center;
+}
+.er-exec__alerta--ok {
+  color: var(--ek-ok);
+  background: var(--ek-ok-bg);
+  border-color: transparent;
 }
