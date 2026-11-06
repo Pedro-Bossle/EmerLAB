@@ -3947,3 +3947,16 @@ body.dark-mode .cs_sign_btn_outline:hover:not(:disabled) {
         display: none;
     }
 }
+
+.cs_carregar_mais {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 4px;
+    text-align: center;
+}
+
+.cs_carregar_mais .ek-hint {
+    margin: 0;
+}

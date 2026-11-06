@@ -47,6 +47,8 @@ const filaPendente = []
 let filaAtivos = 0
 let filaUltimoInicio = 0
 let filaTimer = null
+/** Depois de um 429, a fila inteira espera (insistir só piora o bloqueio). */
+let filaPausaAte = 0
 /** @type {Map<string, Promise<{ ok: boolean, status: number, data: object }>>} */
 const getsEmVoo = new Map()
 /** @type {Map<string, { em: number, valor: { ok: boolean, status: number, data: object } }>} */
@@ -54,7 +56,7 @@ const cacheListagens = new Map()
 
 function drenarFila() {
     if (filaAtivos >= FILA_MAX_PARALELO || filaPendente.length === 0) return
-    const espera = filaUltimoInicio + FILA_INTERVALO_MIN_MS - Date.now()
+    const espera = Math.max(filaUltimoInicio + FILA_INTERVALO_MIN_MS, filaPausaAte) - Date.now()
     if (espera > 0) {
         if (!filaTimer) {
             filaTimer = setTimeout(() => {
@@ -84,6 +86,72 @@ function agendarNaFila(fn) {
     })
 }
 
+const dormir = (ms) =>
+    new Promise((resolve) => {
+        setTimeout(resolve, ms)
+    })
+
+/**
+ * Executa na fila e, se vier 429, pausa a fila e tenta de novo (até 3 vezes), sem poluir a tela com erro.
+ * 429 é recusa (a requisição não foi processada), então repetir é seguro inclusive em POST/PATCH.
+ */
+async function executarNaFilaComRecuo(fn) {
+    let r = null
+    for (let tentativa = 1; tentativa <= 3; tentativa += 1) {
+        r = await agendarNaFila(fn)
+        if (r.status !== 429) return r
+        const esperaMs = Math.min(Math.max(Number(r.data?.retryAfterSec) || 4, 2), 12) * 1000
+        filaPausaAte = Math.max(filaPausaAte, Date.now() + esperaMs)
+        if (tentativa < 3) await dormir(esperaMs)
+    }
+    return r
+}
+
+/**
+ * Cabeçalho de sessão lido UMA vez por vez: chamadas simultâneas compartilham a mesma leitura/renovação
+ * (várias renovações em paralelo brigam pelo lock do Supabase e podem devolver "sessão ausente").
+ */
+let sessaoCache = { token: '', expMs: 0 }
+let sessaoEmVoo = null
+
+function limparSessaoCache() {
+    sessaoCache = { token: '', expMs: 0 }
+}
+
+async function obterCabecalhosAuth({ forcar = false } = {}) {
+    if (!forcar && sessaoCache.token && sessaoCache.expMs - Date.now() > 90_000) {
+        return { Authorization: `Bearer ${sessaoCache.token}` }
+    }
+    if (sessaoEmVoo) return sessaoEmVoo
+    const p = (async () => {
+        try {
+            const { supabase } = await import('../supabase.js')
+            if (!supabase) return {}
+            const { data } = await supabase.auth.getSession()
+            let s = data?.session ?? null
+            const exp = s?.expires_at ? Number(s.expires_at) * 1000 : 0
+            const vencendo = Boolean(s?.refresh_token) && (!s?.access_token || (exp > 0 && exp < Date.now() + 90_000))
+            if (forcar || vencendo) {
+                const r = await supabase.auth.refreshSession()
+                if (r?.data?.session?.access_token) s = r.data.session
+            }
+            if (!s?.access_token) return {}
+            sessaoCache = {
+                token: s.access_token,
+                expMs: s.expires_at ? Number(s.expires_at) * 1000 : Date.now() + 5 * 60_000,
+            }
+            return { Authorization: `Bearer ${s.access_token}` }
+        } catch {
+            return {}
+        }
+    })()
+    sessaoEmVoo = p
+    p.finally(() => {
+        if (sessaoEmVoo === p) sessaoEmVoo = null
+    })
+    return p
+}
+
 /** Limpa o cache de listagens (chamado em toda escrita). Exportado para testes e telas. */
 export function limparCacheClicksign() {
     cacheListagens.clear()
@@ -101,7 +169,7 @@ export async function clicksignRequest(method, path, body = null) {
 
     if (!leitura) {
         limparCacheClicksign()
-        const r = await agendarNaFila(() => clicksignRequestDireto(method, path, body))
+        const r = await executarNaFilaComRecuo(() => clicksignRequestDireto(method, path, body))
         limparCacheClicksign()
         return r
     }
@@ -115,7 +183,7 @@ export async function clicksignRequest(method, path, body = null) {
     const voo = getsEmVoo.get(chave)
     if (voo) return { ...(await voo) }
 
-    const promessa = agendarNaFila(() => clicksignRequestDireto(method, path, body))
+    const promessa = executarNaFilaComRecuo(() => clicksignRequestDireto(method, path, body))
     getsEmVoo.set(chave, promessa)
     try {
         const r = await promessa
@@ -137,20 +205,12 @@ async function clicksignRequestDireto(method, path, body = null) {
             data: { error: 'ID do envelope ausente. Recarregue e abra o envelope de novo.' },
         }
     }
-    const { userAccessTokenHeaders } = await import('../api/serverBackend.js')
-    let auth = await userAccessTokenHeaders()
+    let auth = await obterCabecalhosAuth()
 
-    // Sem JWT a API responde 401/403 — tenta refresh explícito uma vez
+    // Sem JWT a API responde 401: espera um instante (lock do Supabase) e renova uma vez
     if (!auth.Authorization) {
-        try {
-            const { supabase } = await import('../supabase.js')
-            if (supabase) {
-                await supabase.auth.refreshSession()
-                auth = await userAccessTokenHeaders()
-            }
-        } catch {
-            /* ignore */
-        }
+        await dormir(400)
+        auth = await obterCabecalhosAuth({ forcar: true })
     }
 
     const opts = {
@@ -166,14 +226,11 @@ async function clicksignRequestDireto(method, path, body = null) {
     // Sessão stale: um refresh + retry
     if ((res.status === 401 || res.status === 403) && auth.Authorization) {
         try {
-            const { supabase } = await import('../supabase.js')
-            if (supabase) {
-                await supabase.auth.refreshSession()
-                const auth2 = await userAccessTokenHeaders()
-                if (auth2.Authorization && auth2.Authorization !== auth.Authorization) {
-                    opts.headers = { ...opts.headers, ...auth2 }
-                    res = await fetch(`/api/clicksign${p}`, opts)
-                }
+            limparSessaoCache()
+            const auth2 = await obterCabecalhosAuth({ forcar: true })
+            if (auth2.Authorization && auth2.Authorization !== auth.Authorization) {
+                opts.headers = { ...opts.headers, ...auth2 }
+                res = await fetch(`/api/clicksign${p}`, opts)
             }
         } catch {
             /* ignore */
@@ -1063,7 +1120,9 @@ export async function listarEnvelopesTodasPaginas(clickReq, opts = {}) {
     let meta = {}
     let links = {}
     let sortAtivo = base.sort
-    for (let pageNumber = 1; pageNumber <= MAX_PAGINAS_LISTAGEM_ENVELOPES; pageNumber += 1) {
+    // `maxPaginas: 1` carrega só a primeira página (o resto vem sob demanda, "Carregar mais").
+    const maxPaginas = Math.min(MAX_PAGINAS_LISTAGEM_ENVELOPES, Math.max(1, Number(opts.maxPaginas) || MAX_PAGINAS_LISTAGEM_ENVELOPES))
+    for (let pageNumber = 1; pageNumber <= maxPaginas; pageNumber += 1) {
         let path = montarPathListagemEnvelopes({ ...base, pageNumber, sort: sortAtivo })
         let res = await clickReq('GET', path)
         if (!res.ok && sortAtivo && pageNumber === 1) {
@@ -1198,8 +1257,7 @@ export async function abrirVisualizacaoDocumento(envelopeId, doc, opts = {}) {
         }
     }
     try {
-        const { userAccessTokenHeaders } = await import('../api/serverBackend.js')
-        const auth = await userAccessTokenHeaders()
+        const auth = await obterCabecalhosAuth()
         const variant = opts.variant || 'auto'
         const proxied = urlVisualizarDocumentoProxy(eid, did, variant)
 

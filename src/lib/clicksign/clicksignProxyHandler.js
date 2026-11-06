@@ -94,6 +94,9 @@ export default async function clicksignProxyHandler(req, res) {
         return
     }
 
+    // Limite por usuário (o por IP, acima, é compartilhado por todo o escritório).
+    if (!aplicarRateLimit(res, `clicksign-u:${auth.user?.id || 'anon'}`, RATE_LIMITS.clicksignUsuario)) return
+
     const token = (process.env.CLICKSIGN_ACCESS_TOKEN || process.env.CLICKSIGN_TOKEN || '').trim()
     if (!token) {
         res.status(503).json({
@@ -178,8 +181,17 @@ export default async function clicksignProxyHandler(req, res) {
                     ? Math.max(1, Math.ceil(resetUnix - Date.now() / 1000))
                     : 10
             res.setHeader('Retry-After', String(retryAfterSec))
+            res.setHeader('X-Limite-Origem', 'clicksign')
+            // Os logs da Vercel não trazem o código HTTP: deixa registrado quem limitou e quanto sobrou.
+            console.warn('[clicksign-proxy] 429 vindo da Clicksign', {
+                path: subPath,
+                limite: upstream.headers.get('x-rate-limit'),
+                restante: upstream.headers.get('x-rate-limit-remaining'),
+                reset: upstream.headers.get('x-rate-limit-reset'),
+            })
             res.json({
                 ok: false,
+                origem: 'clicksign',
                 error: `Limite de pedidos na API Clicksign (429). Aguarde ${retryAfterSec} s e tente de novo.`,
                 retryAfterSec,
             })

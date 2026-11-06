@@ -214,6 +214,10 @@ export default function ClicksignEmerdog() {
     const [ordenarColuna, setOrdenarColuna] = useState('created')
     const [ordenarDir, setOrdenarDir] = useState('desc')
     const [itensPorPaginaLista, setItensPorPaginaLista] = useState(10)
+    /** Carga sob demanda: só a 1ª página (50) vem ao abrir; o resto por «Carregar mais». */
+    const [listaPagina, setListaPagina] = useState(1)
+    const [listaTotal, setListaTotal] = useState(0)
+    const [carregandoMais, setCarregandoMais] = useState(false)
     const [paginaAtualLista, setPaginaAtualLista] = useState(1)
 
     const [fluxoEnvelopeId, setFluxoEnvelopeId] = useState('')
@@ -588,7 +592,7 @@ export default function ClicksignEmerdog() {
                     origem && typeof origem === 'object'
                         ? { filterStatus: statusFilter, ...origem, filterName: '' }
                         : { filterStatus: statusFilter, filterName: '' }
-                const res = await listarEnvelopesTodasPaginas(csRequest, opts)
+                const res = await listarEnvelopesTodasPaginas(csRequest, { ...opts, maxPaginas: 1 })
                 if (!res.ok) {
                     pushToast('error', `Erro ${res.status || ''}`, erroApiTexto(res.data))
                     setRows([])
@@ -597,6 +601,8 @@ export default function ClicksignEmerdog() {
                     return
                 }
                 setRows(res.rows)
+                setListaPagina(1)
+                setListaTotal(typeof res.meta?.record_count === 'number' ? res.meta.record_count : res.rows.length)
                 setLinks({})
                 setMeta({
                     ...(res.meta || {}),
@@ -618,12 +624,35 @@ export default function ClicksignEmerdog() {
         [pushToast, csRequest, statusFilter],
     )
 
+    const carregarMaisEnvelopes = async () => {
+        if (carregandoMais) return
+        setCarregandoMais(true)
+        try {
+            const proxima = listaPagina + 1
+            const path = montarPathListagemEnvelopes({ pageNumber: proxima, pageSize: 50, filterStatus: statusFilter })
+            const { ok, status, data } = await csRequest('GET', path)
+            if (!ok) {
+                pushToast('error', `Erro ${status}`, erroApiTexto(data))
+                return
+            }
+            const ex = extrairListaEnvelopes(data)
+            setRows((atual) => {
+                const ids = new Set(atual.map((r) => r.id))
+                return [...atual, ...ex.rows.filter((r) => !ids.has(r.id))]
+            })
+            setListaPagina(proxima)
+        } finally {
+            setCarregandoMais(false)
+        }
+    }
+
     const carregarUsoMes = useCallback(async () => {
         setMesLoading(true)
         const intervalo = intervaloCriacaoMesAtualUtc()
+        // Só a contagem interessa (meta.record_count): 1 item basta.
         const path = montarPathListagemEnvelopes({
             pageNumber: 1,
-            pageSize: 50,
+            pageSize: 1,
             filterCreated: intervalo })
         const { ok, data } = await csRequest('GET', path)
         setMesLoading(false)
@@ -2247,7 +2276,9 @@ export default function ClicksignEmerdog() {
                                                         title={filtroNomeDebounced ? 'Nenhum envelope com esse termo' : secaoLista?.emptyEnvelope || 'Nenhum envelope encontrado.'}
                                                         description={
                                                             filtroNomeDebounced
-                                                                ? 'Revise a busca ou escolha outro estado acima.'
+                                                                ? listaTotal > rows.length
+                                                                    ? 'A busca vale só para os envelopes já carregados. Use «Carregar mais envelopes» para procurar nos mais antigos.'
+                                                                    : 'Revise a busca ou escolha outro estado acima.'
                                                                 : 'Arraste um PDF acima ou crie um novo envelope.'
                                                         }
                                                         action={
@@ -2428,6 +2459,16 @@ export default function ClicksignEmerdog() {
                                         Próxima
                                     </Button>
                                 </div>
+                            </div>
+                        )}
+                        {!loading && listaTotal > rows.length && (
+                            <div className="cs_carregar_mais">
+                                <p className="ek-hint">
+                                    Mostrando {rows.length} de {listaTotal} envelopes (os mais recentes).
+                                </p>
+                                <Button variant="secondary" disabled={carregandoMais} onClick={carregarMaisEnvelopes}>
+                                    {carregandoMais ? 'Carregando…' : 'Carregar mais envelopes'}
+                                </Button>
                             </div>
                         )}
                     </div>

@@ -60,7 +60,10 @@ export const RATE_LIMITS = {
     rcPdf: { limit: 8, windowMs: 60_000 },
     geocode: { limit: 30, windowMs: 60_000 },
     prospectos: { limit: 12, windowMs: 60_000 },
-    clicksign: { limit: 60, windowMs: 60_000 },
+    // Por IP: o escritório inteiro costuma sair pelo mesmo IP, então precisa ser folgado.
+    clicksign: { limit: 240, windowMs: 60_000 },
+    // Por usuário logado (aplicado depois da autenticação).
+    clicksignUsuario: { limit: 120, windowMs: 60_000 },
     // Webhooks chegam de IP fixo da Clicksign; rajadas legítimas (envelope com vários documentos/signatários)
     // não podem ser barradas, ou a Clicksign conta falha de entrega. A proteção real é o HMAC.
     webhook: { limit: 600, windowMs: 60_000 },
@@ -109,9 +112,11 @@ function escreverRateLimit(res, r) {
     res.setHeader?.('X-RateLimit-Remaining', String(r.remaining))
     if (!r.ok) {
         res.setHeader?.('Retry-After', String(r.retryAfterSec))
+        res.setHeader?.('X-Limite-Origem', 'emerlab')
         res.status(429).json({
             ok: false,
-            error: 'Muitas solicitações. Aguarde um momento e tente de novo.',
+            origem: 'emerlab',
+            error: 'Muitas solicitações ao EmerLAB. Aguarde um momento e tente de novo.',
             retryAfterSec: r.retryAfterSec,
         })
         return false
