@@ -72,18 +72,19 @@ export async function nominatimSearchJson(
     const resp = await fetch(url.toString(), {
       headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
     })
+    // Status primeiro: bloqueio/limite do OSM volta como página HTML, e tratar isso como «JSON inválido» escondia a causa.
+    if (resp.status === 429) {
+      return { ok: false, status: 429, codigo: 'rate_limit', erro: 'Nominatim: limite de requisições.' }
+    }
+    if (!resp.ok) {
+      return { ok: false, status: 502, erro: `Nominatim HTTP ${resp.status} (o OpenStreetMap recusou a consulta)` }
+    }
     const text = await resp.text()
     let data: unknown
     try {
       data = text ? JSON.parse(text) : []
     } catch {
       return { ok: false, status: 502, erro: 'Resposta inválida do Nominatim.' }
-    }
-    if (resp.status === 429) {
-      return { ok: false, status: 429, codigo: 'rate_limit', erro: 'Nominatim: limite de requisições.' }
-    }
-    if (!resp.ok) {
-      return { ok: false, status: resp.status, erro: `Nominatim HTTP ${resp.status}` }
     }
     cache.set(chave, { data, expiresAt: Date.now() + CACHE_TTL_MS })
     return { ok: true, data }

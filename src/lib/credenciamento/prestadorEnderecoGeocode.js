@@ -292,6 +292,37 @@ export async function atualizarCoordenadasPrestadorManual(supabase, prestadorId,
     return { latitude: la, longitude: lo }
 }
 
+/**
+ * Grava coordenadas achadas pela geocodificação automática. Só preenche quem ainda está sem coordenadas:
+ * se alguém definiu o ponto à mão enquanto a busca rodava, o valor manual é preservado.
+ * @returns {Promise<boolean>} true se gravou
+ */
+export async function atualizarCoordenadasPrestadorGeocodificado(
+    supabase,
+    prestadorId,
+    { latitude, longitude, geocodeFonte = 'nominatim' },
+    prestadorParaHash = {},
+) {
+    if (!coordenadasValidasBrasil(latitude, longitude)) throw new Error('Coordenadas inválidas para o Brasil.')
+    const agora = new Date().toISOString()
+    const hash = hashEnderecoGeocode(montarEnderecoGeocodeFromPrestador(prestadorParaHash))
+    const { data, error } = await supabase
+        .from('prestadores')
+        .update({
+            latitude: Number(latitude),
+            longitude: Number(longitude),
+            geocoded_at: agora,
+            geocode_fonte: geocodeFonte,
+            endereco_geocode_hash: hash || null,
+            data_atualizacao: agora,
+        })
+        .eq('id', Number(prestadorId))
+        .is('latitude', null)
+        .select('id')
+    if (error) throw new Error(error.message)
+    return Boolean(data?.length)
+}
+
 /** Coordenadas vindas de import KMZ (ex.: Google My Maps). */
 export async function atualizarCoordenadasPrestadorImport(
     supabase,

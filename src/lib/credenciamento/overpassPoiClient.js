@@ -22,8 +22,9 @@ export async function buscarPoisOverpassNaArea(bounds, categoriaId) {
         )
         let resp
         try {
+            const auth = await serverApiAuthHeaders('overpass-poi')
             resp = await fetch(url.toString(), {
-                headers: { Accept: 'application/json', ...serverApiAuthHeaders() },
+                headers: { Accept: 'application/json', ...auth },
             })
         } catch (e) {
             return { ok: false, erro: e?.message || 'Falha na rede.', itens: [] }

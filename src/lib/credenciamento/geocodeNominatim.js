@@ -8,7 +8,7 @@
 
 
 
-import { buildServerApiUrl, serverApiAuthHeaders } from '../api/serverBackend.js'
+import { buildServerApiUrl, deveUsarSupabaseEdgeApi, serverApiAuthHeaders } from '../api/serverBackend.js'
 
 
 
@@ -206,34 +206,36 @@ async function executarBuscaNominatim(params) {
         for (const [k, v] of Object.entries(query)) {
             qp[k] = v
         }
-        const url = new URL(buildServerApiUrl('nominatim-search', qp))
-
-        let resp
-
-        try {
-
-            resp = await fetch(url.toString(), {
-
-                headers: { Accept: 'application/json', ...serverApiAuthHeaders() },
-
-            })
-
-        } catch (e) {
-
-            return { ok: false, erro: e?.message || 'Falha na rede ao consultar o mapa.' }
-
+        // Primeiro o caminho configurado (Edge Function em produção). Se o servidor de mapas falhar (5xx/rede),
+        // tenta o /api da Vercel, que sai por outro IP — o OpenStreetMap às vezes recusa o IP da Edge.
+        const pedir = async (legado) => {
+            const url = new URL(buildServerApiUrl('nominatim-search', qp, { legado }))
+            // serverApiAuthHeaders é assíncrona: sem o await o JWT nunca ia no cabeçalho e o proxy respondia 401.
+            const auth = await serverApiAuthHeaders('nominatim-search', { legado })
+            const r = await fetch(url.toString(), { headers: { Accept: 'application/json', ...auth } })
+            let corpo = null
+            try {
+                corpo = await r.json()
+            } catch {
+                corpo = null
+            }
+            return { r, corpo }
         }
 
+        let resp
         let body = null
-
         try {
-
-            body = await resp.json()
-
-        } catch {
-
-            body = null
-
+            ;({ r: resp, corpo: body } = await pedir(false))
+            if (resp.status >= 500 && deveUsarSupabaseEdgeApi('nominatim-search')) {
+                try {
+                    const alt = await pedir(true)
+                    if (alt.r.ok || alt.r.status < 500) ({ r: resp, corpo: body } = alt)
+                } catch {
+                    /* mantém a resposta original */
+                }
+            }
+        } catch (e) {
+            return { ok: false, erro: e?.message || 'Falha na rede ao consultar o mapa.' }
         }
 
         if (resp.status === 429 || body?.codigo === 'rate_limit') {
@@ -278,7 +280,32 @@ async function executarBuscaNominatim(params) {
 
 
 
-export async function geocodificarEnderecoNominatim(enderecoCompleto) {
+/**
+ * Quão exato é o resultado: «casa» (imóvel/estabelecimento), «rua» (via sem número),
+ * «cep» (centro do CEP), «bairro» ou «cidade» (genérico demais para marcar um credenciado).
+ */
+export function precisaoHitNominatim(hit) {
+    const addr = hit?.address || {}
+    const classe = String(hit?.class || '')
+    const tipo = String(hit?.type || '')
+    if (addr.house_number) return 'casa'
+    if (tipo === 'postcode' || tipo === 'postal_code') return 'cep'
+    if (classe === 'highway') return 'rua'
+    if (['shop', 'amenity', 'office', 'healthcare', 'building', 'craft', 'leisure', 'tourism'].includes(classe)) return 'casa'
+    if (classe === 'place') {
+        if (['house', 'building', 'apartments'].includes(tipo)) return 'casa'
+        if (['suburb', 'neighbourhood', 'quarter', 'city_block', 'borough', 'locality', 'hamlet'].includes(tipo)) return 'bairro'
+        return 'cidade'
+    }
+    if (classe === 'boundary') return 'cidade'
+    return addr.road ? 'rua' : 'cidade'
+}
+
+/**
+ * @param {string} enderecoCompleto
+ * @param {{ viewbox?: string, limite?: number }} [opts] `viewbox` = «oeste,norte,leste,sul» (viés, não filtro).
+ */
+export async function geocodificarEnderecoNominatim(enderecoCompleto, { viewbox = '', limite = 1 } = {}) {
 
     const q = String(enderecoCompleto || '').trim()
 
@@ -290,7 +317,7 @@ export async function geocodificarEnderecoNominatim(enderecoCompleto) {
 
         q,
 
-        limit: '1',
+        limit: String(Math.min(Math.max(limite, 1), 8)),
 
         countrycodes: 'br',
 
@@ -300,13 +327,17 @@ export async function geocodificarEnderecoNominatim(enderecoCompleto) {
 
         extratags: '1',
 
+        viewbox: viewbox || undefined,
+
     })
 
     if (!r.ok) return { ok: false, erro: r.erro || MSG_RATE_LIMIT, codigo: r.codigo }
 
 
 
-    const hit = r.data?.[0]
+    const hits = (r.data || []).filter((h) => Number.isFinite(Number(h?.lat)) && Number.isFinite(Number(h?.lon)))
+
+    const hit = hits[0]
 
     if (!hit) return { ok: false, erro: 'Endereço não encontrado.' }
 
@@ -316,15 +347,9 @@ export async function geocodificarEnderecoNominatim(enderecoCompleto) {
 
     const lon = Number(hit.lon)
 
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-
-        return { ok: false, erro: 'Coordenadas inválidas na resposta.' }
-
-    }
-
     const { rotulo, rotuloCompleto, nome, telefone, horaAtendimento, enderecoLinha } = formatarHitNominatim(hit, q)
 
-    return {
+    const base = {
 
         ok: true,
 
@@ -344,7 +369,45 @@ export async function geocodificarEnderecoNominatim(enderecoCompleto) {
 
         enderecoLinha,
 
+        cidade: cidadeDeEnderecoNominatim(hit.address || {}),
+
+        estado: String(hit.address?.state || ''),
+
+        precisao: precisaoHitNominatim(hit),
+
     }
+
+    if (limite > 1) {
+
+        base.candidatos = hits.map((h) => ({
+
+            latitude: Number(h.lat),
+
+            longitude: Number(h.lon),
+
+            displayName: String(h.display_name || ''),
+
+            nome: String(h.name || ''),
+
+            rua: String(h.address?.road || h.address?.pedestrian || ''),
+
+            numeroCasa: String(h.address?.house_number || ''),
+
+            bairro: String(h.address?.suburb || h.address?.neighbourhood || h.address?.quarter || ''),
+
+            cidade: cidadeDeEnderecoNominatim(h.address || {}),
+
+            estado: String(h.address?.state || ''),
+
+            precisao: precisaoHitNominatim(h),
+
+            importancia: Number(h.importance) || 0,
+
+        }))
+
+    }
+
+    return base
 
 }
 
@@ -352,7 +415,7 @@ export async function geocodificarEnderecoNominatim(enderecoCompleto) {
 
 /** Várias sugestões de lugar (autocomplete no mapa). */
 
-export async function buscarSugestoesNominatim(consulta, { limite = 5 } = {}) {
+export async function buscarSugestoesNominatim(consulta, { limite = 5, viewbox = '' } = {}) {
 
     const q = String(consulta || '').trim()
 
@@ -373,6 +436,8 @@ export async function buscarSugestoesNominatim(consulta, { limite = 5 } = {}) {
         namedetails: '1',
 
         extratags: '1',
+
+        viewbox: viewbox || undefined,
 
     })
 
