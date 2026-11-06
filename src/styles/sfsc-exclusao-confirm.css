@@ -28,7 +28,7 @@
 
 .sfsc_exclusao_confirm_actions {
     display: flex;
-    gap: 8px;
+    gap: 0.75rem;
     justify-content: flex-end;
 }
 

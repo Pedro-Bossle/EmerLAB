@@ -342,7 +342,7 @@ body.dark-mode .supertabelaprocedimentos_catalogo_modo_btn.is-on {
 
 .supertabelaprocedimentos_confirm_actions {
     display: flex;
-    gap: 8px;
+    gap: 0.75rem;
     justify-content: flex-end;
 }
 

@@ -296,7 +296,7 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
 .row_add_inline {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.75rem;
     flex-wrap: wrap;
 }
 
@@ -354,7 +354,7 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
 .compras_vv_modal_actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 0.75rem;
     margin-top: 14px;
 }
 
@@ -409,7 +409,7 @@ body.dark-mode .compras_vv_valor_tab_hint kbd {
 
 .compras_vv_confirm_actions {
     display: flex;
-    gap: 8px;
+    gap: 0.75rem;
     justify-content: flex-end;
 }
 

@@ -230,7 +230,7 @@ body.dark-mode :is(.ek-page, .ek-toolbar, .ek-modal-overlay, .ek-dropdown) {
 .ek-page-header__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--ek-s2);
+    gap: var(--ek-s3);
 }
 
 /* ============================================================== */
@@ -301,7 +301,7 @@ body.dark-mode :is(.ek-page, .ek-toolbar, .ek-modal-overlay, .ek-dropdown) {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: var(--ek-s2);
+    gap: var(--ek-s3);
     margin-left: auto;
 }
 
@@ -809,7 +809,7 @@ body.dark-mode :is(.ek-page, .ek-toolbar, .ek-modal-overlay, .ek-dropdown) {
     .ek-toolbar--sticky { top: var(--ek-sticky-top-mobile, var(--ek-sticky-top, 0px)); }
     .ek-toolbar__row > * { flex: 1 1 100% !important; }
     .ek-toolbar__actions > .ek-btn,
-    .ek-toolbar__actions > .ek-check { flex: 1 1 calc(50% - var(--ek-s2)); }
+    .ek-toolbar__actions > .ek-check { flex: 1 1 calc(50% - var(--ek-s3)); }
     .ek-toolbar__actions > .ek-field { flex: 1 1 100%; }
     .ek-segmented { width: 100%; }
     .ek-segmented__opt { flex: 1 1 0; }
@@ -998,4 +998,81 @@ body :is(
     .conf_lab_alias_combo_portal
 ) :is(button:hover, [role='option']:hover, .is-active, [aria-selected='true']) {
     background: var(--ek-brand-pale);
+}
+
+/* ============================================================== */
+/* Folhas inferiores (celular): mesmo desenho da gaveta de         */
+/* notificações — cantos de 20px, alça, título forte e entrada     */
+/* deslizando de baixo. Vale para Modal (até 639px) e Drawer       */
+/* inferior (menu da barra de navegação).                          */
+/* ============================================================== */
+@keyframes ek-sheet-in {
+    from { transform: translateY(100%); }
+    to { transform: none; }
+}
+
+.ek-drawer--bottom {
+    max-height: min(82dvh, 640px);
+    border-width: 1px 0 0;
+    border-color: var(--ek-line-strong);
+    border-radius: 20px 20px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -14px 36px rgba(20, 32, 51, 0.22);
+    animation: ek-sheet-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.ek-drawer--bottom .ek-modal__handle {
+    display: block;
+    width: 40px;
+    height: 4px;
+    margin: 8px auto 0;
+    border-radius: 4px;
+    background: var(--ek-line-strong);
+    flex: none;
+}
+
+.ek-drawer--bottom .ek-modal__head {
+    border-bottom: 0;
+    padding: 12px 14px 6px 18px;
+}
+
+.ek-drawer--bottom .ek-modal__title {
+    font-size: 1.0625rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+@media (max-width: 639px) {
+    .ek-modal,
+    .ek-modal--lg {
+        border-width: 1px 0 0;
+        border-color: var(--ek-line-strong);
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -14px 36px rgba(20, 32, 51, 0.22);
+        animation: ek-sheet-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .ek-modal__handle {
+        height: 4px;
+        border-radius: 4px;
+    }
+
+    .ek-modal__head {
+        border-bottom: 0;
+        padding: 12px 14px 6px 18px;
+    }
+
+    .ek-modal__title {
+        font-size: 1.0625rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ek-drawer--bottom,
+    .ek-modal,
+    .ek-modal--lg {
+        animation: none;
+    }
 }

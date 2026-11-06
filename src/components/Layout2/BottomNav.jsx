@@ -9,10 +9,7 @@ import { getToolIdForHref } from '../../lib/permissionCatalog'
 import { NAV_HUBS, filtrarChildrenNav, hubMatchesPath } from '../../lib/navConfig'
 import { cn } from '../../lib/cn'
 import { Drawer } from '../ui'
-import { supabase } from '../../lib/supabase'
-import { logoutSessao } from '../../lib/authSession'
 import { lerDarkModeAtivo, salvarDarkModeAtivo } from '../../lib/sidebarPrefs'
-import { avisar } from '../../lib/dialogos.js'
 
 const HubIcon = ({ name }) => {
   const common = 'h-5 w-5'
@@ -56,7 +53,11 @@ const HubIcon = ({ name }) => {
   )
 }
 
-export default function BottomNav() {
+/**
+ * @param {{ avisos?: { total: number, aberto: boolean, onToggle: () => void } | null }} props
+ *   avisos: item «Avisos» (Central de Notificações) no fim da barra.
+ */
+export default function BottomNav({ avisos = null }) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const accessProfile = useStoredAccessProfile()
@@ -91,45 +92,6 @@ export default function BottomNav() {
     [accessProfile],
   )
 
-  const handleLogout = async () => {
-    await logoutSessao({
-      navigate,
-      onError: () => avisar({ titulo: 'Não foi possível sair', mensagem: 'Verifique a conexão e tente de novo.' }),
-    })
-  }
-
-  const handleResetPassword = async () => {
-    const refreshed = await supabase.auth.refreshSession()
-    const session =
-      refreshed.data?.session ||
-      (await supabase.auth.getSession()).data?.session
-    const token = session?.access_token
-    if (!token) {
-      avisar({ titulo: 'Sua sessão expirou', mensagem: 'Entre de novo para pedir a redefinição de senha.' })
-      return
-    }
-    try {
-      const resp = await fetch('/api/admin-users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: 'resetOwnPassword',
-          redirectTo: `${window.location.origin}/alterar-senha?from=recovery`,
-        }),
-      })
-      const json = await resp.json().catch(() => ({}))
-      if (!resp.ok || json?.ok === false) {
-        throw new Error(json?.error || 'Erro ao enviar redefinição de senha')
-      }
-      avisar({ titulo: 'E-mail de redefinição enviado', mensagem: 'Abra o link que chegou no seu e-mail para criar a nova senha. Confira também a caixa de spam.' })
-    } catch (error) {
-      avisar({ titulo: 'Não foi possível enviar o e-mail', mensagem: error?.message || 'Tente de novo em alguns minutos.' })
-    }
-  }
-
   const openHub = (hub) => {
     if (hub.href && !hub.children?.length) {
       navigate(hub.href)
@@ -146,7 +108,7 @@ export default function BottomNav() {
       >
         <ul
           className="grid gap-0 px-1 pt-1"
-          style={{ gridTemplateColumns: `repeat(${Math.max(hubs.length, 1)}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${Math.max(hubs.length + (avisos ? 1 : 0), 1)}, minmax(0, 1fr))` }}
         >
           {hubs.map((hub) => {
             const active = hubMatchesPath(hub, pathname)
@@ -166,6 +128,33 @@ export default function BottomNav() {
               </li>
             )
           })}
+          {avisos ? (
+            <li>
+              <button
+                type="button"
+                onClick={avisos.onToggle}
+                aria-expanded={avisos.aberto}
+                aria-label={avisos.total > 0 ? `Avisos, ${avisos.total} ${avisos.total === 1 ? 'notificação' : 'notificações'}` : 'Avisos, nenhuma notificação'}
+                className={cn(
+                  'relative flex min-h-touch w-full flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-xs font-bold',
+                  avisos.aberto ? 'text-brand-deep dark:text-[#7cc4f0]' : 'text-ink-muted dark:text-[#9eb4c8]',
+                )}
+              >
+                <span className="relative">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {avisos.total > 0 ? (
+                    <span className="absolute -right-2.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand px-1 text-[0.625rem] font-extrabold leading-none text-white" aria-hidden>
+                      {avisos.total > 99 ? '99+' : avisos.total}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="truncate">Avisos</span>
+              </button>
+            </li>
+          ) : null}
         </ul>
       </nav>
 
@@ -190,7 +179,6 @@ export default function BottomNav() {
                   type="button"
                   className={cn(
                     'flex min-h-touch w-full items-center rounded-xl px-3 text-left text-sm font-bold text-ink hover:bg-brand-pale dark:text-[#e8f1f8] dark:hover:bg-white/5',
-                    child.action === 'logout' && 'text-status-erro hover:bg-status-erro-bg dark:text-red-300',
                   )}
                   onClick={async () => {
                     if (child.action === 'toggle-dark-mode') {
@@ -198,8 +186,6 @@ export default function BottomNav() {
                       return
                     }
                     setDrawerHub(null)
-                    if (child.action === 'logout') await handleLogout()
-                    if (child.action === 'reset-password') await handleResetPassword()
                   }}
                 >
                   {child.action === 'toggle-dark-mode'

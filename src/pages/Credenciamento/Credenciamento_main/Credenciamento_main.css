@@ -226,7 +226,7 @@
 
 .credenciamento_main_actions_cell {
     display: flex;
-    gap: 6px;
+    gap: 0.75rem;
     justify-content: center;
     align-items: center;
 }
@@ -349,7 +349,7 @@
 .credenciamento_confirm_actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 0.75rem;
 }
 
 .credenciamento_confirm_btn {
@@ -619,7 +619,7 @@
 
 .credenciamento_modal_actions {
     display: flex;
-    gap: 8px;
+    gap: 0.75rem;
     justify-content: flex-end;
 }
 

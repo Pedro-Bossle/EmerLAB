@@ -1,376 +1,307 @@
-﻿.dev_tools_float {
-    --dev-tools-btn: 52px;
-    --dev-tools-drawer-left: 8px;
-    --dev-tools-drawer-top: 8px;
-    --dev-tools-drawer-width: 300px;
-    --dev-tools-drawer-max-height: 480px;
+﻿/* Dev Tool — mesmo padrão visual da Central de Notificações (tokens do UI Kit, --ek-*). */
+
+.dt_root {
+    --dt-surface: var(--ek-surface, #fff);
+    --dt-tint: var(--ek-surface-tint, #f7fbfe);
+    --dt-ink: var(--ek-ink, #142033);
+    --dt-soft: var(--ek-ink-soft, #3d5168);
+    --dt-muted: var(--ek-ink-muted, #5a7488);
+    --dt-line: var(--ek-line, #d8e6ef);
+    --dt-line-strong: var(--ek-line-strong, #bfd7e8);
+    --dt-brand: var(--ek-brand, #1a6fa3);
+    --dt-brand-pale: var(--ek-brand-pale, #e7f4fc);
+    font-family: var(--ek-font, inherit);
+}
+
+/* ---- Botão (36px, fixo no canto inferior direito) ---- */
+.dt_btn {
     position: fixed;
-    z-index: 55;
-    width: var(--dev-tools-btn);
-    height: var(--dev-tools-btn);
+    right: 16px;
+    bottom: 16px;
+    z-index: 1;
+    pointer-events: auto;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--dt-line-strong);
+    border-radius: 10px;
+    background: var(--dt-surface);
+    color: var(--dt-soft);
+    box-shadow: 0 2px 8px rgba(20, 32, 51, 0.1);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.dt_root.is-rodape .dt_btn {
+    bottom: 90px;
+}
+
+.dt_btn:hover,
+.dt_btn.is-open {
+    background: var(--dt-brand-pale);
+    color: var(--dt-brand);
+    border-color: var(--dt-brand);
+}
+
+/* ponto: há recurso do Dev Tool ligado */
+.dt_btn.is-ativo::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--ek-page, #f4f8fb);
+    background: var(--dt-brand);
+}
+
+.dt_btn:focus-visible,
+.dt_iconbtn:focus-visible,
+.dt_switch:focus-visible {
+    outline: 2px solid var(--dt-brand);
+    outline-offset: 2px;
+}
+
+/* ---- Painel ---- */
+.dt_scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: transparent;
+    opacity: 0;
     pointer-events: none;
-    touch-action: none;
+    transition: opacity 0.2s;
 }
 
-.dev_tools_float.is-compact {
-    --dev-tools-btn: 24px;
-    width: 24px;
-    height: 54px;
-    z-index: 55;
-}
-
-.dev_tools_float_btn,
-.dev_tools_float_drawer {
+.dt_scrim.is-on {
     pointer-events: auto;
 }
 
-.dev_tools_float_btn {
-    position: relative;
+.dt_panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
     z-index: 2;
-    width: var(--dev-tools-btn);
-    height: var(--dev-tools-btn);
-    border-radius: 14px;
-    border: 2px solid #5a8fb4;
-    background: linear-gradient(145deg, #f4f9fd 0%, #dceaf5 100%);
-    box-shadow: 0 4px 14px rgba(30, 49, 72, 0.22);
-    cursor: grab;
+    pointer-events: auto;
+    width: min(360px, 100vw);
+    display: flex;
+    flex-direction: column;
+    background: var(--dt-surface);
+    color: var(--dt-ink);
+    border-left: 1px solid var(--dt-line-strong);
+    box-shadow: 0 14px 36px rgba(20, 32, 51, 0.22);
+    transform: translateX(104%);
+    visibility: hidden;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 0.24s;
+}
+
+.dt_panel.is-open {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s;
+}
+
+.dt_grip {
+    display: none;
+}
+
+.dt_head {
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 0;
-    transition:
-        transform 0.15s ease,
-        box-shadow 0.15s ease,
-        border-radius 0.2s ease;
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: none;
+    gap: 8px;
+    padding: 14px 14px 10px 18px;
 }
 
-.dev_tools_float.is-open {
-    z-index: 56;
-}
-
-.dev_tools_float.is-open .dev_tools_float_drawer {
-    z-index: 4;
-}
-
-.dev_tools_float.is-open .dev_tools_float_btn {
-    z-index: 3;
-}
-
-.dev_tools_float.is-compact .dev_tools_float_btn {
-    width: 24px;
-    height: 54px;
-    border-width: 1px;
-    border-color: #5a8fb4;
-    background: linear-gradient(145deg, #f7fbfe 0%, #e4f0f8 100%);
-    box-shadow: 0 4px 14px rgba(30, 49, 72, 0.16);
-    border-radius: 12px;
-}
-
-.dev_tools_float.is-compact.is-anchor-left .dev_tools_float_btn,
-.dev_tools_float.is-compact.is-anchor-right .dev_tools_float_btn {
-    border-radius: 12px;
-}
-
-.dev_tools_float_btn:active {
-    cursor: grabbing;
-}
-
-.dev_tools_float.is-open .dev_tools_float_btn {
-    border-color: #2d6a9f;
-    background: linear-gradient(145deg, #e3f2fb 0%, #c5dff0 100%);
-}
-
-.dev_tools_float.is-active:not(.is-open) .dev_tools_float_btn {
-    box-shadow:
-        0 4px 14px rgba(30, 49, 72, 0.22),
-        0 0 0 3px rgba(45, 106, 159, 0.35);
-}
-
-.dev_tools_float_btn_ico {
-    font-size: 1.375rem;
-    line-height: 1;
-    pointer-events: none;
-}
-
-.dev_tools_float_btn_tab {
-    color: #2d6a9f;
-    font-size: 1.375rem;
+.dt_title {
+    margin: 0;
+    flex: 1;
+    font-size: 1.0625rem;
     font-weight: 800;
-    line-height: 1;
-    pointer-events: none;
+    letter-spacing: -0.01em;
 }
 
-.dev_tools_float_btn_grip {
-    position: absolute;
-    bottom: 5px;
-    left: 50%;
-    width: 14px;
-    height: 3px;
-    margin-left: -7px;
-    border-radius: 2px;
-    background: rgba(45, 106, 159, 0.35);
-    pointer-events: none;
+.dt_count {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--dt-brand-pale);
+    color: var(--dt-brand);
+    font-size: 0.75rem;
+    font-weight: 800;
 }
 
-/* Gaveta: posicionada por JS para sempre caber no viewport. */
-.dev_tools_float_drawer {
-    position: fixed;
-    z-index: 1;
-    left: var(--dev-tools-drawer-left);
-    top: var(--dev-tools-drawer-top);
-    width: min(var(--dev-tools-drawer-width), calc(100% - 16px));
-    max-height: var(--dev-tools-drawer-max-height);
-    overflow: hidden;
-    border-radius: 14px;
-    border: 1px solid #b9d4e8;
-    background: #fff;
-    box-shadow: 0 12px 32px rgba(30, 49, 72, 0.2);
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transform: scale(0.92);
-    transition:
-        opacity 0.2s ease,
-        transform 0.22s cubic-bezier(0.2, 0.9, 0.2, 1),
-        visibility 0.2s;
+.dt_iconbtn {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--dt-muted);
+    cursor: pointer;
 }
 
-.dev_tools_float_drawer.is-open {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    transform: scale(1);
+.dt_iconbtn:hover {
+    background: var(--dt-brand-pale);
+    color: var(--dt-ink);
 }
 
-.dev_tools_float.is-anchor-right .dev_tools_float_drawer {
-    transform-origin: right bottom;
-}
-
-.dev_tools_float.is-anchor-right .dev_tools_float_drawer:not(.is-open) {
-    transform: translateX(12px) scale(0.92);
-}
-
-.dev_tools_float.is-anchor-left .dev_tools_float_drawer {
-    transform-origin: left bottom;
-}
-
-.dev_tools_float.is-anchor-left .dev_tools_float_drawer:not(.is-open) {
-    transform: translateX(-12px) scale(0.92);
-}
-
-.dev_tools_float.is-anchor-bottom .dev_tools_float_drawer {
-    transform-origin: right bottom;
-}
-
-.dev_tools_float.is-anchor-bottom .dev_tools_float_drawer:not(.is-open) {
-    transform: translateY(12px) scale(0.92);
-}
-
-.dev_tools_float.is-anchor-top .dev_tools_float_drawer {
-    transform-origin: right top;
-}
-
-.dev_tools_float.is-anchor-top .dev_tools_float_drawer:not(.is-open) {
-    transform: translateY(-12px) scale(0.92);
-}
-
-.dev_tools_float_drawer.is-open {
-    transform: none;
-}
-
-.dev_tools_float_drawer_inner {
-    max-height: var(--dev-tools-drawer-max-height);
+.dt_body {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
-    padding: 12px 14px 14px;
+    padding: 2px 14px 18px;
     overscroll-behavior: contain;
 }
 
-.dev_tools_float_drawer_head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin-bottom: 10px;
+.dt_sec + .dt_sec {
+    margin-top: 16px;
 }
 
-.dev_tools_float_head_acoes {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-}
-
-.dev_tools_float_titulo {
-    margin: 0;
-    font-size: 0.875rem;
-    font-weight: 700;
+.dt_sec_tit {
+    margin: 0 0 6px;
+    padding: 0 4px;
+    font-size: 0.71875rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: #40617a;
+    color: var(--dt-muted);
 }
 
-.dev_tools_float_fechar {
-    width: 1.75rem;
-    height: 1.75rem;
-    border: none;
-    border-radius: 8px;
-    background: #eef5fb;
-    color: #40617a;
-    font-size: 1.125rem;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.dev_tools_float_modo {
-    min-height: 1.75rem;
-    border: 1px solid #c7dce9;
-    border-radius: 999px;
-    background: #f4f9fd;
-    color: #40617a;
-    font-size: 0.75rem;
-    font-weight: 700;
-    cursor: pointer;
-    padding: 0 0.65rem;
-}
-
-.dev_tools_float_modo:hover {
-    background: #e4f0f8;
-}
-
-.dev_tools_float_fechar:hover {
-    background: #dceaf5;
-}
-
-.dev_tools_float_subtitulo {
-    margin: 12px 0 8px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: #5a7288;
-}
-
-.dev_tools_float_lista {
+.dt_lista {
     list-style: none;
     margin: 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    display: grid;
+    gap: 6px;
 }
 
-.dev_tools_float_item {
+.dt_row {
     display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    width: 100%;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 12px;
+    border: 1px solid var(--dt-line);
+    border-radius: 14px;
+    background: var(--dt-tint);
     cursor: pointer;
-    font-size: 0.875rem;
-    color: #1e3148;
-    user-select: none;
 }
 
-.dev_tools_float_item input {
-    margin-top: 3px;
-    flex-shrink: 0;
+.dt_row:hover {
+    border-color: var(--dt-line-strong);
 }
 
-.dev_tools_float_checkbox {
-    width: 1.05rem;
-    height: 1.05rem;
-    margin-top: 2px;
-    flex-shrink: 0;
-    cursor: pointer;
-    accent-color: #2d6a9f;
-    appearance: auto;
-    -webkit-appearance: checkbox;
-}
-
-.dev_tools_float_item_texto {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+.dt_row_txt {
     flex: 1;
     min-width: 0;
+    display: grid;
+    gap: 2px;
 }
 
-.dev_tools_float_item_texto strong {
-    font-weight: 600;
+.dt_row_txt strong {
+    font-size: 0.84375rem;
+    font-weight: 700;
 }
 
-.dev_tools_float_item_texto small {
+.dt_row_txt small {
     font-size: 0.75rem;
-    color: #5a7288;
     line-height: 1.35;
+    color: var(--dt-muted);
 }
 
-body.dark-mode .dev_tools_float_panel input.dev_tools_float_checkbox,
-body.dark-mode .dev_tools_float_drawer input.dev_tools_float_checkbox {
-    background-color: #fff !important;
-    border: 1px solid #9eb8cc;
-    accent-color: #6eb3e8;
-    color-scheme: light;
+/* interruptor */
+.dt_switch {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: none;
+    position: relative;
+    width: 38px;
+    height: 22px;
+    margin: 0;
+    border-radius: 999px;
+    background: var(--dt-line-strong);
+    cursor: pointer;
+    transition: background 0.18s;
 }
 
-body.dark-mode .dev_tools_float_drawer {
-    background: #1a2836;
-    border-color: #3d5a73;
+.dt_switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(20, 32, 51, 0.3);
+    transition: transform 0.18s;
 }
 
-body.dark-mode .dev_tools_float_titulo,
-body.dark-mode .dev_tools_float_item {
-    color: #e8f1fa;
+.dt_switch:checked {
+    background: var(--dt-brand);
 }
 
-body.dark-mode .dev_tools_float_item_texto small,
-body.dark-mode .dev_tools_float_subtitulo {
-    color: #9eb8cc;
+.dt_switch:checked::after {
+    transform: translateX(16px);
 }
 
-body.dark-mode .dev_tools_float_btn {
-    background: linear-gradient(145deg, #243447 0%, #1a2836 100%);
-    border-color: #5a8fb4;
+.dt_nota {
+    margin: 18px 4px 0;
+    font-size: 0.75rem;
+    color: var(--dt-muted);
 }
 
-body.dark-mode .dev_tools_float_btn_tab {
-    color: #b7d7ef;
-}
+/* ---- Celular e tablet: folha inferior (a dock de ferramentas abre o painel) ---- */
+@media (max-width: 1023px) {
+    .dt_scrim {
+        background: rgba(20, 32, 51, 0.45);
+    }
 
-body.dark-mode .dev_tools_float_fechar,
-body.dark-mode .dev_tools_float_modo {
-    background: #243447;
-    color: #e8f1fa;
-    border-color: #3d5a73;
-}
+    .dt_scrim.is-on {
+        opacity: 1;
+    }
 
-@media (max-width: 480px) {
-    .dev_tools_float_drawer {
-        width: min(280px, calc(100% - 20px));
+    .dt_panel {
+        top: auto;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: min(78dvh, 600px);
+        border-left: 0;
+        border-top: 1px solid var(--dt-line-strong);
+        border-radius: 20px 20px 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        transform: translateY(104%);
+    }
+
+    .dt_panel.is-open {
+        transform: none;
+    }
+
+    .dt_grip {
+        display: block;
+        width: 40px;
+        height: 4px;
+        margin: 8px auto 0;
+        border-radius: 4px;
+        background: var(--dt-line-strong);
+    }
+
+    .dt_row {
+        padding: 13px 12px;
     }
 }
 
-.dev_tools_float--dock {
-    position: fixed;
-    inset: 0;
-    width: auto;
-    height: auto;
-    z-index: 55;
-    pointer-events: none;
-}
-
-.dev_tools_float_drawer--dock {
-    left: 0 !important;
-    right: 0;
-    top: auto !important;
-    bottom: var(--el-float-above-dock, calc(4.25rem + 2.75rem + env(safe-area-inset-bottom, 0px)));
-    width: 100% !important;
-    max-width: none;
-    border-radius: 14px 14px 0 0;
-    transform-origin: center bottom;
-}
-
-.dev_tools_float--dock .dev_tools_float_drawer.is-open {
-    pointer-events: auto;
+@media (prefers-reduced-motion: reduce) {
+    .dt_panel,
+    .dt_scrim,
+    .dt_switch,
+    .dt_switch::after {
+        transition-duration: 0.001ms !important;
+    }
 }

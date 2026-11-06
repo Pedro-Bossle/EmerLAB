@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../lib/prestadorCadastroHelpers.js'
 import {
     PAPEIS_SIGNATARIO_CLICKSIGN,
@@ -186,6 +187,10 @@ function tomBadgeEnvelope(status) {
 }
 
 export default function ClicksignEmerdog() {
+    const location = useLocation()
+    const navigate = useNavigate()
+    /** Último envelope aberto por link (?envelope=ID), para não reabrir a cada render. */
+    const envelopeLinkRef = useRef('')
     const [tab, setTab] = useState('envelopes')
     const [toast, setToast] = useState(null)
     const [loading, setLoading] = useState(false)
@@ -1115,6 +1120,22 @@ export default function ClicksignEmerdog() {
             )
         }
     }
+
+    // Link direto das notificações: /contratos/clicksign?envelope=ID abre o detalhe do envelope.
+    useEffect(() => {
+        const id = String(new URLSearchParams(location.search).get('envelope') || '').trim()
+        if (!id) {
+            envelopeLinkRef.current = ''
+            return
+        }
+        if (envelopeLinkRef.current === id) return
+        envelopeLinkRef.current = id
+        setTab('envelopes')
+        void abrirDetalhe(id)
+        navigate(location.pathname, { replace: true })
+        // abrirDetalhe é recriada a cada render; o ref acima impede reabrir.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.search, location.pathname, navigate])
 
     const persistirEnvelopeSessao = (id) => {
         const v = String(id || '').trim()

@@ -87,7 +87,7 @@ body.dark-mode .admin_qualidade_btn_ignorar {
 .admin_qualidade_header_acoes {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 0.75rem;
 }
 
 .admin_qualidade_header_acoes button {

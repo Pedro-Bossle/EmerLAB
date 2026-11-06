@@ -375,7 +375,7 @@ body.dark-mode .home_dash_tarefa_check_linha {
 .home_dash_modal_actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
+  gap: 0.75rem;
   margin-top: 0.35rem;
 }
 
@@ -1150,7 +1150,7 @@ body.dark-mode .home_dash_tarefa_chat_msg.is-mine {
 .home_dash_tarefa_acoes {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
+  gap: 0.75rem;
   margin-top: 0.45rem;
 }
 
@@ -2248,7 +2248,7 @@ body.dark-mode .home_dash_footer_wrap {
   .home_dash_tarefa_acoes {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.45rem;
+    gap: 0.75rem;
     margin-top: 0.7rem;
   }
 
@@ -2474,7 +2474,7 @@ body.dark-mode .home_dash_footer_wrap {
 
   .home_dash_modal_actions {
     flex-direction: column-reverse;
-    gap: 0.45rem;
+    gap: 0.75rem;
     position: sticky;
     bottom: 0;
     padding-top: 0.65rem;
@@ -2520,5 +2520,1097 @@ body.dark-mode .home_dash_footer_wrap {
 
   .home_dash_tarefa_item:hover {
     border-color: var(--home-line);
+  }
+}
+
+/* ===== Início: Agora | Agenda | Avisos / Afazeres | Credenciamento ===== */
+.home_dash_fold {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.home_dash_r1 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  align-items: stretch;
+}
+
+.home_dash_r2 {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 0.9rem;
+  align-items: stretch;
+}
+
+.home_dash_r2:not(:has(.home_dash_card--cred)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.home_dash_r1 > .home_dash_card,
+.home_dash_r2 > .home_dash_card {
+  margin-top: 0;
+  min-width: 0;
+}
+
+/* a primeira faixa tem altura fixa em telas largas: o conteúdo rola dentro do próprio cartão */
+@media (min-width: 1101px) {
+  .home_dash_r1 {
+    height: clamp(11.5rem, 26vh, 16rem);
+  }
+
+  .home_dash_r1 > * {
+    min-height: 0;
+    overflow: auto;
+  }
+}
+
+@media (max-width: 1100px) {
+  .home_dash_r1 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .home_dash_r2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.home_dash_agora {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: #0f3a56;
+  color: #fff;
+  min-width: 0;
+}
+
+.home_dash_agora_lab {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.home_dash_agora_titulo {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.home_dash_agora_txt {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.home_dash_agora_prazo.is-atrasada {
+  color: #ffb4a8;
+  font-weight: 800;
+}
+
+.home_dash_agora_acoes {
+  margin-top: auto;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.home_dash_agora_btn {
+  min-height: 2rem;
+  padding: 0 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.home_dash_agora_btn.is-primary {
+  background: #fff;
+  border-color: #fff;
+  color: #0f3a56;
+}
+
+.home_dash_cred_stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.home_dash_cred_stat {
+  background: var(--home-accent-soft);
+  border: 1px solid var(--home-line);
+  border-radius: 10px;
+  padding: 0.45rem 0.7rem;
+  min-width: 0;
+}
+
+.home_dash_cred_stat.is-wide {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.15rem 0.6rem;
+}
+
+.home_dash_cred_stat > span {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--home-muted);
+}
+
+.home_dash_cred_stat i,
+.home_dash_cred_leg i {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+}
+
+.home_dash_cred_stat strong {
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.home_dash_cred_etapas {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.home_dash_cred_etapas b {
+  font-size: 0.74rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.12rem 0.6rem;
+  background: var(--home-card);
+  color: var(--home-accent);
+  border: 1px solid var(--home-line);
+}
+
+.home_dash_cred_etapas em {
+  font-style: normal;
+  font-weight: 800;
+  margin-left: 0.2rem;
+}
+
+.home_dash_cred_plot {
+  flex: 1;
+  min-height: 0;
+}
+
+.home_dash_cred_svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.home_dash_cred_leg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.9rem;
+  margin-top: 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--home-muted);
+}
+
+.home_dash_cred_leg span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.home_dash_card--cred {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== Início: ajustes para caber na tela ===== */
+.home_dash_agora .home_dash_agora_titulo {
+  color: #fff;
+}
+
+.home_dash_r1 .home_dash_agora {
+  padding: 0.75rem 0.9rem;
+  gap: 0.4rem;
+}
+
+.home_dash_r1 .home_dash_card {
+  padding: 0.7rem 0.85rem 0.8rem;
+}
+
+.home_dash_r1 .home_dash_card_head {
+  margin-bottom: 0.5rem;
+}
+
+.home_dash_r1 .home_dash_card_head h2 {
+  font-size: 1.05rem;
+}
+
+.home_dash_r1 .home_dash_notif_grid {
+  gap: 0.35rem;
+}
+
+.home_dash_r1 .home_dash_notif {
+  padding: 0.3rem 0.6rem;
+  gap: 0.6rem;
+  border-radius: 10px;
+}
+
+.home_dash_r1 .home_dash_notif .home_dash_notif_n {
+  min-width: 1.6rem;
+  height: 1.6rem;
+  font-size: 0.82rem;
+}
+
+.home_dash_tarefa_prazo_inline {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--home-muted);
+  white-space: nowrap;
+}
+
+.home_dash_r2 .home_dash_tarefa_meta--compact {
+  display: none;
+}
+
+.home_dash_r2 .home_dash_tarefa_top {
+  flex-wrap: nowrap;
+}
+
+.home_dash_r2 .home_dash_tarefa_top strong {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home_dash_r2 .home_dash_tarefa_item.is-open .home_dash_tarefa_top strong {
+  white-space: normal;
+}
+
+.home_dash_r2 .home_dash_tarefa_item {
+  padding: 0.3rem 0.5rem;
+}
+
+.home_dash_r2 .home_dash_tarefa_lista {
+  gap: 0.3rem;
+}
+
+@media (min-width: 1101px) {
+  .home_dash_r1 {
+    height: clamp(11rem, 22vh, 14rem);
+  }
+
+  .home_dash_hero_wrap {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.15rem 0.9rem;
+    margin-bottom: 0.7rem !important;
+    padding-bottom: 0.5rem !important;
+    text-align: left;
+  }
+
+  .home_dash_hero_wrap > p:first-child {
+    display: none;
+  }
+
+  .home_dash_hero_wrap > h1 {
+    font-size: 1.5rem !important;
+  }
+
+  .home_dash_hero_wrap > p {
+    margin: 0 !important;
+  }
+
+  .home_dash_r2 .home_dash_tarefa_filtro_wrap {
+    margin-bottom: 0.4rem;
+  }
+
+  .home_dash_r2 .home_dash_tabs {
+    margin-bottom: 0.45rem;
+  }
+
+  .home_dash_r2 .home_dash_tarefa_toolbar {
+    margin-bottom: 0.45rem;
+  }
+}
+
+/* ===== Início: rodapé só depois do scroll, primeira linha maior, «Agora» em azul da marca, data, gráfico interativo ===== */
+.home_dash_hero_data {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--home-muted);
+  white-space: nowrap;
+}
+
+.home_dash_agora {
+  background: linear-gradient(135deg, #1f78ad 0%, #165f8c 100%);
+}
+
+.home_dash_agora_btn.is-primary {
+  color: #165f8c;
+}
+
+body.dark-mode .home_dash_agora {
+  background: linear-gradient(135deg, #1d5f88 0%, #12425f 100%);
+}
+
+@media (min-width: 1101px) {
+  .home_dash_hero_wrap {
+    justify-content: space-between;
+  }
+
+  .home_dash_hero_data {
+    margin-left: auto !important;
+  }
+
+  .home_dash_r1 {
+    height: clamp(14rem, 30vh, 20rem);
+  }
+
+  /* a primeira tela termina no fim da janela; o rodapé de ajuda só aparece ao rolar */
+  .home_dash_fold {
+    min-height: calc(100dvh - 5rem);
+  }
+
+  .home_dash_r2 {
+    flex: 1 1 auto;
+  }
+
+  .home_dash_footer_wrap {
+    margin-top: 1.25rem;
+  }
+}
+
+@media (max-width: 1100px) {
+  .home_dash_hero_data {
+    display: block;
+    margin-top: 0.15rem !important;
+  }
+}
+
+.home_dash_card--cred .home_dash_card_head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.home_dash_cred_periodos {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.15rem;
+  border: 1px solid var(--home-line);
+  border-radius: 10px;
+}
+
+.home_dash_cred_periodos button {
+  border: 0;
+  background: transparent;
+  color: var(--home-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.home_dash_cred_periodos button.is-active {
+  background: var(--home-accent);
+  color: #fff;
+}
+
+.home_dash_cred_plot {
+  position: relative;
+}
+
+.home_dash_cred_svg {
+  touch-action: pan-y;
+  cursor: crosshair;
+}
+
+.home_dash_cred_svg:focus-visible {
+  outline: 2px solid var(--home-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.home_dash_cred_tip {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  min-width: 9.5rem;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 10px;
+  background: var(--home-card);
+  border: 1px solid var(--home-line);
+  box-shadow: 0 6px 18px rgba(15, 58, 86, 0.2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.home_dash_cred_tip > span {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.home_dash_cred_tip > span b {
+  margin-left: auto;
+  padding-left: 0.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.home_dash_cred_tip i {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.home_dash_cred_leg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--home-line);
+  background: transparent;
+  color: var(--home-muted);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.home_dash_cred_leg button.is-off {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+/* ===== Agenda: próximos compromissos, sem rolagem e com botões de ícone ===== */
+.home_dash_r1 > .home_dash_card--agenda {
+  overflow: hidden;
+}
+
+.home_dash_btn.home_dash_agenda_icone {
+  width: 2rem;
+  min-width: 2rem;
+  height: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home_dash_agenda_icone svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.home_dash_agenda_mais {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+}
+
+/* ===== Início: descrição no «Agora», gráfico maior sem borda de foco, snap entre a dash e os links ===== */
+.home_dash_agora_desc {
+  margin: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.home_dash_cred_svg {
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.home_dash_cred_svg:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.home_dash_cred_plot {
+  flex: 1 1 auto;
+  min-height: 16rem;
+}
+
+.home_dash_agenda_toolbar {
+  gap: 0.4rem;
+}
+
+.home_dash_agenda_espaco {
+  flex: 1 1 auto;
+}
+
+.home_dash_agenda_modo {
+  display: inline-flex;
+  gap: 0.2rem;
+  padding: 0.15rem;
+  border: 1px solid var(--home-line);
+  border-radius: 10px;
+}
+
+.home_dash_agenda_modo button {
+  border: 0;
+  background: transparent;
+  color: var(--home-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.home_dash_agenda_modo button.is-active {
+  background: var(--home-accent);
+  color: #fff;
+}
+
+.home_dash_agenda_dia.is-vazio {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* a rolagem da página para na dash e no rodapé de links (só em telas largas, sem forçar quem rola devagar) */
+@media (min-width: 1101px) {
+  html:has(.home_dash) {
+    scroll-snap-type: y proximity;
+  }
+
+  .home_dash_hero_wrap,
+  .home_dash_footer_wrap {
+    scroll-snap-align: start;
+  }
+}
+
+/* espaço entre Afazeres | Credenciamento e a galeria de links */
+.home_dash_fold {
+  padding-bottom: 2rem;
+}
+
+@media (min-width: 1101px) {
+  .home_dash_footer_wrap {
+    margin-top: 1.5rem;
+  }
+}
+
+/* ===== Cabeçalho do Início: saudação e «O que faremos hoje?» à esquerda, data centralizada à direita ===== */
+@media (min-width: 1101px) {
+  .home_dash_hero_wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 1rem;
+    row-gap: 0.25rem;
+    align-items: center;
+    padding-top: 0.4rem;
+    padding-bottom: 0.9rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .home_dash_hero_wrap > h1 {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 1.9rem !important;
+    line-height: 1.15;
+  }
+
+  .home_dash_hero_wrap > h1 + p {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .home_dash_hero_wrap > .home_dash_hero_data {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    margin-left: 0 !important;
+  }
+
+  .home_dash_fold {
+    min-height: calc(100dvh - 6.5rem);
+  }
+}
+
+/* ===== Início: a dash cabe na tela sem rolar a página; o painel «?» não é mais cortado ===== */
+.home_dash_notif_help_panel.is-fixed {
+  position: fixed;
+  left: auto;
+  z-index: 60;
+}
+
+@media (min-width: 1101px) {
+  .home_dash_fold {
+    height: calc(100dvh - 6.5rem);
+    min-height: 0;
+    padding-bottom: 0;
+  }
+
+  .home_dash_r1 {
+    flex: 0 0 auto;
+    height: clamp(11rem, 24vh, 15rem);
+  }
+
+  .home_dash_r2 {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .home_dash_r2 > .home_dash_card {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .home_dash_r2 .home_dash_tarefa_lista {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .home_dash_r2 .home_dash_tarefa_paginacao {
+    flex: 0 0 auto;
+  }
+
+  .home_dash_cred_plot {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .home_dash_footer_wrap {
+    margin-top: 2rem;
+  }
+}
+
+/* primeira linha mais alta; a de baixo (Afazeres e gráfico) fica com o que sobra */
+@media (min-width: 1101px) {
+  .home_dash_r1 {
+    height: clamp(11.5rem, calc(34vh - 2.5rem), 21.5rem);
+  }
+}
+
+/* ===== Início no celular e no tablet: tudo em uma coluna, sem alturas fixas ===== */
+@media (max-width: 1100px) {
+  .home_dash_hero_wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.1rem;
+    text-align: left !important;
+    margin-bottom: 0.75rem !important;
+    padding-bottom: 0.6rem !important;
+  }
+
+  .home_dash_hero_wrap > h1 {
+    font-size: 1.5rem !important;
+    line-height: 1.15;
+  }
+
+  .home_dash_hero_wrap > h1 + p {
+    margin: 0 !important;
+    font-size: 0.9rem;
+  }
+
+  .home_dash_fold {
+    height: auto;
+    gap: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .home_dash_r1,
+  .home_dash_r2 {
+    height: auto;
+    gap: 0.75rem;
+  }
+
+  .home_dash_r1 > *,
+  .home_dash_r2 > .home_dash_card {
+    overflow: visible;
+    height: auto;
+  }
+
+  .home_dash_agora {
+    padding: 0.85rem 0.95rem;
+  }
+
+  .home_dash_cred_plot {
+    min-height: 0;
+  }
+
+  .home_dash_card--cred .home_dash_card_head {
+    align-items: flex-start;
+  }
+
+  .home_dash_footer_wrap {
+    margin-top: 1.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .home_dash_r2 .home_dash_tarefa_top {
+    flex-wrap: wrap;
+    row-gap: 0.15rem;
+  }
+
+  .home_dash_r2 .home_dash_tarefa_top strong {
+    flex: 1 1 100%;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .home_dash_r2 .home_dash_tarefa_prazo_inline {
+    margin-right: auto;
+  }
+
+  .home_dash_cred_stats {
+    gap: 0.4rem;
+  }
+
+  .home_dash_cred_stat strong {
+    font-size: 1.15rem;
+  }
+
+  .home_dash_cred_periodos button {
+    padding: 0.3rem 0.5rem;
+  }
+
+  .home_dash_cred_leg button {
+    padding: 0.25rem 0.6rem;
+  }
+
+  .home_dash_agenda_modo button {
+    padding: 0.3rem 0.7rem;
+  }
+
+  .home_dash_agenda_icone {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+  }
+}
+
+/* balão do gráfico sempre dentro do quadro (o deslocamento horizontal acompanha a posição) */
+.home_dash_cred_tip {
+  transform: none;
+  max-width: 100%;
+}
+
+@media (min-width: 1101px) {
+  /* Afazeres e Credenciamento 1rem mais baixos */
+  .home_dash_r2 {
+    margin-bottom: 1rem;
+  }
+}
+
+/* abrir uma tarefa aumenta a altura do quadro de Afazeres (a página rola), sem rolagem interna na lista */
+@media (min-width: 1101px) {
+  .home_dash_fold {
+    height: auto;
+    min-height: calc(100dvh - 6.5rem);
+  }
+
+  .home_dash_r2 {
+    flex: 1 0 auto;
+  }
+
+  .home_dash_r2 > .home_dash_card {
+    overflow: visible;
+  }
+
+  .home_dash_r2 .home_dash_tarefa_lista {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+}
+
+/* ===== Início: Redefinir senha e Sair no cabeçalho, ao lado da data ===== */
+.home_dash_hero_lado {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.45rem;
+}
+
+.home_dash_hero_lado .home_dash_hero_data {
+  margin: 0 !important;
+}
+
+.home_dash_hero_conta {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.home_dash_conta_btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--home-line);
+  background: var(--home-card);
+  color: var(--home-ink);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.home_dash_conta_btn:hover {
+  background: var(--home-accent-soft);
+  border-color: var(--home-accent);
+}
+
+.home_dash_conta_btn svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.home_dash_conta_btn.is-sair {
+  color: var(--home-danger);
+}
+
+.home_dash_conta_btn.is-sair:hover {
+  background: rgba(185, 28, 28, 0.08);
+  border-color: var(--home-danger);
+}
+
+@media (min-width: 1101px) {
+  .home_dash_hero_wrap > .home_dash_hero_lado {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+}
+
+@media (max-width: 1100px) {
+  .home_dash_hero_lado {
+    align-items: flex-start;
+    margin-top: 0.35rem;
+  }
+
+  .home_dash_hero_conta {
+    justify-content: flex-start;
+  }
+}
+
+/* ===== Início em notebooks e monitores: a dash preenche exatamente a janela, sem rolar ===== */
+@media (min-width: 1101px) {
+  .el-page.home_dash {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+
+  .home_dash_fold {
+    flex: 1 0 auto;
+    height: auto;
+    min-height: 0;
+  }
+
+  .home_dash_r2 {
+    flex: 1 0 auto;
+  }
+
+  .home_dash_cred_plot {
+    position: relative;
+    flex: 1 1 0;
+    min-height: 9rem;
+    overflow: hidden;
+  }
+
+  .home_dash_cred_plot > .home_dash_cred_svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+@media (max-width: 1100px) {
+  .home_dash_cred_plot {
+    position: relative;
+    flex: none;
+    height: 15rem;
+  }
+
+  .home_dash_cred_plot > .home_dash_cred_svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* telas baixas (notebooks): cabeçalho e cartões mais compactos */
+@media (min-width: 1101px) and (max-height: 1000px) {
+  .home_dash_hero_wrap {
+    padding-top: 0.1rem;
+    padding-bottom: 0.5rem !important;
+    margin-bottom: 0.6rem !important;
+  }
+
+  .home_dash_hero_wrap > h1 {
+    font-size: 1.55rem !important;
+  }
+
+  .home_dash_hero_wrap > h1 + p {
+    font-size: 0.85rem;
+  }
+
+  .home_dash_hero_lado {
+    gap: 0.3rem;
+  }
+
+  .home_dash_conta_btn {
+    min-height: 1.75rem;
+    font-size: 0.74rem;
+  }
+
+  .home_dash_fold {
+    gap: 0.6rem;
+  }
+
+  .home_dash_r1,
+  .home_dash_r2 {
+    gap: 0.6rem;
+  }
+
+  .home_dash_r2 > .home_dash_card {
+    padding: 0.7rem 0.85rem 0.8rem;
+  }
+
+  .home_dash_cred_stats {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .home_dash_cred_stat.is-wide {
+    grid-column: auto;
+  }
+
+  .home_dash_cred_stat {
+    padding: 0.3rem 0.6rem;
+  }
+
+  .home_dash_cred_stat strong {
+    font-size: 1.1rem;
+  }
+
+  .home_dash_cred_etapas b {
+    font-size: 0.68rem;
+    padding: 0.05rem 0.45rem;
+  }
+}
+
+/* ===== Início: a «tela» (cabeçalho + dash) ocupa a janela inteira; os links de ajuda ficam só abaixo dela ===== */
+@media (min-width: 1101px) {
+  .el-page.home_dash {
+    display: block;
+    min-height: 0;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .home_dash_tela {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    box-sizing: border-box;
+    padding: 1rem 0 0.75rem;
+  }
+
+  .home_dash_tela > .home_dash_fold {
+    flex: 1 0 auto;
+  }
+
+  .home_dash_footer_wrap {
+    margin-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+}
+
+/* notebooks: Notificações em duas colunas e itens compactos, para caber sem rolagem */
+@media (min-width: 1101px) and (max-height: 1000px) {
+  .home_dash_r1 .home_dash_notif_grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  .home_dash_r1 .home_dash_notif {
+    padding: 0.25rem 0.45rem;
+    gap: 0.4rem;
+  }
+
+  .home_dash_r1 .home_dash_notif_main {
+    gap: 0.5rem;
+  }
+
+  .home_dash_r1 .home_dash_notif_main strong {
+    font-size: 0.85rem;
+  }
+
+  .home_dash_r1 .home_dash_notif_main span:not(.home_dash_notif_n) {
+    font-size: 0.72rem;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .home_dash_r1 .home_dash_card_head {
+    margin-bottom: 0.35rem;
   }
 }

@@ -439,6 +439,28 @@ export function usuarioPodeVerTarefa(tarefa, userId) {
     return tarefa.criadoPor === userId || tarefa.atribuidoA === userId
 }
 
+/**
+ * A tarefa em aberto que pede atenção primeiro, entre as que a pessoa enxerga (criadas por ela ou atribuídas a ela,
+ * as mesmas da aba Abertas): atrasada antes das demais, depois a de prazo mais próximo; sem prazo vai por último.
+ * Entre iguais, a atribuída à própria pessoa vem antes. Devolve null se não houver.
+ */
+export function tarefaMaisUrgente(tarefas, userId) {
+    const abertas = (tarefas || []).filter(
+        (t) =>
+            usuarioPodeVerTarefa(t, userId) &&
+            (t.status === 'pendente' || t.status === 'em_andamento'),
+    )
+    if (!abertas.length) return null
+    const tempo = (t) => dataHoraPrazoTarefa(t)?.getTime() ?? Number.POSITIVE_INFINITY
+    return [...abertas].sort((a, b) => {
+        const atA = tarefaAtrasada(a) ? 0 : 1
+        const atB = tarefaAtrasada(b) ? 0 : 1
+        if (atA !== atB) return atA - atB
+        if (tempo(a) !== tempo(b)) return tempo(a) - tempo(b)
+        return (a.atribuidoA === userId ? 0 : 1) - (b.atribuidoA === userId ? 0 : 1)
+    })[0]
+}
+
 export function filtrarTarefasPorAba(tarefas, filtro, userId) {
     const uid = userId || ''
     return (tarefas || []).filter((t) => {
@@ -498,7 +520,7 @@ export function buscarTarefasTexto(tarefas, termo) {
     })
 }
 
-export const TAREFAS_POR_PAGINA = 8
+export const TAREFAS_POR_PAGINA = 10
 
 const ORDEM_TAREFAS_KEY = 'sfsc_home_tarefas_ordem_v1'
 

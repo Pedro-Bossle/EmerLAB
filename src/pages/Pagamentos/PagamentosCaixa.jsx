@@ -62,6 +62,8 @@ export default function PagamentosCaixa() {
     const [aba, setAba] = useState('revisar')
     const [config, setConfig] = useState(null)
     const [msgConfig, setMsgConfig] = useState('')
+    const [configAberta, setConfigAberta] = useState(false)
+    const [atualizando, setAtualizando] = useState(false)
 
     const carregar = useCallback(async () => {
         try {
@@ -71,6 +73,15 @@ export default function PagamentosCaixa() {
             setErro(e.message || 'Não foi possível carregar a Caixa de entrada.')
         }
     }, [])
+
+    const atualizar = async () => {
+        setAtualizando(true)
+        try {
+            await carregar()
+        } finally {
+            setAtualizando(false)
+        }
+    }
 
     useEffect(() => {
         void carregar()
@@ -124,7 +135,24 @@ export default function PagamentosCaixa() {
 
     return (
         <div className="el-page">
-            <PageHeader kicker="Pagamentos" title="Caixa de entrada" description="Tudo que depende do financeiro antes de pagar: documentos para revisar e relatórios reprovados." actions={<Link className="ek-btn ek-btn--secondary" to="/pagamentos/registro">Ir ao Registro</Link>} />
+            <PageHeader kicker="Pagamentos" title="Caixa de entrada" description="Tudo que depende do financeiro antes de pagar: documentos para revisar e relatórios reprovados." actions={
+                <div className="mb-4 flex items-center gap-2">
+                    <button
+                        type="button"
+                        className="ek-btn ek-btn--secondary"
+                        onClick={() => void atualizar()}
+                        disabled={atualizando}
+                        aria-label="Atualizar a Caixa de entrada"
+                        title="Atualizar"
+                    >
+                        <svg className={`h-4 w-4 ${atualizando ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M20 11a8 8 0 1 0-2.3 5.7" />
+                            <path d="M20 4v7h-7" />
+                        </svg>
+                    </button>
+                    <Link className="ek-btn ek-btn--secondary" to="/pagamentos/registro">Ir ao Registro</Link>
+                </div>
+            } />
 
             {erro ? (
                 <p className="mb-4 rounded-xl bg-status-erro-bg px-3 py-2 text-sm font-semibold text-status-erro" role="alert">
@@ -188,11 +216,11 @@ export default function PagamentosCaixa() {
                                             <div className="bg-surface-tint px-3 py-2"><p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Repasse</p><p className="text-base font-bold tabular-nums">{formatarValorMonetarioBr(rel?.total_repasse)}</p></div>
                                             <div className="bg-surface-tint px-3 py-2"><p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Documento</p><p className={`text-base font-bold tabular-nums ${confere ? '' : 'text-status-warn'}`}>{formatarValorMonetarioBr(d.valor)}</p></div>
                                         </div>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="flex flex-wrap gap-3">
                                             <Button variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => void abrirArquivo({ documento_id: d.id })}>Ver documento</Button>
                                             <Button variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => void abrirRelatorio(d.relatorio_id)}>Relatório</Button>
                                             {podeEditar ? (
-                                                <span className="ml-auto flex flex-wrap gap-2">
+                                                <span className="ml-auto flex flex-wrap gap-3">
                                                     <Button variant="danger" size="sm" disabled={Boolean(ocupado)} onClick={() => { setMotivo(''); setDevolvendo(d) }}>Devolver</Button>
                                                     <Button size="sm" disabled={Boolean(ocupado)} onClick={() => void rodar('ap', () => revisarDocumento(d.id, 'aprovar'))}>Aprovar e marcar respondido</Button>
                                                 </span>
@@ -223,7 +251,7 @@ export default function PagamentosCaixa() {
                                             </div>
                                         </div>
                                         <blockquote className="rounded-xl border-l-4 border-status-erro bg-surface-tint px-3 py-2 text-sm">{ev?.dados?.obs || 'Sem observação registrada.'}</blockquote>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="flex flex-wrap gap-3">
                                             <Button variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => void abrirRelatorio(r.id)}>Relatório</Button>
                                             {podeEditar ? <Button size="sm" className="ml-auto" disabled={Boolean(ocupado)} onClick={() => void rodar('tr', () => marcarTratado(r.id))}>Marcar como tratado</Button> : null}
                                         </div>
@@ -254,7 +282,7 @@ export default function PagamentosCaixa() {
                                             </div>
                                             <Badge tone={restam <= 7 ? 'warn' : 'ok'}>{restam === 0 ? 'Excluída hoje' : `Excluída em ${restam} dia${restam === 1 ? '' : 's'} (${dataBr(exclusao.toISOString())})`}</Badge>
                                         </div>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="flex flex-wrap gap-3">
                                             <Button variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => void abrirArquivo({ documento_id: d.id })}>Ver documento</Button>
                                             <Button variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => void abrirRelatorio(d.relatorio_id)}>Relatório</Button>
                                         </div>
@@ -318,7 +346,22 @@ export default function PagamentosCaixa() {
             ) : null}
 
             {ehAdmin && config ? (
-                <Secao titulo="Configurações do repasse" descricao="Visível só para administradores.">
+                <section className="mb-8" aria-label="Configurações do repasse">
+                    <button
+                        type="button"
+                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3 text-left hover:bg-brand-pale dark:border-white/10 dark:bg-[#1a2634] dark:hover:bg-white/5"
+                        aria-expanded={configAberta}
+                        aria-controls="config-repasse"
+                        onClick={() => setConfigAberta((v) => !v)}
+                    >
+                        <span>
+                            <span className="block text-base font-bold">Configurações do repasse</span>
+                            <span className="block text-sm text-ink-soft dark:text-[#9eb4c8]">Visível só para administradores.</span>
+                        </span>
+                        <span aria-hidden="true" className="text-ink-soft">{configAberta ? '▾' : '▸'}</span>
+                    </button>
+                    {configAberta ? (
+                        <div id="config-repasse" className="mt-3 flex flex-col gap-3">
                     <Card>
                         <form className="grid gap-3 sm:grid-cols-2" onSubmit={salvarConfig}>
                             <Input label="E-mail que recebe reprovações" type="email" value={config.email_reprovacoes} onChange={(e) => setConfig({ ...config, email_reprovacoes: e.target.value })} required />
@@ -332,7 +375,9 @@ export default function PagamentosCaixa() {
                             </div>
                         </form>
                     </Card>
-                </Secao>
+                        </div>
+                    ) : null}
+                </section>
             ) : null}
 
             <Modal

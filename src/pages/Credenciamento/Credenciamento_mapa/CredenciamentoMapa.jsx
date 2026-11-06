@@ -5,24 +5,33 @@ import L from 'leaflet'
 import { MapaBasemapLayers, useEstiloBasemap, MapaBasemapToggle } from '../../../components/Mapa/MapaBasemapToggle.jsx'
 import { supabase } from '../../../lib/supabase'
 import {
+    atualizarCoordenadasPrestadorGeocodificado,
     atualizarCoordenadasPrestadorManual,
     coordenadasValidasBrasil,
     especialidadePorIdMap,
     filtrarPrestadoresParaMapaEndereco,
     parseCoordenadaEntrada,
 } from '../../../lib/credenciamento/prestadorEnderecoGeocode'
+import { geocodificarPrestadorNominatim } from '../../../lib/credenciamento/geocodePrestadorServer'
+import { motivoSemEndereco } from '../../../lib/credenciamento/enderecoBrasil'
+import { buscarSugestoesNominatim } from '../../../lib/credenciamento/geocodeNominatim'
+import { geocodificarCepParaMapa } from '../../../lib/credenciamento/mapaBuscaTermo'
 import {
-    geocodificarEnderecoNominatim,
-    buscarSugestoesNominatim,
-} from '../../../lib/credenciamento/geocodeNominatim'
-import { extrairCepDigitosBuscaMapa, geocodificarCepParaMapa } from '../../../lib/credenciamento/mapaBuscaTermo'
-import { filtrarItensNominatimPorTermo } from '../../../lib/credenciamento/mapaBuscaPoi.js'
+    classificarBusca,
+    enquadramentoDe,
+    escolherMelhorResultado,
+    filtrarSugestoesPorTermo,
+    marcadorCombinaTermo,
+    proximosDe,
+    textoCombinaBusca,
+    viewboxDaRede,
+} from '../../../lib/credenciamento/mapaProximidade'
 import {
     formatarLocalidadeMarcador,
     montarIndiceLocalidadesMarcadores,
     sugerirLocalidadesCadastroMapa,
 } from '../../../lib/credenciamento/mapaBuscaSugestoes'
-import { normalizarTextoBusca, blobContemTermoBusca } from '../../../lib/prestadorCadastroHelpers'
+import { normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import {
     montarEstabelecimentoPorVeterinarioDeListas,
     resolverLocalidadeEfetivaPrestador,
@@ -50,8 +59,6 @@ import 'leaflet/dist/leaflet.css'
 const CORES = ['#2f80ed', '#27ae60', '#f2994a', '#9b51e0', '#eb5757', '#00a3a3', '#7f8c8d', '#6d4c41']
 const CENTRO_PADRAO_RS = [-29.7, -53.2]
 const ZOOM_PADRAO_MAPA = 7
-/** Raio máximo para listar credenciados «próximos» ao pin de busca (Nominatim / local temporário). */
-const RAIO_LOCAIS_PROXIMOS_BUSCA_KM = 5
 /** Referência estável — evita reexecutar efeitos quando não há alvos de busca. */
 const MARCADORES_ALVO_BUSCA_VAZIO = Object.freeze([])
 
@@ -164,44 +171,11 @@ function useMatchMedia(query) {
     return matches
 }
 
-function textoMarcadorParaBusca(m) {
-    return [
-        m.nome,
-        m.especialidadeNome,
-        m.especialidadeNomesTodas,
-        m.cidade,
-        m.uf,
-        m.bairro,
-        m.logradouro,
-        m.numero,
-        m.raw?.cep,
-    ]
-        .filter(Boolean)
-        .join(' ')
-}
-
-function marcadorCombinaBusca(m, termoNorm) {
-    if (!termoNorm) return true
-    return blobContemTermoBusca(normalizarTextoBusca(textoMarcadorParaBusca(m)), termoNorm)
-}
+const marcadorCombinaBusca = marcadorCombinaTermo
 
 function marcadorNomeMatchExato(m, termoNorm) {
     if (!termoNorm) return false
     return normalizarTextoBusca(m.nome) === termoNorm
-}
-
-function distanciaKm(lat1, lng1, lat2, lng2) {
-    const R = 6371
-    const dLat = ((lat2 - lat1) * Math.PI) / 180
-    const dLng = ((lng2 - lng1) * Math.PI) / 180
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((lat1 * Math.PI) / 180) *
-            Math.cos((lat2 * Math.PI) / 180) *
-            Math.sin(dLng / 2) *
-            Math.sin(dLng / 2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    return R * c
 }
 
 function marcadorTemEspecialidadeAtiva(m, especialidadeAtiva) {
@@ -290,7 +264,7 @@ function MarcadorCredenciadoMapa({ m, destaque, cor, emoji, especialidadePopup }
                 <PopupBalaoMapa
                     titulo={m.nome}
                     subtitulo={especialidadePopup || m.especialidadeNome}
-                    endereco={enderecoLinhaMarcador(m)}
+                    endereco={`${enderecoLinhaMarcador(m)}${m.aproximado ? ' · localização aproximada (confira no mapa)' : ''}`}
                     telefone={m.telefoneContato}
                 />
             </Popup>
@@ -347,6 +321,10 @@ const CredenciamentoMapa = () => {
     const [flyAlvo, setFlyAlvo] = useState(null)
     const [marcadorDestaqueId, setMarcadorDestaqueId] = useState(null)
     const [pinsBuscaTemp, setPinsBuscaTemp] = useState([])
+    /** Ponto de referência da última busca (endereço, CEP ou lugar escolhido) e o texto a que ele pertence. */
+    const [refBusca, setRefBusca] = useState(null)
+    const [geoLote, setGeoLote] = useState(null)
+    const geoLoteCancelarRef = useRef(false)
     const mapViewBoundsRef = useRef(null)
     const [fitBoundsAlvo, setFitBoundsAlvo] = useState(null)
     const onMapBounds = useCallback((b) => {
@@ -384,7 +362,7 @@ const CredenciamentoMapa = () => {
                     supabase
                         .from('prestadores')
                         .select(
-                            'id, nome, especialidade_id, situacao_id, ativo, cep, endereco, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, latitude, longitude, telefone, celular',
+                            'id, nome, especialidade_id, situacao_id, ativo, cep, endereco, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, latitude, longitude, geocode_fonte, telefone, celular',
                         )
                         .eq('ativo', true),
                     supabase.from('especialidades').select('id, nome, tipo').order('nome'),
@@ -499,6 +477,7 @@ const CredenciamentoMapa = () => {
                     numero: p.endereco_numero || '',
                     bairro: p.endereco_bairro || '',
                     telefoneContato: formatarLinhaTelefonesContato(p.celular, p.telefone),
+                    aproximado: p.geocode_fonte === 'nominatim_aprox' || p.geocode_fonte === 'nominatim_rua',
                     raw: p,
                 }
             })
@@ -542,7 +521,7 @@ const CredenciamentoMapa = () => {
             .map((esp) => {
                 const nomeEsp = normalizarTextoBusca(esp.nome)
                 const itens = esp.itens.filter((it) => marcadorCombinaBusca(it, termoBuscaLegenda))
-                if (blobContemTermoBusca(nomeEsp, termoBuscaLegenda)) return esp
+                if (textoCombinaBusca(nomeEsp, termoBuscaLegenda)) return esp
                 if (itens.length) return { ...esp, itens }
                 return null
             })
@@ -577,56 +556,31 @@ const CredenciamentoMapa = () => {
         if (especialidadeAtiva) {
             list = list.filter((m) => marcadorTemEspecialidadeAtiva(m, especialidadeAtiva))
         }
-        const cepDigits = extrairCepDigitosBuscaMapa(buscaLegenda)
-        if (cepDigits) {
-            const porCep = list.filter(
-                (m) => String(m.raw?.cep || '').replace(/\D/g, '') === cepDigits,
-            )
-            if (porCep.length) return porCep
+        if (classificarBusca(buscaLegenda) === 'cep') {
+            // CEP: só vale o credenciado daquele CEP. Sem ele, a busca vira «CEP no mapa + mais próximos».
+            const cepDigits = String(buscaLegenda).replace(/\D/g, '')
+            const porCep = list.filter((m) => String(m.raw?.cep || '').replace(/\D/g, '') === cepDigits)
+            return porCep.length ? porCep : MARCADORES_ALVO_BUSCA_VAZIO
         }
         const porNomeExato = list.filter((m) => marcadorNomeMatchExato(m, termoBuscaLegenda))
         if (porNomeExato.length) return porNomeExato
         return list.filter((m) => marcadorCombinaBusca(m, termoBuscaLegenda))
     }, [marcadores, especialidadeAtiva, termoBuscaLegenda, buscaLegenda])
 
-    const pontoReferenciaBusca = useMemo(() => {
-        if (!pinsBuscaTemp.length) return null
-        if (pinsBuscaTemp.length === 1) return pinsBuscaTemp[0]
-        const lat = pinsBuscaTemp.reduce((acc, p) => acc + p.lat, 0) / pinsBuscaTemp.length
-        const lng = pinsBuscaTemp.reduce((acc, p) => acc + p.lng, 0) / pinsBuscaTemp.length
-        return {
-            lat,
-            lng,
-            rotulo: buscaLegenda,
-        }
-    }, [pinsBuscaTemp, buscaLegenda])
+    /** Só vale enquanto o texto da caixa for o mesmo da busca que gerou o ponto (evita resultado «velho»). */
+    const pontoReferenciaBusca =
+        refBusca && termoBuscaLegenda && refBusca.termo === termoBuscaLegenda ? refBusca : null
 
-    const marcadoresProximosBusca = useMemo(() => {
-        if (!pontoReferenciaBusca || !termoBuscaLegenda || marcadoresAlvoBusca.length > 0) return []
+    const proximosBusca = useMemo(() => {
+        if (!pontoReferenciaBusca || marcadoresAlvoBusca.length > 0) return null
         let base = marcadores
         if (especialidadeAtiva) {
             base = base.filter((m) => marcadorTemEspecialidadeAtiva(m, especialidadeAtiva))
         }
-        return [...base]
-            .map((m) => ({
-                ...m,
-                distanciaKm: distanciaKm(
-                    pontoReferenciaBusca.lat,
-                    pontoReferenciaBusca.lng,
-                    m.lat,
-                    m.lng,
-                ),
-            }))
-            .filter((m) => m.distanciaKm <= RAIO_LOCAIS_PROXIMOS_BUSCA_KM)
-            .sort((a, b) => a.distanciaKm - b.distanciaKm || a.nome.localeCompare(b.nome, 'pt-BR'))
-            .slice(0, 8)
-    }, [
-        pontoReferenciaBusca,
-        termoBuscaLegenda,
-        marcadoresAlvoBusca.length,
-        marcadores,
-        especialidadeAtiva,
-    ])
+        return proximosDe(base, pontoReferenciaBusca, { max: 10 })
+    }, [pontoReferenciaBusca, marcadoresAlvoBusca.length, marcadores, especialidadeAtiva])
+
+    const viewboxRede = useMemo(() => viewboxDaRede(marcadores), [marcadores])
 
     const credenciadosNomeExato = useMemo(() => {
         if (!termoBuscaLegenda) return []
@@ -734,7 +688,10 @@ const CredenciamentoMapa = () => {
         setBuscaFocada(false)
         setSugestoesNominatim([])
         setMarcadorDestaqueId(null)
+        setBuscaGeocodeSubmetida('')
+        setErro('')
         if (temporario && coordenadasValidasBrasil(lat, lng)) {
+            setRefBusca({ lat, lng, rotulo, termo: normalizarTextoBusca(rotulo) })
             setPinsBuscaTemp([
                 {
                     id: `pin-sel-${Date.now()}`,
@@ -753,22 +710,36 @@ const CredenciamentoMapa = () => {
             return
         }
         if (coordenadasValidasBrasil(lat, lng)) {
+            setRefBusca(null)
             setPinsBuscaTemp([])
             setFlyAlvo({ lat, lng, zoom: 12, seq: Date.now() })
             setMobileAba('mapa')
         }
     }
 
+    // O ponto de referência e o pin pertencem ao texto que os gerou: ao editar a caixa, somem.
+    useEffect(() => {
+        if (!refBusca || refBusca.termo === termoBuscaLegenda) return
+        setRefBusca(null)
+        setPinsBuscaTemp([])
+        setBuscaGeocodeSubmetida('')
+    }, [termoBuscaLegenda, refBusca])
+
+    const marcadoresRef = useRef(marcadores)
+    marcadoresRef.current = marcadores
+    const viewboxRef = useRef(viewboxRede)
+    viewboxRef.current = viewboxRede
+
     const BUSCA_MAPA_DELAY_MS = 400
     const BUSCA_SUGESTOES_DELAY_MS = 700
 
     useEffect(() => {
         const bruto = String(buscaLegenda || '').trim()
-        if (extrairCepDigitosBuscaMapa(bruto)) {
+        if (classificarBusca(bruto) === 'cep') {
             setSugestoesNominatim([])
             return
         }
-        if (bruto.length < 2) {
+        if (bruto.length < 3) {
             setSugestoesNominatim([])
             return
         }
@@ -784,10 +755,10 @@ const CredenciamentoMapa = () => {
         let cancelado = false
         const t = window.setTimeout(() => {
             void (async () => {
-                const r = await buscarSugestoesNominatim(bruto, { limite: 8 })
+                const r = await buscarSugestoesNominatim(bruto, { limite: 8, viewbox: viewboxRef.current })
                 if (cancelado) return
                 if (r.ok) {
-                    setSugestoesNominatim(filtrarItensNominatimPorTermo(r.itens || [], bruto))
+                    setSugestoesNominatim(filtrarSugestoesPorTermo(r.itens || [], bruto))
                 } else setSugestoesNominatim([])
             })()
         }, BUSCA_SUGESTOES_DELAY_MS)
@@ -847,17 +818,20 @@ const CredenciamentoMapa = () => {
         if (!bruto) return
         setErro('')
         setPinsBuscaTemp([])
-        setFitBoundsAlvo(null)
-        const latMedia =
-            marcadoresAlvoBusca.reduce((acc, m) => acc + m.lat, 0) / marcadoresAlvoBusca.length
-        const lngMedia =
-            marcadoresAlvoBusca.reduce((acc, m) => acc + m.lng, 0) / marcadoresAlvoBusca.length
-        setFlyAlvo({
-            lat: latMedia,
-            lng: lngMedia,
-            zoom: marcadoresAlvoBusca.length === 1 ? 15 : 11,
-            seq: Date.now(),
-        })
+        setRefBusca(null)
+        // Espera o usuário parar de digitar: sem isso o mapa «voa» a cada letra.
+        const t = window.setTimeout(() => {
+            if (marcadoresAlvoBusca.length === 1) {
+                const [unico] = marcadoresAlvoBusca
+                setFitBoundsAlvo(null)
+                setFlyAlvo({ lat: unico.lat, lng: unico.lng, zoom: 15, seq: Date.now() })
+                return
+            }
+            // Vários resultados (às vezes em cidades distantes): enquadra todos em vez de apontar a média.
+            const b = enquadramentoDe(marcadoresAlvoBusca)
+            if (b) setFitBoundsAlvo({ ...b, seq: Date.now() })
+        }, BUSCA_MAPA_DELAY_MS)
+        return () => window.clearTimeout(t)
     }, [buscaLegenda, marcadoresAlvoBusca])
 
     useEffect(() => {
@@ -867,86 +841,92 @@ const CredenciamentoMapa = () => {
         if (marcadoresAlvoBusca.length > 0) return
 
         let cancelado = false
+        const termo = normalizarTextoBusca(bruto)
+
+        const mostrarPonto = (pin, zoom) => {
+            setErro('')
+            setMarcadorDestaqueId(null)
+            setRefBusca({ lat: pin.lat, lng: pin.lng, rotulo: pin.rotulo, termo })
+            setPinsBuscaTemp([pin])
+            setFitBoundsAlvo(null)
+            setFlyAlvo({ lat: pin.lat, lng: pin.lng, zoom, seq: Date.now() })
+        }
 
         void (async () => {
-                try {
-                const cepDigits = extrairCepDigitosBuscaMapa(bruto)
-                if (cepDigits) {
-                        const r = await geocodificarCepParaMapa(cepDigits)
-                        if (cancelado) return
-                        if (!r.ok) {
-                            setPinsBuscaTemp([])
-                            setErro(r.erro || 'CEP não encontrado.')
-                            return
-                        }
-                        if (!coordenadasValidasBrasil(r.latitude, r.longitude)) {
-                            setPinsBuscaTemp([])
-                            setErro('CEP fora da área do mapa (Brasil).')
-                            return
-                        }
-                        setErro('')
-                        setMarcadorDestaqueId(null)
-                        setPinsBuscaTemp([
-                            {
-                                id: `cep-${cepDigits}`,
-                                lat: r.latitude,
-                                lng: r.longitude,
-                                rotulo: r.rotulo,
-                                ehPoi: false,
-                                endereco: r.enderecoLinha || r.rotulo,
-                                telefone: r.telefone || '',
-                            },
-                        ])
-                        setFitBoundsAlvo(null)
-                        setFlyAlvo({
-                            lat: r.latitude,
-                            lng: r.longitude,
-                            zoom: 16,
-                            seq: Date.now(),
-                        })
-                        return
-                    }
-
-                    if (bruto.length < 2) {
-                        setPinsBuscaTemp([])
-                        return
-                    }
-
-                    const r = await geocodificarEnderecoNominatim(`${bruto}, Brasil`)
+            try {
+                if (classificarBusca(bruto) === 'cep') {
+                    const cepDigits = bruto.replace(/\D/g, '')
+                    const r = await geocodificarCepParaMapa(cepDigits)
                     if (cancelado) return
                     if (!r.ok) {
                         setPinsBuscaTemp([])
-                        setErro(r.erro || 'Local não encontrado.')
+                        setErro(r.erro || 'CEP não encontrado.')
                         return
                     }
                     if (!coordenadasValidasBrasil(r.latitude, r.longitude)) {
                         setPinsBuscaTemp([])
-                        setErro('Local encontrado está fora da área do mapa (Brasil).')
+                        setErro('CEP fora da área do mapa (Brasil).')
                         return
                     }
-                    setErro('')
-                    setMarcadorDestaqueId(null)
-                    setPinsBuscaTemp([
+                    mostrarPonto(
                         {
-                            id: `geo-${Date.now()}`,
+                            id: `cep-${cepDigits}`,
                             lat: r.latitude,
                             lng: r.longitude,
-                            rotulo: r.rotuloCurto || r.displayName || bruto,
-                            ehPoi: true,
-                            nome: r.nome || '',
-                            endereco: r.enderecoLinha || r.displayName || r.rotuloCurto || bruto,
+                            rotulo: r.rotulo,
+                            ehPoi: false,
+                            endereco: r.enderecoLinha || r.rotulo,
                             telefone: r.telefone || '',
-                            horaAtendimento: r.horaAtendimento || '',
                         },
-                    ])
-                    setFitBoundsAlvo(null)
-                    setFlyAlvo({ lat: r.latitude, lng: r.longitude, zoom: 12, seq: Date.now() })
-                } catch (e) {
-                    if (!cancelado) {
-                        setPinsBuscaTemp([])
-                        setErro(e?.message || String(e))
-                    }
+                        16,
+                    )
+                    return
                 }
+
+                if (bruto.length < 2) {
+                    setPinsBuscaTemp([])
+                    return
+                }
+
+                // Vários resultados, viés para a área da rede: «Centro» ou «Rua Brasil» não caem em outro estado.
+                const r = await buscarSugestoesNominatim(bruto, { limite: 6, viewbox: viewboxRef.current })
+                if (cancelado) return
+                if (!r.ok) {
+                    setPinsBuscaTemp([])
+                    setErro(r.erro || 'Local não encontrado.')
+                    return
+                }
+                const validos = (r.itens || []).filter((i) => coordenadasValidasBrasil(i.lat, i.lng))
+                const escolhido = escolherMelhorResultado(validos, marcadoresRef.current)
+                if (!escolhido) {
+                    setPinsBuscaTemp([])
+                    setErro(
+                        (r.itens || []).length
+                            ? 'Local encontrado está fora da área do mapa (Brasil).'
+                            : 'Local não encontrado. Tente incluir cidade ou bairro, ou use o CEP.',
+                    )
+                    return
+                }
+                mostrarPonto(
+                    {
+                        id: `geo-${Date.now()}`,
+                        lat: escolhido.lat,
+                        lng: escolhido.lng,
+                        rotulo: escolhido.rotulo || bruto,
+                        ehPoi: escolhido.ehPoiOuComercio,
+                        nome: escolhido.nome || '',
+                        endereco: escolhido.enderecoLinha || escolhido.rotuloCompleto || bruto,
+                        telefone: escolhido.telefone || '',
+                        horaAtendimento: escolhido.horaAtendimento || '',
+                    },
+                    /\d/.test(bruto) || escolhido.ehPoiOuComercio ? 15 : 13,
+                )
+            } catch (e) {
+                if (!cancelado) {
+                    setPinsBuscaTemp([])
+                    setErro(e?.message || String(e))
+                }
+            }
         })()
 
         return () => {
@@ -969,6 +949,65 @@ const CredenciamentoMapa = () => {
             setErro(e?.message || String(e))
         } finally {
             setSalvandoCoord(false)
+        }
+    }
+
+    /** Procura sozinho as coordenadas de todos os credenciados LOCAL que ainda não têm pin. */
+    const buscarCoordenadasPendentes = async () => {
+        if (!podeEditarCoordenadasMapa || geoLote?.rodando) return
+        const alvos = credenciadosLocal.filter(
+            (p) => !coordenadaValida(normalizarNum(p.latitude), normalizarNum(p.longitude)),
+        )
+        if (!alvos.length) return
+        geoLoteCancelarRef.current = false
+        const falhas = []
+        let ok = 0
+        let aprox = 0
+        let feitos = 0
+        setGeoLote({ rodando: true, total: alvos.length, feitos, ok, aprox, falhas, atual: '' })
+        for (const p of alvos) {
+            if (geoLoteCancelarRef.current) break
+            setGeoLote((g) => ({ ...g, atual: p.nome || `#${p.id}` }))
+            try {
+                const geo = await geocodificarPrestadorNominatim(p, { delayEntreConsultasMs: 1100 })
+                if (geo.ok) {
+                    const gravou = await atualizarCoordenadasPrestadorGeocodificado(
+                        supabase,
+                        p.id,
+                        { latitude: geo.latitude, longitude: geo.longitude, geocodeFonte: geo.geocodeFonte },
+                        p,
+                    )
+                    if (gravou) {
+                        ok += 1
+                        if (geo.aproximado) aprox += 1
+                    }
+                } else {
+                    const motivo =
+                        geo.codigo === 'sem_endereco'
+                            ? motivoSemEndereco(p) || 'Sem endereço utilizável'
+                            : geo.diagnostico?.resumo || geo.erro || 'Não encontrado'
+                    falhas.push({ id: Number(p.id), nome: p.nome || `#${p.id}`, motivo })
+                }
+            } catch (e) {
+                falhas.push({ id: Number(p.id), nome: p.nome || `#${p.id}`, motivo: e?.message || String(e) })
+            }
+            feitos += 1
+            setGeoLote({ rodando: true, total: alvos.length, feitos, ok, aprox, falhas: [...falhas], atual: '' })
+        }
+        setGeoLote({
+            rodando: false,
+            concluido: true,
+            cancelado: geoLoteCancelarRef.current,
+            total: alvos.length,
+            feitos,
+            ok,
+            aprox,
+            falhas: [...falhas],
+            atual: '',
+        })
+        if (ok) {
+            setFeedback(`${ok} credenciado(s) agora com pin no mapa.`)
+            await carregar()
         }
     }
 
@@ -1204,14 +1243,16 @@ const CredenciamentoMapa = () => {
                         ) : null}
                     </div>
                     {especialidadesFiltradas.length === 0 ? (
-                        marcadoresProximosBusca.length > 0 ? (
+                        proximosBusca?.itens.length > 0 ? (
                             <div className="credenciamento_mapa_proximos">
                                 <p className="pcad_muted credenciamento_mapa_proximos_tit">
-                                    Credenciados a até {RAIO_LOCAIS_PROXIMOS_BUSCA_KM} km de{' '}
+                                    {proximosBusca.alemDoRaio
+                                        ? 'Nenhum credenciado a até 100 km. Os mais próximos de '
+                                        : `Credenciados a até ${proximosBusca.raioKm} km de `}
                                     {pontoReferenciaBusca?.rotulo || buscaLegenda}:
                                 </p>
                                 <ul className="credenciamento_mapa_proximos_lista">
-                                    {marcadoresProximosBusca.map((m) => (
+                                    {proximosBusca.itens.map((m) => (
                                         <li key={`prox-${m.id}`}>
                                             <button
                                                 type="button"
@@ -1229,8 +1270,13 @@ const CredenciamentoMapa = () => {
                             </div>
                         ) : pontoReferenciaBusca ? (
                             <p className="pcad_muted">
-                                Nenhum credenciado a até {RAIO_LOCAIS_PROXIMOS_BUSCA_KM} km de{' '}
+                                Nenhum credenciado com localização no mapa
+                                {especialidadeAtiva ? ' para a especialidade selecionada' : ''} perto de{' '}
                                 {pontoReferenciaBusca.rotulo || buscaLegenda}.
+                            </p>
+                        ) : termoBuscaLegenda ? (
+                            <p className="pcad_muted">
+                                Nada encontrado na rede para essa busca. Pressione Enter para procurar o endereço no mapa.
                             </p>
                         ) : (
                             <p className="pcad_muted">Sem coordenadas para exibir no mapa.</p>
@@ -1352,9 +1398,70 @@ const CredenciamentoMapa = () => {
                         })
                     )}
 
-                    {semCoordenadas.length > 0 ? (
+                    {semCoordenadas.length > 0 || geoLote?.concluido ? (
                         <>
                             <h3 className="credenciamento_mapa_subtitulo_pend">Sem coordenadas</h3>
+                            {podeEditarCoordenadasMapa ? (
+                                <div className="credenciamento_mapa_geolote">
+                                    {geoLote?.rodando ? (
+                                        <>
+                                            <p className="pcad_muted" role="status">
+                                                Procurando {geoLote.feitos + 1} de {geoLote.total}
+                                                {geoLote.atual ? ` — ${geoLote.atual}` : ''}…
+                                            </p>
+                                            <progress max={geoLote.total} value={geoLote.feitos} />
+                                            <button
+                                                type="button"
+                                                className="credenciamento_main_action_btn secondary"
+                                                onClick={() => {
+                                                    geoLoteCancelarRef.current = true
+                                                }}
+                                            >
+                                                Parar
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            {semCoordenadas.length > 0 ? (
+                                                <button
+                                                    type="button"
+                                                    className="credenciamento_main_action_btn"
+                                                    onClick={() => void buscarCoordenadasPendentes()}
+                                                >
+                                                    Buscar coordenadas automaticamente ({semCoordenadas.length})
+                                                </button>
+                                            ) : null}
+                                            {geoLote?.concluido ? (
+                                                <p className="pcad_muted" role="status">
+                                                    {geoLote.cancelado ? 'Busca interrompida. ' : ''}
+                                                    {geoLote.ok} encontrado(s)
+                                                    {geoLote.aprox ? ` (${geoLote.aprox} aproximado(s): só a rua ou o CEP)` : ''}
+                                                    {geoLote.falhas.length ? `, ${geoLote.falhas.length} sem resultado` : ''}.
+                                                </p>
+                                            ) : (
+                                                <p className="pcad_muted">
+                                                    Usa o endereço e o CEP do cadastro; o que não for achado fica na lista abaixo
+                                                    com o motivo.
+                                                </p>
+                                            )}
+                                        </>
+                                    )}
+                                    {!geoLote?.rodando && geoLote?.falhas?.length ? (
+                                        <details className="credenciamento_mapa_geolote_falhas">
+                                            <summary>Por que não foram encontrados</summary>
+                                            <ul>
+                                                {geoLote.falhas.map((f) => (
+                                                    <li key={f.id}>
+                                                        <strong>{f.nome}</strong>
+                                                        <span>{f.motivo}</span>
+                                                        <Link to={`/credenciamento/cadastro/${f.id}`}>Abrir cadastro</Link>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </details>
+                                    ) : null}
+                                </div>
+                            ) : null}
                             <ul className="credenciamento_mapa_lista_pend">
                                 {semCoordenadas.map((p) => (
                                     <li key={p.id}>

@@ -8,6 +8,9 @@ import { useMsalReady } from '../../components/Outlook/MsalAppProvider'
 import { isMsalConfigured } from '../../lib/msal/msalConfig'
 import HomeNotifHelp from './HomeNotifHelp'
 import HomeTarefaChat from './HomeTarefaChat'
+import HomeAgoraCard from './HomeAgoraCard'
+import { pedirRedefinicaoDeSenha, sairDaConta } from '../../lib/sessaoAcoes.js'
+import HomeCredenciamentoGrafico from './HomeCredenciamentoGrafico'
 import {
     PERMISSION_KEYS,
     getStoredAccessProfile,
@@ -17,7 +20,6 @@ import {
 } from '../../lib/accessControl'
 import {
     urlEmerMarketing,
-    usuarioPodeAbrirEmerMarketing,
     usuarioSomenteEmerMarketing,
 } from '../../lib/emermarketingAccess.js'
 import { listarEnvelopesComAtualizacoes } from '../../lib/clicksign/clicksignNotificacoes'
@@ -27,13 +29,6 @@ import {
     listarEntradasFormularioNotificacao,
     rotuloTipoPerfil,
 } from '../../lib/formularioCredenciamento'
-import {
-    alternarFavoritoHome,
-    favoritosPadraoSugeridos,
-    lerFavoritosHome,
-    listarPaginasFavoritaveisPorGrupo,
-    resolverFavoritosComMeta,
-} from '../../lib/homeFavoritos'
 import {
     MAX_ANEXOS_TAREFA,
     PRIORIDADES_TAREFA,
@@ -56,6 +51,7 @@ import {
     reordenarIdsTarefas,
     salvarOrdemTarefasHome,
     tarefaAtrasada,
+    tarefaMaisUrgente,
     urlAssinadaAnexoTarefa,
     validarArquivoAnexoTarefa,
     podeRemoverAnexoTarefa,
@@ -74,8 +70,6 @@ import { supabase } from '../../lib/supabase'
 import { SelectDropdown } from '../../components/ui/Dropdown.jsx'
 import './Home.css'
 
-// Emerzap: painel de atendimento WhatsApp (app separado, com login próprio). Override com VITE_EMERZAP_URL.
-const EMERZAP_URL = String(import.meta.env?.VITE_EMERZAP_URL || 'https://zap.emerlab.com.br').replace(/\/+$/, '')
 
 const FILTRO_TAREFAS = [
     { id: 'abertas', label: 'Abertas', labelCurto: 'Abertas' },
@@ -97,8 +91,6 @@ const Home = () => {
     const [erro, setErro] = useState('')
     const [avisoTarefas, setAvisoTarefas] = useState('')
 
-    const [favoritosIds, setFavoritosIds] = useState([])
-    const [editandoFavoritos, setEditandoFavoritos] = useState(false)
 
     const [tarefas, setTarefas] = useState([])
     const [ordemTarefas, setOrdemTarefas] = useState([])
@@ -154,24 +146,12 @@ const Home = () => {
     const podeContratos = podeLerFerramenta(permissions, 'contratos.clicksign')
     const podePagamentos = hasPermission(profile, PERMISSION_KEYS.PAGAMENTOS_VIEW)
 
-    const catalogoFavoritosPorGrupo = useMemo(
-        () => listarPaginasFavoritaveisPorGrupo(permissions),
-        [permissions],
-    )
-
-    const favoritos = useMemo(() => {
-        const resolvidos = resolverFavoritosComMeta(userId, permissions)
-        if (resolvidos.length) return resolvidos
-        return favoritosPadraoSugeridos(permissions)
-    }, [userId, permissions, favoritosIds])
-
     const carregarTudo = useCallback(async () => {
         setLoading(true)
         setErro('')
         try {
             const { data: userData } = await supabase.auth.getSession()
             const uid = userData?.session?.user?.id || userId
-            if (uid) setFavoritosIds(lerFavoritosHome(uid))
 
             const jobs = []
 
@@ -561,17 +541,62 @@ const Home = () => {
         [tarefas, userId],
     )
 
+    // Quantas tarefas cabem por página: em telas largas, o que sobra de altura depois do cabeçalho e da primeira
+    // linha de cartões, para a dash caber na janela sem rolar. Em telas estreitas vale o padrão.
+    const [porPagina, setPorPagina] = useState(TAREFAS_POR_PAGINA)
+    useEffect(() => {
+        let raf = 0
+        const medir = () => {
+            const fold = document.querySelector('.home_dash_fold')
+            const r1 = document.querySelector('.home_dash_r1')
+            if (!fold || !r1 || window.innerWidth <= 1100) {
+                setPorPagina(TAREFAS_POR_PAGINA)
+                return
+            }
+            const topo = fold.getBoundingClientRect().top + window.scrollY
+            const disponivel = window.innerHeight - topo - r1.offsetHeight - 14 - 16 - 24
+            const card = document.querySelector('.home_dash_card--tarefas')
+            const lista = card?.querySelector('.home_dash_tarefa_lista')
+            const itens = lista ? [...lista.children] : []
+            const alturaLinha = itens.length ? Math.min(...itens.map((li) => li.offsetHeight)) + 5 : 44
+            // altura fixa do cartão fora da lista: soma dos blocos (sem contar o espaço vazio que o cartão estica)
+            let cabecalho = 230
+            if (card && lista) {
+                const cs = window.getComputedStyle(card)
+                const blocos = [...card.children].filter((el) => el !== lista)
+                cabecalho =
+                    parseFloat(cs.paddingTop) +
+                    parseFloat(cs.paddingBottom) +
+                    blocos.reduce((s, el) => s + el.offsetHeight, 0) +
+                    blocos.length * 12
+            }
+            const pager = card?.querySelector('.home_dash_tarefa_paginacao') ? 0 : 52
+            const n = Math.floor((disponivel - cabecalho - pager) / alturaLinha)
+            setPorPagina(Math.min(TAREFAS_POR_PAGINA, Math.max(3, n)))
+        }
+        const agendar = () => {
+            window.cancelAnimationFrame(raf)
+            raf = window.requestAnimationFrame(medir)
+        }
+        agendar()
+        window.addEventListener('resize', agendar)
+        return () => {
+            window.cancelAnimationFrame(raf)
+            window.removeEventListener('resize', agendar)
+        }
+    }, [loading, tarefas.length])
+
     const totalPaginasTarefas = Math.max(
         1,
-        Math.ceil(tarefasFiltradas.length / TAREFAS_POR_PAGINA),
+        Math.ceil(tarefasFiltradas.length / porPagina),
     )
 
     const paginaTarefasSafe = Math.min(paginaTarefas, totalPaginasTarefas)
 
     const tarefasPagina = useMemo(() => {
-        const inicio = (paginaTarefasSafe - 1) * TAREFAS_POR_PAGINA
-        return tarefasFiltradas.slice(inicio, inicio + TAREFAS_POR_PAGINA)
-    }, [tarefasFiltradas, paginaTarefasSafe])
+        const inicio = (paginaTarefasSafe - 1) * porPagina
+        return tarefasFiltradas.slice(inicio, inicio + porPagina)
+    }, [tarefasFiltradas, paginaTarefasSafe, porPagina])
 
     useEffect(() => {
         setPaginaTarefas(1)
@@ -582,12 +607,6 @@ const Home = () => {
             setPaginaTarefas(totalPaginasTarefas)
         }
     }, [paginaTarefas, totalPaginasTarefas])
-
-    const onToggleFavorito = (toolId) => {
-        if (!userId) return
-        const next = alternarFavoritoHome(userId, toolId)
-        setFavoritosIds(next)
-    }
 
     const onToggleExpandirTarefa = (id) => {
         setTarefasExpandidas((prev) => {
@@ -601,6 +620,12 @@ const Home = () => {
     const abrirTarefaDaNotificacao = (tarefaId) => {
         const id = String(tarefaId || '')
         if (!id) return
+        // abre a própria tarefa notificada; se ela não estiver carregada, cai no comportamento da lista
+        const alvo = (tarefas || []).find((x) => String(x.id) === id)
+        if (alvo) {
+            abrirModalEditarTarefa(alvo)
+            return
+        }
         setFiltroTarefas('todas')
         setBuscaTarefa('')
         setTarefasExpandidas((prev) => {
@@ -992,6 +1017,16 @@ const Home = () => {
         [tarefas, userId],
     )
 
+    const dataHoje = useMemo(() => {
+        const s = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+        return s.charAt(0).toUpperCase() + s.slice(1)
+    }, [])
+    const tarefaAgora = useMemo(() => tarefaMaisUrgente(tarefas, userId), [tarefas, userId])
+    // gráfico de credenciamento: só para Credenciamento e Gerenciamento
+    const mostrarGraficoCred =
+        hasPermission(profile, PERMISSION_KEYS.CREDENCIAMENTO_VIEW) ||
+        hasPermission(profile, PERMISSION_KEYS.ACCESS_MANAGE)
+
     const notifEnvelopes = envelopesAtualizacoes.length
     const notifTarefasParaMim = tarefasParaMim.length
     const notifMensagensCount = notifMensagensTarefas.reduce(
@@ -1028,9 +1063,10 @@ const Home = () => {
     return (
         <div className={`el-page home_dash${temNotificacoes ? ' home_dash--tem-notif' : ''}`}>
             {podeSyncOutlook ? <OutlookTarefaSyncBridge onBind={bindSyncOutlook} /> : null}
+            <div className="home_dash_tela">
             <header className="home_dash_hero_wrap mb-4 border-b border-line/60 pb-3 text-center dark:border-white/10 sm:text-left xl:mb-6 xl:pb-5">
                 <p className="mb-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">Início</p>
-                <h1 className="font-sans text-[1.55rem] font-extrabold leading-tight tracking-tight text-[#123e59] dark:text-[#e8f1f8] md:text-[1.75rem] xl:text-[2.1rem]">
+                <h1 className="font-display text-[1.55rem] font-extrabold leading-tight tracking-tight text-[#123e59] dark:text-[#e8f1f8] md:text-[1.75rem] xl:text-[2.1rem]">
                     Olá, {loading ? '…' : primeiroNome}
                 </h1>
                 <p className="mt-1.5 text-sm font-medium leading-relaxed text-ink-soft dark:text-[#9eb4c8] xl:mt-2 xl:text-[0.98rem]">
@@ -1038,6 +1074,25 @@ const Home = () => {
                         ? 'O seu acesso neste EmerLAB é ao EmerMarketing.'
                         : 'O que faremos hoje?'}
                 </p>
+                <div className="home_dash_hero_lado">
+                    <p className="home_dash_hero_data">{dataHoje}</p>
+                    <div className="home_dash_hero_conta">
+                        <button type="button" className="home_dash_conta_btn" onClick={() => void pedirRedefinicaoDeSenha()}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <rect x="5" y="10.5" width="14" height="9.5" rx="2" />
+                                <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
+                            </svg>
+                            Redefinir senha
+                        </button>
+                        <button type="button" className="home_dash_conta_btn is-sair" onClick={() => void sairDaConta(navigate)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="M10 4.5H6.5a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1H10" />
+                                <path d="M14.5 8.5 18 12l-3.5 3.5M18 12H9.5" />
+                            </svg>
+                            Sair
+                        </button>
+                    </div>
+                </div>
             </header>
 
             {erro ? <div className="home_dash_alerta is-erro">{erro}</div> : null}
@@ -1068,573 +1123,21 @@ const Home = () => {
             {/* Contas só-marketing: sem favoritos, tarefas nem resto do dashboard EmerLAB */}
             {!soEmerMarketing ? (
             <>
-            {/* Apps externos: EmerMarketing (com permissão) e Emerzap (login próprio, para toda conta EmerLAB) */}
-            <section className="home_dash_bookmarks home_dash_apps" aria-label="Apps">
-                    <div className="home_dash_bookmarks_bar">
-                        <div className="home_dash_bookmarks_top">
-                            <span className="home_dash_bookmarks_label" title="Apps">
-                                <span aria-hidden="true">↗</span>
-                                <span className="home_dash_bookmarks_label_txt">Apps</span>
-                            </span>
+            <div className="home_dash_fold">
+                <div className="home_dash_r1">
+                    <HomeAgoraCard
+                        tarefa={tarefaAgora}
+                        carregando={loading}
+                        onAbrir={abrirModalEditarTarefa}
+                        onNova={abrirModalNovaTarefa}
+                    />
+                    <section className="home_dash_card home_dash_card--agenda" aria-label="Agenda Outlook">
+                        <div className="home_dash_card_head">
+                            <h2>Agenda</h2>
+                            <span className="home_dash_pill">Outlook</span>
                         </div>
-                        <div className="home_dash_bookmarks_track">
-                            {usuarioPodeAbrirEmerMarketing(permissions) ? (
-                                <a
-                                    className="home_dash_bookmark home_dash_bookmark_ext"
-                                    href={linkMarketing}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    title="Abrir EmerMarketing (marketing.emerlab.com.br)"
-                                >
-                                    <span className="home_dash_bookmark_ico" aria-hidden="true">
-                                        M
-                                    </span>
-                                    <span className="home_dash_bookmark_txt">EmerMarketing</span>
-                                </a>
-                            ) : null}
-                            <a
-                                className="home_dash_bookmark home_dash_bookmark_ext"
-                                href={EMERZAP_URL}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title={`Abrir Emerzap, atendimento WhatsApp (${EMERZAP_URL.replace(/^https?:\/\//, '')})`}
-                            >
-                                <span className="home_dash_bookmark_ico" aria-hidden="true">
-                                    Z
-                                </span>
-                                <span className="home_dash_bookmark_txt">Emerzap</span>
-                            </a>
-                        </div>
-                    </div>
-                </section>
-
-            <section className="home_dash_bookmarks" aria-label="Favoritos">
-                <div className="home_dash_bookmarks_bar">
-                    <div className="home_dash_bookmarks_top">
-                        <span className="home_dash_bookmarks_label" title="Favoritos">
-                            <span aria-hidden="true">★</span>
-                            <span className="home_dash_bookmarks_label_txt">Favoritos</span>
-                        </span>
-                        <button
-                            type="button"
-                            className="home_dash_btn secondary home_dash_bookmarks_edit"
-                            onClick={() => setEditandoFavoritos((v) => !v)}
-                            aria-label={editandoFavoritos ? 'Concluir edição de favoritos' : 'Editar favoritos'}
-                            title={editandoFavoritos ? 'Pronto' : 'Editar'}
-                        >
-                            {editandoFavoritos ? (
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2.25"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    aria-hidden="true"
-                                >
-                                    <path d="M5 12.5 10 17.5 19 7.5" />
-                                </svg>
-                            ) : (
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    aria-hidden="true"
-                                >
-                                    <path d="M12 20h9" />
-                                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                                </svg>
-                            )}
-                        </button>
-                    </div>
-                    {!editandoFavoritos ? (
-                        <div className="home_dash_bookmarks_track">
-                            {favoritos.map((f) => (
-                                <Link
-                                    key={f.id}
-                                    className="home_dash_bookmark"
-                                    to={f.href}
-                                    title={`${f.label} · ${f.grupo}`}
-                                >
-                                    <span className="home_dash_bookmark_ico" aria-hidden="true">
-                                        {(f.label || '?').trim().charAt(0).toUpperCase()}
-                                    </span>
-                                    <span className="home_dash_bookmark_txt">{f.label}</span>
-                                </Link>
-                            ))}
-                            {!favoritos.length ? (
-                                <span className="home_dash_bookmarks_empty">
-                                    Nenhum favorito — toque no ícone de editar
-                                </span>
-                            ) : null}
-                        </div>
-                    ) : (
-                        <div className="home_dash_bookmarks_edit_hint">
-                            Marque as páginas abaixo
-                        </div>
-                    )}
-                </div>
-                {editandoFavoritos ? (
-                    <div className="home_dash_fav_edit">
-                        {catalogoFavoritosPorGrupo.map((grupo) => (
-                            <section
-                                key={grupo.id}
-                                className="home_dash_fav_edit_grupo"
-                                aria-label={grupo.label}
-                            >
-                                <h3 className="home_dash_fav_edit_grupo_tit">{grupo.label}</h3>
-                                <ul>
-                                    {grupo.itens.map((p) => {
-                                        const marcado = favoritosIds.includes(p.id)
-                                        return (
-                                            <li key={p.id}>
-                                                <label>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={marcado}
-                                                        onChange={() => onToggleFavorito(p.id)}
-                                                    />
-                                                    <span>
-                                                        <strong>{p.label}</strong>
-                                                    </span>
-                                                </label>
-                                            </li>
-                                        )
-                                    })}
-                                </ul>
-                            </section>
-                        ))}
-                        {!catalogoFavoritosPorGrupo.length ? (
-                            <p className="home_dash_muted">
-                                Nenhuma página disponível para favoritar.
-                            </p>
-                        ) : null}
-                    </div>
-                ) : null}
-            </section>
-
-            <section
-                className={`home_dash_grid${temNotificacoes ? ' home_dash_grid--com-notif' : ''}`}
-            >
-                <div className="home_dash_col home_dash_col_main">
-                    <section className="home_dash_card home_dash_card--tarefas" aria-label="Afazeres">
-                        <div className="home_dash_card_head home_dash_card_head--tarefas">
-                            <h2>Afazeres</h2>
-                            <div className="home_dash_card_head_actions">
-                                <AfazeresCalendarioBtn
-                                    tarefas={tarefasExportaveis}
-                                    onErro={(msg) => {
-                                        setAvisoTarefas('')
-                                        setErro(msg)
-                                    }}
-                                    onOk={(msg) => {
-                                        setErro('')
-                                        setAvisoTarefas(msg)
-                                    }}
-                                />
-                                <button
-                                    type="button"
-                                    className="home_dash_btn home_dash_btn--nova_tarefa"
-                                    onClick={abrirModalNovaTarefa}
-                                >
-                                    <span className="home_dash_btn_nova_full">Nova tarefa</span>
-                                    <span className="home_dash_btn_nova_short" aria-hidden="true">
-                                        + Nova
-                                    </span>
-                                </button>
-                            </div>
-                        </div>
-                        <div className="home_dash_tabs" role="tablist" aria-label="Filtros de afazeres">
-                            {FILTRO_TAREFAS.map((f) => (
-                                <button
-                                    key={f.id}
-                                    type="button"
-                                    role="tab"
-                                    className={filtroTarefas === f.id ? 'is-active' : ''}
-                                    onClick={() => setFiltroTarefas(f.id)}
-                                    aria-label={`${f.label}: ${contagensFiltro[f.id] ?? 0}`}
-                                >
-                                    <span className="home_dash_tab_label_full">{f.label}</span>
-                                    <span className="home_dash_tab_label_short" aria-hidden="true">
-                                        {f.labelCurto}
-                                    </span>
-                                    <span className="home_dash_tab_count">
-                                        {contagensFiltro[f.id] ?? 0}
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
-
-                        <label className="home_dash_tarefa_filtro_wrap">
-                            <span className="home_dash_tarefa_filtro_label">Filtrar</span>
-                            <SelectDropdown
-                                className="home_dash_input home_dash_tarefa_filtro_select"
-                                value={filtroTarefas}
-                                onChange={(e) => setFiltroTarefas(e.target.value)}
-                                aria-label="Filtro de afazeres"
-                            >
-                                {FILTRO_TAREFAS.map((f) => (
-                                    <option key={f.id} value={f.id}>
-                                        {f.label} ({contagensFiltro[f.id] ?? 0})
-                                    </option>
-                                ))}
-                            </SelectDropdown>
-                        </label>
-
-                        <div className="home_dash_tarefa_toolbar">
-                            <input
-                                type="search"
-                                className="home_dash_input home_dash_tarefa_busca"
-                                placeholder="Pesquisar tarefas…"
-                                value={buscaTarefa}
-                                onChange={(e) => setBuscaTarefa(e.target.value)}
-                                aria-label="Pesquisar tarefas"
-                            />
-                        </div>
-
-                        {loading && !tarefas.length ? (
-                            <p className="home_dash_muted">Carregando afazeres…</p>
-                        ) : tarefasFiltradas.length === 0 ? (
-                            <p className="home_dash_muted">
-                                {buscaTarefa.trim()
-                                    ? 'Nenhuma tarefa encontrada na pesquisa.'
-                                    : 'Nenhuma tarefa neste filtro.'}
-                            </p>
-                        ) : (
-                            <>
-                            <ul className="home_dash_tarefa_lista">
-                                {tarefasPagina.map((t) => {
-                                    const expandida = tarefasExpandidas.has(t.id)
-                                    const temObs = Boolean(String(t.observacoes || '').trim())
-                                    const isDragging = String(dragTarefaId) === String(t.id)
-                                    const isDragOver =
-                                        String(dragOverTarefaId) === String(t.id) &&
-                                        String(dragTarefaId) !== String(t.id)
-                                    return (
-                                        <li
-                                            key={t.id}
-                                            id={`home-tarefa-${t.id}`}
-                                            className={`home_dash_tarefa_item pri-${t.prioridade}${tarefaAtrasada(t) ? ' is-atrasada' : ''}${t.status === 'concluida' ? ' is-done' : ''}${expandida ? ' is-open' : ''}${isDragging ? ' is-dragging' : ''}${isDragOver ? ' is-drag-over' : ''}`}
-                                            draggable
-                                            onDragStart={(e) => {
-                                                dragMovedRef.current = false
-                                                setDragTarefaId(t.id)
-                                                e.dataTransfer.effectAllowed = 'move'
-                                                e.dataTransfer.setData('text/plain', String(t.id))
-                                            }}
-                                            onDragOver={(e) => {
-                                                e.preventDefault()
-                                                e.dataTransfer.dropEffect = 'move'
-                                                if (String(dragTarefaId) && String(dragTarefaId) !== String(t.id)) {
-                                                    dragMovedRef.current = true
-                                                }
-                                                if (String(dragOverTarefaId) !== String(t.id)) {
-                                                    setDragOverTarefaId(t.id)
-                                                }
-                                            }}
-                                            onDragLeave={() => {
-                                                if (String(dragOverTarefaId) === String(t.id)) {
-                                                    setDragOverTarefaId(null)
-                                                }
-                                            }}
-                                            onDrop={(e) => {
-                                                e.preventDefault()
-                                                dragMovedRef.current = true
-                                                const dragId =
-                                                    e.dataTransfer.getData('text/plain') ||
-                                                    dragTarefaId
-                                                onReordenarTarefa(dragId, t.id)
-                                                setDragTarefaId(null)
-                                                setDragOverTarefaId(null)
-                                            }}
-                                            onDragEnd={() => {
-                                                setDragTarefaId(null)
-                                                setDragOverTarefaId(null)
-                                            }}
-                                            onClick={() => {
-                                                if (dragMovedRef.current) {
-                                                    dragMovedRef.current = false
-                                                    return
-                                                }
-                                                onToggleExpandirTarefa(t.id)
-                                            }}
-                                            role="button"
-                                            tabIndex={0}
-                                            aria-expanded={expandida}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                    e.preventDefault()
-                                                    onToggleExpandirTarefa(t.id)
-                                                }
-                                            }}
-                                        >
-                                            <div className="home_dash_tarefa_row">
-                                                <span
-                                                    className="home_dash_tarefa_drag"
-                                                    title="Arrastar para reordenar"
-                                                    aria-hidden="true"
-                                                >
-                                                    ⋮⋮
-                                                </span>
-                                                <span
-                                                    className="home_dash_tarefa_expand"
-                                                    aria-hidden="true"
-                                                >
-                                                    {expandida ? '▾' : '▸'}
-                                                </span>
-                                                <div className="home_dash_tarefa_body">
-                                                    <div className="home_dash_tarefa_top">
-                                                        <strong>{t.titulo}</strong>
-                                                        <span
-                                                            className={`home_dash_pill status-${t.status}`}
-                                                        >
-                                                            {STATUS_TAREFA.find(
-                                                                (s) => s.value === t.status,
-                                                            )?.label || t.status}
-                                                        </span>
-                                                    </div>
-                                                    {expandida ? (
-                                                        <>
-                                                            <div className="home_dash_tarefa_meta">
-                                                                <span>
-                                                                    Prazo:{' '}
-                                                                    {formatarPrazoTarefa(t.prazo, t.horario)}
-                                                                </span>
-                                                                <span>Para: {t.atribuidoNome}</span>
-                                                                <span>Por: {t.criadorNome}</span>
-                                                            </div>
-                                                            {temObs ? (
-                                                                <p className="home_dash_tarefa_obs">
-                                                                    {t.observacoes}
-                                                                </p>
-                                                            ) : null}
-                                                            {t.resolucao ? (
-                                                                <p className="home_dash_tarefa_resolucao">
-                                                                    <strong>Resolução:</strong>{' '}
-                                                                    {t.resolucao}
-                                                                </p>
-                                                            ) : null}
-                                                            <div
-                                                                className={`home_dash_tarefa_anexos home_dash_tarefa_anexos--lista${
-                                                                    String(anexoDragOverTarefaId) ===
-                                                                    String(t.id)
-                                                                        ? ' is-dragover'
-                                                                        : ''
-                                                                }`}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                                onKeyDown={(e) => e.stopPropagation()}
-                                                                onDragEnter={(e) =>
-                                                                    onDragEnterAnexosTarefa(e, t)
-                                                                }
-                                                                onDragOver={onDragOverAnexosTarefa}
-                                                                onDragLeave={onDragLeaveAnexosTarefa}
-                                                                onDrop={(e) => onDropAnexosTarefa(e, t)}
-                                                            >
-                                                                {(t.anexos || []).length > 0 ? (
-                                                                    <ul className="home_dash_tarefa_anexo_lista">
-                                                                        {(t.anexos || []).map((a) => {
-                                                                            const podeRemover = podeRemoverAnexoTarefa(
-                                                                                a,
-                                                                                t,
-                                                                                userId,
-                                                                            )
-                                                                            return (
-                                                                            <li key={a.storage_path}>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    className="home_dash_tarefa_anexo_link"
-                                                                                    onClick={() =>
-                                                                                        void onBaixarAnexoTarefa(a)
-                                                                                    }
-                                                                                    title="Abrir anexo"
-                                                                                >
-                                                                                    {a.nome_arquivo}
-                                                                                </button>
-                                                                                {podeRemover ? (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    className="home_dash_btn ghost"
-                                                                                    disabled={
-                                                                                        anexoBusyId === t.id
-                                                                                    }
-                                                                                    onClick={() =>
-                                                                                        void onRemoverAnexoTarefa(
-                                                                                            t,
-                                                                                            a.storage_path,
-                                                                                        )
-                                                                                    }
-                                                                                >
-                                                                                    Remover
-                                                                                </button>
-                                                                                ) : null}
-                                                                            </li>
-                                                                            )
-                                                                        })}
-                                                                    </ul>
-                                                                ) : (
-                                                                    <p className="home_dash_tarefa_anexos_vazio">
-                                                                        Sem anexos
-                                                                    </p>
-                                                                )}
-                                                                {(t.anexos || []).length <
-                                                                MAX_ANEXOS_TAREFA ? (
-                                                                    <label className="home_dash_tarefa_anexo_add">
-                                                                        <input
-                                                                            type="file"
-                                                                            multiple
-                                                                            disabled={anexoBusyId === t.id}
-                                                                            onChange={(e) => {
-                                                                                void onAnexarNaTarefaExistente(
-                                                                                    t,
-                                                                                    e.target.files,
-                                                                                )
-                                                                                e.target.value = ''
-                                                                            }}
-                                                                        />
-                                                                        <span>
-                                                                            {anexoBusyId === t.id
-                                                                                ? 'Enviando…'
-                                                                                : String(anexoDragOverTarefaId) ===
-                                                                                    String(t.id)
-                                                                                  ? 'Solte para anexar'
-                                                                                  : 'Anexar ou arrastar arquivo'}
-                                                                        </span>
-                                                                    </label>
-                                                                ) : null}
-                                                            </div>
-                                                            <HomeTarefaChat
-                                                                tarefaId={t.id}
-                                                                userId={userId}
-                                                                ativo={expandida}
-                                                                onErro={setErro}
-                                                                onMensagensLidas={refreshNotifMensagens}
-                                                            />
-                                                            <div
-                                                                className="home_dash_tarefa_acoes"
-                                                                onClick={(e) => e.stopPropagation()}
-                                                                onKeyDown={(e) =>
-                                                                    e.stopPropagation()
-                                                                }
-                                                            >
-                                                                {t.status !== 'concluida' ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        className="home_dash_btn secondary"
-                                                                        onClick={() =>
-                                                                            abrirModalConcluirTarefa(t)
-                                                                        }
-                                                                    >
-                                                                        Concluir
-                                                                    </button>
-                                                                ) : null}
-                                                                {t.status === 'pendente' ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        className="home_dash_btn secondary"
-                                                                        onClick={() =>
-                                                                            void onStatusTarefa(
-                                                                                t,
-                                                                                'em_andamento',
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        Em andamento
-                                                                    </button>
-                                                                ) : null}
-                                                                {t.status === 'concluida' ||
-                                                                t.status === 'cancelada' ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        className="home_dash_btn secondary"
-                                                                        onClick={() =>
-                                                                            void onStatusTarefa(
-                                                                                t,
-                                                                                'pendente',
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        Reabrir
-                                                                    </button>
-                                                                ) : null}
-                                                                <button
-                                                                    type="button"
-                                                                    className="home_dash_btn secondary"
-                                                                    onClick={() =>
-                                                                        abrirModalEditarTarefa(t)
-                                                                    }
-                                                                >
-                                                                    Editar
-                                                                </button>
-                                                                {t.criadoPor === userId ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        className="home_dash_btn ghost"
-                                                                        onClick={() => onExcluirTarefa(t)}
-                                                                    >
-                                                                        Excluir
-                                                                    </button>
-                                                                ) : null}
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <div className="home_dash_tarefa_meta home_dash_tarefa_meta--compact">
-                                                            <span>
-                                                                Prazo: {formatarPrazoTarefa(t.prazo, t.horario)}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </li>
-                                    )
-                                })}
-                            </ul>
-                            {tarefasFiltradas.length > TAREFAS_POR_PAGINA ? (
-                                <div className="home_dash_tarefa_paginacao">
-                                    <button
-                                        type="button"
-                                        className="home_dash_btn secondary"
-                                        disabled={paginaTarefasSafe <= 1}
-                                        onClick={() =>
-                                            setPaginaTarefas((p) => Math.max(1, p - 1))
-                                        }
-                                    >
-                                        Anterior
-                                    </button>
-                                    <span className="home_dash_tarefa_pagina_info">
-                                        Página {paginaTarefasSafe} de {totalPaginasTarefas}
-                                        <small>
-                                            {' '}
-                                            ({tarefasFiltradas.length}{' '}
-                                            {tarefasFiltradas.length === 1
-                                                ? 'tarefa'
-                                                : 'tarefas'}
-                                            )
-                                        </small>
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className="home_dash_btn secondary"
-                                        disabled={paginaTarefasSafe >= totalPaginasTarefas}
-                                        onClick={() =>
-                                            setPaginaTarefas((p) =>
-                                                Math.min(totalPaginasTarefas, p + 1),
-                                            )
-                                        }
-                                    >
-                                        Próxima
-                                    </button>
-                                </div>
-                            ) : null}
-                            </>
-                        )}
+                        <OutlookAgendaCard />
                     </section>
-                </div>
-
-                <div className="home_dash_col home_dash_col_side">
                     <section className="home_dash_card home_dash_card--notifs" aria-label="Notificações">
                         <div className="home_dash_card_head">
                             <h2>
@@ -1928,16 +1431,428 @@ const Home = () => {
                             </div>
                         )}
                     </section>
-
-                    <section className="home_dash_card home_dash_card--agenda" aria-label="Agenda Outlook">
-                        <div className="home_dash_card_head">
-                            <h2>Agenda</h2>
-                            <span className="home_dash_pill">Outlook</span>
-                        </div>
-                        <OutlookAgendaCard />
-                    </section>
                 </div>
-            </section>
+                <div className="home_dash_r2">
+                    <section className="home_dash_card home_dash_card--tarefas" aria-label="Afazeres">
+                        <div className="home_dash_card_head home_dash_card_head--tarefas">
+                            <h2>Afazeres</h2>
+                            <div className="home_dash_card_head_actions">
+                                <AfazeresCalendarioBtn
+                                    tarefas={tarefasExportaveis}
+                                    onErro={(msg) => {
+                                        setAvisoTarefas('')
+                                        setErro(msg)
+                                    }}
+                                    onOk={(msg) => {
+                                        setErro('')
+                                        setAvisoTarefas(msg)
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    className="home_dash_btn home_dash_btn--nova_tarefa"
+                                    onClick={abrirModalNovaTarefa}
+                                >
+                                    <span className="home_dash_btn_nova_full">Nova tarefa</span>
+                                    <span className="home_dash_btn_nova_short" aria-hidden="true">
+                                        + Nova
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                        <div className="home_dash_tabs" role="tablist" aria-label="Filtros de afazeres">
+                            {FILTRO_TAREFAS.map((f) => (
+                                <button
+                                    key={f.id}
+                                    type="button"
+                                    role="tab"
+                                    className={filtroTarefas === f.id ? 'is-active' : ''}
+                                    onClick={() => setFiltroTarefas(f.id)}
+                                    aria-label={`${f.label}: ${contagensFiltro[f.id] ?? 0}`}
+                                >
+                                    <span className="home_dash_tab_label_full">{f.label}</span>
+                                    <span className="home_dash_tab_label_short" aria-hidden="true">
+                                        {f.labelCurto}
+                                    </span>
+                                    <span className="home_dash_tab_count">
+                                        {contagensFiltro[f.id] ?? 0}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <label className="home_dash_tarefa_filtro_wrap">
+                            <span className="home_dash_tarefa_filtro_label">Filtrar</span>
+                            <SelectDropdown
+                                className="home_dash_input home_dash_tarefa_filtro_select"
+                                value={filtroTarefas}
+                                onChange={(e) => setFiltroTarefas(e.target.value)}
+                                aria-label="Filtro de afazeres"
+                            >
+                                {FILTRO_TAREFAS.map((f) => (
+                                    <option key={f.id} value={f.id}>
+                                        {f.label} ({contagensFiltro[f.id] ?? 0})
+                                    </option>
+                                ))}
+                            </SelectDropdown>
+                        </label>
+
+                        <div className="home_dash_tarefa_toolbar">
+                            <input
+                                type="search"
+                                className="home_dash_input home_dash_tarefa_busca"
+                                placeholder="Pesquisar tarefas…"
+                                value={buscaTarefa}
+                                onChange={(e) => setBuscaTarefa(e.target.value)}
+                                aria-label="Pesquisar tarefas"
+                            />
+                        </div>
+
+                        {loading && !tarefas.length ? (
+                            <p className="home_dash_muted">Carregando afazeres…</p>
+                        ) : tarefasFiltradas.length === 0 ? (
+                            <p className="home_dash_muted">
+                                {buscaTarefa.trim()
+                                    ? 'Nenhuma tarefa encontrada na pesquisa.'
+                                    : 'Nenhuma tarefa neste filtro.'}
+                            </p>
+                        ) : (
+                            <>
+                            <ul className="home_dash_tarefa_lista">
+                                {tarefasPagina.map((t) => {
+                                    const expandida = tarefasExpandidas.has(t.id)
+                                    const temObs = Boolean(String(t.observacoes || '').trim())
+                                    const isDragging = String(dragTarefaId) === String(t.id)
+                                    const isDragOver =
+                                        String(dragOverTarefaId) === String(t.id) &&
+                                        String(dragTarefaId) !== String(t.id)
+                                    return (
+                                        <li
+                                            key={t.id}
+                                            id={`home-tarefa-${t.id}`}
+                                            className={`home_dash_tarefa_item pri-${t.prioridade}${tarefaAtrasada(t) ? ' is-atrasada' : ''}${t.status === 'concluida' ? ' is-done' : ''}${expandida ? ' is-open' : ''}${isDragging ? ' is-dragging' : ''}${isDragOver ? ' is-drag-over' : ''}`}
+                                            draggable
+                                            onDragStart={(e) => {
+                                                dragMovedRef.current = false
+                                                setDragTarefaId(t.id)
+                                                e.dataTransfer.effectAllowed = 'move'
+                                                e.dataTransfer.setData('text/plain', String(t.id))
+                                            }}
+                                            onDragOver={(e) => {
+                                                e.preventDefault()
+                                                e.dataTransfer.dropEffect = 'move'
+                                                if (String(dragTarefaId) && String(dragTarefaId) !== String(t.id)) {
+                                                    dragMovedRef.current = true
+                                                }
+                                                if (String(dragOverTarefaId) !== String(t.id)) {
+                                                    setDragOverTarefaId(t.id)
+                                                }
+                                            }}
+                                            onDragLeave={() => {
+                                                if (String(dragOverTarefaId) === String(t.id)) {
+                                                    setDragOverTarefaId(null)
+                                                }
+                                            }}
+                                            onDrop={(e) => {
+                                                e.preventDefault()
+                                                dragMovedRef.current = true
+                                                const dragId =
+                                                    e.dataTransfer.getData('text/plain') ||
+                                                    dragTarefaId
+                                                onReordenarTarefa(dragId, t.id)
+                                                setDragTarefaId(null)
+                                                setDragOverTarefaId(null)
+                                            }}
+                                            onDragEnd={() => {
+                                                setDragTarefaId(null)
+                                                setDragOverTarefaId(null)
+                                            }}
+                                            onClick={() => {
+                                                if (dragMovedRef.current) {
+                                                    dragMovedRef.current = false
+                                                    return
+                                                }
+                                                onToggleExpandirTarefa(t.id)
+                                            }}
+                                            role="button"
+                                            tabIndex={0}
+                                            aria-expanded={expandida}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault()
+                                                    onToggleExpandirTarefa(t.id)
+                                                }
+                                            }}
+                                        >
+                                            <div className="home_dash_tarefa_row">
+                                                <span
+                                                    className="home_dash_tarefa_drag"
+                                                    title="Arrastar para reordenar"
+                                                    aria-hidden="true"
+                                                >
+                                                    ⋮⋮
+                                                </span>
+                                                <span
+                                                    className="home_dash_tarefa_expand"
+                                                    aria-hidden="true"
+                                                >
+                                                    {expandida ? '▾' : '▸'}
+                                                </span>
+                                                <div className="home_dash_tarefa_body">
+                                                    <div className="home_dash_tarefa_top">
+                                                        <strong>{t.titulo}</strong>
+                                                        {!expandida ? (
+                                                            <span className="home_dash_tarefa_prazo_inline">
+                                                                {formatarPrazoTarefa(t.prazo, t.horario)}
+                                                            </span>
+                                                        ) : null}
+                                                        <span
+                                                            className={`home_dash_pill status-${t.status}`}
+                                                        >
+                                                            {STATUS_TAREFA.find(
+                                                                (s) => s.value === t.status,
+                                                            )?.label || t.status}
+                                                        </span>
+                                                    </div>
+                                                    {expandida ? (
+                                                        <>
+                                                            <div className="home_dash_tarefa_meta">
+                                                                <span>
+                                                                    Prazo:{' '}
+                                                                    {formatarPrazoTarefa(t.prazo, t.horario)}
+                                                                </span>
+                                                                <span>Para: {t.atribuidoNome}</span>
+                                                                <span>Por: {t.criadorNome}</span>
+                                                            </div>
+                                                            {temObs ? (
+                                                                <p className="home_dash_tarefa_obs">
+                                                                    {t.observacoes}
+                                                                </p>
+                                                            ) : null}
+                                                            {t.resolucao ? (
+                                                                <p className="home_dash_tarefa_resolucao">
+                                                                    <strong>Resolução:</strong>{' '}
+                                                                    {t.resolucao}
+                                                                </p>
+                                                            ) : null}
+                                                            <div
+                                                                className={`home_dash_tarefa_anexos home_dash_tarefa_anexos--lista${
+                                                                    String(anexoDragOverTarefaId) ===
+                                                                    String(t.id)
+                                                                        ? ' is-dragover'
+                                                                        : ''
+                                                                }`}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                onKeyDown={(e) => e.stopPropagation()}
+                                                                onDragEnter={(e) =>
+                                                                    onDragEnterAnexosTarefa(e, t)
+                                                                }
+                                                                onDragOver={onDragOverAnexosTarefa}
+                                                                onDragLeave={onDragLeaveAnexosTarefa}
+                                                                onDrop={(e) => onDropAnexosTarefa(e, t)}
+                                                            >
+                                                                {(t.anexos || []).length > 0 ? (
+                                                                    <ul className="home_dash_tarefa_anexo_lista">
+                                                                        {(t.anexos || []).map((a) => {
+                                                                            const podeRemover = podeRemoverAnexoTarefa(
+                                                                                a,
+                                                                                t,
+                                                                                userId,
+                                                                            )
+                                                                            return (
+                                                                            <li key={a.storage_path}>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="home_dash_tarefa_anexo_link"
+                                                                                    onClick={() =>
+                                                                                        void onBaixarAnexoTarefa(a)
+                                                                                    }
+                                                                                    title="Abrir anexo"
+                                                                                >
+                                                                                    {a.nome_arquivo}
+                                                                                </button>
+                                                                                {podeRemover ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="home_dash_btn ghost"
+                                                                                    disabled={
+                                                                                        anexoBusyId === t.id
+                                                                                    }
+                                                                                    onClick={() =>
+                                                                                        void onRemoverAnexoTarefa(
+                                                                                            t,
+                                                                                            a.storage_path,
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    Remover
+                                                                                </button>
+                                                                                ) : null}
+                                                                            </li>
+                                                                            )
+                                                                        })}
+                                                                    </ul>
+                                                                ) : (
+                                                                    <p className="home_dash_tarefa_anexos_vazio">
+                                                                        Sem anexos
+                                                                    </p>
+                                                                )}
+                                                                {(t.anexos || []).length <
+                                                                MAX_ANEXOS_TAREFA ? (
+                                                                    <label className="home_dash_tarefa_anexo_add">
+                                                                        <input
+                                                                            type="file"
+                                                                            multiple
+                                                                            disabled={anexoBusyId === t.id}
+                                                                            onChange={(e) => {
+                                                                                void onAnexarNaTarefaExistente(
+                                                                                    t,
+                                                                                    e.target.files,
+                                                                                )
+                                                                                e.target.value = ''
+                                                                            }}
+                                                                        />
+                                                                        <span>
+                                                                            {anexoBusyId === t.id
+                                                                                ? 'Enviando…'
+                                                                                : String(anexoDragOverTarefaId) ===
+                                                                                    String(t.id)
+                                                                                  ? 'Solte para anexar'
+                                                                                  : 'Anexar ou arrastar arquivo'}
+                                                                        </span>
+                                                                    </label>
+                                                                ) : null}
+                                                            </div>
+                                                            <HomeTarefaChat
+                                                                tarefaId={t.id}
+                                                                userId={userId}
+                                                                ativo={expandida}
+                                                                onErro={setErro}
+                                                                onMensagensLidas={refreshNotifMensagens}
+                                                            />
+                                                            <div
+                                                                className="home_dash_tarefa_acoes"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                onKeyDown={(e) =>
+                                                                    e.stopPropagation()
+                                                                }
+                                                            >
+                                                                {t.status !== 'concluida' ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="home_dash_btn secondary"
+                                                                        onClick={() =>
+                                                                            abrirModalConcluirTarefa(t)
+                                                                        }
+                                                                    >
+                                                                        Concluir
+                                                                    </button>
+                                                                ) : null}
+                                                                {t.status === 'pendente' ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="home_dash_btn secondary"
+                                                                        onClick={() =>
+                                                                            void onStatusTarefa(
+                                                                                t,
+                                                                                'em_andamento',
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        Em andamento
+                                                                    </button>
+                                                                ) : null}
+                                                                {t.status === 'concluida' ||
+                                                                t.status === 'cancelada' ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="home_dash_btn secondary"
+                                                                        onClick={() =>
+                                                                            void onStatusTarefa(
+                                                                                t,
+                                                                                'pendente',
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        Reabrir
+                                                                    </button>
+                                                                ) : null}
+                                                                <button
+                                                                    type="button"
+                                                                    className="home_dash_btn secondary"
+                                                                    onClick={() =>
+                                                                        abrirModalEditarTarefa(t)
+                                                                    }
+                                                                >
+                                                                    Editar
+                                                                </button>
+                                                                {t.criadoPor === userId ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="home_dash_btn ghost"
+                                                                        onClick={() => onExcluirTarefa(t)}
+                                                                    >
+                                                                        Excluir
+                                                                    </button>
+                                                                ) : null}
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <div className="home_dash_tarefa_meta home_dash_tarefa_meta--compact">
+                                                            <span>
+                                                                Prazo: {formatarPrazoTarefa(t.prazo, t.horario)}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </li>
+                                    )
+                                })}
+                            </ul>
+                            {tarefasFiltradas.length > porPagina ? (
+                                <div className="home_dash_tarefa_paginacao">
+                                    <button
+                                        type="button"
+                                        className="home_dash_btn secondary"
+                                        disabled={paginaTarefasSafe <= 1}
+                                        onClick={() =>
+                                            setPaginaTarefas((p) => Math.max(1, p - 1))
+                                        }
+                                    >
+                                        Anterior
+                                    </button>
+                                    <span className="home_dash_tarefa_pagina_info">
+                                        Página {paginaTarefasSafe} de {totalPaginasTarefas}
+                                        <small>
+                                            {' '}
+                                            ({tarefasFiltradas.length}{' '}
+                                            {tarefasFiltradas.length === 1
+                                                ? 'tarefa'
+                                                : 'tarefas'}
+                                            )
+                                        </small>
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="home_dash_btn secondary"
+                                        disabled={paginaTarefasSafe >= totalPaginasTarefas}
+                                        onClick={() =>
+                                            setPaginaTarefas((p) =>
+                                                Math.min(totalPaginasTarefas, p + 1),
+                                            )
+                                        }
+                                    >
+                                        Próxima
+                                    </button>
+                                </div>
+                            ) : null}
+                            </>
+                        )}
+                    </section>
+                    {mostrarGraficoCred ? <HomeCredenciamentoGrafico dias={14} /> : null}
+                </div>
+            </div>
 
             {modalTarefaAberto ? (
                 <div
@@ -2299,6 +2214,8 @@ const Home = () => {
             ) : null}
             </>
             ) : null}
+
+            </div>
 
             <div className="home_dash_footer_wrap">
                 <Footer />

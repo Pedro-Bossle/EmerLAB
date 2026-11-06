@@ -117,7 +117,7 @@
 .pag_exp_acoes {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 0.75rem;
     margin-top: 4px;
 }
 

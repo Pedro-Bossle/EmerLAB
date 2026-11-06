@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import logoBranco from "../../assets/logo_branco.png";
 import logoE from "../../assets/logo_E.png";
 import {
@@ -10,10 +10,7 @@ import {
 import { getToolIdForHref } from "../../lib/permissionCatalog";
 import { SIDEBAR_GROUPS, filtrarChildrenNav } from "../../lib/navConfig";
 import { cn } from "../../lib/cn";
-import { supabase } from "../../lib/supabase";
-import { logoutSessao } from "../../lib/authSession";
 import { lerDarkModeAtivo, salvarDarkModeAtivo } from "../../lib/sidebarPrefs";
-import { avisar } from '../../lib/dialogos.js'
 import { contarPendenciasCaixa } from '../../lib/repasse/repasseApi.js'
 import { useContagensNotif } from '../../lib/notifContagens'
 
@@ -94,6 +91,32 @@ const SIDEBAR_ICONS = {
       <circle cx="18" cy="15" r="3" stroke="currentColor" strokeWidth="1.75" />
     </svg>
   ),
+  financeiro: (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3.5" y="6" width="17" height="12" rx="2" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M7 9.5v.01M17 14.5v.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
+  contratos: (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      <path d="M14 3.5V8h4M9.5 13h5M9.5 16.5h3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  extras: (
+    <svg
+      className="h-5 w-5 shrink-0"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M17 13.5v7M13.5 17h7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  ),
   configuracoes: (
     <svg
       className="h-5 w-5 shrink-0"
@@ -149,7 +172,6 @@ function grupoIdPorPathname(items, pathname) {
 }
 
 const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
-  const navigate = useNavigate();
   const { pathname } = useLocation();
   const accessProfile = useStoredAccessProfile();
   const [darkModeAtivo, setDarkModeAtivo] = useState(() => lerDarkModeAtivo());
@@ -261,55 +283,6 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
       else if (grupoAtivoId) next[grupoAtivoId] = true;
       return next;
     });
-  };
-
-  const handleLogout = async () => {
-    await logoutSessao({
-      navigate,
-      onError: () => avisar({ titulo: 'Não foi possível sair', mensagem: 'Verifique a conexão e tente de novo.' }),
-    });
-  };
-
-  const handleResetPassword = async () => {
-    const refreshed = await supabase.auth.refreshSession();
-    const session =
-      refreshed.data?.session ||
-      (await supabase.auth.getSession()).data?.session;
-    const token = session?.access_token;
-    if (!token) {
-      avisar({ titulo: 'Sua sessão expirou', mensagem: 'Entre de novo para pedir a redefinição de senha.' });
-      return;
-    }
-    try {
-      const resp = await fetch("/api/admin-users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: "resetOwnPassword",
-          redirectTo: `${window.location.origin}/alterar-senha?from=recovery`,
-        }),
-      });
-      const json = await resp.json().catch(() => ({}));
-      if (!resp.ok || json?.ok === false) {
-        throw new Error(json?.error || "Erro ao enviar redefinição de senha");
-      }
-      avisar({ titulo: 'E-mail de redefinição enviado', mensagem: 'Abra o link que chegou no seu e-mail para criar a nova senha. Confira também a caixa de spam.' });
-    } catch (error) {
-      avisar({ titulo: 'Não foi possível enviar o e-mail', mensagem: error?.message || 'Tente de novo em alguns minutos.' });
-    }
-  };
-
-  const handleAction = async (child) => {
-    if (child.action === "reset-password") {
-      await handleResetPassword();
-      return;
-    }
-    if (child.action === "logout" || child.href === "/logout") {
-      await handleLogout();
-    }
   };
 
   useEffect(() => {
@@ -438,15 +411,6 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
                           >
                             {child.label}
                           </div>
-                        ) : child.action || child.href === "/logout" ? (
-                          <button
-                            key={child.action || child.href || child.label}
-                            type="button"
-                            className="min-h-10 whitespace-nowrap rounded-lg px-2.5 text-left text-sm font-medium text-white/90 hover:bg-white/10 hover:text-white"
-                            onClick={() => handleAction(child)}
-                          >
-                            {child.label}
-                          </button>
                         ) : (
                           <Link
                             key={child.href}
@@ -482,7 +446,7 @@ const Sidebar = ({ open, onToggleManual, isPinned, onAfterNavigate }) => {
         })}
       </nav>
 
-      <div className="flex shrink-0 flex-col gap-1 border-t border-white/10 p-1.5">
+      <div className="flex shrink-0 flex-col gap-3 border-t border-white/10 p-1.5">
         <button
           type="button"
           className={cn(

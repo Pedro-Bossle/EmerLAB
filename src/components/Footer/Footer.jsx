@@ -8,9 +8,38 @@ import instagramIcon from '../../assets/instagram-ico.svg'
 import tiktokIcon from '../../assets/tiktok-ico.svg'
 import cloudIcon from '../../assets/cloud-ico.svg'
 import { lerDarkModeAtivo } from '../../lib/sidebarPrefs'
+import { useStoredAccessProfile } from '../../lib/accessControl'
+import { urlEmerMarketing, usuarioPodeAbrirEmerMarketing } from '../../lib/emermarketingAccess.js'
+
+// Emerzap: painel de atendimento WhatsApp (app separado, com login próprio). Override com VITE_EMERZAP_URL.
+const EMERZAP_URL = String(import.meta.env?.VITE_EMERZAP_URL || 'https://zap.emerlab.com.br').replace(/\/+$/, '')
+
+function IconeApp({ tipo }) {
+  const comum = { className: 'el_footer_social_svg', viewBox: '0 0 24 24', fill: 'none', 'aria-hidden': true }
+  const tra = { stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round', strokeLinejoin: 'round' }
+  if (tipo === 'tv') {
+    // TV com «E» (EmerMarketing)
+    return (
+      <svg {...comum}>
+        <rect x="3" y="5" width="18" height="12.5" rx="2.2" {...tra} />
+        <path d="M9 20.5h6" {...tra} />
+        <path d="M10.2 8.5h3.8M10.2 8.5v5.5M10.2 11.2h3M10.2 14h3.8" {...tra} strokeWidth="1.5" />
+      </svg>
+    )
+  }
+  // balão de mensagem com «E» (Emerzap)
+  return (
+    <svg {...comum}>
+      <path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-4.5 3.5V17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" {...tra} />
+      <path d="M10.2 8.2h3.8M10.2 8.2v5.2M10.2 10.8h3M10.2 13.4h3.8" {...tra} strokeWidth="1.5" />
+    </svg>
+  )
+}
 
 const Footer = () => {
   const [darkModeAtivo, setDarkModeAtivo] = useState(() => lerDarkModeAtivo())
+  const accessProfile = useStoredAccessProfile()
+  const podeMarketing = usuarioPodeAbrirEmerMarketing(accessProfile?.permissions || {})
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -30,9 +59,17 @@ const Footer = () => {
             className="el_footer_logo"
           />
           <p className="el_footer_tagline">
-            Sistema Facilitador do Setor de Credenciamentos
+            Livro de Apoio Base
           </p>
           <div className="el_footer_social" aria-label="Redes e atalhos">
+            {podeMarketing ? (
+              <a href={urlEmerMarketing()} target="_blank" rel="noreferrer" title="Abrir EmerMarketing" aria-label="EmerMarketing">
+                <IconeApp tipo="tv" />
+              </a>
+            ) : null}
+            <a href={EMERZAP_URL} target="_blank" rel="noreferrer" title="Abrir Emerzap (atendimento WhatsApp)" aria-label="Emerzap">
+              <IconeApp tipo="msg" />
+            </a>
             <a href="https://www.youtube.com/@Emerdog" target="_blank" rel="noreferrer" title="YouTube">
               <img src={youtubeIcon} alt="" className="el_footer_social_ico" />
             </a>
@@ -59,14 +96,6 @@ const Footer = () => {
         <div className="el_footer_cols">
           <div className="el_footer_col">
             <h3>Tutoriais Internos</h3>
-            <a href="#" className="el_footer_link">
-              <img src={youtubeIcon} alt="" />
-              Como usar o EmerLAB 1
-            </a>
-            <a href="#" className="el_footer_link">
-              <img src={youtubeIcon} alt="" />
-              Como usar o EmerLAB 2
-            </a>
             <a href="https://youtu.be/Stan3e_LyjM" className="el_footer_link" target="_blank" rel="noreferrer">
               <img src={youtubeIcon} alt="" />
               Adicionar Clientes e Cobranças
@@ -125,7 +154,7 @@ const Footer = () => {
 
       <p className="el_footer_copy">
         Feito por{' '}
-        <a href="https://www.linkedin.com/in/pedro-bossle-sandi-685625277" target="_blank" rel="noreferrer">
+        <a href="https://www.devbossle.com.br/" target="_blank" rel="noreferrer">
           Pedro Bossle
         </a>
       </p>

@@ -11,6 +11,7 @@
  */
 
 import { fetchComRetry, hostEhApiClicksign, hostEhArquivoClicksign, resolverBaseClicksign } from '../src/lib/clicksign/clicksignConfig.js'
+import { MENSAGEM_SEM_PERMISSAO_CLICKSIGN, clicksignPermitido } from '../src/lib/clicksign/clicksignPermissao.js'
 
 function hrefDeLink(link) {
     if (!link) return ''
@@ -100,6 +101,11 @@ export default async function handler(req, res) {
     ])
     if (auth.error) {
         res.status(auth.status || 401).json({ error: auth.error })
+        return
+    }
+
+    if (!clicksignPermitido(auth.profile, 'GET')) {
+        res.status(403).json({ error: MENSAGEM_SEM_PERMISSAO_CLICKSIGN })
         return
     }
 

@@ -625,7 +625,7 @@ button.cs_dash_metric_box:hover {
 .clicksign_detail_sig_actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
+    gap: 0.75rem;
 }
 
 .clicksign_detail_table_wrap {
@@ -929,7 +929,7 @@ button.cs_dash_metric_box:hover {
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 0;
+    gap: 0.5rem;
     flex-wrap: nowrap;
     white-space: nowrap;
 }
@@ -1514,7 +1514,7 @@ body.dark-mode .clicksign_details summary {
 .clicksign_confirm_exclusao_actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 0.75rem;
 }
 
 .clicksign_confirm_exclusao_btn {
@@ -1579,7 +1579,7 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem 0.75rem;
+    gap: 0.75rem 0.75rem;
     margin-bottom: 1rem;
     padding: 0.6rem 0.85rem;
     background: var(--cs-surface);
@@ -2283,7 +2283,7 @@ body.dark-mode .cs_details summary {
 .cs_sig_pills {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
+    gap: 0.75rem;
     margin-top: 0.25rem;
 }
 
@@ -2569,7 +2569,7 @@ body.dark-mode .cs_sign_kanban_item_nome {
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
-    gap: 0.5rem;
+    gap: 0.75rem;
     align-items: center;
 }
 
@@ -3021,7 +3021,7 @@ body.dark-mode .cs_sign_btn_outline:hover:not(:disabled) {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: var(--ek-s2, 8px);
+    gap: var(--ek-s3, 0.75rem);
 }
 
 /* —— Montar envelope: passo a passo + resumo fixo —— */
@@ -3288,7 +3288,7 @@ body.dark-mode .cs_sign_btn_outline:hover:not(:disabled) {
     .clicksign_emerdog .clicksign_detail_sig_head,
     .clicksign_emerdog .ek-page-header__actions,
     .clicksign_emerdog .cs_sig_pills {
-        gap: 8px;
+        gap: 0.75rem;
     }
 
     .ek-modal__foot {
@@ -3493,7 +3493,7 @@ body.dark-mode .cs_sign_btn_outline:hover:not(:disabled) {
     .clicksign_emerdog .clicksign_table_envelopes td.clicksign_col_acoes .clicksign_td_actions {
         width: 100%;
         justify-content: flex-end;
-        gap: 8px;
+        gap: 0.75rem;
     }
 
     .clicksign_emerdog .clicksign_table_envelopes td.clicksign_col_acoes .clicksign_td_actions > .ek-btn {
@@ -3525,7 +3525,7 @@ body.dark-mode .cs_sign_btn_outline:hover:not(:disabled) {
         max-height: 75dvh;
         padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
         border: 0;
-        border-radius: 16px 16px 0 0;
+        border-radius: 20px 20px 0 0;
         box-shadow: 0 0 0 100vmax rgba(10, 20, 32, 0.45);
     }
 
@@ -3845,7 +3845,7 @@ body.dark-mode .cs_sign_btn_outline:hover:not(:disabled) {
         max-width: none;
         max-height: 92dvh;
         margin: 0;
-        border-radius: 16px 16px 0 0;
+        border-radius: 20px 20px 0 0;
     }
 
     .cs_sign_modal .contratos_modal_head {
@@ -3861,7 +3861,7 @@ body.dark-mode .cs_sign_btn_outline:hover:not(:disabled) {
     .cs_sign_modal_foot {
         flex-direction: column-reverse;
         align-items: stretch;
-        gap: 8px;
+        gap: 0.75rem;
         padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
     }
 

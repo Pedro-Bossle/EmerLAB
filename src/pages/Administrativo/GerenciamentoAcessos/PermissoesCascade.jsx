@@ -9,6 +9,14 @@ import {
     hasAcl,
     syncLegacyFromAcl,
 } from '../../../lib/permissionCatalog'
+import {
+    aplicarNivelFerramenta,
+    aplicarNivelGrupo,
+    niveisDaFerramenta,
+    nivelDaFerramenta,
+    NIVEIS,
+    resumoGrupo,
+} from '../../../lib/permissoesNiveis'
 
 function normalizarBusca(texto) {
     return String(texto || '')
@@ -79,6 +87,7 @@ export default function PermissoesCascade({
         Object.fromEntries(catalogoBase.map((g) => [g.id, Boolean(gruposIniciaisAbertos)])),
     )
     const [busca, setBusca] = useState('')
+    const [modo, setModo] = useState('simples')
 
     useEffect(() => {
         setAbertos((prev) => {
@@ -116,6 +125,8 @@ export default function PermissoesCascade({
         })
     }, [termo, catalogoFiltrado])
 
+    const editandoASiMesmo = Boolean(usuarioId) && String(usuarioId) === String(usuarioAtualId)
+
     const expandirTodos = () => {
         setAbertos(Object.fromEntries(catalogoBase.map((g) => [g.id, true])))
     }
@@ -123,6 +134,8 @@ export default function PermissoesCascade({
     const recolherTodos = () => {
         setAbertos(Object.fromEntries(catalogoBase.map((g) => [g.id, false])))
     }
+
+    // ---------- modo avançado (matriz Ler / Adicionar / Editar / Excluir) ----------
 
     const toggleGrupo = (groupId, action) => {
         const grupo = PERMISSION_CATALOG.find((g) => g.id === groupId)
@@ -135,14 +148,32 @@ export default function PermissoesCascade({
     const toggleFerramenta = (toolId, action) => {
         const meta = PERMISSION_CATALOG.flatMap((g) => g.tools).find((t) => t.id === toolId)
         if (!meta) return
-        if (String(usuarioId) === String(usuarioAtualId) && toolId === 'admin.acessos') {
-            return
-        }
+        if (editandoASiMesmo && toolId === 'admin.acessos') return
         const ligado = hasAcl(permissions, toolId, action)
         const valor = !ligado
         let next = aplicarFerramentaAcl(permissions, toolId, action, valor)
         if (!valor && action === 'read') {
             next = aplicarDesligarLeitura(next, toolId, meta)
+        }
+        onChange(next)
+    }
+
+    // ---------- modo simples (um nível por ferramenta) ----------
+
+    const mudarNivelFerramenta = (tool, nivel) => {
+        if (editandoASiMesmo && tool.id === 'admin.acessos') return
+        onChange(aplicarNivelFerramenta(permissions, tool, nivel))
+    }
+
+    const mudarNivelGrupo = (grupo, nivel) => {
+        if (!nivel) return
+        let next = aplicarNivelGrupo(permissions, grupo, nivel)
+        if (editandoASiMesmo) {
+            // nunca tirar de si mesmo o acesso à tela de acessos
+            const admin = PERMISSION_CATALOG.flatMap((g) => g.tools).find((t) => t.id === 'admin.acessos')
+            if (grupo.tools.some((t) => t.id === 'admin.acessos') && admin) {
+                next = aplicarNivelFerramenta(next, admin, 'editar')
+            }
         }
         onChange(next)
     }
@@ -159,6 +190,24 @@ export default function PermissoesCascade({
                     aria-label='Pesquisar permissões'
                     disabled={disabled}
                 />
+                <div className='ek-segmented permissoes_cascade_modo' role='group' aria-label='Modo de edição'>
+                    <button
+                        type='button'
+                        className='ek-segmented__opt'
+                        aria-pressed={modo === 'simples'}
+                        onClick={() => setModo('simples')}
+                    >
+                        Simples
+                    </button>
+                    <button
+                        type='button'
+                        className='ek-segmented__opt'
+                        aria-pressed={modo === 'avancado'}
+                        onClick={() => setModo('avancado')}
+                    >
+                        Avançado
+                    </button>
+                </div>
                 <div className='permissoes_cascade_toolbar_btns'>
                     <button type='button' className='permissoes_cascade_toolbar_btn' onClick={expandirTodos}>
                         Expandir todos
@@ -169,14 +218,21 @@ export default function PermissoesCascade({
                 </div>
             </div>
 
-            <div className='permissoes_cascade_legenda' aria-hidden='true'>
-                <span className='permissoes_cascade_tool_col'>Ferramenta</span>
-                {ACL_ACTIONS.map((a) => (
-                    <span key={a.id} className='permissoes_cascade_acao_col'>
-                        {a.label}
-                    </span>
-                ))}
-            </div>
+            {modo === 'simples' ? (
+                <p className='permissoes_cascade_dica'>
+                    Escolha o que a pessoa pode fazer em cada ferramenta: <strong>Ver</strong> só consulta,{' '}
+                    <strong>Editar</strong> também adiciona e altera, <strong>Total</strong> inclui excluir.
+                </p>
+            ) : (
+                <div className='permissoes_cascade_legenda' aria-hidden='true'>
+                    <span className='permissoes_cascade_tool_col'>Ferramenta</span>
+                    {ACL_ACTIONS.map((a) => (
+                        <span key={a.id} className='permissoes_cascade_acao_col'>
+                            {a.label}
+                        </span>
+                    ))}
+                </div>
+            )}
 
             {!catalogoFiltrado.length ? (
                 <p className='permissoes_cascade_vazio'>Nenhuma permissão encontrada para «{busca.trim()}».</p>
@@ -184,6 +240,7 @@ export default function PermissoesCascade({
                 catalogoFiltrado.map((grupo) => {
                     const aberto = abertos[grupo.id]
                     const grupoCompleto = PERMISSION_CATALOG.find((g) => g.id === grupo.id) || grupo
+                    const resumo = resumoGrupo(permissions, grupoCompleto)
                     return (
                         <section key={grupo.id} className='permissoes_cascade_grupo'>
                             <header className='permissoes_cascade_grupo_header'>
@@ -196,55 +253,115 @@ export default function PermissoesCascade({
                                     aria-expanded={aberto}
                                 >
                                     {aberto ? '▾' : '▸'} {grupo.label}
-                                    <span className='permissoes_cascade_grupo_count'>
-                                        {grupo.tools.length}
+                                    <span
+                                        className={`permissoes_cascade_grupo_count${resumo.comAcesso ? ' is-ativo' : ''}`}
+                                        title='Ferramentas com acesso neste grupo'
+                                    >
+                                        {resumo.comAcesso}/{resumo.total}
                                     </span>
                                 </button>
-                                <div className='permissoes_cascade_grupo_acoes'>
-                                    {ACL_ACTIONS.map((acao) => {
-                                        const aplicavel = grupoCompleto.tools.some((t) =>
-                                            t.actions.includes(acao.id),
-                                        )
-                                        if (!aplicavel) {
-                                            return (
-                                                <span
-                                                    key={acao.id}
-                                                    className='permissoes_cascade_acao_col is-empty'
-                                                />
+                                {modo === 'simples' ? (
+                                    <label className='permissoes_cascade_grupo_nivel'>
+                                        <span className='sr-only'>Definir todas as ferramentas de {grupo.label} como</span>
+                                        <select
+                                            value=''
+                                            disabled={disabled}
+                                            onChange={(e) => mudarNivelGrupo(grupoCompleto, e.target.value)}
+                                            aria-label={`Definir todo o grupo ${grupo.label}`}
+                                        >
+                                            <option value=''>Definir tudo como…</option>
+                                            {NIVEIS.map((n) => (
+                                                <option key={n.id} value={n.id}>
+                                                    {n.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                ) : (
+                                    <div className='permissoes_cascade_grupo_acoes'>
+                                        {ACL_ACTIONS.map((acao) => {
+                                            const aplicavel = grupoCompleto.tools.some((t) =>
+                                                t.actions.includes(acao.id),
                                             )
-                                        }
-                                        const todos = grupoTemAcao(permissions, grupoCompleto, acao.id)
-                                        const alguns = grupoAlgumaAcao(
-                                            permissions,
-                                            grupoCompleto,
-                                            acao.id,
-                                        )
-                                        return (
-                                            <label
-                                                key={acao.id}
-                                                className={`permissoes_cascade_acao_col permissoes_cascade_grupo_check ${alguns && !todos ? 'is-indeterminate' : ''}`}
-                                                title={`${acao.label} — todo o grupo ${grupo.label}`}
-                                            >
-                                                <input
-                                                    type='checkbox'
-                                                    checked={todos}
-                                                    disabled={disabled}
-                                                    ref={(el) => {
-                                                        if (el) el.indeterminate = alguns && !todos
-                                                    }}
-                                                    onChange={() => toggleGrupo(grupo.id, acao.id)}
-                                                />
-                                            </label>
-                                        )
-                                    })}
-                                </div>
+                                            if (!aplicavel) {
+                                                return (
+                                                    <span
+                                                        key={acao.id}
+                                                        className='permissoes_cascade_acao_col is-empty'
+                                                    />
+                                                )
+                                            }
+                                            const todos = grupoTemAcao(permissions, grupoCompleto, acao.id)
+                                            const alguns = grupoAlgumaAcao(permissions, grupoCompleto, acao.id)
+                                            return (
+                                                <label
+                                                    key={acao.id}
+                                                    className={`permissoes_cascade_acao_col permissoes_cascade_grupo_check ${alguns && !todos ? 'is-indeterminate' : ''}`}
+                                                    title={`${acao.label} — todo o grupo ${grupo.label}`}
+                                                >
+                                                    <input
+                                                        type='checkbox'
+                                                        checked={todos}
+                                                        disabled={disabled}
+                                                        ref={(el) => {
+                                                            if (el) el.indeterminate = alguns && !todos
+                                                        }}
+                                                        onChange={() => toggleGrupo(grupo.id, acao.id)}
+                                                        aria-label={`${acao.label} — todo o grupo ${grupo.label}`}
+                                                    />
+                                                </label>
+                                            )
+                                        })}
+                                    </div>
+                                )}
                             </header>
                             {aberto && (
                                 <div className='permissoes_cascade_corpo'>
                                     {grupo.tools.map((tool) => {
-                                        const bloqueiaSelfAdmin =
-                                            String(usuarioId) === String(usuarioAtualId) &&
-                                            tool.id === 'admin.acessos'
+                                        const bloqueiaSelfAdmin = editandoASiMesmo && tool.id === 'admin.acessos'
+                                        if (modo === 'simples') {
+                                            const nivel = nivelDaFerramenta(permissions, tool)
+                                            return (
+                                                <div key={tool.id} className='permissoes_cascade_linha permissoes_cascade_linha--simples'>
+                                                    <div className='permissoes_cascade_tool_col'>
+                                                        <strong>{tool.label}</strong>
+                                                        <small>{tool.descricao}</small>
+                                                        {bloqueiaSelfAdmin ? (
+                                                            <small className='permissoes_cascade_trava'>
+                                                                Você não pode tirar este acesso de si mesmo.
+                                                            </small>
+                                                        ) : null}
+                                                    </div>
+                                                    <div
+                                                        className='ek-segmented permissoes_cascade_niveis'
+                                                        role='group'
+                                                        aria-label={`Nível de acesso — ${tool.label}`}
+                                                    >
+                                                        {niveisDaFerramenta(tool).map((n) => (
+                                                            <button
+                                                                key={n.id}
+                                                                type='button'
+                                                                className='ek-segmented__opt'
+                                                                data-nivel={n.id}
+                                                                aria-pressed={nivel === n.id}
+                                                                disabled={disabled || bloqueiaSelfAdmin}
+                                                                onClick={() => mudarNivelFerramenta(tool, n.id)}
+                                                            >
+                                                                {n.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                    {nivel === 'personalizado' ? (
+                                                        <span
+                                                            className='permissoes_cascade_personalizado'
+                                                            title='As marcações do modo Avançado não correspondem a um nível padrão. Escolha um nível para padronizar.'
+                                                        >
+                                                            Personalizado
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                            )
+                                        }
                                         return (
                                             <div key={tool.id} className='permissoes_cascade_linha'>
                                                 <div className='permissoes_cascade_tool_col'>
@@ -265,21 +382,12 @@ export default function PermissoesCascade({
                                                         )
                                                     }
                                                     return (
-                                                        <label
-                                                            key={acao.id}
-                                                            className='permissoes_cascade_acao_col'
-                                                        >
+                                                        <label key={acao.id} className='permissoes_cascade_acao_col'>
                                                             <input
                                                                 type='checkbox'
-                                                                checked={hasAcl(
-                                                                    permissions,
-                                                                    tool.id,
-                                                                    acao.id,
-                                                                )}
+                                                                checked={hasAcl(permissions, tool.id, acao.id)}
                                                                 disabled={disabled || bloqueiaSelfAdmin}
-                                                                onChange={() =>
-                                                                    toggleFerramenta(tool.id, acao.id)
-                                                                }
+                                                                onChange={() => toggleFerramenta(tool.id, acao.id)}
                                                                 aria-label={`${acao.label} — ${tool.label}`}
                                                             />
                                                             <span className='permissoes_cascade_acao_label'>
@@ -299,8 +407,8 @@ export default function PermissoesCascade({
             )}
 
             <p className='permissoes_cascade_nota'>
-                <strong>Adicionar</strong> em impressão e PDFs equivale a gerar/exportar documentos.
-                Alterações aqui são validadas no servidor.
+                <strong>Adicionar</strong> em impressão e PDFs equivale a gerar/exportar documentos. As alterações só
+                valem depois de salvar e são validadas no servidor.
             </p>
         </div>
     )

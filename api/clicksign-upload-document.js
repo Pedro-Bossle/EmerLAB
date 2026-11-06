@@ -11,6 +11,7 @@ import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
 import { PERMISSION_KEYS } from '../src/lib/accessControl.js'
 
 import { fetchComRetry, resolverBaseClicksign } from '../src/lib/clicksign/clicksignConfig.js'
+import { MENSAGEM_SEM_PERMISSAO_CLICKSIGN, clicksignPermitido } from '../src/lib/clicksign/clicksignPermissao.js'
 
 const BUCKET = 'clicksign-uploads'
 /** Abaixo do maxDuration (60 s) para sobrar tempo de reconciliar antes da função ser encerrada. */
@@ -113,6 +114,12 @@ export default async function handler(req, res) {
     ])
     if (auth.error) {
         res.status(auth.status || 401).json({ error: auth.error })
+        return
+    }
+
+    // anexar documento = criar
+    if (!clicksignPermitido(auth.profile, 'POST')) {
+        res.status(403).json({ error: MENSAGEM_SEM_PERMISSAO_CLICKSIGN })
         return
     }
 

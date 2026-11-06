@@ -8,6 +8,7 @@ import {
     acharSituacaoCanceladoId,
     acharSituacaoCredenciadoId,
     acharSituacaoPreenchendoFormularioId,
+    camposResponsavelCadastro,
     patchCredenciadoEmSeTransicao,
     sincronizarSituacaoVetsDoEstabelecimento,
     situacaoDescricaoEhCredenciado,
@@ -894,6 +895,7 @@ export async function criarPrestadorMinimoParaCard(card, { situacoes = [] } = {}
         ativo: true,
         data_cadastro: agora,
         data_atualizacao: agora,
+        ...(await camposResponsavelCadastro(supabase)),
     }
 
     let { data, error } = await supabase.from('prestadores').insert(payload).select('id').maybeSingle()

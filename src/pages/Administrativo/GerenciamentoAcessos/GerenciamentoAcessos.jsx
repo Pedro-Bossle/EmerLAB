@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
     DEFAULT_INVITED_PERMISSIONS,
     normalizarProfileAcesso,
@@ -6,6 +6,9 @@ import {
     setStoredAccessProfile,
 } from '../../../lib/accessControl'
 import PermissoesCascade from './PermissoesCascade'
+import SetoresAcessos from './SetoresAcessos'
+import { aplicarSetoresAoPerfil, setoresEfetivos } from '../../../lib/setores'
+import { diffPermissoes, linhasDoDiff } from '../../../lib/permissoesNiveis'
 import { filtrarPorTermoBusca, normalizarTextoBusca } from '../../../lib/prestadorCadastroHelpers'
 import {
     EMERMARKETING_GROUP_ID,
@@ -128,6 +131,49 @@ function badgeSenhaUsuario(usuario) {
     return null
 }
 
+/** Iniciais para o avatar da lista («Ana Souza» → «AS»; sem nome usa o e-mail). */
+function iniciaisDoUsuario(usuario) {
+    const base = String(usuario?.name || usuario?.email || '?').trim()
+    const partes = base.split(/[\s@._-]+/).filter(Boolean)
+    const letras = partes.length > 1 ? partes[0][0] + partes[partes.length - 1][0] : base.slice(0, 2)
+    return letras.toUpperCase()
+}
+
+/** Cópia editável do usuário (nome, e-mail, logoff e permissões). */
+function edicaoDe(usuario) {
+    return {
+        id: usuario.id,
+        name: usuario.name || '',
+        email: usuario.email || '',
+        permissions: { ...usuario.permissions },
+        disableIdleLogout: Boolean(usuario.disableIdleLogout),
+        setores: [...(usuario.setores || [])],
+    }
+}
+
+const SEM_MUDANCAS = { total: 0, diff: [], campos: [], abas: {} }
+
+/** Compara o que está na tela com o que foi carregado: lista de permissões alteradas + campos da conta. */
+function contarMudancas(base, atual) {
+    if (!base || !atual) return SEM_MUDANCAS
+    const diff = diffPermissoes(base.permissions, atual.permissions)
+    const campos = []
+    if (String(base.name).trim() !== String(atual.name).trim()) campos.push('Nome')
+    if (String(base.email).trim().toLowerCase() !== String(atual.email).trim().toLowerCase()) campos.push('E-mail')
+    if (Boolean(base.disableIdleLogout) !== Boolean(atual.disableIdleLogout)) campos.push('Logoff por inatividade')
+    if ([...(base.setores || [])].sort().join(',') !== [...(atual.setores || [])].sort().join(',')) campos.push('Setores')
+    return {
+        total: diff.length + campos.length,
+        diff,
+        campos,
+        abas: {
+            permissoes: diff.some((d) => d.grupoId !== EMERMARKETING_GROUP_ID),
+            emermarketing: diff.some((d) => d.grupoId === EMERMARKETING_GROUP_ID),
+            conta: campos.length > 0,
+        },
+    }
+}
+
 const GerenciamentoAcessos = () => {
     const [usuarios, setUsuarios] = useState([])
     const [usuarioSelecionadoId, setUsuarioSelecionadoId] = useState('')
@@ -152,14 +198,23 @@ const GerenciamentoAcessos = () => {
     const [logsAviso, setLogsAviso] = useState('')
     const [logsLoading, setLogsLoading] = useState(false)
     const [erroPasso, setErroPasso] = useState('')
+    /** Seção da tela: lista de usuários ou configuração dos setores. */
+    const [secao, setSecao] = useState('usuarios')
+    const [setores, setSetores] = useState(() => setoresEfetivos([]))
+    const [setoresTabelaAusente, setSetoresTabelaAusente] = useState(false)
     const [convite, setConvite] = useState({
         name: '',
         email: '',
         password: '',
         passwordConfirm: '',
         permissions: permissoesParaDestinoConvite('emerlab'),
+        setores: [],
     })
     const [edicao, setEdicao] = useState(null)
+    /** Como o usuário estava quando foi carregado: base para saber o que mudou (estado p/ render, ref p/ efeitos). */
+    const [base, setBase] = useState(null)
+    const baseRef = useRef(null)
+    const edicaoRef = useRef(null)
 
     const usuarioSelecionado = useMemo(
         () => usuarios.find((usuario) => String(usuario.id) === String(usuarioSelecionadoId)) || null,
@@ -271,24 +326,113 @@ const GerenciamentoAcessos = () => {
         }
     }, [])
 
+    const aplicarRespostaSetores = (json) => {
+        if (Array.isArray(json?.setores)) setSetores(json.setores)
+        setSetoresTabelaAusente(Boolean(json?.tabelaAusente))
+    }
+
+    const carregarSetores = async () => {
+        try {
+            aplicarRespostaSetores(await chamarAdminUsers({ action: 'listSetores' }))
+        } catch (error) {
+            mostrarErro(error.message)
+        }
+    }
+
+    const salvarSetor = async (setor) => {
+        try {
+            const json = await chamarAdminUsers({ action: 'saveSetor', ...setor })
+            aplicarRespostaSetores({ setores: json.setores })
+            mostrarMensagem(`Setor «${setor.nome}» salvo.`)
+            return json.setor || null
+        } catch (error) {
+            mostrarErro(error.message)
+            return null
+        }
+    }
+
+    const excluirSetor = async (id) => {
+        try {
+            const json = await chamarAdminUsers({ action: 'deleteSetor', id })
+            aplicarRespostaSetores({ setores: json.setores })
+            // quem estava vinculado perde só o rótulo; as permissões ficam
+            await carregarUsuarios()
+            mostrarMensagem('Setor excluído.')
+        } catch (error) {
+            mostrarErro(error.message)
+        }
+    }
+
     useEffect(() => {
         carregarUsuarios()
+        carregarSetores()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     useEffect(() => {
+        edicaoRef.current = edicao
+    }, [edicao])
+
+    useEffect(() => {
         if (!usuarioSelecionado) {
+            baseRef.current = null
+            setBase(null)
             setEdicao(null)
             return
         }
-        setEdicao({
-            id: usuarioSelecionado.id,
-            name: usuarioSelecionado.name || '',
-            email: usuarioSelecionado.email || '',
-            permissions: { ...usuarioSelecionado.permissions },
-            disableIdleLogout: Boolean(usuarioSelecionado.disableIdleLogout),
-        })
+        const novo = edicaoDe(usuarioSelecionado)
+        const atual = edicaoRef.current
+        // Recarregar a lista NÃO pode descartar o que a pessoa está editando.
+        const mesmoUsuario = atual && baseRef.current && String(atual.id) === String(novo.id)
+        if (mesmoUsuario && contarMudancas(baseRef.current, atual).total > 0) return
+        baseRef.current = novo
+        setBase(novo)
+        setEdicao(novo)
     }, [usuarioSelecionado])
+
+    const mudancas = useMemo(() => contarMudancas(base, edicao), [base, edicao])
+
+    // aviso do navegador ao fechar/recarregar a página com alterações pendentes
+    useEffect(() => {
+        if (mudancas.total === 0) return undefined
+        const aviso = (event) => {
+            event.preventDefault()
+            event.returnValue = ''
+        }
+        window.addEventListener('beforeunload', aviso)
+        return () => window.removeEventListener('beforeunload', aviso)
+    }, [mudancas.total])
+
+    const confirmarDescarte = async () => {
+        if (mudancas.total === 0) return true
+        return confirmarAcao({
+            titulo: 'Descartar alterações?',
+            mensagem: `Há ${mudancas.total} ${mudancas.total === 1 ? 'alteração não salva' : 'alterações não salvas'} em «${edicao?.name || edicao?.email || 'este usuário'}».`,
+            confirmar: 'Descartar',
+            cancelar: 'Continuar editando',
+            perigo: true,
+        })
+    }
+
+    const descartarAlteracoes = () => {
+        if (base) setEdicao({ ...base, permissions: { ...base.permissions } })
+    }
+
+    const atualizarLista = async () => {
+        if (!(await confirmarDescarte())) return
+        descartarAlteracoes()
+        await carregarUsuarios()
+    }
+
+    const selecionarUsuario = async (id) => {
+        if (String(id) === String(usuarioSelecionadoId)) {
+            setMostrarConvite(false)
+            return
+        }
+        if (!(await confirmarDescarte())) return
+        setUsuarioSelecionadoId(id)
+        setMostrarConvite(false)
+    }
 
     useEffect(() => {
         if (abaDetalhe === 'historico' && edicao?.id) {
@@ -330,6 +474,7 @@ const GerenciamentoAcessos = () => {
             password: '',
             passwordConfirm: '',
             permissions: permissoesParaDestinoConvite('emerlab'),
+            setores: [],
         })
         setModoNovoUsuario('create')
     }
@@ -408,12 +553,14 @@ const GerenciamentoAcessos = () => {
                           email: convite.email,
                           password: convite.password,
                           permissions: convite.permissions,
+                          setores: convite.setores,
                       })
                     : await chamarAdminUsers({
                           action: 'invite',
                           name: convite.name,
                           email: convite.email,
                           permissions: convite.permissions,
+                          setores: convite.setores,
                       })
 
             const profile = normalizarProfileAcesso(json.profile)
@@ -449,7 +596,42 @@ const GerenciamentoAcessos = () => {
     }
 
     const salvarUsuario = async () => {
-        if (!edicao) return
+        if (!edicao || !baseRef.current) return
+        if (mudancas.total === 0) {
+            mostrarMensagem('Nenhuma alteração para salvar.')
+            return
+        }
+        if (!String(edicao.name || '').trim()) {
+            mostrarErro('Informe o nome do usuário.')
+            return
+        }
+
+        // Mostra o que vai mudar antes de gravar; alterações sensíveis pedem confirmação reforçada.
+        if (mudancas.diff.length > 0) {
+            const linhas = linhasDoDiff(mudancas.diff)
+            const sensivel = mudancas.diff.some((d) => d.sensivel)
+            const mostrar = linhas.slice(0, 12)
+            const ok = await confirmarAcao({
+                titulo: sensivel
+                    ? 'Confirmar alterações sensíveis?'
+                    : `Salvar ${mudancas.diff.length} ${mudancas.diff.length === 1 ? 'alteração' : 'alterações'} de permissão?`,
+                mensagem: [
+                    edicao.name || edicao.email,
+                    '',
+                    ...mostrar,
+                    linhas.length > mostrar.length ? `… e mais ${linhas.length - mostrar.length}` : '',
+                    sensivel ? '\nInclui acesso de administração ou a opção de excluir.' : '',
+                ]
+                    .filter((x, i) => x !== '' || i === 1)
+                    .join('\n'),
+                confirmar: 'Salvar alterações',
+                cancelar: 'Revisar',
+                perigo: sensivel,
+            })
+            if (!ok) return
+        }
+
+        const total = mudancas.total
         setLoading(true)
         try {
             const json = await chamarAdminUsers({
@@ -458,15 +640,22 @@ const GerenciamentoAcessos = () => {
                 name: edicao.name,
                 email: edicao.email,
                 permissions: edicao.permissions,
+                // como a tela viu ao abrir: o servidor recusa se outra pessoa alterou nesse meio-tempo
+                permissionsBefore: baseRef.current.permissions,
+                setores: edicao.setores || [],
                 disableIdleLogout: Boolean(edicao.disableIdleLogout),
             })
             const profile = normalizarProfileAcesso(json.profile)
             setUsuarios((atuais) =>
                 atuais.map((item) => (String(item.id) === String(profile.id) ? profile : item)),
             )
+            const novo = edicaoDe(profile)
+            baseRef.current = novo
+            setBase(novo)
+            setEdicao(novo)
             if (String(profile.id) === String(usuarioAtualId)) setStoredAccessProfile(profile)
             if (abaDetalhe === 'historico') await carregarLogs(profile.id)
-            mostrarMensagem('Alterações salvas.')
+            mostrarMensagem(`${total === 1 ? 'Alteração salva' : `${total} alterações salvas`}.`)
         } catch (error) {
             mostrarErro(error.message)
         } finally {
@@ -595,6 +784,52 @@ const GerenciamentoAcessos = () => {
     const destinoLabel =
         DESTINOS_CONVITE.find((d) => d.id === destinoConvite)?.titulo || destinoConvite
 
+    const nomeDoSetor = (id) => setores.find((s) => s.id === id)?.nome || id
+
+    /** Marca/desmarca um setor no perfil (só o vínculo; as permissões mudam ao «Aplicar»). */
+    const alternarSetorUsuario = (id) => {
+        setEdicao((atual) => {
+            if (!atual) return atual
+            const tem = (atual.setores || []).includes(id)
+            return { ...atual, setores: tem ? atual.setores.filter((x) => x !== id) : [...(atual.setores || []), id] }
+        })
+    }
+
+    /** Preset: troca as permissões do perfil pela união das permissões dos setores marcados. */
+    const aplicarPermissoesDosSetores = async () => {
+        if (!edicao) return
+        const ids = edicao.setores || []
+        if (ids.length === 0) {
+            mostrarErro('Marque pelo menos um setor para aplicar as permissões.')
+            return
+        }
+        const ok = await confirmarAcao({
+            titulo: `Aplicar as permissões ${ids.length === 1 ? 'do setor' : 'dos setores'} ${ids.map(nomeDoSetor).join(', ')}?`,
+            mensagem:
+                'Isso substitui TODAS as permissões desta pessoa (EmerLAB e EmerMarketing) pelas dos setores marcados. Você poderá revisar nas abas EmerLAB e Marketing e só vale depois de salvar.',
+            confirmar: 'Aplicar permissões',
+            cancelar: 'Cancelar',
+        })
+        if (!ok) return
+        const proprio = String(edicao.id) === String(usuarioAtualId)
+        const novas = aplicarSetoresAoPerfil(edicao.permissions, ids, setores, { preservarAdmin: proprio })
+        setEdicao((atual) => (atual ? { ...atual, permissions: novas } : atual))
+        mostrarMensagem('Permissões dos setores aplicadas. Revise nas abas EmerLAB e Marketing e salve.')
+    }
+
+    /** Convite/criação: marcar setor já monta as permissões (a pessoa ainda não existe). */
+    const alternarSetorConvite = (id) => {
+        setConvite((atual) => {
+            const tem = (atual.setores || []).includes(id)
+            const ids = tem ? atual.setores.filter((x) => x !== id) : [...(atual.setores || []), id]
+            return {
+                ...atual,
+                setores: ids,
+                permissions: ids.length ? aplicarSetoresAoPerfil(atual.permissions, ids, setores) : atual.permissions,
+            }
+        })
+    }
+
     return (
         <main className="el-page gerenciamento_acessos">
             <PageHeader
@@ -622,7 +857,7 @@ const GerenciamentoAcessos = () => {
                         <button
                             type="button"
                             className={buttonClassName({ variant: 'ghost', size: 'md' })}
-                            onClick={carregarUsuarios}
+                            onClick={() => void atualizarLista()}
                             disabled={loading}
                             aria-label="Atualizar lista de usuários"
                         >
@@ -631,6 +866,30 @@ const GerenciamentoAcessos = () => {
                     </div>
                 }
             />
+
+            <div className="ek-segmented gerenciamento_acessos_secoes" role="group" aria-label="Seção">
+                <button
+                    type="button"
+                    className="ek-segmented__opt"
+                    aria-pressed={secao === 'usuarios'}
+                    onClick={() => setSecao('usuarios')}
+                >
+                    Usuários
+                </button>
+                <button
+                    type="button"
+                    className="ek-segmented__opt"
+                    aria-pressed={secao === 'setores'}
+                    onClick={async () => {
+                        if (secao === 'setores') return
+                        if (!(await confirmarDescarte())) return
+                        descartarAlteracoes()
+                        setSecao('setores')
+                    }}
+                >
+                    Setores
+                </button>
+            </div>
 
             {(mensagem || erro) && (
                 <div
@@ -641,6 +900,16 @@ const GerenciamentoAcessos = () => {
                 </div>
             )}
 
+            {secao === 'setores' ? (
+                <SetoresAcessos
+                    setores={setores}
+                    usuarios={usuarios}
+                    tabelaAusente={setoresTabelaAusente}
+                    carregando={loading}
+                    onSalvar={salvarSetor}
+                    onExcluir={excluirSetor}
+                />
+            ) : (
             <section className="gerenciamento_acessos_layout">
                 <aside className="gerenciamento_acessos_card gerenciamento_acessos_lista_card">
                     <div className="gerenciamento_acessos_lista_header">
@@ -671,29 +940,35 @@ const GerenciamentoAcessos = () => {
                                     key={usuario.id}
                                     type="button"
                                     className={`gerenciamento_acessos_usuario ${ativo ? 'is-active' : ''}`}
-                                    onClick={() => {
-                                        setUsuarioSelecionadoId(usuario.id)
-                                        setMostrarConvite(false)
-                                    }}
+                                    onClick={() => void selecionarUsuario(usuario.id)}
                                     aria-current={ativo ? 'true' : undefined}
                                 >
-                                    <strong>{usuario.name || 'Sem nome'}</strong>
-                                    <span>{usuario.email || usuario.id}</span>
-                                    <div className="gerenciamento_acessos_usuario_meta">
-                                        {badge ? (
-                                            <em className="gerenciamento_acessos_usuario_badge">{badge}</em>
+                                    <span className="gerenciamento_acessos_avatar" aria-hidden="true">
+                                        {iniciaisDoUsuario(usuario)}
+                                    </span>
+                                    <span className="gerenciamento_acessos_usuario_txt">
+                                        <strong>{usuario.name || 'Sem nome'}</strong>
+                                        <span className="gerenciamento_acessos_usuario_email">
+                                            {usuario.email || usuario.id}
+                                        </span>
+                                        {badge || usuario.disableIdleLogout || usuarioSomenteEmerMarketing(usuario.permissions) ? (
+                                            <span className="gerenciamento_acessos_usuario_meta">
+                                                {badge ? (
+                                                    <em className="gerenciamento_acessos_usuario_badge">{badge}</em>
+                                                ) : null}
+                                                {usuario.disableIdleLogout ? (
+                                                    <em className="gerenciamento_acessos_usuario_badge is-muted">
+                                                        Sem logoff
+                                                    </em>
+                                                ) : null}
+                                                {usuarioSomenteEmerMarketing(usuario.permissions) ? (
+                                                    <em className="gerenciamento_acessos_usuario_badge is-mkt">
+                                                        Marketing
+                                                    </em>
+                                                ) : null}
+                                            </span>
                                         ) : null}
-                                        {usuario.disableIdleLogout ? (
-                                            <em className="gerenciamento_acessos_usuario_badge is-muted">
-                                                Sem logoff
-                                            </em>
-                                        ) : null}
-                                        {usuarioSomenteEmerMarketing(usuario.permissions) ? (
-                                            <em className="gerenciamento_acessos_usuario_badge is-mkt">
-                                                Marketing
-                                            </em>
-                                        ) : null}
-                                    </div>
+                                    </span>
                                 </button>
                             )
                         })}
@@ -751,6 +1026,13 @@ const GerenciamentoAcessos = () => {
                                             aria-current={abaDetalhe === tab.id ? 'page' : undefined}
                                         >
                                             {tab.label}
+                                            {mudancas.abas[tab.id] ? (
+                                                <span
+                                                    className="gerenciamento_acessos_tab_ponto"
+                                                    role="img"
+                                                    aria-label="alterações não salvas"
+                                                />
+                                            ) : null}
                                         </button>
                                     ))}
                                 </nav>
@@ -760,8 +1042,9 @@ const GerenciamentoAcessos = () => {
                                 {abaDetalhe === 'permissoes' && (
                                     <>
                                         <p className="gerenciamento_acessos_hint">
-                                            Marque o que a pessoa pode ver e alterar no EmerLAB. «Ver»
-                                            sozinho bloqueia criar, editar e excluir.
+                                            Defina o que a pessoa pode fazer em cada ferramenta do EmerLAB. Para começar
+                                            com as permissões de um setor, use a aba Conta. Nada vale até clicar em
+                                            «Salvar alterações».
                                         </p>
                                         {renderPermissoes(
                                             edicao.permissions,
@@ -842,6 +1125,40 @@ const GerenciamentoAcessos = () => {
                                                     </small>
                                                 </span>
                                             </label>
+                                        </section>
+
+                                        <section className="gerenciamento_acessos_conta_bloco">
+                                            <h3>Setores</h3>
+                                            <p className="gerenciamento_acessos_hint">
+                                                Vincule a pessoa a um ou mais setores. «Aplicar permissões» copia as
+                                                permissões dos setores para o perfil como ponto de partida; depois você pode
+                                                ajustar nas abas EmerLAB e Marketing.
+                                            </p>
+                                            <div className="ga_setores_checks" role="group" aria-label="Setores do usuário">
+                                                {setores.map((s) => (
+                                                    <label key={s.id} className="gerenciamento_acessos_opcao_check">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={(edicao.setores || []).includes(s.id)}
+                                                            onChange={() => alternarSetorUsuario(s.id)}
+                                                            disabled={loading}
+                                                        />
+                                                        <span>
+                                                            <strong>{s.nome}</strong>
+                                                            {s.descricao ? <small>{s.descricao}</small> : null}
+                                                        </span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                            <div className="gerenciamento_acessos_acoes gerenciamento_acessos_acoes_conta">
+                                                <Button
+                                                    variant="secondary"
+                                                    onClick={() => void aplicarPermissoesDosSetores()}
+                                                    disabled={loading || (edicao.setores || []).length === 0}
+                                                >
+                                                    Aplicar permissões dos setores
+                                                </Button>
+                                            </div>
                                         </section>
 
                                         <section className="gerenciamento_acessos_conta_bloco">
@@ -937,18 +1254,28 @@ const GerenciamentoAcessos = () => {
                                 abaDetalhe === 'emermarketing' ||
                                 abaDetalhe === 'conta') && (
                                 <div className="gerenciamento_acessos_painel_footer">
+                                    <span
+                                        className={`gerenciamento_acessos_pendencias${mudancas.total > 0 ? ' is-pendente' : ''}`}
+                                        role="status"
+                                        aria-live="polite"
+                                    >
+                                        {mudancas.total > 0
+                                            ? `${mudancas.total} ${mudancas.total === 1 ? 'alteração não salva' : 'alterações não salvas'}`
+                                            : 'Nenhuma alteração pendente'}
+                                    </span>
+                                    <Button
+                                        variant="secondary"
+                                        onClick={descartarAlteracoes}
+                                        disabled={loading || mudancas.total === 0}
+                                    >
+                                        Descartar
+                                    </Button>
                                     <Button
                                         variant="primary"
                                         onClick={salvarUsuario}
-                                        disabled={loading}
+                                        disabled={loading || mudancas.total === 0}
                                     >
-                                        {loading
-                                            ? 'Salvando…'
-                                            : abaDetalhe === 'conta'
-                                              ? 'Salvar conta'
-                                              : abaDetalhe === 'emermarketing'
-                                                ? 'Salvar Marketing'
-                                                : 'Salvar permissões'}
+                                        {loading ? 'Salvando…' : 'Salvar alterações'}
                                     </Button>
                                 </div>
                             )}
@@ -956,6 +1283,7 @@ const GerenciamentoAcessos = () => {
                     )}
                 </section>
             </section>
+            )}
 
             <Modal
                 open={mostrarConvite}
@@ -1179,6 +1507,26 @@ const GerenciamentoAcessos = () => {
                             {destinoConvite !== 'emermarketing' ? (
                                 <div className="gerenciamento_acessos_convite_perms">
                                     <h4 className="gerenciamento_acessos_convite_subtitulo">EmerLAB</h4>
+                                    <div className="ga_setores_checks ga_setores_checks--convite" role="group" aria-label="Setores">
+                                        <p className="gerenciamento_acessos_hint">
+                                            Escolha o(s) setor(es) para começar com as permissões deles e ajuste abaixo se
+                                            precisar.
+                                        </p>
+                                        {setores.map((s) => (
+                                            <label key={s.id} className="gerenciamento_acessos_opcao_check">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={(convite.setores || []).includes(s.id)}
+                                                    onChange={() => alternarSetorConvite(s.id)}
+                                                    disabled={loading}
+                                                />
+                                                <span>
+                                                    <strong>{s.nome}</strong>
+                                                    {s.descricao ? <small>{s.descricao}</small> : null}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
                                     {renderPermissoes(convite.permissions, alterarPermissoesConvite, '', {
                                         gruposIniciaisAbertos: false,
                                         excluirGrupoIds: [EMERMARKETING_GROUP_ID],

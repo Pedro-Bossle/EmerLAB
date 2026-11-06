@@ -8,7 +8,7 @@
 .gerenciamento_acessos_header_acoes {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.75rem;
     align-items: center;
 }
 
@@ -346,7 +346,7 @@
 .gerenciamento_acessos_acoes {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.55rem;
+    gap: 0.75rem;
 }
 
 .gerenciamento_acessos_acoes_conta {
@@ -858,4 +858,188 @@ body.dark-mode .gerenciamento_acessos_convite_resumo {
 body.dark-mode .gerenciamento_acessos_convite_perms {
     background: #152433;
     border-color: #2a4258;
+}
+
+/* ---- Gravar: barra única com contador de alterações, Descartar e Salvar ---- */
+.gerenciamento_acessos_painel_footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.gerenciamento_acessos_pendencias {
+    margin-right: auto;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ek-ink-muted, #5a7488);
+}
+
+.gerenciamento_acessos_pendencias.is-pendente {
+    color: var(--ek-warn, #a16207);
+}
+
+.gerenciamento_acessos_tabs button {
+    position: relative;
+}
+
+.gerenciamento_acessos_tab_ponto {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-left: 6px;
+    border-radius: 50%;
+    background: var(--ek-warn, #d97706);
+    vertical-align: middle;
+}
+
+@media (max-width: 639px) {
+    .gerenciamento_acessos_painel_footer > .ek-btn {
+        flex: 1 1 0;
+    }
+
+    .gerenciamento_acessos_pendencias {
+        flex: 1 0 100%;
+        margin-right: 0;
+    }
+}
+
+/* ==========================================================================
+   Seletor de usuários: avatar, texto sem quebra no meio do e-mail, item ativo claro
+   ========================================================================== */
+.gerenciamento_acessos_lista {
+    gap: 0.4rem;
+    padding-right: 0.15rem;
+}
+
+.gerenciamento_acessos_usuario {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.6rem 0.7rem;
+    border-radius: 14px;
+    border-color: var(--ek-line, #dbe8f1);
+    background: var(--ek-surface-tint, #f7fbfe);
+}
+
+.gerenciamento_acessos_usuario:hover {
+    background: var(--ek-brand-pale, #e7f4fc);
+    border-color: var(--ek-line-strong, #bfd7e8);
+}
+
+.gerenciamento_acessos_usuario.is-active {
+    background: var(--ek-brand-pale, #e8f5ff);
+    border-color: var(--ek-brand, #0f74b9);
+    box-shadow: inset 3px 0 0 var(--ek-brand, #0f74b9);
+}
+
+.gerenciamento_acessos_avatar {
+    flex: none;
+    width: 2.25rem;
+    height: 2.25rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--ek-brand-pale, #e7f4fc);
+    color: var(--ek-brand, #1a6fa3);
+    font-size: 0.8125rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    word-break: normal;
+}
+
+.gerenciamento_acessos_usuario.is-active .gerenciamento_acessos_avatar {
+    background: var(--ek-brand, #0f74b9);
+    color: #fff;
+}
+
+.gerenciamento_acessos_usuario_txt {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    gap: 0.1rem;
+    word-break: normal;
+}
+
+.gerenciamento_acessos_usuario_txt strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.875rem;
+    color: var(--ek-ink, #123e59);
+}
+
+.gerenciamento_acessos_usuario .gerenciamento_acessos_usuario_email {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    word-break: normal;
+}
+
+.gerenciamento_acessos_usuario .gerenciamento_acessos_usuario_meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.25rem;
+}
+
+@media (max-width: 900px) {
+    .gerenciamento_acessos_lista_card {
+        position: static;
+        max-height: none;
+    }
+
+    .gerenciamento_acessos_lista {
+        max-height: 15rem;
+    }
+}
+
+/* ---- Subaba Setores e vínculo de setores ---- */
+.gerenciamento_acessos_secoes {
+    margin-bottom: 1rem;
+}
+
+.ga_setores_checks {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0.5rem 0 0.75rem;
+}
+
+.ga_setores_checks--convite {
+    margin-top: 0;
+}
+
+.ga_setor_vinculados,
+.ga_setor_vinculados h3 {
+    margin: 0;
+}
+
+.ga_setor_vinculados {
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--ek-line, #e3eef6);
+}
+
+.ga_setor_vinculados h3 {
+    margin-bottom: 0.5rem;
+    font-size: 0.9375rem;
+}
+
+.ga_setor_chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ga_setor_chips li {
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    background: var(--ek-brand-pale, #e7f4fc);
+    color: var(--ek-brand, #1a6fa3);
+    font-size: 0.8125rem;
+    font-weight: 700;
 }

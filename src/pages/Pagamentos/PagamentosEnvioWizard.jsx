@@ -323,7 +323,7 @@ export default function PagamentosEnvioWizard({ open, onClose, registros, relato
 
             {!resultado && passo === 2 && (
                 <div className="flex flex-col gap-4">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-3">
                         <button type="button" className={`rounded-full border px-4 py-2 font-semibold ${modo === 'agora' ? 'border-brand bg-brand-pale' : 'border-line'}`} onClick={() => setModo('agora')}>Enviar agora</button>
                         <button type="button" className={`rounded-full border px-4 py-2 font-semibold ${modo === 'periodo' ? 'border-brand bg-brand-pale' : 'border-line'}`} onClick={() => setModo('periodo')}>Distribuir em um período</button>
                     </div>

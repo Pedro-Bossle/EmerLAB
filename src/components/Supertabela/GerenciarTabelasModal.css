@@ -70,7 +70,7 @@
     flex-wrap: nowrap;
     justify-content: flex-end;
     align-items: center;
-    gap: 4px;
+    gap: 0.75rem;
     width: 100%;
     box-sizing: border-box;
 }

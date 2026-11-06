@@ -3,6 +3,7 @@
  * Usado por api/clicksign-catchall.js e dev (não é Serverless Function).
  */
 import { fetchComRetry, removerSegredosWebhook, resolverBaseClicksign } from './clicksignConfig.js'
+import { MENSAGEM_SEM_PERMISSAO_CLICKSIGN, clicksignPermitido } from './clicksignPermissao.js'
 
 const PREFIXOS_LEITURA = ['/envelopes', '/webhooks', '/templates', '/batch']
 /** Escrita só em envelopes (e batch ligado a envelopes). Webhooks/templates ficam só leitura. */
@@ -91,6 +92,12 @@ export default async function clicksignProxyHandler(req, res) {
                   ? 'Sem permissão para alterar Clicksign. É necessário contratos.edit.'
                   : auth.error,
         })
+        return
+    }
+
+    // Autorização pela FERRAMENTA (contratos.clicksign.*): ler, criar, editar ou excluir conforme o método.
+    if (!clicksignPermitido(auth.profile, method)) {
+        res.status(403).json({ error: MENSAGEM_SEM_PERMISSAO_CLICKSIGN })
         return
     }
 

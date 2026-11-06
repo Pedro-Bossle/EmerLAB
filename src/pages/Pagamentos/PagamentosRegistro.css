@@ -371,7 +371,7 @@
 .pag_reg_resumo_vinculo_acoes {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 0.75rem;
 }
 
 .pag_reg_resumo_btn {
@@ -1768,7 +1768,7 @@ body.dark-mode .pag_painel {
 .pag_painel_acoes {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 0.75rem;
     align-items: center;
 }
 

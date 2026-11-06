@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PERMISSION_KEYS, getStoredAccessProfile, hasPermission, hasStoredDevTools, hasStoredExclusaoPermanenteCredenciamento, normalizarProfileAcesso, setStoredAccessProfile } from '../../../lib/accessControl'
 import { useDevToolsUi } from '../../../lib/devToolsUi'
-import { filtrarPorTermoBusca, normalizarTextoBusca, patchCredenciadoEmSeTransicao, resolverCidadePrincipalNome, filtrarSituacoesSemAguardandoFormulario, situacaoDescricaoEhCancelado, situacaoDescricaoEhCredenciado } from '../../../lib/prestadorCadastroHelpers'
+import { camposResponsavelCadastro, filtrarPorTermoBusca, normalizarTextoBusca, patchCredenciadoEmSeTransicao, resolverCidadePrincipalNome, filtrarSituacoesSemAguardandoFormulario, situacaoDescricaoEhCancelado, situacaoDescricaoEhCredenciado } from '../../../lib/prestadorCadastroHelpers'
 import {
     montarEstabelecimentoPorVeterinarioDeListas,
     resolverLocalidadeEfetivaPrestador } from '../../../lib/prestadorLocalidadeVinculo.js'
@@ -840,7 +840,11 @@ const Credenciamento_main = () => {
                 const { error: erroUpdate } = await supabase.from('prestadores').update(payload).eq('id', prestadorId)
                 if (erroUpdate) return setErro(`Nao foi possivel atualizar: ${erroUpdate.message}`)
             } else {
-                const { data: inserido, error: erroInsert } = await supabase.from('prestadores').insert(payload).select('id').single()
+                const { data: inserido, error: erroInsert } = await supabase
+                    .from('prestadores')
+                    .insert({ ...payload, ...(await camposResponsavelCadastro(supabase)) })
+                    .select('id')
+                    .single()
                 if (erroInsert) return setErro(`Nao foi possivel salvar: ${erroInsert.message}`)
                 prestadorId = Number(inserido?.id)
             }

@@ -146,7 +146,7 @@
 
 .supertabelacidades_confirm_actions {
     display: flex;
-    gap: 8px;
+    gap: 0.75rem;
     justify-content: flex-end;
 }
 
@@ -280,7 +280,7 @@
 .row_add_inline {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.75rem;
     flex-wrap: wrap;
 }
 
@@ -448,7 +448,7 @@
 .manager_table_compact .col_acoes .manager_actions {
     flex-wrap: nowrap;
     justify-content: flex-end;
-    gap: 5px;
+    gap: 0.75rem;
 }
 
 .manager_table_compact .manager_icon_btn {
@@ -544,7 +544,7 @@
 .manager_header_actions {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.75rem;
 }
 
 .manager_add_city_btn {
@@ -982,7 +982,7 @@
 
 .manager_actions {
     display: inline-flex;
-    gap: 10px;
+    gap: 0.75rem;
 }
 
 .manager_icon_btn {
@@ -1163,7 +1163,7 @@ body.dark-mode .cidade_vazia_tip {
 
     .supertabelacidades .row_add_inline {
         flex-wrap: wrap;
-        gap: 0.5rem;
+        gap: 0.75rem;
     }
 
     .cidade_tabela_ibge_form_row {

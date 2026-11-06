@@ -638,7 +638,7 @@ function PipelinePanel({ workerDisponivel = false }) {
           </div>
         ) : null}
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
             type="button"
             className={buttonClassName()}
@@ -1666,7 +1666,7 @@ function ProspectPanel({ workerDisponivel = false, modo = 'catalogo', onModo }) 
               <p className="m-0 text-sm font-semibold">
                 Termos <span className="text-status-erro">*</span>
               </p>
-              <div className="flex gap-2 text-xs">
+              <div className="flex gap-3 text-xs">
                 <button
                   type="button"
                   className="border-0 bg-transparent cursor-pointer font-semibold text-brand"

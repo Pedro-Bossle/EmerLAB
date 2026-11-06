@@ -296,6 +296,15 @@ export async function obterResponsavelCadastroAtual(client) {
     return { id: uid, nome }
 }
 
+/**
+ * Campos «Responsável pelo cadastro» para gravar na CRIAÇÃO de um prestador (`cadastrado_por`/`cadastrado_por_nome`).
+ * Sem usuário logado devolve `{}`. Todo caminho que insere em `prestadores` deve espalhar isto no payload.
+ */
+export async function camposResponsavelCadastro(client) {
+    const r = await obterResponsavelCadastroAtual(client)
+    return r.id ? { cadastrado_por: r.id, cadastrado_por_nome: r.nome } : {}
+}
+
 /** Situação «Preenchendo formulário(s)» ou equivalente. */
 export const acharSituacaoPreenchendoFormularioId = (situacoes) => {
     const lista = situacoes || []

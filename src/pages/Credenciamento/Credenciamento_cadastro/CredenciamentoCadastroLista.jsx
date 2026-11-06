@@ -11,6 +11,7 @@ import {
     calcularPercentualCompletudePerfil,
     formatarCrmvEntrada,
     formatarTelefoneEntrada,
+    camposResponsavelCadastro,
     filtrarPorTermoBusca,
     filtrarSituacoesSemAguardandoFormulario,
     listarPendenciasCompletudePerfil,
@@ -785,6 +786,7 @@ const CredenciamentoCadastroLista = () => {
                 ativo: true,
                 data_cadastro: agora,
                 data_atualizacao: agora,
+                ...(await camposResponsavelCadastro(supabase)),
             }
             let { data: ins, error: errIns } = await supabase
                 .from('prestadores')

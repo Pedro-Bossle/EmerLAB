@@ -37,7 +37,7 @@
 .admin_auditoria_header_acoes {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 0.75rem;
 }
 
 .admin_auditoria_header_acoes button,

@@ -194,6 +194,7 @@ export function Drawer({ open, onClose, title, children, side = 'bottom', classN
         aria-labelledby={title ? titleId : undefined}
         aria-label={title ? undefined : 'Painel'}
       >
+        {side !== 'right' ? <span aria-hidden="true" className="ek-modal__handle" /> : null}
         <div className="ek-modal__head">
           {title ? (
             <h2 id={titleId} className="ek-modal__title">

@@ -17,6 +17,8 @@ const EDGE_ROUTE_MAP = {
 
 /** Rotas que exigem JWT do utilizador (não só anon key). */
 const ROTAS_COM_JWT_UTILIZADOR = new Set([
+  'nominatim-search', // map-osm valida o utilizador (requireUserProfile); só a anon key dá 401 «Sessão inválida»
+  'overpass-poi',
   'consulta-cnpj',
   'geocode-prestador',
   'prospectos-osm-coletar',
@@ -63,9 +65,10 @@ function viteApiPrefix() {
 /**
  * @param {'cep-lookup'|'consulta-cnpj'|'nominatim-search'|'overpass-poi'|'geocode-prestador'|'prospectos-osm-coletar'|'prospectos-gemini-status'|'gemini-rate'} routeId
  * @param {Record<string, string>} [queryParams]
+ * @param {{ legado?: boolean }} [opts] `legado: true` ignora a Edge Function e usa o /api da Vercel (contingência).
  */
-export function buildServerApiUrl(routeId, queryParams = {}) {
-  if (deveUsarSupabaseEdgeApi(routeId)) {
+export function buildServerApiUrl(routeId, queryParams = {}, { legado = false } = {}) {
+  if (!legado && deveUsarSupabaseEdgeApi(routeId)) {
     const fn = EDGE_ROUTE_MAP[routeId]
     const url = new URL(`${supabaseProjectUrl()}/functions/v1/${fn}`)
     if (routeId === 'nominatim-search') {
@@ -136,20 +139,21 @@ export async function userAccessTokenHeaders() {
  * Edge: anon key + (se rota protegida) JWT do user.
  * Legacy /api: JWT do user nas rotas protegidas.
  */
-export async function serverApiAuthHeaders(routeId = 'geocode-prestador') {
+export async function serverApiAuthHeaders(routeId = 'geocode-prestador', { legado = false } = {}) {
   const headers = {}
-  if (deveUsarSupabaseEdgeApi(routeId)) {
+  const edge = !legado && deveUsarSupabaseEdgeApi(routeId)
+  if (edge) {
     const key = anonKey()
     if (key) {
       headers.Authorization = `Bearer ${key}`
       headers.apikey = key
     }
   }
-  if (ROTAS_COM_JWT_UTILIZADOR.has(routeId) || !deveUsarSupabaseEdgeApi(routeId)) {
+  if (ROTAS_COM_JWT_UTILIZADOR.has(routeId) || !edge) {
     const user = await userAccessTokenHeaders()
     if (user.Authorization) {
       headers.Authorization = user.Authorization
-      if (deveUsarSupabaseEdgeApi(routeId) && anonKey()) {
+      if (edge && anonKey()) {
         headers.apikey = anonKey()
       }
     }

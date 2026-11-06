@@ -16,53 +16,30 @@ import { PERMISSION_KEYS } from './accessControl'
 
 
 
-export const OPS_CHILDREN = [
-
-  { label: 'Impressão', href: '/planos/impressao', permission: PERMISSION_KEYS.PLANOS_VIEW },
-
-  { label: 'Valor de Venda', href: '/compras/valor-venda', permission: PERMISSION_KEYS.COMPRAS_VIEW },
-
-  { label: 'Orçamento', href: '/compras/orcamento', permission: PERMISSION_KEYS.COMPRAS_VIEW },
-
-  { type: 'section', label: 'Contratos' },
-
-  { label: 'Gerar Contrato', href: '/contratos/gerar', permission: PERMISSION_KEYS.CONTRATOS_VIEW },
-
-  { label: 'Clicksign', href: '/contratos/clicksign', permission: PERMISSION_KEYS.CONTRATOS_VIEW },
-
-  { type: 'section', label: 'Financeiro' },
-
-  {
-
-    label: 'Pagamentos - Registro',
-
-    href: '/pagamentos/registro',
-
-    permission: PERMISSION_KEYS.PAGAMENTOS_VIEW,
-
-  },
-
-  {
-
-    label: 'Pagamentos - Caixa de entrada',
-
-    href: '/pagamentos/caixa',
-
-    permission: PERMISSION_KEYS.PAGAMENTOS_VIEW,
-
-  },
-
+export const FINANCEIRO_CHILDREN = [
+  { label: 'Pagamentos - Registro', href: '/pagamentos/registro', permission: PERMISSION_KEYS.PAGAMENTOS_VIEW },
+  { label: 'Pagamentos - Caixa de entrada', href: '/pagamentos/caixa', permission: PERMISSION_KEYS.PAGAMENTOS_VIEW },
 ]
 
+export const CONTRATOS_CHILDREN = [
+  { label: 'Gerar Contrato', href: '/contratos/gerar', permission: PERMISSION_KEYS.CONTRATOS_VIEW },
+  { label: 'Clicksign', href: '/contratos/clicksign', permission: PERMISSION_KEYS.CONTRATOS_VIEW },
+]
 
+/** Mobile: um único hub «Ops» com os dois grupos separados por cabeçalho. */
+export const OPS_CHILDREN = [
+  { type: 'section', label: 'Financeiro' },
+  ...FINANCEIRO_CHILDREN,
+  { type: 'section', label: 'Contratos' },
+  ...CONTRATOS_CHILDREN,
+]
 
-export const CONFIG_TOOLS = [
-  { label: 'Importar KMZ', href: '/credenciamento/import-kmz', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
-  {
-    label: 'Especialidades (RC)',
-    href: '/credenciamento/especialidades-rc',
-    permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
-  },
+/** Extras: ferramentas de apoio, importação/exportação, etiquetas, conferência e observações. */
+export const EXTRAS_TOOLS = [
+  { label: 'Valor de Venda', href: '/compras/valor-venda', permission: PERMISSION_KEYS.COMPRAS_VIEW },
+  { label: 'Orçamento', href: '/compras/orcamento', permission: PERMISSION_KEYS.COMPRAS_VIEW },
+  { label: 'Impressão de Planos', href: '/planos/impressao', permission: PERMISSION_KEYS.PLANOS_VIEW },
+  { label: 'Formulário', href: '/credenciamento/formulario', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
   {
     label: 'Importar Credenciados',
     href: '/configuracoes/importar-credenciados',
@@ -71,6 +48,17 @@ export const CONFIG_TOOLS = [
   {
     label: 'Exportar Credenciados',
     href: '/configuracoes/exportar-credenciados',
+    permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+  },
+  { label: 'Importar KMZ', href: '/credenciamento/import-kmz', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
+  {
+    label: 'Especialidades (RC)',
+    href: '/credenciamento/especialidades-rc',
+    permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
+  },
+  {
+    label: 'Impressão de Etiquetas',
+    href: '/configuracoes/impressao-etiquetas',
     permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
   },
   {
@@ -88,38 +76,27 @@ export const CONFIG_TOOLS = [
     href: '/configuracoes/observacoes-planos',
     permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
   },
-  {
-    label: 'Impressão de Etiquetas',
-    href: '/configuracoes/impressao-etiquetas',
-    permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
-  },
 ]
 
-/** Ações de sessão — Encerrar deve ficar sempre no fim do menu Mais (mobile). */
+/** Ações da conta no menu Mais (mobile). Redefinir senha e Sair ficam no cabeçalho do Início. */
 export const SESSION_CHILDREN = [
   { label: 'Modo escuro', action: 'toggle-dark-mode' },
-  { label: 'Redefinir senha', action: 'reset-password' },
-  { label: 'Encerrar sessão', action: 'logout' },
-]
-
-export const CONFIG_CHILDREN = [
-  ...CONFIG_TOOLS,
-  { label: 'Redefinir senha', action: 'reset-password' },
-  { label: 'Encerrar sessão', action: 'logout' },
 ]
 
 export const ADMIN_CHILDREN = [
-
   { label: 'Gerenciar acessos', href: '/administrativo/acessos', permission: PERMISSION_KEYS.ACCESS_MANAGE },
-
   { label: 'Auditoria', href: '/administrativo/auditoria', permission: PERMISSION_KEYS.ACCESS_MANAGE },
-
 ]
 
-/** Drawer «Mais» no mobile: ferramentas + admin + sessão (Encerrar por último). */
-export const MAIS_CHILDREN = [...CONFIG_TOOLS, ...ADMIN_CHILDREN, ...SESSION_CHILDREN]
-
-
+/** Drawer «Mais» no mobile: extras + admin + sessão (Encerrar por último). */
+export const MAIS_CHILDREN = [
+  { type: 'section', label: 'Extras' },
+  ...EXTRAS_TOOLS,
+  { type: 'section', label: 'Administração' },
+  ...ADMIN_CHILDREN,
+  { type: 'section', label: 'Conta' },
+  ...SESSION_CHILDREN,
+]
 
 export const NAV_HUBS = [
 
@@ -232,9 +209,6 @@ export const NAV_HUBS = [
         permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW,
 
       },
-
-      { label: 'Formulário', href: '/credenciamento/formulario', permission: PERMISSION_KEYS.CREDENCIAMENTO_VIEW },
-
       {
 
         label: 'Inbox formulário',
@@ -311,25 +285,9 @@ export const SIDEBAR_GROUPS = [
 
   },
 
-  {
-
-    id: 'operacoes',
-
-    label: 'Operações',
-
-    children: OPS_CHILDREN,
-
-  },
-
-  {
-
-    id: 'configuracoes',
-
-    label: 'Configurações',
-
-    children: CONFIG_CHILDREN,
-
-  },
+  { id: 'financeiro', label: 'Financeiro', children: FINANCEIRO_CHILDREN },
+  { id: 'contratos', label: 'Contratos', children: CONTRATOS_CHILDREN },
+  { id: 'extras', label: 'Extras', children: EXTRAS_TOOLS },
 
   {
 

@@ -8,7 +8,7 @@
 .cred_kanban_acoes {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 0.75rem;
 }
 
 .cred_kanban_acoes button,
@@ -377,7 +377,7 @@ body.dark-mode .cred_kanban_card_chk_count.is-done {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 0.75rem;
   margin-top: 12px;
   padding: 10px 12px;
   border: 1px solid #bfd7e8;
@@ -1466,7 +1466,7 @@ body.dark-mode .cred_kanban_md_ac_item kbd {
 .cred_kanban_modal_footer_direita {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 0.75rem;
   justify-content: flex-end;
 }
 
@@ -1528,7 +1528,7 @@ body.dark-mode .cred_kanban_md_ac_item kbd {
 .cred_kanban_confirm_acoes {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 0.75rem;
 }
 
 .cred_kanban_confirm_acoes button {
@@ -1978,7 +1978,7 @@ body.dark-mode .cred_kanban_erro {
     order: -1;
     flex-direction: column-reverse;
     width: 100%;
-    gap: 8px;
+    gap: 0.75rem;
   }
 
   .cred_kanban_modal_footer > .is-danger {

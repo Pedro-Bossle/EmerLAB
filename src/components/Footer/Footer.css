@@ -265,3 +265,13 @@ body.dark-mode .el_footer_copy a {
     margin-top: 1.25rem;
   }
 }
+
+.el_footer_social_svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  color: #1f78ad;
+}
+
+body.dark-mode .el_footer_social_svg {
+  color: #7cc4f0;
+}

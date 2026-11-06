@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from '../Sidebar/Sidebar'
 import DevToolsFloating from '../DevTools/DevToolsFloating'
 import FormularioInboxBell from '../Credenciamento/FormularioInboxBell'
+import CentralNotificacoes from '../Notificacoes/CentralNotificacoes'
 import SessionSecurity from '../SessionSecurity/SessionSecurity'
 import BottomNav from './BottomNav'
 import FloatingToolsDock from './FloatingToolsDock'
@@ -19,6 +20,8 @@ import {
 import './Layout2.css'
 
 const MQ_COMPACT = '(max-width: 1023px)'
+/** Nova Central de Notificações (sino fixo + painel). VITE_NOTIF_CENTRO=false volta ao sino flutuante antigo. */
+const NOTIF_CENTRO = String(import.meta.env?.VITE_NOTIF_CENTRO ?? 'true').trim().toLowerCase() !== 'false'
 
 const Layout2 = () => {
   const { pathname } = useLocation()
@@ -38,6 +41,8 @@ const Layout2 = () => {
   const [dockExpanded, setDockExpanded] = useState(false)
   const [activeFloatingTool, setActiveFloatingTool] = useState(null)
   const [badgeNotif, setBadgeNotif] = useState(0)
+  const [notifAberto, setNotifAberto] = useState(false)
+  const [devAberto, setDevAberto] = useState(false)
 
   const showDevTools = isDevToolsEnabled(profile)
   const showNotif = (podeNotifForm || podeNotifContratos || podeNotifPagamentos) && pathname !== '/home'
@@ -115,7 +120,8 @@ const Layout2 = () => {
   const dockTools = useMemo(() => {
     const list = []
     if (showDevTools) list.push({ id: 'devtools', label: 'Dev Tools', badge: 0 })
-    if (showNotif) list.push({ id: 'notif', label: 'Notificações', badge: badgeNotif })
+    // Na nova Central, o painel abre pela barra inferior (não é mais uma «ferramenta» da dock).
+    if (showNotif && !NOTIF_CENTRO) list.push({ id: 'notif', label: 'Notificações', badge: badgeNotif })
     return list
   }, [showDevTools, showNotif, badgeNotif])
 
@@ -125,6 +131,23 @@ const Layout2 = () => {
   }, [])
 
   const floatMode = isCompact ? 'dock' : 'fab'
+
+  /** Notificações e Dev Tool usam o mesmo desenho de painel: abrir um fecha o outro. */
+  const mudarNotifAberto = useCallback((v) => {
+    setNotifAberto(v)
+    if (v) {
+      setDevAberto(false)
+      setActiveFloatingTool(null)
+    }
+  }, [])
+  const mudarDevAberto = useCallback(
+    (v) => {
+      if (isCompact) setActiveFloatingTool(v ? 'devtools' : null)
+      else setDevAberto(v)
+      if (v) setNotifAberto(false)
+    },
+    [isCompact],
+  )
 
   return (
     <div className="relative min-h-dvh max-w-[100vw] overflow-x-clip bg-surface-page dark:bg-[#0d1520]">
@@ -172,7 +195,15 @@ const Layout2 = () => {
         </Suspense>
       </main>
 
-      {isCompact ? <BottomNav /> : null}
+      {isCompact ? (
+        <BottomNav
+          avisos={
+            showNotif && NOTIF_CENTRO
+              ? { total: badgeNotif, aberto: notifAberto, onToggle: () => mudarNotifAberto(!notifAberto) }
+              : null
+          }
+        />
+      ) : null}
 
       <FloatingLayerPortal>
         {isCompact ? (
@@ -192,15 +223,19 @@ const Layout2 = () => {
           {showDevTools ? (
             <DevToolsFloating
               mode={floatMode}
-              open={isCompact ? activeFloatingTool === 'devtools' : undefined}
-              onOpenChange={
-                isCompact
-                  ? (v) => setActiveFloatingTool(v ? 'devtools' : null)
-                  : undefined
-              }
+              open={isCompact ? activeFloatingTool === 'devtools' : devAberto}
+              onOpenChange={mudarDevAberto}
             />
           ) : null}
-          {showNotif ? (
+          {showNotif && NOTIF_CENTRO ? (
+            <CentralNotificacoes
+              compact={isCompact}
+              open={notifAberto}
+              onOpenChange={mudarNotifAberto}
+              onBadgeChange={setBadgeNotif}
+            />
+          ) : null}
+          {showNotif && !NOTIF_CENTRO ? (
             <FormularioInboxBell
               mode={floatMode}
               open={isCompact ? activeFloatingTool === 'notif' : undefined}

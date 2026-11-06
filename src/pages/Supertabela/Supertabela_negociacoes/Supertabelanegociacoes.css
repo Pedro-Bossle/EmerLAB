@@ -153,7 +153,7 @@ body.supertabelanegociacoes_no_bounce {
 .supertabelanegociacoes_form_actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 0.75rem;
     justify-content: flex-end;
     width: 100%;
     min-width: 0;
@@ -308,7 +308,7 @@ body.supertabelanegociacoes_no_bounce {
 .supertabelanegociacoes .row_add_inline {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.75rem;
     flex-wrap: wrap;
 }
 
@@ -383,7 +383,7 @@ body.supertabelanegociacoes_no_bounce {
 
 .supertabelanegociacoes_confirm_actions {
     display: flex;
-    gap: 8px;
+    gap: 0.75rem;
     justify-content: flex-end;
 }
 

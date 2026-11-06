@@ -8,12 +8,13 @@ import {
     normalizarProfileAcesso,
     resumirAlteracoesPermissoes,
 } from '../src/lib/accessControl.js'
-import { EMERMARKETING_URL_PADRAO, sanitizarPermissionsParaSalvar } from '../src/lib/permissionCatalog.js'
+import { EMERMARKETING_URL_PADRAO, assinaturaAcl, sanitizarPermissionsParaSalvar } from '../src/lib/permissionCatalog.js'
 import {
     montarAppMetadataEmermarketing,
     usuarioSomenteEmerMarketing,
 } from '../src/lib/emermarketingMeta.js'
 import { validarPoliticaSenha } from '../src/lib/passwordPolicy.js'
+import { ehSetorPadrao, filtrarIdsDeSetores, setoresEfetivos, slugSetor } from '../src/lib/setores.js'
 import {
     getClientIp,
     readJsonBodyLimited,
@@ -43,6 +44,9 @@ const resolveAdminAction = (raw) => {
         esquecisenha: 'forgotPassword',
         updateprofile: 'updateProfile',
         listaudit: 'listAudit',
+        listsetores: 'listSetores',
+        savesetor: 'saveSetor',
+        deletesetor: 'deleteSetor',
         deleteuser: 'deleteUser',
         forcepasswordchange: 'forcePasswordChange',
         clearownforcepassword: 'clearOwnForcePassword',
@@ -57,6 +61,9 @@ const resolveAdminAction = (raw) => {
         'forgotPassword',
         'updateProfile',
         'listAudit',
+        'listSetores',
+        'saveSetor',
+        'deleteSetor',
         'deleteUser',
         'forcePasswordChange',
         'clearOwnForcePassword',
@@ -293,6 +300,7 @@ const enviarLinkAuthPorResend = async (authType, opts) => {
 }
 
 const PROFILE_SELECT_CANDIDATES = [
+    'id, name, email, permissions, force_password_change, password_changed_at, disable_idle_logout, setores',
     'id, name, email, permissions, force_password_change, password_changed_at, disable_idle_logout',
     'id, name, email, permissions, force_password_change, password_changed_at',
     'id, name, email, permissions, force_password_change',
@@ -325,7 +333,8 @@ const perfilErroPorColunaOpcional = (erroOuMensagem) => {
         colunaAusenteNoErro(erroOuMensagem, 'email') ||
         colunaAusenteNoErro(erroOuMensagem, 'force_password_change') ||
         colunaAusenteNoErro(erroOuMensagem, 'password_changed_at') ||
-        colunaAusenteNoErro(erroOuMensagem, 'disable_idle_logout')
+        colunaAusenteNoErro(erroOuMensagem, 'disable_idle_logout') ||
+        colunaAusenteNoErro(erroOuMensagem, 'setores')
     )
 }
 
@@ -349,6 +358,21 @@ const listarProfiles = async (supabase) => {
         if (!perfilErroPorColunaOpcional(result.error)) return result
     }
     return ultimo
+}
+
+/** Setores salvos + padrões. Sem a tabela (migration pendente) devolve só os padrões e avisa. */
+const carregarSetores = async (supabase) => {
+    const { data, error } = await supabase
+        .from('setores_acesso')
+        .select('id, nome, descricao, permissions, ordem')
+    if (error) {
+        const msg = String(error.message || '').toLowerCase()
+        if (msg.includes('setores_acesso') || msg.includes('does not exist') || msg.includes('schema cache')) {
+            return { setores: setoresEfetivos([]), tabelaAusente: true }
+        }
+        throw new Error(error.message)
+    }
+    return { setores: setoresEfetivos(data || []), tabelaAusente: false }
 }
 
 const validarUsuarioAutenticado = async (supabase, req) => {
@@ -391,6 +415,12 @@ const upsertProfile = async (supabase, payload) => {
             // Se alguém tentou ativar o flag, não silencie: a coluna precisa existir.
             if (atual.disable_idle_logout) return result
             delete atual.disable_idle_logout
+            removeu = true
+        }
+        if (colunaAusenteNoErro(result.error, 'setores') && 'setores' in atual) {
+            // Vincular setor sem a coluna não pode passar em silêncio: o vínculo se perderia.
+            if (Array.isArray(atual.setores) && atual.setores.length) return result
+            delete atual.setores
             removeu = true
         }
         if (!removeu) return result
@@ -753,6 +783,70 @@ export default async function handler(req, res) {
         const admin = await validarAdmin(supabase, req)
         if (admin.error) return responderErro(res, 403, admin.error)
 
+        if (action === 'listSetores') {
+            const { setores, tabelaAusente } = await carregarSetores(supabase)
+            return res.status(200).json({ ok: true, setores, tabelaAusente })
+        }
+
+        if (action === 'saveSetor') {
+            const nome = String(body.nome || '').trim().slice(0, 60)
+            if (!nome) return responderErro(res, 400, 'Informe o nome do setor.')
+            const id = String(body.id || '').trim() || slugSetor(nome)
+            if (!/^[a-z0-9][a-z0-9-]{0,39}$/.test(id)) return responderErro(res, 400, 'Identificador de setor inválido.')
+            if (!body.permissions || typeof body.permissions !== 'object') {
+                return responderErro(res, 400, 'Permissões do setor não informadas.')
+            }
+            const descricao = String(body.descricao || '').trim().slice(0, 240)
+            const permissions = sanitizarPermissionsParaSalvar(body.permissions)
+            const ordem = Number.isFinite(Number(body.ordem)) ? Math.trunc(Number(body.ordem)) : 99
+
+            const { setores: existentes, tabelaAusente } = await carregarSetores(supabase)
+            if (tabelaAusente) {
+                return responderErro(
+                    res,
+                    500,
+                    'A tabela setores_acesso ainda não existe. Execute supabase/migrations/20261107120000_setores_acesso.sql.',
+                )
+            }
+            const antes = existentes.find((s) => s.id === id)
+            const { error } = await supabase.from('setores_acesso').upsert(
+                { id, nome, descricao, permissions, ordem, updated_at: new Date().toISOString(), updated_by: admin.user.id },
+                { onConflict: 'id' },
+            )
+            if (error) return responderErro(res, 500, error.message)
+
+            await registrarAuditoria(supabase, {
+                actorUserId: admin.user.id,
+                actorName: admin.profile.name,
+                targetUserId: null,
+                action: 'save_setor',
+                summary: `Setor «${nome}» ${antes ? 'atualizado' : 'criado'}`,
+                details: { setorId: id, permissionsBefore: antes?.permissions || null, permissionsAfter: permissions },
+            })
+            const { setores } = await carregarSetores(supabase)
+            return res.status(200).json({ ok: true, setor: setores.find((s) => s.id === id), setores })
+        }
+
+        if (action === 'deleteSetor') {
+            const id = String(body.id || '').trim()
+            if (!id) return responderErro(res, 400, 'Setor não informado.')
+            if (ehSetorPadrao(id)) {
+                return responderErro(res, 400, 'Os setores padrão não podem ser excluídos (você pode editar as permissões deles).')
+            }
+            const { error } = await supabase.from('setores_acesso').delete().eq('id', id)
+            if (error) return responderErro(res, 500, error.message)
+            await registrarAuditoria(supabase, {
+                actorUserId: admin.user.id,
+                actorName: admin.profile.name,
+                targetUserId: null,
+                action: 'delete_setor',
+                summary: `Setor «${id}» excluído`,
+                details: { setorId: id },
+            })
+            const { setores } = await carregarSetores(supabase)
+            return res.status(200).json({ ok: true, setores })
+        }
+
         if (action === 'list') {
             const { data, error } = await listarProfiles(supabase)
             if (error) return responderErro(res, 500, error.message)
@@ -770,6 +864,7 @@ export default async function handler(req, res) {
                 ? body.permissions
                 : DEFAULT_INVITED_PERMISSIONS
             permissions = sanitizarPermissionsParaSalvar(permissions)
+            const setoresConvite = filtrarIdsDeSetores(body.setores, (await carregarSetores(supabase)).setores)
 
             if (!email || !email.includes('@')) return responderErro(res, 400, 'Informe um email válido.')
             if (!name) return responderErro(res, 400, 'Informe o nome do usuário.')
@@ -802,6 +897,7 @@ export default async function handler(req, res) {
                 name,
                 email,
                 permissions,
+                setores: setoresConvite,
                 force_password_change: true,
                 // Sem data de troca: a temporária obriga AlterarSenha no 1.º login.
                 password_changed_at: null,
@@ -867,6 +963,7 @@ export default async function handler(req, res) {
                 name,
                 email,
                 permissions,
+                setores: filtrarIdsDeSetores(body.setores, (await carregarSetores(supabase)).setores),
                 password_changed_at: new Date().toISOString(),
             })
 
@@ -932,6 +1029,26 @@ export default async function handler(req, res) {
 
             const { data: atual } = await buscarProfile(supabase, userId)
             const perfilAntes = normalizarProfileAcesso(atual || { id: userId })
+
+            // Edição simultânea: a tela envia as permissões como as viu ao abrir. Se mudaram desde então
+            // (outra pessoa salvou), recusa em vez de sobrescrever em silêncio.
+            const permissoesVistas =
+                body.permissionsBefore && typeof body.permissionsBefore === 'object' ? body.permissionsBefore : null
+            if (
+                permissoesVistas &&
+                assinaturaAcl(normalizarProfileAcesso({ permissions: permissoesVistas }).permissions) !==
+                    assinaturaAcl(perfilAntes.permissions)
+            ) {
+                return responderErro(
+                    res,
+                    409,
+                    'As permissões deste usuário foram alteradas por outra pessoa depois que você abriu a tela. Atualize a lista e refaça a alteração.',
+                )
+            }
+            // Setores vinculados (só rótulo/preset): se a tela não enviou, mantém os atuais.
+            const setoresFinal = Array.isArray(body.setores)
+                ? filtrarIdsDeSetores(body.setores, (await carregarSetores(supabase)).setores)
+                : perfilAntes.setores
             const emailNovo = String(body.email || '').trim().toLowerCase()
             const emailAtual = String(atual?.email || perfilAntes.email || '').trim().toLowerCase()
             const emailFinal =
@@ -959,6 +1076,7 @@ export default async function handler(req, res) {
                 name,
                 email: emailFinal,
                 permissions,
+                setores: setoresFinal,
                 disable_idle_logout: disableIdleLogout,
             })
 
@@ -1000,6 +1118,9 @@ export default async function handler(req, res) {
                 )
             }
             if (mudancasPerm.length) partesResumo.push(mudancasPerm.join('; '))
+            if ([...perfilAntes.setores].sort().join(',') !== [...profileNorm.setores].sort().join(',')) {
+                partesResumo.push(`Setores: ${profileNorm.setores.join(', ') || 'nenhum'}`)
+            }
 
             await sincronizarAppMetadataEmermarketing(supabase, userId, profileNorm.permissions)
 

@@ -220,6 +220,28 @@ export async function marcarNotificacoesWebhookDismissedParaMim() {
     }
 }
 
+/**
+ * Dispensa UM aviso do webhook só para o utilizador atual (o evento continua existindo para os outros).
+ * @param {string|number} notificacaoId — id da linha em clicksign_notificacoes_webhook
+ * @returns {Promise<boolean>}
+ */
+export async function dispensarNotificacaoWebhookParaMim(notificacaoId) {
+    try {
+        const uid = await uidAtual()
+        const id = String(notificacaoId ?? '').trim()
+        if (!uid || !id) return false
+        const { error } = await supabase
+            .from('clicksign_notificacoes_user_dismissed')
+            .upsert(
+                [{ user_id: uid, notificacao_id: id, dismissed_at: new Date().toISOString() }],
+                { onConflict: 'user_id,notificacao_id' },
+            )
+        return !error
+    } catch {
+        return false
+    }
+}
+
 /** @deprecated Use marcarNotificacoesWebhookDismissedParaMim — não marcar lido global. */
 export async function marcarTodasNotificacoesWebhookComoLidas() {
     return marcarNotificacoesWebhookDismissedParaMim()

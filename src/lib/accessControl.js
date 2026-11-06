@@ -301,6 +301,8 @@ export const normalizarProfileAcesso = (profile = {}) => {
     name: profile?.name || '',
     email: profile?.email || '',
     permissions: normalizarPermissions(profile),
+    /** Setores vinculados (presets de permissão). Só rótulo: as permissões reais estão em `permissions`. */
+    setores: Array.isArray(profile?.setores) ? profile.setores.map(String) : [],
     passwordChangedAt,
     forcePasswordChange: forceAdmin || forceByAge,
     forcePasswordChangeReason: forceAdmin ? 'admin' : forceByAge ? 'expired' : null,

@@ -342,8 +342,8 @@ export const PERMISSION_CATALOG = [
             {
                 id: 'admin.acessos',
                 label: 'Gerenciar acessos',
-                descricao: 'Convites, permissões e auditoria de usuários.',
-                actions: RCUD,
+                descricao: 'Ver a tela; «Editar» permite convidar, criar, alterar permissões e excluir usuários.',
+                actions: RU,
                 href: '/administrativo/acessos',
             },
             {
@@ -468,6 +468,26 @@ export function getToolMeta(toolId) {
 export function getToolIdForHref(href) {
     const path = String(href || '').split('?')[0].replace(/\/$/, '') || '/'
     return TOOL_BY_HREF.get(path) || null
+}
+
+/** True se TODAS as chaves ACL do catálogo estão definidas (true ou false). */
+export function aclCompleto(perms) {
+    return listarTodasChavesAcl().every((k) => perms?.[k] !== undefined)
+}
+
+/** Define todas as chaves ACL como true/false explícitos (o que não estava ligado vira false). */
+export function preencherAclExplicito(perms) {
+    const out = { ...perms }
+    for (const k of listarTodasChavesAcl()) out[k] = Boolean(out[k])
+    return out
+}
+
+/** Assinatura estável das chaves ACL ligadas: compara permissões sem depender da ordem. */
+export function assinaturaAcl(perms) {
+    return listarTodasChavesAcl()
+        .filter((k) => perms?.[k])
+        .sort()
+        .join('|')
 }
 
 export function hasAcl(permissions, toolId, action) {
@@ -632,59 +652,65 @@ export function expandLegacyToAcl(perms) {
     return p
 }
 
-/** Concede ACL de ferramentas novas a perfis que já tinham chaves ACL antes delas existirem. */
+/**
+ * Concede ACL de ferramentas novas a perfis que já tinham chaves ACL antes delas existirem.
+ * - Só preenche chave AUSENTE (undefined): um `false` gravado é uma decisão e é respeitado.
+ * - Perfil com TODAS as chaves ACL explícitas (gravado pela tela de acessos) não sofre nenhuma inferência.
+ */
 export function completarAclFerramentasCredenciamento(perms) {
     const p = { ...perms }
+    if (aclCompleto(p)) return p
+    const falta = (k) => p[k] === undefined
     const kRead = aclKey('credenciamento.prospectos_osm', 'read')
     const kUpd = aclKey('credenciamento.prospectos_osm', 'update')
-    if (!p[kRead]) {
+    if (falta(kRead)) {
         if (
             hasAcl(p, 'credenciamento.mapa', 'read') ||
             hasAcl(p, 'credenciamento.processos', 'read') ||
             hasAcl(p, 'credenciamento.import_kmz', 'read') ||
             p[L.CREDENCIAMENTO_VIEW]
         ) {
-            p[kRead] = true
+            if (falta(kRead)) p[kRead] = true
         }
     }
-    if (!p[kUpd]) {
+    if (falta(kUpd)) {
         if (hasAcl(p, 'credenciamento.import_kmz', 'update') || p[L.CREDENCIAMENTO_EDIT]) {
-            p[kUpd] = true
+            if (falta(kUpd)) p[kUpd] = true
         }
     }
     const kCaixa = aclKey('pagamentos.caixa', 'read')
-    if (!p[kCaixa]) {
+    if (falta(kCaixa)) {
         if (hasAcl(p, 'pagamentos.registro', 'read') || p[L.PAGAMENTOS_VIEW]) {
-            p[kCaixa] = true
+            if (falta(kCaixa)) p[kCaixa] = true
         }
     }
     const kResumo = aclKey('pagamentos.resumo', 'read')
-    if (!p[kResumo]) {
+    if (falta(kResumo)) {
         if (hasAcl(p, 'pagamentos.registro', 'read') || p[L.PAGAMENTOS_VIEW]) {
-            p[kResumo] = true
+            if (falta(kResumo)) p[kResumo] = true
         }
     }
     const kAud = aclKey('admin.auditoria', 'read')
-    if (!p[kAud]) {
+    if (falta(kAud)) {
         if (hasAcl(p, 'admin.acessos', 'read') || p[L.ACCESS_MANAGE]) {
-            p[kAud] = true
+            if (falta(kAud)) p[kAud] = true
         }
     }
     const kQual = aclKey('admin.qualidade', 'read')
-    if (!p[kQual]) {
+    if (falta(kQual)) {
         if (hasAcl(p, 'admin.auditoria', 'read') || hasAcl(p, 'admin.acessos', 'read') || p[L.ACCESS_MANAGE]) {
-            p[kQual] = true
+            if (falta(kQual)) p[kQual] = true
         }
     }
     const kKanbanRel = aclKey('credenciamento.processos_relatorio', 'read')
-    if (!p[kKanbanRel]) {
+    if (falta(kKanbanRel)) {
         if (
             hasAcl(p, 'credenciamento.processos', 'update') ||
             hasAcl(p, 'credenciamento.processos', 'create') ||
             p[L.CREDENCIAMENTO_EDIT] ||
             p[L.ACCESS_MANAGE]
         ) {
-            p[kKanbanRel] = true
+            if (falta(kKanbanRel)) p[kKanbanRel] = true
         }
     }
 
@@ -693,24 +719,24 @@ export function completarAclFerramentasCredenciamento(perms) {
     const kConfRead = aclKey('configuracoes.conferencia_laboratorio', 'read')
     const kConfCreate = aclKey('configuracoes.conferencia_laboratorio', 'create')
     const kConfUpdate = aclKey('configuracoes.conferencia_laboratorio', 'update')
-    if (!p[kConfRead]) {
+    if (falta(kConfRead)) {
         if (
             hasAcl(p, 'configuracoes.importar_credenciados', 'read') ||
             hasAcl(p, 'configuracoes.exportar_credenciados', 'read') ||
             hasAcl(p, 'credenciamento.processos', 'read') ||
             p[L.CREDENCIAMENTO_VIEW]
         ) {
-            p[kConfRead] = true
+            if (falta(kConfRead)) p[kConfRead] = true
         }
     }
-    if (!p[kConfCreate] || !p[kConfUpdate]) {
+    if (falta(kConfCreate) || falta(kConfUpdate)) {
         if (
             hasAcl(p, 'configuracoes.importar_credenciados', 'update') ||
             p[L.CREDENCIAMENTO_EDIT]
         ) {
-            p[kConfRead] = true
-            p[kConfCreate] = true
-            p[kConfUpdate] = true
+            if (falta(kConfRead)) p[kConfRead] = true
+            if (falta(kConfCreate)) p[kConfCreate] = true
+            if (falta(kConfUpdate)) p[kConfUpdate] = true
         }
     }
 
@@ -719,25 +745,25 @@ export function completarAclFerramentasCredenciamento(perms) {
     const kObsCreate = aclKey('configuracoes.observacoes_honorarios', 'create')
     const kObsUpdate = aclKey('configuracoes.observacoes_honorarios', 'update')
     const kObsDelete = aclKey('configuracoes.observacoes_honorarios', 'delete')
-    if (!p[kObsRead]) {
+    if (falta(kObsRead)) {
         if (
             hasAcl(p, 'configuracoes.importar_credenciados', 'read') ||
             hasAcl(p, 'configuracoes.exportar_credenciados', 'read') ||
             hasAcl(p, 'configuracoes.conferencia_laboratorio', 'read') ||
             p[L.CREDENCIAMENTO_VIEW]
         ) {
-            p[kObsRead] = true
+            if (falta(kObsRead)) p[kObsRead] = true
         }
     }
-    if (!p[kObsCreate] || !p[kObsUpdate] || !p[kObsDelete]) {
+    if (falta(kObsCreate) || falta(kObsUpdate) || falta(kObsDelete)) {
         if (
             hasAcl(p, 'configuracoes.importar_credenciados', 'update') ||
             p[L.CREDENCIAMENTO_EDIT]
         ) {
-            p[kObsRead] = true
-            p[kObsCreate] = true
-            p[kObsUpdate] = true
-            p[kObsDelete] = true
+            if (falta(kObsRead)) p[kObsRead] = true
+            if (falta(kObsCreate)) p[kObsCreate] = true
+            if (falta(kObsUpdate)) p[kObsUpdate] = true
+            if (falta(kObsDelete)) p[kObsDelete] = true
         }
     }
 
@@ -746,26 +772,26 @@ export function completarAclFerramentasCredenciamento(perms) {
     const kObsPlCreate = aclKey('configuracoes.observacoes_planos', 'create')
     const kObsPlUpdate = aclKey('configuracoes.observacoes_planos', 'update')
     const kObsPlDelete = aclKey('configuracoes.observacoes_planos', 'delete')
-    if (!p[kObsPlRead]) {
+    if (falta(kObsPlRead)) {
         if (
             hasAcl(p, 'configuracoes.observacoes_honorarios', 'read') ||
             hasAcl(p, 'configuracoes.conferencia_laboratorio', 'read') ||
             p[L.CREDENCIAMENTO_VIEW] ||
             p[L.PLANOS_VIEW]
         ) {
-            p[kObsPlRead] = true
+            if (falta(kObsPlRead)) p[kObsPlRead] = true
         }
     }
-    if (!p[kObsPlCreate] || !p[kObsPlUpdate] || !p[kObsPlDelete]) {
+    if (falta(kObsPlCreate) || falta(kObsPlUpdate) || falta(kObsPlDelete)) {
         if (
             hasAcl(p, 'configuracoes.observacoes_honorarios', 'update') ||
             hasAcl(p, 'configuracoes.importar_credenciados', 'update') ||
             p[L.CREDENCIAMENTO_EDIT]
         ) {
-            p[kObsPlRead] = true
-            p[kObsPlCreate] = true
-            p[kObsPlUpdate] = true
-            p[kObsPlDelete] = true
+            if (falta(kObsPlRead)) p[kObsPlRead] = true
+            if (falta(kObsPlCreate)) p[kObsPlCreate] = true
+            if (falta(kObsPlUpdate)) p[kObsPlUpdate] = true
+            if (falta(kObsPlDelete)) p[kObsPlDelete] = true
         }
     }
 
@@ -866,7 +892,8 @@ export function sanitizarPermissionsParaSalvar(raw = {}) {
         out[key] = Boolean(val)
     }
     const expanded = expandLegacyToAcl(out)
-    return syncLegacyFromAcl(expanded)
+    // Grava o conjunto completo: o que não está ligado fica false explícito e nunca é «herdado» depois.
+    return preencherAclExplicito(syncLegacyFromAcl(expanded))
 }
 
 export function permissionsFromLegacyObject(legacy = {}) {

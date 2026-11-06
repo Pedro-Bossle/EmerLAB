@@ -757,7 +757,7 @@ export default function EmerRadarProspectResults({
             </p>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="emer-radar-view-toggle" role="group" aria-label="Visualização">
             <button
               type="button"
