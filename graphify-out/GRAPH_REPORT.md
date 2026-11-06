@@ -1,17 +1,17 @@
-# Graph Report - Emerdog_SFSC_SUPERTOOL  (2026-11-04)
+# Graph Report - Emerdog_SFSC_SUPERTOOL  (2026-11-06)
 
 ## Corpus Check
-- 524 files · ~524,344 words
+- 559 files · ~547,532 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 78 file(s) not represented in the graph (top: .css 70, (none) 3, .mdc 2)
 
 ## Summary
-- 4738 nodes · 15072 edges · 182 communities (172 shown, 10 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 127 edges (avg confidence: 0.88)
+- 4941 nodes · 15745 edges · 186 communities (174 shown, 12 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 148 edges (avg confidence: 0.88)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `40baeb63`
+- Built from commit: `135a88fc`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -19,12 +19,12 @@
 - repasseMensalHandler.js
 - homeBatePapo.js
 - AdminAuditoria.jsx
-- resendMail.js
-- authSession.js
-- FormularioPublicoPassoDados.jsx
+- EmerRadarExecucoes.jsx
+- supabase.js
+- SelectDropdown
 - PainelDetalheConferencia.jsx
 - router.js
-- supabase.js
+- Credenciamento_main.jsx
 - permissionCatalog.js
 - repasseApi.js
 - CredenciamentoProspectosOsm.jsx
@@ -33,7 +33,7 @@
 - PagamentosRegistro.jsx
 - conferenciaLaboratorio.js
 - Painel.jsx
-- handle
+- aceitarConvite
 - formularioCredenciamento.js
 - buscarQuemRealizaPrestadores.js
 - gemini/gemini.ts
@@ -47,7 +47,7 @@
 - Prompt_Auditoria_UI_UX_EmerLab.md
 - wati.js
 - gerarRelatorioCadastrosPdf.js
-- ClicksignEmerdog.jsx
+- maskTelefoneBr
 - Repasse mensal — relatório com link, aprovação e comprovante
 - dependencies
 - regras.js
@@ -60,7 +60,7 @@
 - audit.mjs
 - ContratosEmerdog.jsx
 - vite.config.js
-- supabase.js
+- qualidadeDados.js
 - Supertabelaprocedimentos.jsx
 - PreviaMicrosoft.jsx
 - authSession.js
@@ -80,7 +80,7 @@
 - css-prune.cjs
 - prestadorCadastroHelpers.js
 - nominatimUpstream.js
-- emerRadarUi.js
+- EmerRadarExecucaoPage.jsx
 - repasseApi.js
 - prestadorProcedimentos.js
 - geocodeNominatim.js
@@ -89,15 +89,15 @@
 - observacoesModeloPdf.js
 - Icone
 - Home.jsx
-- Icone
+- ref_react
 - EmerLAB (SFSC SUPERTOOL): documentação do projeto
 - steps
 - conferenciaLaboratorioPrecos.js
-- rc-pdf.js
+- CredenciamentoEspecialidadesRc.jsx
 - emerRadarApi.js
 - mapaBuscaPoiFiltros.js
 - maskCNPJ
-- PagamentosPainelPrestador.jsx
+- PagamentosCaixa.jsx
 - rcPdfCarimbo.js
 - trafegoCidades.js
 - util.js
@@ -105,19 +105,19 @@
 - CredenciamentoFormularioPublico.jsx
 - requireUser.ts
 - prospectosJob.ts
-- serverBackend.js
+- db
 - IA no EmerLAB — guia do desenvolvedor
 - Supertabelaplanos.jsx
 - MapaBasemapToggle.jsx
 - calendarExport.js
 - normalizarTextoBusca
-- PreviaEmail.jsx
+- ImpressaoPlanos.jsx
 - _shared/gemini.ts
 - clicksign-webhook.js
 - CredenciamentoKanban.jsx
 - scripts
-- ref_react
-- accessControl.js
+- Configuracoes.jsx
+- rateLimit.js
 - EmerLAB UI Kit
 - EmerLAB UI Kit
 - prestadorVeterinarioCadastro.js
@@ -129,11 +129,11 @@
 - prospectos-coletar/index.ts
 - nominatim.ts
 - Migração para Supabase Edge Functions
-- server/email.js
+- getEnv
 - quemRealiza.js
 - PrestadorBeneficiosDescontos.jsx
 - overpassUpstream.js
-- CredenciamentoFormularioConfig.jsx
+- emerRadarRunsHandler.js
 - prospectosGeminiColeta.ts
 - overpass.ts
 - Checklist de segurança — EmerLAB / SFSC SUPERTOOL
@@ -141,17 +141,17 @@
 - exportNegociacaoExcel.js
 - Checklist migração Tailwind EmerLAB
 - Integração Emer-Radar no EmerLAB
-- GerenciamentoAcessos.jsx
+- API pública da Rede Credenciada e API de Pagamentos — desenho
 - zap.emerlab
 - zap-emerlab/vercel.json
-- prospectos-osm-coletar.js
+- CredenciamentoImportKmz.jsx
 - Segurança — EmerLAB
 - outlookCalendar.js
 - Emerzap v2 (SQL)
 - HomeTarefaChat.jsx
 - rc-pdf.js
 - 8. Módulos funcionais e rotas
-- dev-api-server.mjs
+- package.json
 - E-mail via Resend (EmerLAB)
 - 4. Telas (adaptadas ao EmerLAB atual)
 - msalConfig.js
@@ -163,9 +163,9 @@
 - EmerLAB
 - prospectosColetaJob.js
 - formularioPublicoEspecialidades.js
-- rateLimit.js
+- credKanbanAtualizacaoSite.js
 - KanbanOutlookReuniao.jsx
-- clicksignSignatarioOps.js
+- geminiDescanso.js
 - Assinaturas de e-mail (EmerLAB / Emerdog)
 - SQL — Auditoria + credenciado_em
 - profiles.disable_idle_logout
@@ -176,35 +176,37 @@
 - audit-logs.js
 - 7. Modelo de dados (Supabase)
 - gerarContratoPdf.js
-- geminiGenerateJsonUmaTentativa
-- exceljs
+- api.js
+- agendaSignatarios.js
 - import-prestadores-coordenadas-csv.mjs
 - ibge.js
 - consulta-cnpj/index.ts
 - ModalImpressaoHonorariosCidade.jsx
 - supabase
-- clicksignUploadDocumento.js
+- credKanbanColagem.js
 - apiRepasseMensal.test.js
-- exportRelatorio.js
-- zap.js
+- extrairResumoAssinaturaPorSignatario
+- handle
 - 5. Leitura e separação do .xlsx
-- exclusaoPermanenteCredenciamento.js
+- Layout2.jsx
 - inserirPlanoConfigSeNaoExiste
 - 12. Deploy, CI e testes
 - 2. Regras de transição (obrigatórias)
-- CredenciamentoEmerRadar.jsx
+- prestadorProcedimentos.sync.test.js
+- 10. Supabase: banco, Edge Functions e SQL
+- react@^19.2.4
 
 ## God Nodes (most connected - your core abstractions)
-1. `normalizarTextoBusca()` - 124 edges
-2. `supabase` - 86 edges
-3. `ClicksignEmerdog()` - 73 edges
-4. `PageHeader()` - 71 edges
+1. `normalizarTextoBusca()` - 126 edges
+2. `supabase` - 88 edges
+3. `PageHeader()` - 73 edges
+4. `ClicksignEmerdog()` - 73 edges
 5. `CredenciamentoCadastroForm()` - 68 edges
-6. `SelectDropdown()` - 67 edges
+6. `SelectDropdown()` - 66 edges
 7. `PagamentosRegistro()` - 64 edges
-8. `hasPermission()` - 58 edges
-9. `Home()` - 53 edges
-10. `Supertabelaplanos()` - 53 edges
+8. `handle()` - 60 edges
+9. `hasPermission()` - 58 edges
+10. `Home()` - 53 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `9. E-mails (Resend)` --references--> `montarEmailPorTemplate()`  [INFERRED]
@@ -215,109 +217,109 @@
   docs/repasse-mensal.md → src/components/PrivateRoute/PrivateRoute.jsx
 - `Rate (contador local)` --references--> `useGeminiRate()`  [INFERRED]
   docs/ia-desenvolvedor.md → src/hooks/useGemini.js
-- `8. Gaps prioritários (resumo)` --references--> `readJsonBodyLimited()`  [INFERRED]
-  docs/CHECKLIST_SEGURANCA.md → src/lib/api/serverAuth.js
+- `Task 6: Administração das chaves (API interna + tela)` --references--> `validarJwtComPermissao()`  [INFERRED]
+  docs/api/plano-implementacao.md → src/lib/api/serverAuth.js
 
 ## Import Cycles
 - None detected.
 
-## Communities (182 total, 10 thin omitted)
+## Communities (186 total, 12 thin omitted)
 
 ### Community 0 - "repasseMensalHandler.js"
-Cohesion: 0.14
-Nodes (51): arredondar(), cancelarAgendamento(), carregarConfig(), carregarRegistro(), carregarRelatorio(), competenciaLabel(), contarAtendimentos(), criarRelatorios() (+43 more)
+Cohesion: 0.05
+Nodes (108): blocoAssinaturaEmailHtml(), blocoAssinaturaEmailText(), escapeHtml(), canonicalizeEmailOrigin(), EMAIL_BRAND, emailAssetOrigin(), emailAssinaturaUrl(), emailLogoUrl() (+100 more)
 
 ### Community 1 - "homeBatePapo.js"
 Cohesion: 0.05
-Nodes (117): BatePapoFloating(), calcularDrawerGeom(), calcularDrawerStyle(), chaveDia(), clamparPosicao(), detectarAncora(), formatarHoraMensagem(), lerModoCompacto() (+109 more)
+Nodes (119): BatePapoFloating(), calcularDrawerGeom(), calcularDrawerStyle(), chaveDia(), clamparPosicao(), detectarAncora(), formatarHoraMensagem(), lerModoCompacto() (+111 more)
 
 ### Community 2 - "AdminAuditoria.jsx"
-Cohesion: 0.08
-Nodes (57): ACOES_AUDITORIA, authHeader(), baixarTextoComoArquivo(), CAMPOS_FK, carregarMapasReferenciasAuditoria(), chamarApiAuditoria(), coletarDePayload(), contarPor() (+49 more)
+Cohesion: 0.13
+Nodes (37): ACOES_AUDITORIA, authHeader(), baixarTextoComoArquivo(), CAMPOS_FK, carregarMapasReferenciasAuditoria(), chamarApiAuditoria(), coletarDePayload(), contarPor() (+29 more)
 
-### Community 3 - "resendMail.js"
-Cohesion: 0.09
-Nodes (46): blocoAssinaturaEmailHtml(), blocoAssinaturaEmailText(), escapeHtml(), canonicalizeEmailOrigin(), EMAIL_BRAND, emailAssetOrigin(), emailAssinaturaUrl(), emailLogoUrl() (+38 more)
+### Community 3 - "EmerRadarExecucoes.jsx"
+Cohesion: 0.18
+Nodes (21): Badge(), abrirExecucaoEmerRadar(), chamarRunsApi(), emerRadarListarExecucoes(), emerRadarStatusCron(), emerRadarWorkerDownload(), emerRadarWorkerInfo(), pipelineListRuns() (+13 more)
 
-### Community 4 - "authSession.js"
+### Community 4 - "supabase.js"
+Cohesion: 0.05
+Nodes (72): 7. Autenticação, sessão e permissões, Autenticação, Autorização (ACL), react-router-dom, Footer(), Header(), Layout(), PrivateRoute() (+64 more)
+
+### Community 5 - "SelectDropdown"
 Cohesion: 0.10
-Nodes (24): Footer(), Header(), Layout(), criarCallbacksMonitor(), minutosLabel(), SessionSecurity(), DialogosHost(), buscarPerfilSupabasePorUserId() (+16 more)
-
-### Community 5 - "FormularioPublicoPassoDados.jsx"
-Cohesion: 0.27
-Nodes (14): placeholderOutrasEspecialidadesPublico(), formatarChavePixEntrada(), formatarCrmvEntrada(), formatarEmailEntrada(), formatarTelefoneEntrada, opcoesTipoRepasse(), responsaveisFromPayload(), MultiEspecialidadesInput() (+6 more)
+Nodes (40): SelectMunicipioBusca(), NOMES_UF, SelectUfBusca(), Dropdown(), opcoesDeChildren(), SelectDropdown(), agruparCredenciadosPorEspecialidadeCidade(), formatarEspecialidadeCidadeParaClipboard() (+32 more)
 
 ### Community 6 - "PainelDetalheConferencia.jsx"
 Cohesion: 0.17
-Nodes (24): EQUIVALENCIAS_PADRAO, formatarDataConferencia(), formatarValorConferencia(), CadastroRegrasConferencia(), ComboExame(), itemCorresponde(), PreviewTabela(), BandeiraPosRelatorio() (+16 more)
+Nodes (23): formatarDataConferencia(), formatarValorConferencia(), CadastroRegrasConferencia(), ComboExame(), itemCorresponde(), PreviewTabela(), BandeiraPosRelatorio(), chaveFlagItemExame() (+15 more)
 
 ### Community 7 - "router.js"
-Cohesion: 0.06
-Nodes (88): aguardaHumano(), alvoWati(), alvoWatiOk, anexarRespostasCitadas(), anuncioDe(), apelidosDe(), aplicarStatusDoHistorico(), atendenteDoHistorico() (+80 more)
+Cohesion: 0.07
+Nodes (60): aguardaHumano(), alvoWatiOk, anexarRespostasCitadas(), anuncioDe(), apelidosDe(), aplicarStatusDoHistorico(), atendenteDoHistorico(), ATRIBUTOS_BUSCA (+52 more)
 
-### Community 8 - "supabase.js"
-Cohesion: 0.09
-Nodes (37): CampoBuscaComLimpar(), CredenciamentoMainAlert(), getStoredAccessProfile(), hasStoredDevTools(), hasStoredExclusaoPermanenteCredenciamento(), store, salvarPerfilExame(), formatarPeriodoYmdPtBr() (+29 more)
+### Community 8 - "Credenciamento_main.jsx"
+Cohesion: 0.15
+Nodes (23): getStoredAccessProfile(), hasStoredDevTools(), hasStoredExclusaoPermanenteCredenciamento(), postServerApiJson(), solicitarGeocodePrestador(), apagarLinhaObrigatoria(), apagarLinhas(), excluirPrestadorPermanentemente() (+15 more)
 
 ### Community 9 - "permissionCatalog.js"
-Cohesion: 0.11
-Nodes (40): normalizarPermissions(), podeUsarExclusaoPermanenteCredenciamento(), A, ACL_ACTIONS, aclKey(), anyAclInGroup(), aplicarFerramentaAcl(), aplicarGrupoAcl() (+32 more)
+Cohesion: 0.07
+Nodes (71): ACCESS_PROFILE_STORAGE_KEY, DEFAULT_INVITED_PERMISSIONS, DEFAULT_PROFILE_PERMISSIONS, hasAnyPermission(), HERANCA_PERMISSAO_TELA, normalizarPermissions(), PASSWORD_MAX_AGE_DAYS, PERMISSION_KEYS (+63 more)
 
 ### Community 10 - "repasseApi.js"
-Cohesion: 0.10
-Nodes (43): authHeaders(), authHeadersOpcional(), BUCKET_REPASSE, cacheAbertos, cancelarAgendamento(), carregarCaixa(), chamar(), criarRelatorios() (+35 more)
+Cohesion: 0.12
+Nodes (33): DESCONTO_RPA, authHeaders(), authHeadersOpcional(), BUCKET_REPASSE, cacheAbertos, cancelarAgendamento(), chamar(), contarMesesEmAbertoPorPrestador() (+25 more)
 
 ### Community 11 - "CredenciamentoProspectosOsm.jsx"
-Cohesion: 0.10
-Nodes (37): CABECALHOS, exportarProspectosOsmParaExcel(), rotuloStatus(), sanitizarNomeArquivo(), delayMs(), preencherPinsProspectosOsm(), prospectoSemPin(), prospectoIndicaAtendimento24h() (+29 more)
+Cohesion: 0.12
+Nodes (29): CABECALHOS, exportarProspectosOsmParaExcel(), rotuloStatus(), sanitizarNomeArquivo(), prospectoIndicaAtendimento24h(), atualizarProspectoOsm(), atualizarStatusProspectoOsm(), CAMPOS_EDITAVEIS (+21 more)
 
 ### Community 12 - "supabase"
 Cohesion: 0.14
-Nodes (35): confirmarAcao(), coletarCodigosSecoesHonorarios(), excluirHonorariosObservacao(), isMissingRpcSalvarObservacaoError(), isMissingTableError(), isMissingTituloColumnError(), listarHonorariosObservacoes(), listarProcedimentosParaObservacoes() (+27 more)
+Nodes (34): coletarCodigosSecoesHonorarios(), excluirHonorariosObservacao(), isMissingRpcSalvarObservacaoError(), isMissingTableError(), isMissingTituloColumnError(), listarHonorariosObservacoes(), listarProcedimentosParaObservacoes(), mapearObservacao() (+26 more)
 
 ### Community 13 - "relatorioCadastrosLayout.js"
-Cohesion: 0.15
-Nodes (27): dataGeracaoPtBr(), desenharGraficoCredenciadosPorMes(), desenharResumosRelatorioCadastrosPdf(), desenharTabelaResumoPdf(), estilosTabelaResumoPdf(), gerarRelatorioCadastrosPdf(), blocosResumoRelatorioAtivos(), colunasTabelaRelatorioAtivas() (+19 more)
+Cohesion: 0.17
+Nodes (25): dataGeracaoPtBr(), desenharGraficoCredenciadosPorMes(), desenharResumosRelatorioCadastrosPdf(), gerarRelatorioCadastrosPdf(), blocosResumoRelatorioAtivos(), colunasTabelaRelatorioAtivas(), IDS_COLUNAS, IDS_RESUMOS (+17 more)
 
 ### Community 14 - "PagamentosRegistro.jsx"
-Cohesion: 0.08
-Nodes (66): Autorização (ACL), 4.1 `Pagamentos › Registro` (`src/pages/Pagamentos/PagamentosRegistro.jsx`), ACCESS_PROFILE_CHANGE_EVENT, setStoredAccessProfile(), usuarioSomenteLeituraGlobal(), carregarSessaoEPerfilAcesso(), CABECALHOS, exportarPagamentosParaExcel() (+58 more)
+Cohesion: 0.10
+Nodes (50): 4.1 `Pagamentos › Registro` (`src/pages/Pagamentos/PagamentosRegistro.jsx`), ACCESS_PROFILE_CHANGE_EVENT, usuarioSomenteLeituraGlobal(), CABECALHOS, exportarPagamentosParaExcel(), sanitizarNomeArquivo(), simNao(), rotuloMesAnoCurto() (+42 more)
 
 ### Community 15 - "conferenciaLaboratorio.js"
 Cohesion: 0.08
-Nodes (64): agruparCardsComparacaoPorAtendimento(), agruparLinhasPorAtendimento(), aliasesPessoaDePareamento(), alinharExamesLabAoCodigoDoPlano(), arredondarValorLab(), autoAprovarPareamentosPerfeitos(), CARDS_POR_PAGINA, cardTemDiffPendente() (+56 more)
+Nodes (65): agruparCardsComparacaoPorAtendimento(), agruparLinhasPorAtendimento(), aliasesPessoaDePareamento(), alinharExamesLabAoCodigoDoPlano(), arredondarValorLab(), autoAprovarPareamentosPerfeitos(), CARDS_POR_PAGINA, cardTemDiffPendente() (+57 more)
 
 ### Community 16 - "Painel.jsx"
 Cohesion: 0.11
-Nodes (35): itensDeAtendimento(), transferir(), emLimiteWati(), registrarAoConexao(), ATALHOS, comMod(), emCampo(), haSobreposicao() (+27 more)
+Nodes (47): itensDeAtendimento(), transferir(), ATALHOS, comMod(), emCampo(), haSobreposicao(), MAC, teclaDe() (+39 more)
 
-### Community 17 - "handle"
-Cohesion: 0.11
-Nodes (54): assinar(), compararSeguro(), conferirSenha(), criarToken(), hashSenha(), impressao(), lerToken(), segredoAleatorio() (+46 more)
+### Community 17 - "aceitarConvite"
+Cohesion: 0.16
+Nodes (22): assinar(), compararSeguro(), conferirSenha(), criarToken(), hashSenha(), impressao(), lerToken(), buscarUsuarioPorEmail() (+14 more)
 
 ### Community 18 - "formularioCredenciamento.js"
-Cohesion: 0.13
-Nodes (39): aplicarEntradaFormularioEmPrestadorExistente(), atualizarStatusEntradaFormulario(), buscarPrestadorIdPorDocumento(), CODIGOS_BLOQUEADOS_FORMULARIO, contarEntradasFormularioPendentes(), converterEntradaFormularioEmPrestador(), documentoOcupadoConsultaDireta(), documentoSomenteDigitos() (+31 more)
+Cohesion: 0.08
+Nodes (57): normalizarTextoConfirmacao(), SfscExclusaoConfirmToast(), useSfscExclusaoConfirm(), aplicarEntradaFormularioEmPrestadorExistente(), atualizarConfigFormulario(), atualizarStatusEntradaFormulario(), buscarPrestadorIdPorDocumento(), carregarConfigFormularioCredenciamento() (+49 more)
 
 ### Community 19 - "buscarQuemRealizaPrestadores.js"
-Cohesion: 0.10
-Nodes (50): avaliarViaCidadeParalela(), buscarPrestadoresQuemRealiza(), buscarVinculosPrestadorProcedimentosEmLote(), carregarDadosCredenciamentoQuemRealiza(), carregarMapasNomesAlternativosPorPrestador(), cidadeCredenciamentoCompativelComAlvo(), formatarNomeProcedimentoQuemRealiza(), formatarResultadosQuemRealizaParaClipboard() (+42 more)
+Cohesion: 0.12
+Nodes (40): avaliarViaCidadeParalela(), buscarVinculosPrestadorProcedimentosEmLote(), carregarMapasNomesAlternativosPorPrestador(), cidadeCredenciamentoCompativelComAlvo(), idsPrestadorCidadesParaFiltro(), montarLinhaResultadoQuemRealiza(), norm(), normCodigoProcedimento() (+32 more)
 
 ### Community 20 - "gemini/gemini.ts"
-Cohesion: 0.12
-Nodes (41): avisoFormatoChaveGemini(), classificarErroGemini(), configHashGemini(), configSnapshot, DEFAULT_GEMINI_MODEL, deveTentarProximoModelo(), envInt(), executarGenerateComCandidatos() (+33 more)
+Cohesion: 0.10
+Nodes (52): aplicarConfigGeracao(), avisoFormatoChaveGemini(), classificarErroGemini(), comTimeout(), configHashGemini(), configSnapshot, DEFAULT_GEMINI_MODEL, deveTentarProximoModelo() (+44 more)
 
 ### Community 21 - "gerarImpressaoHonorariosPdf.js"
-Cohesion: 0.10
-Nodes (44): adicionarLinkUri(), adicionarPaginasObservacoesDinamicas(), carregarSvgComoPngBytes(), COL_FRAC, colunasLayout(), COR_BORDA, COR_BRANCO, COR_INFO_ICON (+36 more)
+Cohesion: 0.11
+Nodes (41): adicionarLinkUri(), adicionarPaginasObservacoesDinamicas(), COL_FRAC, colunasLayout(), COR_BORDA, COR_BRANCO, COR_INFO_ICON, COR_INFO_TEXTO (+33 more)
 
 ### Community 22 - "serverAuth.js"
-Cohesion: 0.16
-Nodes (23): autorizarSegredo(), getHeader(), handler(), responderErro(), segredoInterno(), handler(), emerRadarCronHandler(), repoPadrao() (+15 more)
+Cohesion: 0.10
+Nodes (45): bufferToPdfDataUri(), handler(), nomeArquivoPdfSeguro(), normBase(), readJson(), uuidOk(), autorizarSegredo(), getHeader() (+37 more)
 
 ### Community 23 - "clicksignClient.js"
 Cohesion: 0.07
-Nodes (55): abrirVisualizacaoDocumento(), atributosSignerExpandidos(), cancelarEnvelopeClicksign(), clicksignAppOrigin(), clicksignRequest(), contagemRequisitosPorTipo(), dataAssinaturaRequisitoAgree(), dataConclusaoAtributos() (+47 more)
+Nodes (75): abrirVisualizacaoDocumento(), cancelarEnvelopeClicksign(), clicksignAppOrigin(), contagemRequisitosPorTipo(), dataEncerramentoEnvelope(), documentIdDoRequisito(), enriquecerDocumentosComArquivos(), envelopeStatusNormalizado() (+67 more)
 
 ### Community 24 - "eslint.config.js"
 Cohesion: 0.09
@@ -325,39 +327,39 @@ Nodes (24): devDependencies, autoprefixer@^10.5.4, eslint@^9.39.4, @eslint/js@^9
 
 ### Community 25 - "prestadorEnderecoGeocode.js"
 Cohesion: 0.11
-Nodes (42): __dirname, main(), parseArgs(), root, supabase, carregarBase(), CODIGO_LABEL, __dirname (+34 more)
+Nodes (43): __dirname, main(), parseArgs(), root, supabase, carregarBase(), CODIGO_LABEL, __dirname (+35 more)
 
 ### Community 26 - "conferencia/index.js"
 Cohesion: 0.09
-Nodes (52): classifyComparison(), classifyOrphan(), mesmoRadicalExame(), primeiroTokenExame(), ROTULO_STATUS, STATUS_OK, statusEhOk(), montarMatchScore() (+44 more)
+Nodes (52): classifyComparison(), classifyOrphan(), mesmoRadicalExame(), primeiroTokenExame(), ROTULO_STATUS, STATUS_OK, montarMatchScore(), pctDeScore() (+44 more)
 
 ### Community 27 - "emerRadarApi.js"
-Cohesion: 0.15
-Nodes (27): DEFAULT_TERMS, emerRadarGetSettings(), emerRadarHealth(), emerRadarSaveSettings(), geocodeEmerRadar(), getDefaultSearchTerms(), getEmerRadarApiBase(), isEmerRadarAmbienteRemoto() (+19 more)
+Cohesion: 0.10
+Nodes (45): DEFAULT_TERMS, deleteCity(), emerRadarGetSettings(), emerRadarHealth(), emerRadarSaveSettings(), fetchPlacePhotoEmerRadar(), geocodeEmerRadar(), getDefaultSearchTerms() (+37 more)
 
 ### Community 28 - "Prompt_Auditoria_UI_UX_EmerLab.md"
 Cohesion: 0.04
 Nodes (46): 10. Regras de implementação e preservação do sistema, 11. Processo obrigatório de execução, 12. Critérios de aceitação, 13. Relatório de entrega, 14. Diretriz final, 1. Objetivos principais, 2. Diretrizes visuais, 3.1 Desktop (+38 more)
 
 ### Community 29 - "wati.js"
-Cohesion: 0.12
-Nodes (42): envFaltando(), getEnv(), normalizeResendApiKey(), adicionarTag(), atribuirAtendente(), atribuirAtendenteV3(), atribuirEquipe(), atualizarAtributos() (+34 more)
+Cohesion: 0.14
+Nodes (39): adicionarTag(), atribuirAtendente(), atribuirAtendenteV3(), atribuirEquipe(), atualizarAtributos(), atualizarStatus(), baixarMidia(), cache (+31 more)
 
 ### Community 30 - "gerarRelatorioCadastrosPdf.js"
 Cohesion: 0.11
-Nodes (33): vitest, IDS_CRED, auditLogNovaSituacaoId(), auditLogTransicaoParaCredenciado(), buscarAuditLogsPrestadoresViaApi(), buscarLogsAuditoriaPrestadores(), carregarContextoUsuariosRelatorioCadastros(), compararLinhasCredenciadoEmAsc() (+25 more)
+Nodes (35): vitest, IDS_CRED, auditLogNovaSituacaoId(), auditLogTransicaoParaCredenciado(), buscarAuditLogsPrestadoresViaApi(), buscarLogsAuditoriaPrestadores(), carregarContextoUsuariosRelatorioCadastros(), compararLinhasCredenciadoEmAsc() (+27 more)
 
-### Community 31 - "ClicksignEmerdog.jsx"
-Cohesion: 0.11
-Nodes (44): alternarFavoritoAgenda(), atualizarContatoAgendaPorId(), carregarAgendaSignatarios(), migrarAgendaLocalSeNecessario(), removerContatoAgendaPorId(), rowParaContato(), upsertContatoAgenda(), validarContato() (+36 more)
+### Community 31 - "maskTelefoneBr"
+Cohesion: 0.18
+Nodes (18): erroApiTexto(), rotuloMeioContatoSignatario(), enviarLembreteSignatario(), LEMBRETE_SIGNATARIO_INTERVALO_MS, pathLembreteSignatario(), PATHS_LEMBRETE_SIGNATARIO(), payloadAtualizarSignatario(), payloadNotificacaoLembrete() (+10 more)
 
 ### Community 32 - "Repasse mensal — relatório com link, aprovação e comprovante"
 Cohesion: 0.14
 Nodes (13): 10. Downloads na página pública, 11. Segurança e LGPD, 12. Permissões, 13. Arquivos afetados, 14. Entregas, 15. Decisões pendentes, 16. Achado no arquivo de outubro/2026, 1. Objetivo (+5 more)
 
 ### Community 33 - "dependencies"
-Cohesion: 0.07
-Nodes (41): dependencies, @azure/msal-browser@^5.17.1, @azure/msal-react@^5.5.3, clsx@^2.1.1, dotenv@^17.4.2, @google/genai@^2.18.0, jszip@^3.10.1, leaflet@^1.9.4 (+33 more)
+Cohesion: 0.09
+Nodes (23): dependencies, @azure/msal-browser@^5.17.1, clsx@^2.1.1, dotenv@^17.4.2, @google/genai@^2.18.0, jszip@^3.10.1, leaflet@^1.9.4, puppeteer-core@^25.9.0 (+15 more)
 
 ### Community 34 - "regras.js"
 Cohesion: 0.10
@@ -373,47 +375,47 @@ Nodes (42): AdminAuditoria, AlterarSenha, App(), ClicksignEmerdog, ComprasOrcame
 
 ### Community 37 - "CredenciamentoMapa.jsx"
 Cohesion: 0.08
-Nodes (44): MapaBasemapLayers(), especialidadeCatalogoEhLocal(), idsEspecialidadesPrestadorLocal(), formatarLocalidadeMarcador(), marcadorCombinaBusca(), montarIndiceLocalidadesMarcadores(), sugerirEstabelecimentosMapa(), sugerirLocalidadesCadastroMapa() (+36 more)
+Nodes (42): especialidadeCatalogoEhLocal(), idsEspecialidadesPrestadorLocal(), formatarLocalidadeMarcador(), marcadorCombinaBusca(), montarIndiceLocalidadesMarcadores(), sugerirEstabelecimentosMapa(), sugerirLocalidadesCadastroMapa(), textoMarcadorParaBusca() (+34 more)
 
 ### Community 38 - "clicksignNotificacoes.js"
 Cohesion: 0.13
-Nodes (40): agruparNotificacoesPorEnvelope(), carregarDismissedLocalSync(), carregarNotificacoes(), carregarNotificacoesDoUtilizador(), carregarSnapshotSync(), chaveBellLimpo(), chaveNotif(), chaveNotificacaoContrato() (+32 more)
+Nodes (41): agruparNotificacoesPorEnvelope(), carregarDismissedLocalSync(), carregarNotificacoes(), carregarNotificacoesDoUtilizador(), carregarSnapshotSync(), chaveBellLimpo(), chaveNotif(), chaveNotificacaoContrato() (+33 more)
 
 ### Community 39 - "ConfigConferenciaLaboratorio.jsx"
-Cohesion: 0.10
-Nodes (43): rotuloStatusConferencia(), abrirDb(), carregarSessaoLocal(), comTransacao(), excluirSessaoLocal(), expurgarSessoesExpiradas(), formatarQuandoSessao(), listarSessoesConferencia() (+35 more)
+Cohesion: 0.09
+Nodes (47): rotuloStatusConferencia(), statusEhDivergencia(), statusEhOk(), COLUNAS_PLANAS, exportarConferenciaHonorariosExcel(), isoParaBr(), linhaPlana(), preencherAba() (+39 more)
 
 ### Community 40 - "conferenciaLaboratorioExcel.js"
-Cohesion: 0.10
-Nodes (38): acharArquivoZip(), arquivoZipComoTexto(), CAMPOS_CONFERENCIA, CAMPOS_CONFERENCIA_BASE, CAMPOS_LABORATORIO, CAMPOS_PLANO, CAMPOS_VALORES_BASE, celulaTemConteudoUtil() (+30 more)
+Cohesion: 0.09
+Nodes (43): encerrarWorker(), obterWorker(), parsearExcelConferenciaViaWorker(), parsearNaThreadPrincipal(), parsearNoWorker(), acharArquivoZip(), arquivoZipComoTexto(), CAMPOS_CONFERENCIA (+35 more)
 
 ### Community 41 - "audit.mjs"
-Cohesion: 0.08
-Nodes (33): args, BASE, browser, EDGE, env, measure(), newPage(), ONLY (+25 more)
+Cohesion: 0.06
+Nodes (38): __dirname, sql, sqlPath, sb, t0, args, BASE, browser (+30 more)
 
 ### Community 42 - "ContratosEmerdog.jsx"
 Cohesion: 0.12
-Nodes (34): buscarDadosCNPJ(), cacheMemoria, cnpjJaConsultadoComSucesso(), emVoo, gravarCache(), lerCache(), ORIGENS_CONSULTA_CNPJ, ORIGENS_PERMITIDAS (+26 more)
+Nodes (35): buscarDadosCNPJ(), cacheMemoria, cnpjJaConsultadoComSucesso(), emVoo, gravarCache(), lerCache(), ORIGENS_CONSULTA_CNPJ, ORIGENS_PERMITIDAS (+27 more)
 
 ### Community 43 - "vite.config.js"
-Cohesion: 0.14
-Nodes (23): config, handler(), nodeHandler(), config, handler(), nodeHandler(), apenasDigitos(), clientIpFromHeaders() (+15 more)
+Cohesion: 0.11
+Nodes (29): config, handler(), nodeHandler(), config, handler(), nodeHandler(), handleGeminiRate(), handler() (+21 more)
 
-### Community 44 - "supabase.js"
-Cohesion: 0.17
-Nodes (27): gerarSenhaTemporaria(), PrivateRoute(), clearStoredAccessProfile(), registrarEventoAuthAuditoria(), invalidarCachePerfilAcesso(), PASSWORD_MIN_LENGTH, TEMP_PASSWORD_LENGTH, textoAjudaPoliticaSenha() (+19 more)
+### Community 44 - "qualidadeDados.js"
+Cohesion: 0.20
+Nodes (22): descricaoSituacaoPrestador(), prestadorEhCredenciado(), agruparDuplicatas(), arquivarAvisoQualidade(), carregarEspecialidades(), carregarPrestadoresCredenciados(), carregarSituacoes(), CATEGORIAS_QUALIDADE (+14 more)
 
 ### Community 45 - "Supertabelaprocedimentos.jsx"
-Cohesion: 0.09
-Nodes (42): buscarCategoriaLimitesGrupo(), categoriaPermiteLimiteGrupoNaChavePlano(), categoriaUsaLimiteGrupo(), isMissingCategoriaLimitesGrupoTable(), montarLimitesGrupoPorCategoriaEChavePlano(), montarMapaLimiteGrupoPorCategoria(), montarPlanosChaveDisponiveisPorCategoria(), obterLimiteGrupoAtivo() (+34 more)
+Cohesion: 0.10
+Nodes (36): Task 3: Regras puras da rede credenciada, buscarCategoriaLimitesGrupo(), categoriaPermiteLimiteGrupoNaChavePlano(), categoriaUsaLimiteGrupo(), montarMapaLimiteGrupoPorCategoria(), montarPlanosChaveDisponiveisPorCategoria(), obterLimiteGrupoAtivo(), PROCEDIMENTO_ID_EXCECAO_LIMITE_INDIVIDUAL (+28 more)
 
 ### Community 46 - "PreviaMicrosoft.jsx"
-Cohesion: 0.11
-Nodes (33): IconeMicrosoft(), LogoMicrosoft(), MolduraMicrosoft(), Agenda(), CalendarioMes(), diaDe(), DIAS_SEMANA, mesDe() (+25 more)
+Cohesion: 0.07
+Nodes (54): EditorEmail(), FORMATOS, tamanhoLegivel(), IconeMicrosoft(), LogoMicrosoft(), Menu(), MolduraMicrosoft(), Arquivo() (+46 more)
 
 ### Community 47 - "authSession.js"
-Cohesion: 0.12
-Nodes (32): react-router-dom, BottomNav(), HubIcon(), FloatingLayerPortal(), FloatingToolsDock(), Layout2(), grupoIdPorPathname(), Sidebar() (+24 more)
+Cohesion: 0.11
+Nodes (26): BottomNav(), HubIcon(), grupoIdPorPathname(), Sidebar(), SIDEBAR_ICONS, ADMIN_CHILDREN, CONFIG_CHILDREN, CONFIG_TOOLS (+18 more)
 
 ### Community 48 - "functions"
 Cohesion: 0.06
@@ -424,12 +426,12 @@ Cohesion: 0.20
 Nodes (17): apenasDigitos(), BRASIL_API_CNPJ_BASE, cacheServidor, cacheTtlMs(), clampDays(), consultarBrasilApi(), diasCacheEnv(), emVooServidor (+9 more)
 
 ### Community 50 - "Home.jsx"
-Cohesion: 0.15
-Nodes (31): anexarArquivosTarefa(), atualizarAnexosNaTarefa(), atualizarTarefaHome(), BUCKET_HOME_TAREFAS_ANEXOS, colsSelectTarefa(), criarTarefaHome(), dataHoraPrazoTarefa(), excluirTarefaHome() (+23 more)
+Cohesion: 0.18
+Nodes (28): anexarArquivosTarefa(), atualizarAnexosNaTarefa(), atualizarTarefaHome(), BUCKET_HOME_TAREFAS_ANEXOS, colsSelectTarefa(), criarTarefaHome(), dataHoraPrazoTarefa(), excluirTarefaHome() (+20 more)
 
 ### Community 51 - "api.js"
-Cohesion: 0.13
-Nodes (20): aoConexao(), aoExpirar(), api(), ApiError, registrarAoExpirar(), App(), CriarSenha(), Login() (+12 more)
+Cohesion: 0.14
+Nodes (17): registrarAoExpirar(), App(), CriarSenha(), Login(), criar(), esconder(), iniciarDicas(), mostrar() (+9 more)
 
 ### Community 52 - "gerarImpressaoDescontosPdf.js"
 Cohesion: 0.13
@@ -441,67 +443,67 @@ Nodes (32): calcularDrawerStyle(), clamparPosicao(), detectarAncora(), DevToolsF
 
 ### Community 54 - "zap-emerlab/package.json"
 Cohesion: 0.08
-Nodes (31): concurrently, lucide-react, simple-icons, dependencies, lucide-react@^1.61.0, react@^19.2.4, react-dom@^19.2.4, simple-icons@^16.36.0 (+23 more)
+Nodes (32): concurrently, lucide-react, simple-icons, dependencies, lucide-react@^1.61.0, react@^19.2.4, react-dom@^19.2.4, simple-icons@^16.36.0 (+24 more)
 
 ### Community 55 - "EmerRadarProspectResults.jsx"
-Cohesion: 0.13
-Nodes (29): buttonClassName(), fetchPlacePhotoEmerRadar(), scrapeExportPdfUrl(), lerProspectosMapsDismissed(), marcarProspectoMapsDismissed(), salvarProspectosMapsDismissed(), classify(), copyText() (+21 more)
+Cohesion: 0.14
+Nodes (26): chaveEstavelProspectoMaps(), lerProspectosMapsDismissed(), marcarProspectoMapsDismissed(), salvarProspectosMapsDismissed(), classify(), copyText(), atualizarProspectoMaps(), descartarProspectoMaps() (+18 more)
 
 ### Community 56 - "etiquetasEndereco.js"
-Cohesion: 0.12
-Nodes (44): agruparItensTextoEmEtiquetas(), baixarBlob(), baixarModeloEtiquetasExcel(), caberEndereco(), caberLinha(), carregarPdfJs(), celulaTexto(), COL_X (+36 more)
+Cohesion: 0.13
+Nodes (40): agruparItensTextoEmEtiquetas(), caberEndereco(), caberLinha(), carregarPdfJs(), celulaTexto(), COL_X, COR_TEXTO, detectarCampoCabecalho() (+32 more)
 
 ### Community 57 - "deploy-pages.yml"
 Cohesion: 0.07
 Nodes (29): runs-on, steps, concurrency, cancel-in-progress, group, environment, needs, runs-on (+21 more)
 
 ### Community 58 - "gerarOrcamentoPdf.js"
-Cohesion: 0.17
-Nodes (22): jspdf@^4.2.1, jspdf-autotable@^5.0.7, jspdf, jspdf-autotable, baixarOrcamentoPdf(), dataGeracaoPtBr(), gerarOrcamentoPdfBlob(), nomeArquivoOrcamentoPdf() (+14 more)
+Cohesion: 0.12
+Nodes (30): jspdf@^4.2.1, jspdf-autotable@^5.0.7, jspdf, jspdf-autotable, baixarOrcamentoPdf(), dataGeracaoPtBr(), gerarOrcamentoPdfBlob(), nomeArquivoOrcamentoPdf() (+22 more)
 
 ### Community 59 - "gerarImpressaoPlanosPdf.js"
 Cohesion: 0.14
-Nodes (29): alturaGrupo(), calcularAlturaUtilPagina(), carregarSvgComoPngBytes(), COL_FRAC, colunasLayout(), COR_BORDA, COR_BRANCO, COR_NAVY (+21 more)
+Nodes (30): alturaGrupo(), calcularAlturaUtilPagina(), carregarSvgComoPngBytes(), COL_FRAC, colunasLayout(), COR_BORDA, COR_BRANCO, COR_NAVY (+22 more)
 
 ### Community 60 - "admin-users.js"
-Cohesion: 0.16
-Nodes (28): buscarProfile(), colunaAusenteNoErro(), encontrarUsuarioPorEmail(), enviarConviteComSenhaTemporaria(), enviarLinkAuthPorResend(), getHeader(), getSupabaseAdmin(), getSupabaseAuth() (+20 more)
+Cohesion: 0.14
+Nodes (32): buscarProfile(), colunaAusenteNoErro(), encontrarUsuarioPorEmail(), enviarConviteComSenhaTemporaria(), enviarLinkAuthPorResend(), getHeader(), getSupabaseAdmin(), getSupabaseAuth() (+24 more)
 
 ### Community 61 - "css-prune.cjs"
 Cohesion: 0.22
 Nodes (7): postcss@^8.5.26, postcss, css, fs, postcss, re, root
 
 ### Community 62 - "prestadorCadastroHelpers.js"
-Cohesion: 0.14
-Nodes (18): avaliaClausulaBusca(), calcularPercentualCompletudePerfil(), campoPreenchido(), categoriaExigeLaboratoriosSolicitacao(), descricaoSituacaoPrestador(), enderecoCadastroCompleto(), ESPECIALIDADE_LABORATORIO_ID, ESPECIALIDADES_ESTABELECIMENTO_IDS (+10 more)
+Cohesion: 0.13
+Nodes (29): CredenciamentoMainAlert(), baixarBlob(), baixarModeloEtiquetasExcel(), formatarPeriodoYmdPtBr(), acharSituacaoCredenciadoId(), avaliaClausulaBusca(), calcularPercentualCompletudePerfil(), campoPreenchido() (+21 more)
 
 ### Community 63 - "nominatimUpstream.js"
-Cohesion: 0.20
-Nodes (16): handleNominatim(), handleOverpass(), handler(), queryParamsSemRota(), aguardarVagaNaFila(), cache, chaveCache(), contact (+8 more)
+Cohesion: 0.24
+Nodes (12): handleNominatim(), aguardarVagaNaFila(), cache, chaveCache(), contact, fila, gravarCache(), lerCache() (+4 more)
 
-### Community 64 - "emerRadarUi.js"
-Cohesion: 0.13
-Nodes (30): chaveEstavelProspectoMaps(), categoriaMapsIrrelevante(), displayCategory(), FASE_PIPELINE_LABEL, formatarNotaMaps(), formatDateBR(), isMobilePhone(), labelCategoriaPorTermo() (+22 more)
+### Community 64 - "EmerRadarExecucaoPage.jsx"
+Cohesion: 0.09
+Nodes (51): emerRadarCarregarExecucao(), emerRadarCatalogar(), categoriaMapsIrrelevante(), cidadeFromEndereco(), displayCategory(), FASE_PIPELINE_LABEL, formatarNotaMaps(), isMobilePhone() (+43 more)
 
 ### Community 65 - "repasseApi.js"
-Cohesion: 0.25
-Nodes (16): lerRelatorioCompleto(), aplicarVariaveis(), ASSUNTO_PADRAO, brlCore(), CORPO_PADRAO, descontoRpaDoRepasse(), distribuirHorarios(), instrucaoPorTipo() (+8 more)
+Cohesion: 0.23
+Nodes (17): lerRelatorioCompleto(), aplicarVariaveis(), ASSUNTO_PADRAO, brlCore(), CORPO_PADRAO, descontoRpaDoRepasse(), DIAS_RETENCAO_DOCUMENTOS, distribuirHorarios() (+9 more)
 
 ### Community 66 - "prestadorProcedimentos.js"
-Cohesion: 0.08
-Nodes (55): carregarPrestadorProcedimentosExport(), carregarLinhasHonorariosPrestador(), carregarProcedimentosPorCodigos(), formatarValorCelula(), mapaValoresNegociacao(), temNegociacaoVet(), classificarCategoriaExameLaboratorial(), agregarNomesAlternativosPorCodigo() (+47 more)
+Cohesion: 0.10
+Nodes (51): carregarLinhasHonorariosPrestador(), carregarProcedimentosPorCodigos(), formatarValorCelula(), mapaValoresNegociacao(), temNegociacaoVet(), classificarCategoriaExameLaboratorial(), agregarNomesAlternativosPorCodigo(), carregarMapaBuscaNomesAlternativosRede() (+43 more)
 
 ### Community 67 - "geocodeNominatim.js"
 Cohesion: 0.34
 Nodes (12): buscarPoisNominatimNaViewbox(), buscarSugestoesNominatim(), cidadeDeEnderecoNominatim(), enderecoLinhaNominatim(), executarBuscaNominatim(), extrairHorarioAtendimentoNominatim(), extrairTelefoneNominatim(), formatarHitNominatim() (+4 more)
 
 ### Community 68 - "FormularioInboxBell.jsx"
-Cohesion: 0.21
-Nodes (19): calcularDrawerStyle(), clamparPosicao(), detectarAncora(), FormularioInboxBell(), lerModoCompacto(), lerPosicaoSalva(), posicaoPadrao(), salvarModoCompacto() (+11 more)
+Cohesion: 0.11
+Nodes (33): calcularDrawerStyle(), clamparPosicao(), detectarAncora(), FormularioInboxBell(), lerModoCompacto(), lerPosicaoSalva(), posicaoPadrao(), salvarModoCompacto() (+25 more)
 
 ### Community 69 - "ui/index.js"
-Cohesion: 0.15
-Nodes (22): Badge(), tones, buttonSizes, buttonVariants, Card(), Campo(), composeDescribedBy(), Input() (+14 more)
+Cohesion: 0.11
+Nodes (31): tones, buttonClassName(), buttonSizes, buttonVariants, Card(), DialogosHost(), Campo(), composeDescribedBy() (+23 more)
 
 ### Community 70 - "observacoesModeloPdf.js"
 Cohesion: 0.18
@@ -512,16 +514,16 @@ Cohesion: 0.19
 Nodes (18): urlMidia(), Citacao(), Falha(), Mensagem(), Midia(), nomeDoArquivo(), ROTULO_ARQUIVO, ROTULO_CITA (+10 more)
 
 ### Community 72 - "Home.jsx"
-Cohesion: 0.13
-Nodes (30): listarEnvelopesComAtualizacoes(), listarNotificacoesMencoesKanban(), marcarMencaoKanbanLida(), usuarioPodeVerAuditoriaEmermarketing(), alternarFavoritoHome(), favoritosPadraoSugeridos(), lerFavoritosHome(), listarPaginasFavoritaveis() (+22 more)
+Cohesion: 0.11
+Nodes (33): listarNotificacoesMencoesKanban(), marcarMencaoKanbanLida(), urlEmerMarketing(), alternarFavoritoHome(), favoritosPadraoSugeridos(), lerFavoritosHome(), listarPaginasFavoritaveis(), listarPaginasFavoritaveisPorGrupo() (+25 more)
 
-### Community 73 - "Icone"
-Cohesion: 0.22
-Nodes (17): Admin(), comAtalhosUnicos(), Departamentos(), DEPTO_VAZIO, ImportarRespostas(), ImportarWati(), ORDENS_RESPOSTA, RESPOSTA_VAZIA (+9 more)
+### Community 73 - "ref_react"
+Cohesion: 0.13
+Nodes (29): api(), Admin(), ArquivosDaResposta(), comAtalhosUnicos(), Departamentos(), DEPTO_VAZIO, ImportarRespostas(), ImportarWati() (+21 more)
 
 ### Community 74 - "EmerLAB (SFSC SUPERTOOL): documentação do projeto"
-Cohesion: 0.09
-Nodes (22): 10. Supabase: banco, Edge Functions e SQL, 11. Integrações externas, 13. Documentação relacionada, 14. Convenções e observações, 1. Stack e visão geral, 2. Estrutura de pastas, 3. Como rodar localmente, 4. Scripts npm (+14 more)
+Cohesion: 0.12
+Nodes (16): 11. Integrações externas, 13. Documentação relacionada, 14. Convenções e observações, 1. Stack e visão geral, 2. Estrutura de pastas, 3. Como rodar localmente, 4. Scripts npm, 5. Variáveis de ambiente (+8 more)
 
 ### Community 75 - "steps"
 Cohesion: 0.10
@@ -531,45 +533,45 @@ Nodes (20): runs-on, steps, jobs, audit-and-secrets, name, on, pull_request, pus
 Cohesion: 0.23
 Nodes (14): buscarPaginado(), carregarPrecosNegociacaoLaboratorio(), filtrarCatalogoNegociacao(), indexarPreco(), montarCatalogoPrecos(), precoEhUtil(), precoNegociacaoUtil(), resolverExameNegociacao() (+6 more)
 
-### Community 77 - "rc-pdf.js"
-Cohesion: 0.16
-Nodes (21): carregarBase(), chunk(), escaparHtml(), formatarTelefone(), gerarHtmlCards(), gerarPdfBuffer(), getSupabase(), launchBrowser() (+13 more)
+### Community 77 - "CredenciamentoEspecialidadesRc.jsx"
+Cohesion: 0.42
+Nodes (8): calcularOrdemRcPadrao(), isMissingOrdemRcColumnError(), ordemEfetivaEspecialidade(), ordemGrupoEspecialidadeLegado(), ordenarLinhasRc(), CredenciamentoEspecialidadesRc(), reorderList(), TIPOS_SUGERIDOS
 
 ### Community 78 - "emerRadarApi.js"
-Cohesion: 0.23
-Nodes (15): listCities(), pipelineListQueue(), pipelineRemoveFromQueue(), cityKey(), COOLDOWN_DAYS, deleteCityFromDb(), enqueuePipelineCitiesFromDb(), listCitiesFromDb() (+7 more)
+Cohesion: 0.31
+Nodes (12): cityKey(), COOLDOWN_DAYS, deleteCityFromDb(), enqueuePipelineCitiesFromDb(), listCitiesFromDb(), listPipelineQueueFromDb(), mapQueueRow(), normalizePares() (+4 more)
 
 ### Community 79 - "mapaBuscaPoiFiltros.js"
 Cohesion: 0.24
 Nodes (8): blobItemPoi(), chaveItemPoiMapa(), filtrarItensNominatimPorTermo(), filtrarItensPoiMapaPorTermo(), mesclarItensPoiMapa(), tokensSignificativosPoi(), STOPWORDS_POI_BUSCA, tokensTermoBusca()
 
 ### Community 80 - "maskCNPJ"
-Cohesion: 0.27
-Nodes (15): EMERDOG_CONTRATANTE, EMERDOG_PARCERIA_CABECALHO, EMERDOG_PARCERIA_CONTRATANTE, EMERDOG_RAZAO_VOLANTES, maskCNPJ(), maskCPF(), getLinhasClinicas(), getLinhas() (+7 more)
+Cohesion: 0.29
+Nodes (14): EMERDOG_CONTRATANTE, EMERDOG_PARCERIA_CABECALHO, EMERDOG_PARCERIA_CONTRATANTE, EMERDOG_RAZAO_VOLANTES, maskCNPJ(), getLinhasClinicas(), getLinhas(), getLinhasParceria() (+6 more)
 
-### Community 81 - "PagamentosPainelPrestador.jsx"
-Cohesion: 0.19
-Nodes (21): Button(), Modal(), valorLiquidoRpa(), enviarComprovante(), enviarComprovanteLote(), listarDocumentosEmRevisao(), listarRegistrosDoPrestador(), listarRelatoriosPorRegistros() (+13 more)
+### Community 81 - "PagamentosCaixa.jsx"
+Cohesion: 0.12
+Nodes (40): Button(), Modal(), rotuloTipoRepasse(), ehTipoRpa(), formatarValorMonetarioBr(), valorLiquidoRpa(), carregarCaixa(), enviarComprovante() (+32 more)
 
 ### Community 82 - "rcPdfCarimbo.js"
-Cohesion: 0.20
-Nodes (13): pdf-lib@^1.17.1, pdf-lib, embedMontserratNoPdf(), fetchFontBytes(), FONT_URLS, formatarCarimboDataHora(), FUSO_CARIMBO_EMISSAO, aplicarCarimboRcDocumento() (+5 more)
+Cohesion: 0.18
+Nodes (14): pdf-lib@^1.17.1, pdf-lib, comporPdfFinal(), embedMontserratNoPdf(), fetchFontBytes(), FONT_URLS, formatarCarimboDataHora(), FUSO_CARIMBO_EMISSAO (+6 more)
 
 ### Community 83 - "trafegoCidades.js"
-Cohesion: 0.28
-Nodes (16): pipelineEnqueue(), pipelinePreviewCities(), cidadeDisponivel(), cidadeEmCooldown(), dataLocalYmd(), enfileirarCidadesQueBateramLimiar(), filtrarCidadesNoLimiar(), filtrarMunicipiosIbgeExistentes() (+8 more)
+Cohesion: 0.26
+Nodes (17): pipelineEnqueue(), pipelinePreviewCities(), cidadeDisponivel(), cidadeEmCooldown(), dataLocalYmd(), enfileirarCidadesQueBateramLimiar(), filtrarCidadesNoLimiar(), filtrarMunicipiosIbgeExistentes() (+9 more)
 
 ### Community 84 - "util.js"
-Cohesion: 0.11
-Nodes (39): CATEGORIAS, FilaEspera(), Avatar(), ContatoMetaPills(), dicaAnuncio(), ListaConversas(), Avatar(), CAMPOS_WATI (+31 more)
+Cohesion: 0.13
+Nodes (21): CAMPOS_WATI, carregarMunicipios(), igual(), municipiosCache, OPCOES_TIPO, tipoCanonico(), rotuloOpcao(), SelectMunicipioBusca() (+13 more)
 
 ### Community 85 - "clicksignProxyHandler.js"
-Cohesion: 0.20
-Nodes (16): handler(), pathFromQuery(), server, caminhoNoPrefixo(), clicksignProxyHandler(), isPathAllowed(), isWritePathAllowed(), metodoEhLeitura() (+8 more)
+Cohesion: 0.22
+Nodes (15): handler(), pathFromQuery(), server, caminhoNoPrefixo(), clicksignProxyHandler(), isPathAllowed(), isWritePathAllowed(), metodoEhLeitura() (+7 more)
 
 ### Community 86 - "CredenciamentoFormularioPublico.jsx"
 Cohesion: 0.23
-Nodes (17): carregarEspecialidadesFormularioPublico(), carregarProcedimentosPublicadosFormulario(), documentoCpfCnpjEstaCompleto(), documentoTemEntradaFormularioAberta(), enviarEntradaFormularioCredenciamento(), verificarDocumentoParaEnvioFormulario(), montarEspecialidadesIdsFormulario(), responsaveisParaPayload() (+9 more)
+Nodes (17): carregarEspecialidadesFormularioPublico(), carregarProcedimentosPublicadosFormulario(), enviarEntradaFormularioCredenciamento(), montarEspecialidadesIdsFormulario(), normalizarChavePixParaSalvar(), normalizarEmailParaSalvar(), responsaveisParaPayload(), totalCertificadosConclusaoAtivos() (+9 more)
 
 ### Community 87 - "requireUser.ts"
 Cohesion: 0.23
@@ -579,33 +581,33 @@ Nodes (15): 3. Edge Functions (`supabase/functions/*`), aclKey(), buckets, creat
 Cohesion: 0.25
 Nodes (14): limitarBoundsOverpass(), atualizarJob(), contarPassos(), executarPassoJobColeta(), fallbackOsmHabilitado(), iniciarJobColeta(), metaInicial(), resolverFonteColeta() (+6 more)
 
-### Community 89 - "serverBackend.js"
-Cohesion: 0.15
-Nodes (22): authHeaders(), useGeminiRate(), anonKey(), buildServerApiUrl(), deveUsarSupabaseEdgeApi(), EDGE_ROUTE_MAP, invokeEdgeFunction(), postServerApiJson() (+14 more)
+### Community 89 - "db"
+Cohesion: 0.17
+Nodes (24): segredoAleatorio(), db(), idsDepartamentos(), ok(), anexarArquivoResposta(), arquivosDasRespostas(), criarUsuario(), editarUsuario() (+16 more)
 
 ### Community 90 - "IA no EmerLAB — guia do desenvolvedor"
 Cohesion: 0.25
 Nodes (8): Coleta de prospectos (só Gemini), Espelho Edge, Fora de âmbito, IA no EmerLAB — guia do desenvolvedor, Módulo global, Rate (contador local), Segurança, Variáveis de ambiente
 
 ### Community 91 - "Supertabelaplanos.jsx"
-Cohesion: 0.08
-Nodes (69): CidadeTabelaIbgeForm(), FiltroUfCidade(), GerenciarTabelasModal(), Toolbar(), MQ_TELA_PEQUENA, useTelaPequena(), hasStoredPermission(), PERMISSION_KEYS (+61 more)
+Cohesion: 0.09
+Nodes (75): CampoBuscaComLimpar(), CidadeTabelaIbgeForm(), FiltroUfCidade(), GerenciarTabelasModal(), PageHeader(), Toolbar(), MQ_TELA_PEQUENA, useTelaPequena() (+67 more)
 
 ### Community 92 - "MapaBasemapToggle.jsx"
-Cohesion: 0.27
-Nodes (14): MapaBasemapToggle(), useEstiloBasemap(), cartoApiKey(), ESRI_CINZA_BASE, ESRI_CINZA_ROTULOS, leafletBasemapLayers(), leafletBasemapProps(), lerEstiloBasemapSalvo() (+6 more)
+Cohesion: 0.25
+Nodes (15): MapaBasemapLayers(), MapaBasemapToggle(), useEstiloBasemap(), cartoApiKey(), ESRI_CINZA_BASE, ESRI_CINZA_ROTULOS, leafletBasemapLayers(), leafletBasemapProps() (+7 more)
 
 ### Community 93 - "calendarExport.js"
 Cohesion: 0.31
 Nodes (13): addDaysYmd(), buildIcsCalendar(), buildIcsEvent(), downloadTextFile(), escapeIcsText(), exportarAgendaIcs(), foldIcsLine(), formatIcsDateLocal() (+5 more)
 
 ### Community 94 - "normalizarTextoBusca"
-Cohesion: 0.12
-Nodes (36): Dropdown(), opcoesDeChildren(), SelectDropdown(), sugerirNomeEmerdogParaExame(), buscarPaginadoPequeno(), carregarCodigosPerfilPorPrestadores(), celulaTexto(), classificarLinhasImportCredenciados() (+28 more)
+Cohesion: 0.19
+Nodes (24): buscarPaginadoPequeno(), carregarCodigosPerfilPorPrestadores(), celulaTexto(), classificarLinhasImportCredenciados(), listarOrfaosPerfilForaDaPlanilha(), mapearIndicesColunas(), normalizarCabecalho(), normalizarCodigo() (+16 more)
 
-### Community 95 - "PreviaEmail.jsx"
-Cohesion: 0.16
-Nodes (19): EditorEmail(), FORMATOS, tamanhoLegivel(), Menu(), Arquivo(), tipoArquivo(), CaixaEmail(), dataCompleta() (+11 more)
+### Community 95 - "ImpressaoPlanos.jsx"
+Cohesion: 0.22
+Nodes (15): downloadImpressaoPlanosPdf(), listarPlanosImpressaoOrdenados(), aplicarSelecaoModo(), buscarModoImpressaoPlanos(), formatarQuandoRelativo(), montarSelecaoDeCategorias(), rotuloModoImpressao(), salvarModoImpressaoPlanos() (+7 more)
 
 ### Community 96 - "_shared/gemini.ts"
 Cohesion: 0.24
@@ -616,20 +618,20 @@ Cohesion: 0.24
 Nodes (13): assinaturaEsperadaHex(), EVENTOS_UTEIS, extrairAssinaturaRecebida(), extrairIds(), handler(), header(), igualHexSeguro(), montarTextoNotificacao() (+5 more)
 
 ### Community 98 - "CredenciamentoKanban.jsx"
-Cohesion: 0.06
-Nodes (89): extrairIdsMencoesKanban(), marcarMencoesKanbanCardLidas(), notificarMencoesKanban(), previewCorpo(), queryMencaoUsuarioNoCorpo(), tokenMencaoUsuario(), aplicarSideEffectsColuna(), assinarCardsKanbanLive() (+81 more)
+Cohesion: 0.11
+Nodes (54): extrairIdsMencoesKanban(), marcarMencoesKanbanCardLidas(), notificarMencoesKanban(), previewCorpo(), queryMencaoUsuarioNoCorpo(), tokenMencaoUsuario(), aplicarSideEffectsColuna(), assinarCardsKanbanLive() (+46 more)
 
 ### Community 99 - "scripts"
 Cohesion: 0.13
 Nodes (15): scripts, build, dev, dev:api, lint, prestadores:export-enderecos, prestadores:geocode-primeira-carga, prestadores:import-coordenadas (+7 more)
 
-### Community 100 - "ref_react"
-Cohesion: 0.15
-Nodes (16): Alternar(), Configuracoes(), Segmentado(), EnviarTemplate(), nomesEm(), ondeAparece(), substituir(), valorInicial() (+8 more)
+### Community 100 - "Configuracoes.jsx"
+Cohesion: 0.29
+Nodes (8): MOD, Alternar(), Configuracoes(), Segmentado(), Instrucoes(), mod, SECOES, DESTAQUES
 
-### Community 101 - "accessControl.js"
-Cohesion: 0.11
-Nodes (23): fetchMeta(), fetchPdfFromUrl(), handler(), hrefDeLink(), normBase(), pickUrl(), tryDownloadEndpoints(), urlsArquivosDocumento() (+15 more)
+### Community 101 - "rateLimit.js"
+Cohesion: 0.20
+Nodes (16): fetchMeta(), fetchPdfFromUrl(), handler(), hrefDeLink(), normBase(), pickUrl(), tryDownloadEndpoints(), urlsArquivosDocumento() (+8 more)
 
 ### Community 102 - "EmerLAB UI Kit"
 Cohesion: 0.14
@@ -640,28 +642,28 @@ Cohesion: 0.14
 Nodes (13): 1. Por que existe, 2. Decisões, 3. Tokens, 4. Página, 5. Barra de filtros (menu flutuante), 6. Controles, 7. Conteúdo, 8. Mobile (+5 more)
 
 ### Community 104 - "prestadorVeterinarioCadastro.js"
-Cohesion: 0.13
-Nodes (30): normalizarChavePixParaSalvar(), normalizarEmailParaSalvar(), situacaoEhAguardandoFormularioLegado(), tipoEspecialidadePrestador(), BUCKET_CREDENCIAMENTO_DOCUMENTOS, carregarCertificadosConclusaoPrestador(), carregarResponsaveisPrestador(), certificadoConclusaoArquivoValido() (+22 more)
+Cohesion: 0.10
+Nodes (39): filtrarSituacoesSemAguardandoFormulario(), formatarTelefoneEntrada, montarEnderecoUmaLinha(), patchCredenciadoEmSeTransicao(), prestadorEstabelecimentoVinculavel(), sincronizarSituacaoVetsDoEstabelecimento(), situacaoEhAguardandoFormularioLegado(), tipoEspecialidadePrestador() (+31 more)
 
 ### Community 105 - "lerRelatorioExcel.js"
-Cohesion: 0.24
-Nodes (17): normalizarValorMonetarioEntrada(), arredondar(), ehCabecalho(), ehLaboratorio(), ehTotais(), formatarData(), interpretarAba(), interpretarRelatorio() (+9 more)
+Cohesion: 0.15
+Nodes (25): normalizarValorMonetarioEntrada(), arredondar(), cabecalhoConfere(), COLUNAS_RELATORIO, ehCabecalho(), ehLaboratorio(), ehTotais(), formatarData() (+17 more)
 
 ### Community 106 - "persist.js"
-Cohesion: 0.26
-Nodes (10): carregarEquivalenciasLaboratorio(), carregarPerfisLaboratorio(), salvarEquivalenciaExame(), salvarRevisaoConferencia(), tabelaAusente(), uidAtual(), carregarAliasesPessoaLaboratorio(), carregarMapeamentosLaboratorio() (+2 more)
+Cohesion: 0.24
+Nodes (11): carregarEquivalenciasLaboratorio(), carregarPerfisLaboratorio(), salvarEquivalenciaExame(), salvarPerfilExame(), salvarRevisaoConferencia(), tabelaAusente(), uidAtual(), carregarAliasesPessoaLaboratorio() (+3 more)
 
 ### Community 107 - "cidadesCredenciamento.js"
 Cohesion: 0.30
 Nodes (14): buscarExistenteRest(), cacheTabelasApoioCidades, cidadeCredenciamentoMesmaLocalidade(), isConflitoUnicidade(), isErroRls(), isRpcIndisponivel(), lerTabelasApoioCidades(), normalizarNomeCidadeCredenciamento() (+6 more)
 
 ### Community 108 - "exceljs"
-Cohesion: 0.12
-Nodes (10): __dirname, sql, sqlPath, buf, cents(), falhas, resumo, txt() (+2 more)
+Cohesion: 0.25
+Nodes (7): buf, cents(), falhas, resumo, txt(), wb, wsResumo
 
 ### Community 109 - "exportSupertabelaExcel.js"
-Cohesion: 0.25
-Nodes (13): baixarWorkbook(), BORDA_FINA, estiloCabecalho(), estiloNumero(), estiloTexto(), exportarTabelaPlanosDiferencasParaExcel(), exportarTabelaPlanosLimitesParaExcel(), FONTE_CABECALHO (+5 more)
+Cohesion: 0.14
+Nodes (20): exceljs@^4.4.0, exceljs, exportarPosRelatorioConferenciaExcel(), CABECALHOS, exportarMapaPoisParaExcel(), nomeExibicaoPoi(), sanitizarNomeArquivo(), baixarWorkbook() (+12 more)
 
 ### Community 110 - "prospectos-coletar/index.ts"
 Cohesion: 0.34
@@ -675,25 +677,25 @@ Nodes (12): geocodificarEnderecoNominatim(), geocodificarESalvarPrestador(), lis
 Cohesion: 0.14
 Nodes (14): Estrutura no repositório, Migração para Supabase Edge Functions, O que já foi migrado (código), O que permanece no Vercel (por enquanto), Passo 1 — Instalar Supabase CLI, Passo 2 — Login e link do projeto, Passo 3 — Secrets das Edge Functions, Passo 4 — Deploy das functions (+6 more)
 
-### Community 113 - "server/email.js"
-Cohesion: 0.25
-Nodes (12): BRAND, emailConfigurado(), envelopeHtml(), enviarEmail(), escapeHtml(), host(), montarEmailConvite(), primeiroNome() (+4 more)
+### Community 113 - "getEnv"
+Cohesion: 0.13
+Nodes (25): BRAND, emailConfigurado(), envelopeHtml(), enviarEmail(), escapeHtml(), host(), montarEmailConvite(), primeiroNome() (+17 more)
 
 ### Community 114 - "quemRealiza.js"
-Cohesion: 0.30
-Nodes (13): carregarBase(), catalogoProcedimentos(), cidadeCompativel(), CLINICAS, credenciadosNaCidade(), enderecoNaCidade(), ESPECIALIDADES_ESTABELECIMENTO, linhaCredenciado() (+5 more)
+Cohesion: 0.10
+Nodes (27): emVoo, invalidar(), itens, memo(), buscarUsuarioPorId(), DbError, invalidarDepartamentos(), invalidarUsuarios() (+19 more)
 
 ### Community 115 - "PrestadorBeneficiosDescontos.jsx"
-Cohesion: 0.24
-Nodes (17): limparNumeroPct(), parsePct(), PrestadorBeneficiosDescontos(), carregarBeneficiosPrestador(), carregarCatalogoBeneficios(), clampPct(), formatarFaixaPercentual(), gruposDoCatalogo() (+9 more)
+Cohesion: 0.26
+Nodes (16): limparNumeroPct(), parsePct(), PrestadorBeneficiosDescontos(), carregarBeneficiosPrestador(), carregarCatalogoBeneficios(), clampPct(), formatarFaixaPercentual(), gruposDoCatalogo() (+8 more)
 
 ### Community 116 - "overpassUpstream.js"
 Cohesion: 0.26
 Nodes (15): categoriasPermitidasPrompt(), coletarProspectosGeminiCidade(), geocodificarLinhas(), hashEstavelOsmId(), maxItensGemini(), montarPromptGemini(), normalizarItemGemini(), SCHEMA_GEMINI (+7 more)
 
-### Community 117 - "CredenciamentoFormularioConfig.jsx"
-Cohesion: 0.17
-Nodes (17): normalizarTextoConfirmacao(), SfscExclusaoConfirmToast(), useSfscExclusaoConfirm(), atualizarConfigFormulario(), carregarConfigFormularioCredenciamento(), contarProcedimentosPublicadosPorCategoria(), criarPaginaFormulario(), excluirPaginaFormulario() (+9 more)
+### Community 117 - "emerRadarRunsHandler.js"
+Cohesion: 0.23
+Nodes (17): acaoCatalogar(), acaoRun(), acaoRuns(), acaoStatus(), acaoWorker(), catalogarRun(), em(), emerRadarRunsHandler() (+9 more)
 
 ### Community 118 - "prospectosGeminiColeta.ts"
 Cohesion: 0.27
@@ -712,20 +714,20 @@ Cohesion: 0.38
 Nodes (10): buscarDiferencaComCascataPlanos(), buscarDiferencaPlanoCidadeUmaTentativa(), montarResultadoLinha(), normUf(), parseDiferenca(), queryPorCidade(), queryPorCidadeSemUf(), tentarCidade() (+2 more)
 
 ### Community 122 - "exportNegociacaoExcel.js"
-Cohesion: 0.12
-Nodes (24): exceljs@^4.4.0, exceljs, exportarPosRelatorioConferenciaExcel(), CABECALHOS, exportarMapaPoisParaExcel(), nomeExibicaoPoi(), sanitizarNomeArquivo(), aplicarEstiloCabecalho() (+16 more)
+Cohesion: 0.20
+Nodes (17): aplicarEstiloCabecalho(), aplicarEstiloNumeroDados(), aplicarEstiloSeparadorCabecalho(), aplicarEstiloSeparadorDados(), aplicarEstiloTextoDados(), baixarPlanilhaNegociacaoXlsx(), BORDA_FINA, configurarLargurasColunas() (+9 more)
 
 ### Community 123 - "Checklist migração Tailwind EmerLAB"
 Cohesion: 0.20
 Nodes (9): Checklist migração Tailwind EmerLAB, Credenciamento, Funcionalidades preservadas, Fundação, Navegação, Operações, Qualidade, Rotas shell (+1 more)
 
 ### Community 124 - "Integração Emer-Radar no EmerLAB"
-Cohesion: 0.22
-Nodes (9): Desenvolvimento, E-mail do pipeline (Resend), Integração Emer-Radar no EmerLAB, Persistência Prospect Maps, Pipeline — cidades do tráfego, Produção (sem Railway), Secrets no EmerLAB (Vercel), Secrets no repositório `teste-emeradar` (+1 more)
+Cohesion: 0.17
+Nodes (12): Catálogo unificado (Prospect Maps + pipeline), Desenvolvimento, E-mail do pipeline (Resend), Execuções e estado do cron (UI), Integração Emer-Radar no EmerLAB, Persistência Prospect Maps, Pipeline — cidades do tráfego, Produção (sem Railway) (+4 more)
 
-### Community 125 - "GerenciamentoAcessos.jsx"
-Cohesion: 0.19
-Nodes (17): DEFAULT_INVITED_PERMISSIONS, urlEmerMarketing(), montarAppMetadataEmermarketing(), toolsAcessoPortalEmermarketing(), usuarioPodeAbrirEmerMarketing(), usuarioSomenteEmerMarketing(), usuarioTemAcessoEmerlabAlemDeMarketing(), EMERMARKETING_GROUP_ID (+9 more)
+### Community 125 - "API pública da Rede Credenciada e API de Pagamentos — desenho"
+Cohesion: 0.11
+Nodes (17): 10. Testes, 11. Implantação, 12. Pontos para confirmar na revisão, 1. Objetivo, 2. Resultado do levantamento do site atual, 3. Decisões já tomadas (com o Pedro), 4. Arquitetura, 5. Chaves de API (+9 more)
 
 ### Community 126 - "zap.emerlab"
 Cohesion: 0.22
@@ -735,9 +737,9 @@ Nodes (8): Como rodar localmente, Deploy (Vercel), Estrutura, Instagram e Messen
 Cohesion: 0.22
 Nodes (8): maxDuration, buildCommand, framework, functions, api/zap.js, headers, outputDirectory, rewrites
 
-### Community 129 - "prospectos-osm-coletar.js"
-Cohesion: 0.23
-Nodes (17): anexarCamposGeminiResposta(), exigirAuthProspectos(), handleColeta(), handleColetaStart(), handleColetaStep(), handleGeminiRate(), handleGeminiStatus(), handler() (+9 more)
+### Community 129 - "CredenciamentoImportKmz.jsx"
+Cohesion: 0.24
+Nodes (13): filtrarPrestadoresParaImportCoordenadas(), classificarVinculoPorNome(), extrairCoordenadasDePlacemark(), extrairKmlDeKmz(), linhasProntasParaAplicar(), montarLinhasRevisaoImportKmz(), novaChaveLinha(), parsearKmlPlacemarks() (+5 more)
 
 ### Community 130 - "Segurança — EmerLAB"
 Cohesion: 0.25
@@ -756,16 +758,16 @@ Cohesion: 0.46
 Nodes (7): enviarMensagemTarefa(), listarMensagensTarefa(), mapRowMensagem(), marcarMensagensTarefaComoLidas(), formatarHoraMensagem(), HomeTarefaChat(), mapRowRealtime()
 
 ### Community 134 - "rc-pdf.js"
-Cohesion: 0.13
-Nodes (25): carregarBase(), chunk(), comporPdfFinal(), __dirname, escaparHtml(), __filename, formatarTelefone(), gerarHtmlCards() (+17 more)
+Cohesion: 0.05
+Nodes (61): carregarBase(), chunk(), escaparHtml(), formatarTelefone(), gerarHtmlCards(), gerarPdfBuffer(), getSupabase(), handler() (+53 more)
 
 ### Community 135 - "8. Módulos funcionais e rotas"
 Cohesion: 0.29
 Nodes (7): 8. Módulos funcionais e rotas, Administrativo, permissão `access.manage`, Configurações, Credenciamento, permissão `credenciamento.*`, Início, Planos, Compras, Contratos e Pagamentos, Tabelas de Valores (Super-Tabela), permissão `supertabela.*`
 
-### Community 136 - "dev-api-server.mjs"
-Cohesion: 0.09
-Nodes (18): handler(), __dirname, fonte, opts, root, supabase, PORT, root (+10 more)
+### Community 136 - "package.json"
+Cohesion: 0.12
+Nodes (15): pdfjs-dist@^4.10.38, @sparticuz/chromium@^148.0.0, @supabase/ssr@^0.10.2, tailwind-merge@^3.6.0, name, overrides, uuid, private (+7 more)
 
 ### Community 137 - "E-mail via Resend (EmerLAB)"
 Cohesion: 0.29
@@ -780,7 +782,7 @@ Cohesion: 0.20
 Nodes (16): MsalAppProvider(), MsalReadyContext, buildPopupLoginRequest(), graphCalendarScopes, graphTokenRequest, isMsalConfigured(), loginRequest, msalConfig (+8 more)
 
 ### Community 140 - "src/main.jsx"
-Cohesion: 0.17
+Cohesion: 0.18
 Nodes (4): ErroTela, instalarRotulosTabelaCartoes(), rotularTabela(), textoCabecalho()
 
 ### Community 141 - "IA no EmerLAB — guia do utilizador"
@@ -792,12 +794,12 @@ Cohesion: 0.33
 Nodes (5): Dados, Decisões, Modo de impressão de planos (equipe), Objetivo, UI
 
 ### Community 143 - "AfazeresCalendarioBtn.jsx"
-Cohesion: 0.25
-Nodes (14): @azure/msal-browser, @azure/msal-react, AfazeresCalendarioBtn(), AfazeresCalendarioBtnIcs(), AfazeresCalendarioBtnOutlook(), IconCalendarioAdd(), tarefasComPrazo(), OutlookTarefaSyncBridge() (+6 more)
+Cohesion: 0.23
+Nodes (15): @azure/msal-react@^5.5.3, @azure/msal-browser, @azure/msal-react, AfazeresCalendarioBtn(), AfazeresCalendarioBtnIcs(), AfazeresCalendarioBtnOutlook(), IconCalendarioAdd(), tarefasComPrazo() (+7 more)
 
 ### Community 144 - "normalizarTextoBusca"
-Cohesion: 0.30
-Nodes (14): idsEspecialidadeLaboratorio(), prestadorEhLaboratorio(), nomeParaHonorariosPdf(), resolverProcedimentosMassaGlobal(), resolverProcedimentosMassaNaCategoria(), aplicarVinculosLaboratoriosPorCidadeEmMassa(), carregarContextoVinculoLaboratoriosCidade(), coletarCidadeTabelaIdsPrestador() (+6 more)
+Cohesion: 0.24
+Nodes (16): extrairParesCodigoValorEmMassa(), normalizarCodLinha(), parseValorNumero(), idsEspecialidadeLaboratorio(), prestadorEhLaboratorio(), resolverProcedimentosMassaGlobal(), resolverProcedimentosMassaNaCategoria(), aplicarVinculosLaboratoriosPorCidadeEmMassa() (+8 more)
 
 ### Community 145 - "EmerLAB"
 Cohesion: 0.40
@@ -805,39 +807,39 @@ Nodes (5): Build, Configuração local, EmerLAB, Gemini (IA), Segurança
 
 ### Community 146 - "prospectosColetaJob.js"
 Cohesion: 0.15
-Nodes (25): descansoAteFromRetrySec(), descansoGeminiParaResposta(), extrairGeminiRetrySegundos(), formatarTimerDescansoGemini(), formatarTimerDescansoGeminiLive(), GEMINI_COTA_ESGOTADA_LS_KEY, GEMINI_DESCANSO_LS_KEY, metaDescansoGemini() (+17 more)
+Nodes (21): __dirname, fonte, opts, root, supabase, anexarDescansoGemini(), coletarProspectosCidade(), fallbackOsmHabilitado() (+13 more)
 
 ### Community 147 - "formularioPublicoEspecialidades.js"
 Cohesion: 0.27
 Nodes (14): combinaPerfil(), ehComercioEsp(), ehEstabelecimentoEsp(), ehVeterinarioEsp(), filtrarEspecialidadesPorPerfil(), filtrarEspecialidadesVeterinario(), IDS_CLINICA, IDS_COMERCIO (+6 more)
 
-### Community 148 - "rateLimit.js"
-Cohesion: 0.24
-Nodes (15): bufferToPdfDataUri(), handler(), nomeArquivoPdfSeguro(), normBase(), readJson(), uuidOk(), agoraMs(), aplicarRateLimit() (+7 more)
+### Community 148 - "credKanbanAtualizacaoSite.js"
+Cohesion: 0.30
+Nodes (14): buscarCardPorPrestador(), CAMPOS_DADOS_SITE, dataHoraCurta(), garantirCardKanbanAtualizacaoSite(), mapaNomeProcedimentoPorCodigo(), montarBlocoAtualizacaoDados(), montarBlocoAtualizacaoProcedimentos(), montarBlocoAtualizacaoSituacao() (+6 more)
 
 ### Community 149 - "KanbanOutlookReuniao.jsx"
 Cohesion: 0.31
 Nodes (11): defaultInicioLocal(), KanbanOutlookReuniao(), KanbanOutlookReuniaoInner(), toDatetimeLocalValue(), corpoVisivelSemMetaOutlook(), decodeMetaPayload(), encodeMetaPayload(), escreverMetaOutlookReuniao() (+3 more)
 
-### Community 150 - "clicksignSignatarioOps.js"
-Cohesion: 0.39
-Nodes (7): erroApiTexto(), enviarLembreteSignatario(), LEMBRETE_SIGNATARIO_INTERVALO_MS, pathLembreteSignatario(), PATHS_LEMBRETE_SIGNATARIO(), payloadAtualizarSignatario(), payloadNotificacaoLembrete()
+### Community 150 - "geminiDescanso.js"
+Cohesion: 0.27
+Nodes (11): descansoAteFromRetrySec(), descansoGeminiParaResposta(), extrairGeminiRetrySegundos(), formatarTimerDescansoGemini(), formatarTimerDescansoGeminiLive(), GEMINI_COTA_ESGOTADA_LS_KEY, GEMINI_DESCANSO_LS_KEY, metaDescansoGemini() (+3 more)
 
 ### Community 151 - "Assinaturas de e-mail (EmerLAB / Emerdog)"
 Cohesion: 0.50
 Nodes (3): Assets, Assinaturas de e-mail (EmerLAB / Emerdog), Uso
 
 ### Community 155 - "planosCidadeCompat.js"
-Cohesion: 0.31
-Nodes (14): aplicarFiltroCidade(), buscarTodosPlanosCidadeCompat(), consultarPlanoCidadeUnicoCompat(), consultarPlanosCidadeExistentesCompat(), erroMigracaoCidadeId(), excluirPlanosCidadeCompat(), executarQueryCidade(), inserirUmaLinha() (+6 more)
+Cohesion: 0.34
+Nodes (13): aplicarFiltroCidade(), buscarTodosPlanosCidadeCompat(), consultarPlanoCidadeUnicoCompat(), consultarPlanosCidadeExistentesCompat(), erroMigracaoCidadeId(), excluirPlanosCidadeCompat(), executarQueryCidade(), inserirUmaLinha() (+5 more)
 
 ### Community 161 - "overpassUpstream.js"
-Cohesion: 0.13
-Nodes (24): fetchComTimeout(), buscarViewboxLocalidadeNominatim(), detectarCategoriaPoiOsm(), buscarPoisOverpassNaArea(), aguardarVaga(), cache, chaveCache(), contact (+16 more)
+Cohesion: 0.15
+Nodes (21): fetchComTimeout(), buscarViewboxLocalidadeNominatim(), detectarCategoriaPoiOsm(), aguardarVaga(), cache, chaveCache(), contact, elementoOverpassParaProspecto() (+13 more)
 
 ### Community 162 - "audit-logs.js"
-Cohesion: 0.30
-Nodes (15): buscarProfile(), getHeader(), getSupabaseAdmin(), handler(), listarAuditLogsPrestadoresRelatorio(), podeVerAuditoriaMkt(), responderErro(), tabelaIndisponivel() (+7 more)
+Cohesion: 0.21
+Nodes (22): buscarProfile(), getHeader(), getSupabaseAdmin(), handler(), listarAuditLogsPrestadoresRelatorio(), podeVerAuditoriaMkt(), responderErro(), tabelaIndisponivel() (+14 more)
 
 ### Community 163 - "7. Modelo de dados (Supabase)"
 Cohesion: 0.25
@@ -847,17 +849,17 @@ Nodes (9): 7.1 `repasse_relatorios`, 7.2 `repasse_documentos`, 7.3 `repasse_comp
 Cohesion: 0.27
 Nodes (11): nomeContratadaVolante(), removerTituloDrDra(), aplicarRodapePaginas(), desenharLinhaTokens(), desenharSegmentosQuebrados(), gerarPdfBlob(), larguraTexto(), nomeRazaoSocialContrato() (+3 more)
 
-### Community 165 - "geminiGenerateJsonUmaTentativa"
-Cohesion: 0.29
-Nodes (11): aplicarConfigGeracao(), comTimeout(), extrairTextoGenerateContent(), geminiGenerateJsonUmaTentativa(), geminiGenerateTextUmaTentativa(), limparTextoJson(), logGemini(), normalizarErroSdk() (+3 more)
+### Community 165 - "api.js"
+Cohesion: 0.26
+Nodes (9): aoConexao(), aoExpirar(), ApiError, emLimiteWati(), pedirDadoFresco(), registrarAoConexao(), usarAtualizacao(), assinar() (+1 more)
 
-### Community 166 - "exceljs"
-Cohesion: 0.44
-Nodes (8): statusEhDivergencia(), COLUNAS_PLANAS, exportarConferenciaHonorariosExcel(), isoParaBr(), linhaPlana(), preencherAba(), sanitizarNome(), resumirConferencia()
+### Community 166 - "agendaSignatarios.js"
+Cohesion: 0.38
+Nodes (8): alternarFavoritoAgenda(), atualizarContatoAgendaPorId(), carregarAgendaSignatarios(), migrarAgendaLocalSeNecessario(), removerContatoAgendaPorId(), rowParaContato(), upsertContatoAgenda(), validarContato()
 
 ### Community 167 - "import-prestadores-coordenadas-csv.mjs"
-Cohesion: 0.33
-Nodes (6): caminho, __dirname, main(), root, supabase, parsearCsvTexto()
+Cohesion: 0.32
+Nodes (7): caminho, __dirname, main(), root, supabase, linhasCsvParaAtualizacaoCoordenadas(), parsearCsvTexto()
 
 ### Community 168 - "ibge.js"
 Cohesion: 0.50
@@ -868,32 +870,36 @@ Cohesion: 0.48
 Nodes (6): apenasDigitos(), BRASIL_API_CNPJ_BASE, formatarCep(), montarEnderecoBrasilApi(), normalizarResposta(), UPSTREAM_HEADERS
 
 ### Community 170 - "ModalImpressaoHonorariosCidade.jsx"
-Cohesion: 0.52
-Nodes (6): formatarValorCelula(), ModalImpressaoHonorariosCidade(), montarCategoriasIniciais(), ordenarLinhas(), reordenarLista(), downloadImpressaoHonorariosPdf()
+Cohesion: 0.33
+Nodes (9): formatarValorCelula(), ModalImpressaoHonorariosCidade(), montarCategoriasIniciais(), ordenarLinhas(), reordenarLista(), carregarSvgComoPngBytes(), downloadImpressaoHonorariosPdf(), gerarImpressaoHonorariosPdf() (+1 more)
 
 ### Community 171 - "supabase"
-Cohesion: 0.08
-Nodes (59): SelectMunicipioBusca(), NOMES_UF, SelectUfBusca(), PageHeader(), buildNomesMunicipioPermitidosPorUf(), buscarCidadeIdsFiltroPlanoCredenciados(), buscarCidadeIdsTabelaComRepasses(), buscarCidadeIdsTabelaPorPlano() (+51 more)
+Cohesion: 0.09
+Nodes (41): buscarPrestadoresQuemRealiza(), carregarDadosCredenciamentoQuemRealiza(), formatarNomeProcedimentoQuemRealiza(), formatarResultadosQuemRealizaParaClipboard(), mapaCodigoProcedimentoIdDeCatalogo(), buildNomesMunicipioPermitidosPorUf(), buscarCidadeIdsFiltroPlanoCredenciados(), buscarCidadeIdsTabelaComRepasses() (+33 more)
 
-### Community 172 - "clicksignUploadDocumento.js"
-Cohesion: 0.32
-Nodes (7): nomeArquivoPdfSeguro(), payloadDocumentoPdf(), anexarPdfEnvelopeViaStorage(), CLICKSIGN_PDF_PROXY_MAX_BYTES, CLICKSIGN_PDF_STORAGE_MAX_BYTES, CLICKSIGN_UPLOADS_BUCKET, garantirSessaoClicksign()
+### Community 172 - "credKanbanColagem.js"
+Cohesion: 0.38
+Nodes (8): CABECALHOS, cel(), ehLinhaCabecalho(), normalizarUf(), pareceColagemTabelaKanban(), parseColagemCardsKanban(), resolverResponsavelKanban(), users
 
 ### Community 173 - "apiRepasseMensal.test.js"
 Cohesion: 0.23
 Nodes (9): aba(), admin, builder(), executar(), chamar(), criarELink(), db, semear() (+1 more)
 
-### Community 174 - "exportRelatorio.js"
-Cohesion: 0.26
-Nodes (10): blobDePdfLib(), bytesDePdfLib(), OPCOES_JSPDF_A4, baixar(), baixarRelatorioExcel(), baixarRelatorioPdf(), brl(), dataBr() (+2 more)
+### Community 174 - "extrairResumoAssinaturaPorSignatario"
+Cohesion: 0.36
+Nodes (9): atributosSignerExpandidos(), dataAssinaturaRequisitoAgree(), dataConclusaoAtributos(), extrairResumoAssinaturaPorSignatario(), formatarDataIsoPtBr(), requisitoAssinaturaConcluido(), requisitoAssinaturaRecusado(), rotuloAssinaturaSignatario() (+1 more)
+
+### Community 175 - "handle"
+Cohesion: 0.15
+Nodes (41): config, handler(), alvoWati(), atribuirHandler(), atributoDaFicha(), canalDe(), chaveAtributo(), comAlvoWati() (+33 more)
 
 ### Community 176 - "5. Leitura e separação do .xlsx"
 Cohesion: 0.40
 Nodes (5): 5.1 Estrutura do arquivo do sistema principal, 5.2 Nome da aba (mesma regra da macro `RearAbasPorA1`), 5.3 Resumo (mesma regra da macro `GerarResumoAbas`), 5.4 Conferência, 5. Leitura e separação do .xlsx
 
-### Community 177 - "exclusaoPermanenteCredenciamento.js"
-Cohesion: 0.70
-Nodes (4): apagarLinhaObrigatoria(), apagarLinhas(), excluirPrestadorPermanentemente(), limparReferencia()
+### Community 177 - "Layout2.jsx"
+Cohesion: 0.50
+Nodes (5): FloatingLayerPortal(), FloatingToolsDock(), Layout2(), useStoredAccessProfile(), useStoredPermission()
 
 ### Community 178 - "inserirPlanoConfigSeNaoExiste"
 Cohesion: 0.70
@@ -907,27 +913,31 @@ Nodes (4): 12. Deploy, CI e testes, CI (`.github/workflows/security.yml`), Deplo
 Cohesion: 0.50
 Nodes (4): 2.1 Meses anteriores ficam como estão, 2.2 Dados existentes não são editados, 2.3 Registros atuais se adaptam ao novo modelo, 2. Regras de transição (obrigatórias)
 
-### Community 182 - "CredenciamentoEmerRadar.jsx"
-Cohesion: 0.16
-Nodes (22): deleteCity(), triggerEmerRadarCron(), cleanDestinatarios(), EMER_RADAR_SETTINGS_KEY, loadEmerRadarSettings(), saveEmerRadarSettings(), cidadeFromEndereco(), isSomenteRede() (+14 more)
+### Community 181 - "prestadorProcedimentos.sync.test.js"
+Cohesion: 0.47
+Nodes (5): consulta(), exec(), db, estado(), tab()
+
+### Community 182 - "10. Supabase: banco, Edge Functions e SQL"
+Cohesion: 0.50
+Nodes (4): 10. Supabase: banco, Edge Functions e SQL, Edge Functions (`supabase/functions`), Principais tabelas (por uso no código), SQL e migrações
 
 ## Knowledge Gaps
-- **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **12 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Checklist de segurança — EmerLAB / SFSC SUPERTOOL` connect `Checklist de segurança — EmerLAB / SFSC SUPERTOOL` to `serverAuth.js`, `requireUser.ts`?**
-  _High betweenness centrality (0.066) - this node is a cross-community bridge._
+- **Why does `supabase` connect `FormularioInboxBell.jsx` to `homeBatePapo.js`, `AdminAuditoria.jsx`, `CredenciamentoImportKmz.jsx`, `supabase.js`, `SelectDropdown`, `HomeTarefaChat.jsx`, `Credenciamento_main.jsx`, `permissionCatalog.js`, `repasseApi.js`, `CredenciamentoProspectosOsm.jsx`, `supabase`, `PagamentosRegistro.jsx`, `conferenciaLaboratorio.js`, `normalizarTextoBusca`, `formularioCredenciamento.js`, `buscarQuemRealizaPrestadores.js`, `credKanbanAtualizacaoSite.js`, `clicksignClient.js`, `emerRadarApi.js`, `gerarRelatorioCadastrosPdf.js`, `maskTelefoneBr`, `CredenciamentoMapa.jsx`, `agendaSignatarios.js`, `clicksignNotificacoes.js`, `supabase`, `qualidadeDados.js`, `Supertabelaprocedimentos.jsx`, `authSession.js`, `Home.jsx`, `prestadorCadastroHelpers.js`, `EmerRadarExecucaoPage.jsx`, `repasseApi.js`, `prestadorProcedimentos.js`, `Home.jsx`, `conferenciaLaboratorioPrecos.js`, `CredenciamentoEspecialidadesRc.jsx`, `emerRadarApi.js`, `trafegoCidades.js`, `CredenciamentoFormularioPublico.jsx`, `Supertabelaplanos.jsx`, `normalizarTextoBusca`, `ImpressaoPlanos.jsx`, `CredenciamentoKanban.jsx`, `prestadorVeterinarioCadastro.js`, `persist.js`, `cidadesCredenciamento.js`, `PrestadorBeneficiosDescontos.jsx`?**
+  _High betweenness centrality (0.051) - this node is a cross-community bridge._
 - **Should `repasseMensalHandler.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.14296081277213352 - nodes in this community are weakly interconnected._
-- **Why does `3. Edge Functions (`supabase/functions/*`)` connect `requireUser.ts` to `Checklist de segurança — EmerLAB / SFSC SUPERTOOL`, `prospectos-coletar/index.ts`?**
-  _High betweenness centrality (0.058) - this node is a cross-community bridge._
+  _Cohesion score 0.05345501955671447 - nodes in this community are weakly interconnected._
+- **Why does `Checklist de segurança — EmerLAB / SFSC SUPERTOOL` connect `Checklist de segurança — EmerLAB / SFSC SUPERTOOL` to `serverAuth.js`, `requireUser.ts`?**
+  _High betweenness centrality (0.036) - this node is a cross-community bridge._
 - **Should `homeBatePapo.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.05128205128205128 - nodes in this community are weakly interconnected._
-- **Why does `EmerLAB (SFSC SUPERTOOL): documentação do projeto` connect `EmerLAB (SFSC SUPERTOOL): documentação do projeto` to `DOCUMENTACAO_PROJETO.md`, `12. Deploy, CI e testes`, `8. Módulos funcionais e rotas`?**
-  _High betweenness centrality (0.047) - this node is a cross-community bridge._
+  _Cohesion score 0.050312283136710614 - nodes in this community are weakly interconnected._
+- **Why does `normalizarTextoBusca()` connect `normalizarTextoBusca` to `CredenciamentoImportKmz.jsx`, `SelectDropdown`, `PainelDetalheConferencia.jsx`, `Credenciamento_main.jsx`, `permissionCatalog.js`, `CredenciamentoProspectosOsm.jsx`, `PagamentosRegistro.jsx`, `conferenciaLaboratorio.js`, `normalizarTextoBusca`, `formularioCredenciamento.js`, `formularioPublicoEspecialidades.js`, `clicksignClient.js`, `conferencia/index.js`, `overpassUpstream.js`, `CredenciamentoMapa.jsx`, `supabase`, `credKanbanColagem.js`, `qualidadeDados.js`, `prestadorCadastroHelpers.js`, `repasseApi.js`, `prestadorProcedimentos.js`, `conferenciaLaboratorioPrecos.js`, `mapaBuscaPoiFiltros.js`, `PagamentosCaixa.jsx`, `Supertabelaplanos.jsx`, `ImpressaoPlanos.jsx`, `prestadorVeterinarioCadastro.js`, `lerRelatorioExcel.js`, `persist.js`?**
+  _High betweenness centrality (0.032) - this node is a cross-community bridge._
 - **Should `AdminAuditoria.jsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.08461131676361713 - nodes in this community are weakly interconnected._
-- **Should `resendMail.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.0936408106219427 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.13076923076923078 - nodes in this community are weakly interconnected._
+- **Should `supabase.js` be split into smaller, more focused modules?**
+  _Cohesion score 0.05219072164948454 - nodes in this community are weakly interconnected._

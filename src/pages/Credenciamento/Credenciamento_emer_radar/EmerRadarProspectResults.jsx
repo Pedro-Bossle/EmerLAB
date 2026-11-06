@@ -10,12 +10,9 @@ import {
   useStoredAccessProfile,
 } from '../../../lib/accessControl'
 import { enviarProspectoMapsParaKanban } from '../../../lib/credKanban.js'
-import {
-  fetchPlacePhotoEmerRadar,
-  geocodeEmerRadar,
-  scrapeExportExcelUrl,
-  scrapeExportPdfUrl,
-} from '../../../lib/credenciamento/emerRadarApi.js'
+import { fetchPlacePhotoEmerRadar, geocodeEmerRadar } from '../../../lib/credenciamento/emerRadarApi.js'
+import { exportarProspectosMapsParaPdf } from '../../../lib/credenciamento/exportProspectosMapsPdf.js'
+import { exportarExecucaoEmerRadarParaExcel } from '../../../lib/credenciamento/exportEmerRadarRun.js'
 import {
   chaveEstavelProspectoMaps,
   lerProspectosMapsDismissed,
@@ -537,7 +534,6 @@ const FILTERS_INITIAL = {
  * @param {{
  *   results?: object[],
  *   titulo?: string,
- *   mostrarExport?: boolean,
  *   atualizandoCatalogo?: boolean,
  *   onAtualizarFiltrados?: (itens: object[]) => void,
  *   onRemovido?: (est: object) => void,
@@ -549,7 +545,6 @@ const FILTERS_INITIAL = {
 export default function EmerRadarProspectResults({
   results,
   titulo,
-  mostrarExport = true,
   atualizandoCatalogo = false,
   onAtualizarFiltrados,
   onRemovido,
@@ -643,6 +638,25 @@ export default function EmerRadarProspectResults({
     }),
     [visiveis],
   )
+
+  const [exportando, setExportando] = useState('')
+
+  /** Excel/PDF levam só o que está visível: removidos (soft delete) e descartados ficam de fora. */
+  const exportar = async (tipo) => {
+    setExportando(tipo)
+    setErroKanban('')
+    try {
+      const res =
+        tipo === 'pdf'
+          ? await exportarProspectosMapsParaPdf(visiveis, { titulo: titulo ? `Prospectos — ${titulo}` : undefined })
+          : await exportarExecucaoEmerRadarParaExcel(visiveis, `prospectos-${new Date().toISOString().slice(0, 10)}`)
+      if (!res.ok) setErroKanban(res.erro || 'Nada para exportar.')
+    } catch (e) {
+      setErroKanban(e?.message || String(e))
+    } finally {
+      setExportando('')
+    }
+  }
 
   const setFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }))
 
@@ -772,26 +786,24 @@ export default function EmerRadarProspectResults({
               {atualizandoCatalogo ? 'Atualizando…' : `Atualizar filtrados (${filtered.length})`}
             </button>
           ) : null}
-          {mostrarExport ? (
-            <>
-              <a
-                className={buttonClassName({ variant: 'secondary' })}
-                href={scrapeExportExcelUrl()}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Excel
-              </a>
-              <a
-                className={buttonClassName({ variant: 'secondary' })}
-                href={scrapeExportPdfUrl()}
-                target="_blank"
-                rel="noreferrer"
-              >
-                PDF
-              </a>
-            </>
-          ) : null}
+          <button
+            type="button"
+            className={buttonClassName({ variant: 'secondary' })}
+            disabled={!visiveis.length || exportando}
+            title="Exporta só os que não foram removidos"
+            onClick={() => void exportar('excel')}
+          >
+            Excel
+          </button>
+          <button
+            type="button"
+            className={buttonClassName({ variant: 'secondary' })}
+            disabled={!visiveis.length || exportando}
+            title="Exporta só os que não foram removidos"
+            onClick={() => void exportar('pdf')}
+          >
+            {exportando === 'pdf' ? 'Gerando PDF…' : 'PDF'}
+          </button>
         </div>
       </div>
 
