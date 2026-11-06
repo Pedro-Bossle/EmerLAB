@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { api } from '../api.js'
+import { api, arquivoParaBase64 } from '../api.js'
 import { respostasDaPlanilha, normalizarTextoBusca } from '../util.js'
 import Modal from './Modal.jsx'
 import Seletor from './Seletor.jsx'
@@ -10,7 +10,11 @@ import { lerRegras, resumirRegras, normCodigo, erroMarcaServicos } from '../regr
 
 const USUARIO_VAZIO = { nome: '', email: '', senha: '', papel: 'atendente', ativo: true, departamentos: [] }
 const DEPTO_VAZIO = { nome: '', cor: '#25d366', equipeWati: '' }
-const RESPOSTA_VAZIA = { atalho: '', titulo: '', texto: '', departamentoIds: [], regras: '' }
+const RESPOSTA_VAZIA = { atalho: '', titulo: '', texto: '', departamentoIds: [], regras: '', arquivos: [], arquivosNovos: [], removerIds: [] }
+// arquivos vinculados à resposta rápida (mesmos limites do servidor)
+const MAX_ARQUIVOS_RESPOSTA = 3
+const MAX_MB_RESPOSTA = 3
+const kb = (bytes) => `${Math.max(1, Math.round(bytes / 1024))} KB`
 
 const EXEMPLO_REGRAS = 'locais {RS+Porto Alegre, SC}\nclientes {sim}\ndepartamentos {Comercial}'
 
@@ -710,6 +714,61 @@ const ORDENS_RESPOSTA = {
     antigas: ['Mais antigas', (a, b) => String(a.criado_em || '').localeCompare(String(b.criado_em || ''))],
 }
 
+// Arquivos que vão junto da resposta rápida (o texto vira a legenda do primeiro). Novos só sobem ao salvar.
+function ArquivosDaResposta({ form, aoMudar }) {
+    const [erro, setErro] = useState('')
+    const existentes = (form.arquivos || []).filter((a) => !(form.removerIds || []).includes(a.id))
+    const novos = form.arquivosNovos || []
+    const total = existentes.length + novos.length
+    const escolher = (e) => {
+        const lista = [...e.target.files]
+        e.target.value = ''
+        const aceitos = []
+        const avisos = []
+        for (const f of lista) {
+            if (f.size > MAX_MB_RESPOSTA * 1024 * 1024) avisos.push(`"${f.name}" tem mais de ${MAX_MB_RESPOSTA} MB`)
+            else if (total + aceitos.length >= MAX_ARQUIVOS_RESPOSTA) avisos.push(`limite de ${MAX_ARQUIVOS_RESPOSTA} arquivos por resposta`)
+            else aceitos.push(f)
+        }
+        setErro(avisos.length ? `Não anexado: ${[...new Set(avisos)].join('; ')}.` : '')
+        if (aceitos.length) aoMudar({ ...form, arquivosNovos: [...novos, ...aceitos] })
+    }
+    return (
+        <div className="campo">
+            <span>Arquivos enviados junto (opcional)</span>
+            {total ? (
+                <ul className="arquivos-resposta">
+                    {existentes.map((a) => (
+                        <li key={a.id}>
+                            <Icone nome="clipe" tamanho={16} />
+                            <span>{a.nome}</span>
+                            <small>{kb(a.tamanho)}</small>
+                            <button type="button" className="icone-botao mini" aria-label={`Remover ${a.nome}`} onClick={() => aoMudar({ ...form, removerIds: [...(form.removerIds || []), a.id] })}>
+                                <Icone nome="fechar" tamanho={16} />
+                            </button>
+                        </li>
+                    ))}
+                    {novos.map((f, i) => (
+                        <li key={`${f.name}-${i}`}>
+                            <Icone nome="clipe" tamanho={16} />
+                            <span>{f.name}</span>
+                            <small>{kb(f.size)} · sobe ao salvar</small>
+                            <button type="button" className="icone-botao mini" aria-label={`Remover ${f.name}`} onClick={() => aoMudar({ ...form, arquivosNovos: novos.filter((_, j) => j !== i) })}>
+                                <Icone nome="fechar" tamanho={16} />
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            ) : null}
+            {total < MAX_ARQUIVOS_RESPOSTA ? <input type="file" multiple onChange={escolher} aria-label="Anexar arquivos à resposta" /> : null}
+            {erro ? <small className="ajuda" role="alert">{erro}</small> : null}
+            <small className="ajuda">
+                Até {MAX_ARQUIVOS_RESPOSTA} arquivos de {MAX_MB_RESPOSTA} MB. O texto da resposta vai como legenda do primeiro arquivo (acima de ~1.000 caracteres, vai antes, como mensagem).
+            </small>
+        </div>
+    )
+}
+
 function Respostas({ departamentos, aoMudar, avisar }) {
     const procedimentos = useProcedimentos()
     const [lista, setLista] = useState(null)
@@ -751,11 +810,31 @@ function Respostas({ departamentos, aoMudar, avisar }) {
     const salvar = async (e) => {
         e.preventDefault()
         try {
-            const { id, ...corpo } = form
-            await api(id ? `respostas/${id}` : 'respostas', { method: id ? 'PUT' : 'POST', body: corpo })
+            const { id, arquivos: _a, arquivosNovos = [], removerIds = [], ...corpo } = form
+            const r = await api(id ? `respostas/${id}` : 'respostas', { method: id ? 'PUT' : 'POST', body: corpo })
+            const respostaId = id || r.id
+            // a resposta já está salva; se um arquivo falhar, avisa qual e a pessoa tenta de novo editando
+            let falhou = ''
+            if (respostaId) {
+                for (const arqId of removerIds) {
+                    await api(`respostas/${respostaId}/arquivos/${arqId}`, { method: 'DELETE' }).catch((e3) => {
+                        falhou = e3.message
+                    })
+                }
+                for (const f of arquivosNovos) {
+                    try {
+                        await api(`respostas/${respostaId}/arquivos`, { method: 'POST', body: { nome: f.name, mime: f.type, base64: await arquivoParaBase64(f) } })
+                    } catch (e3) {
+                        falhou = `${f.name}: ${e3.message}`
+                    }
+                }
+            } else if (arquivosNovos.length) {
+                falhou = 'não foi possível vincular os arquivos'
+            }
             setForm(null)
             carregar()
             aoMudar()
+            if (falhou) avisar(`Resposta salva, mas um arquivo não foi anexado (${falhou}). Edite a resposta para tentar de novo.`, 'erro')
         } catch (e2) {
             avisar(e2.message, 'erro')
         }
@@ -806,6 +885,7 @@ function Respostas({ departamentos, aoMudar, avisar }) {
                         <kbd>~</kbd> <kbd>`</kbd> para formatação do WhatsApp.
                     </small>
                 </label>
+                <ArquivosDaResposta form={form} aoMudar={setForm} />
                 <SeletorDepartamentos departamentos={departamentos} valor={form.departamentoIds} aoMudar={(departamentoIds) => setForm({ ...form, departamentoIds })} />
                 <CampoRegras valor={form.regras} texto={form.texto} aoMudar={(regras) => setForm({ ...form, regras })} departamentos={departamentos} procedimentos={procedimentos} />
                 <div className="modal-acoes">
@@ -911,6 +991,11 @@ function Respostas({ departamentos, aoMudar, avisar }) {
                                     ) : (
                                         <span className="tag tag-neutra">Todos</span>
                                     )}
+                                    {r.arquivos?.length ? (
+                                        <span className="tag tag-neutra" title={r.arquivos.map((a) => a.nome).join(', ')}>
+                                            <Icone nome="clipe" tamanho={12} /> {r.arquivos.length} arquivo{r.arquivos.length > 1 ? 's' : ''}
+                                        </span>
+                                    ) : null}
                                     {r.regras && resumirRegras(lerRegras(r.regras).regras) ? (
                                         <span className="tag tag-neutra" title={r.regras}>
                                             Regras: {resumirRegras(lerRegras(r.regras).regras)}
@@ -927,7 +1012,7 @@ function Respostas({ departamentos, aoMudar, avisar }) {
                                 <button
                                     className="icone-botao"
                                     aria-label="Editar" data-dica="Editar"
-                                    onClick={() => setForm({ id: r.id, atalho: r.atalho, titulo: r.titulo || '', texto: r.texto, departamentoIds: r.departamento_ids || [], regras: r.regras || '' })}
+                                    onClick={() => setForm({ id: r.id, atalho: r.atalho, titulo: r.titulo || '', texto: r.texto, departamentoIds: r.departamento_ids || [], regras: r.regras || '', arquivos: r.arquivos || [], arquivosNovos: [], removerIds: [] })}
                                 >
                                     <Icone nome="editar" tamanho={20} />
                                 </button>

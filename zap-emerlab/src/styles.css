@@ -1436,3 +1436,10 @@ body.redimensionando { cursor: col-resize; user-select: none; }
 .regras-ajuda summary { cursor: pointer; color: var(--destaque-forte); }
 .regras-ajuda p, .regras-ajuda ul { margin: 6px 0; }
 .regras-ajuda ul { padding-left: 18px; display: grid; gap: 4px; }
+
+/* arquivos vinculados à resposta rápida (Administração) e anexos da resposta escolhida (Composer) */
+.arquivos-resposta { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.arquivos-resposta li { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--borda); border-radius: 8px; }
+.arquivos-resposta li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arquivos-resposta li small { color: var(--texto-3); white-space: nowrap; }
+.anexos-resposta strong { display: inline-flex; align-items: center; gap: 4px; }

@@ -1182,18 +1182,23 @@ async function exigirSessaoLivre(waId, meta) {
     )
 }
 
-async function enviarTextoHandler(req, usuario, waId) {
-    const meta = await exigirConversa(usuario, waId)
-    exigirSerAtendente(meta, usuario)
-    await exigirSessaoLivre(waId, meta)
-    const { texto, replyContextId } = await lerCorpo(req)
+// valida e preenche as variáveis do texto que vai ao cliente (mensagem livre e legenda de resposta com arquivos)
+function textoFinalDaMensagem(texto, meta, usuario, waId) {
     const limpo = String(texto || '').trim()
     if (!limpo) throw new HttpError(400, 'Mensagem vazia.', 'vazia')
     if (limpo.length > 4096) throw new HttpError(400, `Mensagem muito longa: ${limpo.length} de 4096 caracteres. Divida em duas.`, 'longa')
     // a lista de quem realiza é montada no navegador; a marca crua não pode chegar ao cliente
     if (temMarcaServicos(limpo)) throw new HttpError(400, `A mensagem ainda tem ${MARCA_SERVICOS}: a lista de quem realiza não foi preenchida. Confira a UF e a cidade do contato.`)
     if (temMarcaCredenciados(limpo)) throw new HttpError(400, 'A mensagem ainda tem uma marca {credenciados.…}: a lista de credenciados não foi preenchida. Confira a UF e a cidade do contato.')
-    const final = preencherVariaveis(limpo, { nome: meta?.nome || '', atendente: usuario.nome, telefone: canalDe(waId) === 'whatsapp' ? waId : '' })
+    return preencherVariaveis(limpo, { nome: meta?.nome || '', atendente: usuario.nome, telefone: canalDe(waId) === 'whatsapp' ? waId : '' })
+}
+
+async function enviarTextoHandler(req, usuario, waId) {
+    const meta = await exigirConversa(usuario, waId)
+    exigirSerAtendente(meta, usuario)
+    await exigirSessaoLivre(waId, meta)
+    const { texto, replyContextId } = await lerCorpo(req)
+    const final = textoFinalDaMensagem(texto, meta, usuario, waId)
     const msg = await enviarUmaVez(waId, (alvo) => wati.enviarTexto(alvo, final, replyContextId))
     await salvarMeta(waId, {
         ultima_msg: final.slice(0, 500),
@@ -1221,6 +1226,52 @@ async function enviarArquivoHandler(req, usuario, waId) {
     await db().from('zap_arquivos').insert({ wa_id: waId, nome: nomeArquivo, arquivo: caminho })
     await salvarMeta(waId, { ultima_msg: `📎 ${nome || 'Arquivo'}`, ultima_msg_em: new Date().toISOString(), ultima_msg_minha: true, ultima_humana_em: new Date().toISOString(), nao_lidas: 0 })
     return { ok: true }
+}
+
+// Resposta rápida com arquivos: o texto vai de legenda do 1º arquivo (WhatsApp limita a legenda a ~1024 caracteres;
+// texto maior vai antes, como mensagem normal) e os demais arquivos seguem sem legenda.
+const LEGENDA_MAX = 1000
+
+async function enviarRespostaComArquivosHandler(req, usuario, waId) {
+    const meta = await exigirConversa(usuario, waId)
+    exigirSerAtendente(meta, usuario)
+    await exigirSessaoLivre(waId, meta)
+    const { texto, respostaId } = await lerCorpo(req)
+    if (!UUID.test(String(respostaId || ''))) throw new HttpError(400, 'Resposta rápida inválida.')
+    // mesma regra de departamentos da listagem: só envia arquivo de uma resposta que a pessoa enxerga
+    const { respostas } = await listarRespostas(usuario)
+    const resposta = respostas.find((r) => r.id === respostaId)
+    if (!resposta) throw new HttpError(404, 'Resposta rápida não encontrada ou sem acesso.')
+    if (!resposta.arquivos.length) throw new HttpError(400, 'Esta resposta rápida não tem arquivos.')
+    const final = textoFinalDaMensagem(texto, meta, usuario, waId)
+    const arquivos = ok(await db().from('zap_respostas_arquivos').select('id, nome, mime, conteudo').eq('resposta_id', respostaId).order('ordem'))
+    const comLegenda = final.length <= LEGENDA_MAX
+    let enviados = 0
+    try {
+        if (!comLegenda) await enviarUmaVez(waId, (alvo) => wati.enviarTexto(alvo, final))
+        for (const [i, a] of arquivos.entries()) {
+            const buffer = Buffer.from(a.conteudo, 'base64')
+            const enviada = await enviarUmaVez(waId, (alvo) => wati.enviarArquivo(alvo, { buffer, nomeArquivo: a.nome, mime: a.mime || undefined, legenda: comLegenda && i === 0 ? final : undefined }))
+            enviados += 1
+            // guarda o nome original (a WATI renomeia para um UUID); sem a tabela, o envio segue normal
+            const caminho = typeof enviada?.data === 'string' ? semBarraInicial(enviada.data) : null
+            await db().from('zap_arquivos').insert({ wa_id: waId, nome: a.nome, arquivo: caminho }).then(() => {}, () => {})
+        }
+    } catch (e) {
+        if (!enviados && comLegenda) throw e // nada saiu: pode tentar de novo
+        // parte já foi ao cliente: avisa o que saiu para o atendente não reenviar em duplicidade
+        await salvarMeta(waId, { ultima_msg: final.slice(0, 500), ultima_msg_em: new Date().toISOString(), ultima_msg_minha: true, ultima_humana_em: new Date().toISOString(), nao_lidas: 0 })
+        throw new HttpError(502, `Enviamos o texto e ${enviados} de ${arquivos.length} arquivo(s); o restante falhou (${e.message}). Confira o chat antes de reenviar.`, 'parcial')
+    }
+    await salvarMeta(waId, {
+        ultima_msg: final.slice(0, 500),
+        ultima_msg_em: new Date().toISOString(),
+        ultima_msg_minha: true,
+        ultima_humana_em: new Date().toISOString(),
+        nao_lidas: 0,
+        ...(meta?.atendente_email ? {} : { atendente_email: usuario.email }),
+    })
+    return { ok: true, arquivos: enviados }
 }
 
 // trava de reenvio do mesmo template (por instância; o botão do painel também trava o duplo clique)
@@ -1538,7 +1589,27 @@ async function midiaHandler(res, usuario, query) {
 // banco ainda sem a coluna departamento_ids (supabase/schema.sql não rodado): erro 42703 do Postgres
 const semColunaNova = (r) => r.error?.code === '42703'
 
+// metadados dos arquivos (nunca o conteúdo) agrupados por resposta. Sem a tabela nova, as respostas seguem só com texto.
+async function arquivosDasRespostas(ids) {
+    const porResposta = new Map()
+    if (!ids.length) return porResposta
+    const r = await db().from('zap_respostas_arquivos').select('id, resposta_id, nome, mime, tamanho, ordem').in('resposta_id', ids).order('ordem')
+    if (r.error) return porResposta
+    for (const a of r.data || []) {
+        const lista = porResposta.get(a.resposta_id) || []
+        lista.push({ id: a.id, nome: a.nome, mime: a.mime, tamanho: a.tamanho })
+        porResposta.set(a.resposta_id, lista)
+    }
+    return porResposta
+}
+
 async function listarRespostas(usuario) {
+    const { respostas } = await listarRespostasBase(usuario)
+    const arquivos = await arquivosDasRespostas(respostas.map((r) => r.id))
+    return { respostas: respostas.map((r) => ({ ...r, arquivos: arquivos.get(r.id) || [] })) }
+}
+
+async function listarRespostasBase(usuario) {
     const ids = usuario.departamentos
     const admin = usuario.papel === 'admin'
     let q = db().from('zap_respostas_rapidas').select('id, atalho, titulo, texto, departamento_ids, regras, criado_em').order('atalho')
@@ -1551,6 +1622,29 @@ async function listarRespostas(usuario) {
     if (!admin) antigo = ids.length ? antigo.or(`departamento_id.is.null,departamento_id.in.(${ids.join(',')})`) : antigo.is('departamento_id', null)
     const lista = ok(await antigo)
     return { respostas: lista.map(({ departamento_id, ...x }) => ({ ...x, departamento_ids: departamento_id ? [departamento_id] : [] })) }
+}
+
+const MAX_ARQUIVOS_RESPOSTA = 3
+
+async function anexarArquivoResposta(respostaId, b) {
+    if (!UUID.test(String(respostaId || ''))) throw new HttpError(400, 'Resposta inválida.')
+    const existe = ok(await db().from('zap_respostas_rapidas').select('id').eq('id', respostaId).maybeSingle())
+    if (!existe) throw new HttpError(404, 'Resposta rápida não encontrada.')
+    if (!b?.base64) throw new HttpError(400, 'Arquivo vazio.')
+    const buffer = Buffer.from(String(b.base64).replace(/^data:[^,]*,/, ''), 'base64')
+    if (!buffer.length) throw new HttpError(400, 'Arquivo vazio.')
+    if (buffer.length > MAX_ARQUIVO) throw new HttpError(413, 'Arquivo acima de 3 MB. Comprima o arquivo.', 'arquivo_grande')
+    const atuais = ok(await db().from('zap_respostas_arquivos').select('ordem').eq('resposta_id', respostaId))
+    if (atuais.length >= MAX_ARQUIVOS_RESPOSTA) throw new HttpError(400, `Cada resposta aceita até ${MAX_ARQUIVOS_RESPOSTA} arquivos.`)
+    const ordem = atuais.reduce((m, a) => Math.max(m, a.ordem), -1) + 1
+    const nome = String(b.nome || 'arquivo').trim().slice(0, 120) || 'arquivo'
+    return ok(
+        await db()
+            .from('zap_respostas_arquivos')
+            .insert({ resposta_id: respostaId, nome, mime: String(b.mime || '').slice(0, 100) || null, tamanho: buffer.length, conteudo: buffer.toString('base64'), ordem })
+            .select('id, nome, mime, tamanho')
+            .single(),
+    )
 }
 
 // insert/update de resposta; no banco antigo grava sem departamento_ids (só dá para um departamento)
@@ -2047,6 +2141,7 @@ export async function handle(req, res, rotaForcada) {
             }
             if (acao === 'texto' && metodo === 'POST') return responder(await enviarTextoHandler(req, usuario, waId))
             if (acao === 'arquivo' && metodo === 'POST') return responder(await enviarArquivoHandler(req, usuario, waId))
+            if (acao === 'resposta' && metodo === 'POST') return responder(await enviarRespostaComArquivosHandler(req, usuario, waId))
             if (acao === 'template' && metodo === 'POST') return responder(await enviarTemplateHandler(req, usuario, waId))
             if (acao === 'atribuir' && metodo === 'POST') return responder(await atribuirHandler(req, usuario, waId))
             if (acao === 'departamento' && metodo === 'POST') return responder(await departamentoHandler(req, usuario, waId))
@@ -2060,10 +2155,17 @@ export async function handle(req, res, rotaForcada) {
             if (!partes[1] && metodo === 'GET') return responder(await listarRespostas(usuario))
             exigirAdmin(usuario)
             if (partes[1] === 'importar' && metodo === 'POST') return responder(await importarRespostas(await lerCorpo(req)))
+            // arquivos vinculados: POST /respostas/:id/arquivos e DELETE /respostas/:id/arquivos/:arquivoId
+            if (partes[1] && partes[2] === 'arquivos' && !partes[3] && metodo === 'POST') return responder({ ok: true, arquivo: await anexarArquivoResposta(partes[1], await lerCorpo(req)) })
+            if (partes[1] && partes[2] === 'arquivos' && partes[3] && metodo === 'DELETE') {
+                if (!UUID.test(partes[1]) || !UUID.test(partes[3])) throw new HttpError(400, 'Arquivo inválido.')
+                ok(await db().from('zap_respostas_arquivos').delete().eq('id', partes[3]).eq('resposta_id', partes[1]))
+                return responder({ ok: true })
+            }
             if (!partes[1] && metodo === 'POST') {
                 const b = await lerCorpo(req)
-                await gravarResposta(validarResposta(b, await procedimentosDasRegras([String(b.regras || '')])), (d) => db().from('zap_respostas_rapidas').insert(d))
-                return responder({ ok: true })
+                const criada = await gravarResposta(validarResposta(b, await procedimentosDasRegras([String(b.regras || '')])), (d) => db().from('zap_respostas_rapidas').insert(d).select('id').single())
+                return responder({ ok: true, id: criada?.id || null })
             }
             if (partes[1] && metodo === 'PUT') {
                 const b = await lerCorpo(req)
