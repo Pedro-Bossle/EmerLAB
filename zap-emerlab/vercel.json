@@ -2,6 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "crons": [{ "path": "/api/ms/renovar", "schedule": "0 7 * * *" }],
   "functions": {
     "api/zap.js": { "maxDuration": 30 }
   },

@@ -7,6 +7,7 @@ import { db, ok, DbError, buscarUsuarioPorEmail, buscarUsuarioPorId, idsDepartam
 import { memo, invalidar } from './cache.js'
 import { avisar, avisarConversa, configTempoReal, nomeCanal, tempoRealAtivo } from './tempoReal.js'
 import * as wati from './wati.js'
+import * as ms from './microsoft.js'
 import { emailConfigurado, enviarEmail, montarEmailConvite } from './email.js'
 import { municipiosPorUf } from './ibge.js'
 import { lerRegras, codigosServicos, erroMarcaServicos, temMarcaServicos, MARCA_SERVICOS, temMarcaCredenciados } from '../src/regras.js'
@@ -630,6 +631,8 @@ async function me(usuario) {
             atendenteVeSemDepto: env.atendenteVeSemDepto,
             // avisos em tempo real (null = só polling); ver server/tempoReal.js
             realtime: configTempoReal(),
+            // Outlook e Teams reais (false = abas seguem na prévia simulada); ver server/microsoft.js
+            microsoft: ms.msAtivo(),
         },
     }
 }
@@ -1950,6 +1953,102 @@ async function processarWebhook(b) {
     await avisarConversa(normalizarWaId(waId))
 }
 
+// ---------- Microsoft (Outlook e Teams) ----------
+
+async function webhookMs(req, res, query) {
+    // 1) validação ao criar a assinatura: devolver o token em texto puro, rápido
+    const validacao = query.get('validationToken')
+    if (validacao) {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        return res.end(validacao)
+    }
+    if (!ms.msAtivo()) return enviar(res, 202, {})
+    try {
+        await ms.processarNotificacoes(await lerCorpo(req))
+    } catch (e) {
+        // sempre 202: devolver erro faz o Graph reenviar e, se insistir, cancelar a assinatura
+        console.error('[zap] webhook ms', e?.message || e)
+    }
+    enviar(res, 202, {})
+}
+
+// Vercel Cron manda "Authorization: Bearer <CRON_SECRET>"
+async function renovarMsCron(req, res) {
+    const { cronSecret } = getEnv()
+    const recebido = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '')
+    if (!cronSecret || !compararSeguro(recebido, cronSecret)) throw new HttpError(401, 'Não autorizado.')
+    enviar(res, 200, await ms.renovarTodas())
+}
+
+function redirecionar(res, destino) {
+    res.statusCode = 302
+    res.setHeader('Location', destino)
+    res.setHeader('Cache-Control', 'no-store')
+    res.end()
+}
+
+async function rotasMs(req, res, usuario, partes, metodo, query) {
+    const responder = (corpo) => enviar(res, 200, corpo)
+    const [a, b] = partes
+    if (a === 'status' && metodo === 'GET') {
+        const st = await ms.statusConta(usuario.id)
+        // nome do canal de avisos em tempo real desta pessoa (null = só polling)
+        return responder({ ...st, canal: st.ativo && tempoRealAtivo() ? nomeCanal('ms', usuario.id) : null })
+    }
+    if (a === 'login' && metodo === 'GET') return responder({ url: ms.urlLogin(usuario, query.get('app')) })
+    if (a === 'callback' && metodo === 'GET') {
+        const base = getEnv().publicUrl
+        // o usuário pode ter negado o acesso na tela da Microsoft
+        if (query.get('error')) return redirecionar(res, `${base}/?ms=erro`)
+        try {
+            const app = await ms.concluirLogin(usuario, query.get('code'), query.get('state'))
+            return redirecionar(res, `${base}/?ms=${app}`)
+        } catch (e) {
+            console.error('[zap] ms callback', e?.message || e)
+            return redirecionar(res, `${base}/?ms=erro`)
+        }
+    }
+    ms.exigirMsAtivo()
+    if (a === 'desconectar' && metodo === 'POST') {
+        await ms.desconectar(usuario.id)
+        return responder({ ok: true })
+    }
+    // cria/renova os webhooks desta pessoa (chamado pela tela ao abrir; no máximo 1 vez a cada 5 min por instância)
+    if (a === 'sincronizar' && metodo === 'POST') return responder(await ms.garantirAssinaturas(usuario.id))
+
+    if (a === 'teams' && b === 'canais' && metodo === 'GET') return responder(await ms.listarCanais(usuario.id))
+    if (a === 'teams' && b === 'enviar' && metodo === 'POST') {
+        const corpo = await lerCorpo(req)
+        const [team, canal] = String(corpo.canal || '').split('|')
+        return responder({ mensagem: await ms.enviarMensagemCanal(usuario.id, team, canal, corpo.texto) })
+    }
+
+    if (a === 'outlook') {
+        if (b === 'emails' && metodo === 'GET') return responder({ emails: await ms.listarEmails(usuario.id, String(query.get('pasta') || 'entrada')) })
+        if (b === 'email' && metodo === 'GET') return responder(await ms.lerEmail(usuario.id, String(query.get('id') || '')))
+        const corpo = metodo === 'GET' ? {} : await lerCorpo(req)
+        if (b === 'enviar' && metodo === 'POST') {
+            await ms.enviarEmail(usuario.id, corpo)
+            return responder({ ok: true })
+        }
+        if (b === 'responder' && metodo === 'POST') {
+            await ms.responderEmail(usuario.id, String(corpo.id || ''), corpo)
+            return responder({ ok: true })
+        }
+        if (b === 'alterar' && metodo === 'POST') {
+            await ms.alterarEmail(usuario.id, String(corpo.id || ''), corpo)
+            return responder({ ok: true })
+        }
+        if (b === 'mover' && metodo === 'POST') return responder(await ms.moverEmail(usuario.id, String(corpo.id || ''), String(corpo.pasta || '')))
+        if (b === 'excluir' && metodo === 'POST') {
+            await ms.excluirEmail(usuario.id, String(corpo.id || ''))
+            return responder({ ok: true })
+        }
+    }
+    throw new HttpError(404, 'Rota não encontrada.')
+}
+
 // ---------- roteamento ----------
 
 export async function handle(req, res, rotaForcada) {
@@ -1967,6 +2066,9 @@ export async function handle(req, res, rotaForcada) {
         if (faltando.length) throw new HttpError(503, `Painel não configurado. Preencha no .env: ${faltando.join(', ')}`)
 
         if (rota === 'webhook' && metodo === 'POST') return await webhook(req, res, query)
+        // Microsoft: o Graph chama sem sessão nem cabeçalho X-Zap (a confirmação é o clientState de cada assinatura)
+        if (rota === 'ms/webhook' && metodo === 'POST') return await webhookMs(req, res, query)
+        if (rota === 'ms/renovar' && metodo === 'GET') return await renovarMsCron(req, res)
 
         // CSRF: toda escrita precisa do cabeçalho customizado (navegador força preflight cross-origin)
         if (metodo !== 'GET' && req.headers['x-zap'] !== '1') throw new HttpError(403, 'Requisição bloqueada.')
@@ -1994,6 +2096,7 @@ export async function handle(req, res, rotaForcada) {
             return responder({ conv: tempoRealAtivo() && waId ? nomeCanal('conv', waId) : null })
         }
         if (rota === 'auth/senha' && metodo === 'POST') return await trocarSenha(req, res, usuario)
+        if (partes[0] === 'ms') return await rotasMs(req, res, usuario, partes.slice(1), metodo, query)
         if (rota === 'conversas' && metodo === 'GET') return responder(await listarConversas(usuario, query))
         if (rota === 'templates' && metodo === 'GET') return responder({ templates: await wati.listarTemplates() })
         if (rota === 'tags' && metodo === 'GET') return responder(await listarTagsSugestao())
@@ -2114,7 +2217,7 @@ export async function handle(req, res, rotaForcada) {
 
         throw new HttpError(404, 'Rota não encontrada.')
     } catch (e) {
-        const status = e instanceof HttpError || e instanceof DbError || e instanceof wati.WatiError ? e.status : 500
+        const status = e instanceof HttpError || e instanceof DbError || e instanceof wati.WatiError || e instanceof ms.MsError ? e.status : 500
         if (status >= 500) console.error('[zap]', e)
         enviar(res, status, {
             erro: status === 500 && !(e instanceof DbError) ? 'Erro interno no painel. Tente de novo; se persistir, avise o administrador.' : e.message,

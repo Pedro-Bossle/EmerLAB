@@ -35,6 +35,16 @@ export function getEnv() {
         emailFrom: str('RESEND_FROM_EMAIL', 'noreply@emerlab.com.br'),
         emailFromNome: str('ZAP_EMAIL_FROM_NOME') || str('RESEND_FROM_NAME', 'Emerzap'),
         publicUrl: str('ZAP_PUBLIC_URL', 'https://zap.emerlab.com.br').replace(/\/+$/, ''),
+        // Microsoft (Outlook e Teams). Tudo desligado até MS_ATIVO=true e o app estar registrado no Azure.
+        msAtivo: ['1', 'true'].includes(str('MS_ATIVO').toLowerCase()),
+        msClientId: str('MS_CLIENT_ID'),
+        msTenantId: str('MS_TENANT_ID'),
+        msClientSecret: str('MS_CLIENT_SECRET'),
+        msRedirectUri: str('MS_REDIRECT_URI') || `${str('ZAP_PUBLIC_URL', 'https://zap.emerlab.com.br').replace(/\/+$/, '')}/api/ms/callback`,
+        msTokenKey: str('MS_TOKEN_KEY') || str('ZAP_SESSION_SECRET'),
+        msTeamNome: str('MS_TEAM_NOME'), // opcional: só mostra a equipe com esse nome (ex.: Emerdog)
+        msCanalMinutos: Number(str('MS_CANAL_MINUTOS', '60')) || 60, // vida da assinatura de canal (a confirmar na doc da Microsoft)
+        cronSecret: str('CRON_SECRET'),
         atendenteVeSemDepto: str('ZAP_ATENDENTE_VE_SEM_DEPARTAMENTO', 'true') !== 'false',
     }
 }
@@ -48,4 +58,15 @@ export function envFaltando() {
     if (!e.supabaseUrl) faltando.push('SUPABASE_URL')
     if (!e.supabaseKey) faltando.push('SUPABASE_SERVICE_ROLE_KEY')
     return faltando
+}
+
+/** O que falta para ligar a integração Microsoft (vazio = pronta). */
+export function msFaltando() {
+    const e = getEnv()
+    const f = []
+    if (!e.msClientId) f.push('MS_CLIENT_ID')
+    if (!e.msTenantId) f.push('MS_TENANT_ID')
+    if (!e.msClientSecret) f.push('MS_CLIENT_SECRET')
+    if (!e.msTokenKey || e.msTokenKey.length < 16) f.push('MS_TOKEN_KEY (mín. 16 caracteres)')
+    return f
 }
