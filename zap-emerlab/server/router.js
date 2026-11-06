@@ -489,6 +489,9 @@ function normalizarContato(c) {
         waId,
         alvoWati,
         nome: nomeFicha || nomeWati || null,
+        // só o Nome da ficha (atributo `name`, o único que o painel grava na WATI): é a fonte da verdade do nome.
+        // O nome do WhatsApp (fullName/senderName) é do cliente, muda sem aviso e só serve de reserva.
+        nomeFicha,
         foto: c.photo || null,
         atualizadoEm: c.lastUpdated || c.created || null,
         atributos,
@@ -686,18 +689,18 @@ async function listarConversas(usuario, query) {
         const atual = porId.get(waId) || { waId, nome: m.nome, foto: null, atualizadoEm: null }
         const meta = fundirMeta(atual.meta, { ...m, wa_id: waId })
         if (meta.conversa_wati && !conversaWati.has(waId)) conversaWati.set(waId, meta.conversa_wati)
-        // nome da ficha (WATI) > nome já gravado no painel > vazio
-        porId.set(waId, { ...atual, waId, nome: atual.nome || meta?.nome || m.nome || null, meta })
+        // nome da ficha (WATI) > nome já gravado no painel (ficha espelhada ou, na falta dela, o 1º nome do WhatsApp)
+        // > nome do WhatsApp da lista da WATI. Assim o apelido do cliente não passa na frente do nome salvo.
+        porId.set(waId, { ...atual, waId, nome: atual.nomeFicha || meta?.nome || atual.nome || m.nome || null, meta })
     }
     // com busca: toda a base WATI (mesmo sem atribuição). sem busca: só o que o atendente pode ver
     const brutos = [...porId.values()].filter((c) => Boolean(busca) || podeVerConversa(usuario, c.meta))
-    // espelha nomes da ficha WATI no painel (só quando a meta ainda não tem nome)
-    const espelhar = brutos
-        .filter((c) => (c.nome || c.atributos?.name) && !c.meta?.nome)
-        .slice(0, 40)
+    // espelha o nome no painel: o da ficha WATI sempre que diferir do gravado; sem ficha, só se a meta ainda não tem nome
+    const nomeParaEspelhar = (c) => c.nomeFicha || (!c.meta?.nome ? c.nome : null)
+    const espelhar = brutos.filter((c) => c.meta && nomeParaEspelhar(c) && nomeParaEspelhar(c) !== c.meta.nome).slice(0, 40)
     if (espelhar.length) {
         Promise.allSettled(
-            espelhar.map((c) => salvarMeta(c.waId, { nome: String(c.nome || c.atributos.name).slice(0, 120) }, { avisar: false })),
+            espelhar.map((c) => salvarMeta(c.waId, { nome: String(nomeParaEspelhar(c)).slice(0, 120) }, { avisar: false })),
         ).catch(() => {})
     }
     const pessoas = await pessoasDoPainel().catch(() => [])
