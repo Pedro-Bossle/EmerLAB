@@ -80,17 +80,6 @@ export default function CredenciamentoFormularioPublico() {
         salvarDarkModeAtivo(darkModeAtivo)
     }, [darkModeAtivo])
 
-    // «Continuar»/«Voltar» (e a tela de envio concluído) levam ao topo do formulário: no celular o rodapé fica no fim
-    // da página e o próximo passo começaria lá embaixo. Não roda na primeira exibição.
-    const passoVisto = useRef(`${passo}|${enviado}`)
-    useEffect(() => {
-        const atual = `${passo}|${enviado}`
-        if (passoVisto.current === atual) return
-        passoVisto.current = atual
-        const reduzir = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-        window.scrollTo({ top: 0, left: 0, behavior: reduzir ? 'auto' : 'smooth' })
-    }, [passo, enviado])
-
     useEffect(() => {
         const prev = document.title
         document.title = 'Cadastro de parceiros · EmerLAB'
@@ -108,6 +97,17 @@ export default function CredenciamentoFormularioPublico() {
     const [paginas, setPaginas] = useState([])
     const [passo, setPasso] = useState(0)
     const [enviado, setEnviado] = useState(false)
+
+    // «Continuar»/«Voltar» (e a tela de envio concluído) levam ao topo do formulário: no celular o rodapé fica no fim
+    // da página e o próximo passo começaria lá embaixo. Não roda na primeira exibição.
+    const passoVisto = useRef(`${passo}|${enviado}`)
+    useEffect(() => {
+        const atual = `${passo}|${enviado}`
+        if (passoVisto.current === atual) return
+        passoVisto.current = atual
+        const reduzir = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+        window.scrollTo({ top: 0, left: 0, behavior: reduzir ? 'auto' : 'smooth' })
+    }, [passo, enviado])
 
     const [tipoPerfil, setTipoPerfil] = useState('')
     const [cpfCnpj, setCpfCnpj] = useState('')
