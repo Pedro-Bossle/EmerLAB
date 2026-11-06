@@ -90,20 +90,20 @@
     "semantic_hash": ""
   },
   "api/clicksign-download.js": {
-    "mtime": 1793972226.6443007,
-    "seen": 1793972285.359796,
+    "mtime": 1793974922.2178066,
+    "seen": 1793975736.606376,
     "ast_hash": "4b875cf9d2e21b7d49e6e60c83fb109c",
     "semantic_hash": ""
   },
   "api/clicksign-upload-document.js": {
-    "mtime": 1793972226.6463006,
-    "seen": 1793972285.3597982,
+    "mtime": 1793974922.2188056,
+    "seen": 1793975736.6063793,
     "ast_hash": "30c7b9ffbccee9886a72924dd1097034",
     "semantic_hash": ""
   },
   "api/clicksign-webhook.js": {
-    "mtime": 1793972226.6492999,
-    "seen": 1793972285.3597999,
+    "mtime": 1793974922.220812,
+    "seen": 1793975736.6063814,
     "ast_hash": "f94a9eebb495ca7aaec8eaefe7634afa",
     "semantic_hash": ""
   },
@@ -306,8 +306,8 @@
     "semantic_hash": ""
   },
   "src/components/Credenciamento/FormularioInboxBell.jsx": {
-    "mtime": 1793972226.6523013,
-    "seen": 1793972285.3621764,
+    "mtime": 1793974922.2795851,
+    "seen": 1793975736.613659,
     "ast_hash": "e35c55f19e4cf85860d82c8caed6c848",
     "semantic_hash": ""
   },
@@ -576,9 +576,9 @@
     "semantic_hash": ""
   },
   "src/lib/api/rateLimit.js": {
-    "mtime": 1793972226.6539264,
-    "seen": 1793972285.365678,
-    "ast_hash": "1f7b4074f259e9a413aad82919daabf5",
+    "mtime": 1793975593.8348556,
+    "seen": 1793975736.6186213,
+    "ast_hash": "16536719090846e21f32fa9bf84d11de",
     "semantic_hash": ""
   },
   "src/lib/api/readJsonBodyLimited.test.js": {
@@ -684,14 +684,14 @@
     "semantic_hash": ""
   },
   "src/lib/clicksign/clicksignClient.js": {
-    "mtime": 1793972226.657146,
-    "seen": 1793972285.3670979,
-    "ast_hash": "e5a313f96b35951cb6457b2af1fd11dc",
+    "mtime": 1793975637.0831065,
+    "seen": 1793975736.6202457,
+    "ast_hash": "d73da998ed43714082d024d401c72f82",
     "semantic_hash": ""
   },
   "src/lib/clicksign/clicksignNotificacoes.js": {
-    "mtime": 1793972226.6581435,
-    "seen": 1793972285.3671021,
+    "mtime": 1793974922.2875295,
+    "seen": 1793975736.6202586,
     "ast_hash": "8c65d4219f562e530b73042975eef3dd",
     "semantic_hash": ""
   },
@@ -702,9 +702,9 @@
     "semantic_hash": ""
   },
   "src/lib/clicksign/clicksignProxyHandler.js": {
-    "mtime": 1793972226.6591449,
-    "seen": 1793972285.3671954,
-    "ast_hash": "f5777b7da5b97333d17fac29e25d6692",
+    "mtime": 1793975593.837157,
+    "seen": 1793975736.6203868,
+    "ast_hash": "4e45ddf58c6b33be9100133c352f30de",
     "semantic_hash": ""
   },
   "src/lib/clicksign/clicksignSignatarioOps.js": {
@@ -714,8 +714,8 @@
     "semantic_hash": ""
   },
   "src/lib/clicksign/clicksignUploadDocumento.js": {
-    "mtime": 1793972226.6601477,
-    "seen": 1793972285.367286,
+    "mtime": 1793974922.2907643,
+    "seen": 1793975736.6205077,
     "ast_hash": "6dda5fb2eddd23b02b60568caeb1afc8",
     "semantic_hash": ""
   },
@@ -2004,9 +2004,9 @@
     "semantic_hash": ""
   },
   "src/pages/Contratos/ClicksignEmerdog.jsx": {
-    "mtime": 1793974132.2898655,
-    "seen": 1793974294.3689008,
-    "ast_hash": "ac15a0b5687365d013a4a39ba9b1d773",
+    "mtime": 1793975637.090494,
+    "seen": 1793975736.6420968,
+    "ast_hash": "f3bd36930feafc2d47d243bdedb0fa26",
     "semantic_hash": ""
   },
   "src/pages/Contratos/ContratosEmerdog.jsx": {
@@ -3654,15 +3654,21 @@
     "semantic_hash": ""
   },
   "src/lib/clicksign/clicksignConfig.js": {
-    "mtime": 1793972216.950877,
-    "seen": 1793972285.3671005,
-    "ast_hash": "ab2da68283aaff4b324ef1f985c30283",
+    "mtime": 1793974922.2846732,
+    "seen": 1793975736.6202548,
+    "ast_hash": "26cf54da3fddfba583db4901b8a5e7da",
     "semantic_hash": ""
   },
   "src/lib/clicksign/clicksignRevisao.test.js": {
-    "mtime": 1793972197.2269063,
-    "seen": 1793972285.3671973,
-    "ast_hash": "a94e984af60642c06dffb353157f8f57",
+    "mtime": 1793974922.2907643,
+    "seen": 1793975736.6203983,
+    "ast_hash": "58621a00390cac2bb4e5f0c04ee96dfb",
+    "semantic_hash": ""
+  },
+  "src/lib/clicksign/clicksignRequest429.test.js": {
+    "mtime": 1793975692.7556913,
+    "seen": 1793975736.62039,
+    "ast_hash": "e45fb60aa577732b2f29d74256fb1a7f",
     "semantic_hash": ""
   },
   "package-lock.json": {
