@@ -473,7 +473,15 @@ const Home = () => {
                 setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
                 return
             }
-            window.open(url, '_blank', 'noopener,noreferrer')
+            // baixa com o nome original do arquivo (sem o código interno do storage)
+            const urlComNome = await urlAssinadaAnexoTarefa(anexo.storage_path, nome)
+            const link = document.createElement('a')
+            link.href = urlComNome || url
+            link.download = nome || ''
+            link.rel = 'noopener noreferrer'
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
         } catch (err) {
             setErro(err?.message || String(err))
         }
@@ -1667,7 +1675,7 @@ const Home = () => {
                                                                                     onClick={() =>
                                                                                         void onBaixarAnexoTarefa(a)
                                                                                     }
-                                                                                    title="Abrir anexo"
+                                                                                    title="Baixar anexo"
                                                                                 >
                                                                                     {a.nome_arquivo}
                                                                                 </button>

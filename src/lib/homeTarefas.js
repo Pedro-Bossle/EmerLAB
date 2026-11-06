@@ -290,12 +290,17 @@ async function removerArquivosStorage(paths) {
     if (error) throw new Error(error.message)
 }
 
-export async function urlAssinadaAnexoTarefa(storagePath) {
+/**
+ * Link temporário do anexo. Com «nomeParaBaixar» o servidor devolve o arquivo com esse nome (o do arquivo original),
+ * e não com o nome interno do storage (que leva o id da tarefa e um código na frente).
+ */
+export async function urlAssinadaAnexoTarefa(storagePath, nomeParaBaixar = '') {
     const path = String(storagePath || '').trim()
     if (!path) throw new Error('Anexo sem caminho.')
+    const nome = String(nomeParaBaixar || '').trim()
     const { data, error } = await supabase.storage
         .from(BUCKET_HOME_TAREFAS_ANEXOS)
-        .createSignedUrl(path, 3600)
+        .createSignedUrl(path, 3600, nome ? { download: nome } : undefined)
     if (error) throw new Error(error.message)
     return data?.signedUrl || ''
 }
