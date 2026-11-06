@@ -23,13 +23,13 @@
 
 /* —— Painel de assinaturas (layout Clicksign, cores Contratos / Emerdog) —— */
 .cs_dash_root {
-    --cs-text: #1e3148;
-    --cs-muted: #5e7188;
-    --cs-border: #d7e8f2;
-    --cs-border-strong: #b8d3e5;
-    --cs-surface: #fafcfe;
-    --cs-primary: #1f78ad;
-    --cs-primary-soft: #f0f7fc;
+    --cs-text: var(--ek-ink, #1e3148);
+    --cs-muted: var(--ek-ink-muted, #5e7188);
+    --cs-border: var(--ek-line, #d7e8f2);
+    --cs-border-strong: var(--ek-line-strong, #b8d3e5);
+    --cs-surface: var(--ek-surface-tint, #fafcfe);
+    --cs-primary: var(--ek-brand, #1f78ad);
+    --cs-primary-soft: var(--ek-brand-pale, #f0f7fc);
     --cs-status-running: #1e6b3a;
     --cs-status-running-bg: #e3f4e8;
     --cs-status-closed: #1e4d7a;
@@ -1558,14 +1558,14 @@ body.dark-mode .clicksign_confirm_exclusao_btn.danger {
 
 /* —— Fluxo Montar envelope (cores alinhadas a Contratos / Emerdog) —— */
 .cs_flow {
-    --cs-text: #1e3148;
-    --cs-muted: #5e7188;
-    --cs-border: #d7e8f2;
-    --cs-border-strong: #b8d3e5;
-    --cs-surface: #fafcfe;
-    --cs-surface-head: #f8fbfd;
-    --cs-primary: #1f78ad;
-    --cs-primary-soft: #f0f7fc;
+    --cs-text: var(--ek-ink, #1e3148);
+    --cs-muted: var(--ek-ink-muted, #5e7188);
+    --cs-border: var(--ek-line, #d7e8f2);
+    --cs-border-strong: var(--ek-line-strong, #b8d3e5);
+    --cs-surface: var(--ek-surface-tint, #fafcfe);
+    --cs-surface-head: var(--ek-surface-tint, #f8fbfd);
+    --cs-primary: var(--ek-brand, #1f78ad);
+    --cs-primary-soft: var(--ek-brand-pale, #f0f7fc);
     width: 100%;
     max-width: none;
     margin: 0;
@@ -2935,4 +2935,1015 @@ body.dark-mode .cs_sign_btn_outline {
 
 body.dark-mode .cs_sign_btn_outline:hover:not(:disabled) {
     background: var(--cs-primary-soft, #1a2838) !important;
+}
+
+/* ==========================================================================
+   Revisão de UX (Painel, Montar envelope e Detalhe) — usa tokens do UI Kit (--ek-*)
+   ========================================================================== */
+
+/* —— Painel: filtros de estado + resumo —— */
+.cs_painel_filtros {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ek-s2, 8px);
+    margin-bottom: var(--ek-s4, 16px);
+}
+
+.cs_painel_segmentos {
+    align-self: flex-start;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.cs_painel_segmento_n {
+    display: inline-block;
+    min-width: 1.4em;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--ek-brand-pale, #e7f4fc);
+    color: var(--ek-brand, #1a6fa3);
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.cs_painel_resumo {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--ek-ink-muted, #5a7488);
+}
+
+.cs_painel_resumo strong {
+    color: var(--ek-ink, #142033);
+}
+
+/* Upload compacto ao lado das atualizações */
+.cs_painel_topo {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr);
+    gap: var(--ek-s4, 16px);
+    align-items: stretch;
+    margin-bottom: var(--ek-s4, 16px);
+}
+
+.cs_painel_topo .cs_dash_notify {
+    margin-bottom: 0;
+}
+
+.cs_dash_upload_card--compact {
+    min-height: 0;
+    padding: var(--ek-s4, 16px);
+}
+
+@media (max-width: 800px) {
+    .cs_painel_topo {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Linha da lista clicável + foco visível */
+.cs_row_clicavel {
+    cursor: pointer;
+}
+
+.cs_row_clicavel:hover td {
+    background: var(--ek-brand-pale, #e7f4fc);
+}
+
+.cs_row_clicavel:focus-visible {
+    outline: 2px solid var(--ek-brand, #1a6fa3);
+    outline-offset: -2px;
+}
+
+.clicksign_td_actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--ek-s2, 8px);
+}
+
+/* —— Montar envelope: passo a passo + resumo fixo —— */
+.cs_flow--layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: var(--ek-s5, 24px);
+    align-items: start;
+}
+
+.cs_flow_main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--ek-s4, 16px);
+}
+
+.cs_flow_aside {
+    position: sticky;
+    top: var(--ek-sticky-top, 16px);
+    min-width: 0;
+}
+
+.cs_card_resumo {
+    padding: var(--ek-s4, 16px);
+}
+
+.cs_card_resumo .cs_summary_grid {
+    grid-template-columns: 1fr;
+}
+
+.cs_card_resumo .cs_card_footer {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--ek-s3, 12px);
+}
+
+.cs_aside_title {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ek-ink-muted, #5a7488);
+}
+
+.cs_aside_nome {
+    margin: 4px 0 var(--ek-s3, 12px);
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: var(--ek-ink, #142033);
+    overflow-wrap: anywhere;
+}
+
+.cs_aside_pendencia {
+    margin: 0;
+}
+
+@media (max-width: 1023px) {
+    .cs_flow--layout {
+        grid-template-columns: 1fr;
+    }
+
+    .cs_flow_aside {
+        position: static;
+    }
+}
+
+.cs_stepper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ek-s2, 8px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.cs_stepper_item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px 6px 8px;
+    border: 1px solid var(--ek-line, #d8e6ef);
+    border-radius: 999px;
+    background: var(--ek-surface, #fff);
+    color: var(--ek-ink-muted, #5a7488);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.cs_stepper_num {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--ek-line, #d8e6ef);
+    color: var(--ek-ink-soft, #3d5168);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.cs_stepper_item.is-active {
+    border-color: var(--ek-brand, #1a6fa3);
+    color: var(--ek-ink, #142033);
+}
+
+.cs_stepper_item.is-active .cs_stepper_num {
+    background: var(--ek-brand, #1a6fa3);
+    color: #fff;
+}
+
+.cs_stepper_item.is-done {
+    color: var(--ek-ok, #0a7a4a);
+}
+
+.cs_stepper_item.is-done .cs_stepper_num {
+    background: var(--ek-ok-bg, #e8f8ef);
+    color: var(--ek-ok, #0a7a4a);
+}
+
+/* —— Detalhe do envelope: abas e linha do tempo —— */
+.cs_detail_tabs {
+    margin-bottom: var(--ek-s4, 16px);
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.cs_timeline {
+    margin: 0;
+    padding: 0 0 0 var(--ek-s4, 16px);
+    list-style: none;
+    border-left: 2px solid var(--ek-line, #d8e6ef);
+}
+
+.cs_timeline_item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 0 var(--ek-s4, 16px) var(--ek-s3, 12px);
+}
+
+.cs_timeline_item::before {
+    content: '';
+    position: absolute;
+    left: -25px;
+    top: 5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--ek-brand, #1a6fa3);
+    box-shadow: 0 0 0 3px var(--ek-surface, #fff);
+}
+
+.cs_timeline_item--refusal::before,
+.cs_timeline_item--cancel::before {
+    background: var(--ek-erro, #b91c1c);
+}
+
+.cs_timeline_item--sign::before,
+.cs_timeline_item--close::before,
+.cs_timeline_item--auto_close::before {
+    background: var(--ek-ok, #0a7a4a);
+}
+
+.cs_timeline_item--deadline::before {
+    background: var(--ek-warn, #a16207);
+}
+
+.cs_timeline_quando {
+    font-size: 0.8125rem;
+    color: var(--ek-ink-muted, #5a7488);
+}
+
+.cs_timeline_texto {
+    color: var(--ek-ink, #142033);
+}
+
+/* ==========================================================================
+   MOBILE (até 639px, breakpoint do UI Kit): Painel, Montar envelope, Detalhe e modais
+   Versão compacta: controles de 38-40px, textos de 13-14px, 8px entre botões.
+   Campos de texto ficam em 16px (menos que isso o iOS dá zoom ao tocar).
+   Tabela vira cartão; menus e modais viram folha inferior; a página nunca rola na horizontal.
+   ========================================================================== */
+
+/* Enquanto esta tela estiver aberta no celular, os controles do kit ficam mais compactos
+   (inclui os modais, que são renderizados fora da tela). */
+@media (max-width: 639px) {
+    :root:has(.clicksign_emerdog) {
+        --ek-control-h: 38px;
+        --ek-control-h-sm: 32px;
+        --ek-touch: 38px;
+    }
+}
+
+/* Toque (celular e tablet): alvos de 40px, sem exagero */
+@media (pointer: coarse) {
+    .clicksign_menu_trigger,
+    .cs_summary_remove,
+    .cs_summary_edit {
+        min-width: 40px;
+        min-height: 40px;
+    }
+}
+
+@media (max-width: 639px) {
+    .clicksign_emerdog {
+        overflow-x: clip;
+    }
+
+    .clicksign_emerdog .contratos_card {
+        padding: 10px;
+        border-radius: var(--ek-r-card, 14px);
+    }
+
+    /* A descrição do cabeçalho só ocupa espaço no celular */
+    .clicksign_emerdog .el-page-header__desc {
+        display: none;
+    }
+
+    /* Campos */
+    .clicksign_emerdog input:not([type='checkbox']):not([type='radio']):not([type='file']),
+    .clicksign_emerdog select,
+    .clicksign_emerdog textarea,
+    .clicksign_emerdog .contratos_input,
+    .clicksign_emerdog .contratos_select {
+        font-size: 16px;
+        min-height: 40px;
+        padding-block: 6px;
+    }
+
+    .clicksign_emerdog textarea {
+        min-height: 72px;
+    }
+
+    .clicksign_emerdog .contratos_field label {
+        font-size: 0.8125rem;
+        margin-bottom: 0.25rem;
+    }
+
+    /* Botões */
+    .clicksign_emerdog .contratos_btn,
+    .clicksign_emerdog .ek-btn {
+        min-height: 40px;
+        padding-inline: 0.875rem;
+        font-size: 0.8125rem;
+    }
+
+    .clicksign_emerdog .ek-btn--sm,
+    .clicksign_emerdog .clicksign_btn_sm {
+        min-height: 34px;
+        padding-inline: 0.75rem;
+    }
+
+    /* Respiro mínimo de 8px entre botões em qualquer grupo */
+    .clicksign_emerdog .cs_actions_row,
+    .clicksign_emerdog .clicksign_td_actions,
+    .clicksign_emerdog .clicksign_detail_sig_actions,
+    .clicksign_emerdog .cs_summary_sig_actions,
+    .clicksign_emerdog .cs_env_strip,
+    .clicksign_emerdog .cs_dash_notify_head,
+    .clicksign_emerdog .clicksign_detail_sig_head,
+    .clicksign_emerdog .ek-page-header__actions,
+    .clicksign_emerdog .cs_sig_pills {
+        gap: 8px;
+    }
+
+    .ek-modal__foot {
+        gap: 8px;
+    }
+
+    /* Abas principais */
+    .clicksign_emerdog .contratos_tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 10px;
+        overflow: visible;
+    }
+
+    .clicksign_emerdog .contratos_tab {
+        min-height: 38px;
+        padding: 0 8px;
+        font-size: 0.8125rem;
+        font-weight: 600;
+    }
+
+    /* Painel: filtros de estado numa fileira rolável */
+    .cs_painel_filtros {
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+
+    .cs_painel_segmentos {
+        display: flex;
+        flex-wrap: nowrap;
+        width: 100%;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .cs_painel_segmentos::-webkit-scrollbar {
+        display: none;
+    }
+
+    .cs_painel_segmentos .ek-segmented__opt {
+        flex: 0 0 auto;
+        min-height: 32px;
+        padding-inline: 0.75rem;
+        font-size: 0.8125rem;
+        white-space: nowrap;
+        scroll-snap-align: start;
+    }
+
+    .cs_painel_resumo {
+        font-size: 0.75rem;
+        line-height: 1.45;
+    }
+
+    .cs_painel_topo {
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    /* Upload: faixa horizontal compacta (arrastar não existe no toque) */
+    .cs_dash_upload_card--compact {
+        flex-direction: row;
+        justify-content: flex-start;
+        text-align: left;
+        gap: 10px;
+        min-height: 0;
+        padding: 8px 12px;
+    }
+
+    .cs_dash_upload_card--compact .cs_dash_upload_icon svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .cs_dash_upload_card--compact strong {
+        font-size: 0.875rem;
+    }
+
+    .cs_dash_upload_card--compact .cs_dash_upload_hint {
+        display: none;
+    }
+
+    .cs_dash_notify {
+        padding: 8px 10px;
+    }
+
+    .cs_dash_notify_title {
+        font-size: 0.875rem;
+    }
+
+    .cs_dash_notify_row {
+        min-height: 0;
+        padding-block: 6px;
+        font-size: 0.8125rem;
+    }
+
+    /* Barra de busca */
+    .clicksign_toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .clicksign_toolbar .contratos_field,
+    .clicksign_toolbar > .ek-btn,
+    .clicksign_toolbar > .contratos_btn {
+        width: 100%;
+    }
+
+    /* Lista de envelopes: cada linha vira um cartão */
+    .clicksign_emerdog .clicksign_table_wrap {
+        margin: 0 0 8px;
+        overflow: visible;
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes,
+    .clicksign_emerdog .clicksign_table_envelopes tbody {
+        display: block;
+        width: 100%;
+        table-layout: auto;
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes colgroup,
+    .clicksign_emerdog .clicksign_table_envelopes thead {
+        display: none;
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes tbody tr.cs_row_clicavel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 2px 10px;
+        margin: 0 0 8px;
+        padding: 10px;
+        border: 1px solid var(--ek-line, #d8e6ef);
+        border-radius: 12px;
+        background: var(--ek-surface, #fff);
+        overflow: visible;
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes tbody tr.cs_row_clicavel:active {
+        background: var(--ek-brand-pale, #e7f4fc);
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes tbody tr.cs_row_clicavel > td {
+        display: block;
+        width: auto;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        text-align: left;
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes tbody tr.cs_row_clicavel > td::before {
+        display: none;
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes td.clicksign_col_nome {
+        grid-column: 1;
+        grid-row: 1;
+        font-size: 0.9375rem;
+        font-weight: 700;
+        line-height: 1.3;
+        color: var(--ek-ink, #142033);
+        overflow-wrap: anywhere;
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes td.clicksign_col_estado {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes td.clicksign_col_data {
+        grid-column: 1 / -1;
+        font-size: 0.75rem;
+        line-height: 1.4;
+        color: var(--ek-ink-muted, #5a7488);
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes tbody tr.cs_row_clicavel > td.clicksign_col_data::before {
+        display: inline;
+        content: attr(data-label) ': ';
+        margin: 0;
+        font-size: inherit;
+        font-weight: 600;
+        color: var(--ek-ink-soft, #3d5168);
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes td.clicksign_col_acoes {
+        grid-column: 1 / -1;
+        max-width: none;
+        margin-top: 6px;
+        padding-top: 8px;
+        border-top: 1px solid var(--ek-line, #d8e6ef);
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes td.clicksign_col_acoes .clicksign_td_actions {
+        width: 100%;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes td.clicksign_col_acoes .clicksign_td_actions > .ek-btn {
+        flex: 1 1 auto;
+    }
+
+    .clicksign_emerdog .clicksign_table_envelopes td.clicksign_td_empty {
+        display: block;
+        text-align: center;
+    }
+
+    .clicksign_menu_trigger {
+        min-width: 38px;
+        min-height: 38px;
+    }
+
+    /* Menus de 3 pontos viram folha inferior (fundo escurece; toque fora fecha) */
+    .clicksign_dropdown,
+    .clicksign_dropdown--up,
+    .clicksign_dropdown--left {
+        position: fixed;
+        top: auto;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1250;
+        width: 100%;
+        min-width: 0;
+        max-height: 75dvh;
+        padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
+        border: 0;
+        border-radius: 16px 16px 0 0;
+        box-shadow: 0 0 0 100vmax rgba(10, 20, 32, 0.45);
+    }
+
+    .clicksign_dropdown button,
+    .clicksign_dropdown_link {
+        display: flex;
+        align-items: center;
+        min-height: 42px;
+        padding: 0 16px;
+        font-size: 0.9375rem;
+    }
+
+    /* Paginação: contagem em cima, Anterior e Próxima lado a lado */
+    .clicksign_lista_paginacao {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .clicksign_lista_paginacao_info {
+        font-size: 0.75rem;
+    }
+
+    .clicksign_lista_paginacao_controles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .clicksign_lista_paginacao_label {
+        grid-column: 1 / -1;
+        order: 0;
+        justify-content: space-between;
+        font-size: 0.8125rem;
+    }
+
+    .clicksign_lista_paginacao_page {
+        grid-column: 1 / -1;
+        order: 1;
+        text-align: center;
+        font-size: 0.8125rem;
+    }
+
+    .clicksign_lista_paginacao_controles > .ek-btn:first-of-type {
+        order: 2;
+    }
+
+    .clicksign_lista_paginacao_controles > .ek-btn:last-of-type {
+        order: 3;
+    }
+
+    /* Montar envelope */
+    .cs_flow--layout {
+        display: block;
+        /* espaço para a barra de envio fixa + barra de navegação inferior */
+        padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .cs_flow_main {
+        gap: 10px;
+    }
+
+    .cs_flow_aside {
+        position: static;
+        margin-top: 10px;
+    }
+
+    /* Passo a passo */
+    .cs_stepper {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .cs_stepper_item {
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 2px;
+        padding: 6px 2px;
+        border-radius: 10px;
+        font-size: 0.6875rem;
+        text-align: center;
+    }
+
+    .cs_stepper_num {
+        width: 20px;
+        height: 20px;
+        font-size: 0.6875rem;
+    }
+
+    .cs_env_strip {
+        flex-wrap: wrap;
+        margin-bottom: 0;
+        padding: 8px 10px;
+    }
+
+    .cs_env_id {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    .cs_card_head {
+        padding: 10px 12px;
+    }
+
+    .cs_card_title {
+        font-size: 0.9375rem;
+    }
+
+    .cs_card_body {
+        padding: 10px 12px;
+    }
+
+    .cs_field_grid {
+        gap: 10px;
+    }
+
+    .cs_actions_row {
+        margin-top: 10px;
+    }
+
+    .cs_actions_row > .ek-btn,
+    .cs_actions_row > .contratos_btn {
+        width: 100%;
+    }
+
+    .cs_dropzone {
+        padding: 12px;
+    }
+
+    .cs_dropzone_icon svg {
+        width: 28px;
+        height: 28px;
+    }
+
+    .cs_dropzone_title {
+        font-size: 0.9375rem;
+    }
+
+    .cs_dropzone_sub {
+        display: none;
+    }
+
+    .cs_file_label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-height: 40px;
+    }
+
+    .cs_sig_pills {
+        flex-direction: column;
+    }
+
+    .cs_sig_pill {
+        width: 100%;
+        min-height: 40px;
+        padding-block: 0.4rem;
+        justify-content: center;
+        border-radius: 10px;
+        font-size: 0.875rem;
+    }
+
+    .cs_summary_title {
+        font-size: 0.8125rem;
+    }
+
+    .cs_summary_remove,
+    .cs_summary_edit {
+        min-width: 36px;
+        min-height: 36px;
+    }
+
+    .cs_card_resumo {
+        padding: 12px;
+    }
+
+    .cs_aside_nome {
+        font-size: 0.9375rem;
+        margin-bottom: 8px;
+    }
+
+    /* Barra de envio fixa acima da navegação inferior */
+    .cs_card_resumo .cs_card_footer {
+        position: fixed;
+        right: 0;
+        bottom: calc(var(--ek-bottom-nav, 4.25rem) + env(safe-area-inset-bottom, 0px));
+        left: 0;
+        z-index: 35;
+        gap: 6px;
+        padding: 8px 12px;
+        border-top: 1px solid var(--ek-line, #d8e6ef);
+        background: var(--ek-surface, #fff);
+        box-shadow: 0 -4px 12px rgba(10, 20, 32, 0.1);
+    }
+
+    .cs_card_resumo .cs_card_footer .cs_aside_pendencia {
+        font-size: 0.75rem;
+    }
+
+    .cs_fineprint {
+        font-size: 0.75rem;
+    }
+
+    /* Detalhe do envelope (o Modal do kit já vira folha inferior) */
+    .clicksign_modal_body {
+        max-height: none;
+        overflow: visible;
+    }
+
+    .cs_detail_tabs {
+        display: flex;
+        flex-wrap: nowrap;
+        width: 100%;
+        margin-bottom: 10px;
+        scrollbar-width: none;
+    }
+
+    .cs_detail_tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .cs_detail_tabs .ek-segmented__opt {
+        flex: 0 0 auto;
+        min-height: 32px;
+        padding-inline: 0.75rem;
+        font-size: 0.8125rem;
+        white-space: nowrap;
+    }
+
+    .clicksign_detail_sig_head {
+        flex-wrap: wrap;
+    }
+
+    .clicksign_detail_sig_head .ek-btn,
+    .clicksign_detail_sig_head .contratos_btn {
+        width: 100%;
+    }
+
+    .clicksign_detail_table_wrap {
+        overflow: visible;
+    }
+
+    .clicksign_detail_table,
+    .clicksign_detail_table tbody {
+        display: block;
+        width: 100%;
+    }
+
+    .clicksign_detail_table thead {
+        display: none;
+    }
+
+    .clicksign_detail_table tr {
+        display: block;
+        margin-bottom: 8px;
+        padding: 6px 10px;
+        border: 1px solid var(--ek-line, #d8e6ef);
+        border-radius: 10px;
+        background: var(--ek-surface, #fff);
+    }
+
+    .clicksign_detail_table td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 4px 0;
+        border: 0;
+        font-size: 0.8125rem;
+        text-align: right;
+        overflow-wrap: anywhere;
+    }
+
+    .clicksign_detail_table td::before {
+        content: attr(data-label);
+        flex: 0 0 34%;
+        font-size: 0.6875rem;
+        font-weight: 700;
+        color: var(--ek-ink-muted, #5a7488);
+        text-align: left;
+    }
+
+    .clicksign_detail_table td:not([data-label])::before {
+        display: none;
+    }
+
+    .clicksign_detail_table td.clicksign_td_empty {
+        display: block;
+        text-align: center;
+    }
+
+    .clicksign_detail_table td.clicksign_col_doc_menu {
+        width: auto;
+        justify-content: flex-end;
+    }
+
+    .clicksign_detail_sig_actions {
+        justify-content: flex-end;
+    }
+
+    .clicksign_detail_attrs {
+        font-size: 0.875rem;
+    }
+
+    /* Modal de signatário: folha inferior, botão principal acima do "Cancelar" */
+    .contratos_modal_backdrop.cs_sign_modal_layer {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .contratos_modal.cs_sign_modal,
+    .contratos_modal.cs_sign_modal.cs_sign_modal--wide,
+    .contratos_modal.cs_sign_modal.cs_sign_modal--novo {
+        width: 100%;
+        max-width: none;
+        max-height: 92dvh;
+        margin: 0;
+        border-radius: 16px 16px 0 0;
+    }
+
+    .cs_sign_modal .contratos_modal_head {
+        padding: 12px 14px;
+    }
+
+    .cs_sign_modal .contratos_modal_body {
+        padding: 12px 14px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    .cs_sign_modal_foot {
+        flex-direction: column-reverse;
+        align-items: stretch;
+        gap: 8px;
+        padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .cs_sign_modal_foot .contratos_btn {
+        width: 100%;
+        min-height: 40px;
+    }
+
+    .cs_sign_table {
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    /* Avisos (toast): largura total, acima da navegação inferior */
+    .contratos_toast {
+        top: auto !important;
+        right: 12px !important;
+        bottom: calc(var(--ek-bottom-nav, 4.25rem) + 10px + env(safe-area-inset-bottom, 0px)) !important;
+        left: 12px !important;
+        min-width: 0;
+        max-width: none;
+        padding: 10px 12px;
+    }
+
+    .contratos_toast_close {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+/* Cartão bloqueado: o aviso é uma camada sobre o corpo; sem altura mínima ele ficava cortado */
+.cs_card_body:has(> .cs_lock_msg) {
+    min-height: 56px;
+}
+
+@media (max-width: 639px) {
+    /* O campo de busca usava flex-basis de 200px; em coluna isso virava 200px de ALTURA */
+    .clicksign_toolbar > .contratos_field,
+    .clicksign_toolbar > .clicksign_field_grow,
+    .clicksign_toolbar > .clicksign_field_inline {
+        flex: 0 0 auto;
+        min-width: 0;
+        width: 100%;
+    }
+
+    /* Respiro entre o cabeçalho (título e "+ Novo envelope") e as abas */
+    .clicksign_emerdog .ek-page-header {
+        margin-bottom: 14px;
+    }
+
+    .clicksign_emerdog .ek-page-header__title {
+        font-size: 1.25rem;
+        line-height: 1.2;
+    }
+
+    /* Upload: o texto de apoio e o "arraste e solte" não ajudam no toque */
+    .cs_dropzone_hint_top {
+        font-size: 0.8125rem;
+        line-height: 1.4;
+        margin-bottom: 8px;
+    }
+
+    .cs_dropzone_title {
+        display: none;
+    }
+
+    .cs_dropzone {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .cs_dropzone_icon {
+        margin: 0;
+    }
+}
+
+/* "+ Novo envelope" do cabeçalho só aparece no celular; no desktop o caminho é a aba "Montar envelope" */
+@media (min-width: 640px) {
+    .clicksign_emerdog .ek-page-header__actions {
+        display: none;
+    }
 }
