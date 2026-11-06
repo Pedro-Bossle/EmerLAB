@@ -48,7 +48,7 @@ export async function anexarPdfEnvelopeViaStorage(envelopeId, file, opts = {}) {
         return { ok: false, status: 400, data: { error: 'ID do envelope ausente.' } }
     }
     if (!file) {
-        return { ok: false, status: 400, data: { error: 'Ficheiro ausente.' } }
+        return { ok: false, status: 400, data: { error: 'Arquivo ausente.' } }
     }
     const size = Number(file.size) || 0
     if (size > CLICKSIGN_PDF_STORAGE_MAX_BYTES) {

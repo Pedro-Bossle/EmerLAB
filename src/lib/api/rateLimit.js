@@ -61,7 +61,9 @@ export const RATE_LIMITS = {
     geocode: { limit: 30, windowMs: 60_000 },
     prospectos: { limit: 12, windowMs: 60_000 },
     clicksign: { limit: 60, windowMs: 60_000 },
-    webhook: { limit: 120, windowMs: 60_000 },
+    // Webhooks chegam de IP fixo da Clicksign; rajadas legítimas (envelope com vários documentos/signatários)
+    // não podem ser barradas, ou a Clicksign conta falha de entrega. A proteção real é o HMAC.
+    webhook: { limit: 600, windowMs: 60_000 },
     adminUsers: { limit: 30, windowMs: 60_000 },
     /** Recuperação de senha na tela de login (por IP). */
     forgotPassword: { limit: 5, windowMs: 15 * 60_000 },

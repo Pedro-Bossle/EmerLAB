@@ -2,9 +2,7 @@
  * Proxy seguro para a API 3.0 (Envelope) da Clicksign — JSON:API.
  * Usado por api/clicksign-catchall.js e dev (não é Serverless Function).
  */
-const DEFAULT_BASE = 'https://sandbox.clicksign.com/api/v3'
-
-const normBase = (b) => String(b || DEFAULT_BASE).replace(/\/$/, '')
+import { fetchComRetry, removerSegredosWebhook, resolverBaseClicksign } from './clicksignConfig.js'
 
 const PREFIXOS_LEITURA = ['/envelopes', '/webhooks', '/templates', '/batch']
 /** Escrita só em envelopes (e batch ligado a envelopes). Webhooks/templates ficam só leitura. */
@@ -105,12 +103,9 @@ export default async function clicksignProxyHandler(req, res) {
         return
     }
 
-    const base = normBase(process.env.CLICKSIGN_API_BASE)
-    if (base.includes('/api/v1') || base.includes('api.clicksign.com.br')) {
-        res.status(503).json({
-            error:
-                'CLICKSIGN_API_BASE inválida para esta ferramenta (API 3.0). Use https://app.clicksign.com/api/v3 (produção) ou https://sandbox.clicksign.com/api/v3 (sandbox).',
-        })
+    const { base, error: erroBase } = resolverBaseClicksign()
+    if (erroBase) {
+        res.status(503).json({ error: erroBase })
         return
     }
 
@@ -169,19 +164,24 @@ export default async function clicksignProxyHandler(req, res) {
     }
 
     try {
-        const upstream = await fetch(upstreamUrl, fetchOpts)
+        // Retry com backoff + jitter (429/5xx/rede); POST só repete em 429.
+        const upstream = await fetchComRetry(upstreamUrl, fetchOpts)
         const text = await upstream.text()
         const ct = (upstream.headers.get('content-type') || '').toLowerCase()
         if (upstream.status === 429) {
             setResponseStatus(res, 429)
             res.setHeader('Content-Type', 'application/json; charset=utf-8')
-            const retry = upstream.headers.get('retry-after')
-            if (retry) res.setHeader('Retry-After', retry)
+            // A Clicksign informa o reset em X-Rate-Limit-Reset (Unix time UTC), não em Retry-After.
+            const resetUnix = Number(upstream.headers.get('x-rate-limit-reset'))
+            const retryAfterSec =
+                Number.isFinite(resetUnix) && resetUnix > 0
+                    ? Math.max(1, Math.ceil(resetUnix - Date.now() / 1000))
+                    : 10
+            res.setHeader('Retry-After', String(retryAfterSec))
             res.json({
                 ok: false,
-                error:
-                    'Limite de pedidos na API Clicksign (429). Aguarde um momento e tente de novo.',
-                retryAfterSec: retry ? Number(retry) || undefined : undefined,
+                error: `Limite de pedidos na API Clicksign (429). Aguarde ${retryAfterSec} s e tente de novo.`,
+                retryAfterSec,
             })
             return
         }
@@ -203,6 +203,8 @@ export default async function clicksignProxyHandler(req, res) {
                 }
             }
         }
+        // O `secret` HMAC dos webhooks nunca deve chegar ao navegador.
+        if (/^\/webhooks(\/|$)/i.test(subPath)) data = removerSegredosWebhook(data)
         res.status(upstream.status).json(data)
     } catch (e) {
         res.status(502).json({ error: e?.message || 'Falha ao contactar a Clicksign.' })

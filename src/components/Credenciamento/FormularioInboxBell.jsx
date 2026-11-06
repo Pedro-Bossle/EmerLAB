@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { clicksignRequest } from '../../lib/clicksign/clicksignClient'
 import {
     CLICKSIGN_BELL_LIMPO_STORAGE_PREFIX,
     CLICKSIGN_NOTIF_STORAGE_KEY,
@@ -8,7 +7,6 @@ import {
     contarNotificacoesContratosTotal,
     listarNotificacoesContratosRecentes,
     limparTodasNotificacoesContratos,
-    sincronizarNotificacoesClicksign,
 } from '../../lib/clicksign/clicksignNotificacoes'
 import { PERMISSION_KEYS, useStoredPermission } from '../../lib/accessControl'
 import {
@@ -281,6 +279,8 @@ export default function FormularioInboxBell({
         return lista
     }, [])
 
+    // Contratos: as notificações vêm do webhook (tabela no Supabase + Realtime). Não há mais polling
+    // na API da Clicksign daqui — a documentação veta polling de documentos e ele gastava a cota da conta.
     const sincronizarContratosSeDevido = useCallback(
         async (forcar = false) => {
             if (!podeNotifContratos) return
@@ -292,7 +292,6 @@ export default function FormularioInboxBell({
             ultimoSyncContratosRef.current = agora
             setSyncContratos(true)
             try {
-                await sincronizarNotificacoesClicksign(clicksignRequest, { forcar })
                 const total = await contarNotificacoesContratosTotal()
                 setCountContratos(total)
                 if (aberto) setRecentesContratos(await listarNotificacoesContratosRecentes(8))
@@ -510,7 +509,7 @@ export default function FormularioInboxBell({
         setLimpando(true)
         try {
             if (podeNotifContratos) {
-                await limparTodasNotificacoesContratos(clicksignRequest)
+                await limparTodasNotificacoesContratos()
                 ultimoSyncContratosRef.current = Date.now()
             }
             setCountContratos(0)

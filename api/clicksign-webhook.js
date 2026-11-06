@@ -1,7 +1,9 @@
 /**
  * Receptor de webhooks da Clicksign (painel / API).
  * POST /api/clicksign-webhook (domínio Vercel do EmerLAB)
- * Só eventos de envelope: sign, close, auto_close, add_signer, remove_signer.
+ * Eventos tratados: sign, close, auto_close, add_signer, remove_signer, refusal, cancel, deadline.
+ * (document_closed é ignorado de propósito: close/auto_close já avisam a conclusão.)
+ * Falha ao gravar → HTTP 500, para a Clicksign poder reenviar o evento.
  *
  * Variáveis (Vercel):
  * - CLICKSIGN_WEBHOOK_SECRET — HMAC SHA256 (obrigatório em produção)
@@ -11,7 +13,16 @@
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
-const EVENTOS_UTEIS = new Set(['sign', 'close', 'auto_close', 'add_signer', 'remove_signer'])
+const EVENTOS_UTEIS = new Set([
+    'sign',
+    'close',
+    'auto_close',
+    'add_signer',
+    'remove_signer',
+    'refusal',
+    'cancel',
+    'deadline',
+])
 
 async function readRawBody(req, { maxBytes = 256 * 1024 } = {}) {
     if (req.method === 'GET' || req.method === 'HEAD') return Buffer.alloc(0)
@@ -42,21 +53,12 @@ function header(req, name) {
 }
 
 function extrairAssinaturaRecebida(req) {
-    const candidatos = [
-        header(req, 'content-hmac'),
-        header(req, 'x-content-hmac'),
-        header(req, 'x-clicksign-signature'),
-        header(req, 'content-hmac-sha256'),
-        header(req, 'x-hub-signature-256'),
-        header(req, 'signature'),
-    ]
-    for (const c of candidatos) {
-        if (c == null || c === '') continue
-        const s = String(c).trim()
-        if (s.toLowerCase().startsWith('sha256=')) return s.slice(7).trim()
-        return s
-    }
-    return ''
+    // Header oficial (doc "Segurança de webhooks"): Content-Hmac: sha256=<hex>
+    const c = header(req, 'content-hmac')
+    if (c == null || c === '') return ''
+    const s = String(c).trim()
+    if (s.toLowerCase().startsWith('sha256=')) return s.slice(7).trim()
+    return s
 }
 
 function assinaturaEsperadaHex(secret, rawBody) {
@@ -99,10 +101,6 @@ function verificarHmac(req, rawBody) {
     if (igualHexSeguro(esperado, recebido)) {
         return { ok: true }
     }
-    const esperadoB64 = crypto.createHmac('sha256', secret).update(rawBody).digest('base64')
-    if (recebido === esperadoB64) {
-        return { ok: true }
-    }
     return { ok: false, reason: 'invalid_signature' }
 }
 
@@ -139,6 +137,15 @@ function montarTextoNotificacao(body, evento) {
     }
     if (evento === 'remove_signer') {
         return `Signatário removido do envelope «${nomeEnv}».`
+    }
+    if (evento === 'refusal') {
+        return `${nomeSig} recusou assinar o envelope «${nomeEnv}».`
+    }
+    if (evento === 'cancel') {
+        return `Envelope cancelado: «${nomeEnv}».`
+    }
+    if (evento === 'deadline') {
+        return `Prazo encerrado no envelope «${nomeEnv}».`
     }
     return `Atualização do envelope «${nomeEnv}» (${evento || 'desconhecido'}).`
 }
@@ -245,11 +252,22 @@ export default async function handler(req, res) {
         payload: body,
     })
 
+    if (!persist.ok) {
+        // Não responder 2xx: a Clicksign trata 2xx como entregue e o evento se perderia sem rastro.
+        console.error('[clicksign-webhook] falha ao gravar evento', {
+            evento: evento || null,
+            envelopeId,
+            reason: persist.reason,
+        })
+        res.status(500).json({ ok: false, error: 'Falha ao registrar o evento.', persistReason: persist.reason })
+        return
+    }
+
     res.status(200).json({
         ok: true,
         evento: evento || null,
-        persisted: persist.ok,
-        persistReason: persist.ok ? undefined : persist.reason,
+        persisted: true,
+        duplicate: persist.duplicate || undefined,
         hmac: auth.skipped ? 'skipped' : 'ok',
     })
 }

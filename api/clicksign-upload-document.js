@@ -10,8 +10,11 @@ import { createSupabaseAdminClient, getClientIp, validarJwtComPermissao } from '
 import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
 import { PERMISSION_KEYS } from '../src/lib/accessControl.js'
 
-const DEFAULT_BASE = 'https://sandbox.clicksign.com/api/v3'
+import { fetchComRetry, resolverBaseClicksign } from '../src/lib/clicksign/clicksignConfig.js'
+
 const BUCKET = 'clicksign-uploads'
+/** Abaixo do maxDuration (60 s) para sobrar tempo de reconciliar antes da função ser encerrada. */
+const UPLOAD_TIMEOUT_MS = 40_000
 const PDF_MAX_BYTES = 12 * 1024 * 1024
 
 function nomeArquivoPdfSeguro(name) {
@@ -26,8 +29,38 @@ function nomeArquivoPdfSeguro(name) {
     return out.toLowerCase().endsWith('.pdf') ? out : `${out || 'documento'}.pdf`
 }
 
-function normBase(b) {
-    return String(b || DEFAULT_BASE).replace(/\/$/, '')
+/**
+ * Após timeout/5xx o documento pode ter sido gravado mesmo assim. Antes de devolver erro (e o usuário
+ * reenviar, duplicando), confere se já existe um documento com este nome no envelope.
+ * @returns {Promise<object|null>} item JSON:API do documento, ou null
+ */
+async function localizarDocumentoJaCriado(base, token, envelopeId, filename) {
+    try {
+        const res = await fetchComRetry(
+            `${base}/envelopes/${encodeURIComponent(envelopeId)}/documents`,
+            {
+                headers: {
+                    Authorization: token.replace(/^Bearer\s+/i, '').trim(),
+                    Accept: 'application/vnd.api+json',
+                },
+                signal: AbortSignal.timeout(8000),
+            },
+            { maxTentativas: 2 },
+        )
+        if (!res.ok) return null
+        const json = await res.json()
+        const lista = Array.isArray(json?.data) ? json.data : []
+        // Só vale como "gravado por esta tentativa" se for do mesmo nome e criado há poucos minutos.
+        const recente = (d) => {
+            const t = new Date(d?.attributes?.created || 0).getTime()
+            return !Number.isNaN(t) && Date.now() - t < 3 * 60_000
+        }
+        return (
+            lista.find((d) => String(d?.attributes?.filename || '') === filename && recente(d)) || null
+        )
+    } catch {
+        return null
+    }
 }
 
 function uuidOk(id) {
@@ -139,7 +172,11 @@ export default async function handler(req, res) {
         return
     }
 
-    const base = normBase(process.env.CLICKSIGN_API_BASE)
+    const { base, error: erroBase } = resolverBaseClicksign()
+    if (erroBase) {
+        res.status(503).json({ error: erroBase })
+        return
+    }
     const upstreamUrl = `${base}/envelopes/${encodeURIComponent(envelopeId)}/documents`
     const payload = {
         data: {
@@ -151,16 +188,30 @@ export default async function handler(req, res) {
         },
     }
 
+    const limparTemporario = async () => {
+        try {
+            await admin.storage.from(BUCKET).remove([storagePath])
+        } catch {
+            /* ignore */
+        }
+    }
+
     try {
-        const upstream = await fetch(upstreamUrl, {
-            method: 'POST',
-            headers: {
-                Authorization: token.replace(/^Bearer\s+/i, '').trim(),
-                Accept: 'application/vnd.api+json',
-                'Content-Type': 'application/vnd.api+json',
+        // POST: só repete em 429 (recusado, não processado) — nunca em 5xx, para não duplicar.
+        const upstream = await fetchComRetry(
+            upstreamUrl,
+            {
+                method: 'POST',
+                headers: {
+                    Authorization: token.replace(/^Bearer\s+/i, '').trim(),
+                    Accept: 'application/vnd.api+json',
+                    'Content-Type': 'application/vnd.api+json',
+                },
+                body: JSON.stringify(payload),
+                signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
             },
-            body: JSON.stringify(payload),
-        })
+            { maxTentativas: 2 },
+        )
         const text = await upstream.text()
         let data = {}
         if (text.trim()) {
@@ -171,20 +222,30 @@ export default async function handler(req, res) {
             }
         }
 
-        // Limpa o temporário (sucesso ou falha — evita lixo)
-        try {
-            await admin.storage.from(BUCKET).remove([storagePath])
-        } catch {
-            /* ignore */
+        if (upstream.status >= 500) {
+            const jaCriado = await localizarDocumentoJaCriado(base, token, envelopeId, filename)
+            if (jaCriado) {
+                await limparTemporario()
+                res.status(201).json({ data: jaCriado, reconciliado: true })
+                return
+            }
         }
 
+        await limparTemporario()
         res.status(upstream.status).json(data)
     } catch (e) {
-        try {
-            await admin.storage.from(BUCKET).remove([storagePath])
-        } catch {
-            /* ignore */
+        // Timeout/rede: o documento pode ter sido gravado. Reconcilia antes de acusar falha.
+        const jaCriado = await localizarDocumentoJaCriado(base, token, envelopeId, filename)
+        await limparTemporario()
+        if (jaCriado) {
+            res.status(201).json({ data: jaCriado, reconciliado: true })
+            return
         }
-        res.status(502).json({ error: e?.message || 'Falha ao contactar a Clicksign.' })
+        const timeout = e?.name === 'TimeoutError' || e?.name === 'AbortError'
+        res.status(timeout ? 504 : 502).json({
+            error: timeout
+                ? 'A Clicksign demorou a responder ao anexar o PDF. Confira o envelope antes de tentar de novo.'
+                : e?.message || 'Falha ao contactar a Clicksign.',
+        })
     }
 }

@@ -34,11 +34,99 @@ async function parseJson(res) {
 }
 
 /**
+ * Controle de vazão no navegador. A Clicksign limita a conta a 50 req/10 s (produção) e 20 req/10 s
+ * (sandbox), somando todos os usuários. Para não gastar a cota em rajadas, as chamadas saem numa fila
+ * (poucas em paralelo, com intervalo mínimo entre inícios), GETs idênticos em voo são unificados e
+ * listagens de envelopes ficam em cache por poucos segundos (qualquer escrita limpa o cache).
+ */
+const FILA_MAX_PARALELO = 3
+const FILA_INTERVALO_MIN_MS = 260
+const CACHE_LISTAGEM_TTL_MS = 15_000
+
+const filaPendente = []
+let filaAtivos = 0
+let filaUltimoInicio = 0
+let filaTimer = null
+/** @type {Map<string, Promise<{ ok: boolean, status: number, data: object }>>} */
+const getsEmVoo = new Map()
+/** @type {Map<string, { em: number, valor: { ok: boolean, status: number, data: object } }>} */
+const cacheListagens = new Map()
+
+function drenarFila() {
+    if (filaAtivos >= FILA_MAX_PARALELO || filaPendente.length === 0) return
+    const espera = filaUltimoInicio + FILA_INTERVALO_MIN_MS - Date.now()
+    if (espera > 0) {
+        if (!filaTimer) {
+            filaTimer = setTimeout(() => {
+                filaTimer = null
+                drenarFila()
+            }, espera)
+        }
+        return
+    }
+    const item = filaPendente.shift()
+    filaAtivos += 1
+    filaUltimoInicio = Date.now()
+    item
+        .fn()
+        .then(item.resolve, item.reject)
+        .finally(() => {
+            filaAtivos -= 1
+            drenarFila()
+        })
+    drenarFila()
+}
+
+function agendarNaFila(fn) {
+    return new Promise((resolve, reject) => {
+        filaPendente.push({ fn, resolve, reject })
+        drenarFila()
+    })
+}
+
+/** Limpa o cache de listagens (chamado em toda escrita). Exportado para testes e telas. */
+export function limparCacheClicksign() {
+    cacheListagens.clear()
+}
+
+/**
  * @param {string} method
  * @param {string} path - ex. "/envelopes" ou "/envelopes/abc123"
  * @param {object|string|null} body - objeto serializado ou string JSON
  */
 export async function clicksignRequest(method, path, body = null) {
+    const m = String(method || 'GET').toUpperCase()
+    const p = String(path || '')
+    const leitura = m === 'GET' || m === 'HEAD'
+
+    if (!leitura) {
+        limparCacheClicksign()
+        const r = await agendarNaFila(() => clicksignRequestDireto(method, path, body))
+        limparCacheClicksign()
+        return r
+    }
+
+    const chave = `${m} ${p}`
+    const ehListagem = m === 'GET' && /^\/envelopes\?/.test(p)
+    if (ehListagem) {
+        const c = cacheListagens.get(chave)
+        if (c && Date.now() - c.em < CACHE_LISTAGEM_TTL_MS) return { ...c.valor }
+    }
+    const voo = getsEmVoo.get(chave)
+    if (voo) return { ...(await voo) }
+
+    const promessa = agendarNaFila(() => clicksignRequestDireto(method, path, body))
+    getsEmVoo.set(chave, promessa)
+    try {
+        const r = await promessa
+        if (ehListagem && r.ok) cacheListagens.set(chave, { em: Date.now(), valor: r })
+        return { ...r }
+    } finally {
+        getsEmVoo.delete(chave)
+    }
+}
+
+async function clicksignRequestDireto(method, path, body = null) {
     let p = path.startsWith('/') ? path : `/${path}`
     // Normaliza /envelopes//signers → erro claro no cliente
     p = p.replace(/\/{2,}/g, '/')
@@ -126,10 +214,11 @@ export function nomeEnvelopeDoArquivoPdf(fileName) {
 
 /** Payload mínimo JSON:API para envelope em rascunho. */
 export function payloadEnvelopeRascunho(nome, extras = {}) {
+    const limpos = Object.fromEntries(Object.entries(extras || {}).filter(([, v]) => v !== undefined))
     const attrs = {
         name: String(nome || '').trim() || 'Novo envelope',
         locale: 'pt-BR',
-        ...extras,
+        ...limpos,
     }
     return {
         data: {
@@ -151,6 +240,54 @@ export function payloadAtivarEnvelope(envelopeId) {
             },
         },
     }
+}
+
+/**
+ * Atualiza dados de um envelope em rascunho (PATCH). Só envia os campos informados.
+ * `default_subject` (máx. 100) só é aceito pela API com o envelope em `draft`.
+ * @see https://developers.clicksign.com/reference/envelope-campos-e-regras-de-negocio
+ */
+export function payloadAtualizarEnvelope(envelopeId, campos = {}) {
+    const id = String(envelopeId || '').trim()
+    const attrs = {}
+    if (campos.name != null) attrs.name = String(campos.name).trim()
+    // `null` limpa o campo na API (padrão `null`); `undefined` não altera.
+    if (campos.default_subject !== undefined) {
+        attrs.default_subject =
+            campos.default_subject === null ? null : String(campos.default_subject).trim().slice(0, 100) || null
+    }
+    if (campos.default_message !== undefined) {
+        attrs.default_message =
+            campos.default_message === null ? null : String(campos.default_message).trim() || null
+    }
+    if (campos.deadline_at !== undefined) attrs.deadline_at = campos.deadline_at
+    if (campos.remind_interval !== undefined) attrs.remind_interval = campos.remind_interval
+    return { data: { id, type: 'envelopes', attributes: attrs } }
+}
+
+/** Prazo em dias (1–90) → `deadline_at` ISO; vazio → `undefined` (mantém o padrão da conta). */
+export function deadlineAtDeDias(dias, agora = new Date()) {
+    const n = Number(dias)
+    if (!Number.isFinite(n) || n < 1) return undefined
+    const d = Math.min(90, Math.floor(n))
+    // 90 dias é o máximo contado do upload; reduz 1 h para não esbarrar no limite por diferença de relógio.
+    const ms = d === 90 ? 90 * 86_400_000 - 3_600_000 : d * 86_400_000
+    return new Date(agora.getTime() + ms).toISOString()
+}
+
+/** Intervalos aceitos pela API para lembretes automáticos (dias). */
+export const INTERVALOS_LEMBRETE_CLICKSIGN = [1, 2, 3, 7, 14]
+
+/**
+ * Notifica os signatários de um envelope já ativado (`running`).
+ * A ativação por si só NÃO envia notificação (doc "Guia de criação").
+ * `message` vazia → a API usa `default_message` do envelope.
+ */
+export function payloadNotificarEnvelope(message = '') {
+    const attrs = {}
+    const m = String(message || '').trim()
+    if (m) attrs.message = m
+    return { data: { type: 'notifications', attributes: attrs } }
 }
 
 /**
@@ -566,24 +703,20 @@ export function paresQualificacaoExistentes(requirementsJson) {
 export function requisitoDuplicadoOuConflito(rq) {
     if (rq.ok) return false
     if (rq.status !== 422) return false
+    // Só trata como "já existe" o que realmente indica duplicidade. Mensagens genéricas de validação
+    // ("inválido", "não pode"...) são erros de verdade e precisam aparecer ao usuário.
     const s = JSON.stringify(rq.data || {}).toLowerCase()
     return (
         s.includes('duplic') ||
         s.includes('already') ||
         s.includes('taken') ||
-        s.includes('exist') ||
         s.includes('já existe') ||
+        s.includes('ja existe') ||
         s.includes('já foi') ||
-        s.includes('unique') ||
-        s.includes('único') ||
-        s.includes('registrad') ||
-        s.includes('conflit') ||
-        s.includes('permitid') ||
-        s.includes('não pode') ||
-        s.includes('nao pode') ||
-        s.includes('inválid') ||
-        s.includes('invalid') ||
-        s.includes('já possui')
+        s.includes('já possui') ||
+        s.includes('ja possui') ||
+        s.includes('já está em uso') ||
+        s.includes('unique')
     )
 }
 
@@ -1047,29 +1180,50 @@ export async function abrirVisualizacaoDocumento(envelopeId, doc, opts = {}) {
     const eid = String(envelopeId || opts.envelopeId || '').trim()
     const did = String(doc?.id || '').trim()
     if (!eid || !did) return { ok: false, reason: 'missing_id' }
-    const direct = urlVisualizarDocumento(doc)
-    if (direct && /^https?:\/\//i.test(direct) && !direct.includes('/api/v3')) {
-        window.open(direct, '_blank', 'noopener,noreferrer')
-        return { ok: true, mode: 'direct' }
+    // Os links de arquivo da Clicksign são pré-assinados e expiram em ~5 min: nunca reutilizar o link
+    // guardado na tela. Abrimos a aba já (gesto do usuário, evita bloqueio de pop-up) e a apontamos
+    // para um link NOVO obtido pelo servidor; se não for possível, baixamos o PDF pelo servidor.
+    const win = window.open('', '_blank')
+    if (!win) return { ok: false, reason: 'popup_blocked' }
+    try {
+        win.opener = null
+    } catch {
+        /* ignore */
+    }
+    const fechar = () => {
+        try {
+            win.close()
+        } catch {
+            /* ignore */
+        }
     }
     try {
         const { userAccessTokenHeaders } = await import('../api/serverBackend.js')
         const auth = await userAccessTokenHeaders()
-        const proxied = urlVisualizarDocumentoProxy(eid, did, opts.variant || 'auto')
+        const variant = opts.variant || 'auto'
+        const proxied = urlVisualizarDocumentoProxy(eid, did, variant)
+
+        const resUrl = await fetch(`${proxied}&format=url`, { headers: { ...auth, Accept: 'application/json' } })
+        if (resUrl.ok) {
+            const j = await resUrl.json().catch(() => ({}))
+            if (j?.url && /^https:\/\//i.test(j.url)) {
+                win.location.href = j.url
+                return { ok: true, mode: 'direct-fresh' }
+            }
+        }
+
         const res = await fetch(proxied, { headers: { ...auth, Accept: 'application/pdf' } })
         if (!res.ok) {
+            fechar()
             return { ok: false, reason: 'proxy_failed', status: res.status }
         }
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)
-        const win = window.open(url, '_blank', 'noopener,noreferrer')
-        if (!win) {
-            URL.revokeObjectURL(url)
-            return { ok: false, reason: 'popup_blocked' }
-        }
+        win.location.href = url
         setTimeout(() => URL.revokeObjectURL(url), 120_000)
         return { ok: true, mode: 'proxy-blob' }
     } catch {
+        fechar()
         return { ok: false, reason: 'proxy_error' }
     }
 }
