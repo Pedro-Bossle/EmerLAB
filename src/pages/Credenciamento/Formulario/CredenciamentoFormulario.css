@@ -827,10 +827,23 @@ body.fcred-public-body,
     grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+/* UF | Cidade | Adicionar: a linha alinha pela base (o .fcred_grid é align-items: start, o que deixava o botão no topo,
+   na altura do rótulo) e o botão tem a mesma altura dos selects */
+.fcred_grid_cidades {
+    align-items: end;
+}
+
 .fcred_grid_cidades .fcred_cidades_add {
     display: flex;
     align-items: flex-end;
-    padding-bottom: 0.15rem;
+    padding-bottom: 0;
+}
+
+.fcred_cidades_add .fcred_btn {
+    height: 2.5rem;
+    padding-top: 0;
+    padding-bottom: 0;
+    box-sizing: border-box;
 }
 
 .fcred_field_label_block {
@@ -1055,6 +1068,16 @@ body.fcred-public-body,
 
 .fcred_pcad_esp_row .pcad_field {
     min-width: 0;
+}
+
+/* CRMV, Especialidade e «Múltiplas especialidades» na mesma altura (2,5 rem, igual aos selects com busca) */
+.fcred_pcad_esp_row .credenciamento_main_input,
+.fcred_pcad_esp_row .credenciamento_main_select,
+.fcred_pcad_esp_row .select_municipio_busca_trigger,
+.fcred_pcad_esp_row .pcad_multi_esp_btn_cell .pcad_multi_esp_toggle {
+    height: 2.5rem;
+    min-height: 2.5rem;
+    box-sizing: border-box;
 }
 
 .fcred_vet_esp_row {
