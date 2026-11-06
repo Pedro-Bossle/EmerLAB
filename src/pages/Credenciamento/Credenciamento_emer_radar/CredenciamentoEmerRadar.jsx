@@ -16,7 +16,6 @@ import {
   pipelineRemoveFromQueue,
   pipelineExportUrl,
   pipelinePreviewCities,
-  pipelineResults,
   pipelineStart,
   pipelineStatus,
   pipelineStop,
@@ -30,21 +29,14 @@ import {
 } from '../../../lib/credenciamento/emerRadarApi.js'
 import {
   FASE_PIPELINE_LABEL,
-  PLANO_ORDER,
   STATUS_SCRAPE_LABEL,
-  cidadeDisponivel,
   cidadeEmCooldown,
-  cidadeFromEndereco,
   formatDateBR,
-  isSomenteRede,
-  isVinculado,
-  planoLabel,
-  planoPrincipal,
-  unifyContato,
 } from '../../../lib/credenciamento/emerRadarUi.js'
 import {
   LIMIAR_MARCADORES_CRON,
   enfileirarCidadesQueBateramLimiar,
+  filtrarMunicipiosIbgeExistentes,
   listarContadoresTrafego,
   parseCidadesTrafego,
   processarTrafegoDoDia,
@@ -67,7 +59,9 @@ import {
 import { buscarMunicipiosPorUf, mesclarMunicipiosComExtras } from '../../../lib/ibgeLocalidades.js'
 import EmerRadarLoader from './EmerRadarLoader.jsx'
 import EmerRadarExecucoes from './EmerRadarExecucoes.jsx'
+import EmerRadarServidorModal from './EmerRadarServidorModal.jsx'
 import EmerRadarTrafegoLista from './EmerRadarTrafegoLista.jsx'
+import { abrirExecucaoEmerRadar } from '../../../lib/credenciamento/abrirExecucaoEmerRadar.js'
 import EmerRadarProspectResults from './EmerRadarProspectResults.jsx'
 import './CredenciamentoEmerRadar.css'
 import { avisar, confirmarAcao } from '../../../lib/dialogos.js'
@@ -160,38 +154,15 @@ const FONTES = [
   { id: 'emerdog', label: 'Emerdog' },
 ]
 
-const PLANO_CLASS = {
-  petlove: 'emer-radar-pill--petlove',
-  petlife: 'emer-radar-pill--petlife',
-  doglife: 'emer-radar-pill--doglife',
-  emerdog: 'emer-radar-pill--emerdog',
-}
-
-function dash(v) {
-  const s = String(v || '').trim()
-  return s || '—'
-}
-
-function PlanoPills({ row }) {
-  const planos = Array.isArray(row?.planos) ? row.planos : []
-  if (!planos.length) return null
-  return (
-    <span>
-      {planos.map((p) => (
-        <span key={p} className={`emer-radar-pill ${PLANO_CLASS[p] || ''}`} title={p}>
-          {p}
-        </span>
-      ))}
-    </span>
-  )
-}
-
 export default function CredenciamentoEmerRadar() {
-  const [tab, setTab] = useState('pipeline')
+  const [tab, setTab] = useState('catalogo') // catalogo | busca | coleta
   /** null | true | false | 'actions' (prod sem worker — cron via GitHub Actions) */
   const [apiOk, setApiOk] = useState(null)
+  const [servidorAberto, setServidorAberto] = useState(false)
   const [apiError, setApiError] = useState('')
   const remoto = isEmerRadarAmbienteRemoto()
+  // «Busca manual» exige o worker local: sem ele a aba nem aparece.
+  const tabAtiva = tab === 'busca' && apiOk !== true ? 'catalogo' : tab
 
   useEffect(() => {
     let cancelled = false
@@ -247,32 +218,45 @@ export default function CredenciamentoEmerRadar() {
               aria-label={statusLabel}
               role="status"
             />
+            <button
+              type="button"
+              className="emer-radar-servidor-btn"
+              title="Servidor de prospecção: baixar e instruções"
+              aria-label="Baixar o servidor de prospecção (Windows)"
+              onClick={() => setServidorAberto(true)}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 3v12" />
+                <path d="m7 10 5 5 5-5" />
+                <path d="M4 19h16" />
+              </svg>
+            </button>
           </span>
         }
-        description="Prospecção Maps + planos (Petlove, Petlife, Doglife, Emerdog). Substitui a coleta OSM."
+        description="Coleta automática e busca manual no Google Maps, cruzadas com Petlove, Petlife, Doglife e Emerdog — num só catálogo."
         actions={
           <div className="emer-radar-tabs" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              className={tab === 'pipeline' ? 'is-active' : ''}
-              onClick={() => setTab('pipeline')}
-            >
-              Pipeline
-            </button>
-            <button
-              type="button"
-              role="tab"
-              className={tab === 'prospect' ? 'is-active' : ''}
-              onClick={() => setTab('prospect')}
-            >
-              Prospect Maps
-            </button>
+            {[
+              ['catalogo', 'Catálogo'],
+              ...(apiOk === true ? [['busca', 'Busca manual']] : []),
+              ['coleta', 'Coleta automática'],
+            ].map(([id, rotulo]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={tabAtiva === id}
+                className={tabAtiva === id ? 'is-active' : ''}
+                onClick={() => setTab(id)}
+              >
+                {rotulo}
+              </button>
+            ))}
           </div>
         }
       />
 
-      {apiOk === 'actions' ? (
+      {tabAtiva === 'coleta' && apiOk === 'actions' ? (
         <div className="el-stage mb-4 text-sm border border-[#123e59]/15 bg-[#123e59]/5 dark:border-sky-400/25 dark:bg-sky-400/10">
           <p className="m-0 font-semibold text-[#123e59] dark:text-sky-100">
             Produção: a coleta roda no GitHub Actions — não há worker neste site.
@@ -285,7 +269,7 @@ export default function CredenciamentoEmerRadar() {
         </div>
       ) : null}
 
-      {apiOk === false ? (
+      {tabAtiva !== 'catalogo' && apiOk === false ? (
         <div className="el-stage mb-4 text-sm">
           <p className="m-0 text-status-erro">
             Worker local inacessível (<code className="text-xs">{getEmerRadarApiBase()}</code>
@@ -299,20 +283,18 @@ export default function CredenciamentoEmerRadar() {
         </div>
       ) : null}
 
-      {tab === 'pipeline' ? (
+      {tabAtiva === 'coleta' ? (
         <PipelinePanel workerDisponivel={apiOk === true} />
       ) : (
-        <ProspectPanel workerDisponivel={apiOk === true} />
+        <ProspectPanel workerDisponivel={apiOk === true} modo={tabAtiva} onModo={setTab} />
       )}
+
+      <EmerRadarServidorModal open={servidorAberto} onClose={() => setServidorAberto(false)} workerAtivo={apiOk === true} />
     </div>
   )
 }
 
 function PipelinePanel({ workerDisponivel = false }) {
-  const [uf, setUf] = useState('RS')
-  const [cidade, setCidade] = useState('')
-  const { municipios, loading: loadingMun } = useMunicipiosPorUf(uf)
-  const [rows, setRows] = useState([])
   const [preview, setPreview] = useState([])
   const [fontes, setFontes] = useState({
     maps: true,
@@ -324,7 +306,6 @@ function PipelinePanel({ workerDisponivel = false }) {
   const [maxPorTermo, setMaxPorTermo] = useState(80)
   const [sendEmail, setSendEmail] = useState(false)
   const [snap, setSnap] = useState(null)
-  const [results, setResults] = useState([])
   const [error, setError] = useState('')
   const [cooldownDays, setCooldownDays] = useState(70)
   const [usuarios, setUsuarios] = useState([])
@@ -342,7 +323,6 @@ function PipelinePanel({ workerDisponivel = false }) {
   const [filaCronErro, setFilaCronErro] = useState('')
   const [cronActionsBusy, setCronActionsBusy] = useState(false)
   const [cronActionsMsg, setCronActionsMsg] = useState('')
-  const [modoPipeline, setModoPipeline] = useState('trafego') // trafego | manual
   const [avancadoAberto, setAvancadoAberto] = useState(false)
 
   const isRunning = snap?.status === 'RODANDO'
@@ -406,21 +386,22 @@ function PipelinePanel({ workerDisponivel = false }) {
     return undefined
   }, [workerDisponivel, refreshRegistry, refreshTrafego, refreshFilaCron])
 
+  // Situação (cooldown) das cidades coladas, para avisar antes de enfileirar ou rodar.
   useEffect(() => {
-    if (!rows.length) {
+    if (!trafegoPreview.length) {
       setPreview([])
       return undefined
     }
     const t = setTimeout(() => {
-      pipelinePreviewCities(rows)
+      pipelinePreviewCities(trafegoPreview)
         .then((p) => {
           setPreview(p.cities || [])
           if (p.cooldown_days) setCooldownDays(p.cooldown_days)
         })
         .catch(() => undefined)
-    }, 250)
+    }, 300)
     return () => clearTimeout(t)
-  }, [rows])
+  }, [trafegoPreview])
 
   useEffect(() => {
     if (!isRunning) return undefined
@@ -435,8 +416,6 @@ function PipelinePanel({ workerDisponivel = false }) {
       try {
         const s = await pipelineStatus()
         setSnap(s)
-        const r = await pipelineResults()
-        setResults(r.results || [])
         refreshRegistry()
       } catch {
         /* ignore */
@@ -448,11 +427,7 @@ function PipelinePanel({ workerDisponivel = false }) {
       pipelineStatus()
         .then(async (s) => {
           setSnap(s)
-          if (s?.status === 'CONCLUIDO') {
-            const r = await pipelineResults()
-            setResults(r.results || [])
-            refreshRegistry()
-          }
+          if (s?.status === 'CONCLUIDO') refreshRegistry()
         })
         .catch(() => undefined)
     }, 4000)
@@ -462,63 +437,88 @@ function PipelinePanel({ workerDisponivel = false }) {
     }
   }, [isRunning, refreshRegistry])
 
-  const addCity = () => {
-    setError('')
-    if (!uf) {
-      setError('Selecione a UF.')
-      return
-    }
-    const c = cidade.trim()
-    if (!c) {
-      setError('Selecione a cidade na lista IBGE.')
-      return
-    }
-    const ibgeOk = (municipios || []).some(
-      (m) => String(m?.nome || '').trim().toLowerCase() === c.toLowerCase(),
-    )
-    if (!ibgeOk) {
-      setError('Cidade inválida. Escolha um município da lista IBGE.')
-      return
-    }
-    setRows((prev) => {
-      if (prev.some((r) => r.cidade.toLowerCase() === c.toLowerCase() && r.uf === uf)) return prev
-      return [...prev, { cidade: c, uf }]
-    })
-    setCidade('')
+  const cidadesColadas = preview.length ? preview : trafegoPreview
+  const emCooldown = useMemo(() => cidadesColadas.filter((c) => cidadeEmCooldown(c)), [cidadesColadas])
+
+  /** Valida no IBGE e separa o que está em cooldown. */
+  const prepararColadas = async () => {
+    const { validas, rejeitadas } = await filtrarMunicipiosIbgeExistentes(trafegoPreview)
+    const chaves = new Set(emCooldown.map((c) => `${String(c.cidade).toLowerCase()}|${c.uf}`))
+    const livres = validas.filter((c) => !chaves.has(`${String(c.cidade).toLowerCase()}|${c.uf}`))
+    return { validas, livres, rejeitadas, bloqueadas: validas.length - livres.length }
   }
 
-  const liberadas = useMemo(
-    () => (preview.length ? preview : rows).filter((c) => cidadeDisponivel(c)),
-    [preview, rows],
-  )
-  const bloqueadas = useMemo(
-    () => (preview.length ? preview : []).filter((c) => cidadeEmCooldown(c)),
-    [preview],
-  )
-
-  const handleStart = async () => {
-    setError('')
-    if (!rows.length) {
-      setError('Adicione ao menos uma cidade.')
+  const handleEnfileirar = async () => {
+    setTrafegoErro('')
+    setTrafegoMsg('')
+    if (!trafegoPreview.length) {
+      setTrafegoErro('Cole ao menos uma cidade válida.')
       return
     }
+    setTrafegoBusy(true)
+    try {
+      const { livres, rejeitadas, bloqueadas } = await prepararColadas()
+      if (!livres.length) {
+        setTrafegoErro(
+          rejeitadas.length
+            ? 'Nenhuma das cidades existe na lista oficial do IBGE.'
+            : 'Todas as cidades estão em cooldown — aguarde a liberação.',
+        )
+        return
+      }
+      const res = await pipelineEnqueue(livres)
+      const partes = [`${res.enqueued} enfileirada(s) para o próximo cron`]
+      if (bloqueadas) partes.push(`${bloqueadas} em cooldown (ignorada${bloqueadas === 1 ? '' : 's'})`)
+      if (rejeitadas.length) partes.push(`${rejeitadas.length} inexistente(s) no IBGE ignorada(s)`)
+      setTrafegoMsg(partes.join(' · '))
+      setTrafegoTexto('')
+      refreshFilaCron()
+    } catch (e) {
+      setTrafegoErro(e?.message || String(e))
+    } finally {
+      setTrafegoBusy(false)
+    }
+  }
+
+  const handleRodarAgora = async () => {
+    setTrafegoErro('')
+    setTrafegoMsg('')
     const redes = FONTES.filter((f) => f.id !== 'maps' && fontes[f.id]).map((f) => f.id)
     if (!fontes.maps && redes.length === 0) {
-      setError('Selecione ao menos uma fonte.')
+      setTrafegoErro('Selecione ao menos uma fonte em «Opções da coleta».')
       return
     }
+    if (!trafegoPreview.length) {
+      setTrafegoErro('Cole ao menos uma cidade válida.')
+      return
+    }
+    setTrafegoBusy(true)
     try {
-      const s = await pipelineStart({
-        cidades: rows,
+      const { livres, rejeitadas, bloqueadas } = await prepararColadas()
+      if (!livres.length) {
+        setTrafegoErro(
+          rejeitadas.length
+            ? 'Nenhuma das cidades existe na lista oficial do IBGE.'
+            : 'Todas as cidades estão em cooldown — aguarde a liberação.',
+        )
+        return
+      }
+      const s2 = await pipelineStart({
+        cidades: livres,
         fontes_maps: !!fontes.maps,
         fontes_rede: redes,
         max_por_termo: maxPorTermo,
         send_email: sendEmail,
       })
-      setSnap(s)
-      setResults([])
+      setSnap(s2)
+      const partes = [`Coleta iniciada para ${livres.length} cidade(s)`]
+      if (bloqueadas) partes.push(`${bloqueadas} em cooldown (ignorada${bloqueadas === 1 ? '' : 's'})`)
+      setTrafegoMsg(partes.join(' · '))
+      setTrafegoTexto('')
     } catch (e) {
-      setError(e.message)
+      setTrafegoErro(e?.message || String(e))
+    } finally {
+      setTrafegoBusy(false)
     }
   }
 
@@ -573,76 +573,31 @@ function PipelinePanel({ workerDisponivel = false }) {
     }
   }
 
-  const { mapsRows, planosPorFonte } = useMemo(() => {
-    const maps = results.filter((r) => !isSomenteRede(r))
-    const only = results.filter(isSomenteRede)
-    const groups = new Map()
-    for (const r of only) {
-      const key = planoPrincipal(r)
-      const list = groups.get(key) || []
-      list.push(r)
-      groups.set(key, list)
-    }
-    const orderedKeys = [
-      ...PLANO_ORDER.filter((k) => groups.has(k)),
-      ...[...groups.keys()].filter((k) => !PLANO_ORDER.includes(k)).sort(),
-    ]
-    return {
-      mapsRows: maps,
-      planosPorFonte: orderedKeys.map((k) => ({ fonte: k, items: groups.get(k) || [] })),
-    }
-  }, [results])
-
   return (
     <div className="space-y-4">
-      <div className="emer-radar-mode-toggle" role="tablist" aria-label="Modo do pipeline">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={modoPipeline === 'trafego'}
-          className={modoPipeline === 'trafego' ? 'is-active' : ''}
-          onClick={() => setModoPipeline('trafego')}
-        >
-          1 · Tráfego do dia
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={modoPipeline === 'manual'}
-          className={modoPipeline === 'manual' ? 'is-active' : ''}
-          onClick={() => setModoPipeline('manual')}
-        >
-          2 · Pipeline manual
-        </button>
-      </div>
-
-      {modoPipeline === 'trafego' ? (
       <PanelStep
-        step={1}
-        title="Registar cidades do tráfego"
-        hint={`Uma linha = uma cidade. Cada dia conta 1 marcador; ao chegar a ${LIMIAR_MARCADORES_CRON}, a cidade entra na fila do cron automaticamente.`}
+        title="Adicionar cidades"
+        hint="Cole uma cidade por linha. Depois escolha o que fazer: contar no tráfego, enfileirar para o cron ou (com o worker local) rodar agora."
       >
         <div className="emer-radar-form-grid emer-radar-form-grid--trafego">
           <label className="ek-field">
             <span className="ek-label">UF padrão</span>
             <SelectUfBusca value={trafegoUf} onChange={setTrafegoUf} />
-            <span className="ek-hint">
-              Usada quando a linha não traz UF (ex.: só «Gramado»).
-            </span>
+            <span className="ek-hint">Usada quando a linha não traz UF (ex.: só «Gramado»).</span>
           </label>
           <label className="ek-field emer-radar-form-grid__wide">
-            <span className="ek-label">Lista de cidades (uma por linha)</span>
+            <span className="ek-label">Cidades (uma por linha)</span>
             <textarea
               className="ek-textarea font-mono"
+              rows={5}
               placeholder={'Gramado\nCascavel/PR\nJoinville - SC'}
               value={trafegoTexto}
               onChange={(e) => setTrafegoTexto(e.target.value)}
               disabled={trafegoBusy}
               aria-describedby="trafego-format-hint"
             />
-            <span id="trafego-format-hint" className="mt-1 block text-xs text-ink-muted">
-              Formatos aceites: <code>Cidade</code>, <code>Cidade/UF</code>, <code>Cidade - UF</code>.
-              Não cole a UF no nome («Cachoeirinha RS» → use «Cachoeirinha» + UF).
+            <span id="trafego-format-hint" className="ek-hint">
+              Formatos: <code>Cidade</code>, <code>Cidade/UF</code>, <code>Cidade - UF</code>.
             </span>
           </label>
         </div>
@@ -650,9 +605,9 @@ function PipelinePanel({ workerDisponivel = false }) {
         {trafegoTexto.trim() ? (
           <div className="emer-radar-preview mt-4" aria-live="polite">
             <p className="emer-radar-preview__title">
-              Pré-visualização · {trafegoPreview.length} cidade
-              {trafegoPreview.length === 1 ? '' : 's'} válida
+              {trafegoPreview.length} cidade{trafegoPreview.length === 1 ? '' : 's'} reconhecida
               {trafegoPreview.length === 1 ? '' : 's'}
+              {emCooldown.length ? ` · ${emCooldown.length} em cooldown` : ''}
             </p>
             {trafegoPreview.length === 0 ? (
               <p className="m-0 text-sm text-status-erro">
@@ -660,269 +615,135 @@ function PipelinePanel({ workerDisponivel = false }) {
               </p>
             ) : (
               <div className="emer-radar-chip-row">
-                {trafegoPreview.map((c) => (
-                  <span key={`${c.cidade}|${c.uf}`} className="emer-radar-chip is-on">
-                    {c.cidade}
-                    <span className="emer-radar-chip__uf">{c.uf}</span>
-                  </span>
-                ))}
+                {cidadesColadas.map((c) => {
+                  const cool = cidadeEmCooldown(c)
+                  return (
+                    <span
+                      key={`${c.cidade}|${c.uf}`}
+                      className={`emer-radar-chip ${cool ? 'is-cooldown' : 'is-on'}`}
+                      title={
+                        cool
+                          ? `Cooldown · libera em ${formatDateBR(c.liberada_em)} (${c.dias_restantes ?? '?'}d)`
+                          : c.vezes_requisitada
+                            ? `Disponível · ${c.vezes_requisitada}x requisitada`
+                            : 'Disponível'
+                      }
+                    >
+                      {c.cidade}
+                      <span className="emer-radar-chip__uf">{c.uf}</span>
+                      {cool && c.dias_restantes != null ? ` · ${c.dias_restantes}d` : ''}
+                    </span>
+                  )
+                })}
               </div>
             )}
           </div>
         ) : null}
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
             className={buttonClassName()}
             disabled={trafegoBusy || trafegoPreview.length === 0}
             onClick={() => void handleRegistarTrafego()}
+            title={`Soma 1 marcador por dia; ao chegar a ${LIMIAR_MARCADORES_CRON} a cidade entra na fila`}
           >
-            {trafegoBusy ? 'A registar…' : `Confirmar registo (${trafegoPreview.length})`}
+            {trafegoBusy ? 'Aguarde…' : `Contar no tráfego (${trafegoPreview.length})`}
           </button>
           <button
             type="button"
             className={buttonClassName({ variant: 'secondary' })}
+            disabled={trafegoBusy || trafegoPreview.length === 0}
+            onClick={() => void handleEnfileirar()}
+            title="Entra na fila do cron sem esperar o limiar de marcadores"
+          >
+            Enfileirar para o cron
+          </button>
+          {workerDisponivel ? (
+            isRunning ? (
+              <button type="button" className={buttonClassName({ variant: 'danger' })} onClick={() => pipelineStop().then(setSnap)}>
+                Parar coleta
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={buttonClassName({ variant: 'secondary' })}
+                disabled={trafegoBusy || trafegoPreview.length === 0}
+                onClick={() => void handleRodarAgora()}
+                title="Roda no worker local, agora"
+              >
+                Rodar agora
+              </button>
+            )
+          ) : null}
+          <button
+            type="button"
+            className="border-0 bg-transparent cursor-pointer text-sm font-semibold text-brand"
             disabled={trafegoBusy}
             onClick={() => void handleReenfileirarLimiar()}
           >
             Enfileirar quem já tem {LIMIAR_MARCADORES_CRON} marcadores
           </button>
         </div>
+        <p className="ek-hint mt-2">
+          <strong>Contar no tráfego:</strong> cada dia vale 1 marcador; com {LIMIAR_MARCADORES_CRON} a cidade entra na fila.{' '}
+          <strong>Enfileirar:</strong> entra direto. Cooldown de {cooldownDays} dias após cada pesquisa.
+        </p>
 
-        {trafegoMsg && (
+        {workerDisponivel ? (
+          <details className="mt-3">
+            <summary className="cursor-pointer text-sm font-semibold">Opções da coleta (rodar agora)</summary>
+            <div className="mt-3">
+              <p className="ek-label mb-2">Fontes</p>
+              <div className="emer-radar-chip-row" role="group" aria-label="Fontes do pipeline">
+                {FONTES.map((f) => (
+                  <label key={f.id} className={`emer-radar-chip ${fontes[f.id] ? 'is-on' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={!!fontes[f.id]}
+                      onChange={(e) => setFontes((prev) => ({ ...prev, [f.id]: e.target.checked }))}
+                    />
+                    {f.label}
+                  </label>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-4">
+                <label className="text-sm">
+                  Máx. por termo
+                  <input
+                    type="number"
+                    min={10}
+                    max={200}
+                    className="ek-input ml-2 w-24"
+                    value={maxPorTermo}
+                    onChange={(e) => setMaxPorTermo(Number(e.target.value) || 80)}
+                    onBlur={() => setMaxPorTermo((v) => Math.min(Math.max(Number(v) || 80, 10), 200))}
+                  />
+                </label>
+                <label className="ek-check">
+                  <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} />
+                  Enviar e-mail ao terminar
+                </label>
+              </div>
+            </div>
+          </details>
+        ) : null}
+
+        {trafegoMsg ? (
           <p className="er-exec__alerta er-exec__alerta--ok mt-3" role="status">
             {trafegoMsg}
           </p>
-        )}
-        {trafegoErro && (
+        ) : null}
+        {trafegoErro || error ? (
           <p className="er-exec__alerta er-exec__alerta--erro mt-3" role="alert">
-            {trafegoErro}
+            {trafegoErro || error}
           </p>
-        )}
+        ) : null}
 
         <EmerRadarTrafegoLista contadores={trafegoContadores} />
       </PanelStep>
-      ) : null}
-
-      {modoPipeline === 'manual' ? (
-      <PanelStep
-        step={2}
-        title="Montar lista e correr / enfileirar"
-        hint={`Escolha UF e cidade na lista IBGE (evita nomes truncados). Cooldown de ${cooldownDays} dias após pesquisa bem-sucedida.`}
-      >
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="ek-field">
-            <span className="ek-label">UF</span>
-            <SelectUfBusca
-              value={uf}
-              onChange={(u) => {
-                setUf(u)
-                setCidade('')
-              }}
-            />
-          </label>
-          <label className="ek-field min-w-[220px] flex-1">
-            <span className="ek-label">Cidade (IBGE)</span>
-            <SelectMunicipioBusca
-              value={cidade}
-              valueKey="nome"
-              options={municipios}
-              disabled={!uf || loadingMun}
-              loading={loadingMun}
-              inputClassName={SELECT_CIDADE_INPUT}
-              placeholder={!uf ? 'Selecione a UF primeiro' : 'Buscar município…'}
-              onChange={setCidade}
-            />
-          </label>
-          <button
-            type="button"
-            className={buttonClassName()}
-            disabled={!uf || !cidade.trim()}
-            onClick={addCity}
-          >
-            Adicionar à lista
-          </button>
-        </div>
-
-        {(preview.length > 0 || rows.length > 0) && (
-          <div className="emer-radar-chip-row mt-3">
-            {(preview.length ? preview : rows).map((c) => {
-              const cool = cidadeEmCooldown(c)
-              const title = cool
-                ? `Cooldown · libera em ${formatDateBR(c.liberada_em)} (${c.dias_restantes ?? '?'}d) · ${c.vezes_requisitada || 0}x`
-                : `Disponível · ${c.vezes_requisitada || 0}x requisitada`
-              return (
-                <span
-                  key={`${c.cidade}-${c.uf}`}
-                  className={`emer-radar-chip ${cool ? 'is-cooldown' : 'is-on'}`}
-                  title={title}
-                >
-                  {c.cidade}/{c.uf}
-                  {cool && c.dias_restantes != null ? ` · ${c.dias_restantes}d` : ''}
-                  {c.vezes_requisitada ? ` · ${c.vezes_requisitada}×` : ''}
-                  <button
-                    type="button"
-                    className="ml-1 border-0 bg-transparent text-status-erro cursor-pointer"
-                    onClick={() => {
-                      setRows((prev) =>
-                        prev.filter((r) => !(r.cidade === c.cidade && r.uf === c.uf)),
-                      )
-                    }}
-                  >
-                    ×
-                  </button>
-                </span>
-              )
-            })}
-          </div>
-        )}
-
-        <div className="mt-4">
-          <p className="mb-2 text-sm font-semibold">
-            Fontes <span className="text-status-erro">*</span>
-          </p>
-          <div className="emer-radar-chip-row" role="group" aria-label="Fontes do pipeline">
-            {FONTES.map((f) => (
-              <label key={f.id} className={`emer-radar-chip ${fontes[f.id] ? 'is-on' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={!!fontes[f.id]}
-                  onChange={(e) => setFontes((prev) => ({ ...prev, [f.id]: e.target.checked }))}
-                />
-                {f.label}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {(preview.length > 0 || rows.length > 0) && (
-          <div className="emer-radar-preview mt-4" aria-live="polite">
-            <p className="emer-radar-preview__title">Antes de iniciar</p>
-            <ul className="emer-radar-checklist">
-              <li className={liberadas.length ? 'is-ok' : 'is-miss'}>
-                <span aria-hidden>{liberadas.length ? '✓' : '○'}</span>
-                {liberadas.length
-                  ? `${liberadas.length} cidade${liberadas.length === 1 ? '' : 's'} liberada${liberadas.length === 1 ? '' : 's'}`
-                  : 'Nenhuma cidade liberada (todas em cooldown?)'}
-              </li>
-              <li className={bloqueadas.length ? 'is-miss' : 'is-ok'}>
-                <span aria-hidden>{bloqueadas.length ? '!' : '✓'}</span>
-                {bloqueadas.length
-                  ? `${bloqueadas.length} em cooldown (serão ignoradas na corrida)`
-                  : 'Sem cidades em cooldown na lista'}
-              </li>
-              <li className={Object.values(fontes).some(Boolean) ? 'is-ok' : 'is-miss'}>
-                <span aria-hidden>{Object.values(fontes).some(Boolean) ? '✓' : '○'}</span>
-                Fontes:{' '}
-                {FONTES.filter((f) => fontes[f.id])
-                  .map((f) => f.label)
-                  .join(', ') || 'nenhuma'}
-              </li>
-            </ul>
-          </div>
-        )}
-
-        <div className="mt-4 flex flex-wrap items-center gap-4">
-          <label className="ek-field">
-            Máx. por termo
-            <input
-              type="number"
-              min={10}
-              max={200}
-              className="ek-input ml-2 w-24"
-              value={maxPorTermo}
-              onChange={(e) => setMaxPorTermo(Number(e.target.value) || 80)}
-              onBlur={() =>
-                setMaxPorTermo((v) => Math.min(Math.max(Number(v) || 80, 10), 200))
-              }
-            />
-          </label>
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={sendEmail}
-              onChange={(e) => setSendEmail(e.target.checked)}
-            />
-            Enviar e-mail (Resend)
-          </label>
-          <div className="flex-1" />
-          {isRunning ? (
-            <button
-              type="button"
-              className={buttonClassName({ variant: 'danger' })}
-              onClick={() => pipelineStop().then(setSnap)}
-            >
-              Parar
-            </button>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={buttonClassName()}
-                onClick={handleStart}
-                disabled={!liberadas.length || !Object.values(fontes).some(Boolean)}
-                title={
-                  !liberadas.length
-                    ? 'Adicione cidades liberadas (fora de cooldown)'
-                    : !Object.values(fontes).some(Boolean)
-                      ? 'Marque ao menos uma fonte'
-                      : undefined
-                }
-              >
-                Iniciar pipeline ({liberadas.length} liberada
-                {liberadas.length === 1 ? '' : 's'}
-                {bloqueadas.length ? ` · ${bloqueadas.length} em cooldown` : ''})
-              </button>
-              <button
-                type="button"
-                className={buttonClassName({ variant: 'secondary' })}
-                disabled={!rows.length && !cidade.trim()}
-                onClick={async () => {
-                  setError('')
-                  let lista = rows
-                  const pendente = cidade.trim()
-                  if (
-                    pendente &&
-                    !lista.some(
-                      (r) => r.cidade.toLowerCase() === pendente.toLowerCase() && r.uf === uf,
-                    )
-                  ) {
-                    lista = [...lista, { cidade: pendente, uf }]
-                    setRows(lista)
-                    setCidade('')
-                  }
-                  if (!lista.length) {
-                    setError('Adicione ao menos uma cidade antes de enfileirar.')
-                    return
-                  }
-                  try {
-                    const res = await pipelineEnqueue(
-                      lista.map((r) => ({ cidade: r.cidade, uf: r.uf })),
-                    )
-                    refreshFilaCron()
-                    avisar({ titulo: 'Cidades enfileiradas', mensagem: `${res.enqueued} cidade(s) entraram na fila da próxima busca automática.` })
-                  } catch (e) {
-                    setError(e.message)
-                  }
-                }}
-              >
-                Enfileirar p/ cron
-              </button>
-            </>
-          )}
-        </div>
-
-        {error && (
-          <p className="er-exec__alerta er-exec__alerta--erro mt-3" role="alert">
-            {error}
-          </p>
-        )}
-      </PanelStep>
-      ) : null}
 
       <PanelStep
-        step={3}
         title="Fila do cron"
         hint="Em produção a fila é processada pelo GitHub Actions (seg–sex ~18h BRT). Em local precisa do worker na porta 8000."
         actions={
@@ -1003,7 +824,6 @@ function PipelinePanel({ workerDisponivel = false }) {
       </PanelStep>
 
       <PanelStep
-        step={4}
         title="Execuções e resultados"
         hint="Estado do cron e todas as coletas já feitas. «Ver resultados» abre a execução em uma nova aba, com filtros e ordenação."
       >
@@ -1112,8 +932,8 @@ function PipelinePanel({ workerDisponivel = false }) {
                     try {
                       const res = await deleteCity(c.cidade, c.uf)
                       setRegistry(res.cities || [])
-                      if (rows.length) {
-                        const prev = await pipelinePreviewCities(rows)
+                      if (trafegoPreview.length) {
+                        const prev = await pipelinePreviewCities(trafegoPreview)
                         setPreview(prev.cities || [])
                       }
                     } catch (err) {
@@ -1132,7 +952,7 @@ function PipelinePanel({ workerDisponivel = false }) {
       </details>
 
       <div id="emer-radar-resultados" />
-      {snap && (
+      {snap && snap.status && snap.status !== 'IDLE' && (
         <PanelStep
           title="Estado da execução"
           hint={
@@ -1162,7 +982,7 @@ function PipelinePanel({ workerDisponivel = false }) {
           </h3>
           <p className="text-sm text-ink-muted">
             {snap.progress?.cidade_atual || '—'} · {snap.progress?.index || 0}/
-            {snap.progress?.total || 0} · {snap.encontrados ?? results.length} registros
+            {snap.progress?.total || 0} · {snap.encontrados ?? 0} registros
           </p>
           <PipelineBar snap={snap} />
           {snap.error_message && (
@@ -1171,6 +991,21 @@ function PipelinePanel({ workerDisponivel = false }) {
           <pre className="mt-3 max-h-40 overflow-auto rounded-xl bg-[#0d1520] p-3 text-xs text-[#cfe8f8]">
             {(snap.logs || []).slice(-40).join('\n') || 'Sem logs ainda.'}
           </pre>
+          {snap.status === 'CONCLUIDO' && snap.run_id ? (
+            <div className="mt-3">
+              <button
+                type="button"
+                className={buttonClassName()}
+                onClick={() => {
+                  if (!abrirExecucaoEmerRadar(snap.run_id)) {
+                    avisar({ titulo: 'Pop-up bloqueado', mensagem: 'Permita pop-ups para este site e tente de novo.' })
+                  }
+                }}
+              >
+                Abrir resultados desta execução ↗
+              </button>
+            </div>
+          ) : null}
           {snap.status === 'CONCLUIDO' && workerDisponivel && (
             <div className="mt-3 flex flex-wrap gap-3 text-sm">
               <a
@@ -1194,40 +1029,6 @@ function PipelinePanel({ workerDisponivel = false }) {
         </PanelStep>
       )}
 
-      {results.length > 0 && (
-        <>
-          <PanelStep
-            title={`Google Maps (${mapsRows.length})`}
-            hint="Estabelecimentos do Maps. Badges coloridos indicam vínculo com planos."
-          >
-            <MapsTable rows={mapsRows.slice(0, 250)} />
-          </PanelStep>
-          <PanelStep
-            title={`Somente planos (${planosPorFonte.reduce((n, g) => n + g.items.length, 0)})`}
-            hint="Credenciados que aparecem só nas redes de plano (não encontrados no Maps)."
-          >
-            {planosPorFonte.length === 0 ? (
-              <p className="m-0 text-sm text-ink-muted">Nenhum registro exclusivo de planos.</p>
-            ) : (
-              <div className="mt-1 space-y-6">
-                {planosPorFonte.map(({ fonte, items }) => (
-                  <div key={fonte}>
-                    <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                      <span className={`emer-radar-pill ${PLANO_CLASS[fonte] || ''}`}>
-                        {planoLabel(fonte)}
-                      </span>
-                      <span>
-                        {planoLabel(fonte)} ({items.length})
-                      </span>
-                    </h4>
-                    <PlanoTable fonte={fonte} rows={items.slice(0, 200)} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </PanelStep>
-        </>
-      )}
     </div>
   )
 }
@@ -1272,174 +1073,12 @@ function PipelineBar({ snap }) {
   )
 }
 
-function hrefGoogleMaps(r) {
-  const direto = String(r?.link_maps || '').trim()
-  if (direto) return direto
-  const q = [r?.nome, r?.endereco, r?.cidade, r?.uf].filter(Boolean).join(', ')
-  if (!q) return ''
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
-}
-
-function MapsTable({ rows }) {
-  if (!rows?.length) {
-    return <p className="text-sm text-ink-muted">Nenhum registro.</p>
-  }
-  return (
-    <div className="emer-radar-table-wrap mt-3">
-      <table className="emer-radar-table">
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Tipo</th>
-            <th>Endereço</th>
-            <th>Telefone</th>
-            <th>Cidade</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => {
-            const href = hrefGoogleMaps(r)
-            return (
-            <tr key={`${r.id || r.nome}-${i}`}>
-              <td>
-                <div className="font-semibold inline-flex items-center gap-1">
-                  <span>{dash(r.nome)}</span>
-                  {r.alerta_comercial ? (
-                    <span className="text-xs font-normal text-ink-muted"> · {r.alerta_comercial}</span>
-                  ) : null}
-                  {href ? (
-                    <a
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Abrir no Google Maps"
-                      aria-label={`Abrir ${r.nome || 'estabelecimento'} no Google Maps`}
-                      className="inline-flex text-brand"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M14 3h7v7" />
-                        <path d="M10 14 21 3" />
-                        <path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6" />
-                      </svg>
-                    </a>
-                  ) : null}
-                </div>
-                {isVinculado(r) ? <PlanoPills row={r} /> : null}
-              </td>
-              <td>{dash(r.tipo || r.especialidade || r.categoria)}</td>
-              <td>{dash(r.endereco)}</td>
-              <td className="whitespace-nowrap">{dash(unifyContato(r.telefone, r.whatsapp))}</td>
-              <td>{dash(cidadeFromEndereco(r.endereco, r.cidade))}</td>
-            </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function PlanoTable({ fonte, rows }) {
-  if (!rows?.length) {
-    return <p className="text-sm text-ink-muted">Nenhum registro.</p>
-  }
-
-  if (fonte === 'petlife' || fonte === 'doglife') {
-    return (
-      <div className="emer-radar-table-wrap">
-        <table className="emer-radar-table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Tipo</th>
-              <th>Credenciada</th>
-              <th>Bairro / cidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={`${r.id || r.nome}-${i}`}>
-                <td className="font-semibold">{dash(r.nome)}</td>
-                <td>{dash(r.tipo || r.especialidade || r.categoria)}</td>
-                <td>
-                  {r.credenciada === true
-                    ? 'Credenciada'
-                    : r.credenciada === false
-                      ? 'Não credenciada'
-                      : '—'}
-                </td>
-                <td>{dash(r.bairro)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )
-  }
-
-  if (fonte === 'emerdog') {
-    return (
-      <div className="emer-radar-table-wrap">
-        <table className="emer-radar-table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Tipo</th>
-              <th>Endereço</th>
-              <th>Telefone</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={`${r.id || r.nome}-${i}`}>
-                <td className="font-semibold">{dash(r.nome)}</td>
-                <td>{dash(r.tipo || r.especialidade || r.categoria)}</td>
-                <td>{dash(r.endereco)}</td>
-                <td className="whitespace-nowrap">{dash(unifyContato(r.telefone, r.whatsapp))}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )
-  }
-
-  return (
-    <div className="emer-radar-table-wrap">
-      <table className="emer-radar-table">
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Tipo</th>
-            <th>Endereço</th>
-            <th>Telefone</th>
-            <th>WhatsApp</th>
-            <th>Cidade</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={`${r.id || r.nome}-${i}`}>
-              <td className="font-semibold">{dash(r.nome)}</td>
-              <td>{dash(r.tipo || r.especialidade || r.categoria)}</td>
-              <td>{dash(r.endereco)}</td>
-              <td className="whitespace-nowrap">{dash(r.telefone)}</td>
-              <td className="whitespace-nowrap">{dash(r.whatsapp)}</td>
-              <td>{dash(cidadeFromEndereco(r.endereco, r.cidade))}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
 function mapsIdPrimeiro(lista) {
   const est = (lista || [])[0]
   return est ? mapsIdDeEstabelecimento(est) : ''
 }
 
-function ProspectPanel({ workerDisponivel = false }) {
+function ProspectPanel({ workerDisponivel = false, modo = 'catalogo', onModo }) {
   const terms = getDefaultSearchTerms()
   const [uf, setUf] = useState('RS')
   const [cidade, setCidade] = useState('')
@@ -1466,13 +1105,12 @@ function ProspectPanel({ workerDisponivel = false }) {
   const finishingJobRef = useRef(false)
   const expectConcluidoRef = useRef(false)
 
-  const [aba, setAba] = useState(isEmerRadarAmbienteRemoto() ? 'catalogo' : 'busca') // busca | catalogo (produção não tem worker)
+  const aba = modo // busca | catalogo — escolhido nas abas do topo
+  const setAba = useCallback((v) => onModo?.(v), [onModo])
   const [filtroUf, setFiltroUf] = useState('')
   const [filtroCidade, setFiltroCidade] = useState('')
   const { municipios: municipiosFiltro, loading: loadingMunFiltro } = useMunicipiosPorUf(filtroUf)
   const [filtroStatus, setFiltroStatus] = useState('')
-  const [filtroBusca, setFiltroBusca] = useState('')
-  const [buscaDigitada, setBuscaDigitada] = useState('')
   const [catalogo, setCatalogo] = useState([])
   const [catalogoLoading, setCatalogoLoading] = useState(false)
   const [catalogoErro, setCatalogoErro] = useState('')
@@ -1528,7 +1166,6 @@ function ProspectPanel({ workerDisponivel = false }) {
         uf: filtroUf,
         cidade: filtroCidade,
         status: filtroStatus,
-        busca: filtroBusca,
         incluirDescartados: filtroStatus === 'descartado',
         limite: 800,
       })
@@ -1548,7 +1185,7 @@ function ProspectPanel({ workerDisponivel = false }) {
     } finally {
       if (!silencioso) setCatalogoLoading(false)
     }
-  }, [filtroUf, filtroCidade, filtroStatus, filtroBusca])
+  }, [filtroUf, filtroCidade, filtroStatus])
 
   const aplicarStatusCatalogoLocal = useCallback((est, status) => {
     const key = String(est?.maps_id || est?.id || '')
@@ -1663,7 +1300,7 @@ function ProspectPanel({ workerDisponivel = false }) {
     )
     setAba('catalogo')
     await carregarCatalogo({ silencioso: false })
-  }, [carregarCatalogo])
+  }, [carregarCatalogo, setAba])
 
   const avancarFilaAtualizacao = useCallback(async () => {
     const fila = filaAtualizacaoRef.current
@@ -1733,13 +1370,6 @@ function ProspectPanel({ workerDisponivel = false }) {
   useEffect(() => {
     if (aba === 'catalogo') void carregarCatalogo()
   }, [aba, carregarCatalogo])
-
-  // A busca livre só consulta o catálogo depois de uma pausa na digitação.
-  useEffect(() => {
-    if (buscaDigitada === filtroBusca) return undefined
-    const t = setTimeout(() => setFiltroBusca(buscaDigitada), 300)
-    return () => clearTimeout(t)
-  }, [buscaDigitada, filtroBusca])
 
   useEffect(() => {
     if (!isRunning) return undefined
@@ -1967,39 +1597,17 @@ function ProspectPanel({ workerDisponivel = false }) {
 
   return (
     <div className="space-y-4">
-      {!workerDisponivel ? (
+      {!workerDisponivel && aba === 'busca' ? (
         <p className="er-exec__alerta er-exec__alerta--warn" role="status">
           Nova busca no Maps precisa do worker local (Playwright). Em produção use o{' '}
           <strong>catálogo salvo</strong>; para prospectar ao vivo, rode o worker em localhost.
         </p>
       ) : null}
 
-      <div className="emer-radar-mode-toggle" role="tablist" aria-label="Prospect Maps">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={aba === 'busca'}
-          className={aba === 'busca' ? 'is-active' : ''}
-          onClick={() => setAba('busca')}
-        >
-          1 · Nova busca
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={aba === 'catalogo'}
-          className={aba === 'catalogo' ? 'is-active' : ''}
-          onClick={() => setAba('catalogo')}
-        >
-          2 · Catálogo salvo
-        </button>
-      </div>
-
       {aba === 'busca' ? (
         <PanelStep
-          step={1}
-          title="Definir local e termos"
-          hint="Cidade só pela lista IBGE (evita nomes errados). Resultados gravam no catálogo sem fotos de fachada."
+          title="Busca manual no Google Maps"
+          hint="Cidade só pela lista IBGE (evita nomes errados). Os resultados entram no mesmo catálogo da coleta automática."
         >
           <div className="emer-radar-form-grid emer-radar-form-grid--prospect">
             <label className="ek-field">
@@ -2180,9 +1788,8 @@ function ProspectPanel({ workerDisponivel = false }) {
         </PanelStep>
       ) : (
         <PanelStep
-          step={2}
-          title="Filtrar catálogo salvo"
-          hint="Escolha UF/cidade na lista (IBGE + cidades já prospectadas). Depois use «Atualizar filtrados» nos resultados para rebuscar no Maps."
+          title="Catálogo de prospectos"
+          hint="Tudo o que o Emer-Radar já coletou, num só lugar. Filtre por UF, cidade e status; a busca e os demais filtros ficam acima dos cartões."
         >
           <div className="emer-radar-form-grid emer-radar-form-grid--catalog">
             <label className="ek-field">
@@ -2227,28 +1834,16 @@ function ProspectPanel({ workerDisponivel = false }) {
                 ))}
               </SelectDropdown>
             </label>
-            <label className="ek-field">
-              <span className="ek-label">Busca livre</span>
-              <input
-                className="ek-input"
-                type="search"
-                value={buscaDigitada}
-                onChange={(e) => setBuscaDigitada(e.target.value)}
-                placeholder="Nome, endereço, telefone…"
-              />
-            </label>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
               className={buttonClassName({ variant: 'secondary' })}
-              disabled={!filtroUf && !filtroCidade && !filtroStatus && !buscaDigitada}
+              disabled={!filtroUf && !filtroCidade && !filtroStatus}
               onClick={() => {
                 setFiltroUf('')
                 setFiltroCidade('')
                 setFiltroStatus('')
-                setFiltroBusca('')
-                setBuscaDigitada('')
               }}
             >
               Limpar filtros
@@ -2380,10 +1975,10 @@ function ProspectPanel({ workerDisponivel = false }) {
       ) : (
         <EmerRadarProspectResults
           results={catalogo}
-          titulo="Catálogo salvo"
+          titulo="Prospectos"
           mostrarExport={false}
           atualizandoCatalogo={atualizandoCatalogo || isRunning}
-          onAtualizarFiltrados={(itens) => void handleAtualizarFiltrados(itens)}
+          onAtualizarFiltrados={workerDisponivel ? (itens) => void handleAtualizarFiltrados(itens) : undefined}
           onRemovido={(est) => {
             removerDoCatalogoLocal(est)
             void carregarCatalogo({ silencioso: true })

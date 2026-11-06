@@ -12,20 +12,21 @@ import {
   Select,
   Toolbar,
 } from '../../../components/ui'
-import { emerRadarCarregarExecucao } from '../../../lib/credenciamento/emerRadarApi.js'
+import { supabase } from '../../../lib/supabase.js'
+import { emerRadarCarregarExecucao, emerRadarCatalogar } from '../../../lib/credenciamento/emerRadarApi.js'
 import {
   PLANO_ORDER,
   cidadeFromEndereco,
   displayCategory,
-  formatarNotaMaps,
   isSomenteRede,
-  isVinculado,
   planoLabel,
   planoPrincipal,
   unifyContato,
 } from '../../../lib/credenciamento/emerRadarUi.js'
 import { exportarExecucaoEmerRadarParaExcel } from '../../../lib/credenciamento/exportEmerRadarRun.js'
+import { enriquecerResultadosComSalvos } from '../../../lib/credenciamento/prospectosMapsRepo.js'
 import { avisar } from '../../../lib/dialogos.js'
+import EmerRadarProspectResults from './EmerRadarProspectResults.jsx'
 import './CredenciamentoEmerRadar.css'
 
 const PAGINA = 100
@@ -35,12 +36,6 @@ const semAcento = (v) =>
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
-
-const numero = (v) => {
-  if (v == null || String(v).trim() === '') return null // ausente não é zero
-  const n = Number(String(v).replace(/\./g, '').replace(',', '.'))
-  return Number.isFinite(n) ? n : null
-}
 
 const fmtDataHora = (iso) => {
   if (!iso) return ''
@@ -53,7 +48,6 @@ function useCampoComPausa(valorUrl, gravar, espera = 250) {
   const [local, setLocal] = useState(valorUrl)
   const ultimoGravado = useRef(valorUrl)
   useEffect(() => {
-    // Mudança vinda de fora (ex.: «Limpar filtros»): acompanha a URL.
     if (valorUrl !== ultimoGravado.current) {
       ultimoGravado.current = valorUrl
       setLocal(valorUrl)
@@ -70,38 +64,21 @@ function useCampoComPausa(valorUrl, gravar, espera = 250) {
   return [local, setLocal]
 }
 
-/** Dados normalizados por registro (uma vez), para filtrar e ordenar sem refazer parsing. */
+/** Linha das abas de redes de plano (tabelas), normalizada uma vez para filtrar e ordenar. */
 function prepararLinha(r, i) {
-  const cidade = cidadeFromEndereco(r.endereco, r.cidade) || ''
-  const tipo = displayCategory(r)
-  const contato = unifyContato(r.telefone, r.whatsapp)
+  const cidade = cidadeFromEndereco(r.endereco, r.cidade) || String(r.bairro || '')
   return {
     r,
     key: `${r.id || r.nome}-${i}`,
     nome: String(r.nome || '').trim(),
-    tipo,
+    tipo: displayCategory(r),
     cidade,
-    uf: String(r.uf || '').trim().toUpperCase(),
-    contato,
-    nota: (() => {
-      const n = numero(formatarNotaMaps(r.nota))
-      return n > 0 ? n : null // 0 = sem avaliação
-    })(),
-    avaliacoes: numero(r.num_avaliacoes),
-    vinculado: isVinculado(r),
+    contato: unifyContato(r.telefone, r.whatsapp),
     credenciada: r.credenciada === true,
-    busca: semAcento([r.nome, r.endereco, cidade, tipo, r.bairro, contato].join(' ')),
+    busca: semAcento([r.nome, r.endereco, cidade, r.bairro, unifyContato(r.telefone, r.whatsapp)].join(' ')),
   }
 }
 
-const COLUNAS_MAPS = [
-  { id: 'nome', rotulo: 'Nome' },
-  { id: 'tipo', rotulo: 'Tipo' },
-  { id: 'cidade', rotulo: 'Cidade' },
-  { id: 'nota', rotulo: 'Nota', numerica: true },
-  { id: 'avaliacoes', rotulo: 'Avaliações', numerica: true },
-  { id: 'contato', rotulo: 'Contato' },
-]
 const COLUNAS_PLANO = [
   { id: 'nome', rotulo: 'Nome' },
   { id: 'tipo', rotulo: 'Tipo' },
@@ -109,13 +86,6 @@ const COLUNAS_PLANO = [
   { id: 'credenciada', rotulo: 'Credenciada' },
   { id: 'contato', rotulo: 'Contato' },
 ]
-
-function hrefMaps(r) {
-  const direto = String(r?.link_maps || '').trim()
-  if (direto) return direto
-  const q = [r?.nome, r?.endereco, r?.cidade, r?.uf].filter(Boolean).join(', ')
-  return q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : ''
-}
 
 function comparar(a, b, col) {
   const va = a[col]
@@ -125,27 +95,41 @@ function comparar(a, b, col) {
   if (vazioA && vazioB) return 0
   if (vazioA) return 1 // vazios sempre no fim, em qualquer direção
   if (vazioB) return -1
-  if (typeof va === 'number' && typeof vb === 'number') return va - vb
   if (typeof va === 'boolean' && typeof vb === 'boolean') return Number(va) - Number(vb)
   return String(va).localeCompare(String(vb), 'pt-BR', { sensitivity: 'base' })
 }
 
+/** Busca no catálogo as linhas já salvas deste run (para liberar Kanban/Remover e mostrar o status). */
+async function lerSalvos(mapsIds) {
+  const salvos = []
+  for (let i = 0; i < mapsIds.length; i += 150) {
+    const { data, error } = await supabase
+      .from('cred_prospectos_maps')
+      .select('*')
+      .in('maps_id', mapsIds.slice(i, i + 150))
+    if (error) throw new Error(error.message)
+    salvos.push(...(data || []))
+  }
+  return salvos
+}
+
 /**
- * Resultados de uma execução do pipeline, em página própria (nova aba):
- * abas por fonte, busca, filtros, ordenação por coluna e Excel.
+ * Resultados de uma execução do pipeline, em página própria (nova aba).
+ * Google Maps: os mesmos cartões do catálogo (fachada, horários, mapa, Kanban). Redes de plano: tabelas.
  */
 export default function EmerRadarExecucaoPage() {
   const { runId } = useParams()
   const [busca, setBusca] = useSearchParams()
   const [estado, setEstado] = useState({ carregando: true, erro: '', data: null })
+  const [salvos, setSalvos] = useState([])
+  const [catalogando, setCatalogando] = useState(false)
 
   const aba = busca.get('aba') || 'maps'
   const q = busca.get('q') || ''
   const fCidade = busca.get('cidade') || ''
   const fTipo = busca.get('tipo') || ''
-  const fVinculo = busca.get('vinculo') || ''
+  const fSituacao = busca.get('situacao') || ''
   const soContato = busca.get('contato') === '1'
-  const notaMin = busca.get('nota') || ''
   const ordem = busca.get('ordem') || 'nome'
   const dir = busca.get('dir') === 'desc' ? 'desc' : 'asc'
   const limite = Number(busca.get('n')) || PAGINA
@@ -153,103 +137,125 @@ export default function EmerRadarExecucaoPage() {
   const atualizar = useCallback(
     (patch) =>
       setBusca(
-      (prev) => {
-        const p = new URLSearchParams(prev)
-        for (const [k, v] of Object.entries(patch)) {
-          if (v === '' || v == null || v === false) p.delete(k)
-          else p.set(k, String(v))
-        }
-        if (!('n' in patch)) p.delete('n')
-        return p
-      },
-      { replace: true },
-    ),
+        (prev) => {
+          const p = new URLSearchParams(prev)
+          for (const [k, v] of Object.entries(patch)) {
+            if (v === '' || v == null || v === false) p.delete(k)
+            else p.set(k, String(v))
+          }
+          if (!('n' in patch)) p.delete('n')
+          return p
+        },
+        { replace: true },
+      ),
     [setBusca],
   )
 
   const [qLocal, setQLocal] = useCampoComPausa(q, useCallback((v) => atualizar({ q: v }), [atualizar]))
-  const [notaLocal, setNotaLocal] = useCampoComPausa(notaMin, useCallback((v) => atualizar({ nota: v }), [atualizar]))
 
-  const carregar = () => {
+  const carregar = useCallback(() => {
     setEstado({ carregando: true, erro: '', data: null })
     emerRadarCarregarExecucao(runId)
-      .then((data) => setEstado({ carregando: false, erro: '', data }))
+      .then(async (data) => {
+        const maps = (data.results || []).filter((r) => !isSomenteRede(r))
+        let jaSalvos = []
+        try {
+          jaSalvos = await lerSalvos(maps.map((r) => String(r.id || '')).filter(Boolean))
+        } catch {
+          /* sem leitura do catálogo: os cartões ficam só para consulta */
+        }
+        setSalvos(jaSalvos)
+        setEstado({ carregando: false, erro: '', data })
+      })
       .catch((e) => setEstado({ carregando: false, erro: e?.message || 'Não foi possível abrir a execução.', data: null }))
-  }
-  useEffect(carregar, [runId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [runId])
+  useEffect(carregar, [carregar])
 
-  const linhas = useMemo(() => (estado.data?.results || []).map(prepararLinha), [estado.data])
+  const todos = useMemo(() => estado.data?.results || [], [estado.data])
 
-  /** Abas: Maps + cada rede que tem registro exclusivo. */
+  /** Registros do Maps como cartões, já cruzados com o catálogo (status, id salvo, fachada). */
+  const cartoes = useMemo(
+    () => enriquecerResultadosComSalvos(todos.filter((r) => !isSomenteRede(r)), salvos),
+    [todos, salvos],
+  )
+  const naoSalvos = cartoes.filter((c) => !c._salvo).length
+
   const abas = useMemo(() => {
-    const maps = linhas.filter((l) => !isSomenteRede(l.r))
     const porFonte = new Map()
-    for (const l of linhas) {
-      if (!isSomenteRede(l.r)) continue
-      const f = planoPrincipal(l.r)
+    todos.forEach((r, i) => {
+      if (!isSomenteRede(r)) return
+      const f = planoPrincipal(r)
       if (!porFonte.has(f)) porFonte.set(f, [])
-      porFonte.get(f).push(l)
-    }
-    const ordemFontes = [
+      porFonte.get(f).push(prepararLinha(r, i))
+    })
+    const fontes = [
       ...PLANO_ORDER.filter((f) => porFonte.has(f)),
       ...[...porFonte.keys()].filter((f) => !PLANO_ORDER.includes(f)).sort(),
     ]
     return [
-      { id: 'maps', rotulo: 'Google Maps', linhas: maps, colunas: COLUNAS_MAPS },
-      ...ordemFontes.map((f) => ({ id: f, rotulo: planoLabel(f), linhas: porFonte.get(f), colunas: COLUNAS_PLANO })),
+      { id: 'maps', rotulo: 'Google Maps', total: cartoes.length },
+      ...fontes.map((f) => ({ id: f, rotulo: planoLabel(f), total: porFonte.get(f).length, linhas: porFonte.get(f) })),
     ]
-  }, [linhas])
+  }, [todos, cartoes.length])
 
   const atual = abas.find((a) => a.id === aba) || abas[0]
   const ehMaps = atual?.id === 'maps'
+  const baseRede = useMemo(() => atual?.linhas || [], [atual])
 
   const opcoes = useMemo(() => {
-    const base = atual?.linhas || []
     const contar = (campo) => {
       const m = new Map()
-      for (const l of base) if (l[campo]) m.set(l[campo], (m.get(l[campo]) || 0) + 1)
+      for (const l of baseRede) if (l[campo]) m.set(l[campo], (m.get(l[campo]) || 0) + 1)
       return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'))
     }
     return { cidades: contar('cidade'), tipos: contar('tipo') }
-  }, [atual])
+  }, [baseRede])
 
   const filtradas = useMemo(() => {
     const termo = semAcento(q).trim()
-    // O campo numérico entrega «4.5» (ponto) ou «4,5» (vírgula): ambos são decimais, nunca milhar.
-    const minBruto = ehMaps ? Number(String(notaMin).replace(',', '.')) : NaN
-    const min = notaMin !== '' && Number.isFinite(minBruto) ? minBruto : null
-    const col = (atual?.colunas || []).some((c) => c.id === ordem) ? ordem : 'nome'
-    const lista = (atual?.linhas || []).filter((l) => {
+    const col = COLUNAS_PLANO.some((c) => c.id === ordem) ? ordem : 'nome'
+    const lista = baseRede.filter((l) => {
       if (termo && !l.busca.includes(termo)) return false
       if (fCidade && l.cidade !== fCidade) return false
       if (fTipo && l.tipo !== fTipo) return false
       if (soContato && !l.contato) return false
-      if (min != null && !(l.nota != null && l.nota >= min)) return false
-      if (fVinculo === 'vinculado' && !l.vinculado) return false
-      if (fVinculo === 'novo' && l.vinculado) return false
-      if (fVinculo === 'credenciada' && !l.credenciada) return false
-      if (fVinculo === 'nao_credenciada' && l.credenciada) return false
+      if (fSituacao === 'credenciada' && !l.credenciada) return false
+      if (fSituacao === 'nao_credenciada' && l.credenciada) return false
       return true
     })
     const sinal = dir === 'desc' ? -1 : 1
     return [...lista].sort((a, b) => sinal * comparar(a, b, col) || a.nome.localeCompare(b.nome, 'pt-BR'))
-  }, [atual, ehMaps, q, fCidade, fTipo, soContato, notaMin, fVinculo, ordem, dir])
+  }, [baseRede, q, fCidade, fTipo, soContato, fSituacao, ordem, dir])
 
-  const temFiltro = Boolean(q || fCidade || fTipo || soContato || (ehMaps && notaMin) || fVinculo)
+  const temFiltro = Boolean(q || fCidade || fTipo || soContato || fSituacao)
   const visiveis = filtradas.slice(0, limite)
+  const limpar = () => atualizar({ q: '', cidade: '', tipo: '', situacao: '', contato: '' })
 
-  const ordenarPor = (id) =>
-    atualizar({ ordem: id, dir: ordem === id && dir === 'asc' ? 'desc' : 'asc' })
+  const ordenarPor = (id) => atualizar({ ordem: id, dir: ordem === id && dir === 'asc' ? 'desc' : 'asc' })
 
   const baixar = async () => {
     try {
-      const res = await exportarExecucaoEmerRadarParaExcel(
-        filtradas.map((l) => l.r),
-        `${runId}${temFiltro ? '-filtrado' : ''}`,
-      )
+      const lista = ehMaps ? todos.filter((r) => !isSomenteRede(r)) : filtradas.map((l) => l.r)
+      const res = await exportarExecucaoEmerRadarParaExcel(lista, `${runId}${ehMaps ? '-maps' : `-${atual.id}`}`)
       if (!res.ok) avisar({ titulo: 'Nada para exportar', mensagem: res.erro })
     } catch (e) {
       avisar({ titulo: 'Falha ao gerar o Excel', mensagem: e?.message || 'Erro desconhecido.' })
+    }
+  }
+
+  const adicionarAoCatalogo = async () => {
+    setCatalogando(true)
+    try {
+      const r = await emerRadarCatalogar({ runId })
+      avisar({
+        titulo: 'Catálogo atualizado',
+        mensagem: `${r.novos} novo${r.novos === 1 ? '' : 's'} no catálogo. Os que já estavam lá mantêm status e dados editados (só campos vazios são completados).`,
+      })
+      carregar()
+    } catch (e) {
+      avisar({ titulo: 'Não foi possível adicionar ao catálogo', mensagem: e?.message || 'Erro desconhecido.' })
+    } finally {
+      setCatalogando(false)
     }
   }
 
@@ -272,8 +278,8 @@ export default function EmerRadarExecucaoPage() {
         title={`Execução de ${fmtDataHora(run?.started_at) || runId}`}
         description={`${cidadesRun || 'Cidades não informadas'} · ${estado.data.total} registros`}
         actions={
-          <Button variant="secondary" onClick={() => void baixar()} disabled={!filtradas.length}>
-            {temFiltro ? `Excel (${filtradas.length} filtrados)` : 'Baixar Excel'}
+          <Button variant="secondary" onClick={() => void baixar()}>
+            Baixar Excel
           </Button>
         }
       />
@@ -285,16 +291,38 @@ export default function EmerRadarExecucaoPage() {
             type="button"
             className={`er-run__aba${a.id === atual?.id ? ' is-active' : ''}`}
             aria-current={a.id === atual?.id ? 'page' : undefined}
-            onClick={() => atualizar({ aba: a.id === 'maps' ? '' : a.id, ordem: '', dir: '', cidade: '', tipo: '', vinculo: '', nota: '', contato: '' })}
+            onClick={() => atualizar({ aba: a.id === 'maps' ? '' : a.id, ordem: '', dir: '', cidade: '', tipo: '', situacao: '', contato: '' })}
           >
             {a.rotulo}
-            <Badge tone={a.id === atual?.id ? 'info' : 'neutral'}>{a.linhas.length}</Badge>
+            <Badge tone={a.id === atual?.id ? 'info' : 'neutral'}>{a.total}</Badge>
           </button>
         ))}
       </nav>
 
-      {abas.every((a) => a.linhas.length === 0) ? (
+      {abas.every((a) => a.total === 0) ? (
         <EmptyState title="Esta execução não tem registros" description="O pipeline terminou sem resultados." />
+      ) : ehMaps ? (
+        <>
+          {naoSalvos > 0 ? (
+            <p className="er-exec__alerta er-exec__alerta--warn" role="status">
+              {naoSalvos} de {cartoes.length} registros ainda não estão no catálogo. Enquanto isso, Kanban e Remover ficam
+              indisponíveis para eles.
+            </p>
+          ) : null}
+          <EmerRadarProspectResults
+            results={cartoes}
+            titulo="Google Maps"
+            mostrarExport={false}
+            exigirSalvo
+            acoes={
+              naoSalvos > 0 ? (
+                <Button onClick={() => void adicionarAoCatalogo()} disabled={catalogando}>
+                  {catalogando ? 'Adicionando…' : `Adicionar ${naoSalvos} ao catálogo`}
+                </Button>
+              ) : null
+            }
+          />
+        </>
       ) : (
         <>
           <Toolbar title="Filtros e ordenação" stickyTop={0}>
@@ -321,42 +349,18 @@ export default function EmerRadarExecucaoPage() {
                 </option>
               ))}
             </Select>
-            <Select label={ehMaps ? 'Vínculo com planos' : 'Situação'} value={fVinculo} onChange={(e) => atualizar({ vinculo: e.target.value })}>
-              <option value="">Todos</option>
-              {ehMaps ? (
-                <>
-                  <option value="vinculado">Já está em algum plano</option>
-                  <option value="novo">Fora dos planos (prospecção)</option>
-                </>
-              ) : (
-                <>
-                  <option value="credenciada">Credenciada</option>
-                  <option value="nao_credenciada">Não credenciada</option>
-                </>
-              )}
+            <Select label="Situação" value={fSituacao} onChange={(e) => atualizar({ situacao: e.target.value })}>
+              <option value="">Todas</option>
+              <option value="credenciada">Credenciada</option>
+              <option value="nao_credenciada">Não credenciada</option>
             </Select>
-            {ehMaps ? (
-              <Input
-                label="Nota mínima"
-                type="number"
-                min="0"
-                max="5"
-                step="0.1"
-                placeholder="ex.: 4,5"
-                value={notaLocal}
-                onChange={(e) => setNotaLocal(e.target.value)}
-              />
-            ) : null}
             <div className="ek-toolbar__actions">
               <label className="ek-check">
                 <input type="checkbox" checked={soContato} onChange={(e) => atualizar({ contato: e.target.checked })} />
                 Só com contato
               </label>
               {temFiltro ? (
-                <Button
-                  variant="secondary"
-                  onClick={() => atualizar({ q: '', cidade: '', tipo: '', vinculo: '', contato: '', nota: '' })}
-                >
+                <Button variant="secondary" onClick={limpar}>
                   Limpar filtros
                 </Button>
               ) : null}
@@ -364,21 +368,23 @@ export default function EmerRadarExecucaoPage() {
           </Toolbar>
 
           <p className="er-run__contagem" role="status">
-            {filtradas.length === (atual?.linhas.length || 0)
-              ? `${filtradas.length} registros`
-              : `${filtradas.length} de ${atual?.linhas.length} registros`}
+            {filtradas.length === baseRede.length ? `${filtradas.length} registros` : `${filtradas.length} de ${baseRede.length} registros`}
           </p>
 
           {filtradas.length === 0 ? (
             <EmptyState
               title="Nenhum registro com esses filtros"
-              action={<Button variant="secondary" onClick={() => atualizar({ q: '', cidade: '', tipo: '', vinculo: '', contato: '', nota: '' })}>Limpar filtros</Button>}
+              action={
+                <Button variant="secondary" onClick={limpar}>
+                  Limpar filtros
+                </Button>
+              }
             />
           ) : (
             <ResponsiveTable stack>
               <thead>
                 <tr>
-                  {atual.colunas.map((c) => {
+                  {COLUNAS_PLANO.map((c) => {
                     const ativo = ordem === c.id || (!busca.get('ordem') && c.id === 'nome')
                     return (
                       <th key={c.id} aria-sort={ativo ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
@@ -392,58 +398,27 @@ export default function EmerRadarExecucaoPage() {
                 </tr>
               </thead>
               <tbody>
-                {visiveis.map((l) => {
-                  const href = hrefMaps(l.r)
-                  return (
-                    <tr key={l.key}>
-                      <td data-label="Nome">
-                        <strong>{l.nome || '—'}</strong>
-                        {href ? (
-                          <>
-                            {' '}
-                            <a href={href} target="_blank" rel="noopener noreferrer" className="er-run__maps">
-                              Maps ↗
-                            </a>
-                          </>
-                        ) : null}
-                        {ehMaps && l.vinculado ? (
-                          <div className="er-run__planos">
-                            {(l.r.planos || []).map((p) => (
-                              <Badge key={p} tone="info">
-                                {planoLabel(p)}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td data-label="Tipo">{l.tipo || '—'}</td>
-                      <td data-label="Cidade">{l.cidade || l.r.bairro || '—'}</td>
-                      {ehMaps ? (
-                        <>
-                          <td data-label="Nota" className="tabular-nums">
-                            {l.nota != null ? l.nota.toFixed(1).replace('.', ',') : '—'}
-                          </td>
-                          <td data-label="Avaliações" className="tabular-nums">
-                            {l.avaliacoes ?? '—'}
-                          </td>
-                        </>
+                {visiveis.map((l) => (
+                  <tr key={l.key}>
+                    <td data-label="Nome">
+                      <strong>{l.nome || '—'}</strong>
+                    </td>
+                    <td data-label="Tipo">{l.tipo || '—'}</td>
+                    <td data-label="Cidade / bairro">{l.cidade || '—'}</td>
+                    <td data-label="Credenciada">
+                      {l.r.credenciada === true ? (
+                        <Badge tone="ok">Credenciada</Badge>
+                      ) : l.r.credenciada === false ? (
+                        <Badge>Não</Badge>
                       ) : (
-                        <td data-label="Credenciada">
-                          {l.r.credenciada === true ? (
-                            <Badge tone="ok">Credenciada</Badge>
-                          ) : l.r.credenciada === false ? (
-                            <Badge>Não</Badge>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
+                        '—'
                       )}
-                      <td data-label="Contato" className="whitespace-nowrap">
-                        {l.contato || '—'}
-                      </td>
-                    </tr>
-                  )
-                })}
+                    </td>
+                    <td data-label="Contato" className="whitespace-nowrap">
+                      {l.contato || '—'}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </ResponsiveTable>
           )}
