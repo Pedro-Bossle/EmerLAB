@@ -248,13 +248,9 @@ export async function limparTodasNotificacoesContratos(clickReq = null) {
         localStorage.setItem(KEY_NOTIF_LEGACY, '[]')
     }
     await marcarNotificacoesWebhookDismissedParaMim()
-    if (typeof clickReq === 'function') {
-        try {
-            await sincronizarNotificacoesClicksign(clickReq, { somenteSnapshot: true, forcar: true })
-        } catch {
-            /* limpeza local já aplicada */
-        }
-    }
+    // Sem polling na API da Clicksign (a doc veta polling de documentos): as notificações vêm do
+    // webhook. O parâmetro `clickReq` fica só por compatibilidade com quem ainda o passa.
+    void clickReq
     emitirMudancaNotificacoes()
 }
 
@@ -419,6 +415,15 @@ export function resumirEventoEnvelope(n) {
     if (evento === 'remove_signer' || /signatário removido/i.test(texto)) {
         return 'Signatário removido do envelope'
     }
+    if (evento === 'refusal' || /recusou/i.test(texto)) {
+        return 'Assinatura recusada'
+    }
+    if (evento === 'cancel' || /envelope cancelado/i.test(texto)) {
+        return 'Envelope cancelado'
+    }
+    if (evento === 'deadline' || /prazo encerrado/i.test(texto)) {
+        return 'Prazo encerrado'
+    }
     return texto || 'Atualização do envelope'
 }
 
@@ -429,11 +434,23 @@ export function ehNotificacaoEnvelopeUtil(n) {
     if (tipo.includes('documento') || tipo === 'documento_finalizado') return false
     if (/documento finalizado/i.test(String(n?.texto || ''))) return false
     // Webhook: só os eventos de envelope que configurámos
-    if (evento && !['sign', 'close', 'auto_close', 'add_signer', 'remove_signer', ''].includes(evento)) {
+    if (evento && !EVENTOS_WEBHOOK_EXIBIDOS.includes(evento)) {
         return false
     }
     return true
 }
+
+const EVENTOS_WEBHOOK_EXIBIDOS = [
+    'sign',
+    'close',
+    'auto_close',
+    'add_signer',
+    'remove_signer',
+    'refusal',
+    'cancel',
+    'deadline',
+    '',
+]
 
 /**
  * Agrupa as notificações de contratos por envelope, unificando múltiplas
