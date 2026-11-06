@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
+import { MapContainer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapaBasemapLayers } from '../../../components/Mapa/MapaBasemapToggle.jsx'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { buttonClassName } from '../../../components/ui'
@@ -288,11 +289,8 @@ function ProspectMap({ results }) {
       </div>
       <div className="emer-radar-map__canvas">
         <MapContainer center={center} zoom={12} className="h-full w-full" scrollWheelZoom>
-          <TileLayer
-            attribution='Tiles &copy; Esri &mdash; dados &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-            maxZoom={16}
-          />
+          {/* fundo claro com nomes de cidades, bairros e ruas (base + rótulos), igual aos outros mapas */}
+          <MapaBasemapLayers estilo="simplificado" />
           <FitBounds points={points} />
           {points.map((p) => (
             <Marker key={p.id} position={[p.lat, p.lon]} icon={markerIcon}>
