@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
     mapearEstabelecimentoMapsParaRow,
+    mensagemErroCatalogo,
     mapsIdDeEstabelecimento,
     montarFilaAtualizacaoCatalogo,
     rowMapsParaCardUi,
@@ -121,5 +122,26 @@ describe('emerRadarUi maps quality', () => {
                 { cidadePadrao: 'Esteio' },
             ),
         ).toBe('Sapucaia do Sul')
+    })
+})
+
+describe('mensagemErroCatalogo', () => {
+    it('não chama de «tabela ausente» um erro que só cita o nome da tabela', () => {
+        const rls = mensagemErroCatalogo({
+            code: '42501',
+            message: 'new row violates row-level security policy for table "cred_prospectos_maps"',
+        })
+        expect(rls).toMatch(/Sem permissão/)
+        expect(rls).not.toMatch(/ausente/)
+        const coluna = mensagemErroCatalogo({
+            code: 'PGRST204',
+            message: "Could not find the 'x' column of 'cred_prospectos_maps' in the schema cache",
+        })
+        expect(coluna).toMatch(/Não foi possível salvar/)
+        expect(coluna).toMatch(/PGRST204/)
+    })
+    it('só diz «ausente» quando a tabela realmente não existe', () => {
+        expect(mensagemErroCatalogo({ code: '42P01', message: 'relation "cred_prospectos_maps" does not exist' })).toMatch(/ausente/)
+        expect(mensagemErroCatalogo({ code: 'PGRST205', message: "Could not find the table 'public.cred_prospectos_maps'" })).toMatch(/ausente/)
     })
 })

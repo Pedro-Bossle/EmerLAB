@@ -12,6 +12,22 @@ export { mapearEstabelecimentoMapsParaRow, mapsIdDeEstabelecimento, rowMapsParaC
 
 const TABELA = 'cred_prospectos_maps'
 
+/**
+ * Traduz o erro do Supabase sem inventar causa: antes, qualquer mensagem que citasse o nome da tabela
+ * virava «tabela ausente» (inclusive negação de permissão ou coluna fora do cache).
+ */
+export function mensagemErroCatalogo(error) {
+    const msg = String(error?.message || error || '')
+    const codigo = String(error?.code || '')
+    if (/row-level security|permission denied/i.test(msg) || codigo === '42501') {
+        return 'Sem permissão para gravar no catálogo (é preciso ter permissão de edição no Credenciamento).'
+    }
+    if (codigo === '42P01' || codigo === 'PGRST205' || /relation .* does not exist|could not find the table/i.test(msg)) {
+        return 'Tabela cred_prospectos_maps ausente. Execute scripts/sql/cred_prospectos_maps.sql no Supabase.'
+    }
+    return `Não foi possível salvar no catálogo: ${msg}${codigo ? ` (${codigo})` : ''}`
+}
+
 export const STATUS_PROSPECCAO_MAPS_OPCOES = [
     { id: 'novo', label: 'Novo' },
     { id: 'contactado', label: 'Contactado' },
@@ -147,18 +163,7 @@ export async function upsertProspectosMapsDeColeta(estabelecimentos, ctx = {}) {
         .upsert(rows, { onConflict: 'maps_id' })
         .select('*')
 
-    if (error) {
-        const msg = String(error.message || '')
-        if (/cred_prospectos_maps|schema cache|does not exist|relation.*does not exist/i.test(msg)) {
-            return {
-                ok: false,
-                erro: 'Tabela cred_prospectos_maps ausente. Execute scripts/sql/cred_prospectos_maps.sql no Supabase.',
-                salvos: 0,
-                itens: [],
-            }
-        }
-        return { ok: false, erro: msg, salvos: 0, itens: [] }
-    }
+    if (error) return { ok: false, erro: mensagemErroCatalogo(error), salvos: 0, itens: [] }
 
     return { ok: true, salvos: (data || []).length, itens: data || [] }
 }

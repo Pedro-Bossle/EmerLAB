@@ -64,7 +64,7 @@ function SeloIndicada() {
     )
 }
 
-export default function Composer({ desabilitado, inicioNosso = false, temTemplates, prefs, respostas, respondendo, aoCancelarResposta, aoEnviarTexto, aoEnviarArquivo, aoAbrirTemplate, contexto, contextoRegras, quemRealiza, credenciados, controle, chave }) {
+export default function Composer({ desabilitado, inicioNosso = false, temTemplates, prefs, respostas, respondendo, aoCancelarResposta, aoEnviarTexto, aoEnviarArquivo, aoEnviarRespostaComArquivos, aoAbrirTemplate, contexto, contextoRegras, quemRealiza, credenciados, controle, chave }) {
     const [texto, setTexto] = useState(() => rascunhos.get(chave) || '')
     const [indice, setIndice] = useState(0)
     const [painel, setPainel] = useState(null) // 'emoji' | 'respostas'
@@ -73,6 +73,10 @@ export default function Composer({ desabilitado, inicioNosso = false, temTemplat
     const [enviandoArquivo, setEnviandoArquivo] = useState(false)
     const [erroArquivo, setErroArquivo] = useState('')
     const [avisoAnexo, setAvisoAnexo] = useState('')
+    // arquivos da resposta rápida escolhida: vão junto do texto (que vira a legenda). { id, arquivos }
+    const [anexosResposta, setAnexosResposta] = useState(null)
+    const [enviandoResposta, setEnviandoResposta] = useState(false)
+    const [erroResposta, setErroResposta] = useState('')
     const campo = useRef(null)
     const inputArquivo = useRef(null)
     // códigos da regra services {…} da última resposta inserida com {services.content} (para preencher quando a busca voltar)
@@ -116,6 +120,9 @@ export default function Composer({ desabilitado, inicioNosso = false, temTemplat
     useEffect(() => {
         codigosMarca.current = []
         cidadeMarcaCred.current = null
+        // outra conversa: os arquivos da resposta escolhida não vão junto
+        setAnexosResposta(null)
+        setErroResposta('')
     }, [chave])
 
     // apagou a barra que tinha sido dispensada: a próxima volta a abrir sugestões
@@ -177,6 +184,9 @@ export default function Composer({ desabilitado, inicioNosso = false, temTemplat
         setTexto(novo)
         setCursor(pos)
         setPainel(null)
+        setErroResposta('')
+        // resposta com arquivos: ficam anexados até enviar ou remover; resposta sem arquivos não mexe nos já escolhidos
+        if (r.arquivos?.length) setAnexosResposta({ id: r.id, arquivos: r.arquivos })
         requestAnimationFrame(() => {
             campo.current?.focus()
             campo.current?.setSelectionRange(pos, pos)
@@ -218,11 +228,32 @@ export default function Composer({ desabilitado, inicioNosso = false, temTemplat
           ? `Passou de ${MAX_CARACTERES} caracteres`
           : motivoServicos || motivoCredenciados
 
-    const enviar = () => {
-        if (motivoBloqueioEnvio || desabilitado) return
+    const enviar = async () => {
+        if (motivoBloqueioEnvio || desabilitado || enviandoResposta) return
         const final = preencherVariaveis(limpo, contexto)
         // "*Atendente <nome>*" (negrito no WhatsApp) vai no próprio texto: a bolha otimista e o "tentar de novo" já saem com ele
-        aoEnviarTexto(prefs.identificarAtendente && contexto.atendente ? `*Atendente ${contexto.atendente}*\n${final}` : final)
+        const comNome = prefs.identificarAtendente && contexto.atendente ? `*Atendente ${contexto.atendente}*\n${final}` : final
+        if (anexosResposta && aoEnviarRespostaComArquivos) {
+            setEnviandoResposta(true)
+            setErroResposta('')
+            try {
+                await aoEnviarRespostaComArquivos({ respostaId: anexosResposta.id, texto: comNome })
+                setTexto('')
+                setAnexosResposta(null)
+                setPainel(null)
+            } catch (e) {
+                // envio parcial: o texto e parte dos arquivos já saíram, então não deixa reenviar do zero
+                if (e.codigo === 'parcial') {
+                    setTexto('')
+                    setAnexosResposta(null)
+                }
+                setErroResposta(e.message)
+            } finally {
+                setEnviandoResposta(false)
+            }
+            return
+        }
+        aoEnviarTexto(comNome)
         setTexto('')
         setPainel(null)
     }
@@ -446,6 +477,25 @@ export default function Composer({ desabilitado, inicioNosso = false, temTemplat
                 </div>
             ) : null}
 
+            {anexosResposta ? (
+                <div className="respondendo anexos-resposta" role="status">
+                    <div>
+                        <strong>
+                            <Icone nome="clipe" tamanho={14} /> {anexosResposta.arquivos.length} arquivo{anexosResposta.arquivos.length > 1 ? 's' : ''} vai{anexosResposta.arquivos.length > 1 ? 'm' : ''} junto
+                        </strong>
+                        <span>{anexosResposta.arquivos.map((a) => a.nome).join(', ')} · o texto vai como legenda</span>
+                    </div>
+                    <button className="icone-botao mini" onClick={() => setAnexosResposta(null)} aria-label="Não enviar os arquivos" disabled={enviandoResposta}>
+                        <Icone nome="fechar" tamanho={18} />
+                    </button>
+                </div>
+            ) : null}
+            {erroResposta ? (
+                <div className="composer-alerta" role="alert">
+                    <Icone nome="erro" tamanho={16} /> {erroResposta}
+                </div>
+            ) : null}
+
             {respondendo ? (
                 <div className="respondendo">
                     <div>
@@ -504,7 +554,7 @@ export default function Composer({ desabilitado, inicioNosso = false, temTemplat
                     ) : null}
                 </div>
                 <span className="dica-wrap" data-dica={motivoBloqueioEnvio || (prefs.enterEnvia ? 'Enviar (Enter)' : 'Enviar (Ctrl+Enter)')} data-dica-lado="esquerda">
-                    <button className="icone-botao enviar" aria-label="Enviar mensagem" onClick={enviar} disabled={Boolean(motivoBloqueioEnvio)}>
+                    <button className="icone-botao enviar" aria-label="Enviar mensagem" onClick={enviar} disabled={Boolean(motivoBloqueioEnvio) || enviandoResposta}>
                         <Icone nome="enviar" />
                     </button>
                 </span>

@@ -20,8 +20,6 @@ import {
   pipelineStatus,
   pipelineStop,
   triggerEmerRadarCron,
-  scrapeExportExcelUrl,
-  scrapeExportPdfUrl,
   scrapeResults,
   scrapeStart,
   scrapeStatus,
@@ -1766,22 +1764,6 @@ function ProspectPanel({ workerDisponivel = false, modo = 'catalogo', onModo }) 
                 >
                   {salvando ? 'Salvando…' : 'Salvar no catálogo'}
                 </button>
-                <a
-                  className={buttonClassName({ variant: 'secondary' })}
-                  href={scrapeExportExcelUrl()}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Excel
-                </a>
-                <a
-                  className={buttonClassName({ variant: 'secondary' })}
-                  href={scrapeExportPdfUrl()}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  PDF
-                </a>
               </>
             )}
           </div>

@@ -377,6 +377,24 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
         setTimeout(carregar, 1200)
     }
 
+    // resposta rápida com arquivos: o texto vai de legenda e o servidor envia tudo de uma vez (erros voltam para o Composer)
+    const enviarRespostaComArquivos = async (dados) => {
+        if (conversa.status === 'resolvida') throw new Error('Conversa resolvida: reabra para enviar.')
+        if (!aberta) {
+            abrirTemplate()
+            throw new Error('Janela fechada: envie um template antes de enviar arquivos.')
+        }
+        try {
+            await api(`${caminho}/resposta`, { method: 'POST', body: dados })
+        } finally {
+            // mesmo no envio parcial (erro "parcial") parte já foi ao cliente: recarrega o chat
+            setNoFim(true)
+            setTimeout(carregar, 1200)
+        }
+        aoAtualizar(waId, { ultimaMsg: dados.texto, ultimaMinha: true, ultimaEm: new Date().toISOString(), atendenteEmail: conversa.atendenteEmail || usuario.email })
+        avisar('Mensagem e arquivos enviados.')
+    }
+
     const acao = async (rota, body, sucesso, campos) => {
         try {
             const r = await api(`${caminho}/${rota}`, { method: 'POST', body })
@@ -678,6 +696,7 @@ export default function Chat({ conversa, usuario, config, prefs, departamentos, 
                             aoCancelarResposta={() => setRespondendo(null)}
                             aoEnviarTexto={enviarTexto}
                             aoEnviarArquivo={enviarArquivo}
+                            aoEnviarRespostaComArquivos={enviarRespostaComArquivos}
                             controle={composer}
                             chave={waId}
                             aoAbrirTemplate={abrirTemplate}
