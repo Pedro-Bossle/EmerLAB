@@ -715,14 +715,14 @@ const ORDENS_RESPOSTA = {
 }
 
 // Arquivos que vão junto da resposta rápida (o texto vira a legenda do primeiro). Novos só sobem ao salvar.
-function ArquivosDaResposta({ form, aoMudar }) {
+function ArquivosDaResposta({ form, aoMudar, desabilitado }) {
     const [erro, setErro] = useState('')
+    const [arrastando, setArrastando] = useState(false)
     const existentes = (form.arquivos || []).filter((a) => !(form.removerIds || []).includes(a.id))
     const novos = form.arquivosNovos || []
     const total = existentes.length + novos.length
-    const escolher = (e) => {
-        const lista = [...e.target.files]
-        e.target.value = ''
+    const cheia = total >= MAX_ARQUIVOS_RESPOSTA
+    const adicionar = (lista) => {
         const aceitos = []
         const avisos = []
         for (const f of lista) {
@@ -733,38 +733,71 @@ function ArquivosDaResposta({ form, aoMudar }) {
         setErro(avisos.length ? `Não anexado: ${[...new Set(avisos)].join('; ')}.` : '')
         if (aceitos.length) aoMudar({ ...form, arquivosNovos: [...novos, ...aceitos] })
     }
+    const linha = (chave, nome, tamanho, estado, remover) => (
+        <li key={chave}>
+            <span className="arquivo-icone">
+                <Icone nome="documento" tamanho={18} />
+            </span>
+            <span className="arquivo-info">
+                <strong title={nome}>{nome}</strong>
+                <small>
+                    {kb(tamanho)} · {estado}
+                </small>
+            </span>
+            <button type="button" className="icone-botao mini" aria-label={`Remover ${nome}`} disabled={desabilitado} onClick={remover}>
+                <Icone nome="lixo" tamanho={16} />
+            </button>
+        </li>
+    )
     return (
         <div className="campo">
             <span>Arquivos enviados junto (opcional)</span>
             {total ? (
                 <ul className="arquivos-resposta">
-                    {existentes.map((a) => (
-                        <li key={a.id}>
-                            <Icone nome="clipe" tamanho={16} />
-                            <span>{a.nome}</span>
-                            <small>{kb(a.tamanho)}</small>
-                            <button type="button" className="icone-botao mini" aria-label={`Remover ${a.nome}`} onClick={() => aoMudar({ ...form, removerIds: [...(form.removerIds || []), a.id] })}>
-                                <Icone nome="fechar" tamanho={16} />
-                            </button>
-                        </li>
-                    ))}
-                    {novos.map((f, i) => (
-                        <li key={`${f.name}-${i}`}>
-                            <Icone nome="clipe" tamanho={16} />
-                            <span>{f.name}</span>
-                            <small>{kb(f.size)} · sobe ao salvar</small>
-                            <button type="button" className="icone-botao mini" aria-label={`Remover ${f.name}`} onClick={() => aoMudar({ ...form, arquivosNovos: novos.filter((_, j) => j !== i) })}>
-                                <Icone nome="fechar" tamanho={16} />
-                            </button>
-                        </li>
-                    ))}
+                    {existentes.map((a) => linha(a.id, a.nome, a.tamanho, 'salvo', () => aoMudar({ ...form, removerIds: [...(form.removerIds || []), a.id] })))}
+                    {novos.map((f, n) =>
+                        linha(`${f.name}-${n}`, f.name, f.size, 'sobe ao salvar', () => aoMudar({ ...form, arquivosNovos: novos.filter((_, k) => k !== n) })),
+                    )}
                 </ul>
             ) : null}
-            {total < MAX_ARQUIVOS_RESPOSTA ? <input type="file" multiple onChange={escolher} aria-label="Anexar arquivos à resposta" /> : null}
-            {erro ? <small className="ajuda" role="alert">{erro}</small> : null}
-            <small className="ajuda">
-                Até {MAX_ARQUIVOS_RESPOSTA} arquivos de {MAX_MB_RESPOSTA} MB. O texto da resposta vai como legenda do primeiro arquivo (acima de ~1.000 caracteres, vai antes, como mensagem).
-            </small>
+            {!cheia ? (
+                <label
+                    className={`anexar-zona ${arrastando ? 'arrastando' : ''} ${desabilitado ? 'desabilitada' : ''}`}
+                    onDragOver={(e) => {
+                        e.preventDefault()
+                        setArrastando(true)
+                    }}
+                    onDragLeave={() => setArrastando(false)}
+                    onDrop={(e) => {
+                        e.preventDefault()
+                        setArrastando(false)
+                        if (!desabilitado) adicionar([...e.dataTransfer.files])
+                    }}
+                >
+                    <Icone nome="clipe" tamanho={22} />
+                    <span>
+                        <strong>Anexar arquivos</strong>
+                        <small>Clique ou arraste aqui · até {MAX_ARQUIVOS_RESPOSTA} arquivos de {MAX_MB_RESPOSTA} MB</small>
+                    </span>
+                    <input
+                        type="file"
+                        multiple
+                        hidden
+                        disabled={desabilitado}
+                        onChange={(e) => {
+                            const lista = [...e.target.files]
+                            e.target.value = ''
+                            adicionar(lista)
+                        }}
+                    />
+                </label>
+            ) : null}
+            {erro ? (
+                <small className="ajuda erro-anexo" role="alert">
+                    {erro}
+                </small>
+            ) : null}
+            <small className="ajuda">O texto da resposta vai como legenda do primeiro arquivo (acima de ~1.000 caracteres, vai antes, como mensagem).</small>
         </div>
     )
 }
@@ -779,6 +812,8 @@ function Respostas({ departamentos, aoMudar, avisar }) {
     const [filtroDepto, setFiltroDepto] = useState('')
     const [filtroRegras, setFiltroRegras] = useState('')
     const [ordem, setOrdem] = useState('atalho')
+    // texto do botão enquanto salva (os arquivos sobem um a um, cada um com até 3 MB)
+    const [progresso, setProgresso] = useState('')
 
     const visiveis = useMemo(() => {
         const q = normalizarTextoBusca(busca)
@@ -809,8 +844,10 @@ function Respostas({ departamentos, aoMudar, avisar }) {
 
     const salvar = async (e) => {
         e.preventDefault()
+        if (progresso) return
         try {
             const { id, arquivos: _a, arquivosNovos = [], removerIds = [], ...corpo } = form
+            setProgresso('Salvando…')
             const r = await api(id ? `respostas/${id}` : 'respostas', { method: id ? 'PUT' : 'POST', body: corpo })
             const respostaId = id || r.id
             // a resposta já está salva; se um arquivo falhar, avisa qual e a pessoa tenta de novo editando
@@ -821,7 +858,8 @@ function Respostas({ departamentos, aoMudar, avisar }) {
                         falhou = e3.message
                     })
                 }
-                for (const f of arquivosNovos) {
+                for (const [n, f] of arquivosNovos.entries()) {
+                    setProgresso(`Enviando arquivo ${n + 1} de ${arquivosNovos.length}…`)
                     try {
                         await api(`respostas/${respostaId}/arquivos`, { method: 'POST', body: { nome: f.name, mime: f.type, base64: await arquivoParaBase64(f) } })
                     } catch (e3) {
@@ -837,6 +875,8 @@ function Respostas({ departamentos, aoMudar, avisar }) {
             if (falhou) avisar(`Resposta salva, mas um arquivo não foi anexado (${falhou}). Edite a resposta para tentar de novo.`, 'erro')
         } catch (e2) {
             avisar(e2.message, 'erro')
+        } finally {
+            setProgresso('')
         }
     }
 
@@ -885,15 +925,15 @@ function Respostas({ departamentos, aoMudar, avisar }) {
                         <kbd>~</kbd> <kbd>`</kbd> para formatação do WhatsApp.
                     </small>
                 </label>
-                <ArquivosDaResposta form={form} aoMudar={setForm} />
+                <ArquivosDaResposta form={form} aoMudar={setForm} desabilitado={Boolean(progresso)} />
                 <SeletorDepartamentos departamentos={departamentos} valor={form.departamentoIds} aoMudar={(departamentoIds) => setForm({ ...form, departamentoIds })} />
                 <CampoRegras valor={form.regras} texto={form.texto} aoMudar={(regras) => setForm({ ...form, regras })} departamentos={departamentos} procedimentos={procedimentos} />
                 <div className="modal-acoes">
-                    <button type="button" className="botao botao-secundario" onClick={() => setForm(null)}>
+                    <button type="button" className="botao botao-secundario" disabled={Boolean(progresso)} onClick={() => setForm(null)}>
                         Cancelar
                     </button>
-                    <button className="botao" disabled={lerRegras(form.regras, { departamentos, procedimentos }).erros.length > 0 || Boolean(erroMarcaServicos(form.texto, form.regras))}>
-                        Salvar
+                    <button className="botao" disabled={Boolean(progresso) || lerRegras(form.regras, { departamentos, procedimentos }).erros.length > 0 || Boolean(erroMarcaServicos(form.texto, form.regras))}>
+                        {progresso || 'Salvar'}
                     </button>
                 </div>
             </form>
@@ -992,7 +1032,7 @@ function Respostas({ departamentos, aoMudar, avisar }) {
                                         <span className="tag tag-neutra">Todos</span>
                                     )}
                                     {r.arquivos?.length ? (
-                                        <span className="tag tag-neutra" title={r.arquivos.map((a) => a.nome).join(', ')}>
+                                        <span className="tag tag-neutra tag-arquivos" title={r.arquivos.map((a) => a.nome).join(', ')}>
                                             <Icone nome="clipe" tamanho={12} /> {r.arquivos.length} arquivo{r.arquivos.length > 1 ? 's' : ''}
                                         </span>
                                     ) : null}
