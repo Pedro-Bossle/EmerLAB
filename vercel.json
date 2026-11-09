@@ -1,6 +1,7 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)zap-emerlab' ':(exclude)docs' ':(exclude)graphify-out' ':(exclude)ui-audit-out' && exit 0 || exit 1",
   "crons": [
     {
       "path": "/api/repasse-mensal?_route=limpar-documentos",
