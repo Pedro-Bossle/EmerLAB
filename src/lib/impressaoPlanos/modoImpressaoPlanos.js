@@ -65,8 +65,9 @@ export async function salvarModoImpressaoPlanos(planoId, cidadeId, categorias) {
     if (!planoId || !cidadeId) throw new Error('Plano e cidade são obrigatórios para salvar o modo.')
     const selecao = montarSelecaoDeCategorias(categorias)
     const {
-        data: { user },
-    } = await supabase.auth.getUser()
+        data: { session },
+    } = await supabase.auth.getSession()
+    const user = session?.user ?? null
     const agora = new Date().toISOString()
     const row = {
         plano_id: Number(planoId),

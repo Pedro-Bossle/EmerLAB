@@ -234,8 +234,8 @@ export default function PagamentosRegistro() {
 
     useEffect(() => {
         const syncPerfil = async () => {
-            const { data: userData } = await supabase.auth.getUser()
-            const userId = userData?.user?.id
+            const { data: userData } = await supabase.auth.getSession()
+            const userId = userData?.session?.user?.id
             if (!userId) return
             const { data: profileData } = await supabase
                 .from('profiles')

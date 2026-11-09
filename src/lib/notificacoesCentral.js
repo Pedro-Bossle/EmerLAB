@@ -131,8 +131,8 @@ function gravarDispensados(uid, dispensados) {
 
 async function uidAtual() {
     try {
-        const { data } = await supabase.auth.getUser()
-        return data?.user?.id || null
+        const { data } = await supabase.auth.getSession()
+        return data?.session?.user?.id || null
     } catch {
         return null
     }
