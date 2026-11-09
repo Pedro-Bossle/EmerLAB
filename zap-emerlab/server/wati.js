@@ -112,7 +112,8 @@ async function chamar(url, { method = 'GET', body, headers, raw = false } = {}) 
             ...headers,
         },
         body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
-        signal: AbortSignal.timeout(20000),
+        // WATI lenta não pode segurar a função até o maxDuration: 10 s nas chamadas comuns, 20 s em upload e mídia
+        signal: AbortSignal.timeout(isForm || raw ? 20000 : 10000),
         })
     } catch {
         throw new WatiError('Não foi possível falar com a WATI (rede ou tempo esgotado). Tente novamente.', 502, null, 'wati_fora')
