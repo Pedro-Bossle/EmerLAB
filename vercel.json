@@ -8,6 +8,7 @@
     }
   ],
   "framework": "vite",
+  "regions": ["gru1"],
   "functions": {
     "api/rc-pdf.js": {
       "maxDuration": 60,

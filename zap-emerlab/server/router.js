@@ -5,6 +5,7 @@ import { getEnv, envFaltando } from './env.js'
 import { hashSenha, conferirSenha, criarToken, lerToken, compararSeguro, segredoAleatorio, impressao } from './crypto.js'
 import { db, ok, DbError, buscarUsuarioPorEmail, buscarUsuarioPorId, idsDepartamentos, invalidarUsuarios, listarDepartamentos, invalidarDepartamentos } from './db.js'
 import { memo, invalidar } from './cache.js'
+import { enviarComEtag } from './etag.js'
 import { avisar, avisarConversa, configTempoReal, nomeCanal, tempoRealAtivo } from './tempoReal.js'
 import * as wati from './wati.js'
 import * as ms from './microsoft.js'
@@ -2275,7 +2276,7 @@ export async function handle(req, res, rotaForcada) {
         }
         if (rota === 'auth/senha' && metodo === 'POST') return await trocarSenha(req, res, usuario)
         if (partes[0] === 'ms') return await rotasMs(req, res, usuario, partes.slice(1), metodo, query)
-        if (rota === 'conversas' && metodo === 'GET') return responder(await listarConversas(usuario, query))
+        if (rota === 'conversas' && metodo === 'GET') return enviarComEtag(req, res, await listarConversas(usuario, query))
         if (rota === 'templates' && metodo === 'GET') return enviar(res, 200, { templates: await wati.listarTemplates() }, CACHE_NAVEGADOR)
         if (rota === 'tags' && metodo === 'GET') return enviar(res, 200, await listarTagsSugestao(), CACHE_NAVEGADOR)
         if (rota === 'media' && metodo === 'GET') return await midiaHandler(res, usuario, query)
@@ -2308,7 +2309,7 @@ export async function handle(req, res, rotaForcada) {
         if (partes[0] === 'conversas' && partes[1]) {
             const waId = lerIdConversa(decodeURIComponent(partes[1])).id
             const acao = partes[2]
-            if (acao === 'mensagens' && metodo === 'GET') return responder(await mensagens(usuario, waId, query))
+            if (acao === 'mensagens' && metodo === 'GET') return enviarComEtag(req, res, await mensagens(usuario, waId, query))
             // só banco: o chat aberto pergunta isto e vai à WATI apenas quando mudou (webhook ou envio gravou algo)
             if (acao === 'versao' && metodo === 'GET') {
                 const meta = await exigirConversa(usuario, waId)
