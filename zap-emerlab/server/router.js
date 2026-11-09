@@ -659,6 +659,17 @@ async function trocarSenha(req, res, usuario) {
 async function listarConversas(usuario, query) {
     const busca = String(query.get('q') || '').trim()
     const canal = PREFIXO_CANAL[query.get('canal')] ? query.get('canal') : 'whatsapp'
+    // A parte pesada (contatos da WATI, 300 linhas do banco, mesclagem, conferência) é igual para todos os atendentes.
+    // Calcula uma vez e compartilha: um aviso em tempo real faz todos recarregarem ao mesmo tempo, e antes cada um
+    // refazia tudo. Cada atendente só filtra o que tem permissão de ver. A chave começa com «conversas:» para que
+    // todo `invalidar('conversas:')` (salvarMeta, webhook, recarga fresca) a descarte.
+    const completa = await memo(`conversas:completa:${canal}:${busca}`, 3000, () => montarConversas(canal, busca))
+    const visiveis = busca ? completa : completa.filter((x) => podeVerConversa(usuario, x.meta))
+    return { conversas: visiveis.map((x) => x.item), canal }
+}
+
+/** Todas as conversas do canal, sem filtro de permissão: `[{ item, meta }]` (o `meta` serve ao filtro por usuário). */
+async function montarConversas(canal, busca) {
     const buscarContatos =
         canal === 'whatsapp'
             ? buscarContatosWhatsapp(busca)
@@ -693,8 +704,8 @@ async function listarConversas(usuario, query) {
         // > nome do WhatsApp da lista da WATI. Assim o apelido do cliente não passa na frente do nome salvo.
         porId.set(waId, { ...atual, waId, nome: atual.nomeFicha || meta?.nome || atual.nome || m.nome || null, meta })
     }
-    // com busca: toda a base WATI (mesmo sem atribuição). sem busca: só o que o atendente pode ver
-    const brutos = [...porId.values()].filter((c) => Boolean(busca) || podeVerConversa(usuario, c.meta))
+    // com busca: toda a base WATI (mesmo sem atribuição). sem busca: o filtro por atendente é feito em listarConversas
+    const brutos = [...porId.values()]
     // espelha o nome no painel: o da ficha WATI sempre que diferir do gravado; sem ficha, só se a meta ainda não tem nome
     const nomeParaEspelhar = (c) => c.nomeFicha || (!c.meta?.nome ? c.nome : null)
     const espelhar = brutos.filter((c) => c.meta && nomeParaEspelhar(c) && nomeParaEspelhar(c) !== c.meta.nome).slice(0, 40)
@@ -755,7 +766,8 @@ async function listarConversas(usuario, query) {
     }
     await verificarNaWati(lista, metaPorId, contatoEm)
     lista.sort((a, b) => msData(b.ultimaEm) - msData(a.ultimaEm))
-    return { conversas: lista, canal }
+    const metaDe = new Map(brutos.map((c) => [c.waId, c.meta]))
+    return lista.map((item) => ({ item, meta: metaDe.get(item.waId) }))
 }
 
 // Sem webhook, o banco não fica sabendo das mensagens novas: a cada carregamento da lista, verifica na WATI
@@ -2148,6 +2160,9 @@ async function rotasMs(req, res, usuario, partes, metodo, query) {
 
 // ---------- roteamento ----------
 
+let ultimaRecargaFresca = 0
+const JANELA_RECARGA_FRESCA_MS = 1000
+
 export async function handle(req, res, rotaForcada) {
     try {
         const url = new URL(req.url || '/', 'http://local')
@@ -2181,9 +2196,15 @@ export async function handle(req, res, rotaForcada) {
         const usuario = await usuarioDaSessao(req)
         const responder = (corpo) => enviar(res, 200, corpo)
         // recarga disparada por um aviso em tempo real: o dado novo não pode vir de um cache de 3 s de outra instância
+        // Todos os atendentes recebem o mesmo aviso quase junto: só o primeiro de cada janela de 1 s descarta o cache,
+        // os demais aproveitam o que ele recalculou (ainda assim novo, pois é posterior ao aviso).
         if (metodo === 'GET' && query.get('fresh') === '1') {
-            invalidar('conversas:')
-            wati.invalidarCache('msgs:')
+            const agora = Date.now()
+            if (agora - ultimaRecargaFresca > JANELA_RECARGA_FRESCA_MS) {
+                ultimaRecargaFresca = agora
+                invalidar('conversas:')
+                wati.invalidarCache('msgs:')
+            }
         }
 
         if (rota === 'auth/me' && metodo === 'GET') return responder(await me(usuario))
@@ -2332,4 +2353,4 @@ export async function handle(req, res, rotaForcada) {
 }
 
 // Somente para os testes automatizados (não faz parte da API)
-export const __teste = { verificarNaWati, metaConversa, salvarMeta }
+export const __teste = { verificarNaWati, metaConversa, salvarMeta, listarConversas }
