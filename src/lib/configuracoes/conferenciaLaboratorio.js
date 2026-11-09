@@ -249,8 +249,8 @@ export async function salvarMapeamentoExame({
 }) {
     let confirmadoPor = null
     try {
-        const { data: userData } = await supabase.auth.getUser()
-        confirmadoPor = userData?.user?.id || null
+        const { data: userData } = await supabase.auth.getSession()
+        confirmadoPor = userData?.session?.user?.id || null
     } catch {
         confirmadoPor = null
     }
@@ -436,8 +436,8 @@ export async function salvarAliasPessoa({
 
     let confirmadoPor = null
     try {
-        const { data: userData } = await supabase.auth.getUser()
-        confirmadoPor = userData?.user?.id || null
+        const { data: userData } = await supabase.auth.getSession()
+        confirmadoPor = userData?.session?.user?.id || null
     } catch {
         confirmadoPor = null
     }
@@ -2643,8 +2643,8 @@ export async function carregarSessaoConferencia({ laboratorioId, periodoYm }) {
     if (!labId || !periodo) return null
 
     try {
-        const { data: userData } = await supabase.auth.getUser()
-        const userId = userData?.user?.id
+        const { data: userData } = await supabase.auth.getSession()
+        const userId = userData?.session?.user?.id
         if (!userId) return null
 
         const { data, error } = await supabase
@@ -2683,8 +2683,8 @@ export async function salvarSessaoConferencia({ laboratorioId, periodoYm, passo,
     }
 
     try {
-        const { data: userData } = await supabase.auth.getUser()
-        const userId = userData?.user?.id
+        const { data: userData } = await supabase.auth.getSession()
+        const userId = userData?.session?.user?.id
         if (!userId) {
             return { ok: false, aviso: 'Sessão de usuário necessária para persistir a conferência.' }
         }

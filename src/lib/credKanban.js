@@ -175,8 +175,8 @@ export async function listarCardsKanban() {
 }
 
 export async function criarCardKanban(payload = {}) {
-    const { data: auth } = await supabase.auth.getUser()
-    const uid = auth?.user?.id || null
+    const { data: auth } = await supabase.auth.getSession()
+    const uid = auth?.session?.user?.id || null
     const colunaRaw = COLUNA_IDS.has(payload.coluna)
         ? payload.coluna
         : normalizarColunaKanban(payload.coluna)
@@ -548,8 +548,8 @@ export async function importarSituacoesParaKanban({ forcar = false } = {}) {
         .not('prestador_id', 'is', null)
     const ja = new Set((existentes || []).map((r) => Number(r.prestador_id)))
 
-    const { data: auth } = await supabase.auth.getUser()
-    const uid = auth?.user?.id || null
+    const { data: auth } = await supabase.auth.getSession()
+    const uid = auth?.session?.user?.id || null
 
     const { data: ordensExistentes } = await supabase
         .from('cred_kanban_cards')
@@ -739,8 +739,8 @@ export async function enviarProspectoMapsParaKanban(est, { forcarColuna } = {}) 
         return null
     }
 
-    const { data: auth } = await supabase.auth.getUser()
-    const uid = auth?.user?.id || null
+    const { data: auth } = await supabase.auth.getSession()
+    const uid = auth?.session?.user?.id || null
 
     const colunaAlvo = COLUNA_IDS.has(forcarColuna) ? forcarColuna : 'nao_contatado'
     const nome = String(est.nome || '').trim() || 'Prospecto Maps'

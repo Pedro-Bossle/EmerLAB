@@ -238,8 +238,8 @@ export default function CredenciamentoKanban() {
     useEffect(() => {
         if (assigneeDefaultRef.current) return
         let ativo = true
-        void supabase.auth.getUser().then(({ data }) => {
-            const id = data?.user?.id
+        void supabase.auth.getSession().then(({ data }) => {
+            const id = data?.session?.user?.id
             if (!ativo || !id) return
             assigneeDefaultRef.current = true
             setFiltroAssignee(id)

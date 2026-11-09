@@ -144,8 +144,8 @@ const ComprasValorVenda = () => {
 
     useEffect(() => {
         const carregarPermissoes = async () => {
-            const { data: authData } = await supabase.auth.getUser()
-            const userId = authData?.user?.id
+            const { data: authData } = await supabase.auth.getSession()
+            const userId = authData?.session?.user?.id
             if (!userId) return
             let { data, error } = await supabase
                 .from('profiles')
