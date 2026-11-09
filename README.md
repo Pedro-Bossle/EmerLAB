@@ -1,6 +1,6 @@
 # EmerLAB
 
-**EmerLAB** — Livro de Apoio Base. App React + Vite.
+**EmerLAB** — Livro de Apoio Base. App React + Vite..
 
 ## Configuração local
 
