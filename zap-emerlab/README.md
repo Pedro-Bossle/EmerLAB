@@ -1,4 +1,4 @@
-# zap.emerlab
+# zap.emerlab..
 
 Painel de atendimento WhatsApp no estilo do WhatsApp Web, usando a [API da WATI](https://docs.wati.io/reference/introduction).
 É um app separado dentro do repositório (React + Vite no front, uma função serverless como proxy da WATI).
