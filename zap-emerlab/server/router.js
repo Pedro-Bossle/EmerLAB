@@ -665,6 +665,9 @@ async function trocarSenha(req, res, usuario) {
 const COLUNAS_LISTA =
     'wa_id, nome, departamento_id, atendente_email, status, ultima_msg, ultima_msg_em, ultima_msg_minha, nao_lidas, atualizado_em, tags, notas, ultima_cliente_em, anuncio, ultima_humana_em, conversa_wati, bloqueada_em'
 
+// 10 s: com o webhook e o tempo real ativos, mudanças chegam por aviso (fresh=1 pula este cache); o polling é só reserva
+const CACHE_LISTA_MS = 10000
+
 async function listarConversas(usuario, query) {
     const busca = String(query.get('q') || '').trim()
     const canal = PREFIXO_CANAL[query.get('canal')] ? query.get('canal') : 'whatsapp'
@@ -672,7 +675,7 @@ async function listarConversas(usuario, query) {
     // Calcula uma vez e compartilha: um aviso em tempo real faz todos recarregarem ao mesmo tempo, e antes cada um
     // refazia tudo. Cada atendente só filtra o que tem permissão de ver. A chave começa com «conversas:» para que
     // todo `invalidar('conversas:')` (salvarMeta, webhook, recarga fresca) a descarte.
-    const completa = await memo(`conversas:completa:${canal}:${busca}`, 3000, () => montarConversas(canal, busca))
+    const completa = await memo(`conversas:completa:${canal}:${busca}`, CACHE_LISTA_MS,() => montarConversas(canal, busca))
     const visiveis = busca ? completa : completa.filter((x) => podeVerConversa(usuario, x.meta))
     return { conversas: visiveis.map((x) => x.item), canal }
 }
@@ -685,8 +688,8 @@ async function montarConversas(canal, busca) {
             : wati.listarContatosCanal(canal).then((lista) => lista.map((c) => normalizarContatoCanal(c, canal)))
     const [contatos, metasTodas] = await Promise.all([
         buscarContatos,
-        // 3 s de cache: os atendentes (e as abas de cada um) consultam a mesma lista a cada 10 s
-        memo('conversas:lista', 3000, () =>
+        // os atendentes (e as abas de cada um) consultam a mesma lista; recarga por aviso em tempo real usa fresh=1
+        memo('conversas:lista', CACHE_LISTA_MS,() =>
             db()
                 .from('zap_conversas')
                 .select(COLUNAS_LISTA)
@@ -787,7 +790,7 @@ async function montarConversas(canal, busca) {
 const VERIFICAR_POR_VEZ = 3
 const INTERVALO_VERIFICACAO = 60000
 const ATIVA_MS = 24 * 3600 * 1000
-const RECONFERIR_ATIVA_MS = 3 * 60 * 1000
+const RECONFERIR_ATIVA_MS = 15 * 60 * 1000 // webhook em produção: a conferência periódica é só rede de segurança
 const FOLGA_MS = 2000 // webhook grava em segundos; a WATI devolve com milissegundos
 const verificadas = new Map() // waId → quando foi checada (por instância do servidor)
 // datas da WATI ("…Z") e do Postgres ("…+00:00") não se comparam como texto
