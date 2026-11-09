@@ -78,3 +78,4 @@ zap-emerlab/
 ├─ supabase/schema.sql
 └─ src/                  React (Painel, Chat, Composer, Admin, Configurações…)
 ```
+
