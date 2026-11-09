@@ -4,10 +4,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { emLimiteWati, pedirDadoFresco } from './api.js'
 import { assinar, criarAgendadorDeAviso } from './tempoReal.js'
+import { aoVoltarDoOcio, estaOcioso, observarAtividade } from './ocio.js'
 
 // `tempoReal` (opcional): { nome, visivelRt }. Com o canal conectado, o aviso dispara a recarga na hora e o
 // polling da aba visível espaça para `visivelRt`. Se o canal cair, volta sozinho ao `visivel` de sempre.
 // Aba oculta mantém `oculta` (as notificações dependem dela). Sem `tempoReal`, tudo funciona como antes.
+// Com o tempo real conectado, quem ficou 10 min sem mexer no painel também passa para `oculta`: o aviso continua
+// atualizando na hora e, ao voltar a mexer, a tela atualiza imediatamente. Sem tempo real não há esse espaçamento,
+// porque o polling é a única forma de a pessoa ver mensagens novas.
 export function usarAtualizacao(atualizar, { visivel, oculta = 60000, tempoReal = null }) {
     const fn = useRef(atualizar)
     fn.current = atualizar
@@ -15,6 +19,8 @@ export function usarAtualizacao(atualizar, { visivel, oculta = 60000, tempoReal 
     const nomeCanal = tempoReal?.nome || null
     const visivelRt = tempoReal?.visivelRt || visivel
     const intervaloVisivel = rtAtivo ? visivelRt : visivel
+    const rtRef = useRef(rtAtivo)
+    rtRef.current = rtAtivo
 
     // canal em tempo real
     useEffect(() => {
@@ -54,7 +60,8 @@ export function usarAtualizacao(atualizar, { visivel, oculta = 60000, tempoReal 
         let vivo = true
         const agendar = () => {
             if (!vivo) return
-            timer = setTimeout(rodar, document.hidden ? oculta : intervaloVisivel)
+            const devagar = document.hidden || (rtRef.current && estaOcioso())
+            timer = setTimeout(rodar, devagar ? oculta : intervaloVisivel)
         }
         const rodar = async () => {
             if (!emLimiteWati()) {
@@ -72,11 +79,19 @@ export function usarAtualizacao(atualizar, { visivel, oculta = 60000, tempoReal 
             clearTimeout(timer)
             rodar()
         }
+        // voltou a mexer depois de ocioso: atualiza na hora
+        const sairDoOcio = aoVoltarDoOcio(() => {
+            if (document.hidden || !vivo) return
+            clearTimeout(timer)
+            rodar()
+        })
+        observarAtividade()
         agendar()
         document.addEventListener('visibilitychange', aoVisivel)
         return () => {
             vivo = false
             clearTimeout(timer)
+            sairDoOcio()
             document.removeEventListener('visibilitychange', aoVisivel)
         }
     }, [intervaloVisivel, oculta])

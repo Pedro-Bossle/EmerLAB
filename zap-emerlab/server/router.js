@@ -36,6 +36,10 @@ class HttpError extends Error {
 
 // ---------- utilidades HTTP ----------
 
+// Rotas que quase não mudam e o painel chama ao abrir telas: o navegador pode reaproveitar por 1 min. `Vary: Cookie`
+// separa o cache por sessão (outro login nunca vê a resposta do anterior); recargas com `fresh=1` mudam a URL e pulam o cache.
+const CACHE_NAVEGADOR = { 'Cache-Control': 'private, max-age=60', Vary: 'Cookie' }
+
 function enviar(res, status, corpo, headers = {}) {
     res.statusCode = status
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -656,6 +660,11 @@ async function trocarSenha(req, res, usuario) {
     enviar(res, 200, { ok: true }, { 'Set-Cookie': cookieSessao(req, token, maxAge) })
 }
 
+// Colunas que a lista usa. Fora: `email` (só o perfil do contato) e `ticks_em` (só a rota `versao`), que as 300 linhas
+// carregavam à toa a cada recarga. Se a lista passar a usar outra coluna, inclua aqui.
+const COLUNAS_LISTA =
+    'wa_id, nome, departamento_id, atendente_email, status, ultima_msg, ultima_msg_em, ultima_msg_minha, nao_lidas, atualizado_em, tags, notas, ultima_cliente_em, anuncio, ultima_humana_em, conversa_wati, bloqueada_em'
+
 async function listarConversas(usuario, query) {
     const busca = String(query.get('q') || '').trim()
     const canal = PREFIXO_CANAL[query.get('canal')] ? query.get('canal') : 'whatsapp'
@@ -680,7 +689,7 @@ async function montarConversas(canal, busca) {
         memo('conversas:lista', 3000, () =>
             db()
                 .from('zap_conversas')
-                .select('*')
+                .select(COLUNAS_LISTA)
                 .order('ultima_msg_em', { ascending: false, nullsFirst: false })
                 .limit(300)
                 .then(ok),
@@ -2160,8 +2169,67 @@ async function rotasMs(req, res, usuario, partes, metodo, query) {
 
 // ---------- roteamento ----------
 
-let ultimaRecargaFresca = 0
+// Recargas «frescas» (aviso em tempo real) chegam de todos os atendentes quase juntas. Só a primeira de cada janela de 1 s,
+// por alvo, descarta o cache; as demais aproveitam o que ela recalculou (já posterior ao aviso). E descarta só o que o
+// pedido usa: a lista não derruba o cache das mensagens e o chat de uma conversa não derruba o das outras.
+const recargasFrescas = new Map() // alvo → quando descartou pela última vez
 const JANELA_RECARGA_FRESCA_MS = 1000
+function descartarCacheDaRecargaFresca(rota, partes) {
+    const alvo = rota === 'conversas' ? 'lista' : partes[0] === 'conversas' && partes[1] ? `conv:${partes[1]}` : 'tudo'
+    const agora = Date.now()
+    if (agora - (recargasFrescas.get(alvo) || 0) <= JANELA_RECARGA_FRESCA_MS) return
+    if (recargasFrescas.size > 500) recargasFrescas.clear()
+    recargasFrescas.set(alvo, agora)
+    if (alvo === 'lista') {
+        invalidar('conversas:')
+    } else if (alvo.startsWith('conv:')) {
+        let waId = ''
+        try {
+            waId = lerIdConversa(decodeURIComponent(partes[1])).id
+        } catch {
+            waId = ''
+        }
+        for (const v of waId ? variantesWaId(waId) : []) {
+            invalidar(`conversas:meta:${v}`)
+            wati.invalidarCache(`msgs:${v}:`)
+        }
+    } else {
+        invalidar('conversas:')
+        wati.invalidarCache('msgs:')
+    }
+}
+
+// Medição de CPU por rota (aproximada: o CPU do processo é compartilhado entre pedidos simultâneos). A cada 100 pedidos
+// da instância imprime as rotas que mais gastaram; pedidos acima de 1,5 s saem na hora. Procure «[zap-perf]» nos logs.
+const perfRotas = new Map() // «GET conversas» → { n, ms, cpu, max }
+let perfPedidos = 0
+const rotaGenerica = (rota) => String(rota || '').replace(/[0-9a-f]{8}-[0-9a-f-]{27}/gi, ':id').replace(/\d{8,}/g, ':id')
+function medirRota(res, rota, metodo) {
+    const t0 = performance.now()
+    const c0 = process.cpuUsage()
+    res.once('finish', () => {
+        const ms = performance.now() - t0
+        const c = process.cpuUsage(c0)
+        const cpu = (c.user + c.system) / 1000
+        const chave = `${metodo} ${rotaGenerica(rota)}`
+        const a = perfRotas.get(chave) || { n: 0, ms: 0, cpu: 0, max: 0 }
+        a.n += 1
+        a.ms += ms
+        a.cpu += cpu
+        a.max = Math.max(a.max, ms)
+        perfRotas.set(chave, a)
+        if (ms > 1500) console.warn(`[zap-perf] lenta ${chave} ${Math.round(ms)}ms cpu~${Math.round(cpu)}ms`)
+        perfPedidos += 1
+        if (perfPedidos % 100 === 0) {
+            const topo = [...perfRotas.entries()]
+                .sort((x, y) => y[1].cpu - x[1].cpu)
+                .slice(0, 8)
+                .map(([k, v]) => `${k} n=${v.n} cpu~${Math.round(v.cpu)}ms (${Math.round(v.cpu / v.n)}/pedido) tempo=${Math.round(v.ms / v.n)}ms máx=${Math.round(v.max)}ms`)
+            console.info(['[zap-perf] resumo dos últimos 100 pedidos:', ...topo].join('\n'))
+            perfRotas.clear()
+        }
+    })
+}
 
 export async function handle(req, res, rotaForcada) {
     try {
@@ -2171,6 +2239,7 @@ export async function handle(req, res, rotaForcada) {
         const partes = rota.split('/').filter(Boolean)
         const metodo = req.method || 'GET'
         const query = url.searchParams
+        medirRota(res, rota, metodo)
 
         if (rota === 'status') return enviar(res, 200, { configurado: envFaltando().length === 0, faltando: envFaltando() })
 
@@ -2196,28 +2265,19 @@ export async function handle(req, res, rotaForcada) {
         const usuario = await usuarioDaSessao(req)
         const responder = (corpo) => enviar(res, 200, corpo)
         // recarga disparada por um aviso em tempo real: o dado novo não pode vir de um cache de 3 s de outra instância
-        // Todos os atendentes recebem o mesmo aviso quase junto: só o primeiro de cada janela de 1 s descarta o cache,
-        // os demais aproveitam o que ele recalculou (ainda assim novo, pois é posterior ao aviso).
-        if (metodo === 'GET' && query.get('fresh') === '1') {
-            const agora = Date.now()
-            if (agora - ultimaRecargaFresca > JANELA_RECARGA_FRESCA_MS) {
-                ultimaRecargaFresca = agora
-                invalidar('conversas:')
-                wati.invalidarCache('msgs:')
-            }
-        }
+        if (metodo === 'GET' && query.get('fresh') === '1') descartarCacheDaRecargaFresca(rota, partes)
 
         if (rota === 'auth/me' && metodo === 'GET') return responder(await me(usuario))
         if (rota === 'canais' && metodo === 'GET') {
             // nome do canal de uma conversa (só para quem está logado); null = tempo real desligado
             const waId = normalizarWaId(query.get('waId') || '')
-            return responder({ conv: tempoRealAtivo() && waId ? nomeCanal('conv', waId) : null })
+            return enviar(res, 200, { conv: tempoRealAtivo() && waId ? nomeCanal('conv', waId) : null }, CACHE_NAVEGADOR)
         }
         if (rota === 'auth/senha' && metodo === 'POST') return await trocarSenha(req, res, usuario)
         if (partes[0] === 'ms') return await rotasMs(req, res, usuario, partes.slice(1), metodo, query)
         if (rota === 'conversas' && metodo === 'GET') return responder(await listarConversas(usuario, query))
-        if (rota === 'templates' && metodo === 'GET') return responder({ templates: await wati.listarTemplates() })
-        if (rota === 'tags' && metodo === 'GET') return responder(await listarTagsSugestao())
+        if (rota === 'templates' && metodo === 'GET') return enviar(res, 200, { templates: await wati.listarTemplates() }, CACHE_NAVEGADOR)
+        if (rota === 'tags' && metodo === 'GET') return enviar(res, 200, await listarTagsSugestao(), CACHE_NAVEGADOR)
         if (rota === 'media' && metodo === 'GET') return await midiaHandler(res, usuario, query)
         if (rota === 'equipe' && metodo === 'GET') return responder(await equipe())
         if (rota === 'ibge/municipios' && metodo === 'GET') {
@@ -2353,4 +2413,4 @@ export async function handle(req, res, rotaForcada) {
 }
 
 // Somente para os testes automatizados (não faz parte da API)
-export const __teste = { verificarNaWati, metaConversa, salvarMeta, listarConversas }
+export const __teste = { verificarNaWati, metaConversa, salvarMeta, listarConversas, descartarCacheDaRecargaFresca, rotaGenerica }
