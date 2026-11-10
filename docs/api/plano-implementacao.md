@@ -68,7 +68,7 @@
 - Test: `src/lib/apiV1/chaves.test.js`
 
 **Interfaces:**
-- Produces: `gerarChave(tipo: 'rede'|'pag'): { chave: string, prefixo: string, hash: string }`; `hashChave(chave: string): string`; `autorizarChave(linha: LinhaChave|null, { escopo, origem, agora }): { ok: true } | { ok: false, status: 401|403, codigo: string }`; `ESCOPOS: readonly string[]`.
+- Produces: `gerarChave(tipo: 'rede'|'pag'): { chave: string, prefixo: string, hash: string }`; `hashChave(chave: string): string`; `autorizarChave(linha: LinhaChave|null, { escopo, origem, ip, agora }): { ok: true } | { ok: false, status: 401|403, codigo: string }`; `ESCOPOS: readonly string[]`.
 - `LinhaChave` = `{ id, nome, prefixo, escopos: string[], origens_permitidas: string[], limite_por_minuto: number, ips_permitidos: string[], expira_em: string|null, revogada_em: string|null }`.
 
 - [ ] **Step 1: Escrever os testes que falham** em `chaves.test.js`:
@@ -82,7 +82,7 @@
   - `ips_permitidos` preenchido e IP fora da lista → 403 `ip_nao_permitido`.
 - [ ] **Step 2: Rodar `npx vitest run src/lib/apiV1/chaves.test.js`** e ver falhar (módulo não existe).
 - [ ] **Step 3: Implementar `chaves.js`** com `node:crypto` (`randomBytes` base62 para os 32 caracteres, SHA-256 hex). `autorizarChave` recebe também `ip` em `{ escopo, origem, ip, agora }`.
-- [ ] **Step 4: Escrever a migração** `api_chaves` conforme a seção 5 da especificação (`id uuid pk default gen_random_uuid()`, `hash text unique not null`, demais colunas, `enable row level security`, nenhuma política, `revoke all … from anon, authenticated`). Aplicar com `mcp__claude_ai_Supabase__apply_migration` só fora do horário de pico.
+- [ ] **Step 4: Escrever a migração** `api_chaves` conforme a seção 5 da especificação (`id uuid pk default gen_random_uuid()`, `hash text unique not null`, demais colunas, `enable row level security`, nenhuma política, `revoke all … from anon, authenticated`). **Não aplicar no banco nesta tarefa** (nem em produção nem em branch): a aplicação, primeiro numa branch do Supabase e depois em produção com autorização, é a Task 8.
 - [ ] **Step 5: Rodar os testes e ver passar.**
 - [ ] **Step 6: Commit** `feat(api): tabela e biblioteca de chaves de API`.
 
@@ -91,7 +91,7 @@
 ### Task 2: Roteador `/api/v1` (autenticação, CORS, limites, erros, subdomínio da API)
 
 **Files:**
-- Create: `api/_lib/apiV1/roteador.js`
+- Create: `api/_lib/apiV1/roteador.js`, `api/_lib/apiV1/indiceRotas.js` (lista estática dos módulos de rotas; nasce vazia e cada task de rotas acrescenta a sua linha)
 - Modify: `api/email.js` (despacho `_fn === 'api-v1'`), `vercel.json` — reescritas colocadas **antes** do fallback `"/((?!api/|email/).*)"`:
   - `/api/v1/:path*` → `/api/email?_fn=api-v1&_path=:path*`
   - com `"has": [{ "type": "host", "value": "api.emerlab.com.br" }]`: `/v1/:path*` → `/api/email?_fn=api-v1&_path=:path*`; `/docs` e `/` → `/api-docs/index.html`
@@ -99,7 +99,7 @@
 
 **Interfaces:**
 - Consumes: `autorizarChave`, `hashChave` (Task 1); `createSupabaseAdminClient`, `getClientIp`, `readJsonBodyLimited`, `responderSePayloadGrande` de `src/lib/api/serverAuth.js`; `consumirRateLimit` de `src/lib/api/rateLimit.js`.
-- Produces: `export default async function apiV1Handler(req, res)` (só adapta req/res); `export async function processarRequisicao({ metodo, caminho, query, headers, body, ip }): Promise<{ status: number, headers: Record<string, string>, corpo: any }>` (o núcleo; a Task 6 reutiliza em processo); `export function registrarRota(metodo: string, padrao: string, escopo: string|null, fn: (ctx) => Promise<{ status?: number, corpo: any, headers?: object }>)` com `ctx = { admin, chave, params, query, body, req }`; `class ErroApi(status, codigo, mensagem)`. O `caminho` chega sem prefixo (`/rede/filtros`); o roteador aceita `/v1/...` e `/api/v1/...` e normaliza.
+- Produces: `export default async function apiV1Handler(req, res)` (só adapta req/res); `export async function processarRequisicao({ metodo, caminho, query, headers, body, ip }): Promise<{ status: number, headers: Record<string, string>, corpo: any }>` (o núcleo; a Task 6 reutiliza em processo); `export function registrarRota(metodo: string, padrao: string, escopo: string|null, fn: (ctx) => Promise<{ status?: number, corpo: any, headers?: object }>)` com `ctx = { admin, chave, params, query, body, req }`; `class ErroApi(status, codigo, mensagem)`. O `escopo` de `registrarRota` pode ser `'rede:ler'`, `'pagamentos:ler'`, `'pagamentos:escrever'` (autenticação por chave) ou o valor especial `'jwt:access.manage'` (autenticação por JWT com `PERMISSION_KEYS.ACCESS_MANAGE`, sem chave de API; então `ctx.usuario` traz `{ id, email }` e `ctx.chave` é nulo). `indiceRotas.js` exporta `MODULOS_DE_ROTAS: Array<() => Promise<unknown>>` (imports dinâmicos dos módulos que chamam `registrarRota`), e o roteador carrega todos na primeira requisição. O `caminho` chega sem prefixo (`/rede/filtros`); o roteador aceita `/v1/...` e `/api/v1/...` e normaliza.
 
 - [ ] **Step 1: Testes que falham:**
   - Sem cabeçalho de chave → 401 `{ erro:{ codigo:'chave_invalida' } }`; chave desconhecida → mesmo 401.
@@ -109,6 +109,7 @@
   - Chave válida atualiza `ultimo_uso_em` no máximo 1 vez por minuto por chave.
   - Cache de 30 s: chave revogada no banco é recusada depois de expirar o cache (relógio simulado).
   - `processarRequisicao` e o handler HTTP devolvem o mesmo status e corpo para a mesma chamada.
+  - Rota com escopo `'jwt:access.manage'`: sem JWT válido → 401; JWT válido sem `access.manage` → 403; com permissão → executa (o JWT é simulado pelo mock de `serverAuth`).
   - `vercelRewrites.test.js`: `vercel.json` tem a reescrita `/api/v1/:path*`; tem a reescrita com `host` = `api.emerlab.com.br` para `/v1/:path*`; ambas aparecem **antes** do fallback `/((?!api/|email/).*)` na lista `rewrites`; o JSON é válido.
 - [ ] **Step 2: Rodar e ver falhar.**
 - [ ] **Step 3: Implementar o roteador:** extrai a chave de `Authorization: Bearer` ou `X-Api-Key`; busca por `hash` com cache em memória de 30 s; chama `autorizarChave`; aplica `consumirRateLimit('apiv1:<id>')` com o `limite_por_minuto` da chave; roteia por `caminho` (padrões com `{id}`); `ErroApi` vira o JSON de erro; qualquer outro erro vira 500 `erro_interno` sem detalhe.
@@ -156,6 +157,7 @@
 
 **Files:**
 - Create: `api/_lib/apiV1/redeDados.js`, `api/_lib/apiV1/redeRotas.js`
+- Modify: `api/_lib/apiV1/indiceRotas.js` (acrescentar `redeRotas.js`)
 - Test: `src/lib/apiV1/redeRotas.test.js`
 
 **Interfaces:**
@@ -180,6 +182,7 @@
 
 **Files:**
 - Create: `src/lib/apiV1/pagamentosRegras.js`, `api/_lib/apiV1/pagamentosRotas.js`
+- Modify: `api/_lib/apiV1/indiceRotas.js` (acrescentar `pagamentosRotas.js`)
 - Test: `src/lib/apiV1/pagamentosRotas.test.js` (reaproveitar o banco simulado e os mocks de `resendMail`/`repasseEmails` de `apiRepasseMensal.test.js`)
 
 **Interfaces:**
@@ -210,13 +213,13 @@
 
 **Files:**
 - Create: `api/_lib/apiV1/chavesAdminRotas.js`, `src/lib/apiV1/chavesAdminApi.js`, `src/pages/Administrativo/Api/AdminApi.jsx` (contêiner com abas), `src/pages/Administrativo/Api/AdminApiChaves.jsx`, `src/pages/Administrativo/Api/AdminApiTestar.jsx`
-- Modify: `src/App.jsx` (rota `/administrativo/api`, `PrivateRoute permission="access.manage"`, no padrão de `/administrativo/acessos`), `src/lib/navConfig.js` (item "API" no grupo `administrativo`, ao lado de "Gerenciar acessos"), `src/lib/permissionCatalog.js` se a tela precisar de `toolId`
+- Modify: `api/_lib/apiV1/indiceRotas.js` (acrescentar `chavesAdminRotas.js`), `src/App.jsx` (rota `/administrativo/api`, `PrivateRoute permission="access.manage"`, no padrão de `/administrativo/acessos`), `src/lib/navConfig.js` (item "API" no grupo `administrativo`, ao lado de "Gerenciar acessos"), `src/lib/permissionCatalog.js` se a tela precisar de `toolId`
 - Test: `src/lib/apiV1/chavesAdminRotas.test.js`
 
 **Interfaces:**
 - Consumes: `registrarRota`, `ErroApi`, `processarRequisicao` (Task 2); `gerarChave`, `ESCOPOS` (Task 1); `validarJwtComPermissao` e `PERMISSION_KEYS.ACCESS_MANAGE`.
 - Produces (rotas internas, autenticadas por **JWT** com `access.manage`, não por chave de API):
-  - `POST /admin/chaves` (cria; devolve a chave completa **uma vez**), `GET /admin/chaves` (sem hash), `PATCH /admin/chaves/{id}` (nome, escopos, origens, limite, IPs opcionais, expiração), `POST /admin/chaves/{id}/revogar`, `POST /admin/chaves/{id}/girar` (revoga e cria igual).
+  - `POST /admin/chaves` (cria; devolve a chave completa **uma vez**; todas as rotas `/admin/*` usam o escopo `'jwt:access.manage'`), `GET /admin/chaves` (sem hash), `PATCH /admin/chaves/{id}` (nome, escopos, origens, limite, IPs opcionais, expiração), `POST /admin/chaves/{id}/revogar`, `POST /admin/chaves/{id}/girar` (revoga e cria igual).
   - `POST /admin/testar` com corpo `{ chave: string, metodo: 'GET'|'POST'|'DELETE', caminho: string, origem?: string, corpo?: object, confirmar_escrita?: boolean }` → `{ status: number, headers: object, corpo: any, duracao_ms: number }`. Executa a requisição **em processo** com `processarRequisicao`, usando a chave informada e a `origem` simulada. O endpoint responde 200 com o resultado do teste, inclusive quando o resultado é 401/403/404. Método diferente de GET sem `confirmar_escrita: true` → 400 `confirmacao_necessaria`. A chave informada nunca é gravada, registrada em log nem devolvida.
 - Cliente `chavesAdminApi.js`: `listarChaves()`, `criarChave(dados)`, `editarChave(id, dados)`, `revogarChave(id)`, `girarChave(id)`, `testarRequisicao(dados)`.
 
