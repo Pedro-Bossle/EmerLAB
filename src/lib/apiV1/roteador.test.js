@@ -92,6 +92,10 @@ beforeEach(async () => {
     mod.registrarRota('GET', '/rede/erro', 'rede:ler', async () => {
         throw new mod.ErroApi(422, 'dados_invalidos', 'Dados inválidos.')
     })
+    mod.registrarRota('POST', '/rede/eco', 'rede:ler', async (ctx) => ({ corpo: { recebido: ctx.body } }))
+    mod.registrarRota('POST', '/rede/grande', 'rede:ler', async (ctx) => ({ corpo: { tamanho: ctx.body.x.length } }), {
+        maxBytes: 1024 * 1024,
+    })
     mod.registrarRota('POST', '/admin/chaves', 'jwt:access.manage', async (ctx) => ({
         status: 201,
         corpo: { usuario: ctx.usuario, chave: ctx.chave },
@@ -280,5 +284,61 @@ describe('handler HTTP', () => {
         )
         expect(res.codigo).toBe(204)
         expect(res.headers['Access-Control-Allow-Origin']).toBe(ORIGEM)
+    })
+})
+
+describe('corpo da requisição no handler HTTP', () => {
+    function resFalso() {
+        const res = {
+            codigo: 200,
+            headers: {},
+            corpo: undefined,
+            setHeader: (k, v) => (res.headers[k] = v),
+            status: (c) => ((res.codigo = c), res),
+            json: (c) => ((res.corpo = c), res),
+            end: () => res,
+        }
+        return res
+    }
+    const chamar = async (caminho, body, headers = { authorization: `Bearer ${CHAVE}`, origin: ORIGEM }) => {
+        const res = resFalso()
+        await mod.default({ method: 'POST', url: `/api/email?_fn=api-v1&_path=${caminho}`, headers, body }, res)
+        return res
+    }
+    const grande = JSON.stringify({ x: 'a'.repeat(300 * 1024) })
+
+    it('acima de 256 KB em rota padrão: 413 com CORS', async () => {
+        const res = await chamar('rede%2Feco', grande)
+        expect(res.codigo).toBe(413)
+        expect(res.corpo.erro.codigo).toBe('payload_grande')
+        expect(res.headers['Access-Control-Allow-Origin']).toBe(ORIGEM)
+    })
+
+    it('rota com maxBytes maior aceita o mesmo corpo', async () => {
+        const res = await chamar('rede%2Fgrande', grande)
+        expect(res.codigo).toBe(200)
+        expect(res.corpo.tamanho).toBe(300 * 1024)
+    })
+
+    it('corpo grande com chave ruim: 401, não 413', async () => {
+        const res = await chamar('rede%2Feco', grande, { authorization: 'Bearer emer_rede_errada', origin: ORIGEM })
+        expect(res.codigo).toBe(401)
+    })
+
+    it('JSON malformado com chave válida: 400 corpo_invalido', async () => {
+        const res = await chamar('rede%2Feco', '{"a":')
+        expect(res.codigo).toBe(400)
+        expect(res.corpo.erro.codigo).toBe('corpo_invalido')
+    })
+
+    it('corpo vazio continua funcionando', async () => {
+        const res = await chamar('rede%2Feco', '')
+        expect(res.codigo).toBe(200)
+        expect(res.corpo.recebido).toEqual({})
+    })
+
+    it('corpo JSON válido chega à rota', async () => {
+        const res = await chamar('rede%2Feco', '{"a":1}')
+        expect(res.corpo.recebido).toEqual({ a: 1 })
     })
 })

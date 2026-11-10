@@ -10,7 +10,6 @@ import { consumirRateLimit } from '../../../src/lib/api/rateLimit.js'
 import {
     createSupabaseAdminClient,
     getClientIp,
-    readJsonBodyLimited,
     validarJwtComPermissao,
 } from '../../../src/lib/api/serverAuth.js'
 import { autorizarChave, hashChave } from '../../../src/lib/apiV1/chaves.js'
@@ -21,6 +20,7 @@ export const ESCOPO_JWT_ACCESS_MANAGE = 'jwt:access.manage'
 const CACHE_TTL_MS = 30_000
 const ULTIMO_USO_INTERVALO_MS = 60_000
 const JANELA_LIMITE_MS = 60_000
+const MAX_BODY_PADRAO = 256 * 1024
 
 export class ErroApi extends Error {
     constructor(status, codigo, mensagem) {
@@ -38,8 +38,9 @@ const rotas = []
  * @param {string} padrao ex.: '/rede/prestadores/{id}'
  * @param {string|null} escopo 'rede:ler' | 'pagamentos:ler' | 'pagamentos:escrever' | 'jwt:access.manage'
  * @param {(ctx: object) => Promise<{ status?: number, corpo: any, headers?: object }>} fn
+ * @param {{ maxBytes?: number }} [opcoes] teto do corpo JSON da rota (padrao 256 KB)
  */
-export function registrarRota(metodo, padrao, escopo, fn) {
+export function registrarRota(metodo, padrao, escopo, fn, { maxBytes = MAX_BODY_PADRAO } = {}) {
     const nomes = []
     const fonte = padrao
         .replace(/[.*+?^$()|[\]\\]/g, '\\$&')
@@ -47,7 +48,7 @@ export function registrarRota(metodo, padrao, escopo, fn) {
             nomes.push(nome)
             return '([^/]+)'
         })
-    rotas.push({ metodo: String(metodo).toUpperCase(), regex: new RegExp(`^${fonte}/?$`), nomes, escopo, fn })
+    rotas.push({ metodo: String(metodo).toUpperCase(), regex: new RegExp(`^${fonte}/?$`), nomes, escopo, fn, maxBytes })
 }
 
 let modulosCarregados = null
@@ -68,7 +69,9 @@ function normalizarCaminho(caminho) {
     return c === '' ? '/' : c
 }
 
-function acharRota(metodo, caminho) {
+/** Rota registrada para metodo e caminho (aceita /v1 e /api/v1). Usada tambem pelo adaptador HTTP. */
+export function acharRota(metodo, caminho) {
+    caminho = normalizarCaminho(caminho)
     for (const rota of rotas) {
         if (rota.metodo !== metodo) continue
         const m = rota.regex.exec(caminho)
@@ -158,7 +161,7 @@ const CORS_BASE = {
     Vary: 'Origin',
 }
 
-async function nucleo({ metodo, caminho, query, headers, body, ip }, admin) {
+async function nucleo({ metodo, caminho, query, headers, body, ip, erroCorpo }, admin) {
     const rota = acharRota(metodo, caminho)
     const req = { method: metodo, headers, body, query }
 
@@ -169,6 +172,7 @@ async function nucleo({ metodo, caminho, query, headers, body, ip }, admin) {
             const status = aut.status === 403 ? 403 : 401
             return respostaErro(status, status === 403 ? 'sem_permissao' : 'nao_autenticado', aut.error)
         }
+        if (erroCorpo) return respostaErro(erroCorpo.status, erroCorpo.codigo, erroCorpo.mensagem)
         const usuario = { id: aut.user.id, email: aut.user.email }
         const r = await rota.rota.fn({ admin, chave: null, usuario, params: rota.params, query, body, req })
         return { status: r?.status || 200, headers: r?.headers || {}, corpo: r?.corpo }
@@ -203,12 +207,15 @@ async function nucleo({ metodo, caminho, query, headers, body, ip }, admin) {
         })
     }
 
+    if (erroCorpo) {
+        return respostaErro(erroCorpo.status, erroCorpo.codigo, erroCorpo.mensagem, cabecalhosLimite)
+    }
     await registrarUsoSePreciso(admin, linha)
     const r = await rota.rota.fn({ admin, chave: linha, params: rota.params, query, body, req })
     return { status: r?.status || 200, headers: { ...cabecalhosLimite, ...(r?.headers || {}) }, corpo: r?.corpo }
 }
 
-export async function processarRequisicao({ metodo, caminho, query = {}, headers = {}, body = {}, ip = '' } = {}) {
+export async function processarRequisicao({ metodo, caminho, query = {}, headers = {}, body = {}, ip = '', erroCorpo = null } = {}) {
     const m = String(metodo || 'GET').toUpperCase()
     const h = minusculas(headers)
     const cam = normalizarCaminho(caminho)
@@ -220,7 +227,7 @@ export async function processarRequisicao({ metodo, caminho, query = {}, headers
         if (m === 'OPTIONS') {
             resultado = { status: 204, headers: {}, corpo: undefined }
         } else {
-            resultado = await nucleo({ metodo: m, caminho: cam, query, headers: h, body, ip }, admin)
+            resultado = await nucleo({ metodo: m, caminho: cam, query, headers: h, body, ip, erroCorpo }, admin)
         }
     } catch (e) {
         if (e instanceof ErroApi) resultado = respostaErro(e.status, e.codigo, e.message)
@@ -248,6 +255,62 @@ export async function processarRequisicao({ metodo, caminho, query = {}, headers
     return resultado
 }
 
+const erroPayloadGrande = () => ({
+    status: 413,
+    codigo: 'payload_grande',
+    mensagem: 'Corpo da requisição grande demais.',
+})
+const erroCorpoInvalido = () => ({ status: 400, codigo: 'corpo_invalido', mensagem: 'Corpo JSON inválido.' })
+
+/**
+ * Lê o corpo JSON respeitando o teto da rota. Nunca lança: devolve `{ body }` ou `{ erroCorpo }`.
+ * Corpo vazio vira `{}`; JSON malformado ou que não seja objeto vira 400 corpo_invalido.
+ */
+async function lerCorpo(req, maxBytes) {
+    const cl = Number(req.headers?.['content-length'] || 0)
+    if (Number.isFinite(cl) && cl > maxBytes) return { erroCorpo: erroPayloadGrande() }
+
+    let texto = ''
+    const bruto = req.body
+    if (bruto !== undefined && bruto !== null) {
+        if (typeof bruto === 'object' && !Buffer.isBuffer(bruto)) {
+            if (Array.isArray(bruto)) return { erroCorpo: erroCorpoInvalido() }
+            let tamanho = 0
+            try {
+                tamanho = Buffer.byteLength(JSON.stringify(bruto), 'utf8')
+            } catch {
+                return { erroCorpo: erroCorpoInvalido() }
+            }
+            if (tamanho > maxBytes) return { erroCorpo: erroPayloadGrande() }
+            return { body: bruto }
+        }
+        const buf = Buffer.isBuffer(bruto) ? bruto : Buffer.from(String(bruto), 'utf8')
+        if (buf.length > maxBytes) return { erroCorpo: erroPayloadGrande() }
+        texto = buf.toString('utf8')
+    } else if (bruto === undefined && typeof req[Symbol.asyncIterator] === 'function') {
+        const pedacos = []
+        let total = 0
+        for await (const pedaco of req) {
+            const buf = Buffer.isBuffer(pedaco) ? pedaco : Buffer.from(pedaco)
+            total += buf.length
+            if (total > maxBytes) return { erroCorpo: erroPayloadGrande() }
+            pedacos.push(buf)
+        }
+        texto = Buffer.concat(pedacos).toString('utf8')
+    }
+
+    if (!texto.trim()) return { body: {} }
+    try {
+        const parsed = JSON.parse(texto)
+        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return { erroCorpo: erroCorpoInvalido() }
+        }
+        return { body: parsed }
+    } catch {
+        return { erroCorpo: erroCorpoInvalido() }
+    }
+}
+
 export default async function apiV1Handler(req, res) {
     const url = new URL(req.url || '/', 'http://localhost')
     const query = {}
@@ -256,25 +319,24 @@ export default async function apiV1Handler(req, res) {
         query[k] = v
     }
     const metodo = String(req.method || 'GET').toUpperCase()
+    const caminho = url.searchParams.get('_path') || '/'
     let body = {}
+    let erroCorpo = null
     if (metodo !== 'GET' && metodo !== 'HEAD' && metodo !== 'OPTIONS') {
-        try {
-            body = await readJsonBodyLimited(req)
-        } catch (e) {
-            const grande = e?.code === 'PAYLOAD_TOO_LARGE' || e?.message === 'payload_too_large'
-            res.setHeader('Content-Type', 'application/json; charset=utf-8')
-            return res
-                .status(grande ? 413 : 400)
-                .json({ erro: { codigo: grande ? 'payload_grande' : 'corpo_invalido', mensagem: 'Corpo inválido.' } })
-        }
+        await carregarModulos()
+        const achada = acharRota(metodo, caminho)
+        const lido = await lerCorpo(req, achada?.rota.maxBytes ?? MAX_BODY_PADRAO)
+        body = lido.body ?? {}
+        erroCorpo = lido.erroCorpo ?? null
     }
     const r = await processarRequisicao({
         metodo,
-        caminho: url.searchParams.get('_path') || '/',
+        caminho,
         query,
         headers: req.headers || {},
         body,
         ip: getClientIp(req),
+        erroCorpo,
     })
     for (const [k, v] of Object.entries(r.headers || {})) res.setHeader(k, v)
     if (r.status === 204 || r.corpo === undefined) {
