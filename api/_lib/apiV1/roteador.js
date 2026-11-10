@@ -317,7 +317,20 @@ async function lerCorpo(req, maxBytes) {
     }
 }
 
+/** Adaptador HTTP: qualquer exceção vira o 500 padrão, sem detalhe (nunca cai no fluxo de e-mail). */
 export default async function apiV1Handler(req, res) {
+    try {
+        return await adaptarRequisicao(req, res)
+    } catch (e) {
+        console.error('[api-v1] erro interno:', e?.message || 'desconhecido')
+        if (res.headersSent) return undefined
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-store')
+        return res.status(500).json({ erro: { codigo: 'erro_interno', mensagem: 'Erro interno.' } })
+    }
+}
+
+async function adaptarRequisicao(req, res) {
     const url = new URL(req.url || '/', 'http://localhost')
     const query = {}
     for (const [k, v] of url.searchParams.entries()) {
@@ -350,6 +363,8 @@ export default async function apiV1Handler(req, res) {
         return res.end()
     }
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
-    res.setHeader('Cache-Control', 'no-store')
+    // O Cache-Control devolvido pela rota prevalece; sem ele, o padrão é no-store.
+    const temCache = Object.keys(r.headers || {}).some((k) => k.toLowerCase() === 'cache-control')
+    if (!temCache) res.setHeader('Cache-Control', 'no-store')
     return res.status(r.status).json(r.corpo)
 }

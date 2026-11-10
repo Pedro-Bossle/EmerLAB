@@ -59,10 +59,24 @@ const autorizarSegredo = (req) => {
  *   - /api/v1/*            → API pública, reescrita para `?_fn=api-v1&_path=` (também em api.emerlab.com.br/v1/*).
  */
 export default async function handler(req, res) {
+    let ehApiV1 = false
+    try {
+        ehApiV1 = new URL(req.url || '/', 'http://localhost').searchParams.get('_fn') === 'api-v1'
+    } catch {
+        /* URL inválida: segue o fluxo normal de e-mail */
+    }
+    if (ehApiV1) {
+        // Fora do try do e-mail: falhas do roteador nunca caem no fluxo de segredo de e-mail.
+        try {
+            return await apiV1Handler(req, res)
+        } catch {
+            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+            return res.status(500).json({ erro: { codigo: 'erro_interno', mensagem: 'Erro interno.' } })
+        }
+    }
     try {
         const fn = new URL(req.url || '/', 'http://localhost').searchParams.get('_fn')
         if (fn === 'repasse-mensal') return await repasseMensalHandler(req, res)
-        if (fn === 'api-v1') return await apiV1Handler(req, res)
     } catch {
         /* URL inválida: segue o fluxo normal de e-mail */
     }

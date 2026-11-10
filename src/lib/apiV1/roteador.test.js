@@ -355,3 +355,50 @@ describe('corpo da requisição no handler HTTP', () => {
         expect(res.corpo.recebido).toEqual({ a: 1 })
     })
 })
+
+describe('Cache-Control e falhas do roteador no handler HTTP', () => {
+    function resFalso() {
+        const res = {
+            codigo: 200,
+            headers: {},
+            corpo: undefined,
+            setHeader: (k, v) => (res.headers[k] = v),
+            status: (c) => ((res.codigo = c), res),
+            json: (c) => ((res.corpo = c), res),
+            end: () => res,
+        }
+        return res
+    }
+    const chamar = async (metodo, caminho, headers = { authorization: `Bearer ${CHAVE}`, origin: ORIGEM }) => {
+        const res = resFalso()
+        await mod.default({ method: metodo, url: `/api/email?_fn=api-v1&_path=${caminho}`, headers }, res)
+        return res
+    }
+
+    it('Cache-Control da rota prevalece; erro mantém no-store', async () => {
+        const cache = 'public, s-maxage=300, stale-while-revalidate=3600'
+        mod.registrarRota('GET', '/rede/filtros', 'rede:ler', async () => ({
+            corpo: { ok: true },
+            headers: { 'Cache-Control': cache },
+        }))
+        const ok = await chamar('GET', 'rede%2Ffiltros')
+        expect(ok.codigo).toBe(200)
+        expect(ok.headers['Cache-Control']).toBe(cache)
+        const padrao = await chamar('GET', 'rede%2Fping')
+        expect(padrao.headers['Cache-Control']).toBe('no-store')
+        const erro = await chamar('GET', 'rede%2Ffiltros', { origin: ORIGEM })
+        expect(erro.codigo).toBe(401)
+        expect(erro.headers['Cache-Control']).toBe('no-store')
+    })
+
+    it('módulo de rotas que falha ao importar: 500 padrão sem detalhe (GET e POST)', async () => {
+        const indice = await import('../../../api/_lib/apiV1/indiceRotas.js')
+        indice.MODULOS_DE_ROTAS.push(() => Promise.reject(new Error('segredo de importação')))
+        for (const metodo of ['GET', 'POST']) {
+            const res = await chamar(metodo, 'rede%2Fping')
+            expect(res.codigo).toBe(500)
+            expect(res.corpo.erro.codigo).toBe('erro_interno')
+            expect(JSON.stringify(res.corpo)).not.toContain('segredo')
+        }
+    })
+})
