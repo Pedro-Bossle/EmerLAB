@@ -19,7 +19,6 @@ import {
     validarJwtComPermissao,
 } from '../../src/lib/api/serverAuth.js'
 import { aplicarRateLimit } from '../../src/lib/api/rateLimit.js'
-import { emailAssetOrigin } from './emailBrand.js'
 import {
     avaliarValorDocumento,
     aplicarVariaveis,
@@ -33,7 +32,27 @@ import {
     validarArquivoRepasse,
     periodoMesAnteriorLabel,
 } from '../../src/lib/repasse/repasseCore.js'
+import { emailAssetOrigin } from './emailBrand.js'
 import { cancelarEmailAgendadoResend, enviarEmailResend } from './resendMail.js'
+import {
+    arredondar,
+    BUCKET,
+    carregarConfig,
+    competenciaLabel,
+    dataBr,
+    emailDoPrestador,
+    ErroRepasse as ErroApi,
+    evento,
+    formaDoRegistro,
+    gravarComprovante,
+    hashDoToken,
+    linkPublico,
+    registrarComprovante,
+    remetente,
+    segredoToken,
+    tipoDoRegistro,
+    tokenDoRelatorio,
+} from './repasseComprovante.js'
 import {
     montarEmailRepasseComprovante,
     montarEmailRepasseDocumentoDevolvido,
@@ -41,38 +60,17 @@ import {
     montarEmailRepasseReprovacao,
 } from './repasseEmails.js'
 
-const BUCKET = 'repasse-documentos'
 const LIMITE_PUBLICO = { limit: 40, windowMs: 60_000 }
 const LIMITE_INTERNO = { limit: 120, windowMs: 60_000 }
 const MAX_BODY = 4 * 1024 * 1024
 const TOLERANCIA = 0.01
 const PODE_ENVIAR = ['nao_enviado', 'reprovado', 'documento_devolvido', 'tratado']
 
-class ErroApi extends Error {
-    constructor(status, mensagem) {
-        super(mensagem)
-        this.status = status
-    }
-}
-
 // ---------- token ----------
-const segredoToken = () => {
-    const s = process.env.REPASSE_TOKEN_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!s) throw new ErroApi(503, 'Defina REPASSE_TOKEN_SECRET (ou SUPABASE_SERVICE_ROLE_KEY) no servidor.')
-    return s
-}
-export const tokenDoRelatorio = (id, versao) =>
-    crypto.createHmac('sha256', segredoToken()).update(`${id}:${versao}`).digest('base64url')
-export const hashDoToken = (token) => crypto.createHash('sha256').update(String(token)).digest('hex')
+export { hashDoToken, tokenDoRelatorio }
 const hashIp = (ip) => crypto.createHash('sha256').update(`${segredoToken()}|${ip}`).digest('hex').slice(0, 24)
 
 // ---------- utilidades ----------
-const arredondar = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100
-const competenciaLabel = (mes, ano) => `${String(mes).padStart(2, '0')}/${ano}`
-const dataBr = (iso) => {
-    const [a, m, d] = String(iso || '').slice(0, 10).split('-')
-    return d ? `${d}/${m}/${a}` : ''
-}
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms))
 const somarDados = (dados) =>
     arredondar(
@@ -90,26 +88,6 @@ const somarTutor = (dados) =>
     )
 const contarAtendimentos = (dados) => (dados?.grupos || []).reduce((s, g) => s + (g.atendimentos || []).length, 0)
 
-const linkPublico = (token) => `${emailAssetOrigin()}/repasse_mensal/${token}`
-
-async function carregarConfig(admin) {
-    const { data } = await admin.from('repasse_config').select('*').eq('id', 1).maybeSingle()
-    return {
-        email_reprovacoes: 'pedro@emerdog.com.br',
-        whatsapp_financeiro: '555499041695',
-        validade_link_dias: 60,
-        remetente_nome: 'Emerdog Financeiro',
-        competencia_inicial: '2026-10',
-        ...(data || {}),
-    }
-}
-
-const remetente = (config) => `${config.remetente_nome} <noreply@emerlab.com.br>`
-
-async function evento(admin, relatorioId, tipo, dados = {}, autor = 'sistema', ipHash = null) {
-    await admin.from('repasse_eventos').insert({ relatorio_id: relatorioId, tipo, dados, autor, ip_hash: ipHash })
-}
-
 async function carregarRelatorio(admin, id) {
     const { data, error } = await admin.from('repasse_relatorios').select('*').eq('id', id).maybeSingle()
     if (error) throw new ErroApi(500, 'Falha ao ler o relatório.')
@@ -123,12 +101,6 @@ async function carregarRegistro(admin, id) {
     return data
 }
 
-async function emailDoPrestador(admin, prestadorId) {
-    if (prestadorId == null) return ''
-    const { data } = await admin.from('prestadores').select('email').eq('id', prestadorId).maybeSingle()
-    return String(data?.email || '').trim().toLowerCase()
-}
-
 /** Resolve o token público. Qualquer falha devolve o mesmo erro genérico. */
 async function resolverToken(admin, token) {
     const invalido = new ErroApi(404, 'Link inválido ou vencido. Fale com o financeiro.')
@@ -138,11 +110,6 @@ async function resolverToken(admin, token) {
     if (!data || data.token_revogado_em || data.divergente) throw invalido
     if (data.token_expira_em && new Date(data.token_expira_em) < new Date()) throw invalido
     return data
-}
-
-const tipoDoRegistro = (registro) => {
-    const t = String(registro?.tipo_repasse || '').toLowerCase()
-    return t === 'nota' || t === 'boleto' ? t : 'rpa'
 }
 
 // ---------- rotas públicas ----------
@@ -585,36 +552,10 @@ async function enviarComprovante(admin, { relatorio_id, path, data_pagamento, va
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data_pagamento || ''))) throw new ErroApi(400, 'Informe a data do pagamento.')
     const v = Number(valor)
     if (!Number.isFinite(v) || v <= 0) throw new ErroApi(400, 'Informe o valor pago.')
-    const para = await emailDoPrestador(admin, registro.prestador_id)
-    if (!para) throw new ErroApi(422, 'Prestador sem e-mail no cadastro.')
-    const { data: arquivo, error } = await admin.storage.from(BUCKET).download(path)
-    if (error || !arquivo) throw new ErroApi(400, 'Arquivo do comprovante não encontrado.')
-    const buf = Buffer.from(await arquivo.arrayBuffer())
-    const config = await carregarConfig(admin)
-    const tipo = tipoDoRegistro(registro)
-    const forma = tipo === 'boleto' ? 'boleto' : 'pix'
-    let vencimento = ''
-    if (forma === 'boleto') {
-        const { data: d } = await admin.from('repasse_documentos').select('vencimento').eq('relatorio_id', rel.id).order('criado_em', { ascending: false }).limit(1)
-        vencimento = dataBr(d?.[0]?.vencimento)
-    }
-    const m = montarEmailRepasseComprovante({
-        prestador: registro.prestador_nome || rel.nome_a1, competencia: competenciaLabel(rel.mes, rel.ano), valor: v,
-        dataPagamento: dataBr(data_pagamento), forma, chavePix: registro.chave_pix || '', vencimentoBoleto: vencimento,
-        link: linkPublico(tokenDoRelatorio(rel.id, rel.token_versao)), whatsapp: config.whatsapp_financeiro,
+    await gravarComprovante(admin, {
+        registro, relatorio: rel, path, data_pagamento, valor: v, forma: formaDoRegistro(registro),
+        autor: ctx.user.email || ctx.user.id, enviadoPor: ctx.user.id, notificar: true,
     })
-    const ext = path.split('.').pop()
-    const enviado = await enviarEmailResend({
-        to: para, subject: m.subject, html: m.html, text: m.text, from: remetente(config),
-        attachments: [{ filename: `comprovante-${competenciaLabel(rel.mes, rel.ano).replace('/', '-')}.${ext}`, content: buf }],
-    })
-    await admin.from('repasse_comprovantes').insert({
-        relatorio_id: rel.id, registro_id: rel.registro_id, forma, storage_path: path, data_pagamento, valor: arredondar(v),
-        enviado_por: ctx.user.id, resend_email_id: enviado?.id || null,
-    })
-    // Única alteração em pagamentos_registros: a flag «pago» (nunca desmarca).
-    await admin.from('pagamentos_registros').update({ pago: true }).eq('id', rel.registro_id)
-    await evento(admin, rel.id, 'comprovante_enviado', { valor: arredondar(v), data_pagamento, forma }, ctx.user.email || ctx.user.id)
     return { ok: true, avisoNaoAprovado: !['aprovado'].includes(rel.status) }
 }
 
@@ -646,7 +587,7 @@ async function enviarComprovanteLote(admin, { relatorio_ids, path, data_pagament
     if (error || !arquivo) throw new ErroApi(400, 'Arquivo do comprovante não encontrado.')
     const buf = Buffer.from(await arquivo.arrayBuffer())
     const config = await carregarConfig(admin)
-    const forma = tipoDoRegistro(registros[0]) === 'boleto' ? 'boleto' : 'pix'
+    const forma = formaDoRegistro(registros[0])
     const ordenados = [...rels].sort((a, b) => a.ano - b.ano || a.mes - b.mes)
     const competencia = ordenados.map((r) => competenciaLabel(r.mes, r.ano)).join(', ')
     const m = montarEmailRepasseComprovante({
@@ -659,15 +600,13 @@ async function enviarComprovanteLote(admin, { relatorio_ids, path, data_pagament
         to: para, subject: m.subject, html: m.html, text: m.text, from: remetente(config),
         attachments: [{ filename: `comprovante-${competencia.replace(/[/, ]+/g, '-')}.${ext}`, content: buf }],
     })
-    for (const rel of rels) {
-        await admin.from('repasse_comprovantes').insert({
-            relatorio_id: rel.id, registro_id: rel.registro_id, forma, storage_path: path, data_pagamento,
-            valor: arredondar(Number(rel.total_repasse)), enviado_por: ctx.user.id, resend_email_id: enviado?.id || null,
+    for (const [i, rel] of rels.entries()) {
+        const valorMes = Number(rel.total_repasse)
+        await registrarComprovante(admin, {
+            registro: registros[i], relatorio: rel, path, data_pagamento, valor: valorMes, forma,
+            autor: ctx.user.email || ctx.user.id, enviadoPor: ctx.user.id, resendEmailId: enviado?.id || null,
+            dadosEvento: { valor: arredondar(valorMes), valor_total_pago: arredondar(v), data_pagamento, forma, lote: ids.length },
         })
-        await admin.from('pagamentos_registros').update({ pago: true }).eq('id', rel.registro_id)
-        await evento(admin, rel.id, 'comprovante_enviado', {
-            valor: arredondar(Number(rel.total_repasse)), valor_total_pago: arredondar(v), data_pagamento, forma, lote: ids.length,
-        }, ctx.user.email || ctx.user.id)
     }
     return { ok: true, meses: ids.length }
 }
