@@ -180,6 +180,15 @@ describe('CORS', () => {
     it('resposta normal inclui Allow-Origin da origem permitida', async () => {
         const r = await mod.processarRequisicao(pedido())
         expect(r.headers['Access-Control-Allow-Origin']).toBe(ORIGEM)
+        expect(r.headers['Access-Control-Expose-Headers']).toBe(
+            'X-Total-Count, X-RateLimit-Limit, X-RateLimit-Remaining, Retry-After',
+        )
+    })
+
+    it('origem não permitida: sem Allow-Origin nem Expose-Headers', async () => {
+        const r = await mod.processarRequisicao(pedido({ headers: { authorization: `Bearer ${CHAVE}`, origin: 'https://x.example' } }))
+        expect(r.headers['Access-Control-Allow-Origin']).toBeUndefined()
+        expect(r.headers['Access-Control-Expose-Headers']).toBeUndefined()
     })
 })
 
@@ -270,6 +279,7 @@ describe('handler HTTP', () => {
         expect(res.corpo).toEqual(direto.corpo)
         expect(res.headers['Access-Control-Allow-Origin']).toBe(ORIGEM)
         expect(res.headers['X-RateLimit-Limit']).toBeDefined()
+        expect(res.headers['Access-Control-Expose-Headers']).toContain('X-Total-Count')
     })
 
     it('OPTIONS responde 204 sem corpo', async () => {

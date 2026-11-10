@@ -253,7 +253,7 @@ export async function processarRequisicao({ metodo, caminho, query = {}, headers
                     ...resultado.headers,
                     ...CORS_BASE,
                     'Access-Control-Allow-Origin': origem,
-                    'Access-Control-Expose-Headers': 'Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining',
+                    'Access-Control-Expose-Headers': 'X-Total-Count, X-RateLimit-Limit, X-RateLimit-Remaining, Retry-After',
                 }
             }
         } catch {
