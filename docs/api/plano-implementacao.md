@@ -13,11 +13,16 @@
 ## Global Constraints
 
 - Prefixo `/api/v1`; JSON UTF-8; datas ISO 8601; erros `{ "erro": { "codigo", "mensagem" } }`.
+- URL base canônica: `https://api.emerlab.com.br` (rotas `/v1/...`, sem o prefixo `/api`). As mesmas rotas continuam em `/api/v1/*` no domínio principal. Toda a documentação usa a URL canônica.
+- Sem IP fixo no sistema de pagamentos: `ips_permitidos` é opcional e não é exigido. As chaves `pagamentos:*` têm expiração opcional e limite por minuto.
+- As origens permitidas da chave da rede são dados da chave (cadastradas na tela), nunca valores fixos no código.
+- Tela de gestão em **Administrativo > API** (`/administrativo/api`, permissão `access.manage`), com as abas Chaves e Testar.
+- A migração `api_chaves` é testada primeiro numa **branch do Supabase**. Em produção só entra depois de o PR ser mesclado e de o Pedro autorizar.
 - Chaves: `emer_rede_<32 caracteres>` e `emer_pag_<32 caracteres>`; só o hash SHA-256 é guardado; a chave inteira aparece uma única vez.
 - Escopos: `rede:ler`, `pagamentos:ler`, `pagamentos:escrever`. Chave `pagamentos:*` recusa requisição com cabeçalho `Origin` (403). Chave `rede:ler` exige `Origin` dentro de `origens_permitidas`.
 - Limites padrão: 120 req/min (rede) e 60 req/min (pagamentos). `por_pagina` padrão 18, máximo 100.
 - Comprovante: PDF, PNG ou JPG, até 3 MB; bucket `repasse-documentos`, caminho `AAAA-MM/<relatorio>/comprovante/`.
-- Endereço só para especialidade do tipo `Local`. Nunca sair CPF/CNPJ, PIX, e-mail, situação, observações internas.
+- Endereço só quando o credenciado tem alguma especialidade do tipo `Local` (principal OU secundária; Clínicas, Hospital e Laboratório são `Local`). Nunca sair CPF/CNPJ, PIX, e-mail, situação, observações internas.
 - Credenciado = prestador `ativo` com situação cuja descrição contém `CREDENCIAD` (`situacaoDescricaoEhCredenciado`).
 - Plano "Apenas Loja" não é aceito no filtro `plano`.
 - A única mudança em `pagamentos_registros` é a flag `pago`. `notificar_prestador` é falso por padrão.
@@ -32,7 +37,8 @@
 4. `pagina` além do fim devolve lista vazia com `X-Total-Count` correto; `por_pagina` acima de 100 vira 100.
 5. Marcar pago duas vezes, ou enviar o mesmo comprovante duas vezes, não duplica evento nem linha.
 6. Chave revogada, expirada ou de outro escopo é recusada em até 30 s; erro nunca revela se a chave existe.
-7. Comprovante com extensão falsa (arquivo que não é PDF/imagem) ou acima de 3 MB é recusado.
+7. Credenciado cuja especialidade principal é `Especialidade` e a secundária é `Local` deve trazer endereço (e não ser tratado como veterinário sem endereço).
+8. Comprovante com extensão falsa (arquivo que não é PDF/imagem) ou acima de 3 MB é recusado.
 
 ---
 
@@ -82,16 +88,18 @@
 
 ---
 
-### Task 2: Roteador `/api/v1` (autenticação, CORS, limites, erros)
+### Task 2: Roteador `/api/v1` (autenticação, CORS, limites, erros, subdomínio da API)
 
 **Files:**
 - Create: `api/_lib/apiV1/roteador.js`
-- Modify: `api/email.js` (despacho `_fn === 'api-v1'`), `vercel.json` (reescrita `"/api/v1/:path*" → "/api/email?_fn=api-v1&_path=:path*"`)
-- Test: `src/lib/apiV1/roteador.test.js` (banco e `serverAuth` simulados no padrão de `apiRepasseMensal.test.js`)
+- Modify: `api/email.js` (despacho `_fn === 'api-v1'`), `vercel.json` — reescritas colocadas **antes** do fallback `"/((?!api/|email/).*)"`:
+  - `/api/v1/:path*` → `/api/email?_fn=api-v1&_path=:path*`
+  - com `"has": [{ "type": "host", "value": "api.emerlab.com.br" }]`: `/v1/:path*` → `/api/email?_fn=api-v1&_path=:path*`; `/docs` e `/` → `/api-docs/index.html`
+- Test: `src/lib/apiV1/roteador.test.js` (banco e `serverAuth` simulados no padrão de `apiRepasseMensal.test.js`) e `src/lib/apiV1/vercelRewrites.test.js` (lê `vercel.json`)
 
 **Interfaces:**
 - Consumes: `autorizarChave`, `hashChave` (Task 1); `createSupabaseAdminClient`, `getClientIp`, `readJsonBodyLimited`, `responderSePayloadGrande` de `src/lib/api/serverAuth.js`; `consumirRateLimit` de `src/lib/api/rateLimit.js`.
-- Produces: `export default async function apiV1Handler(req, res)`; `export function registrarRota(metodo: string, padrao: string, escopo: string|null, fn: (ctx) => Promise<{ status?: number, corpo: any, headers?: object }>)` e `ctx = { admin, chave, params, query, body, req }`; `class ErroApi(status, codigo, mensagem)`.
+- Produces: `export default async function apiV1Handler(req, res)` (só adapta req/res); `export async function processarRequisicao({ metodo, caminho, query, headers, body, ip }): Promise<{ status: number, headers: Record<string, string>, corpo: any }>` (o núcleo; a Task 6 reutiliza em processo); `export function registrarRota(metodo: string, padrao: string, escopo: string|null, fn: (ctx) => Promise<{ status?: number, corpo: any, headers?: object }>)` com `ctx = { admin, chave, params, query, body, req }`; `class ErroApi(status, codigo, mensagem)`. O `caminho` chega sem prefixo (`/rede/filtros`); o roteador aceita `/v1/...` e `/api/v1/...` e normaliza.
 
 - [ ] **Step 1: Testes que falham:**
   - Sem cabeçalho de chave → 401 `{ erro:{ codigo:'chave_invalida' } }`; chave desconhecida → mesmo 401.
@@ -100,11 +108,13 @@
   - Estouro do limite por minuto → 429 com `Retry-After` e `X-RateLimit-Remaining: 0`.
   - Chave válida atualiza `ultimo_uso_em` no máximo 1 vez por minuto por chave.
   - Cache de 30 s: chave revogada no banco é recusada depois de expirar o cache (relógio simulado).
+  - `processarRequisicao` e o handler HTTP devolvem o mesmo status e corpo para a mesma chamada.
+  - `vercelRewrites.test.js`: `vercel.json` tem a reescrita `/api/v1/:path*`; tem a reescrita com `host` = `api.emerlab.com.br` para `/v1/:path*`; ambas aparecem **antes** do fallback `/((?!api/|email/).*)` na lista `rewrites`; o JSON é válido.
 - [ ] **Step 2: Rodar e ver falhar.**
-- [ ] **Step 3: Implementar o roteador:** extrai a chave de `Authorization: Bearer` ou `X-Api-Key`; busca por `hash` com cache em memória de 30 s; chama `autorizarChave`; aplica `consumirRateLimit('apiv1:<id>')` com o `limite_por_minuto` da chave; roteia por `_path` (padrões com `{id}`); `ErroApi` vira o JSON de erro; qualquer outro erro vira 500 `erro_interno` sem detalhe.
-- [ ] **Step 4: Ligar em `api/email.js` e `vercel.json`;** acrescentar `/api/v1/` ao `connect-src`/CSP apenas se necessário (a CSP atual é do app, não da API).
+- [ ] **Step 3: Implementar o roteador:** extrai a chave de `Authorization: Bearer` ou `X-Api-Key`; busca por `hash` com cache em memória de 30 s; chama `autorizarChave`; aplica `consumirRateLimit('apiv1:<id>')` com o `limite_por_minuto` da chave; roteia por `caminho` (padrões com `{id}`); `ErroApi` vira o JSON de erro; qualquer outro erro vira 500 `erro_interno` sem detalhe.
+- [ ] **Step 4: Ligar em `api/email.js` e `vercel.json`.**
 - [ ] **Step 5: Rodar os testes e ver passar.**
-- [ ] **Step 6: Commit** `feat(api): roteador /api/v1 com autenticação por chave`.
+- [ ] **Step 6: Commit** `feat(api): roteador /api/v1 com autenticação por chave e subdomínio da API`.
 
 ---
 
@@ -128,7 +138,8 @@
   - Prestador com situação "Credenciado" e ativo entra; inativo ou com situação "Cancelado" não entra.
   - `cidade: 'porto alegre'` casa prestador com `endereco_cidade: 'Porto Alegre e Região'`; casa também prestador cuja lista `prestador_cidades` inclui Porto Alegre; não casa quando só outra UF tem o nome.
   - Vet vinculado a clínica sem endereço próprio herda cidade/UF da clínica e aparece uma única vez.
-  - `paraPublico` de tipo `Local` traz `endereco` com `texto` não vazio; de tipo `Especialidade` traz `endereco: null`.
+  - `paraPublico` com especialidade principal `Local` (ex.: Clínica) traz `endereco` com `texto` não vazio; com principal `Especialidade` e secundária `Local` (ex.: Fisioterapeuta + Clínica) também traz `endereco`; só com especialidades `Especialidade` traz `endereco: null`.
+  - `filtrarCredenciados` com `tipo: 'local'` inclui quem tem especialidade `Local` principal ou secundária e exclui os demais.
   - `paraPublico` nunca contém as chaves `cpf_cnpj`, `chave_pix`, `email`, `situacao_id`, `obs` (varrer o JSON serializado).
   - Credenciado sem procedimentos/descontos/telefone → `procedimentos: []`, `descontos: { itens: [], observacoes: null }`, `contatos.telefone: null`.
   - Descontos só com `incluir = true`, com `percentual` e `percentual_max` numéricos.
@@ -195,29 +206,38 @@
 
 ---
 
-### Task 6: Administração das chaves (API interna + tela)
+### Task 6: Administração das chaves e tela Administrativo > API
 
 **Files:**
-- Create: `api/_lib/apiV1/chavesAdminRotas.js`, `src/pages/Configuracoes/ChavesApi/ConfigChavesApi.jsx`, `src/lib/apiV1/chavesAdminApi.js`
-- Modify: `src/App.jsx` (rota `/configuracoes/chaves-api`, `PrivateRoute permission="access.manage"`), `src/lib/navConfig.js` e `src/lib/permissionCatalog.js` (item de menu, seguindo o padrão de `impressao-etiquetas`)
+- Create: `api/_lib/apiV1/chavesAdminRotas.js`, `src/lib/apiV1/chavesAdminApi.js`, `src/pages/Administrativo/Api/AdminApi.jsx` (contêiner com abas), `src/pages/Administrativo/Api/AdminApiChaves.jsx`, `src/pages/Administrativo/Api/AdminApiTestar.jsx`
+- Modify: `src/App.jsx` (rota `/administrativo/api`, `PrivateRoute permission="access.manage"`, no padrão de `/administrativo/acessos`), `src/lib/navConfig.js` (item "API" no grupo `administrativo`, ao lado de "Gerenciar acessos"), `src/lib/permissionCatalog.js` se a tela precisar de `toolId`
 - Test: `src/lib/apiV1/chavesAdminRotas.test.js`
 
 **Interfaces:**
-- Produces: `POST /api/v1/admin/chaves` (criar; devolve a chave completa **uma vez**), `GET /api/v1/admin/chaves` (sem hash), `PATCH /api/v1/admin/chaves/{id}` (nome, escopos, origens, limite, IPs, expiração), `POST /api/v1/admin/chaves/{id}/revogar`, `POST /api/v1/admin/chaves/{id}/girar` (revoga e cria igual). Autenticação por **JWT** com `PERMISSION_KEYS.ACCESS_MANAGE` (`validarJwtComPermissao`), não por chave de API.
-- Cliente: `chavesAdminApi.js` exporta `listarChaves()`, `criarChave(dados)`, `editarChave(id, dados)`, `revogarChave(id)`, `girarChave(id)`.
+- Consumes: `registrarRota`, `ErroApi`, `processarRequisicao` (Task 2); `gerarChave`, `ESCOPOS` (Task 1); `validarJwtComPermissao` e `PERMISSION_KEYS.ACCESS_MANAGE`.
+- Produces (rotas internas, autenticadas por **JWT** com `access.manage`, não por chave de API):
+  - `POST /admin/chaves` (cria; devolve a chave completa **uma vez**), `GET /admin/chaves` (sem hash), `PATCH /admin/chaves/{id}` (nome, escopos, origens, limite, IPs opcionais, expiração), `POST /admin/chaves/{id}/revogar`, `POST /admin/chaves/{id}/girar` (revoga e cria igual).
+  - `POST /admin/testar` com corpo `{ chave: string, metodo: 'GET'|'POST'|'DELETE', caminho: string, origem?: string, corpo?: object, confirmar_escrita?: boolean }` → `{ status: number, headers: object, corpo: any, duracao_ms: number }`. Executa a requisição **em processo** com `processarRequisicao`, usando a chave informada e a `origem` simulada. O endpoint responde 200 com o resultado do teste, inclusive quando o resultado é 401/403/404. Método diferente de GET sem `confirmar_escrita: true` → 400 `confirmacao_necessaria`. A chave informada nunca é gravada, registrada em log nem devolvida.
+- Cliente `chavesAdminApi.js`: `listarChaves()`, `criarChave(dados)`, `editarChave(id, dados)`, `revogarChave(id)`, `girarChave(id)`, `testarRequisicao(dados)`.
 
 - [ ] **Step 1: Testes que falham:**
-  - Criar com escopo `rede:ler` sem `origens_permitidas` → 400.
-  - Criar devolve `chave` completa; `GET` seguinte não contém `chave` nem `hash`.
-  - Sem `access.manage` → 403.
+  - Criar com escopo `rede:ler` sem `origens_permitidas` → 400. Criar com escopo `pagamentos:*` e `origens_permitidas` preenchidas → 400 (chave de pagamentos nunca é de navegador).
+  - Criar devolve `chave` completa; o `GET` seguinte não contém `chave` nem `hash`.
+  - Sem `access.manage` → 403 em todas as rotas `/admin/*`.
   - `revogar` define `revogada_em`; a mesma chave passa a falhar em `/rede/filtros` (integração com o roteador, após expirar o cache de 30 s simulado).
   - `girar` devolve chave nova com os mesmos escopos e deixa a antiga revogada.
   - Criar, revogar e girar gravam em `audit_logs`.
+  - `testar` GET `/rede/filtros` com chave válida devolve `status: 200` e o corpo; com chave inválida devolve `status: 401` dentro do resultado (HTTP 200 no endpoint).
+  - `testar` com `metodo: 'POST'` sem `confirmar_escrita` → 400 `confirmacao_necessaria`; com `confirmar_escrita: true` executa.
+  - `testar` com chave `rede:ler` e `origem` fora da lista → resultado com `status: 403`.
+  - A chave usada em `testar` não aparece no corpo da resposta nem nas linhas gravadas em `audit_logs`.
 - [ ] **Step 2: Rodar e ver falhar.**
 - [ ] **Step 3: Implementar as rotas internas.**
-- [ ] **Step 4: Implementar a tela** no padrão visual das outras telas de Configurações (usar os componentes de `src/components/ui`): tabela de chaves (nome, prefixo, escopos, último uso, estado), modal "Nova chave" e, depois de criar, um aviso "Copie agora; ela não será exibida novamente" com botão copiar.
+- [ ] **Step 4: Implementar a tela** no padrão visual da tela Gerenciar acessos (componentes de `src/components/ui`):
+  - Aba **Chaves**: tabela (nome, prefixo, escopos, origens, último uso, estado); modal "Nova chave" (nome, tipo rede ou pagamentos, origens permitidas, limite por minuto, expiração opcional); depois de criar, aviso "Copie agora; ela não será exibida novamente" com botão copiar; ações editar, revogar e girar.
+  - Aba **Testar**: campo da chave (tipo senha), seletor da rota entre as rotas conhecidas com os parâmetros, `origem` simulada, botão Executar e painel com status, cabeçalhos relevantes, tempo e JSON formatado; para métodos de escrita, caixa "Confirmo que isto grava dados reais" obrigatória; link para a documentação `https://api.emerlab.com.br/docs`.
 - [ ] **Step 5: Rodar `npx vitest run`, `npx eslint` nos arquivos novos e `npx vite build`;** ver tudo passar.
-- [ ] **Step 6: Commit** `feat(api): administração de chaves de API`.
+- [ ] **Step 6: Commit** `feat(api): administração de chaves e tela Administrativo > API`.
 
 ---
 
@@ -233,21 +253,19 @@
 
 - [ ] **Step 1: Teste que falha:** `openapi.test.js` lê `docs/api/openapi.json` e confere que (a) todo `path` + método registrado com `registrarRota` aparece no arquivo e (b) todo `path` do arquivo existe no roteador; (c) nenhum exemplo contém `emer_rede_` ou `emer_pag_` seguido de 32 caracteres reais (exemplos usam `emer_rede_EXEMPLO…`).
 - [ ] **Step 2: Rodar e ver falhar.**
-- [ ] **Step 3: Escrever os documentos** em português, para quem não conhece o EmerLAB: autenticação, erros, limites, paginação, CORS e origens; em `rede-credenciada.md` incluir a tabela **card → campo da API** da seção 2 da especificação, o fluxo de filtros em cascata (UF → cidade → especialidade → plano) e exemplos `curl`, `fetch` e React; em `pagamentos.md` o fluxo listar → marcar pago → anexar, idempotência e erros. Gerar respostas de exemplo a partir de dados fictícios.
-- [ ] **Step 4: Página `public/api-docs/index.html`** estática (sem login) que renderiza o `openapi.json` e o guia; liberar `/api-docs` no `vercel.json` (a reescrita `/((?!api/|email/).*)` já exclui `api/`, então a página usa `/api-docs/` como pasta pública e precisa ficar fora do fallback do `index.html`).
+- [ ] **Step 3: Escrever os documentos** em português, para quem não conhece o EmerLAB (todos os exemplos usam a URL base `https://api.emerlab.com.br` e rotas `/v1/...`): autenticação, erros, limites, paginação, CORS e origens; em `rede-credenciada.md` incluir a tabela **card → campo da API** da seção 2 da especificação, o fluxo de filtros em cascata (UF → cidade → especialidade → plano) e exemplos `curl`, `fetch` e React; em `pagamentos.md` o fluxo listar → marcar pago → anexar, idempotência e erros. Gerar respostas de exemplo a partir de dados fictícios.
+- [ ] **Step 4: Página `public/api-docs/index.html`** estática (sem login) que renderiza o `openapi.json` e o guia. Ela é servida em `https://api.emerlab.com.br/docs` pela reescrita por host da Task 2 e também em `/api-docs/`; o fallback `/((?!api/|email/).*)` não pode capturá-la.
 - [ ] **Step 5: Rodar o teste e ver passar.**
 - [ ] **Step 6: Commit** `docs(api): guias, OpenAPI e página de documentação`.
 
 ---
 
-### Task 8: Verificação com a base real e implantação
+### Task 8: Verificação, branch do Supabase e implantação
 
-**Files:**
-- Create: `scripts/api-v1-verificar.mjs` (leitura, imprime contagens; não grava)
-
-- [ ] **Step 1: Comparar contagens** com a base real: total de credenciados da API versus os 640 prestadores ativos e os 547 do site atual; listar a diferença por motivo (situação, inativo) e relatar ao Pedro.
-- [ ] **Step 2: Conferir amostras:** `Caxias do Sul`, `Porto Alegre`, `Curitiba` com e sem `plano`; confirmar contra a tela Credenciamento → Quem realiza que cidade principal e cidades que atende batem.
-- [ ] **Step 3: Aplicar a migração** `api_chaves` fora do horário de pico (Supabase Micro) e conferir `get_advisors` (segurança) sem alerta novo.
-- [ ] **Step 4: Publicar** (cherry-pick para a `main`, só quando o Pedro pedir) e conferir o deploy com `mcp__claude_ai_Vercel__list_deployments`.
-- [ ] **Step 5: Gerar as chaves de produção** pela tela, testar com `curl` (`/rede/filtros`, `/rede/credenciados?cidade=…`, e `pago`/comprovante num registro de teste) e entregar à equipe do site e ao financeiro por canal seguro.
-- [ ] **Step 6: Reportar** ao Pedro o resultado de cada passo, incluindo o que não foi testado.
+- [ ] **Step 1: Branch do Supabase.** Criar uma branch do projeto (`mcp__claude_ai_Supabase__create_branch`, nome `api-chaves-teste`; o custo é por hora, então apagar ao terminar). Aplicar a migração `api_chaves` nela e conferir: as roles `anon` e `authenticated` **não** leem nem escrevem em `api_chaves`; `hash` é único; as colunas e os `default` batem com a especificação. Registrar o resultado e apagar a branch.
+- [ ] **Step 2: Comparar contagens** com a base real (somente leitura): total de credenciados devolvidos pela API versus os 642 ativos e os 547 do site atual; listar a diferença por motivo (situação, inativo) e relatar ao Pedro.
+- [ ] **Step 3: Conferir amostras:** `Caxias do Sul`, `Porto Alegre` e `Curitiba` com e sem `plano`; um credenciado com principal `Especialidade` e secundária `Local` traz endereço; uma Clínica, um Laboratório e um Hospital trazem endereço; um veterinário sem especialidade `Local` traz `endereco: null`.
+- [ ] **Step 4: Migração em produção** só com autorização explícita do Pedro, fora do horário de pico, seguida de `get_advisors` (segurança) sem alerta novo.
+- [ ] **Step 5: Domínio da API.** O Pedro adiciona `api.emerlab.com.br` ao projeto `emerlab` na Vercel (time Emerdog) e cria no DNS o registro CNAME `api` apontando para `cname.vercel-dns.com`. Conferir `https://api.emerlab.com.br/docs` e uma chamada com chave de teste.
+- [ ] **Step 6: Publicar.** PR em `Emerlab/EmerLAB`, mesclado pela conta Pedro-Emerdog ("Create a merge commit"), o que dispara o deploy. Gerar as chaves pela tela Administrativo > API, testar pela aba Testar e por `curl`, e entregar à equipe do site e ao financeiro por canal seguro.
+- [ ] **Step 7: Reportar** ao Pedro o resultado de cada passo, incluindo o que não foi testado.
