@@ -151,30 +151,57 @@ export async function gravarComprovante(admin, {
     return { comprovante, resendEmailId }
 }
 
+/** Erro do fluxo transacional que diz se é seguro apagar o arquivo: só quando nenhuma linha ficou salva. */
+function erroSemLinha(e) {
+    e.removerArquivo = true
+    return e
+}
+
+/**
+ * Liga `pago` só se ainda estiver falso. Devolve true quando esta chamada mudou o registro.
+ * Erro aqui lança `comprovante_inconsistente` (a linha do comprovante fica; uma nova chamada repara).
+ */
+export async function marcarPagoCondicional(admin, registroId) {
+    const { data, error } = await admin.from('pagamentos_registros').update({ pago: true }).eq('id', registroId).eq('pago', false).select('id')
+    if (error) throw new ErroRepasse(500, 'Comprovante gravado, mas o registro não foi marcado como pago. Repita a chamada.', 'comprovante_inconsistente')
+    return (data || []).length > 0
+}
+
+/**
+ * Fluxo da API. Erros lançados carregam `removerArquivo: true` apenas quando nenhuma linha ficou salva (falha na
+ * inserção ou e-mail que falhou e cuja linha foi apagada); em qualquer outro caso o arquivo precisa ficar, porque há
+ * linha apontando para ele. Inserção recusada por duplicidade (23505, índice único registro_id + storage_path) lança
+ * `comprovante_duplicado` sem e-mail e sem remover o arquivo, que pertence à outra linha.
+ */
 async function gravarComprovanteTransacional(admin, { registro, relatorio, path, data_pagamento, valor, forma, autor, notificar, enviadoPor, arquivo }) {
     const linha = {
         relatorio_id: relatorio ? relatorio.id : null, registro_id: registro.id, forma, storage_path: path, data_pagamento,
         valor: arredondar(valor), enviado_por: enviadoPor, resend_email_id: null,
     }
     const { data: comprovante, error } = await admin.from('repasse_comprovantes').insert(linha).select('id, data_pagamento, valor, forma, enviado_em').maybeSingle()
-    if (error || !comprovante) {
-        const codigo = error?.code === '23502' ? 'relatorio_obrigatorio' : 'erro_interno'
-        throw new ErroRepasse(500, 'Falha ao gravar o comprovante.', codigo)
+    if (error) {
+        if (error.code === '23505') throw new ErroRepasse(409, 'Este comprovante já foi anexado.', 'comprovante_duplicado')
+        const codigo = error.code === '23502' ? 'relatorio_obrigatorio' : 'erro_interno'
+        throw erroSemLinha(new ErroRepasse(500, 'Falha ao gravar o comprovante.', codigo))
     }
+    // Sem erro e sem linha devolvida: não dá para saber se a linha existe; mantém o arquivo.
+    if (!comprovante) throw new ErroRepasse(500, 'Falha ao gravar o comprovante.', 'erro_interno')
     let resendEmailId = null
     if (notificar) {
         try {
             const enviado = await notificarComprovante(admin, { registro, relatorio, path, data_pagamento, valor, forma, arquivo })
             resendEmailId = enviado?.id || null
         } catch (e) {
-            await admin.from('repasse_comprovantes').delete().eq('id', comprovante.id)
-            throw e
+            const { error: eDel } = await admin.from('repasse_comprovantes').delete().eq('id', comprovante.id)
+            throw eDel ? e : erroSemLinha(e)
         }
         if (resendEmailId) await admin.from('repasse_comprovantes').update({ resend_email_id: resendEmailId }).eq('id', comprovante.id)
     }
-    // Única alteração em pagamentos_registros: a flag «pago» (nunca desmarca).
-    const { error: ePago } = await admin.from('pagamentos_registros').update({ pago: true }).eq('id', registro.id)
-    if (ePago) throw new ErroRepasse(500, 'Falha ao marcar o registro como pago.', 'erro_interno')
-    if (relatorio) await evento(admin, relatorio.id, 'comprovante_enviado', { valor: arredondar(valor), data_pagamento, forma }, autor)
-    return { comprovante, resendEmailId }
+    // Única alteração em pagamentos_registros: a flag «pago» (nunca desmarca). Condicional para que duas chamadas
+    // concorrentes não gravem dois eventos.
+    const marcou = await marcarPagoCondicional(admin, registro.id)
+    if (relatorio && (marcou || registro.pago)) {
+        await evento(admin, relatorio.id, 'comprovante_enviado', { valor: arredondar(valor), data_pagamento, forma }, autor)
+    }
+    return { comprovante, resendEmailId, marcouPago: marcou }
 }

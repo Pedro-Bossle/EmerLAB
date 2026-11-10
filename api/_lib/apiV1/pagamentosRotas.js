@@ -25,7 +25,15 @@ import {
     validarMotivo,
     validarValor,
 } from '../../../src/lib/apiV1/pagamentosRegras.js'
-import { BUCKET, emailDoPrestador, ErroRepasse, evento, formaDoRegistro, gravarComprovante } from '../repasseComprovante.js'
+import {
+    BUCKET,
+    emailDoPrestador,
+    ErroRepasse,
+    evento,
+    formaDoRegistro,
+    gravarComprovante,
+    marcarPagoCondicional,
+} from '../repasseComprovante.js'
 import { ErroApi, registrarRota } from './roteador.js'
 
 const LER = 'pagamentos:ler'
@@ -56,6 +64,7 @@ async function protegido(fn) {
     } catch (e) {
         if (e instanceof ErroValidacao) throw new ErroApi(STATUS_DA_VALIDACAO[e.codigo] || 400, e.codigo, e.message)
         if (e instanceof ErroRepasse) {
+            if (e.codigo === 'comprovante_inconsistente') throw new ErroApi(500, e.codigo, e.message)
             if (e.status >= 500) throw e
             throw new ErroApi(e.status, e.codigo || 'requisicao_invalida', e.message)
         }
@@ -191,6 +200,45 @@ registrarRota('POST', '/pagamentos/registros/{id}/pago', ESCREVER, async ({ admi
     }),
 )
 
+const INCONSISTENTE = 'comprovante_inconsistente'
+
+/** Garante que o arquivo do comprovante existe no Storage; se sumiu, sobe de novo os bytes desta chamada (mesmo hash). */
+async function garantirArquivo(admin, path, bytes, contentType) {
+    const i = path.lastIndexOf('/')
+    const nome = path.slice(i + 1)
+    const { data, error } = await admin.storage.from(BUCKET).list(path.slice(0, i), { search: nome, limit: 100 })
+    if (!error && (data || []).some((o) => o.name === nome)) return
+    const { error: erroUpload } = await admin.storage.from(BUCKET).upload(path, bytes, { contentType, upsert: true })
+    if (erroUpload) throw new ErroApi(500, INCONSISTENTE, 'Não foi possível restaurar o arquivo do comprovante. Repita a chamada.')
+}
+
+/**
+ * Comprovante que já existe (mesmo hash no mesmo registro): repara o que uma chamada anterior pode ter deixado pela
+ * metade — arquivo ausente e `pago` ainda falso — e devolve 200 ja_existia. Nunca envia e-mail. Quando é esta chamada
+ * que liga `pago`, grava o evento e a auditoria que a anterior não chegou a gravar.
+ */
+async function responderExistente(admin, chave, { registro, relatorio, existente, bytes, contentType }) {
+    await garantirArquivo(admin, existente.storage_path, bytes, contentType)
+    let marcou
+    try {
+        marcou = await marcarPagoCondicional(admin, registro.id)
+    } catch (e) {
+        if (e instanceof ErroRepasse) throw new ErroApi(500, INCONSISTENTE, e.message)
+        throw e
+    }
+    if (marcou) {
+        const dados = { valor: Number(existente.valor), data_pagamento: String(existente.data_pagamento).slice(0, 10), forma: existente.forma }
+        if (relatorio) await evento(admin, relatorio.id, 'comprovante_enviado', dados, autorApi(chave))
+        await auditar(admin, chave, {
+            acao: 'COMPROVANTE_ANEXADO',
+            registroId: registro.id,
+            antigo: { pago: false },
+            novo: { pago: true, comprovante_id: existente.id, ...dados, reparo: true, notificado: false },
+        })
+    }
+    return { status: 200, corpo: { ja_existia: true, notificado: false, comprovante: comprovantePublico(existente) }, headers: SEM_CACHE }
+}
+
 registrarRota(
     'POST',
     '/pagamentos/registros/{id}/comprovantes',
@@ -208,10 +256,11 @@ registrarRota(
             const hash = hashArquivo(bytes)
             const path = caminhoComprovante({ registro, relatorio, hash, ext })
 
+            // Leitura antes da escrita: barra o reenvio comum. Duas chamadas idênticas simultâneas só são barradas pelo
+            // índice único (registro_id, storage_path) da migração pendente 20261110131000; até ela ser aplicada, essa
+            // corrida pode gravar duas linhas (limite conhecido).
             const existente = (await comprovantesDoRegistro(admin, registro.id)).find((c) => String(c.storage_path || '').endsWith(`/${hash}.${ext}`))
-            if (existente) {
-                return { status: 200, corpo: { ja_existia: true, notificado: false, comprovante: comprovantePublico(existente) }, headers: SEM_CACHE }
-            }
+            if (existente) return responderExistente(admin, chave, { registro, relatorio, existente, bytes, contentType })
             // Confere o e-mail antes de subir o arquivo, para não deixar arquivo órfão.
             if (notificar && !(await emailDoPrestador(admin, registro.prestador_id))) {
                 throw new ErroApi(422, 'prestador_sem_email', 'Prestador sem e-mail no cadastro.')
@@ -229,7 +278,14 @@ registrarRota(
                     arquivo: bytes, transacional: true,
                 })
             } catch (e) {
-                await Promise.resolve(admin.storage.from(BUCKET).remove([path])).catch(() => undefined)
+                // Só apaga o arquivo se nenhuma linha ficou salva; se há linha, ela aponta para ele.
+                if (e?.removerArquivo === true) await Promise.resolve(admin.storage.from(BUCKET).remove([path])).catch(() => undefined)
+                if (e instanceof ErroRepasse && e.codigo === 'comprovante_duplicado') {
+                    // Outra chamada gravou a mesma linha (índice único): devolve a dela, sem e-mail e sem mexer no arquivo.
+                    const dela = (await comprovantesDoRegistro(admin, registro.id)).find((c) => c.storage_path === path)
+                    if (!dela) throw new ErroApi(500, 'comprovante_inconsistente', 'Comprovante duplicado não encontrado. Repita a chamada.')
+                    return responderExistente(admin, chave, { registro, relatorio, existente: dela, bytes, contentType })
+                }
                 if (e instanceof ErroRepasse && e.codigo === 'relatorio_obrigatorio') {
                     throw new ErroApi(409, 'registro_sem_relatorio', 'Este registro ainda não aceita comprovante pela API por não ter relatório de repasse.')
                 }

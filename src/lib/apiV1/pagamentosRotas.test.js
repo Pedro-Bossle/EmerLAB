@@ -78,6 +78,10 @@ const admin = {
         from: () => ({
             upload: async (p, buf, o) => (db.uploads.push({ path: p, ...o }), db.storage.set(p, Buffer.from(buf)), { data: { path: p }, error: null }),
             remove: async (paths) => (paths.forEach((p) => db.storage.delete(p)), { data: paths, error: null }),
+            list: async (pasta, o) => ({
+                data: [...db.storage.keys()].filter((k) => k.startsWith(pasta + '/') && k.slice(pasta.length + 1).includes(o?.search || '')).map((k) => ({ name: k.slice(pasta.length + 1) })),
+                error: null,
+            }),
             download: async (p) => ({ data: db.storage.has(p) ? { arrayBuffer: async () => db.storage.get(p) } : null, error: db.storage.has(p) ? null : { message: 'x' } }),
         }),
     },
@@ -326,6 +330,129 @@ describe('POST /pagamentos/registros/{id}/comprovantes', () => {
         } finally {
             admin.from = original
         }
+    })
+})
+
+describe('comprovante: falhas no meio e duplicidade concorrente', () => {
+    const corpo = (extra = {}) => ({ arquivo_base64: b64(PDF), data_pagamento: '2026-11-05', valor: 150, notificar_prestador: true, ...extra })
+    const caminho = `/pagamentos/registros/${REG}/comprovantes`
+
+    /** Faz o próximo update condicional de pagamentos_registros falhar uma vez. */
+    function falharProximoPago() {
+        const original = admin.from
+        admin.from = (n) => {
+            const t = original(n)
+            if (n !== 'pagamentos_registros') return t
+            return {
+                ...t,
+                update: () => {
+                    admin.from = original
+                    return { eq: () => ({ eq: () => ({ select: async () => ({ data: null, error: { message: 'timeout' } }) }) }) }
+                },
+            }
+        }
+        return () => (admin.from = original)
+    }
+
+    it('pago falha depois da linha salva: arquivo e linha ficam; nova chamada liga pago sem 2º e-mail nem 2º evento', async () => {
+        const restaurar = falharProximoPago()
+        let r
+        try {
+            r = await chamar('POST', caminho, { body: corpo() })
+        } finally {
+            restaurar()
+        }
+        expect(r.status).toBe(500)
+        expect(r.corpo.erro.codigo).toBe('comprovante_inconsistente')
+        expect(tabela('repasse_comprovantes')).toHaveLength(1)
+        const path = tabela('repasse_comprovantes')[0].storage_path
+        expect(db.storage.has(path)).toBe(true)
+        expect(registro(REG).pago).toBe(false)
+        expect(db.emails).toHaveLength(1)
+
+        const de_novo = await chamar('POST', caminho, { body: corpo() })
+        expect(de_novo.status).toBe(200)
+        expect(de_novo.corpo).toMatchObject({ ja_existia: true, notificado: false, comprovante: { id: tabela('repasse_comprovantes')[0].id } })
+        expect(registro(REG).pago).toBe(true)
+        expect(tabela('repasse_comprovantes')).toHaveLength(1)
+        expect(eventos('comprovante_enviado')).toHaveLength(1)
+        expect(auditoria('COMPROVANTE_ANEXADO')).toHaveLength(1)
+        expect(db.emails).toHaveLength(1)
+        expect(db.uploads).toHaveLength(1)
+
+        // terceira chamada: nada muda
+        await chamar('POST', caminho, { body: corpo() })
+        expect(eventos('comprovante_enviado')).toHaveLength(1)
+    })
+
+    it('arquivo sumiu do Storage: a nova chamada sobe de novo e liga pago', async () => {
+        const restaurar = falharProximoPago()
+        try {
+            await chamar('POST', caminho, { body: corpo({ notificar_prestador: false }) })
+        } finally {
+            restaurar()
+        }
+        const path = tabela('repasse_comprovantes')[0].storage_path
+        db.storage.delete(path)
+        const r = await chamar('POST', caminho, { body: corpo({ notificar_prestador: false }) })
+        expect(r.status).toBe(200)
+        expect(r.corpo.ja_existia).toBe(true)
+        expect(db.storage.has(path)).toBe(true)
+        expect(Buffer.compare(db.storage.get(path), PDF)).toBe(0)
+        expect(db.uploads).toHaveLength(2)
+        expect(registro(REG).pago).toBe(true)
+    })
+
+    it('não consegue restaurar o arquivo: 5xx claro em vez de ja_existia', async () => {
+        const restaurar = falharProximoPago()
+        try {
+            await chamar('POST', caminho, { body: corpo({ notificar_prestador: false }) })
+        } finally {
+            restaurar()
+        }
+        db.storage.clear()
+        const original = admin.storage.from
+        admin.storage.from = () => ({ ...original(), upload: async () => ({ data: null, error: { message: 'storage fora' } }) })
+        try {
+            const r = await chamar('POST', caminho, { body: corpo({ notificar_prestador: false }) })
+            expect(r.status).toBe(500)
+            expect(r.corpo.erro.codigo).toBe('comprovante_inconsistente')
+        } finally {
+            admin.storage.from = original
+        }
+    })
+
+    it('insert recusado por duplicidade (23505): devolve a linha da outra chamada, sem e-mail e sem apagar o arquivo', async () => {
+        const original = admin.from
+        admin.from = (n) => {
+            const t = original(n)
+            if (n !== 'repasse_comprovantes') return t
+            return {
+                ...t,
+                insert: (linha) => ({
+                    select: () => ({
+                        maybeSingle: async () => {
+                            // a outra chamada, em paralelo, gravou primeiro
+                            tabela('repasse_comprovantes').push({ ...linha, id: 'outra', enviado_em: '2026-11-10T11:59:00.000Z' })
+                            return { data: null, error: { code: '23505', message: 'duplicate key' } }
+                        },
+                    }),
+                }),
+            }
+        }
+        let r
+        try {
+            r = await chamar('POST', caminho, { body: corpo() })
+        } finally {
+            admin.from = original
+        }
+        expect(r.status).toBe(200)
+        expect(r.corpo).toMatchObject({ ja_existia: true, notificado: false, comprovante: { id: 'outra' } })
+        expect(db.emails).toHaveLength(0)
+        expect(tabela('repasse_comprovantes')).toHaveLength(1)
+        expect(db.storage.has(tabela('repasse_comprovantes')[0].storage_path)).toBe(true)
+        expect(registro(REG).pago).toBe(true)
+        expect(eventos('comprovante_enviado')).toHaveLength(1)
     })
 })
 
