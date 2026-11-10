@@ -343,7 +343,7 @@ function adminUsersDevPlugin() {
     }
 }
 
-function makeJsonApiDevPlugin(name, pathPrefix, handler, erroLabel) {
+function makeJsonApiDevPlugin(name, pathPrefix, handler, erroLabel, reescreverUrl = null) {
     return {
         name,
         enforce: 'pre',
@@ -369,7 +369,7 @@ function makeJsonApiDevPlugin(name, pathPrefix, handler, erroLabel) {
                 }
                 const reqLike = {
                     method,
-                    url,
+                    url: reescreverUrl ? reescreverUrl(url) : url,
                     headers: req.headers || {},
                     body,
                 }
@@ -377,6 +377,10 @@ function makeJsonApiDevPlugin(name, pathPrefix, handler, erroLabel) {
                     statusCode: 200,
                     setHeader(nameHdr, value) {
                         res.setHeader(nameHdr, value)
+                    },
+                    end() {
+                        res.statusCode = this.statusCode
+                        res.end()
                     },
                     status(code) {
                         this.statusCode = code
@@ -401,6 +405,20 @@ function makeJsonApiDevPlugin(name, pathPrefix, handler, erroLabel) {
             })
         },
     }
+}
+
+/** Mesma reescrita do vercel.json: /api/v1/<resto>?q → /api/email?_fn=api-v1&_path=<resto>&q. */
+function reescreverUrlApiV1(url) {
+    const u = new URL(url || '/', 'http://localhost')
+    const resto = u.pathname.replace(/^\/api\/v1\/?/, '')
+    const params = new URLSearchParams({ _fn: 'api-v1', _path: resto })
+    for (const [k, v] of u.searchParams.entries()) params.append(k, v)
+    return `/api/email?${params.toString()}`
+}
+
+/** Em dev, atende /api/v1/* pelo mesmo caminho da produção (api/email.js com _fn=api-v1). */
+function apiV1DevPlugin() {
+    return makeJsonApiDevPlugin('api-v1-dev', '/api/v1', emailHandler, 'Falha na API v1.', reescreverUrlApiV1)
 }
 
 /** Em dev, atende /api/repasse-mensal (multiplexada por ?_route=). */
@@ -719,6 +737,7 @@ export default defineConfig(({ command, mode }) => {
             command === 'serve' ? mapOsmDevPlugin() : null,
             command === 'serve' ? prospectosOsmColetarDevPlugin() : null,
             command === 'serve' ? adminUsersDevPlugin() : null,
+            command === 'serve' ? apiV1DevPlugin() : null,
             command === 'serve' ? emailDevPlugin() : null,
             command === 'serve' ? repasseMensalDevPlugin() : null,
             command === 'serve' ? emerRadarCronDevPlugin() : null,
