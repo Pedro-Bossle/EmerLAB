@@ -43,6 +43,7 @@ const ConfigObservacoesPlanos = lazy(() => import('./pages/Configuracoes/Observa
 const ConfigImpressaoEtiquetas = lazy(() => import('./pages/Configuracoes/ImpressaoEtiquetas/ConfigImpressaoEtiquetas'));
 const GerenciamentoAcessos = lazy(() => import('./pages/Administrativo/GerenciamentoAcessos/GerenciamentoAcessos'));
 const AdminAuditoria = lazy(() => import('./pages/Administrativo/Auditoria/AdminAuditoria'));
+const AdminApi = lazy(() => import('./pages/Administrativo/Api/AdminApi'));
 const AlterarSenha = lazy(() => import('./pages/AlterarSenha/AlterarSenha'));
 const ComprasValorVenda = lazy(() => import('./pages/Compras/ValorVenda/ComprasValorVenda'));
 const ComprasOrcamento = lazy(() => import('./pages/Compras/Orcamento/ComprasOrcamento'));
@@ -349,6 +350,14 @@ function App() {
             element={
               <PrivateRoute permission="access.manage" toolId="admin.acessos">
                 <GerenciamentoAcessos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/administrativo/api"
+            element={
+              <PrivateRoute permission="access.manage" toolId="admin.acessos">
+                <AdminApi />
               </PrivateRoute>
             }
           />

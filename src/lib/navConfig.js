@@ -85,6 +85,7 @@ export const SESSION_CHILDREN = [
 
 export const ADMIN_CHILDREN = [
   { label: 'Gerenciar acessos', href: '/administrativo/acessos', permission: PERMISSION_KEYS.ACCESS_MANAGE },
+  { label: 'API', href: '/administrativo/api', permission: PERMISSION_KEYS.ACCESS_MANAGE },
   { label: 'Auditoria', href: '/administrativo/auditoria', permission: PERMISSION_KEYS.ACCESS_MANAGE },
 ]
 

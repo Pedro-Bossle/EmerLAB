@@ -1,0 +1,121 @@
+.admin_api_abas {
+    margin-bottom: var(--ek-s4, 16px);
+    max-width: 320px;
+}
+
+.admin_api_barra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ek-s3, 12px);
+    margin-bottom: var(--ek-s4, 16px);
+}
+
+.admin_api_barra p {
+    margin: 0;
+    color: var(--ek-ink-muted);
+    font-size: 13px;
+}
+
+.admin_api_lista {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.admin_api_mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+}
+
+.admin_api_acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.admin_api_form {
+    display: grid;
+    gap: var(--ek-s3, 12px);
+}
+
+.admin_api_chave_nova {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.admin_api_chave_nova code {
+    flex: 1;
+    min-width: 0;
+    word-break: break-all;
+    padding: 10px 12px;
+    border-radius: var(--ek-r-control, 10px);
+    border: 1px solid var(--ek-line-strong);
+    background: var(--ek-surface-tint);
+    color: var(--ek-ink);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+}
+
+.admin_api_grade {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--ek-s4, 16px);
+    align-items: start;
+}
+
+.admin_api_painel {
+    border: 1px solid var(--ek-line);
+    border-radius: var(--ek-r-card, 14px);
+    background: var(--ek-surface);
+    padding: var(--ek-s4, 16px);
+    display: grid;
+    gap: var(--ek-s3, 12px);
+}
+
+.admin_api_painel h2 {
+    margin: 0;
+    font-size: 15px;
+    color: var(--ek-ink);
+}
+
+.admin_api_json {
+    margin: 0;
+    max-height: 420px;
+    overflow: auto;
+    padding: 12px;
+    border-radius: var(--ek-r-control, 10px);
+    background: var(--ek-surface-tint);
+    border: 1px solid var(--ek-line);
+    color: var(--ek-ink);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.admin_api_cabecalhos {
+    margin: 0;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 2px 12px;
+    font-size: 12.5px;
+    color: var(--ek-ink-soft);
+}
+
+.admin_api_cabecalhos dt {
+    font-weight: 600;
+}
+
+.admin_api_cabecalhos dd {
+    margin: 0;
+    word-break: break-all;
+}
+
+@media (max-width: 1023px) {
+    .admin_api_grade {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
