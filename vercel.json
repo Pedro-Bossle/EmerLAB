@@ -85,6 +85,25 @@
       "destination": "/api/prospectos-osm-coletar?_route=gemini-rate"
     },
     {
+      "source": "/api/v1/:path*",
+      "destination": "/api/email?_fn=api-v1&_path=:path*"
+    },
+    {
+      "source": "/v1/:path*",
+      "has": [{ "type": "host", "value": "api.emerlab.com.br" }],
+      "destination": "/api/email?_fn=api-v1&_path=:path*"
+    },
+    {
+      "source": "/docs",
+      "has": [{ "type": "host", "value": "api.emerlab.com.br" }],
+      "destination": "/api-docs/index.html"
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "api.emerlab.com.br" }],
+      "destination": "/api-docs/index.html"
+    },
+    {
       "source": "/((?!api/|email/).*)",
       "destination": "/index.html"
     }

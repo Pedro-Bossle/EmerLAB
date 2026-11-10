@@ -8,6 +8,7 @@ import {
 import { aplicarRateLimit, RATE_LIMITS } from '../src/lib/api/rateLimit.js'
 import { enviarEmailResend, enviarEmailTemplate } from './_lib/resendMail.js'
 import repasseMensalHandler from './_lib/repasseMensalHandler.js'
+import apiV1Handler from './_lib/apiV1/roteador.js'
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local') })
 dotenvConfig()
@@ -54,12 +55,14 @@ const autorizarSegredo = (req) => {
  * Esta função atende dois assuntos (o plano Hobby da Vercel limita a 12 funções serverless):
  *   - /api/email           → envio de e-mail do Emer-Radar (segredo no cabeçalho);
  *   - /api/repasse-mensal  → repasse mensal, reescrito no vercel.json para `?_fn=repasse-mensal`
- *     (as rotas internas do repasse seguem em `?_route=`).
+ *     (as rotas internas do repasse seguem em `?_route=`);
+ *   - /api/v1/*            → API pública, reescrita para `?_fn=api-v1&_path=` (também em api.emerlab.com.br/v1/*).
  */
 export default async function handler(req, res) {
     try {
         const fn = new URL(req.url || '/', 'http://localhost').searchParams.get('_fn')
         if (fn === 'repasse-mensal') return await repasseMensalHandler(req, res)
+        if (fn === 'api-v1') return await apiV1Handler(req, res)
     } catch {
         /* URL inválida: segue o fluxo normal de e-mail */
     }
