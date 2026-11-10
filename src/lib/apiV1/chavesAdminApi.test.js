@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
     ROTAS_TESTE,
     erroDaResposta,
+    mensagemDeErro,
     formDeChave,
     montarPayloadEdicao,
     montarPayloadChave,
@@ -124,6 +125,16 @@ describe('edição', () => {
         expect(montarPayloadEdicao(form, linha)).toEqual({ nome: 'Outro', limite_por_minuto: 10 })
         const comData = { ...linha, expira_em: '2027-03-10T15:00:00Z' }
         expect(montarPayloadEdicao({ ...formDeChave(comData), expiraEm: '' }, comData)).toEqual({ expira_em: null })
+    })
+})
+
+describe('mensagemDeErro', () => {
+    it('usa a mensagem do Error, de string ou do erro de validação; senão o padrão', () => {
+        expect(mensagemDeErro(new Error('Origem inválida.'))).toBe('Origem inválida.')
+        expect(mensagemDeErro('Informe o nome.')).toBe('Informe o nome.')
+        expect(mensagemDeErro({ ok: false, erro: 'Falta origem.' })).toBe('Falta origem.')
+        expect(mensagemDeErro(null)).toMatch(/tente novamente/i)
+        expect(mensagemDeErro(new Error('  '), 'Padrão')).toBe('Padrão')
     })
 })
 

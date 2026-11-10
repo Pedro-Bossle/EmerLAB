@@ -46,6 +46,9 @@ const paraAuditoria = (linha) => ({
     escopos: linha.escopos || [],
     origens_permitidas: linha.origens_permitidas || [],
     limite_por_minuto: linha.limite_por_minuto,
+    ips_permitidos: linha.ips_permitidos || [],
+    expira_em: linha.expira_em ?? null,
+    revogada_em: linha.revogada_em ?? null,
 })
 
 function exigir({ data, error }) {

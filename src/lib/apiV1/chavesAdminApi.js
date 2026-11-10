@@ -84,6 +84,12 @@ export function montarPayloadEdicao(form, linha) {
     return payload
 }
 
+/** Texto de erro para exibir dentro de um modal (Error, string ou resultado de validarFormChave). */
+export function mensagemDeErro(e, padrao = 'Não foi possível concluir. Tente novamente.') {
+    const texto = typeof e === 'string' ? e : typeof e?.message === 'string' ? e.message : typeof e?.erro === 'string' ? e.erro : ''
+    return texto.trim() || padrao
+}
+
 export function erroDaResposta(status, corpo) {
     return corpo?.erro?.mensagem || `Falha na requisição (HTTP ${status}).`
 }

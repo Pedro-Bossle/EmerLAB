@@ -82,6 +82,27 @@ beforeEach(async () => {
 
 afterEach(() => vi.useRealTimers())
 
+describe('auditoria completa', () => {
+    it('edição só da expiração e limpar IPs aparecem em valor_antigo e valor_novo', async () => {
+        const c = await criarRede({ ips_permitidos: ['10.0.0.1'], expira_em: '2027-01-01T00:00:00Z' })
+        const id = db.api_chaves[0].id
+        await chamar('PATCH', `/admin/chaves/${id}`, { expira_em: '2030-01-01T00:00:00Z' })
+        let a = db.audit_logs.at(-1)
+        expect(a.valor_antigo.expira_em).toBe('2027-01-01T00:00:00.000Z')
+        expect(a.valor_novo.expira_em).toBe('2030-01-01T00:00:00.000Z')
+        await chamar('PATCH', `/admin/chaves/${id}`, { ips_permitidos: [] })
+        a = db.audit_logs.at(-1)
+        expect(a.valor_antigo.ips_permitidos).toEqual(['10.0.0.1'])
+        expect(a.valor_novo.ips_permitidos).toEqual([])
+        expect(db.audit_logs[0].valor_novo.expira_em).toBe('2027-01-01T00:00:00.000Z')
+        await chamar('POST', `/admin/chaves/${id}/girar`)
+        expect(db.audit_logs.at(-1).valor_novo.expira_em).toBe('2030-01-01T00:00:00.000Z')
+        const texto = JSON.stringify(db.audit_logs)
+        expect(texto).not.toContain(c.corpo.chave)
+        for (const l of db.api_chaves) expect(texto).not.toContain(l.hash)
+    })
+})
+
 describe('permissão', () => {
     it('sem access.manage: 403 em todas as rotas /admin/*', async () => {
         sessao.jwt = { error: 'Sem permissão', status: 403 }

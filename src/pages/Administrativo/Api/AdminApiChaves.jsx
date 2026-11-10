@@ -6,6 +6,7 @@ import {
     formDeChave,
     girarChave,
     listarChaves,
+    mensagemDeErro,
     montarPayloadEdicao,
     revogarChave,
     validarFormChave,
@@ -20,10 +21,18 @@ const ROTULOS_ESTADO = { ativa: 'Ativa', revogada: 'Revogada', expirada: 'Expira
 
 const formatarData = (iso) => (iso ? new Date(iso).toLocaleString('pt-BR') : 'Nunca')
 
-function FormChave({ form, setForm, edicao = false }) {
-    const campo = (nome) => (e) => setForm((f) => ({ ...f, [nome]: e.target.value }))
+function FormChave({ form, setForm, edicao = false, erro = '', onEditar }) {
+    const campo = (nome) => (e) => {
+        onEditar?.()
+        setForm((f) => ({ ...f, [nome]: e.target.value }))
+    }
     return (
         <div className="admin_api_form">
+            {erro ? (
+                <div className="ek-banner ek-banner--erro" role="alert">
+                    {erro}
+                </div>
+            ) : null}
             <Input label="Nome" value={form.nome} onChange={campo('nome')} maxLength={80} placeholder="Ex.: Site institucional" />
             {!edicao ? (
                 <Select label="Tipo" value={form.tipo} onChange={campo('tipo')}>
@@ -34,7 +43,7 @@ function FormChave({ form, setForm, edicao = false }) {
             {form.tipo === 'rede' ? (
                 <Textarea
                     label="Origens permitidas"
-                    hint="Uma por linha, no formato https://dominio[:porta]. Sem caminho nem curinga."
+                    hint="Uma por linha, no formato https://dominio[:porta]. Sem caminho nem curinga. http://localhost e http://127.0.0.1 só valem para desenvolvimento local."
                     value={form.origensTexto}
                     onChange={campo('origensTexto')}
                     rows={3}
@@ -44,7 +53,10 @@ function FormChave({ form, setForm, edicao = false }) {
                     <input
                         type="checkbox"
                         checked={form.escrita}
-                        onChange={(e) => setForm((f) => ({ ...f, escrita: e.target.checked }))}
+                        onChange={(e) => {
+                            onEditar?.()
+                            setForm((f) => ({ ...f, escrita: e.target.checked }))
+                        }}
                     />
                     Permitir escrita (marcar pagamento e comprovantes)
                 </label>
@@ -81,6 +93,8 @@ export default function AdminApiChaves() {
     const [editando, setEditando] = useState(null)
     const [formEdicao, setFormEdicao] = useState(FORM_VAZIO)
     const [salvando, setSalvando] = useState(false)
+    // Erros de criar/editar ficam dentro do modal (o banner da página fica atrás dele).
+    const [erroModal, setErroModal] = useState('')
     // A chave completa fica só neste estado: nunca em storage nem na URL.
     const [chaveNova, setChaveNova] = useState(null)
     const [copiada, setCopiada] = useState(false)
@@ -106,6 +120,16 @@ export default function AdminApiChaves() {
         void carregar()
     }, [carregar])
 
+    const fecharNova = () => {
+        setErroModal('')
+        setFormNova(null)
+    }
+
+    const fecharEdicao = () => {
+        setErroModal('')
+        setEditando(null)
+    }
+
     const fecharChaveNova = () => {
         setChaveNova(null)
         setCopiada(false)
@@ -114,9 +138,10 @@ export default function AdminApiChaves() {
     const criar = async () => {
         const v = validarFormChave(formNova)
         if (!v.ok) {
-            setErro(v.erro)
+            setErroModal(mensagemDeErro(v))
             return
         }
+        setErroModal('')
         setSalvando(true)
         try {
             const r = await criarChave(v.payload)
@@ -124,13 +149,14 @@ export default function AdminApiChaves() {
             setChaveNova({ titulo: 'Chave criada', chave: r.chave, nome: r.registro?.nome })
             await carregar()
         } catch (e) {
-            setErro(e.message)
+            setErroModal(mensagemDeErro(e))
         } finally {
             setSalvando(false)
         }
     }
 
     const abrirEdicao = (linha) => {
+        setErroModal('')
         setEditando(linha)
         setFormEdicao(formDeChave(linha))
     }
@@ -138,9 +164,10 @@ export default function AdminApiChaves() {
     const salvarEdicao = async () => {
         const v = validarFormChave(formEdicao)
         if (!v.ok) {
-            setErro(v.erro)
+            setErroModal(mensagemDeErro(v))
             return
         }
+        setErroModal('')
         const payload = montarPayloadEdicao(formEdicao, editando)
         if (Object.keys(payload).length === 0) {
             setEditando(null)
@@ -153,7 +180,7 @@ export default function AdminApiChaves() {
             setMensagem('Chave atualizada. A mudança pode levar até 30 segundos para valer.')
             await carregar()
         } catch (e) {
-            setErro(e.message)
+            setErroModal(mensagemDeErro(e))
         } finally {
             setSalvando(false)
         }
@@ -212,7 +239,10 @@ export default function AdminApiChaves() {
 
             <div className="admin_api_barra">
                 <p>A chave completa aparece uma única vez, ao criar ou girar. Depois só o prefixo fica visível.</p>
-                <Button onClick={() => setFormNova({ ...FORM_VAZIO })}>Nova chave</Button>
+                <Button onClick={() => {
+                        setErroModal('')
+                        setFormNova({ ...FORM_VAZIO })
+                    }}>Nova chave</Button>
             </div>
 
             {carregando ? (
@@ -278,12 +308,12 @@ export default function AdminApiChaves() {
 
             <Modal
                 open={Boolean(formNova)}
-                onClose={() => setFormNova(null)}
+                onClose={fecharNova}
                 title="Nova chave"
                 busy={salvando}
                 footer={
                     <>
-                        <Button variant="secondary" onClick={() => setFormNova(null)} disabled={salvando}>
+                        <Button variant="secondary" onClick={fecharNova} disabled={salvando}>
                             Cancelar
                         </Button>
                         <Button onClick={criar} disabled={salvando}>
@@ -292,17 +322,17 @@ export default function AdminApiChaves() {
                     </>
                 }
             >
-                {formNova ? <FormChave form={formNova} setForm={setFormNova} /> : null}
+                {formNova ? <FormChave form={formNova} setForm={setFormNova} erro={erroModal} onEditar={() => setErroModal('')} /> : null}
             </Modal>
 
             <Modal
                 open={Boolean(editando)}
-                onClose={() => setEditando(null)}
+                onClose={fecharEdicao}
                 title={`Editar «${editando?.nome || ''}»`}
                 busy={salvando}
                 footer={
                     <>
-                        <Button variant="secondary" onClick={() => setEditando(null)} disabled={salvando}>
+                        <Button variant="secondary" onClick={fecharEdicao} disabled={salvando}>
                             Cancelar
                         </Button>
                         <Button onClick={salvarEdicao} disabled={salvando}>
@@ -311,7 +341,7 @@ export default function AdminApiChaves() {
                     </>
                 }
             >
-                {editando ? <FormChave form={formEdicao} setForm={setFormEdicao} edicao /> : null}
+                {editando ? <FormChave form={formEdicao} setForm={setFormEdicao} edicao erro={erroModal} onEditar={() => setErroModal('')} /> : null}
             </Modal>
 
             <Modal
