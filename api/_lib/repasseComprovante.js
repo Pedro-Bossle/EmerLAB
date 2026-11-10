@@ -108,49 +108,73 @@ export async function notificarComprovante(admin, { registro, relatorio, path, d
 }
 
 /**
- * Grava a linha em `repasse_comprovantes`, liga `pago` no registro (nunca desmarca) e, havendo relatório,
- * o evento `comprovante_enviado`. Com `falharSeNaoGravar`, um erro na inserção interrompe antes de mexer no registro
- * (a API usa; o painel mantém o comportamento antigo). Devolve a linha inserida quando o banco a devolve.
+ * Fluxo do painel: grava a linha em `repasse_comprovantes` (sem conferir erro, como sempre foi), liga `pago` no
+ * registro (nunca desmarca) e, havendo relatório, o evento `comprovante_enviado`.
  */
 export async function registrarComprovante(admin, {
-    registro, relatorio, path, data_pagamento, valor, forma, autor, enviadoPor = null, resendEmailId = null,
-    dadosEvento = null, falharSeNaoGravar = false,
+    registro, relatorio, path, data_pagamento, valor, forma, autor, enviadoPor = null, resendEmailId = null, dadosEvento = null,
 }) {
-    const linha = {
+    await admin.from('repasse_comprovantes').insert({
         relatorio_id: relatorio ? relatorio.id : null, registro_id: registro.id, forma, storage_path: path, data_pagamento,
         valor: arredondar(valor), enviado_por: enviadoPor, resend_email_id: resendEmailId,
-    }
-    let inserido = null
-    if (falharSeNaoGravar) {
-        const { data, error } = await admin.from('repasse_comprovantes').insert(linha).select('id, data_pagamento, valor, forma, enviado_em').maybeSingle()
-        if (error) throw new ErroRepasse(500, 'Falha ao gravar o comprovante.', error.code === '23502' ? 'relatorio_obrigatorio' : 'erro_interno')
-        inserido = data
-    } else {
-        await admin.from('repasse_comprovantes').insert(linha)
-    }
+    })
     // Única alteração em pagamentos_registros: a flag «pago» (nunca desmarca).
     await admin.from('pagamentos_registros').update({ pago: true }).eq('id', registro.id)
     if (relatorio) {
         await evento(admin, relatorio.id, 'comprovante_enviado', dadosEvento || { valor: arredondar(valor), data_pagamento, forma }, autor)
     }
-    return inserido
+    return null
 }
 
 /**
  * Comprovante de um registro: e-mail ao prestador (se `notificar`), linha do comprovante, `pago` e evento.
+ *
+ * Painel (`transacional` falso): e-mail primeiro e depois a gravação, como sempre foi.
+ * API (`transacional` verdadeiro): grava a linha primeiro (erro na inserção para tudo, sem e-mail nem `pago`), depois
+ * envia o e-mail e guarda o id do Resend na linha; se o e-mail falhar a linha é apagada e o erro sobe, então nada fica
+ * gravado e a chamada pode ser repetida.
  * @returns {Promise<{ comprovante: object|null, resendEmailId: string|null }>}
  */
 export async function gravarComprovante(admin, {
     registro, relatorio = null, path, data_pagamento, valor, forma, autor, notificar, enviadoPor = null, arquivo = null,
-    falharSeNaoGravar = false,
+    transacional = false,
 }) {
+    if (transacional) return gravarComprovanteTransacional(admin, { registro, relatorio, path, data_pagamento, valor, forma, autor, notificar, enviadoPor, arquivo })
     let resendEmailId = null
     if (notificar) {
         const enviado = await notificarComprovante(admin, { registro, relatorio, path, data_pagamento, valor, forma, arquivo })
         resendEmailId = enviado?.id || null
     }
     const comprovante = await registrarComprovante(admin, {
-        registro, relatorio, path, data_pagamento, valor, forma, autor, enviadoPor, resendEmailId, falharSeNaoGravar,
+        registro, relatorio, path, data_pagamento, valor, forma, autor, enviadoPor, resendEmailId,
     })
+    return { comprovante, resendEmailId }
+}
+
+async function gravarComprovanteTransacional(admin, { registro, relatorio, path, data_pagamento, valor, forma, autor, notificar, enviadoPor, arquivo }) {
+    const linha = {
+        relatorio_id: relatorio ? relatorio.id : null, registro_id: registro.id, forma, storage_path: path, data_pagamento,
+        valor: arredondar(valor), enviado_por: enviadoPor, resend_email_id: null,
+    }
+    const { data: comprovante, error } = await admin.from('repasse_comprovantes').insert(linha).select('id, data_pagamento, valor, forma, enviado_em').maybeSingle()
+    if (error || !comprovante) {
+        const codigo = error?.code === '23502' ? 'relatorio_obrigatorio' : 'erro_interno'
+        throw new ErroRepasse(500, 'Falha ao gravar o comprovante.', codigo)
+    }
+    let resendEmailId = null
+    if (notificar) {
+        try {
+            const enviado = await notificarComprovante(admin, { registro, relatorio, path, data_pagamento, valor, forma, arquivo })
+            resendEmailId = enviado?.id || null
+        } catch (e) {
+            await admin.from('repasse_comprovantes').delete().eq('id', comprovante.id)
+            throw e
+        }
+        if (resendEmailId) await admin.from('repasse_comprovantes').update({ resend_email_id: resendEmailId }).eq('id', comprovante.id)
+    }
+    // Única alteração em pagamentos_registros: a flag «pago» (nunca desmarca).
+    const { error: ePago } = await admin.from('pagamentos_registros').update({ pago: true }).eq('id', registro.id)
+    if (ePago) throw new ErroRepasse(500, 'Falha ao marcar o registro como pago.', 'erro_interno')
+    if (relatorio) await evento(admin, relatorio.id, 'comprovante_enviado', { valor: arredondar(valor), data_pagamento, forma }, autor)
     return { comprovante, resendEmailId }
 }

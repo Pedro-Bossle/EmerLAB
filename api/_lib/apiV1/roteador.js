@@ -271,7 +271,13 @@ async function lerCorpo(req, maxBytes) {
     if (Number.isFinite(cl) && cl > maxBytes) return { erroCorpo: erroPayloadGrande() }
 
     let texto = ''
-    const bruto = req.body
+    let bruto
+    try {
+        // Na Vercel `req.body` é um getter que já interpreta o JSON e lança em JSON malformado.
+        bruto = req.body
+    } catch {
+        return { erroCorpo: erroCorpoInvalido() }
+    }
     if (bruto !== undefined && bruto !== null) {
         if (typeof bruto === 'object' && !Buffer.isBuffer(bruto)) {
             if (Array.isArray(bruto)) return { erroCorpo: erroCorpoInvalido() }

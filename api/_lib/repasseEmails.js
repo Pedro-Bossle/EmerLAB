@@ -101,6 +101,6 @@ export function montarEmailRepasseComprovante({ prestador, competencia, valor, d
             ctaHref: link,
             produto: PRODUTO,
         }),
-        text: textoPuro([`Pagamento realizado — repasse de ${competencia}: ${brl(valor)} em ${dataPagamento} (${forma === 'pix' ? 'PIX' : 'boleto'}). Comprovante em anexo.`, `Ver relatório: ${link}`, `Dúvidas? ${wa}`]),
+        text: textoPuro([`Pagamento realizado — repasse de ${competencia}: ${brl(valor)} em ${dataPagamento} (${forma === 'pix' ? 'PIX' : 'boleto'}). Comprovante em anexo.`, link && `Ver relatório: ${link}`, `Dúvidas? ${wa}`]),
     }
 }

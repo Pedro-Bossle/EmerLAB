@@ -331,6 +331,19 @@ describe('corpo da requisição no handler HTTP', () => {
         expect(res.corpo.erro.codigo).toBe('corpo_invalido')
     })
 
+    it('JSON malformado com o req.body preguiçoso da Vercel (getter que lança): 400 corpo_invalido', async () => {
+        const res = resFalso()
+        const req = { method: 'POST', url: '/api/email?_fn=api-v1&_path=rede%2Feco', headers: { authorization: `Bearer ${CHAVE}`, origin: ORIGEM } }
+        Object.defineProperty(req, 'body', {
+            get() {
+                throw Object.assign(new Error('Invalid JSON'), { statusCode: 400 })
+            },
+        })
+        await mod.default(req, res)
+        expect(res.codigo).toBe(400)
+        expect(res.corpo.erro.codigo).toBe('corpo_invalido')
+    })
+
     it('corpo vazio continua funcionando', async () => {
         const res = await chamar('rede%2Feco', '')
         expect(res.codigo).toBe(200)
