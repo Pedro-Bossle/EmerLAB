@@ -3,4 +3,4 @@
  * O roteador importa todos na primeira requisição. Cada task de rotas acrescenta a sua linha aqui,
  * por exemplo: `() => import('./rotasRede.js'),`
  */
-export const MODULOS_DE_ROTAS = []
+export const MODULOS_DE_ROTAS = [() => import('./redeRotas.js')]
