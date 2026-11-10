@@ -201,6 +201,8 @@ registrarRota('POST', '/pagamentos/registros/{id}/pago', ESCREVER, async ({ admi
 )
 
 const INCONSISTENTE = 'comprovante_inconsistente'
+/** A função da Vercel que hospeda o roteador tem 30 s de limite; depois disso a chamada original já terminou. */
+export const COMPROVANTE_JANELA_EM_PROCESSAMENTO_MS = 45_000
 
 /** Garante que o arquivo do comprovante existe no Storage; se sumiu, sobe de novo os bytes desta chamada (mesmo hash). */
 async function garantirArquivo(admin, path, bytes, contentType) {
@@ -216,8 +218,24 @@ async function garantirArquivo(admin, path, bytes, contentType) {
  * Comprovante que já existe (mesmo hash no mesmo registro): repara o que uma chamada anterior pode ter deixado pela
  * metade — arquivo ausente e `pago` ainda falso — e devolve 200 ja_existia. Nunca envia e-mail. Quando é esta chamada
  * que liga `pago`, grava o evento e a auditoria que a anterior não chegou a gravar.
+ *
+ * Linha mais nova que COMPROVANTE_JANELA_EM_PROCESSAMENTO_MS: a chamada que a criou pode ainda estar rodando (por
+ * exemplo esperando o Resend, e pode apagar a linha se o e-mail falhar). Nada é tocado; responde 409
+ * comprovante_em_processamento com Retry-After. Vale para a leitura antes da escrita e para o ramo 23505.
  */
 async function responderExistente(admin, chave, { registro, relatorio, existente, bytes, contentType }) {
+    const idadeMs = Date.now() - Date.parse(existente.enviado_em)
+    if (Number.isFinite(idadeMs) && idadeMs < COMPROVANTE_JANELA_EM_PROCESSAMENTO_MS) {
+        const segundos = Math.min(
+            Math.ceil(COMPROVANTE_JANELA_EM_PROCESSAMENTO_MS / 1000),
+            Math.max(1, Math.ceil((COMPROVANTE_JANELA_EM_PROCESSAMENTO_MS - idadeMs) / 1000)),
+        )
+        return {
+            status: 409,
+            corpo: { erro: { codigo: 'comprovante_em_processamento', mensagem: 'Este comprovante ainda está sendo processado. Tente de novo em instantes.' } },
+            headers: { ...SEM_CACHE, 'Retry-After': String(segundos) },
+        }
+    }
     await garantirArquivo(admin, existente.storage_path, bytes, contentType)
     let marcou
     try {

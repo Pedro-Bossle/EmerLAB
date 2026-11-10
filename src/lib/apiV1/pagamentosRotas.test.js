@@ -3,7 +3,7 @@
  * nenhum e-mail real, nenhuma rede.
  */
 import { Buffer } from 'node:buffer'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { hashChave } from './chaves.js'
 
 const CHAVE = 'emer_pag_abc123'
@@ -11,7 +11,7 @@ const REG = '11111111-1111-4111-8111-111111111111'
 const REG_SEM_REL = '22222222-2222-4222-8222-222222222222'
 const REL = '33333333-3333-4333-8333-333333333333'
 
-const db = { tabelas: {}, emails: [], storage: new Map(), uploads: [], seq: 0, falharEmail: false }
+const db = { tabelas: {}, emails: [], storage: new Map(), uploads: [], seq: 0, falharEmail: false, segurarEmail: null }
 const tabela = (n) => (db.tabelas[n] ||= [])
 
 function builder(nome, modo, payload) {
@@ -36,7 +36,7 @@ function builder(nome, modo, payload) {
         const linhas = tabela(nome)
         if (modo === 'insert') {
             const novos = (Array.isArray(payload) ? payload : [payload]).map((r) => ({
-                id: `id-${++db.seq}`, ...(nome === 'repasse_comprovantes' ? { enviado_em: '2026-11-10T12:00:00.000Z' } : {}), ...r,
+                id: `id-${++db.seq}`, ...(nome === 'repasse_comprovantes' ? { enviado_em: new Date().toISOString() } : {}), ...r,
             }))
             linhas.push(...novos)
             return { linhas: novos.map((r) => ({ ...r })) }
@@ -94,6 +94,7 @@ vi.mock('../api/serverAuth.js', () => ({
 }))
 vi.mock('../../../api/_lib/resendMail.js', () => ({
     enviarEmailResend: async (o) => {
+        if (db.segurarEmail) await db.segurarEmail
         if (db.falharEmail) throw new Error('resend fora do ar')
         db.emails.push(o)
         return { id: 'em_' + db.emails.length }
@@ -133,10 +134,21 @@ function semear() {
     db.storage = new Map()
     db.uploads = []
     db.falharEmail = false
+    db.segurarEmail = null
 }
 
 let roteador
+// Relógio falso só para Date (o banco falso grava enviado_em = agora, como o default now() do Postgres).
+const INICIO = new Date('2026-11-10T12:00:00.000Z')
+const envelhecer = (ms) => vi.setSystemTime(new Date(Date.now() + ms))
+const DEPOIS_DA_JANELA = 46_000
+
+afterEach(() => {
+    vi.useRealTimers()
+})
+
 beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: INICIO })
     vi.resetModules()
     semear()
     roteador = await import('../../../api/_lib/apiV1/roteador.js')
@@ -264,6 +276,7 @@ describe('POST /pagamentos/registros/{id}/comprovantes', () => {
 
     it('mesmo arquivo no mesmo registro devolve o existente, sem nova linha, upload ou e-mail', async () => {
         const a = await chamar('POST', `/pagamentos/registros/${REG}/comprovantes`, { body: corpo() })
+        envelhecer(DEPOIS_DA_JANELA)
         const b = await chamar('POST', `/pagamentos/registros/${REG}/comprovantes`, { body: corpo({ notificar_prestador: true }) })
         expect(b.status).toBe(200)
         expect(b.corpo.ja_existia).toBe(true)
@@ -370,6 +383,7 @@ describe('comprovante: falhas no meio e duplicidade concorrente', () => {
         expect(registro(REG).pago).toBe(false)
         expect(db.emails).toHaveLength(1)
 
+        envelhecer(DEPOIS_DA_JANELA)
         const de_novo = await chamar('POST', caminho, { body: corpo() })
         expect(de_novo.status).toBe(200)
         expect(de_novo.corpo).toMatchObject({ ja_existia: true, notificado: false, comprovante: { id: tabela('repasse_comprovantes')[0].id } })
@@ -394,6 +408,7 @@ describe('comprovante: falhas no meio e duplicidade concorrente', () => {
         }
         const path = tabela('repasse_comprovantes')[0].storage_path
         db.storage.delete(path)
+        envelhecer(DEPOIS_DA_JANELA)
         const r = await chamar('POST', caminho, { body: corpo({ notificar_prestador: false }) })
         expect(r.status).toBe(200)
         expect(r.corpo.ja_existia).toBe(true)
@@ -411,6 +426,7 @@ describe('comprovante: falhas no meio e duplicidade concorrente', () => {
             restaurar()
         }
         db.storage.clear()
+        envelhecer(DEPOIS_DA_JANELA)
         const original = admin.storage.from
         admin.storage.from = () => ({ ...original(), upload: async () => ({ data: null, error: { message: 'storage fora' } }) })
         try {
@@ -433,6 +449,7 @@ describe('comprovante: falhas no meio e duplicidade concorrente', () => {
                     select: () => ({
                         maybeSingle: async () => {
                             // a outra chamada, em paralelo, gravou primeiro
+                            // (60 s atrás: fora da janela de processamento)
                             tabela('repasse_comprovantes').push({ ...linha, id: 'outra', enviado_em: '2026-11-10T11:59:00.000Z' })
                             return { data: null, error: { code: '23505', message: 'duplicate key' } }
                         },
@@ -453,6 +470,111 @@ describe('comprovante: falhas no meio e duplicidade concorrente', () => {
         expect(db.storage.has(tabela('repasse_comprovantes')[0].storage_path)).toBe(true)
         expect(registro(REG).pago).toBe(true)
         expect(eventos('comprovante_enviado')).toHaveLength(1)
+    })
+})
+
+describe('comprovante ainda em processamento (janela de 45 s)', () => {
+    const corpo = (extra = {}) => ({ arquivo_base64: b64(PDF), data_pagamento: '2026-11-05', valor: 150, notificar_prestador: true, ...extra })
+    const caminho = `/pagamentos/registros/${REG}/comprovantes`
+
+    /** Linha de comprovante deixada por uma chamada anterior que não chegou a ligar pago. */
+    async function linhaSemPago(idadeMs) {
+        const sha = (await import('node:crypto')).createHash('sha256').update(PDF).digest('hex')
+        const path = `2026-10/${REL}/comprovante/${sha}.pdf`
+        db.storage.set(path, PDF)
+        tabela('repasse_comprovantes').push({
+            id: 'anterior', relatorio_id: REL, registro_id: REG, forma: 'pix', storage_path: path, data_pagamento: '2026-11-05', valor: 150,
+            enviado_por: null, resend_email_id: null, enviado_em: new Date(Date.now() - idadeMs).toISOString(),
+        })
+        return path
+    }
+
+    it('linha com 10 s: 409 comprovante_em_processamento com Retry-After, sem tocar em nada', async () => {
+        const path = await linhaSemPago(10_000)
+        const r = await chamar('POST', caminho, { body: corpo() })
+        expect(r.status).toBe(409)
+        expect(r.corpo).toEqual({ erro: { codigo: 'comprovante_em_processamento', mensagem: expect.any(String) } })
+        expect(r.headers['Retry-After']).toBe('35')
+        expect(r.headers['Cache-Control']).toBe('no-store')
+        expect(registro(REG).pago).toBe(false)
+        expect(tabela('repasse_eventos')).toHaveLength(0)
+        expect(tabela('audit_logs')).toHaveLength(0)
+        expect(db.emails).toHaveLength(0)
+        expect(db.uploads).toHaveLength(0)
+        expect(db.storage.get(path)).toBe(PDF)
+        expect(tabela('repasse_comprovantes')).toHaveLength(1)
+    })
+
+    it('Retry-After é no mínimo 1 s', async () => {
+        await linhaSemPago(44_900)
+        const r = await chamar('POST', caminho, { body: corpo() })
+        expect(r.status).toBe(409)
+        expect(r.headers['Retry-After']).toBe('1')
+    })
+
+    it('linha com mais de 45 s: repara (um evento, uma auditoria, sem e-mail)', async () => {
+        await linhaSemPago(45_001)
+        const r = await chamar('POST', caminho, { body: corpo() })
+        expect(r.status).toBe(200)
+        expect(r.corpo).toMatchObject({ ja_existia: true, comprovante: { id: 'anterior' } })
+        expect(registro(REG).pago).toBe(true)
+        expect(eventos('comprovante_enviado')).toHaveLength(1)
+        expect(auditoria('COMPROVANTE_ANEXADO')).toHaveLength(1)
+        expect(db.emails).toHaveLength(0)
+    })
+
+    it('corrida: B chega enquanto A espera o e-mail, depois o e-mail de A falha; estado final consistente e B recebe 409', async () => {
+        let liberar
+        db.segurarEmail = new Promise((r) => (liberar = r))
+        db.falharEmail = true
+        const a = chamar('POST', caminho, { body: corpo() })
+        await vi.waitFor(() => expect(tabela('repasse_comprovantes')).toHaveLength(1))
+        envelhecer(10_000)
+        const b = await chamar('POST', caminho, { body: corpo() })
+        expect(b.status).toBe(409)
+        expect(b.corpo.erro.codigo).toBe('comprovante_em_processamento')
+        liberar()
+        const ra = await a
+        expect(ra.status).toBe(500)
+        expect(tabela('repasse_comprovantes')).toHaveLength(0)
+        expect(db.storage.size).toBe(0)
+        expect(registro(REG).pago).toBe(false)
+        expect(tabela('repasse_eventos')).toHaveLength(0)
+        expect(tabela('audit_logs')).toHaveLength(0)
+        expect(db.emails).toHaveLength(0)
+    })
+
+    it('ramo 23505 dentro da janela: 409, sem e-mail e sem mexer no arquivo nem em pago', async () => {
+        const original = admin.from
+        admin.from = (n) => {
+            const t = original(n)
+            if (n !== 'repasse_comprovantes') return t
+            return {
+                ...t,
+                insert: (linha) => ({
+                    select: () => ({
+                        maybeSingle: async () => {
+                            tabela('repasse_comprovantes').push({ ...linha, id: 'outra', enviado_em: new Date(Date.now() - 5_000).toISOString() })
+                            return { data: null, error: { code: '23505', message: 'duplicate key' } }
+                        },
+                    }),
+                }),
+            }
+        }
+        let r
+        try {
+            r = await chamar('POST', caminho, { body: corpo() })
+        } finally {
+            admin.from = original
+        }
+        expect(r.status).toBe(409)
+        expect(r.corpo.erro.codigo).toBe('comprovante_em_processamento')
+        expect(r.headers['Retry-After']).toBe('40')
+        expect(db.emails).toHaveLength(0)
+        expect(registro(REG).pago).toBe(false)
+        expect(tabela('repasse_eventos')).toHaveLength(0)
+        expect(tabela('audit_logs')).toHaveLength(0)
+        expect(db.storage.has(tabela('repasse_comprovantes')[0].storage_path)).toBe(true)
     })
 })
 
