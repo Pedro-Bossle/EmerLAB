@@ -48,10 +48,18 @@ export function registrarRota(metodo, padrao, escopo, fn, { maxBytes = MAX_BODY_
             nomes.push(nome)
             return '([^/]+)'
         })
-    rotas.push({ metodo: String(metodo).toUpperCase(), regex: new RegExp(`^${fonte}/?$`), nomes, escopo, fn, maxBytes })
+    rotas.push({ metodo: String(metodo).toUpperCase(), padrao, regex: new RegExp(`^${fonte}/?$`), nomes, escopo, fn, maxBytes })
+}
+
+/** Rotas registradas (metodo, padrao, escopo), para conferir a documentação. Chame `carregarRotas()` antes. */
+export function listarRotasRegistradas() {
+    return rotas.map(({ metodo, padrao, escopo }) => ({ metodo, padrao, escopo }))
 }
 
 let modulosCarregados = null
+export function carregarRotas() {
+    return carregarModulos()
+}
 function carregarModulos() {
     if (!modulosCarregados) {
         modulosCarregados = Promise.all(MODULOS_DE_ROTAS.map((carregar) => carregar())).catch((e) => {

@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<title>API pública do EmerLAB</title>
+<style>:root{--bg:#fafaf7;--fg:#1d2327;--mudo:#5b6670;--card:#fff;--borda:#dcdfe3;--acento:#0b5cad;--codigo:#f0f2f4;--ok:#1a7f45;--erro:#b3261e}
+@media (prefers-color-scheme:dark){:root:not([data-tema="claro"]){--bg:#14181c;--fg:#e6e9ec;--mudo:#9aa5ae;--card:#1b2127;--borda:#2f373e;--acento:#6cb2f5;--codigo:#232b32;--ok:#4cc38a;--erro:#f2877f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header,main,footer{max-width:60rem;margin:0 auto;padding:0 16px}
+header{padding-top:32px}
+h1{font-size:1.8rem;margin:0 0 4px}
+h2{font-size:1.35rem;margin:2rem 0 .5rem;border-bottom:1px solid var(--borda);padding-bottom:.3rem}
+h3{font-size:1.1rem;margin:1.6rem 0 .5rem}
+h4{font-size:.95rem;margin:1rem 0 .3rem;color:var(--mudo);text-transform:uppercase;letter-spacing:.04em}
+a{color:var(--acento)}
+code{background:var(--codigo);padding:.08em .35em;border-radius:4px;font:.88em ui-monospace,SFMono-Regular,Consolas,monospace}
+pre{background:var(--codigo);padding:12px;border-radius:8px;overflow-x:auto;margin:.4rem 0}
+pre code{background:none;padding:0;font-size:.82rem}
+nav{display:flex;flex-wrap:wrap;gap:6px 14px;margin:12px 0;padding:10px 0;border-block:1px solid var(--borda);font-size:.92rem}
+.mudo,.mini{color:var(--mudo)}
+.mini{font-size:.85rem;margin:.3rem 0}
+.rolavel{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;vertical-align:top;border-bottom:1px solid var(--borda);padding:6px 8px}
+th{color:var(--mudo);font-weight:600}
+details.op{background:var(--card);border:1px solid var(--borda);border-radius:10px;margin:10px 0}
+details.op>summary{cursor:pointer;padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+details.op>summary:focus-visible{outline:2px solid var(--acento);outline-offset:2px}
+.resumo{color:var(--mudo)}
+.conteudo{padding:0 12px 12px}
+.met{font-weight:700;font-size:.78rem;padding:2px 8px;border-radius:6px;color:#fff;background:#0b5cad}
+.met-post{background:#1a7f45}.met-delete{background:#b3261e}
+tr.ok td:first-child{color:var(--ok)}tr.erro td:first-child{color:var(--erro)}
+footer{padding-bottom:48px;color:var(--mudo);font-size:.9rem}
+@media (max-width:520px){h1{font-size:1.5rem}}</style>
+</head>
+<body>
+<header>
+<h1>API pública do EmerLAB</h1>
+<p class="mudo">Versão 1.0.0 · Rede credenciada da Emerdog (leitura) e repasses de pagamento (servidor a servidor).</p>
+<p>URL base: <code>https://api.emerlab.com.br</code> · <a href="/api-docs/openapi.json">openapi.json</a> (OpenAPI 3.1.0, para Postman, Swagger e geração de cliente)</p>
+<nav aria-label="Seções">
+<a href="#comecar">Começar</a>
+<a href="#autenticacao">Autenticação</a>
+<a href="#cors">CORS</a>
+<a href="#limites">Limites</a>
+<a href="#erros">Erros</a>
+<a href="#rede-credenciada">Rede credenciada</a>
+<a href="#pagamentos">Pagamentos</a>
+</nav>
+</header>
+<main>
+<section id="comecar">
+<h2>Começar</h2>
+<p>Uma chave de API é gerada por um administrador do EmerLAB (menu Administrativo &gt; API) e entregue por canal seguro. Há dois tipos:</p>
+<ul>
+<li><strong>Chave da rede</strong> (<code>emer_rede_…</code>, escopo <code>rede:ler</code>): vai no navegador do site. É pública por natureza e se protege pela origem permitida e pelo limite de requisições.</li>
+<li><strong>Chave de pagamentos</strong> (<code>emer_pag_…</code>, escopos <code>pagamentos:ler</code> e <code>pagamentos:escrever</code>): só servidor a servidor. Qualquer requisição com cabeçalho <code>Origin</code> é recusada (403).</li>
+</ul>
+<p>URL base: <code>https://api.emerlab.com.br</code>, rotas <code>/v1/…</code> (sem <code>/api</code>). As mesmas rotas existem em <code>/api/v1/…</code> no domínio principal do EmerLAB.</p>
+<pre><code>curl "https://api.emerlab.com.br/v1/rede/filtros" \
+  -H "Authorization: Bearer emer_rede_EXEMPLO_NAO_E_UMA_CHAVE" \
+  -H "Origin: https://www.exemplo.com.br"</code></pre>
+</section>
+<section id="autenticacao">
+<h2>Autenticação e origens</h2>
+<ul>
+<li>Envie a chave em <code>Authorization: Bearer &lt;chave&gt;</code> ou em <code>X-Api-Key</code>.</li>
+<li>Chave da rede: a requisição precisa de um <code>Origin</code> igual a uma origem cadastrada na chave. O navegador envia sozinho; em <code>curl</code> ou no servidor, envie você mesmo.</li>
+<li>Origens são exatas: <code>https://host</code> ou <code>https://host:porta</code>, sem caminho e sem curinga. Para desenvolvimento local também valem <code>http://localhost</code> e <code>http://127.0.0.1</code>, com porta opcional.</li>
+<li>Chave revogada ou editada leva até 30 segundos para parar (ou começar) a valer. As respostas da rede ficam em cache na borda por até 5 minutos: uma chave revogada ainda pode receber dados públicos do cache nesse período.</li>
+</ul>
+</section>
+<section id="cors">
+<h2>CORS</h2>
+<p>Só <code>GET</code>, <code>POST</code> e <code>OPTIONS</code>. O cabeçalho <code>Access-Control-Allow-Origin</code> só é enviado para origens cadastradas em alguma chave ativa. Os cabeçalhos legíveis pelo navegador são <code>Retry-After</code>, <code>X-RateLimit-Limit</code> e <code>X-RateLimit-Remaining</code>. Atenção: <code>X-Total-Count</code> ainda não consta dessa lista, então o navegador não o enxerga em chamadas entre domínios (veja o guia da rede credenciada).</p>
+</section>
+<section id="limites">
+<h2>Limites e paginação</h2>
+<ul>
+<li>Limite por chave por minuto: 120 (rede) e 60 (pagamentos) por padrão, ajustável por chave. Cabeçalhos <code>X-RateLimit-Limit</code> e <code>X-RateLimit-Remaining</code> em cada resposta. Ao exceder: 429 <code>limite_excedido</code> com <code>Retry-After</code> (segundos).</li>
+<li>O contador é por instância do servidor; sob carga o limite efetivo pode ser maior que o configurado.</li>
+<li>Listas: <code>pagina</code> (padrão 1) e <code>por_pagina</code> (padrão 18, de 1 a 100; 0 também vira 18). O total vem em <code>X-Total-Count</code>. Ordem por nome e depois id (rede) ou do mais recente ao mais antigo (pagamentos).</li>
+</ul>
+</section>
+<section id="erros">
+<h2>Erros</h2>
+<p>Todo erro tem o corpo <code>{ "erro": { "codigo": "…", "mensagem": "…" } }</code>. Trate pelo <code>codigo</code>; a <code>mensagem</code> é para humanos.</p>
+<div class="rolavel"><table><thead><tr><th>Código</th><th>HTTP</th><th>Quando</th></tr></thead><tbody><tr><td><code>chave_invalida</code></td><td>401</td><td>Chave ausente, desconhecida, revogada ou expirada (as quatro dão a mesma resposta).</td></tr><tr><td><code>escopo_insuficiente</code></td><td>403</td><td>A chave existe, mas não tem o escopo da rota.</td></tr><tr><td><code>origem_nao_permitida</code></td><td>403</td><td>Chave da rede: cabeçalho Origin ausente ou fora da lista. Chave de pagamentos: qualquer requisição com Origin.</td></tr><tr><td><code>ip_nao_permitido</code></td><td>403</td><td>A chave tem lista de IPs e o IP de origem não está nela (recurso opcional e hoje sem uso).</td></tr><tr><td><code>rota_nao_encontrada</code></td><td>404</td><td>Caminho ou método que não existe.</td></tr><tr><td><code>limite_excedido</code></td><td>429</td><td>Limite por minuto da chave excedido; veja Retry-After.</td></tr><tr><td><code>payload_grande</code></td><td>413</td><td>Corpo da requisição acima do teto da rota (256 KB; cerca de 4,4 MiB no comprovante).</td></tr><tr><td><code>corpo_invalido</code></td><td>400</td><td>O corpo não é um objeto JSON válido.</td></tr><tr><td><code>tipo_invalido</code></td><td>400</td><td>Filtro tipo diferente de local ou especialidade.</td></tr><tr><td><code>plano_invalido</code></td><td>400</td><td>Filtro plano desconhecido ou &quot;Apenas Loja&quot;.</td></tr><tr><td><code>credenciado_nao_encontrado</code></td><td>404</td><td>Credenciado inexistente ou fora da rede.</td></tr><tr><td><code>parametro_invalido</code></td><td>400</td><td>Filtro malformado (mes, ano, pago, prestador_id, notificar_prestador).</td></tr><tr><td><code>registro_nao_encontrado</code></td><td>404</td><td>Registro de pagamento inexistente.</td></tr><tr><td><code>data_pagamento_invalida</code></td><td>400</td><td>data_pagamento fora do formato AAAA-MM-DD.</td></tr><tr><td><code>valor_invalido</code></td><td>400</td><td>valor ausente ou não positivo.</td></tr><tr><td><code>motivo_obrigatorio</code></td><td>400</td><td>Desfazer pagamento sem motivo de 5 caracteres ou mais.</td></tr><tr><td><code>arquivo_obrigatorio</code></td><td>400</td><td>arquivo_base64 ausente.</td></tr><tr><td><code>arquivo_invalido</code></td><td>422</td><td>Base64 inválido, arquivo vazio ou que não é PDF, PNG ou JPEG.</td></tr><tr><td><code>arquivo_grande</code></td><td>413</td><td>Arquivo acima de 3 MB decodificado.</td></tr><tr><td><code>prestador_sem_email</code></td><td>422</td><td>notificar_prestador=true e o prestador não tem e-mail.</td></tr><tr><td><code>nao_esta_pago</code></td><td>409</td><td>Desfazer pagamento de um registro que não está pago.</td></tr><tr><td><code>registro_sem_relatorio</code></td><td>409</td><td>Comprovante em registro sem relatório de repasse (limitação atual).</td></tr><tr><td><code>comprovante_em_processamento</code></td><td>409</td><td>Mesmo comprovante enviado há menos de 45 s; repita depois de Retry-After.</td></tr><tr><td><code>comprovante_inconsistente</code></td><td>500</td><td>O servidor não terminou de forma consistente; repita a chamada.</td></tr><tr><td><code>erro_interno</code></td><td>500</td><td>Falha inesperada no servidor.</td></tr></tbody></table></div>
+</section>
+<section id="credenciado-definicao">
+<h2>Regras da rede credenciada</h2>
+<ul>
+<li><strong>Credenciado</strong> é o prestador ativo com situação "Credenciado". Situações como "Descredenciado" e "Não credenciado" nunca entram.</li>
+<li><strong>Cidade:</strong> casa a cidade principal ou qualquer cidade que o credenciado atende; "Porto Alegre e Região" casa com "Porto Alegre".</li>
+<li><strong>Endereço</strong> só vem quando o credenciado tem alguma especialidade do tipo Local (principal ou secundária: clínica 24h, clínica, consultório, hospital, laboratório, farmácia, petshop, comércio, banho e tosa, crematório, hotel, recreação, adestramento); senão é <code>null</code>.</li>
+<li><strong>Plano</strong> (opcional) restringe às cidades em que o plano tem tabela e corta procedimentos pela hierarquia Básico ⊂ Clássico ⊂ Avançado ⊂ Ultra. "Apenas Loja" devolve 400.</li>
+</ul>
+</section>
+<section id="pagamentos-regras">
+<h2>Regras dos pagamentos</h2>
+<ul>
+<li>Fluxo: listar registros, marcar como pago, anexar o comprovante. A API só altera a flag <code>pago</code> do registro.</li>
+<li>Marcar como pago é idempotente (<code>ja_estava_pago: true</code>). O mesmo comprovante (mesmo SHA-256) no mesmo registro devolve o existente (<code>ja_existia: true</code>); repetido em menos de 45 s, 409 <code>comprovante_em_processamento</code>.</li>
+<li>O comprovante é enviado em JSON (<code>arquivo_base64</code>), PDF, PNG ou JPEG, até 3 MB.</li>
+<li><strong>Limitação atual:</strong> registro sem relatório de repasse aceita "marcar pago", mas o comprovante devolve 409 <code>registro_sem_relatorio</code> até uma mudança no banco prevista para a próxima versão.</li>
+<li>As respostas nunca incluem chave PIX, e-mails nem caminhos de arquivo, e não têm cache.</li>
+</ul>
+</section>
+<section id="rede-credenciada"><h2>Rede credenciada</h2><p>Leitura pública da rede de credenciados. Escopo <code>rede:ler</code>.</p><details class="op" id="listarcredenciados">
+<summary><span class="met met-get">GET</span> <code>/v1/rede/credenciados</code> <span class="resumo">Lista paginada de credenciados</span></summary>
+<div class="conteudo">
+<p>Credenciados ativos, em ordem de nome e depois de id. Todos os filtros são opcionais e se combinam (E).</p>
+<ul><li><code>cidade</code> casa a cidade principal <strong>ou</strong> qualquer cidade que o credenciado atende; sem acento e sem diferenciar maiúsculas. &quot;Porto Alegre e Região&quot; casa com &quot;Porto Alegre&quot;.</li><li><code>plano</code> restringe aos credenciados de cidades em que o plano tem tabela de valores e corta os procedimentos pela hierarquia Básico ⊂ Clássico ⊂ Avançado ⊂ Ultra. &quot;Apenas Loja&quot; não é aceito. Sem <code>plano</code>, a busca é só por cidade e saem todos os procedimentos.</li><li>O total de itens (todas as páginas) vem no cabeçalho <code>X-Total-Count</code>.</li></ul>
+<p>A requisição precisa do cabeçalho <code>Origin</code> de uma origem cadastrada na chave (o navegador envia sozinho).</p>
+<h4>Parâmetros</h4><div class="rolavel"><table><thead><tr><th>Nome</th><th>Onde</th><th>Tipo</th><th>Descrição</th></tr></thead><tbody><tr><td><code>uf</code></td><td>query</td><td>string</td><td>Sigla da UF (ex.: RS). Mantém credenciados com alguma cidade nessa UF.</td></tr><tr><td><code>cidade</code></td><td>query</td><td>string</td><td>Nome do município (ex.: Porto Alegre). Casa a cidade principal ou qualquer cidade atendida.</td></tr><tr><td><code>especialidade</code></td><td>query</td><td>string</td><td>Id ou nome da especialidade (a lista vem de <code>/v1/rede/filtros</code>). Casa a especialidade principal ou as secundárias.</td></tr><tr><td><code>tipo</code></td><td>query</td><td>local | especialidade</td><td><code>local</code>: tem alguma especialidade do tipo Local (principal ou secundária); <code>especialidade</code>: não tem nenhuma. Outro valor devolve 400 <code>tipo_invalido</code>.</td></tr><tr><td><code>plano</code></td><td>query</td><td>string</td><td>Id ou chave do plano: <code>basico</code>, <code>classico</code>, <code>avancado</code> ou <code>ultra</code>. Outro valor (incluindo &quot;Apenas Loja&quot;) devolve 400 <code>plano_invalido</code>.</td></tr><tr><td><code>q</code></td><td>query</td><td>string</td><td>Busca por parte do nome (sem acento, sem diferenciar maiúsculas; todas as palavras precisam aparecer).</td></tr><tr><td><code>pagina</code></td><td>query</td><td>integer</td><td>Número da página, começando em 1. Valor ausente, não numérico ou menor que 1 vira 1.</td></tr><tr><td><code>por_pagina</code></td><td>query</td><td>integer</td><td>Itens por página, de 1 a 100 (acima de 100 vira 100). Valor ausente, não numérico ou 0 vira 18.</td></tr></tbody></table></div>
+
+<h4>Exemplo</h4>
+<pre><code>curl &quot;https://api.emerlab.com.br/v1/rede/credenciados?uf=RS&amp;cidade=Porto%20Alegre&amp;plano=classico&quot; \
+  -H &quot;Authorization: Bearer emer_rede_EXEMPLO_NAO_E_UMA_CHAVE&quot; \
+  -H &quot;Origin: https://www.exemplo.com.br&quot;</code></pre>
+<h4>Respostas</h4><div class="rolavel"><table><thead><tr><th>HTTP</th><th>Significado</th></tr></thead><tbody><tr class="ok"><td><code>200</code></td><td>Página de credenciados (pode ser uma lista vazia).<p class="mini">Cabeçalhos: <code>X-Total-Count</code>, <code>Cache-Control</code>, <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code></p><pre><code>[
+  {
+    &quot;id&quot;: 123,
+    &quot;nome&quot;: &quot;Clínica Veterinária Exemplo&quot;,
+    &quot;tipo&quot;: &quot;local&quot;,
+    &quot;especialidade_principal&quot;: &quot;Clínica&quot;,
+    &quot;especialidades_secundarias&quot;: [
+      &quot;Fisioterapeuta&quot;,
+      &quot;Integrativa&quot;
+    ],
+    &quot;contatos&quot;: {
+      &quot;telefone&quot;: &quot;(51) 3000-0000&quot;,
+      &quot;celular&quot;: &quot;(51) 90000-0000&quot;,
+      &quot;whatsapp_url&quot;: &quot;https://wa.me/5551900000000&quot;
+    },
+    &quot;cidade_principal&quot;: {
+      &quot;nome&quot;: &quot;Porto Alegre&quot;,
+      &quot;uf&quot;: &quot;RS&quot;
+    },
+    &quot;cidades_atende&quot;: [
+      {
+        &quot;nome&quot;: &quot;Porto Alegre&quot;,
+        &quot;uf&quot;: &quot;RS&quot;
+      },
+      {
+        &quot;nome&quot;: &quot;Canoas&quot;,
+        &quot;uf&quot;: &quot;RS&quot;
+      }
+    ],
+    &quot;endereco&quot;: {
+      &quot;logradouro&quot;: &quot;Rua das Flores&quot;,
+      &quot;numero&quot;: &quot;100&quot;,
+      &quot;complemento&quot;: &quot;Sala 2&quot;,
+      &quot;bairro&quot;: &quot;Centro Histórico&quot;,
+      &quot;cidade&quot;: &quot;Porto Alegre&quot;,
+      &quot;uf&quot;: &quot;RS&quot;,
+      &quot;cep&quot;: &quot;90000-000&quot;,
+      &quot;texto&quot;: &quot;Rua das Flores, 100 — Centro Histórico — Porto Alegre/RS&quot;
+    },
+    &quot;procedimentos&quot;: [
+      {
+        &quot;categoria&quot;: &quot;Consultas&quot;,
+        &quot;itens&quot;: [
+          {
+            &quot;codigo&quot;: &quot;CONS-001&quot;,
+            &quot;nome&quot;: &quot;Consulta clínica&quot;,
+            &quot;nome_alternativo&quot;: null
+          }
+        ]
+      },
+      {
+        &quot;categoria&quot;: &quot;Sessões&quot;,
+        &quot;itens&quot;: [
+          {
+            &quot;codigo&quot;: &quot;SESS-002&quot;,
+            &quot;nome&quot;: &quot;Sessão de Fisioterapia&quot;,
+            &quot;nome_alternativo&quot;: &quot;Fisioterapia canina&quot;
+          }
+        ]
+      }
+    ],
+    &quot;descontos&quot;: {
+      &quot;itens&quot;: [
+        {
+          &quot;nome&quot;: &quot;Banho e tosa&quot;,
+          &quot;grupo&quot;: &quot;Serviços&quot;,
+          &quot;percentual&quot;: 10,
+          &quot;percentual_max&quot;: 15
+        }
+      ],
+      &quot;observacoes&quot;: &quot;Desconto válido mediante apresentação da carteirinha.&quot;
+    }
+  }
+]</code></pre></td></tr><tr class="erro"><td><code>400</code></td><td>Filtro inválido (<code>tipo_invalido</code> ou <code>plano_invalido</code>).</td></tr><tr class="erro"><td><code>401</code></td><td>Chave ausente, desconhecida, revogada ou expirada (todas dão a mesma resposta).</td></tr><tr class="erro"><td><code>403</code></td><td>Chave válida, mas sem permissão para esta chamada: <code>escopo_insuficiente</code>, <code>origem_nao_permitida</code> (chave da rede com <code>Origin</code> ausente ou não cadastrado, ou chave de pagamentos com qualquer <code>Origin</code>) ou <code>ip_nao_permitido</code>.</td></tr><tr class="erro"><td><code>429</code></td><td>Limite de requisições por minuto da chave excedido. Espere <code>Retry-After</code> segundos.</td></tr><tr class="erro"><td><code>500</code></td><td>Falha inesperada no servidor. Sem detalhes na mensagem.</td></tr></tbody></table></div>
+</div>
+</details>
+<details class="op" id="obtercredenciado">
+<summary><span class="met met-get">GET</span> <code>/v1/rede/credenciados/{id}</code> <span class="resumo">Um credenciado</span></summary>
+<div class="conteudo">
+<p>Detalhe de um credenciado pelo id numérico (o <code>id</code> devolvido na lista). Devolve todos os procedimentos, sem corte por plano.</p>
+<h4>Parâmetros</h4><div class="rolavel"><table><thead><tr><th>Nome</th><th>Onde</th><th>Tipo</th><th>Descrição</th></tr></thead><tbody><tr><td><code>id</code></td><td>caminho · obrigatório</td><td>integer</td><td>Id numérico do credenciado.</td></tr></tbody></table></div>
+
+<h4>Exemplo</h4>
+<pre><code>curl &quot;https://api.emerlab.com.br/v1/rede/credenciados/123&quot; \
+  -H &quot;Authorization: Bearer emer_rede_EXEMPLO_NAO_E_UMA_CHAVE&quot; \
+  -H &quot;Origin: https://www.exemplo.com.br&quot;</code></pre>
+<h4>Respostas</h4><div class="rolavel"><table><thead><tr><th>HTTP</th><th>Significado</th></tr></thead><tbody><tr class="ok"><td><code>200</code></td><td>O credenciado.<p class="mini">Cabeçalhos: <code>Cache-Control</code>, <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code></p><pre><code>{
+  &quot;id&quot;: 123,
+  &quot;nome&quot;: &quot;Clínica Veterinária Exemplo&quot;,
+  &quot;tipo&quot;: &quot;local&quot;,
+  &quot;especialidade_principal&quot;: &quot;Clínica&quot;,
+  &quot;especialidades_secundarias&quot;: [
+    &quot;Fisioterapeuta&quot;,
+    &quot;Integrativa&quot;
+  ],
+  &quot;contatos&quot;: {
+    &quot;telefone&quot;: &quot;(51) 3000-0000&quot;,
+    &quot;celular&quot;: &quot;(51) 90000-0000&quot;,
+    &quot;whatsapp_url&quot;: &quot;https://wa.me/5551900000000&quot;
+  },
+  &quot;cidade_principal&quot;: {
+    &quot;nome&quot;: &quot;Porto Alegre&quot;,
+    &quot;uf&quot;: &quot;RS&quot;
+  },
+  &quot;cidades_atende&quot;: [
+    {
+      &quot;nome&quot;: &quot;Porto Alegre&quot;,
+      &quot;uf&quot;: &quot;RS&quot;
+    },
+    {
+      &quot;nome&quot;: &quot;Canoas&quot;,
+      &quot;uf&quot;: &quot;RS&quot;
+    }
+  ],
+  &quot;endereco&quot;: {
+    &quot;logradouro&quot;: &quot;Rua das Flores&quot;,
+    &quot;numero&quot;: &quot;100&quot;,
+    &quot;complemento&quot;: &quot;Sala 2&quot;,
+    &quot;bairro&quot;: &quot;Centro Histórico&quot;,
+    &quot;cidade&quot;: &quot;Porto Alegre&quot;,
+    &quot;uf&quot;: &quot;RS&quot;,
+    &quot;cep&quot;: &quot;90000-000&quot;,
+    &quot;texto&quot;: &quot;Rua das Flores, 100 — Centro Histórico — Porto Alegre/RS&quot;
+  },
+  &quot;procedimentos&quot;: [
+    {
+      &quot;categoria&quot;: &quot;Consultas&quot;,
+      &quot;itens&quot;: [
+        {
+          &quot;codigo&quot;: &quot;CONS-001&quot;,
+          &quot;nome&quot;: &quot;Consulta clínica&quot;,
+          &quot;nome_alternativo&quot;: null
+        }
+      ]
+    },
+    {
+      &quot;categoria&quot;: &quot;Sessões&quot;,
+      &quot;itens&quot;: [
+        {
+          &quot;codigo&quot;: &quot;SESS-002&quot;,
+          &quot;nome&quot;: &quot;Sessão de Fisioterapia&quot;,
+          &quot;nome_alternativo&quot;: &quot;Fisioterapia canina&quot;
+        }
+      ]
+    }
+  ],
+  &quot;descontos&quot;: {
+    &quot;itens&quot;: [
+      {
+        &quot;nome&quot;: &quot;Banho e tosa&quot;,
+        &quot;grupo&quot;: &quot;Serviços&quot;,
+        &quot;percentual&quot;: 10,
+        &quot;percentual_max&quot;: 15
+      }
+    ],
+    &quot;observacoes&quot;: &quot;Desconto válido mediante apresentação da carteirinha.&quot;
+  }
+}</code></pre></td></tr><tr class="erro"><td><code>401</code></td><td>Chave ausente, desconhecida, revogada ou expirada (todas dão a mesma resposta).</td></tr><tr class="erro"><td><code>403</code></td><td>Chave válida, mas sem permissão para esta chamada: <code>escopo_insuficiente</code>, <code>origem_nao_permitida</code> (chave da rede com <code>Origin</code> ausente ou não cadastrado, ou chave de pagamentos com qualquer <code>Origin</code>) ou <code>ip_nao_permitido</code>.</td></tr><tr class="erro"><td><code>404</code></td><td>Credenciado inexistente, inativo ou sem a situação Credenciado (também para ids que não são números).</td></tr><tr class="erro"><td><code>429</code></td><td>Limite de requisições por minuto da chave excedido. Espere <code>Retry-After</code> segundos.</td></tr><tr class="erro"><td><code>500</code></td><td>Falha inesperada no servidor. Sem detalhes na mensagem.</td></tr></tbody></table></div>
+</div>
+</details>
+<details class="op" id="obterfiltros">
+<summary><span class="met met-get">GET</span> <code>/v1/rede/filtros</code> <span class="resumo">Opções para montar os filtros</span></summary>
+<div class="conteudo">
+<p>UFs, cidades por UF, especialidades e planos. Só aparecem UFs, cidades e especialidades que têm ao menos um credenciado. Use para montar os filtros em cascata UF → cidade → especialidade → plano.</p>
+
+
+<h4>Exemplo</h4>
+<pre><code>curl &quot;https://api.emerlab.com.br/v1/rede/filtros&quot; \
+  -H &quot;Authorization: Bearer emer_rede_EXEMPLO_NAO_E_UMA_CHAVE&quot; \
+  -H &quot;Origin: https://www.exemplo.com.br&quot;</code></pre>
+<h4>Respostas</h4><div class="rolavel"><table><thead><tr><th>HTTP</th><th>Significado</th></tr></thead><tbody><tr class="ok"><td><code>200</code></td><td>Opções de filtro.<p class="mini">Cabeçalhos: <code>Cache-Control</code>, <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code></p><pre><code>{
+  &quot;ufs&quot;: [
+    &quot;MG&quot;,
+    &quot;PR&quot;,
+    &quot;RS&quot;
+  ],
+  &quot;cidades&quot;: {
+    &quot;MG&quot;: [
+      &quot;Belo Horizonte&quot;
+    ],
+    &quot;PR&quot;: [
+      &quot;Curitiba&quot;
+    ],
+    &quot;RS&quot;: [
+      &quot;Canoas&quot;,
+      &quot;Porto Alegre&quot;
+    ]
+  },
+  &quot;especialidades&quot;: [
+    {
+      &quot;id&quot;: 2,
+      &quot;nome&quot;: &quot;Clínica&quot;,
+      &quot;tipo&quot;: &quot;Local&quot;
+    },
+    {
+      &quot;id&quot;: 12,
+      &quot;nome&quot;: &quot;Fisioterapeuta&quot;,
+      &quot;tipo&quot;: &quot;Especialidade&quot;
+    }
+  ],
+  &quot;planos&quot;: [
+    {
+      &quot;id&quot;: 1,
+      &quot;chave&quot;: &quot;basico&quot;,
+      &quot;nome&quot;: &quot;Básico&quot;
+    },
+    {
+      &quot;id&quot;: 2,
+      &quot;chave&quot;: &quot;classico&quot;,
+      &quot;nome&quot;: &quot;Clássico&quot;
+    },
+    {
+      &quot;id&quot;: 3,
+      &quot;chave&quot;: &quot;avancado&quot;,
+      &quot;nome&quot;: &quot;Avançado&quot;
+    },
+    {
+      &quot;id&quot;: 4,
+      &quot;chave&quot;: &quot;ultra&quot;,
+      &quot;nome&quot;: &quot;Ultra&quot;
+    }
+  ]
+}</code></pre></td></tr><tr class="erro"><td><code>401</code></td><td>Chave ausente, desconhecida, revogada ou expirada (todas dão a mesma resposta).</td></tr><tr class="erro"><td><code>403</code></td><td>Chave válida, mas sem permissão para esta chamada: <code>escopo_insuficiente</code>, <code>origem_nao_permitida</code> (chave da rede com <code>Origin</code> ausente ou não cadastrado, ou chave de pagamentos com qualquer <code>Origin</code>) ou <code>ip_nao_permitido</code>.</td></tr><tr class="erro"><td><code>429</code></td><td>Limite de requisições por minuto da chave excedido. Espere <code>Retry-After</code> segundos.</td></tr><tr class="erro"><td><code>500</code></td><td>Falha inesperada no servidor. Sem detalhes na mensagem.</td></tr></tbody></table></div>
+</div>
+</details></section>
+<section id="pagamentos"><h2>Pagamentos</h2><p>Repasses a prestadores, para uso entre servidores. Escopos <code>pagamentos:ler</code> e <code>pagamentos:escrever</code>.</p><details class="op" id="listarregistros">
+<summary><span class="met met-get">GET</span> <code>/v1/pagamentos/registros</code> <span class="resumo">Lista de registros de repasse</span></summary>
+<div class="conteudo">
+<p>Registros de repasse, do mais recente para o mais antigo (ano, mês, nome do prestador, id). Escopo <code>pagamentos:ler</code>. Sem cache. A chave é de servidor: qualquer requisição com cabeçalho <code>Origin</code> é recusada com 403 <code>origem_nao_permitida</code>.</p>
+<h4>Parâmetros</h4><div class="rolavel"><table><thead><tr><th>Nome</th><th>Onde</th><th>Tipo</th><th>Descrição</th></tr></thead><tbody><tr><td><code>mes</code></td><td>query</td><td>integer</td><td>Mês de competência, 1 a 12.</td></tr><tr><td><code>ano</code></td><td>query</td><td>integer</td><td>Ano de competência, 4 dígitos.</td></tr><tr><td><code>pago</code></td><td>query</td><td>boolean</td><td><code>true</code> ou <code>false</code>.</td></tr><tr><td><code>prestador_id</code></td><td>query</td><td>integer</td><td>Id numérico do prestador.</td></tr><tr><td><code>pagina</code></td><td>query</td><td>integer</td><td>Número da página, começando em 1. Valor ausente, não numérico ou menor que 1 vira 1.</td></tr><tr><td><code>por_pagina</code></td><td>query</td><td>integer</td><td>Itens por página, de 1 a 100 (acima de 100 vira 100). Valor ausente, não numérico ou 0 vira 18.</td></tr></tbody></table></div>
+
+<h4>Exemplo</h4>
+<pre><code>curl &quot;https://api.emerlab.com.br/v1/pagamentos/registros?mes=10&amp;ano=2026&quot; \
+  -H &quot;Authorization: Bearer emer_pag_EXEMPLO_NAO_E_UMA_CHAVE&quot;</code></pre>
+<h4>Respostas</h4><div class="rolavel"><table><thead><tr><th>HTTP</th><th>Significado</th></tr></thead><tbody><tr class="ok"><td><code>200</code></td><td>Página de registros.<p class="mini">Cabeçalhos: <code>X-Total-Count</code>, <code>Cache-Control</code>, <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code></p><pre><code>[
+  {
+    &quot;id&quot;: &quot;3f2b8c1e-5a4d-4e7b-9c10-2d6a8b7e1f00&quot;,
+    &quot;competencia&quot;: {
+      &quot;mes&quot;: 10,
+      &quot;ano&quot;: 2026
+    },
+    &quot;prestador_id&quot;: 456,
+    &quot;prestador_nome&quot;: &quot;Prestador Exemplo Ltda&quot;,
+    &quot;tipo_repasse&quot;: &quot;nota&quot;,
+    &quot;valor&quot;: 272,
+    &quot;pago&quot;: false,
+    &quot;tem_relatorio&quot;: true,
+    &quot;tem_comprovante&quot;: false
+  }
+]</code></pre></td></tr><tr class="erro"><td><code>400</code></td><td>Filtro malformado.</td></tr><tr class="erro"><td><code>401</code></td><td>Chave ausente, desconhecida, revogada ou expirada (todas dão a mesma resposta).</td></tr><tr class="erro"><td><code>403</code></td><td>Chave válida, mas sem permissão para esta chamada: <code>escopo_insuficiente</code>, <code>origem_nao_permitida</code> (chave da rede com <code>Origin</code> ausente ou não cadastrado, ou chave de pagamentos com qualquer <code>Origin</code>) ou <code>ip_nao_permitido</code>.</td></tr><tr class="erro"><td><code>429</code></td><td>Limite de requisições por minuto da chave excedido. Espere <code>Retry-After</code> segundos.</td></tr><tr class="erro"><td><code>500</code></td><td>Falha inesperada no servidor. Sem detalhes na mensagem.</td></tr></tbody></table></div>
+</div>
+</details>
+<details class="op" id="obterregistro">
+<summary><span class="met met-get">GET</span> <code>/v1/pagamentos/registros/{id}</code> <span class="resumo">Detalhe de um registro</span></summary>
+<div class="conteudo">
+<p>O registro com seus comprovantes e a linha do tempo de eventos (a origem do evento é só <code>api</code>, <code>painel</code>, <code>prestador</code> ou <code>sistema</code>; nunca o nome de quem agiu). Escopo <code>pagamentos:ler</code>.</p>
+<h4>Parâmetros</h4><div class="rolavel"><table><thead><tr><th>Nome</th><th>Onde</th><th>Tipo</th><th>Descrição</th></tr></thead><tbody><tr><td><code>id</code></td><td>caminho · obrigatório</td><td>string</td><td>Identificador do registro de pagamento (UUID).</td></tr></tbody></table></div>
+
+<h4>Exemplo</h4>
+<pre><code>curl &quot;https://api.emerlab.com.br/v1/pagamentos/registros/3f2b8c1e-5a4d-4e7b-9c10-2d6a8b7e1f00&quot; \
+  -H &quot;Authorization: Bearer emer_pag_EXEMPLO_NAO_E_UMA_CHAVE&quot;</code></pre>
+<h4>Respostas</h4><div class="rolavel"><table><thead><tr><th>HTTP</th><th>Significado</th></tr></thead><tbody><tr class="ok"><td><code>200</code></td><td>O registro.<p class="mini">Cabeçalhos: <code>Cache-Control</code>, <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code></p><pre><code>{
+  &quot;id&quot;: &quot;3f2b8c1e-5a4d-4e7b-9c10-2d6a8b7e1f00&quot;,
+  &quot;competencia&quot;: {
+    &quot;mes&quot;: 10,
+    &quot;ano&quot;: 2026
+  },
+  &quot;prestador_id&quot;: 456,
+  &quot;prestador_nome&quot;: &quot;Prestador Exemplo Ltda&quot;,
+  &quot;tipo_repasse&quot;: &quot;nota&quot;,
+  &quot;valor&quot;: 272,
+  &quot;pago&quot;: true,
+  &quot;tem_relatorio&quot;: true,
+  &quot;tem_comprovante&quot;: true,
+  &quot;comprovantes&quot;: [
+    {
+      &quot;id&quot;: &quot;9a7c2e44-1b3d-4f65-8a90-c0d1e2f3a4b5&quot;,
+      &quot;data_pagamento&quot;: &quot;2026-11-05&quot;,
+      &quot;valor&quot;: 272,
+      &quot;forma&quot;: &quot;pix&quot;,
+      &quot;enviado_em&quot;: &quot;2026-11-05T14:32:10.000Z&quot;
+    }
+  ],
+  &quot;eventos&quot;: [
+    {
+      &quot;tipo&quot;: &quot;pagamento_marcado&quot;,
+      &quot;criado_em&quot;: &quot;2026-11-05T14:30:00.000Z&quot;,
+      &quot;origem&quot;: &quot;api&quot;
+    },
+    {
+      &quot;tipo&quot;: &quot;comprovante_enviado&quot;,
+      &quot;criado_em&quot;: &quot;2026-11-05T14:32:10.000Z&quot;,
+      &quot;origem&quot;: &quot;api&quot;
+    }
+  ]
+}</code></pre></td></tr><tr class="erro"><td><code>401</code></td><td>Chave ausente, desconhecida, revogada ou expirada (todas dão a mesma resposta).</td></tr><tr class="erro"><td><code>403</code></td><td>Chave válida, mas sem permissão para esta chamada: <code>escopo_insuficiente</code>, <code>origem_nao_permitida</code> (chave da rede com <code>Origin</code> ausente ou não cadastrado, ou chave de pagamentos com qualquer <code>Origin</code>) ou <code>ip_nao_permitido</code>.</td></tr><tr class="erro"><td><code>404</code></td><td>Registro inexistente (também para ids que não são UUID).</td></tr><tr class="erro"><td><code>429</code></td><td>Limite de requisições por minuto da chave excedido. Espere <code>Retry-After</code> segundos.</td></tr><tr class="erro"><td><code>500</code></td><td>Falha inesperada no servidor. Sem detalhes na mensagem.</td></tr></tbody></table></div>
+</div>
+</details>
+<details class="op" id="marcarpago">
+<summary><span class="met met-post">POST</span> <code>/v1/pagamentos/registros/{id}/pago</code> <span class="resumo">Marca o registro como pago</span></summary>
+<div class="conteudo">
+<p>Muda somente a flag <code>pago</code> do registro. <strong>Idempotente</strong>: se já estava pago, responde 200 com <code>ja_estava_pago: true</code> e não grava novo evento. O corpo é opcional; <code>data_pagamento</code> e <code>valor</code>, se enviados, são validados e guardados no histórico (auditoria e eventos), não no registro. Escopo <code>pagamentos:escrever</code>. O cabeçalho <code>Idempotency-Key</code> é aceito e ignorado (a idempotência é natural).</p>
+<h4>Parâmetros</h4><div class="rolavel"><table><thead><tr><th>Nome</th><th>Onde</th><th>Tipo</th><th>Descrição</th></tr></thead><tbody><tr><td><code>id</code></td><td>caminho · obrigatório</td><td>string</td><td>Identificador do registro de pagamento (UUID).</td></tr></tbody></table></div>
+<h4>Corpo (JSON)</h4><pre><code>{
+  &quot;data_pagamento&quot;: &quot;2026-11-05&quot;,
+  &quot;valor&quot;: 272
+}</code></pre>
+<h4>Exemplo</h4>
+<pre><code>curl -X POST &quot;https://api.emerlab.com.br/v1/pagamentos/registros/3f2b8c1e-5a4d-4e7b-9c10-2d6a8b7e1f00/pago&quot; \
+  -H &quot;Authorization: Bearer emer_pag_EXEMPLO_NAO_E_UMA_CHAVE&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;data_pagamento&quot;:&quot;2026-11-05&quot;,&quot;valor&quot;:272}'</code></pre>
+<h4>Respostas</h4><div class="rolavel"><table><thead><tr><th>HTTP</th><th>Significado</th></tr></thead><tbody><tr class="ok"><td><code>200</code></td><td>Registro pago (agora ou já estava).<p class="mini">Cabeçalhos: <code>Cache-Control</code>, <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code></p><pre><code>{
+  &quot;ja_estava_pago&quot;: false,
+  &quot;registro&quot;: {
+    &quot;id&quot;: &quot;3f2b8c1e-5a4d-4e7b-9c10-2d6a8b7e1f00&quot;,
+    &quot;competencia&quot;: {
+      &quot;mes&quot;: 10,
+      &quot;ano&quot;: 2026
+    },
+    &quot;prestador_id&quot;: 456,
+    &quot;prestador_nome&quot;: &quot;Prestador Exemplo Ltda&quot;,
+    &quot;tipo_repasse&quot;: &quot;nota&quot;,
+    &quot;valor&quot;: 272,
+    &quot;pago&quot;: true,
+    &quot;tem_relatorio&quot;: true,
+    &quot;tem_comprovante&quot;: false
+  }
+}</code></pre></td></tr><tr class="erro"><td><code>400</code></td><td>Corpo ou campo inválido (<code>corpo_invalido</code>, <code>data_pagamento_invalida</code>, <code>valor_invalido</code>).</td></tr><tr class="erro"><td><code>401</code></td><td>Chave ausente, desconhecida, revogada ou expirada (todas dão a mesma resposta).</td></tr><tr class="erro"><td><code>403</code></td><td>Chave válida, mas sem permissão para esta chamada: <code>escopo_insuficiente</code>, <code>origem_nao_permitida</code> (chave da rede com <code>Origin</code> ausente ou não cadastrado, ou chave de pagamentos com qualquer <code>Origin</code>) ou <code>ip_nao_permitido</code>.</td></tr><tr class="erro"><td><code>404</code></td><td>Registro inexistente.</td></tr><tr class="erro"><td><code>429</code></td><td>Limite de requisições por minuto da chave excedido. Espere <code>Retry-After</code> segundos.</td></tr><tr class="erro"><td><code>500</code></td><td>Falha inesperada no servidor. Sem detalhes na mensagem.</td></tr></tbody></table></div>
+</div>
+</details>
+<details class="op" id="desfazerpago">
+<summary><span class="met met-delete">DELETE</span> <code>/v1/pagamentos/registros/{id}/pago</code> <span class="resumo">Desfaz o pagamento</span></summary>
+<div class="conteudo">
+<p>Volta <code>pago</code> para falso e remove as linhas de comprovante do registro (os arquivos continuam no armazenamento). O <code>motivo</code> (mínimo 5 caracteres, guarda até 500) é obrigatório e vai para a auditoria; pode vir no corpo JSON ou na query. Escopo <code>pagamentos:escrever</code>.</p>
+<h4>Parâmetros</h4><div class="rolavel"><table><thead><tr><th>Nome</th><th>Onde</th><th>Tipo</th><th>Descrição</th></tr></thead><tbody><tr><td><code>id</code></td><td>caminho · obrigatório</td><td>string</td><td>Identificador do registro de pagamento (UUID).</td></tr><tr><td><code>motivo</code></td><td>query</td><td>string</td><td>Alternativa ao corpo: motivo do estorno (mínimo 5 caracteres).</td></tr></tbody></table></div>
+<h4>Corpo (JSON)</h4><pre><code>{
+  &quot;motivo&quot;: &quot;Pagamento lançado no registro errado&quot;
+}</code></pre>
+<h4>Exemplo</h4>
+<pre><code>curl -X DELETE &quot;https://api.emerlab.com.br/v1/pagamentos/registros/3f2b8c1e-5a4d-4e7b-9c10-2d6a8b7e1f00/pago&quot; \
+  -H &quot;Authorization: Bearer emer_pag_EXEMPLO_NAO_E_UMA_CHAVE&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;motivo&quot;:&quot;Pagamento lançado no registro errado&quot;}'</code></pre>
+<h4>Respostas</h4><div class="rolavel"><table><thead><tr><th>HTTP</th><th>Significado</th></tr></thead><tbody><tr class="ok"><td><code>200</code></td><td>Pagamento desfeito.<p class="mini">Cabeçalhos: <code>Cache-Control</code>, <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code></p><pre><code>{
+  &quot;comprovantes_removidos&quot;: 1,
+  &quot;registro&quot;: {
+    &quot;id&quot;: &quot;3f2b8c1e-5a4d-4e7b-9c10-2d6a8b7e1f00&quot;,
+    &quot;competencia&quot;: {
+      &quot;mes&quot;: 10,
+      &quot;ano&quot;: 2026
+    },
+    &quot;prestador_id&quot;: 456,
+    &quot;prestador_nome&quot;: &quot;Prestador Exemplo Ltda&quot;,
+    &quot;tipo_repasse&quot;: &quot;nota&quot;,
+    &quot;valor&quot;: 272,
+    &quot;pago&quot;: false,
+    &quot;tem_relatorio&quot;: true,
+    &quot;tem_comprovante&quot;: false
+  }
+}</code></pre></td></tr><tr class="erro"><td><code>400</code></td><td>Motivo ausente ou curto demais.</td></tr><tr class="erro"><td><code>401</code></td><td>Chave ausente, desconhecida, revogada ou expirada (todas dão a mesma resposta).</td></tr><tr class="erro"><td><code>403</code></td><td>Chave válida, mas sem permissão para esta chamada: <code>escopo_insuficiente</code>, <code>origem_nao_permitida</code> (chave da rede com <code>Origin</code> ausente ou não cadastrado, ou chave de pagamentos com qualquer <code>Origin</code>) ou <code>ip_nao_permitido</code>.</td></tr><tr class="erro"><td><code>404</code></td><td>Registro inexistente.</td></tr><tr class="erro"><td><code>409</code></td><td>O registro não está pago e não tem comprovantes.</td></tr><tr class="erro"><td><code>429</code></td><td>Limite de requisições por minuto da chave excedido. Espere <code>Retry-After</code> segundos.</td></tr><tr class="erro"><td><code>500</code></td><td>Falha inesperada no servidor. Sem detalhes na mensagem.</td></tr></tbody></table></div>
+</div>
+</details>
+<details class="op" id="anexarcomprovante">
+<summary><span class="met met-post">POST</span> <code>/v1/pagamentos/registros/{id}/comprovantes</code> <span class="resumo">Anexa o comprovante de pagamento</span></summary>
+<div class="conteudo">
+<p>Envia o arquivo em JSON (<code>arquivo_base64</code>; não há <code>multipart/form-data</code>). Grava o comprovante e, no mesmo passo, marca o registro como pago. Escopo <code>pagamentos:escrever</code>.</p>
+<ul><li>O tipo (PDF, PNG ou JPEG) é detectado pelo <strong>conteúdo</strong> do arquivo; o <code>nome</code> é só informativo. Máximo de 3 MB depois de decodificado; o corpo da requisição aceita até cerca de 4,4 MiB. Arquivo grande demais devolve 413 (<code>arquivo_grande</code> ou <code>payload_grande</code>).</li><li><strong>Idempotência:</strong> o mesmo arquivo (mesmo SHA-256) no mesmo registro devolve o comprovante já existente com <code>ja_existia: true</code> (status 200, sem e-mail). Se o original foi gravado há menos de 45 segundos, a resposta é 409 <code>comprovante_em_processamento</code> com <code>Retry-After</code>: espere e repita.</li><li><code>notificar_prestador</code> (padrão <code>false</code>): com <code>true</code>, o prestador recebe o e-mail &quot;Pagamento realizado&quot; com o comprovante anexado; sem e-mail no cadastro, 422 <code>prestador_sem_email</code>.</li><li><strong>Limitação atual:</strong> registro <strong>sem relatório de repasse</strong> aceita &quot;marcar pago&quot;, mas não aceita comprovante: devolve 409 <code>registro_sem_relatorio</code> até uma mudança no banco prevista para a próxima versão.</li><li>500 <code>comprovante_inconsistente</code> significa que o servidor não conseguiu terminar de forma consistente; a chamada é segura de repetir.</li></ul>
+<h4>Parâmetros</h4><div class="rolavel"><table><thead><tr><th>Nome</th><th>Onde</th><th>Tipo</th><th>Descrição</th></tr></thead><tbody><tr><td><code>id</code></td><td>caminho · obrigatório</td><td>string</td><td>Identificador do registro de pagamento (UUID).</td></tr></tbody></table></div>
+<h4>Corpo (JSON)</h4><pre><code>{
+  &quot;arquivo_base64&quot;: &quot;JVBERi0xLjQKJSBleGVtcGxvIGRlIGNvbXByb3ZhbnRlIChiYXNlNjQgcmVkdXppZG8pCg==&quot;,
+  &quot;nome&quot;: &quot;comprovante-2026-11-05.pdf&quot;,
+  &quot;data_pagamento&quot;: &quot;2026-11-05&quot;,
+  &quot;valor&quot;: 272,
+  &quot;notificar_prestador&quot;: false
+}</code></pre>
+<h4>Exemplo</h4>
+<pre><code>curl -X POST &quot;https://api.emerlab.com.br/v1/pagamentos/registros/3f2b8c1e-5a4d-4e7b-9c10-2d6a8b7e1f00/comprovantes&quot; \
+  -H &quot;Authorization: Bearer emer_pag_EXEMPLO_NAO_E_UMA_CHAVE&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;arquivo_base64&quot;:&quot;JVBERi0xLjQKJSBleGVtcGxvIGRlIGNvbXByb3ZhbnRlIChiYXNlNjQgcmVkdXppZG8pCg==&quot;,&quot;nome&quot;:&quot;comprovante-2026-11-05.pdf&quot;,&quot;data_pagamento&quot;:&quot;2026-11-05&quot;,&quot;valor&quot;:272,&quot;notificar_prestador&quot;:false}'</code></pre>
+<h4>Respostas</h4><div class="rolavel"><table><thead><tr><th>HTTP</th><th>Significado</th></tr></thead><tbody><tr class="ok"><td><code>200</code></td><td>Comprovante já existia (mesmo arquivo neste registro). Nada novo foi gravado nem enviado.<p class="mini">Cabeçalhos: <code>Cache-Control</code>, <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code></p><pre><code>{
+  &quot;ja_existia&quot;: true,
+  &quot;notificado&quot;: false,
+  &quot;comprovante&quot;: {
+    &quot;id&quot;: &quot;9a7c2e44-1b3d-4f65-8a90-c0d1e2f3a4b5&quot;,
+    &quot;data_pagamento&quot;: &quot;2026-11-05&quot;,
+    &quot;valor&quot;: 272,
+    &quot;forma&quot;: &quot;pix&quot;,
+    &quot;enviado_em&quot;: &quot;2026-11-05T14:32:10.000Z&quot;
+  }
+}</code></pre></td></tr><tr class="ok"><td><code>201</code></td><td>Comprovante gravado e registro marcado como pago.<p class="mini">Cabeçalhos: <code>Cache-Control</code>, <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code></p><pre><code>{
+  &quot;ja_existia&quot;: false,
+  &quot;notificado&quot;: false,
+  &quot;comprovante&quot;: {
+    &quot;id&quot;: &quot;9a7c2e44-1b3d-4f65-8a90-c0d1e2f3a4b5&quot;,
+    &quot;data_pagamento&quot;: &quot;2026-11-05&quot;,
+    &quot;valor&quot;: 272,
+    &quot;forma&quot;: &quot;pix&quot;,
+    &quot;enviado_em&quot;: &quot;2026-11-05T14:32:10.000Z&quot;
+  }
+}</code></pre></td></tr><tr class="erro"><td><code>400</code></td><td>Corpo ou campo inválido (<code>corpo_invalido</code>, <code>arquivo_obrigatorio</code>, <code>data_pagamento_invalida</code>, <code>valor_invalido</code>, <code>parametro_invalido</code>).</td></tr><tr class="erro"><td><code>401</code></td><td>Chave ausente, desconhecida, revogada ou expirada (todas dão a mesma resposta).</td></tr><tr class="erro"><td><code>403</code></td><td>Chave válida, mas sem permissão para esta chamada: <code>escopo_insuficiente</code>, <code>origem_nao_permitida</code> (chave da rede com <code>Origin</code> ausente ou não cadastrado, ou chave de pagamentos com qualquer <code>Origin</code>) ou <code>ip_nao_permitido</code>.</td></tr><tr class="erro"><td><code>404</code></td><td>Registro inexistente.</td></tr><tr class="erro"><td><code>409</code></td><td>Duas situações: <code>comprovante_em_processamento</code> (repita depois de <code>Retry-After</code> segundos) ou <code>registro_sem_relatorio</code> (limitação atual, não adianta repetir).</td></tr><tr class="erro"><td><code>413</code></td><td>Arquivo ou corpo grande demais: <code>arquivo_grande</code> (arquivo acima de 3 MB decodificado) ou <code>payload_grande</code> (corpo acima de cerca de 4,4 MiB).</td></tr><tr class="erro"><td><code>422</code></td><td><code>arquivo_invalido</code> (não é base64, está vazio ou não é PDF/PNG/JPEG) ou <code>prestador_sem_email</code> (pediu <code>notificar_prestador</code> e o prestador não tem e-mail).</td></tr><tr class="erro"><td><code>429</code></td><td>Limite de requisições por minuto da chave excedido. Espere <code>Retry-After</code> segundos.</td></tr><tr class="erro"><td><code>500</code></td><td><code>erro_interno</code> ou <code>comprovante_inconsistente</code> (o servidor não terminou de forma consistente; repita a chamada).</td></tr></tbody></table></div>
+</div>
+</details></section>
+</main>
+<footer>
+<p>Gerado a partir de <code>docs/api/openapi.json</code>. Os exemplos usam chaves e dados fictícios. Os guias completos (README, rede credenciada e pagamentos) estão em <code>docs/api/</code> no repositório do EmerLAB.</p>
+</footer>
+</body>
+</html>
