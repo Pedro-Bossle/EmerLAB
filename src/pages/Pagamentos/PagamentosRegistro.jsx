@@ -601,6 +601,11 @@ export default function PagamentosRegistro() {
                 setErro(mensagemDuplicataPrestadorCompetencia(rowSalvar))
                 return
             }
+            const emailAlt = String(rowSalvar.emailFinanceiro || '').trim()
+            if (emailAlt && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailAlt)) {
+                setErro('E-mail financeiro inválido.')
+                return
+            }
             setSalvandoId(rowSalvar.id)
             setErro('')
             try {
@@ -615,6 +620,7 @@ export default function PagamentosRegistro() {
                     resposta: rowSalvar.resposta,
                     pago: rowSalvar.pago,
                     obs: rowSalvar.obs,
+                    emailFinanceiro: rowSalvar.emailFinanceiro,
                 })
                 setRegistros((prev) => prev.map((r) => (r.id === atualizado.id ? atualizado : r)))
             } catch (e) {
@@ -2297,6 +2303,18 @@ export default function PagamentosRegistro() {
                                     value={row.obs}
                                     placeholder="observações"
                                     onChange={(e) => aoAlterarCampo(row.id, { obs: e.target.value })}
+                                    onBlur={() => aoBlurCampo(row.id)}
+                                />
+                            </label>
+                            <label className="pag_reg_menu_campo">
+                                E-mail financeiro
+                                <input
+                                    type="email"
+                                    disabled={!podeEditar}
+                                    value={row.emailFinanceiro || ''}
+                                    placeholder="padrão: e-mail do cadastro"
+                                    title="Deixe vazio para usar o e-mail do cadastro do prestador."
+                                    onChange={(e) => aoAlterarCampo(row.id, { emailFinanceiro: e.target.value })}
                                     onBlur={() => aoBlurCampo(row.id)}
                                 />
                             </label>
