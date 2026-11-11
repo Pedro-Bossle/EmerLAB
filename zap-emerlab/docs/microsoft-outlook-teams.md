@@ -1,4 +1,4 @@
-# Emerzap: Outlookk e Teams (Microsoft Graph)
+# EEmerzap: Outlookk e Teams (Microsoft Graph)
 
 Branch `feat/emerzap-msal-azure`. Tudo vem **desligado**: sem `MS_ATIVO=true` as abas Outlook/Teams seguem na prévia simulada.
 
