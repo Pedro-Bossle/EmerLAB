@@ -22,13 +22,21 @@ describe('vercel.json: reescritas da API v1', () => {
         expect(i).toBeLessThan(fallback)
     })
 
-    it('serve a documentação em /docs e / no host da API', () => {
-        for (const source of ['/docs', '/']) {
-            const i = indice((r) => r.source === source)
-            expect(i).toBeGreaterThanOrEqual(0)
-            expect(rewrites[i].has).toEqual([{ type: 'host', value: 'api.emerlab.com.br' }])
-            expect(rewrites[i].destination).toBe('/api-docs/index.html')
-            expect(i).toBeLessThan(fallback)
-        }
+    it('serve a documentação em /docs no host da API', () => {
+        const i = indice((r) => r.source === '/docs')
+        expect(i).toBeGreaterThanOrEqual(0)
+        expect(rewrites[i].has).toEqual([{ type: 'host', value: 'api.emerlab.com.br' }])
+        expect(rewrites[i].destination).toBe('/api-docs/index.html')
+        expect(i).toBeLessThan(fallback)
+    })
+
+    it('não reescreve "/" (o index.html estático ganharia); redireciona para /docs no host da API', () => {
+        expect(rewrites.some((r) => r.source === '/')).toBe(false)
+        expect(config.redirects).toContainEqual({
+            source: '/',
+            has: [{ type: 'host', value: 'api.emerlab.com.br' }],
+            destination: '/docs',
+            permanent: false,
+        })
     })
 })

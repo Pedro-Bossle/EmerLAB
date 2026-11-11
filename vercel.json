@@ -51,6 +51,14 @@
       "maxDuration": 60
     }
   },
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "api.emerlab.com.br" }],
+      "destination": "/docs",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/clicksign/:path*",
@@ -95,11 +103,6 @@
     },
     {
       "source": "/docs",
-      "has": [{ "type": "host", "value": "api.emerlab.com.br" }],
-      "destination": "/api-docs/index.html"
-    },
-    {
-      "source": "/",
       "has": [{ "type": "host", "value": "api.emerlab.com.br" }],
       "destination": "/api-docs/index.html"
     },
