@@ -187,12 +187,12 @@ function secoesGuia() {
 </section>
 <section id="cors">
 <h2>CORS</h2>
-<p>Só <code>GET</code>, <code>POST</code> e <code>OPTIONS</code>. O cabeçalho <code>Access-Control-Allow-Origin</code> só é enviado para origens cadastradas em alguma chave ativa. Os cabeçalhos legíveis pelo navegador são <code>Retry-After</code>, <code>X-RateLimit-Limit</code> e <code>X-RateLimit-Remaining</code>. Atenção: <code>X-Total-Count</code> ainda não consta dessa lista, então o navegador não o enxerga em chamadas entre domínios (veja o guia da rede credenciada).</p>
+<p>Só <code>GET</code>, <code>POST</code> e <code>OPTIONS</code>. O cabeçalho <code>Access-Control-Allow-Origin</code> só é enviado para origens cadastradas em alguma chave ativa. Junto dele vai <code>Access-Control-Expose-Headers: X-Total-Count, X-RateLimit-Limit, X-RateLimit-Remaining, Retry-After</code>, então o navegador de uma origem permitida lê esses cabeçalhos (por exemplo <code>response.headers.get('X-Total-Count')</code>). <code>DELETE</code>, <code>PUT</code> e <code>PATCH</code> têm pré-verificação recusada (o servidor só permite <code>GET, POST, OPTIONS</code>), portanto não podem ser chamados do navegador; o único <code>DELETE</code> (desfazer pagamento) é de servidor.</p>
 </section>
 <section id="limites">
 <h2>Limites e paginação</h2>
 <ul>
-<li>Limite por chave por minuto: 120 (rede) e 60 (pagamentos) por padrão, ajustável por chave. Cabeçalhos <code>X-RateLimit-Limit</code> e <code>X-RateLimit-Remaining</code> em cada resposta. Ao exceder: 429 <code>limite_excedido</code> com <code>Retry-After</code> (segundos).</li>
+<li>Limite por chave por minuto: 120 (rede) e 60 (pagamentos) por padrão, ajustável por chave. Cabeçalhos <code>X-RateLimit-Limit</code> e <code>X-RateLimit-Remaining</code> em toda resposta de chave autenticada e aceita (sucessos, 429 e erros de corpo), mas não nas respostas 401 e 403, dadas antes do limitador. Ao exceder: 429 <code>limite_excedido</code> com <code>Retry-After</code> (segundos).</li>
 <li>O contador é por instância do servidor; sob carga o limite efetivo pode ser maior que o configurado.</li>
 <li>Listas: <code>pagina</code> (padrão 1) e <code>por_pagina</code> (padrão 18, de 1 a 100; 0 também vira 18). O total vem em <code>X-Total-Count</code>. Ordem por nome e depois id (rede) ou do mais recente ao mais antigo (pagamentos).</li>
 </ul>
@@ -302,7 +302,7 @@ ${secoesGuia()}
 ${secoesTags}
 </main>
 <footer>
-<p>Gerado a partir de <code>docs/api/openapi.json</code>. Os exemplos usam chaves e dados fictícios. Os guias completos (README, rede credenciada e pagamentos) estão em <code>docs/api/</code> no repositório do EmerLAB.</p>
+<p>Gerado a partir de <code>docs/api/openapi.json</code>. Os exemplos usam chaves e dados fictícios. Os guias completos (README, rede-credenciada.md e pagamentos.md) são entregues pelo administrador do EmerLAB junto com a chave; esta página e o openapi.json bastam como referência dos endpoints.</p>
 </footer>
 </body>
 </html>

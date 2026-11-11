@@ -74,13 +74,13 @@ Além disso, as respostas da rede são guardadas na borda (CDN) por 5 minutos. U
 - Métodos aceitos: `GET`, `POST` e `OPTIONS` (a pré-verificação `OPTIONS` responde `204`).
 - Cabeçalhos de requisição permitidos: `Authorization`, `X-Api-Key` e `Content-Type`.
 - `Access-Control-Allow-Origin` só é enviado quando a origem da requisição está cadastrada em alguma chave ativa. Se o navegador reclamar de CORS, a primeira coisa a conferir é se a origem exata do site (esquema, host e porta) está na chave.
-- Cabeçalhos de resposta que o navegador consegue ler: `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`. **`X-Total-Count` ainda não está nessa lista**; veja a observação em [rede-credenciada.md](rede-credenciada.md#paginação-e-total).
-- `PUT`, `PATCH` e `DELETE` não passam por pré-verificação CORS no navegador; a única rota com `DELETE` (desfazer pagamento) é de servidor.
+- Sempre que o `Access-Control-Allow-Origin` é enviado, vai junto `Access-Control-Expose-Headers: X-Total-Count, X-RateLimit-Limit, X-RateLimit-Remaining, Retry-After`. Ou seja, o navegador, numa origem permitida, consegue ler esses quatro cabeçalhos (por exemplo `response.headers.get('X-Total-Count')`).
+- O navegador envia pré-verificação para `DELETE`, `PUT` e `PATCH`, e ela falha, porque `Access-Control-Allow-Methods` é só `GET, POST, OPTIONS`. Portanto esses métodos não podem ser chamados do navegador. A única rota com `DELETE` (`DELETE .../pago`, desfazer pagamento) é exclusiva de servidor a servidor.
 
 ## Limites de uso
 
 - Cada chave tem um limite de requisições **por minuto**: padrão **120** (rede) e **60** (pagamentos); o administrador pode alterar por chave.
-- Toda resposta traz `X-RateLimit-Limit` (limite da chave) e `X-RateLimit-Remaining` (o que resta na janela de 1 minuto).
+- Toda resposta de uma chave autenticada e aceita traz `X-RateLimit-Limit` (limite da chave) e `X-RateLimit-Remaining` (o que resta na janela de 1 minuto): sucessos, `429` (com `Remaining: 0`) e erros de corpo depois da autenticação. As respostas `401` e `403` **não** trazem esses cabeçalhos, porque são dadas antes do limitador.
 - Ao exceder, a resposta é `429 limite_excedido` com `Retry-After` (segundos até poder tentar de novo). Espere esse tempo; não repita em laço.
 - O contador vive em cada instância do servidor. Sob carga, com várias instâncias, o limite efetivo pode ser **maior** que o configurado. Não use o limite como garantia de cota: trate-o como proteção contra abuso.
 
@@ -171,6 +171,7 @@ Nunca cole uma chave real em chat, ticket ou documento.
 ## Para a equipe de desenvolvimento do EmerLAB
 
 - O código das rotas está em `api/_lib/apiV1/` (roteador, rede, pagamentos, chaves) e as regras puras em `src/lib/apiV1/`.
+- Estes guias (README, rede-credenciada.md e pagamentos.md) são entregues por um administrador do EmerLAB junto com a chave; a página https://api.emerlab.com.br/docs e o openapi.json bastam como referência dos endpoints.
 - Esta documentação é mantida junto do código. O teste `src/lib/apiV1/openapi.test.js` falha se uma rota pública for criada ou removida sem atualizar `docs/api/openapi.json`, se houver algo parecido com uma chave real nos documentos, ou se a página `public/api-docs/` estiver desatualizada.
 - Depois de editar `docs/api/openapi.json`, rode `npm run api-docs`: ele copia o arquivo para `public/api-docs/openapi.json` e regenera `public/api-docs/index.html` (HTML estático, sem JavaScript).
 - A especificação de projeto, com as decisões, está em [especificacao-design.md](especificacao-design.md). Onde ela e o código diferem, vale o código, e estes guias descrevem o código.

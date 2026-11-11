@@ -229,6 +229,10 @@ console.log(`${lista.total} registros a pagar`)
 
 // 2) paga um deles com o comprovante
 const registro = lista.dados[0]
+if (registro.valor == null) {
+    // Sem valor no registro, a API recusa (400 valor_invalido): informe o valor pago explicitamente.
+    throw new Error(`Registro ${registro.id} sem valor cadastrado; informe o valor pago.`)
+}
 try {
     const r = await pagarComComprovante({
         registroId: registro.id,

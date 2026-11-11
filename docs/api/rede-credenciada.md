@@ -14,7 +14,8 @@ Leia antes o [README](README.md) (autenticação, erros, limites). Referência c
 
 - URL base: `https://api.emerlab.com.br` (sem `/api`).
 - Chave: **chave da rede** (`emer_rede_…`, escopo `rede:ler`). Pode ficar no código do site; ela só funciona a partir das origens cadastradas.
-- O navegador envia o cabeçalho `Origin` sozinho. Em `curl` ou em código de servidor, envie-o à mão (`-H "Origin: https://www.exemplo.com.br"`).
+
+> **Atenção: a chave da rede SEMPRE exige o cabeçalho `Origin`**, igual a uma das origens cadastradas na chave. O navegador o envia sozinho. Quem chama de servidor (renderização no servidor do site, Node, `curl`) **precisa enviá-lo explicitamente** (`-H "Origin: https://www.exemplo.com.br"`); sem ele a resposta é `403 origem_nao_permitida`.
 
 ## Quem é um "credenciado"
 
@@ -71,7 +72,7 @@ Regras que ajudam a desenhar a tela:
 - **`contatos`**: `telefone`, `celular` e `whatsapp_url` podem ser `null`. `whatsapp_url` só existe se há um número válido.
 - **`cidades_atende`** é a lista "cidades que atende" do cadastro, além da `cidade_principal`. Um veterinário vinculado a uma clínica herda as cidades da clínica.
 - **`procedimentos`** vêm agrupados por categoria (a categoria `null` agrupa os sem categoria e vem por último). `nome_alternativo` é como o credenciado chama o procedimento, quando difere do padrão.
-- **`descontos.itens`**: `percentual` é o desconto (ou o mínimo da faixa) e `percentual_max` o máximo da faixa; `percentual_max` pode ser `null`. Ambos são números em pontos percentuais (10 = 10%).
+- **`descontos.itens`**: `percentual` é o desconto (ou o mínimo da faixa) e `percentual_max` o máximo da faixa; `percentual` e `percentual_max` podem ser `null`. Ambos são números em pontos percentuais (10 = 10%).
 - Tudo que não está nesta lista **não** é devolvido: a API monta cada objeto campo a campo. Não há CPF/CNPJ, PIX, e-mail interno, situação cadastral nem observações internas.
 
 ## Card → campo da API
@@ -94,7 +95,7 @@ Mapa do card atual da página `/rede-credenciada/` para os campos da API:
 | Filtro "Cidade" (depende do estado)                           | `filtros.cidades[uf]`                                                                                |
 | Filtro "Especialidade"                                        | `filtros.especialidades[]` (`id`, `nome`, `tipo`)                                                    |
 | Filtro de plano (novo)                                        | `filtros.planos[]` (`id`, `chave`, `nome`)                                                           |
-| "547 credenciados encontrados" / "Mostrando 1–18 de 547"      | Cabeçalho `X-Total-Count` e `pagina`/`por_pagina` (veja a ressalva em [Paginação e total](#paginação-e-total)) |
+| "547 credenciados encontrados" / "Mostrando 1–18 de 547"      | Cabeçalho `X-Total-Count` e `pagina`/`por_pagina` (veja [Paginação e total](#paginação-e-total)) |
 
 ## Filtros em cascata: UF → cidade → especialidade → plano
 
@@ -156,12 +157,7 @@ Sem `plano`, a busca é só por cidade e cada credenciado traz todos os seus pro
 - A ordem é por nome e depois por id, estável entre páginas.
 - O total de credenciados (de todas as páginas) vem no cabeçalho `X-Total-Count`.
 
-**Atenção, no navegador:** o servidor ainda não inclui `X-Total-Count` entre os cabeçalhos liberados por CORS (`Access-Control-Expose-Headers`). Em `fetch` entre domínios, `response.headers.get('X-Total-Count')` devolve `null`. Enquanto isso não muda, para o contador "Mostrando 1–18 de N" você tem duas saídas:
-
-1. **Servidor do site** (renderização no servidor, rota de API do próprio site, função de borda): lê o cabeçalho sem restrição de CORS, só precisa enviar o `Origin` à mão.
-2. **Sem total:** use "carregar mais" ou "próxima página" e considere que há mais resultados enquanto a página vier cheia (`itens.length === por_pagina`).
-
-O código de exemplo abaixo já faz a segunda e usa o total quando ele existir.
+**No navegador:** o servidor expõe `X-Total-Count` por CORS (`Access-Control-Expose-Headers`) para origens permitidas, então `response.headers.get('X-Total-Count')` funciona no `fetch` do site e alimenta o contador "Mostrando 1–18 de N". O total pode faltar (`null`) se a chamada falhar ou se a origem não estiver cadastrada na chave; o exemplo abaixo cai para "a página veio cheia" nesse caso.
 
 ## Exemplos
 
@@ -208,7 +204,7 @@ async function chamar(caminho, params = {}) {
     }
     return {
         dados: await resposta.json(),
-        total: Number(resposta.headers.get('X-Total-Count')) || null, // null no navegador, por ora
+        total: Number(resposta.headers.get('X-Total-Count')) || null, // total de credenciados da busca
     }
 }
 
@@ -223,7 +219,7 @@ const { dados: pagina1 } = await chamar('/v1/rede/credenciados', {
 })
 ```
 
-Não envie `Origin` no `fetch` do navegador: o navegador o define e não permite alterar.
+> No `fetch` do **navegador** não envie `Origin`: o navegador o define sozinho (e não permite alterar). No `fetch` de **servidor** (Node, SSR) é obrigatório enviá-lo: `headers: { Authorization: ..., Origin: 'https://www.exemplo.com.br' }`; sem ele, `403 origem_nao_permitida`.
 
 ### React
 

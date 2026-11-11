@@ -4,7 +4,7 @@
     "title": "API pública do EmerLAB",
     "version": "1.0.0",
     "summary": "Rede credenciada da Emerdog (leitura) e repasses de pagamento (servidor a servidor).",
-    "description": "Duas APIs em um só endereço, versão 1.\n\n- **Rede credenciada** (`/v1/rede/*`, somente leitura): lista os credenciados da Emerdog para o site público. A chave fica no navegador e é restrita por origem (`Origin`) e por limite de requisições.\n- **Pagamentos** (`/v1/pagamentos/*`, servidor a servidor): consulta registros de repasse, marca como pago e anexa comprovantes. A chave é secreta e **nunca** pode ir ao navegador.\n\nA chave é enviada em `Authorization: Bearer <chave>` ou em `X-Api-Key`. As chaves são geradas por um administrador do EmerLAB (Administrativo > API); os exemplos desta documentação usam chaves fictícias.\n\nTodas as respostas de erro têm o formato `{ \"erro\": { \"codigo\", \"mensagem\" } }`. Os mesmos endereços também existem em `/api/v1/*` no domínio principal do EmerLAB, mas a URL canônica é `https://api.emerlab.com.br`."
+    "description": "Duas APIs em um só endereço, versão 1.\n\n- **Rede credenciada** (`/v1/rede/*`, somente leitura): lista os credenciados da Emerdog para o site público. A chave fica no navegador e é restrita por origem (`Origin`) e por limite de requisições.\n- **Pagamentos** (`/v1/pagamentos/*`, servidor a servidor): consulta registros de repasse, marca como pago e anexa comprovantes. A chave é secreta e **nunca** pode ir ao navegador.\n\nA chave é enviada em `Authorization: Bearer <chave>` ou em `X-Api-Key`. As chaves são geradas por um administrador do EmerLAB (Administrativo > API); os exemplos desta documentação usam chaves fictícias.\n\nTodas as respostas de erro têm o formato `{ \"erro\": { \"codigo\", \"mensagem\" } }`. Em chamadas de navegador de uma origem permitida, o servidor expõe por CORS os cabeçalhos `X-Total-Count`, `X-RateLimit-Limit`, `X-RateLimit-Remaining` e `Retry-After` (`Access-Control-Expose-Headers`). Os mesmos endereços também existem em `/api/v1/*` no domínio principal do EmerLAB, mas a URL canônica é `https://api.emerlab.com.br`."
   },
   "servers": [
     {
@@ -977,6 +977,9 @@
               }
             }
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadGrande"
+          },
           "429": {
             "$ref": "#/components/responses/LimiteExcedido"
           },
@@ -1138,6 +1141,9 @@
                 }
               }
             }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadGrande"
           },
           "429": {
             "$ref": "#/components/responses/LimiteExcedido"
@@ -1452,7 +1458,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "X-Api-Key",
-        "description": "Alternativa ao Bearer: a chave no cabeçalho `X-Api-Key`. Exemplo fictício: `emer_pag_EXEMPLO_NAO_E_UMA_CHAVE`."
+        "description": "Alternativa ao Bearer: a chave no cabeçalho `X-Api-Key`. Exemplos fictícios: `emer_rede_EXEMPLO_NAO_E_UMA_CHAVE` (rede) ou `emer_pag_EXEMPLO_NAO_E_UMA_CHAVE` (pagamentos)."
       }
     },
     "responses": {
@@ -1529,11 +1535,11 @@
             "example": 120
           },
           "X-RateLimit-Remaining": {
-            "description": "Requisições que ainda restam na janela atual de 1 minuto.",
+            "description": "Sempre 0 numa resposta 429.",
             "schema": {
               "type": "integer"
             },
-            "example": 117
+            "example": 0
           }
         },
         "content": {
@@ -1545,6 +1551,22 @@
               "erro": {
                 "codigo": "limite_excedido",
                 "mensagem": "Limite de requisições por minuto excedido."
+              }
+            }
+          }
+        }
+      },
+      "PayloadGrande": {
+        "description": "Corpo da requisição acima do teto da rota (256 KB nesta rota).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            },
+            "example": {
+              "erro": {
+                "codigo": "payload_grande",
+                "mensagem": "Corpo da requisição grande demais."
               }
             }
           }
@@ -1764,7 +1786,7 @@
               "number",
               "null"
             ],
-            "description": "Percentual de desconto (ou o mínimo da faixa).",
+            "description": "Percentual de desconto (ou o mínimo da faixa); pode ser null.",
             "example": 10
           },
           "percentual_max": {
@@ -1784,7 +1806,10 @@
           "id",
           "nome",
           "tipo",
+          "especialidade_principal",
+          "especialidades_secundarias",
           "contatos",
+          "cidade_principal",
           "cidades_atende",
           "endereco",
           "procedimentos",
