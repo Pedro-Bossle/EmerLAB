@@ -46,7 +46,7 @@
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `supabase/migrations/20261110140000_api_chaves.sql` | tabela `api_chaves` + RLS |
+| `supabase/migrations/20261110140010_api_chaves.sql` | tabela `api_chaves` + RLS |
 | `src/lib/apiV1/chaves.js` | gerar/hash/validar chave, escopo, origem, expiração (puro) |
 | `src/lib/apiV1/redeRegras.js` | cidades do credenciado, filtros, corte por plano, objeto público (puro) |
 | `src/lib/apiV1/pagamentosRegras.js` | validação de comprovante, idempotência (puro) |
@@ -64,7 +64,7 @@
 ### Task 1: Tabela de chaves e biblioteca de chaves
 
 **Files:**
-- Create: `supabase/migrations/20261110140000_api_chaves.sql`, `src/lib/apiV1/chaves.js`
+- Create: `supabase/migrations/20261110140010_api_chaves.sql`, `src/lib/apiV1/chaves.js`
 - Test: `src/lib/apiV1/chaves.test.js`
 
 **Interfaces:**
