@@ -350,4 +350,85 @@ describe('envio e comprovante', () => {
         expect(tabela('pagamentos_registros')[0]).toEqual({ ...antes, pago: true })
         expect(tabela('repasse_comprovantes')).toHaveLength(1)
     })
+
+    it('comprovante: linha, e-mail e evento com os mesmos campos de antes', async () => {
+        semear()
+        const c = await chamar('criar-relatorios', { itens: [{ registro_id: 'reg1', aba: aba() }] })
+        const relId = c.itens[0].relatorio_id
+        const path = `2026-10/${relId}/comprovante/c.pdf`
+        db.storage.set(path, 'PDFDATA')
+        await chamar('enviar-comprovante', { relatorio_id: relId, path, data_pagamento: '2026-11-10', valor: 150.004 })
+        expect(db.emails).toHaveLength(1)
+        expect(db.emails[0]).toMatchObject({ to: 'clinica@x.com', subject: 'comprovante', from: 'Emerdog Financeiro <noreply@emerlab.com.br>' })
+        expect(new TextDecoder().decode(db.emails[0].attachments[0].content)).toBe('PDFDATA')
+        expect(tabela('repasse_comprovantes')[0]).toEqual({
+            relatorio_id: relId, registro_id: 'reg1', forma: 'pix', storage_path: path, data_pagamento: '2026-11-10', valor: 150,
+            enviado_por: 'u1', resend_email_id: 'em_1',
+        })
+        const ev = tabela('repasse_eventos').filter((e) => e.tipo === 'comprovante_enviado')
+        expect(ev).toEqual([{ relatorio_id: relId, tipo: 'comprovante_enviado', dados: { valor: 150, data_pagamento: '2026-11-10', forma: 'pix' }, autor: 'fin@emerdog.com.br', ip_hash: null }])
+    })
+
+    it('comprovante: prestador sem e-mail é 422 e nada é gravado', async () => {
+        semear()
+        const c = await chamar('criar-relatorios', { itens: [{ registro_id: 'reg1', aba: aba() }] })
+        const relId = c.itens[0].relatorio_id
+        tabela('prestadores')[0].email = ''
+        const r = await chamar('enviar-comprovante', { relatorio_id: relId, path: `2026-10/${relId}/comprovante/c.pdf`, data_pagamento: '2026-11-10', valor: 150 })
+        expect(r.status).toBe(422)
+        expect(tabela('repasse_comprovantes')).toHaveLength(0)
+        expect(tabela('pagamentos_registros')[0].pago).toBe(false)
+    })
+
+    it('comprovante em lote: um e-mail, uma linha e um evento por mês', async () => {
+        semear()
+        tabela('pagamentos_registros').push({ ...tabela('pagamentos_registros')[0], id: 'reg2', mes: 11 })
+        const c = await chamar('criar-relatorios', { itens: [{ registro_id: 'reg1', aba: aba() }, { registro_id: 'reg2', aba: aba() }] })
+        const ids = c.itens.map((i) => i.relatorio_id)
+        const r = await chamar('enviar-comprovante-lote', { relatorio_ids: ids, path: `2026-10/${ids[0]}/comprovante/c.pdf`, data_pagamento: '2026-11-10', valor: 300 })
+        expect(r).toMatchObject({ ok: true, meses: 2 })
+        expect(db.emails).toHaveLength(1)
+        expect(db.emails[0].attachments[0].filename).toBe('comprovante-10-2026-11-2026.pdf')
+        expect(tabela('repasse_comprovantes').map((x) => [x.registro_id, x.valor, x.resend_email_id])).toEqual([['reg1', 150, 'em_1'], ['reg2', 150, 'em_1']])
+        expect(tabela('pagamentos_registros').map((x) => x.pago)).toEqual([true, true])
+        const ev = tabela('repasse_eventos').filter((e) => e.tipo === 'comprovante_enviado')
+        expect(ev.map((e) => e.dados)).toEqual([
+            { valor: 150, valor_total_pago: 300, data_pagamento: '2026-11-10', forma: 'pix', lote: 2 },
+            { valor: 150, valor_total_pago: 300, data_pagamento: '2026-11-10', forma: 'pix', lote: 2 },
+        ])
+    })
+
+    it('comprovante vai para o email_financeiro do registro quando informado', async () => {
+        semear()
+        tabela('pagamentos_registros')[0].email_financeiro = 'Fin@Clinica.com'
+        const c = await chamar('criar-relatorios', { itens: [{ registro_id: 'reg1', aba: aba() }] })
+        const relId = c.itens[0].relatorio_id
+        const r = await chamar('enviar-comprovante', { relatorio_id: relId, path: `2026-10/${relId}/comprovante/c.pdf`, data_pagamento: '2026-11-10', valor: 150 })
+        expect(r.ok).toBe(true)
+        expect(db.emails[0].to).toBe('fin@clinica.com')
+    })
+
+    it('comprovante em lote usa o primeiro email_financeiro não vazio entre os registros', async () => {
+        semear()
+        tabela('pagamentos_registros')[0].email_financeiro = '  '
+        tabela('pagamentos_registros').push({ ...tabela('pagamentos_registros')[0], id: 'reg2', mes: 11, email_financeiro: 'lote@clinica.com' })
+        const c = await chamar('criar-relatorios', { itens: [{ registro_id: 'reg1', aba: aba() }, { registro_id: 'reg2', aba: aba() }] })
+        const ids = c.itens.map((i) => i.relatorio_id)
+        const r = await chamar('enviar-comprovante-lote', { relatorio_ids: ids, path: `2026-10/${ids[0]}/comprovante/c.pdf`, data_pagamento: '2026-11-10', valor: 300 })
+        expect(r.ok).toBe(true)
+        expect(db.emails.map((e) => e.to)).toEqual(['lote@clinica.com'])
+    })
+
+    it('desfazer pagamento exige motivo, remove o comprovante e desmarca pago', async () => {
+        semear()
+        const c = await chamar('criar-relatorios', { itens: [{ registro_id: 'reg1', aba: aba() }] })
+        const relId = c.itens[0].relatorio_id
+        await chamar('enviar-comprovante', { relatorio_id: relId, path: `2026-10/${relId}/comprovante/c.pdf`, data_pagamento: '2026-11-10', valor: 150 })
+        expect((await chamar('desfazer-pagamento', { relatorio_id: relId, motivo: 'abc' })).status).toBe(400)
+        const r = await chamar('desfazer-pagamento', { relatorio_id: relId, motivo: 'pago em duplicidade' })
+        expect(r.ok).toBe(true)
+        expect(tabela('repasse_comprovantes')).toHaveLength(0)
+        expect(tabela('pagamentos_registros')[0].pago).toBe(false)
+        expect(tabela('repasse_eventos').filter((e) => e.tipo === 'pagamento_desfeito')[0].dados).toEqual({ motivo: 'pago em duplicidade' })
+    })
 })

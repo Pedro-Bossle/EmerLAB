@@ -84,7 +84,8 @@ const server = http.createServer(async (req, res) => {
             '/api/ibge-municipios': ibgeMunicipiosHandler,
             '/api/cep-lookup': cepLookupHandler,
         }
-        const handler = handlers[pathname]
+        const ehApiV1 = pathname === '/api/v1' || pathname.startsWith('/api/v1/')
+        const handler = ehApiV1 ? emailHandler : handlers[pathname]
 
         if (!handler) {
             res.statusCode = 404
@@ -93,7 +94,15 @@ const server = http.createServer(async (req, res) => {
             return
         }
 
-        const reqLike = { method: req.method, headers: req.headers, body, url: requestUrl }
+        let urlDoHandler = requestUrl
+        if (ehApiV1) {
+            // Mesma reescrita do vercel.json: /api/v1/<resto>?q -> /api/email?_fn=api-v1&_path=<resto>&q
+            const u = new URL(requestUrl, 'http://localhost')
+            const params = new URLSearchParams({ _fn: 'api-v1', _path: pathname.replace(/^\/api\/v1\/?/, '') })
+            for (const [k, v] of u.searchParams.entries()) params.append(k, v)
+            urlDoHandler = `/api/email?${params.toString()}`
+        }
+        const reqLike = { method: req.method, headers: req.headers, body, url: urlDoHandler }
         const resLike = {
             statusCode: 200,
             headers: {},
@@ -116,6 +125,10 @@ const server = http.createServer(async (req, res) => {
             send(payload) {
                 res.statusCode = this.statusCode
                 res.end(payload)
+            },
+            end() {
+                res.statusCode = this.statusCode
+                res.end()
             },
         }
 
