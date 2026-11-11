@@ -726,7 +726,9 @@ function ArquivosDaResposta({ form, aoMudar, desabilitado }) {
         const aceitos = []
         const avisos = []
         for (const f of lista) {
-            if (f.size > MAX_MB_RESPOSTA * 1024 * 1024) avisos.push(`"${f.name}" tem mais de ${MAX_MB_RESPOSTA} MB`)
+            const jaTem = (a, nome, tamanho) => a.nome === nome && Number(a.tamanho) === tamanho
+            if (existentes.some((a) => jaTem(a, f.name, f.size)) || [...novos, ...aceitos].some((n) => n.name === f.name && n.size === f.size)) avisos.push(`"${f.name}" já está anexado`)
+            else if (f.size > MAX_MB_RESPOSTA * 1024 * 1024) avisos.push(`"${f.name}" tem mais de ${MAX_MB_RESPOSTA} MB`)
             else if (total + aceitos.length >= MAX_ARQUIVOS_RESPOSTA) avisos.push(`limite de ${MAX_ARQUIVOS_RESPOSTA} arquivos por resposta`)
             else aceitos.push(f)
         }

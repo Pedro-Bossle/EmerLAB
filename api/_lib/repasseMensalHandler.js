@@ -370,7 +370,7 @@ async function reenviarEmail(admin, { relatorio_id }, ctx) {
     if (rel.fluxo === 'laboratorio_manual') throw new ErroApi(409, 'Laboratório em fluxo manual.')
     if (rel.status === 'agendado') throw new ErroApi(409, 'O e-mail está agendado. Cancele o agendamento antes de reenviar.')
     if (!ehCompetenciaNovoModelo(rel.mes, rel.ano, config.competencia_inicial)) throw new ErroApi(409, 'Competência legado.')
-    const para = await emailDoPrestador(admin, registro.prestador_id)
+    const para = await emailDoPrestador(admin, registro.prestador_id, registro.email_financeiro)
     if (!para) throw new ErroApi(422, 'Prestador sem e-mail no cadastro.')
 
     // Mesmo texto do envio original, se existir; senão o padrão.
@@ -433,7 +433,7 @@ async function enviarLote(admin, { envio_id, itens }, ctx) {
             if (rel.token_revogado_em) throw new Error('Link revogado.')
             if (!PODE_ENVIAR.includes(rel.status)) throw new Error('Este relatório já foi enviado.')
             if (!ehCompetenciaNovoModelo(rel.mes, rel.ano, config.competencia_inicial)) throw new Error('Competência legado.')
-            const para = await emailDoPrestador(admin, registro.prestador_id)
+            const para = await emailDoPrestador(admin, registro.prestador_id, registro.email_financeiro)
             if (!para) throw new Error('Prestador sem e-mail no cadastro.')
             const tipo = tipoDoRegistro(registro)
             const valorFmt = Number(rel.total_repasse).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -509,7 +509,7 @@ async function revisarDocumento(admin, { documento_id, acao, motivo }, ctx) {
         try {
             const registro = await carregarRegistro(admin, rel.registro_id)
             const config = await carregarConfig(admin)
-            const para = await emailDoPrestador(admin, registro.prestador_id)
+            const para = await emailDoPrestador(admin, registro.prestador_id, registro.email_financeiro)
             if (para) {
                 const mail = montarEmailRepasseDocumentoDevolvido({
                     prestador: registro.prestador_nome || rel.nome_a1, competencia: competenciaLabel(rel.mes, rel.ano), motivo: m,
@@ -581,7 +581,7 @@ async function enviarComprovanteLote(admin, { relatorio_ids, path, data_pagament
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data_pagamento || ''))) throw new ErroApi(400, 'Informe a data do pagamento.')
     const v = Number(valor)
     if (!Number.isFinite(v) || v <= 0) throw new ErroApi(400, 'Informe o valor pago.')
-    const para = await emailDoPrestador(admin, prestadorId)
+    const para = await emailDoPrestador(admin, prestadorId, registros.map((r) => r.email_financeiro).find((e) => String(e || '').trim()))
     if (!para) throw new ErroApi(422, 'Prestador sem e-mail no cadastro.')
     const { data: arquivo, error } = await admin.storage.from(BUCKET).download(path)
     if (error || !arquivo) throw new ErroApi(400, 'Arquivo do comprovante não encontrado.')

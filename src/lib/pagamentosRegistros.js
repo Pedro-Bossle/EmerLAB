@@ -17,6 +17,7 @@ export function mapRowPagamento(row) {
         resposta: Boolean(row.resposta),
         pago: Boolean(row.pago),
         obs: row.obs || '',
+        emailFinanceiro: row.email_financeiro || '',
         criadoEm: row.criado_em,
         atualizadoEm: row.atualizado_em,
     }
@@ -122,6 +123,7 @@ function rowParaInsert(row) {
         resposta: Boolean(row.resposta),
         pago: Boolean(row.pago),
         obs: row.obs || null,
+        email_financeiro: String(row.emailFinanceiro || '').trim().toLowerCase() || null,
         atualizado_em: new Date().toISOString(),
     }
 }
@@ -287,6 +289,7 @@ export async function atualizarPagamentoRegistro(id, patch) {
         resposta: patch.resposta,
         pago: patch.pago,
         obs: patch.obs,
+        emailFinanceiro: patch.emailFinanceiro,
     })
     const { data, error } = await supabase.from(TABELA).update(base).eq('id', id).select('*').single()
     if (error) throw erroGravacaoPagamento(error)

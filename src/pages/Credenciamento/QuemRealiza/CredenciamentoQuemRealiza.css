@@ -468,7 +468,7 @@ body.dark-mode .quem_realiza_card {
 }
 
 body.dark-mode .quem_realiza_proc_alt {
-    color: #94b8d4;
+    color: #5eead4;
 }
 
 .quem_realiza_card_meta {
@@ -522,9 +522,27 @@ body.dark-mode .quem_realiza_proc_alt {
 }
 
 .quem_realiza_proc_alt {
-    font-size: 0.82em;
-    font-weight: 500;
+    font-style: italic;
+    font-weight: 600;
+    color: #0f766e;
+}
+
+.quem_realiza_procs_header {
+    margin: 0.6rem 0 0.35rem;
+    padding-left: 1.15rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
     color: #5d7b92;
+}
+
+.quem_realiza_procs_header em {
+    color: #0f766e;
+}
+
+body.dark-mode .quem_realiza_procs_header em {
+    color: #5eead4;
 }
 
 /* -------------------------------------------------------------------------- */

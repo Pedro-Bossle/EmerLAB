@@ -140,9 +140,13 @@ const Footer = () => {
               <img src={youtubeIcon} alt="" />
               Tour pelo Site
             </a>
-            <a href="https://youtu.be/VR6N7T-A2R4" className="el_footer_link" target="_blank" rel="noreferrer">
+            <a href="https://youtu.be/w74R5f0nA_Y" className="el_footer_link" target="_blank" rel="noreferrer">
               <img src={youtubeIcon} alt="" />
-              Compra de procedimentos e carência
+              Compra de Procedimentos
+            </a>
+            <a href="https://youtu.be/u-G4bFZxs1M" className="el_footer_link" target="_blank" rel="noreferrer">
+              <img src={youtubeIcon} alt="" />
+              Adiantamento de Carências
             </a>
             <a href="https://youtu.be/37dha4CtZzU" className="el_footer_link" target="_blank" rel="noreferrer">
               <img src={youtubeIcon} alt="" />

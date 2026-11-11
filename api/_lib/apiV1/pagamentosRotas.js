@@ -280,7 +280,7 @@ registrarRota(
             const existente = (await comprovantesDoRegistro(admin, registro.id)).find((c) => String(c.storage_path || '').endsWith(`/${hash}.${ext}`))
             if (existente) return responderExistente(admin, chave, { registro, relatorio, existente, bytes, contentType })
             // Confere o e-mail antes de subir o arquivo, para não deixar arquivo órfão.
-            if (notificar && !(await emailDoPrestador(admin, registro.prestador_id))) {
+            if (notificar && !(await emailDoPrestador(admin, registro.prestador_id, registro.email_financeiro))) {
                 throw new ErroApi(422, 'prestador_sem_email', 'Prestador sem e-mail no cadastro.')
             }
 

@@ -59,7 +59,13 @@ export async function evento(admin, relatorioId, tipo, dados = {}, autor = 'sist
     await admin.from('repasse_eventos').insert({ relatorio_id: relatorioId, tipo, dados, autor, ip_hash: ipHash })
 }
 
-export async function emailDoPrestador(admin, prestadorId) {
+/**
+ * Destino dos e-mails ao prestador (regra única do painel e da API): o e-mail financeiro alternativo do registro
+ * (`pagamentos_registros.email_financeiro`), se informado, tem prioridade sobre o e-mail do cadastro do prestador.
+ */
+export async function emailDoPrestador(admin, prestadorId, emailFinanceiro) {
+    const alt = String(emailFinanceiro || '').trim().toLowerCase()
+    if (alt) return alt
     if (prestadorId == null) return ''
     const { data } = await admin.from('prestadores').select('email').eq('id', prestadorId).maybeSingle()
     return String(data?.email || '').trim().toLowerCase()
@@ -79,7 +85,7 @@ export const formaDoRegistro = (registro) => (tipoDoRegistro(registro) === 'bole
  */
 export async function notificarComprovante(admin, { registro, relatorio, path, data_pagamento, valor, forma, arquivo = null }) {
     const v = Number(valor)
-    const para = await emailDoPrestador(admin, registro.prestador_id)
+    const para = await emailDoPrestador(admin, registro.prestador_id, registro.email_financeiro)
     if (!para) throw new ErroRepasse(422, 'Prestador sem e-mail no cadastro.', 'prestador_sem_email')
     let buf = arquivo
     if (!buf) {
