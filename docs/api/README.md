@@ -7,7 +7,7 @@ Documentação para quem vai integrar com o EmerLAB e **não conhece o sistema**
 | **Rede credenciada**   | Listar os credenciados (clínicas, profissionais, lojas) com contatos, procedimentos e descontos | O site público da Emerdog (navegador)   | [rede-credenciada.md](rede-credenciada.md) |
 | **Pagamentos**         | Consultar repasses a prestadores, marcar como pago e anexar o comprovante                  | O sistema financeiro (servidor a servidor) | [pagamentos.md](pagamentos.md)           |
 
-Também há a especificação [OpenAPI 3.1](openapi.json) (para Postman, Swagger/Insomnia e geração de cliente) e a página de consulta rápida em **https://api.emerlab.com.br/docs**, que mostra as mesmas rotas, com parâmetros, exemplos e códigos de erro.
+Também há a especificação [OpenAPI 3.1](openapi.json) (para Postman, Swagger/Insomnia e geração de cliente) e a página de consulta rápida em **https://api.emerlab.com.br/docs** (a raiz `https://api.emerlab.com.br/` redireciona para `/docs`), que mostra as mesmas rotas, com parâmetros, exemplos e códigos de erro.
 
 ## Em 30 segundos
 
@@ -140,6 +140,8 @@ Os códigos `sem_permissao` e `nao_autenticado` pertencem às rotas de administr
 ## Cache
 
 - Rede (`GET /v1/rede/*`): `Cache-Control: public, s-maxage=300, stale-while-revalidate=3600`. A borda guarda a resposta por 5 minutos e pode servir uma versão mais velha por até 1 hora enquanto atualiza. Uma alteração no cadastro do EmerLAB pode levar alguns minutos para aparecer. Detalhes em [rede-credenciada.md](rede-credenciada.md#cache).
+- Todas as respostas trazem `Vary: Origin, Authorization, X-Api-Key`: uma requisição sem chave nunca é atendida com a resposta guardada para outro chamador.
+- Se a fonte de dados do EmerLAB ficar fora do ar por pouco tempo, as rotas da rede continuam respondendo com os últimos dados bons (até o servidor ser reiniciado).
 - Pagamentos: `Cache-Control: no-store`. Nunca guarde em cache.
 
 ## Auditoria

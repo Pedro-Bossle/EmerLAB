@@ -182,7 +182,7 @@ function secoesGuia() {
 <li>Envie a chave em <code>Authorization: Bearer &lt;chave&gt;</code> ou em <code>X-Api-Key</code>.</li>
 <li>Chave da rede: a requisição precisa de um <code>Origin</code> igual a uma origem cadastrada na chave. O navegador envia sozinho; em <code>curl</code> ou no servidor, envie você mesmo.</li>
 <li>Origens são exatas: <code>https://host</code> ou <code>https://host:porta</code>, sem caminho e sem curinga. Para desenvolvimento local também valem <code>http://localhost</code> e <code>http://127.0.0.1</code>, com porta opcional.</li>
-<li>Chave revogada ou editada leva até 30 segundos para parar (ou começar) a valer. As respostas da rede ficam em cache na borda por até 5 minutos: uma chave revogada ainda pode receber dados públicos do cache nesse período.</li>
+<li>Chave revogada ou editada leva até 30 segundos para parar (ou começar) a valer. As respostas da rede ficam em cache na borda por até 5 minutos: uma chave revogada ainda pode receber dados públicos do cache nesse período. Toda resposta traz <code>Vary: Origin, Authorization, X-Api-Key</code>, então quem não envia chave nunca recebe a resposta guardada para outro chamador. Se a fonte de dados ficar fora do ar por pouco tempo, a rede continua servindo os últimos dados bons.</li>
 </ul>
 </section>
 <section id="cors">

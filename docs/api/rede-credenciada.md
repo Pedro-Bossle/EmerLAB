@@ -312,6 +312,8 @@ export function RedeCredenciada() {
 As respostas da rede trazem `Cache-Control: public, s-maxage=300, stale-while-revalidate=3600`:
 
 - A borda (CDN) guarda cada resposta por **5 minutos**; depois disso pode servir a versão antiga por até 1 hora enquanto busca uma nova em segundo plano. Uma alteração no cadastro pode demorar alguns minutos para aparecer, e o servidor também guarda os dados em memória por 5 minutos.
+- A resposta traz `Vary: Origin, Authorization, X-Api-Key`, então uma requisição sem chave nunca recebe uma resposta guardada para outro chamador.
+- Se a fonte de dados do EmerLAB ficar fora do ar por pouco tempo, a API continua servindo os últimos dados bons da rede (até o servidor ser reiniciado).
 - Isso protege o EmerLAB (e o seu limite por minuto): chamadas repetidas com os mesmos parâmetros quase nunca chegam ao servidor.
 - Recomendações para o site:
   - Mantenha os **mesmos parâmetros na mesma ordem** para aproveitar o cache da borda (a URL é a chave do cache).

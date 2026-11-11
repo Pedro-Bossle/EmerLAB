@@ -133,7 +133,7 @@
                 "example": 547
               },
               "Cache-Control": {
-                "description": "Sempre `public, s-maxage=300, stale-while-revalidate=3600`.",
+                "description": "Sempre `public, s-maxage=300, stale-while-revalidate=3600`. Toda resposta traz `Vary: Origin, Authorization, X-Api-Key`, então uma requisição sem chave nunca recebe a resposta guardada para outro chamador.",
                 "schema": {
                   "type": "string"
                 },
@@ -303,7 +303,7 @@
             "description": "O credenciado.",
             "headers": {
               "Cache-Control": {
-                "description": "Sempre `public, s-maxage=300, stale-while-revalidate=3600`.",
+                "description": "Sempre `public, s-maxage=300, stale-while-revalidate=3600`. Toda resposta traz `Vary: Origin, Authorization, X-Api-Key`, então uma requisição sem chave nunca recebe a resposta guardada para outro chamador.",
                 "schema": {
                   "type": "string"
                 }
@@ -455,7 +455,7 @@
             "description": "Opções de filtro.",
             "headers": {
               "Cache-Control": {
-                "description": "Sempre `public, s-maxage=300, stale-while-revalidate=3600`.",
+                "description": "Sempre `public, s-maxage=300, stale-while-revalidate=3600`. Toda resposta traz `Vary: Origin, Authorization, X-Api-Key`, então uma requisição sem chave nunca recebe a resposta guardada para outro chamador.",
                 "schema": {
                   "type": "string"
                 }
