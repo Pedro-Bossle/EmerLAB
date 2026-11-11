@@ -578,6 +578,62 @@ describe('comprovante ainda em processamento (janela de 45 s)', () => {
     })
 })
 
+describe('e-mail financeiro alternativo (email_financeiro do registro)', () => {
+    const corpo = (extra = {}) => ({ arquivo_base64: b64(PDF), data_pagamento: '2026-11-05', valor: 150, notificar_prestador: true, ...extra })
+    const caminho = `/pagamentos/registros/${REG}/comprovantes`
+
+    it('com email_financeiro o comprovante vai para ele, não para o cadastro', async () => {
+        registro(REG).email_financeiro = ' Financeiro@Clinica.COM '
+        const r = await chamar('POST', caminho, { body: corpo() })
+        expect(r.status).toBe(201)
+        expect(db.emails.map((e) => e.to)).toEqual(['financeiro@clinica.com'])
+    })
+
+    it('sem email_financeiro vai para o e-mail do cadastro do prestador', async () => {
+        registro(REG).email_financeiro = '   '
+        const r = await chamar('POST', caminho, { body: corpo() })
+        expect(r.status).toBe(201)
+        expect(db.emails.map((e) => e.to)).toEqual(['clinica@x.com'])
+    })
+
+    it('só email_financeiro (cadastro sem e-mail) basta para notificar', async () => {
+        tabela('prestadores')[0].email = ''
+        registro(REG).email_financeiro = 'fin@clinica.com'
+        const r = await chamar('POST', caminho, { body: corpo() })
+        expect(r.status).toBe(201)
+        expect(db.emails.map((e) => e.to)).toEqual(['fin@clinica.com'])
+    })
+
+    it('nem email_financeiro nem e-mail no cadastro: 422 prestador_sem_email, nada gravado', async () => {
+        tabela('prestadores')[0].email = ''
+        registro(REG).email_financeiro = null
+        const r = await chamar('POST', caminho, { body: corpo() })
+        expect(r.status).toBe(422)
+        expect(r.corpo.erro.codigo).toBe('prestador_sem_email')
+        expect(db.uploads).toHaveLength(0)
+        expect(tabela('repasse_comprovantes')).toHaveLength(0)
+        expect(db.emails).toHaveLength(0)
+    })
+
+    it('nenhuma resposta da API expõe email_financeiro (nem outro e-mail)', async () => {
+        registro(REG).email_financeiro = 'financeiro@clinica.com'
+        registro(REG_SEM_REL).email_financeiro = 'lab.fin@y.com'
+        const respostas = [
+            await chamar('POST', `/pagamentos/registros/${REG_SEM_REL}/pago`),
+            await chamar('POST', caminho, { body: corpo() }),
+            await chamar('GET', '/pagamentos/registros'),
+            await chamar('GET', `/pagamentos/registros/${REG}`),
+            await chamar('GET', `/pagamentos/registros/${REG_SEM_REL}`),
+            await chamar('DELETE', `/pagamentos/registros/${REG}/pago`, { body: { motivo: 'teste de exposição' } }),
+        ]
+        for (const r of respostas) {
+            expect(r.status).toBeLessThan(300)
+            const json = JSON.stringify(r.corpo)
+            for (const s of ['financeiro@clinica.com', 'lab.fin@y.com', 'clinica@x.com', 'lab@y.com', 'email_financeiro', '@']) expect(json).not.toContain(s)
+        }
+    })
+})
+
 describe('DELETE /pagamentos/registros/{id}/pago', () => {
     it('sem motivo (menos de 5 caracteres): 400', async () => {
         await chamar('POST', `/pagamentos/registros/${REG}/pago`)

@@ -398,6 +398,27 @@ describe('envio e comprovante', () => {
         ])
     })
 
+    it('comprovante vai para o email_financeiro do registro quando informado', async () => {
+        semear()
+        tabela('pagamentos_registros')[0].email_financeiro = 'Fin@Clinica.com'
+        const c = await chamar('criar-relatorios', { itens: [{ registro_id: 'reg1', aba: aba() }] })
+        const relId = c.itens[0].relatorio_id
+        const r = await chamar('enviar-comprovante', { relatorio_id: relId, path: `2026-10/${relId}/comprovante/c.pdf`, data_pagamento: '2026-11-10', valor: 150 })
+        expect(r.ok).toBe(true)
+        expect(db.emails[0].to).toBe('fin@clinica.com')
+    })
+
+    it('comprovante em lote usa o primeiro email_financeiro não vazio entre os registros', async () => {
+        semear()
+        tabela('pagamentos_registros')[0].email_financeiro = '  '
+        tabela('pagamentos_registros').push({ ...tabela('pagamentos_registros')[0], id: 'reg2', mes: 11, email_financeiro: 'lote@clinica.com' })
+        const c = await chamar('criar-relatorios', { itens: [{ registro_id: 'reg1', aba: aba() }, { registro_id: 'reg2', aba: aba() }] })
+        const ids = c.itens.map((i) => i.relatorio_id)
+        const r = await chamar('enviar-comprovante-lote', { relatorio_ids: ids, path: `2026-10/${ids[0]}/comprovante/c.pdf`, data_pagamento: '2026-11-10', valor: 300 })
+        expect(r.ok).toBe(true)
+        expect(db.emails.map((e) => e.to)).toEqual(['lote@clinica.com'])
+    })
+
     it('desfazer pagamento exige motivo, remove o comprovante e desmarca pago', async () => {
         semear()
         const c = await chamar('criar-relatorios', { itens: [{ registro_id: 'reg1', aba: aba() }] })
