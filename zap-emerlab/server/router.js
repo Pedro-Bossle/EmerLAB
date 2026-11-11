@@ -1275,7 +1275,15 @@ async function enviarRespostaComArquivosHandler(req, usuario, waId) {
     if (!resposta) throw new HttpError(404, 'Resposta rápida não encontrada ou sem acesso.')
     if (!resposta.arquivos.length) throw new HttpError(400, 'Esta resposta rápida não tem arquivos.')
     const final = textoFinalDaMensagem(texto, meta, usuario, waId)
-    const arquivos = ok(await db().from('zap_respostas_arquivos').select('id, nome, mime, conteudo').eq('resposta_id', respostaId).order('ordem'))
+    const todos = ok(await db().from('zap_respostas_arquivos').select('id, nome, mime, tamanho, conteudo').eq('resposta_id', respostaId).order('ordem'))
+    // o mesmo arquivo cadastrado duas vezes na resposta sairia duas vezes (a 2ª sem legenda): envia cada um uma só vez
+    const vistos = new Set()
+    const arquivos = todos.filter((a) => {
+        const chave = `${a.nome}|${a.tamanho}`
+        if (vistos.has(chave)) return false
+        vistos.add(chave)
+        return true
+    })
     const comLegenda = final.length <= LEGENDA_MAX
     let enviados = 0
     try {
@@ -1665,10 +1673,13 @@ async function anexarArquivoResposta(respostaId, b) {
     const buffer = Buffer.from(String(b.base64).replace(/^data:[^,]*,/, ''), 'base64')
     if (!buffer.length) throw new HttpError(400, 'Arquivo vazio.')
     if (buffer.length > MAX_ARQUIVO) throw new HttpError(413, 'Arquivo acima de 3 MB. Comprima o arquivo.', 'arquivo_grande')
-    const atuais = ok(await db().from('zap_respostas_arquivos').select('ordem').eq('resposta_id', respostaId))
+    const atuais = ok(await db().from('zap_respostas_arquivos').select('id, nome, mime, tamanho, ordem').eq('resposta_id', respostaId))
+    const nome = String(b.nome || 'arquivo').trim().slice(0, 120) || 'arquivo'
+    // mesmo arquivo anexado duas vezes (duplo clique, reenvio após timeout) faria o painel mandá-lo duas vezes ao cliente
+    const repetido = atuais.find((a) => a.nome === nome && Number(a.tamanho) === buffer.length)
+    if (repetido) return { id: repetido.id, nome: repetido.nome, mime: repetido.mime, tamanho: repetido.tamanho }
     if (atuais.length >= MAX_ARQUIVOS_RESPOSTA) throw new HttpError(400, `Cada resposta aceita até ${MAX_ARQUIVOS_RESPOSTA} arquivos.`)
     const ordem = atuais.reduce((m, a) => Math.max(m, a.ordem), -1) + 1
-    const nome = String(b.nome || 'arquivo').trim().slice(0, 120) || 'arquivo'
     return ok(
         await db()
             .from('zap_respostas_arquivos')
