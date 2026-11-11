@@ -166,7 +166,6 @@ const CORS_BASE = {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, X-Api-Key, Content-Type',
     'Access-Control-Max-Age': '600',
-    Vary: 'Origin',
 }
 
 async function nucleo({ metodo, caminho, query, headers, body, ip, erroCorpo }, admin) {
@@ -260,7 +259,30 @@ export async function processarRequisicao({ metodo, caminho, query = {}, headers
             /* sem CORS se não for possível consultar */
         }
     }
+    resultado.headers = comVary(resultado.headers)
     return resultado
+}
+
+const VARY_API = ['Origin', 'Authorization', 'X-Api-Key']
+
+/** Junta o Vary da rota (se houver) com Origin, Authorization e X-Api-Key, sem duplicar nem perder valores. */
+function comVary(headers = {}) {
+    const saida = { ...headers }
+    const existentes = []
+    for (const k of Object.keys(saida)) {
+        if (k.toLowerCase() !== 'vary') continue
+        existentes.push(...String(saida[k]).split(',').map((v) => v.trim()).filter(Boolean))
+        delete saida[k]
+    }
+    const vistos = new Set()
+    const lista = []
+    for (const v of [...existentes, ...VARY_API]) {
+        if (vistos.has(v.toLowerCase())) continue
+        vistos.add(v.toLowerCase())
+        lista.push(v)
+    }
+    saida.Vary = lista.join(', ')
+    return saida
 }
 
 const erroPayloadGrande = () => ({
