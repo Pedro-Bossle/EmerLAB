@@ -283,6 +283,18 @@ describe('girar', () => {
         expect(JSON.stringify(a)).not.toContain(r.corpo.chave)
     })
 
+    it('chave expirada: 409 chave_expirada e nada é criado', async () => {
+        await criarRede({ expira_em: '2026-12-01T00:00:00Z' })
+        const id = db.api_chaves[0].id
+        vi.setSystemTime(new Date('2026-12-02T00:00:00Z'))
+        const r = await chamar('POST', `/admin/chaves/${id}/girar`)
+        expect(r.status).toBe(409)
+        expect(r.corpo.erro.codigo).toBe('chave_expirada')
+        expect(r.corpo.erro.mensagem).toMatch(/validade/i)
+        expect(db.api_chaves).toHaveLength(1)
+        expect(db.api_chaves[0].revogada_em).toBeNull()
+    })
+
     it('não gira chave revogada nem inexistente', async () => {
         await criarRede()
         const id = db.api_chaves[0].id
@@ -400,5 +412,51 @@ describe('POST /admin/testar', () => {
         erroLog.mockRestore()
         aviso.mockRestore()
         log.mockRestore()
+    })
+})
+
+describe('POST /admin/testar: ocultar a chave digitada', () => {
+    const inserirChaveManual = (texto) =>
+        db.api_chaves.push({
+            id: 'manual',
+            nome: 'Manual',
+            prefixo: texto.slice(0, 8),
+            hash: hashChave(texto),
+            escopos: ['rede:ler'],
+            origens_permitidas: [ORIGEM],
+            limite_por_minuto: 120,
+            ips_permitidos: [],
+            expira_em: null,
+            revogada_em: null,
+        })
+    const testarEco = (chave) => {
+        mod.registrarRota('GET', '/rede/eco', 'rede:ler', async (ctx) => ({
+            corpo: { eco: ctx.req.headers['x-api-key'], texto: `tem ${ctx.req.headers['x-api-key']} aqui`, nota: 'sem chave' },
+        }))
+        return chamar('POST', '/admin/testar', { metodo: 'GET', caminho: '/rede/eco', origem: ORIGEM, chave })
+    }
+
+    it('chave com aspas e barra invertida não quebra a resposta e é omitida', async () => {
+        const chave = 'emer_rede_ab"cd\\ef'
+        inserirChaveManual(chave)
+        const r = await testarEco(chave)
+        expect(r.status).toBe(200)
+        expect(r.corpo.status).toBe(200)
+        expect(r.corpo.corpo).toEqual({ eco: '[chave omitida]', texto: 'tem [chave omitida] aqui', nota: 'sem chave' })
+        expect(JSON.stringify(r)).not.toContain('ab"cd')
+    })
+
+    it('chave normal dentro de uma string da resposta é omitida', async () => {
+        const chave = 'emer_rede_abcdef123456'
+        inserirChaveManual(chave)
+        const r = await testarEco(chave)
+        expect(r.corpo.corpo.texto).toBe('tem [chave omitida] aqui')
+    })
+
+    it('chave curta (1 a 3 caracteres) não desfigura o corpo', async () => {
+        inserirChaveManual('ab')
+        const r = await testarEco('ab')
+        expect(r.status).toBe(200)
+        expect(r.corpo.corpo).toEqual({ eco: 'ab', texto: 'tem ab aqui', nota: 'sem chave' })
     })
 })

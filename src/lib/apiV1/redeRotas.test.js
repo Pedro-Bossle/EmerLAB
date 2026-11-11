@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { hashChave } from './chaves.js'
 
 const CHAVE = 'emer_rede_abc123'
@@ -233,5 +233,53 @@ describe('GET /rede/filtros', () => {
         expect(r.corpo.especialidades.map((e) => e.nome)).toEqual(['Clínica', 'Dermatologia'])
         expect(r.corpo.planos.map((p) => p.nome)).toEqual(['Básico', 'Clássico', 'Avançado', 'Ultra'])
         expect(JSON.stringify(r.corpo.planos)).not.toContain('Apenas')
+    })
+})
+
+describe('Vary e base antiga', () => {
+    const VARY = 'Origin, Authorization, X-Api-Key'
+
+    it('200 e 401 carregam o Vary completo', async () => {
+        const ok = await roteador.processarRequisicao(pedido('/rede/filtros'))
+        expect(ok.status).toBe(200)
+        expect(ok.headers.Vary).toBe(VARY)
+        const sem = await roteador.processarRequisicao(pedido('/rede/filtros', {}, { headers: { origin: ORIGEM } }))
+        expect(sem.status).toBe(401)
+        expect(sem.headers.Vary).toBe(VARY)
+    })
+
+    describe('recarga que falha', () => {
+        beforeEach(() => {
+            vi.useFakeTimers()
+            vi.setSystemTime(new Date('2026-11-10T12:00:00Z'))
+        })
+        afterEach(() => vi.useRealTimers())
+
+        const filtros = () => roteador.processarRequisicao(pedido('/rede/filtros'))
+
+        it('cache vencido + recarga falha: serve a base antiga, adia 30 s e depois tenta de novo', async () => {
+            expect((await filtros()).status).toBe(200)
+            const antes = leituras.prestadores
+            vi.setSystemTime(new Date('2026-11-10T12:06:00Z'))
+            const original = tabelas.situacoes
+            tabelas.situacoes = null
+            const r = await filtros()
+            expect(r.status).toBe(200)
+            expect(r.corpo.planos.map((p) => p.nome)).toEqual(['Básico', 'Clássico', 'Avançado', 'Ultra'])
+            const tentou = leituras.prestadores
+            expect(tentou).toBeGreaterThan(antes)
+            vi.setSystemTime(new Date('2026-11-10T12:06:20Z'))
+            expect((await filtros()).status).toBe(200)
+            expect(leituras.prestadores).toBe(tentou)
+            tabelas.situacoes = original
+            vi.setSystemTime(new Date('2026-11-10T12:06:40Z'))
+            expect((await filtros()).status).toBe(200)
+            expect(leituras.prestadores).toBeGreaterThan(tentou)
+        })
+
+        it('sem base anterior a falha continua sendo erro', async () => {
+            tabelas.situacoes = null
+            expect((await filtros()).status).toBe(500)
+        })
     })
 })

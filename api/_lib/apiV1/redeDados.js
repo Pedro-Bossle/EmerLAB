@@ -6,6 +6,7 @@
  */
 const PAGINA = 1000
 const VALIDADE_MS = 5 * 60 * 1000
+const GRACA_MS = 30 * 1000
 
 let guardado = null // { valor, expira }
 let emVoo = null
@@ -114,6 +115,14 @@ export function carregarBaseRede(admin) {
             const valor = await lerBase(admin)
             guardado = { valor, expira: Date.now() + VALIDADE_MS }
             return valor
+        } catch (e) {
+            // Banco indisponível: serve a última base boa (mesmo vencida) e adia a nova tentativa em 30 s.
+            if (guardado) {
+                console.error('[api-v1] recarga da base da rede falhou; servindo a última base:', e?.message || 'desconhecido')
+                guardado = { valor: guardado.valor, expira: Date.now() + GRACA_MS }
+                return guardado.valor
+            }
+            throw e
         } finally {
             emVoo = null
         }

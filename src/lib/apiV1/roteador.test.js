@@ -412,3 +412,21 @@ describe('Cache-Control e falhas do roteador no handler HTTP', () => {
         }
     })
 })
+
+describe('Vary', () => {
+    it('resposta de rota com Vary próprio mantém os valores sem duplicar', async () => {
+        mod.registrarRota('GET', '/rede/vary', 'rede:ler', async () => ({
+            corpo: { ok: true },
+            headers: { Vary: 'Accept-Encoding, origin' },
+        }))
+        const r = await mod.processarRequisicao(pedido({ caminho: '/rede/vary' }))
+        expect(r.headers.Vary).toBe('Accept-Encoding, origin, Authorization, X-Api-Key')
+    })
+
+    it('erro e OPTIONS também carregam Vary', async () => {
+        const e = await mod.processarRequisicao(pedido({ headers: {} }))
+        expect(e.headers.Vary).toBe('Origin, Authorization, X-Api-Key')
+        const o = await mod.processarRequisicao(pedido({ metodo: 'OPTIONS', headers: { origin: ORIGEM } }))
+        expect(o.headers.Vary).toBe('Origin, Authorization, X-Api-Key')
+    })
+})

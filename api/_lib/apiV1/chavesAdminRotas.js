@@ -167,6 +167,9 @@ registrarRota('POST', '/admin/chaves/{id}/revogar', ESCOPO, async ({ admin, usua
 registrarRota('POST', '/admin/chaves/{id}/girar', ESCOPO, async ({ admin, usuario, params }) => {
     const atual = await buscarLinha(admin, params.id)
     if (atual.revogada_em) throw new ErroApi(409, 'chave_revogada', 'Chave revogada não pode ser girada.')
+    if (estadoDaChave(atual) === 'expirada') {
+        throw new ErroApi(409, 'chave_expirada', 'Chave expirada não pode ser girada. Edite a validade antes de girar ou crie uma nova chave.')
+    }
     const tipo = tipoDosEscopos(atual.escopos) || 'rede'
     const { chave, linha } = await inserirChave(admin, usuario, {
         tipo,
@@ -221,11 +224,22 @@ function lerCaminhoDeTeste(bruto, metodo) {
     return { caminho, query }
 }
 
+const TAMANHO_MIN_CHAVE_REDACAO = 8
+const OMITIDA = '[chave omitida]'
+
+function ocultarTexto(texto, chave) {
+    if (chave.length < TAMANHO_MIN_CHAVE_REDACAO) return texto
+    return texto.split(chave).join(OMITIDA)
+}
+
+/** Percorre o valor já parseado e troca a chave digitada só dentro de textos (valores e nomes de campo). */
 function ocultarChave(valor, chave) {
-    if (valor === undefined) return undefined
-    const texto = JSON.stringify(valor)
-    if (!texto || !texto.includes(chave)) return valor
-    return JSON.parse(texto.split(chave).join('[chave omitida]'))
+    if (typeof valor === 'string') return ocultarTexto(valor, chave)
+    if (Array.isArray(valor)) return valor.map((v) => ocultarChave(v, chave))
+    if (valor && typeof valor === 'object') {
+        return Object.fromEntries(Object.entries(valor).map(([k, v]) => [ocultarTexto(k, chave), ocultarChave(v, chave)]))
+    }
+    return valor
 }
 
 registrarRota('POST', '/admin/testar', ESCOPO, async ({ body, req }) => {
@@ -258,7 +272,7 @@ registrarRota('POST', '/admin/testar', ESCOPO, async ({ body, req }) => {
     const saida = {}
     for (const [k, v] of Object.entries(r.headers || {})) {
         const nome = k.toLowerCase()
-        if (CABECALHOS_PERMITIDOS.has(nome) || nome.startsWith('x-ratelimit-')) saida[nome] = String(v).split(chave).join('[chave omitida]')
+        if (CABECALHOS_PERMITIDOS.has(nome) || nome.startsWith('x-ratelimit-')) saida[nome] = ocultarTexto(String(v), chave)
     }
     if (r.corpo !== undefined && !saida['content-type']) saida['content-type'] = 'application/json; charset=utf-8'
 
