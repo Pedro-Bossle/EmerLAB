@@ -1,4 +1,4 @@
-# Emerzap: Outlook e Teams (Microsoft Graph)
+# Emerzap: Outlookk e Teams (Microsoft Graph)
 
 Branch `feat/emerzap-msal-azure`. Tudo vem **desligado**: sem `MS_ATIVO=true` as abas Outlook/Teams seguem na prévia simulada.
 
@@ -27,13 +27,13 @@ Voltar atrás: `MS_ATIVO=false` (as abas voltam à prévia). Para revogar tudo, 
 
 ## Código
 
-| Arquivo | Papel |
-|---|---|
-| `server/microsoft.js` | OAuth, tokens, Graph, e-mail, canais, assinaturas e webhook |
-| `server/router.js` (`rotasMs`, `webhookMs`) | rotas `/api/ms/*` |
-| `server/crypto.js` (`cifrar`/`decifrar`) | cifra dos tokens |
-| `src/clienteMs.js` | hooks da conta, do Teams e do Outlook no navegador |
-| `src/components/PreviaMicrosoft.jsx`, `MolduraMicrosoft.jsx` | telas (mesmas da prévia, prop `real`) |
+| Arquivo                                                      | Papel                                                       |
+| ------------------------------------------------------------ | ----------------------------------------------------------- |
+| `server/microsoft.js`                                        | OAuth, tokens, Graph, e-mail, canais, assinaturas e webhook |
+| `server/router.js` (`rotasMs`, `webhookMs`)                  | rotas `/api/ms/*`                                           |
+| `server/crypto.js` (`cifrar`/`decifrar`)                     | cifra dos tokens                                            |
+| `src/clienteMs.js`                                           | hooks da conta, do Teams e do Outlook no navegador          |
+| `src/components/PreviaMicrosoft.jsx`, `MolduraMicrosoft.jsx` | telas (mesmas da prévia, prop `real`)                       |
 
 ## Limitações conhecidas (versão atual)
 
