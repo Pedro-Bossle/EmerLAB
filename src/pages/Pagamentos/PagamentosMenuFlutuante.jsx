@@ -30,12 +30,17 @@ export default function PagamentosMenuFlutuante({ ancora, onFechar, alinhar = 'e
         }
         document.addEventListener('keydown', aoTecla)
         document.addEventListener('mousedown', aoClicar)
-        window.addEventListener('scroll', onFechar, true)
+        // Rolagem dentro do próprio menu (ex.: texto longo rolando num input) não fecha o menu.
+        const aoRolar = (e) => {
+            if (ref.current && e.target instanceof Node && ref.current.contains(e.target)) return
+            onFechar()
+        }
+        window.addEventListener('scroll', aoRolar, true)
         window.addEventListener('resize', onFechar)
         return () => {
             document.removeEventListener('keydown', aoTecla)
             document.removeEventListener('mousedown', aoClicar)
-            window.removeEventListener('scroll', onFechar, true)
+            window.removeEventListener('scroll', aoRolar, true)
             window.removeEventListener('resize', onFechar)
         }
     }, [ancora, onFechar])
